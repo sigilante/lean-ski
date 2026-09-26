@@ -532,3 +532,98 @@ theorem leafD_quote (ap : Quotation → Stack → Outcome) (q : Quotation) (S : 
     (hs : DecStack s S) : Contract (phi (.quote q) ⬝ s) (cw ap (.quote q) S) :=
   contract_val (wQuote_run _ _)
     (DecStack.of_steps (quoteC_push _ _) (dec_push (dec_quot (encQuot_dec q)) hs))
+
+-- ---------------------------------------------------------------------------
+-- ifz   ( n [z] [s] — … )   runs `z` on the rest if `n = 0`, else `s` on `n-1`
+-- ---------------------------------------------------------------------------
+
+/-- A quotation where a number is wanted takes the second continuation. -/
+theorem item_quot_err {x e0 e1 t : Term} {q : Quotation} (hx : DecItem x (.quot q))
+    (h : Steps t (x ⬝ e0 ⬝ e1)) (he : ∀ f, Steps (e1 ⬝ f) Scott.RErr) : Contract t .err := by
+  cases hx e0 e1 with
+  | intro f hf => exact contract_err (h.trans (hf.1.trans (he f)))
+
+/-- A number takes the first continuation, with its numeral. -/
+theorem item_num {x e0 e1 t : Term} {n : Nat} (hx : DecItem x (.num n))
+    (h : Steps t (x ⬝ e0 ⬝ e1)) : ∃ f, Steps t (e0 ⬝ f) ∧ DecNat f n := by
+  cases hx e0 e1 with
+  | intro f hf => exact ⟨f, h.trans hf.1, hf.2⟩
+
+theorem nat_zero {x n0 n1 t : Term} (hx : DecNat x 0) (h : Steps t (x ⬝ n0 ⬝ n1)) :
+    Steps t n0 :=
+  h.trans (hx n0 n1)
+
+theorem nat_succ {x n0 n1 t : Term} {m : Nat} (hx : DecNat x (m + 1))
+    (h : Steps t (x ⬝ n0 ⬝ n1)) : ∃ f, Steps t (n1 ⬝ f) ∧ DecNat f m := by
+  cases hx n0 n1 with
+  | intro f hf => exact ⟨f, h.trans hf.1, hf.2⟩
+
+theorem wIfz_stages (apT s : Term) : ∃ c0 c1,
+    Steps (Scott.wIfz ⬝ apT ⬝ s) (s ⬝ c0 ⬝ c1) ∧ Steps c0 Scott.RErr ∧
+    ∀ f g, ∃ e0 e1, Steps (c1 ⬝ f ⬝ g) (f ⬝ e0 ⬝ e1) ∧ (∀ n, Steps (e0 ⬝ n) Scott.RErr) ∧
+    ∀ x, ∃ d0 d1, Steps (e1 ⬝ x) (g ⬝ d0 ⬝ d1) ∧ Steps d0 Scott.RErr ∧
+    ∀ f2 g2, ∃ e0 e1, Steps (d1 ⬝ f2 ⬝ g2) (f2 ⬝ e0 ⬝ e1) ∧ (∀ n, Steps (e0 ⬝ n) Scott.RErr) ∧
+    ∀ y, ∃ d0 d1, Steps (e1 ⬝ y) (g2 ⬝ d0 ⬝ d1) ∧ Steps d0 Scott.RErr ∧
+    ∀ f3 g3, ∃ e0 e1, Steps (d1 ⬝ f3 ⬝ g3) (f3 ⬝ e0 ⬝ e1) ∧ (∀ q, Steps (e1 ⬝ q) Scott.RErr) ∧
+    ∀ n, ∃ n0 n1, Steps (e0 ⬝ n) (n ⬝ n0 ⬝ n1) ∧ Steps n0 (apT ⬝ y ⬝ g3) ∧
+    ∀ m, ∃ p, Steps (n1 ⬝ m) (apT ⬝ x ⬝ p) ∧
+      Steps p (Scott.Push ⬝ (Scott.Num ⬝ m) ⬝ (K ⬝ g3 ⬝ m)) :=
+  ⟨_, _, iter_sound (k := 5) rfl, iter_sound (k := 1) rfl, fun _ _ =>
+    ⟨_, _, iter_sound (k := 14) rfl, fun _ => iter_sound (k := 2) rfl, fun _ =>
+    ⟨_, _, iter_sound (k := 14) rfl, iter_sound (k := 1) rfl, fun _ _ =>
+    ⟨_, _, iter_sound (k := 16) rfl, fun _ => iter_sound (k := 2) rfl, fun _ =>
+    ⟨_, _, iter_sound (k := 18) rfl, iter_sound (k := 1) rfl, fun _ _ =>
+    ⟨_, _, iter_sound (k := 41) rfl, fun _ => iter_sound (k := 6) rfl, fun _ =>
+    ⟨_, _, iter_sound (k := 37) rfl, iter_sound (k := 5) rfl, fun _ =>
+    ⟨_, iter_sound (k := 34) rfl, iter_sound (k := 7) rfl⟩⟩⟩⟩⟩⟩⟩⟩
+
+theorem leafD_ifz (apT : Term) (ap : Quotation → Stack → Outcome) (hap : ApSound apT ap)
+    (S : Stack) {s : Term} (hs : DecStack s S) :
+    Contract (phi .ifz ⬝ apT ⬝ s) (cw ap .ifz S) := by
+  cases wIfz_stages apT s with | intro c0 h => cases h with | intro c1 h =>
+  cases S with
+  | nil => exact stack_err hs h.1 h.2.1
+  | cons a t =>
+  cases stack_push hs h.1 with | intro f h1 => cases h1 with | intro g h1 =>
+  cases h.2.2 f g with | intro e0 h2 => cases h2 with | intro e1 h2 =>
+  cases a with
+  | num k => exact item_num_err h1.2.1 (h1.1.trans h2.1) h2.2.1
+  | quot sc =>
+  cases item_quot h1.2.1 (h1.1.trans h2.1) with | intro x h3 =>
+  cases h2.2.2 x with | intro d0 h4 => cases h4 with | intro d1 h4 =>
+  cases t with
+  | nil => exact stack_err h1.2.2 (h3.1.trans h4.1) h4.2.1
+  | cons b u =>
+  cases stack_push h1.2.2 (h3.1.trans h4.1) with | intro f2 h5 => cases h5 with | intro g2 h5 =>
+  cases h4.2.2 f2 g2 with | intro e0' h6 => cases h6 with | intro e1' h6 =>
+  cases b with
+  | num k => exact item_num_err h5.2.1 (h5.1.trans h6.1) h6.2.1
+  | quot z =>
+  cases item_quot h5.2.1 (h5.1.trans h6.1) with | intro y h7 =>
+  cases h6.2.2 y with | intro d0' h8 => cases h8 with | intro d1' h8 =>
+  cases u with
+  | nil => exact stack_err h5.2.2 (h7.1.trans h8.1) h8.2.1
+  | cons c v =>
+  cases stack_push h5.2.2 (h7.1.trans h8.1) with | intro f3 h9 => cases h9 with | intro g3 h9 =>
+  cases h8.2.2 f3 g3 with | intro E0 h10 => cases h10 with | intro E1 h10 =>
+  cases c with
+  | quot q => exact item_quot_err h9.2.1 (h9.1.trans h10.1) h10.2.1
+  | num k =>
+  cases item_num h9.2.1 (h9.1.trans h10.1) with | intro fn h11 =>
+  cases h10.2.2 fn with | intro N0 h12 => cases h12 with | intro N1 h12 =>
+  cases k with
+  | zero =>
+    exact Contract.of_steps ((nat_zero h11.2 (h11.1.trans h12.1)).trans h12.2.1)
+      (hap z v y g3 h7.2 h9.2.2)
+  | succ m =>
+    cases nat_succ h11.2 (h11.1.trans h12.1) with | intro fm h13 =>
+    cases h12.2.2 fm with | intro p h14 =>
+    exact Contract.of_steps (h13.1.trans h14.1)
+      (hap sc (.num m :: v) x p h3.2
+        (DecStack.of_steps h14.2
+          (dec_push (dec_num h13.2) (DecStack.of_steps (steps_thunk1 _ _) h9.2.2))))
+
+theorem leaf_ifz (apT : Term) (ap : Quotation → Stack → Outcome) (hap : ApSound apT ap)
+    (S : Stack) :
+    ∃ t, Eval (phi .ifz ⬝ apT ⬝ encStack S) t ∧ Decodes t (cw ap .ifz S) :=
+  leafD_ifz apT ap hap S (encStack_dec S)
