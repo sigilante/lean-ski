@@ -17,6 +17,7 @@ import Ski.SourceJoy
 import Ski.SourceRun
 import Ski.Adequacy
 import Ski.SourceTables
+import Ski.Coverage
 import Ski.Scott
 import Ski.Words
 import Ski.Decode
@@ -226,6 +227,14 @@ open Ski.Audit
   ctor_close_beta Tr.unroll simulation simulation_steps lookup_some_mem fixed_of_check
   kernel_fixed corpus_fixed loop_fixed sum_fixed prog_wPop prog_Push prog_RVal genv_kernel
   wPop_source wPop_push
+
+-- The front end's coverage of level 0: files in both lexicons agree with skijack term for
+-- term and the simulation applies to them; programs skijack refuses are refused
+#audit_clean coverage_agrees coverage_unicode_agrees coverage_fixed sec1Nat_agrees
+  sec1Nat_unicode_agrees sec1Nat_fixed kernelEvents_agrees kernelEvents_unicode_agrees
+  kernelEvents_fixed refuses_bare_number refuses_qualified_name refuses_unresolved_name
+  refuses_mutual_recursion refuses_defined_twice refuses_one_item_cell refuses_incomplete_case
+  refuses_unicode_in_ascii refuses_ascii_in_unicode
 
 -- The source semantics, run: normal-order proof search, the words' meaning from their
 -- source, every Run derivation a source run, and adequacy for the four compiled sources

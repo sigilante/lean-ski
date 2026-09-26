@@ -25,12 +25,12 @@ if grep -rn 'panic!' Ski/ Main.lean Ski.lean 2>/dev/null | grep -v '`' | grep -q
 echo "== gate 3: generated modules match the generator =="
 if [ -x /Users/neal/SKIlark/.venv/bin/python ] || command -v python3 >/dev/null; then
   tmp=$(mktemp -d)
-  /bin/cp Ski/Scott.lean Ski/Corpus.lean Ski/Table.lean Ski/Source.lean "$tmp"/
+  /bin/cp Ski/Scott.lean Ski/Corpus.lean Ski/Table.lean Ski/Source.lean Ski/Coverage.lean "$tmp"/
   if ( [ -x /Users/neal/SKIlark/.venv/bin/python ] && /Users/neal/SKIlark/.venv/bin/python scripts/emit.py >/dev/null 2>&1 ); then
-    if ! cmp -s Ski/Scott.lean "$tmp/Scott.lean" || ! cmp -s Ski/Corpus.lean "$tmp/Corpus.lean" || ! cmp -s Ski/Table.lean "$tmp/Table.lean" || ! cmp -s Ski/Source.lean "$tmp/Source.lean"; then
-      bad "Ski/Scott.lean, Ski/Corpus.lean, Ski/Table.lean or Ski/Source.lean differs from scripts/emit.py's output"
+    if ! cmp -s Ski/Scott.lean "$tmp/Scott.lean" || ! cmp -s Ski/Corpus.lean "$tmp/Corpus.lean" || ! cmp -s Ski/Table.lean "$tmp/Table.lean" || ! cmp -s Ski/Source.lean "$tmp/Source.lean" || ! cmp -s Ski/Coverage.lean "$tmp/Coverage.lean"; then
+      bad "Ski/Scott.lean, Ski/Corpus.lean, Ski/Table.lean, Ski/Source.lean or Ski/Coverage.lean differs from scripts/emit.py's output"
     else
-      note "ok — Scott.lean, Corpus.lean, Table.lean and Source.lean are what emit.py emits"
+      note "ok — Scott.lean, Corpus.lean, Table.lean, Source.lean and Coverage.lean are what emit.py emits"
     fi
   else
     note "skipped — skijack not available here; generated modules taken as committed"

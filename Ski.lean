@@ -24,6 +24,7 @@ import Ski.SourceJoy
 import Ski.SourceRun
 import Ski.Adequacy
 import Ski.SourceTables
+import Ski.Coverage
 import Ski.Corpus
 import Ski.Table
 import Ski.Examples

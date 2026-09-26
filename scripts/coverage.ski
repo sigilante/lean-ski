@@ -1,0 +1,56 @@
+-- Level-0 coverage: each construct the Lean front end reads.
+nat === Zero | Suc nat
+answer === Yes | No
+plusSig : nat -> nat -> nat
+
+-- the ISA, Tier 1 and the prelude
+keepFirst x y = K x y
+swapArgs f x y = C f x y
+compose2 f g x = B f g x
+dupArg f x = W f x
+loopY g = Y g
+skk = S K K
+firstOf p = hd p
+secondOf p = tl p
+mkPair u v = pair u v
+listOne x = cons x nil
+numTwo = suc (suc zero)
+
+-- lambdas: a chain, a capture, one under another
+konst = \x.\y.x
+flipper f = \x.\y.f y x
+twice f = \x.f (f x)
+
+-- cells of two and three items, and a nested one
+cellTwo u v = [u v]
+cellThree u v t = [u v t]
+cellNested u v t = [[u v] t]
+
+-- axis picks
+pickOne x = 1@x
+pickTwo x = 2@x
+pickThree x = 3@x
+pickSix x = 6@x
+pickThirteen x = 13@x
+pickCell u v t = 7@[u v t]
+
+-- a wide type, and a case over all of it
+digit === D0 | D1 | D2 | D3 | D4 | D5 | D6 | D7 | D8 | D9
+isSmall d = d |> { D0 Yes; D1 Yes; D2 Yes; D3 No; D4 No; D5 No; D6 No; D7 No; D8 No; D9 No }
+
+-- a case, and a lambda inside a branch
+isZero n = n |> { Zero Yes; Suc m No }
+bump f n = n |> { Zero Zero; Suc m (\z.Suc (f z)) m }
+
+-- a core with a parameter, siblings and recursion
+arith base := {
+  inc n = Suc n
+  plus m n = n |> { Zero m; Suc k inc (plus m k) }
+  fromBase n = plus base n
+}
+
+-- an interpreter core's name is its loop
+runner := {
+  loop f n = n |> { Zero f; Suc k loop f k }
+}
+useRunner = runner I Zero

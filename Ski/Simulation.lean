@@ -499,8 +499,9 @@ end
 -- The program a source file declares, and its compiled environment
 -- ---------------------------------------------------------------------------
 
-/-- A file's globals: each type's constructors, then its lowered
-    equations. -/
+/-- A file's globals: each type's constructors, then the equations the
+    compiler compiles (`fileFEqns`: the prelude it keeps, its equations,
+    a core's under `core.eq`). -/
 def progDefs (src : List Nat) : List (Nm × GDef) :=
   match parseFile src with
   | none => []
@@ -508,13 +509,14 @@ def progDefs (src : List Nat) : List (Nm × GDef) :=
     (types ds).flatMap (fun d =>
       List.zipWith (fun j p => (p.1, GDef.ctor p.2 j d.ctors.length)) (List.range d.ctors.length)
         d.ctors) ++
-    (eqns ds).filterMap (fun e => (dEqn (types ds) e).map fun fe => (e.name, GDef.eqn fe))
+    ((fileFEqns ds).getD []).map (fun p => (p.1, GDef.eqn p.2))
 
 /-- The program a file declares. -/
 def progOf (src : List Nat) : Nm → Option GDef := fun n => (progDefs src).lookup n
 
-/-- The file's globals, as the front end compiles them. -/
-def genvOf (src : List Nat) : Nm → Term := fun n => (termOf (compileFile src) n).getD K
+/-- The file's globals, as the front end compiles and resolves them: the
+    ISA, then the program, then Tier 1. -/
+def genvOf (src : List Nat) : Nm → Term := fun n => (resolveIn (compiledEnv false src) n).getD K
 
 /-- Each global of `defs` compiled as the compiler compiles it. -/
 def fixedCheck (defs : List (Nm × GDef)) (genv : Nm → Term) : Bool :=
@@ -562,17 +564,22 @@ theorem fixed_of_check {defs : List (Nm × GDef)} {genv : Nm → Term}
 -- The four sources `skijack` compiled
 -- ---------------------------------------------------------------------------
 
+set_option maxRecDepth 100000 in
 /-- **The front end's compiled kernel is what the compiler gives for the
-    kernel's program**, so the simulation applies to it. -/
+    kernel's program**, so the simulation applies to it.  (The recursion
+    limit is the elaborator's, raised for the kernel's evaluation.) -/
 theorem kernel_fixed : Fixed (progOf kernelText) (genvOf kernelText) :=
   fixed_of_check (by decide +kernel)
 
+set_option maxRecDepth 100000 in
 theorem corpus_fixed : Fixed (progOf corpusText) (genvOf corpusText) :=
   fixed_of_check (by decide +kernel)
 
+set_option maxRecDepth 100000 in
 theorem loop_fixed : Fixed (progOf loopText) (genvOf loopText) :=
   fixed_of_check (by decide +kernel)
 
+set_option maxRecDepth 100000 in
 theorem sum_fixed : Fixed (progOf sumText) (genvOf sumText) :=
   fixed_of_check (by decide +kernel)
 

@@ -338,17 +338,58 @@ program whose compiled globals are what the compiler gives
 (`Fixed`). `kernel_fixed`, `corpus_fixed`, `loop_fixed` and `sum_fixed`
 check that for the four compiled sources. `wPop_push` applies it: the
 source run of `wPop (Push x y)` gives `Scott.wPop ⬝ (Scott.Push ⬝ x ⬝ y)
-→w* Scott.RVal ⬝ y`. Not proved: the converse (every target run comes
-from a source run), and `cw` derived from the source equations, which
-this theorem now makes a matter of source-level reasoning.
+→w* Scott.RVal ⬝ y`.
+
+**`cw` from the source — built** (`Ski/SourceJoy.lean`). Each kernel
+word's equation, as the front end reads it (`kernelDefs`, checked against
+all four source texts), run in the source semantics on a stack's encoding,
+reaches the encoding of `cw`'s outcome: `plain_source` for the nine words
+that run no quotation, `cwR_source` for all twelve given an eliminator
+that meets a relation at the source. The source has no thunks, so the
+results are exact encodings. `Ski/SourceEval.lean` supplies normal-order
+proof search (`seval_sound`), run on closed terms with placeholders and
+filled (`SSteps.substC`), because the elaborator caches only closed terms.
+
+**The converse, for programs — built** (`Ski/SourceRun.lean`,
+`Ski/Adequacy.lean`). `run_source`: every `Run` derivation is a run of
+the source program, through `applyU`'s case over the table's
+constructors. With the simulation and `Table.program_exact`, the three
+semantics agree for every valid table whose source has its structure
+(`JoyProg`) and whose compiled globals are its terms (`GenvTable`), and
+every valid program and stack: the compiled program normalizes to a term
+decoding to a valid outcome iff the source program reaches its encoding
+iff `Run` derives it (`exact_iff`), and it diverges iff the source reaches
+no outcome (`diverges_iff_source`). `Ski/SourceTables.lean` instantiates
+this for the four compiled sources; the source of `3 sumto` reaches
+`[6]` and nothing else, and that of `[dup i] dup i` reaches nothing. Not
+proved: the converse for arbitrary source programs, outside Joy's
+encodings. Bracket abstraction's η rule makes some source β-steps free in
+SKI (`λx. f x` compiles to `f`), so head-step counting alone does not
+bound source runs, and a general proof needs a measure on source terms
+that η-steps decrease.
+
+**The front end's coverage — level 0** (`Ski/Front.lean`,
+`Ski/Coverage.lean`). The front end reads SKIjack's level 0 in both
+lexicons: types, signatures, equations, definitions, cores (with
+parameters, sibling resolution, `core.eq` names and an interpreter core's
+`loop`), λ, cells, axis picks and case, with the ISA, Tier 1 and the
+prelude, and refuses a program with an unresolved name, mutual recursion
+or a name defined twice, as `skijack` does. `Ski/Coverage.lean`
+(generated) checks, in the kernel, that it compiles a coverage file and
+two corpus files (`sec1-nat`, `kernel-events`), each in
+both lexicons, to every term `skijack` emits, that the simulation applies
+to each (`*_fixed`), and that nine programs `skijack` refuses are refused
+(`refuses_*`). Not covered: macros, level 1 (quotation, runs, scry,
+namespaces, fuel), `skijack`'s generated interpreter forms, and its type
+discipline (Stage B), which only refuses.
 
 **What is still per table and per program.** Every theorem is stated for
 every valid table and every program. Three facts about each generated
 table or program are still checked one by one:
 - `skijack`'s terms equal the Lean compilation of the source, by the
   kernel (`front_agrees`, `table_*`, `c*_eq`). The Lean compiler is
-  checked against `skijack` on four compilations, and proved to simulate
-  the source's semantics (below).
+  checked against `skijack` on four compilations and the coverage files,
+  and proved to simulate the source's semantics (above).
 - the table is valid (`table_valid`).
 - for an end-to-end example, the program's `Run` derivation (`cs_run`
   and the hand-written ones in `Ski/Examples.lean`).
