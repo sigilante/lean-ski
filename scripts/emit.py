@@ -321,16 +321,16 @@ def by_index(n, arms, fallback):
     return f"fun k hk => match k, hk with{cases}\n      | _ + {n}, h => {lt_absurd(n)}"
 
 
-def emit_table(ns, doc, X, quots, qidx, names, programs):
+def emit_table(ns, doc, X, quots, qidx, names, programs, rows=None):
     T = X.terms
     n = len(quots)
     F = table_facts(X, quots)
     L = [f"namespace {ns}", "", f"/-! {doc} -/", ""]
     for k in range(n):
         L.append(f"def Q{k + 1} : Term := {lean(T[f'Q{k + 1}'])}")
-    for ctor in ["QCons", "QUnit", "QThen"]:
-        if names[ctor] == ctor:
-            L.append(f"def {ctor} : Term := {lean(T[ctor])}")
+    for field in ["QCons", "QUnit", "QThen", "wQcons", "wCat", "wUnit", "applyU"]:
+        if names[field] == field:
+            L.append(f"def {field} : Term := {lean(T[field])}")
     for k in range(n):
         L.append(f"def b{k + 1} : Term := {lean(T[f'b{k + 1}'])}")
     if n:
@@ -386,6 +386,12 @@ def emit_table(ns, doc, X, quots, qidx, names, programs):
               f"theorem c{pname}_compiles (apT : Term) :",
               f"    Compiles apT {lean_words(ws, qidx)} (c{pname} ⬝ apT) :=",
               f"  {prf}", ""]
+    # the corpus rows are these programs, run with this table's applyU on the empty stack
+    for pname in (programs if rows else []):
+        assert T["u" + pname] == App(App(T["c" + pname], T["applyU"]), T["Empty"])
+        L += [f"/-- The corpus row `{rows}_u{pname}` is `c{pname}` run with this table's `applyU`",
+              "    on the empty stack. -/",
+              f"theorem {rows}_u{pname}_eq : {rows}_u{pname} = c{pname} ⬝ Kit.applyU ⬝ encStack [] := rfl", ""]
     L += [f"end {ns}", ""]
     return L
 
@@ -402,9 +408,10 @@ L = ['import Ski.Corpus', 'import Ski.Converse', 'open Term', '',
      'with the laws of `KitElim`, `KitWords` and `KitApply` checked by the',
      'kernel re-running the reference reducer\'s contractions (`iter_sound',
      'rfl`), and, for each program of the compilation, the fact that its',
-     'compiled term is a compiled form of its words.  The instances are',
-     'scoped: `open',
-     'NoQuot` or `open CorpusTable` selects one.', '-/', '']
+     'compiled term is a compiled form of its words; for the corpus table,',
+     'the corpus rows are those programs run on the empty stack.  The',
+     'instances are scoped: `open NoQuot`, `open CorpusTable` or `open',
+     'LoopTable` selects one.', '-/', '']
 L += emit_table("NoQuot",
                 "The kernel of `Ski/Scott.lean`: a table with no static quotations.",
                 e, [], tqidx,
@@ -416,6 +423,14 @@ L += emit_table("CorpusTable",
                 c, cquots, cqidx,
                 {"QCons": "QCons", "QUnit": "QUnit", "QThen": "QThen", "wQcons": "corpus_wQcons",
                  "wCat": "corpus_wCat", "wUnit": "corpus_wUnit", "applyU": "corpus_applyU"},
-                progs)
+                progs, rows="compiled")
+loop_progs = {"loop": "[dup i] dup i"}
+lx = skijack.compile(joy.compiled(loop_progs))
+lquots, lqidx = quotation_table(loop_progs)
+L += emit_table("LoopTable",
+                "The table of `[dup i] dup i`: one static quotation, " + ", ".join(f"`[{joy.words(q)}]`" for q in lquots) + ", whose body runs a quotation.",
+                lx, lquots, lqidx,
+                {k: k for k in ["QCons", "QUnit", "QThen", "wQcons", "wCat", "wUnit", "applyU"]},
+                loop_progs)
 (OUT / "Table.lean").write_text("\n".join(L), encoding="utf-8")
 print("Table.lean:", (OUT / "Table.lean").stat().st_size, "bytes")

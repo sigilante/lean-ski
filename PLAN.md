@@ -96,12 +96,19 @@ on the contraction count, and `composition_diverges` the biconditional: a
 compiled program diverges exactly when `Run` derives no outcome.
 
 Both directions bite. `uq_six` and `ur_over` run `3 [dup +] i` and
-`1 2 over` from skijack's terms to `[6]` and `[1, 2, 1]`, and
-`omega_diverges` is a compiled program over the corpus table, `[Ω] dup i`
-with `Ω` built from the static `[dup]`, that provably never reaches a
-weak head normal form. Without static quotations nothing diverges
-(`program_converges`): a quotation built at run time carries data and
-`i`, and runs on no more than it was given.
+`1 2 over` from skijack's terms to `[6]` and `[1, 2, 1]`; the corpus rows
+are those terms (`compiled_uq_eq`, `compiled_ur_eq`). `cloop_diverges`
+is the other side: `[dup i] dup i`, as skijack compiles it over its own
+table (`LoopTable`), provably never reaches a weak head normal form,
+because the static body `[dup i]` runs a quotation. Without static
+quotations nothing diverges (`program_converges`): a quotation built at
+run time carries data and `i`, and runs on no more than it was given.
+`omega_diverges` is a weaker witness over the corpus table: its
+quotation is written in by hand, not emitted by the compiler.
+
+`composition`, the theorem over a total model of quotations, is
+discharged here only by the eliminator that fails every quotation; with
+a table's real `applyU` the forward theorem is `composition_apply`.
 
 Every theorem above is in the audit manifest with footprint
 `{propext, Quot.sound}` or narrower.
@@ -194,12 +201,24 @@ constructor's fields.
   direction, recovering a generic fact from closed probes, since a
   closed continuation can reduce its arguments.
   (b) *Probes up to weak reduction.* Replace `Steps` by `WSteps` in each
-  probe clause. Closure becomes transitivity; functionality comes from
-  `church_rosser`, since `K` and `S ⬝ f ⬝ g` have no common weak reduct;
-  and `eval_back` recovers the `Eval` a `Contract` ends in. The cost is
-  that the leaf, composition and `apply` proofs chain `Steps` today and
-  would chain `WSteps`, and the converse, which counts head steps, needs
-  `wsteps_split` at every probe.
+  probe clause. Closure under backward weak reduction becomes
+  transitivity, and `eval_back` recovers the `Eval` a `Contract` ends in.
+  Two steps this route needs beyond G1, found in review:
+  *Functionality over joinable terms.* Two probes of one term now reach
+  `S ⬝ f` and `S ⬝ f'` with `f` and `f'` only joinable, so the
+  functionality proofs must induct over pairs of terms with a common weak
+  reduct, not over one term. It works because every probe end (`K`, `S`,
+  `K ⬝ f`, `S ⬝ f`, `S ⬝ f ⬝ g`) is a non-redex whose weak reducts keep its
+  head and arity, so `church_rosser` separates distinct ends and joins
+  the fields of equal ones. Closure under *forward* weak reduction fails
+  for arbitrary continuations and is not needed.
+  *The converse over weak predecessors.* `wsteps_split` reaches only an
+  internal-step predecessor of a call `apT ⬝ x ⬝ th`, whose eliminator
+  weakly reduces to the self-reference rather than equalling it, so the
+  counted claims must generalize from `applyF` to its weak predecessors
+  and transport `applyF_stages` along them.
+  The remaining cost is that the leaf, composition and `apply` proofs
+  chain `Steps` today and would chain `WSteps`.
   Route (b) is recommended: it uses only what G1 built, and G4 states its
   laws up to weak reduction anyway.
 - **G2. λ-terms and abstraction.** A Lean syntax of λ-terms over `S`,

@@ -18,6 +18,15 @@ word the first word's result, a thunk, and the induction goes through
 with no further reasoning about terms.  `composition_agree` adds that no
 other outcome is derivable: reduction is deterministic and decoding is a
 function.
+
+## Scope
+
+`composition` assumes `ApSound apT ap`: the eliminator realizes a *total*
+model `ap`.  A table's real `applyU` realizes no total model once some
+quotation loops, and in this repository the hypothesis is discharged
+only by `apErr`, which fails every quotation.  For programs run with the
+real `applyU`, the theorem to use is `composition_apply`
+(`Ski/Apply.lean`), over the relational semantics `Run`.
 -/
 
 variable [Kit] [KitElim] [KitWords]

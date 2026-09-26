@@ -233,6 +233,21 @@ theorem dec_rval {f : Term} {s : Stack} (h : DecStack f s) : Decodes (Scott.RVal
 
 theorem dec_rerr : Decodes Scott.RErr .err := fun k0 k1 k2 => Scott.RErr_elim k0 k1 k2
 
+/-- `RTime`, the fuelled `apply`'s timeout, decodes to no outcome: probed at
+    `S`, `K`, `I` it ends in `I`, where a value ends in `S ⬝ f` and an error
+    in `K`. -/
+theorem rtime_decodes_nothing (o : Outcome) : ¬ Decodes Scott.RTime o := by
+  intro h
+  cases o with
+  | val s =>
+    cases h S K I with
+    | intro f hf =>
+      have e := steps_whnf_det hf.1 (.S1 f) (Scott.RTime_elim S K I) .I
+      cases e
+  | err =>
+    have e := steps_whnf_det (h S K I) .K (Scott.RTime_elim S K I) .I
+    cases e
+
 -- ---------------------------------------------------------------------------
 -- Encoded values decode to themselves
 -- ---------------------------------------------------------------------------

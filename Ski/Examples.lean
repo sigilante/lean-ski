@@ -13,8 +13,15 @@ its words; `composition_apply` does the rest.
 
 `3 [dup +] i` and `1 2 over` run static quotations: `apply` reaches the
 table's constructor for `[dup +]` or `[dup]` and runs its compiled body.
-Static bodies are where code enters, and with it divergence: `omega_diverges`
-is a program over the corpus table whose compiled term provably diverges.
+
+Static bodies are where code enters, and with it divergence.
+`LoopTable.cloop_diverges` is the witness: `[dup i] dup i`, as `skijack`
+compiles it, never reaches a weak head normal form, because its static
+quotation's body runs a quotation.  `CorpusTable.omega_diverges` is a
+second, weaker witness: its quotation `Ω` is written in by hand as a
+runtime value, not emitted by the compiler, and no Joy program over the
+corpus table builds it (`cat` produces `then` only as the tail of a
+`cons`; an informal argument, not proved here).
 -/
 
 namespace NoQuot
@@ -62,7 +69,8 @@ theorem ur_over : Contract (cr ⬝ Kit.applyU ⬝ encStack []) (.val [.num 1, .n
     rfl (cr_compiles _) (encStack_dec [] rfl)
 
 /-- A quotation that runs itself: push the static `[dup]`, run it, then run
-    the copy of `Ω` it made.  `[Ω] dup i` loops. -/
+    the copy of `Ω` it made.  `[Ω] dup i` loops.  `Ω` is a runtime value
+    written in by hand; the compiler emits only static quotations. -/
 def Ω : Quotation := .cons (.quot (.stat 1)) (.then (.then (.unit (.num 0))))
 
 theorem stat1_run {o : Outcome} (h : Run (.quot (.stat 1)) [.quot Ω] o) :
@@ -134,10 +142,80 @@ theorem omega_no_run (o : Outcome) : ¬ Run (.prog [.quote Ω, .dup, .i]) [] o :
             cases hw3 with
             | i_run hr => exact (omega_loop hr).1 rfl rfl
 
-/-- **A compiled program that diverges.**  `[Ω] dup i` over the corpus
-    table: `Run` derives nothing, so by `composition_diverges` the compiled
-    term never reaches a weak head normal form. -/
+/-- `N` of `[Ω] dup i` over the corpus table diverges: `Run` derives
+    nothing, so by `composition_diverges` the term never reaches a weak head
+    normal form.  The program is not `skijack` output (see
+    `LoopTable.cloop_diverges` for one that is). -/
 theorem omega_diverges : Diverges (N Kit.applyU [.quote Ω, .dup, .i] ⬝ encStack []) :=
   (composition_diverges rfl (compiles_N _ _) (encStack_dec [] rfl)).2 omega_no_run
 
 end CorpusTable
+
+namespace LoopTable
+
+/-- No derivation passes through the static `[dup i]` on `[[dup i]]`, nor
+    through the states its body visits on the way back to it. -/
+theorem loop_run {j : Job} {S : Stack} {o : Outcome} (h : Run j S o) :
+    (j = .quot (.stat 0) → S = [.quot (.stat 0)] → False) ∧
+    (j = .prog [.dup, .i] → S = [.quot (.stat 0)] → False) ∧
+    (j = .prog [.i] → S = [.quot (.stat 0), .quot (.stat 0)] → False) ∧
+    (j = .word .i → S = [.quot (.stat 0), .quot (.stat 0)] → False) := by
+  induction h with
+  | stat _ _ ih =>
+    refine And.intro (fun e hS => ?_) (And.intro (fun e _ => by cases e)
+      (And.intro (fun e _ => by cases e) (fun e _ => by cases e)))
+    cases e
+    subst hS
+    exact ih.2.1 rfl rfl
+  | seq_val hw _ ihw ihp =>
+    refine And.intro (fun e _ => by cases e) (And.intro (fun e hS => ?_)
+      (And.intro (fun e hS => ?_) (fun e _ => by cases e)))
+    · cases e
+      subst hS
+      cases hw with
+      | plain _ => exact ihp.2.2.1 rfl rfl
+    · cases e
+      subst hS
+      exact ihw.2.2.2 rfl rfl
+  | seq_err hw ihw =>
+    refine And.intro (fun e _ => by cases e) (And.intro (fun e hS => ?_)
+      (And.intro (fun e hS => ?_) (fun e _ => by cases e)))
+    · cases e
+      subst hS
+      cases hw
+    · cases e
+      subst hS
+      exact ihw.2.2.2 rfl rfl
+  | i_run _ ih =>
+    refine And.intro (fun e _ => by cases e) (And.intro (fun e _ => by cases e)
+      (And.intro (fun e _ => by cases e) (fun _ hS => ?_)))
+    cases hS
+    exact ih.1 rfl rfl
+  | i_bad hb =>
+    exact And.intro (fun e _ => by cases e) (And.intro (fun e _ => by cases e)
+      (And.intro (fun e _ => by cases e) (fun _ hS => hb _ _ hS)))
+  | plain hho =>
+    refine And.intro (fun e _ => by cases e) (And.intro (fun e _ => by cases e)
+      (And.intro (fun e _ => by cases e) (fun e _ => ?_)))
+    cases e
+    cases hho
+  | _ =>
+    exact And.intro (fun e _ => by cases e) (And.intro (fun e _ => by cases e)
+      (And.intro (fun e _ => by cases e) (fun e _ => by cases e)))
+
+theorem loop_no_run (o : Outcome) : ¬ Run (.prog [.quote (.stat 0), .dup, .i]) [] o := by
+  intro h
+  cases h with
+  | seq_err hw => cases hw
+  | seq_val hw hp =>
+    cases hw with
+    | plain _ => exact (loop_run hp).2.1 rfl rfl
+
+/-- **A compiled program that diverges.**  `[dup i] dup i`, as `skijack`
+    compiles it (`cloop`), run with its table's compiled `applyU` on the
+    empty stack: `Run` derives nothing, so by `composition_diverges` the
+    term never reaches a weak head normal form. -/
+theorem cloop_diverges : Diverges (cloop ⬝ Kit.applyU ⬝ encStack []) :=
+  (composition_diverges rfl (cloop_compiles _) (encStack_dec [] rfl)).2 loop_no_run
+
+end LoopTable

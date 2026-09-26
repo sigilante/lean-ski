@@ -55,8 +55,8 @@ both its forms.
 | `Ski/Apply.lean` | `Run` (quotations, programs, words), `KitApply`, `run_sound`, `apply_sound`, `composition_apply` |
 | `Ski/Converse.lean` | counted reduction; `apply_complete`, `composition_complete`, and the biconditionals `apply_diverges`, `composition_diverges` |
 | `Ski/Total.lean` | over a table with no static quotations nothing diverges: `apply_total`, `program_converges` |
-| `Ski/Table.lean` | generated: the tables `NoQuot` and `CorpusTable` as `Kit` instances, every law by `iter_sound rfl`, and each corpus program's compiled form |
-| `Ski/Examples.lean` | `1 2 + dup +`, `3 [dup +] i`, `1 2 over` end to end from `skijack`'s terms; `omega_diverges`, a compiled program that diverges |
+| `Ski/Table.lean` | generated: the tables `NoQuot`, `CorpusTable` and `LoopTable` as `Kit` instances, every law by `iter_sound rfl`, each program's compiled form, and the corpus rows as those programs run |
+| `Ski/Examples.lean` | `1 2 + dup +`, `3 [dup +] i`, `1 2 over` end to end from `skijack`'s terms; `cloop_diverges`: the compiled `[dup i] dup i` diverges |
 | `Ski/Audit.lean` | the manifest and the `#audit_clean` command |
 | `scripts/emit.py` | regenerates `Scott.lean`, `Corpus.lean` and `Table.lean` from `skijack` (needs the SKIlark venv); gate 3 checks the committed files match |
 

@@ -35,13 +35,13 @@ hypothesis gives its derivation, the forward theorem gives the stack its
 result decodes to, and the run continues from `seq`'s continuation into
 the call for the rest.
 
-## The fragment
+## Both sides occur
 
-The kernel here has no static quotations, so a quotation's code is only
-pushes and `i`, and `Ski/Total.lean` proves no such program diverges:
-both sides of `composition_diverges` are false here.  The biconditional
-is stated so that it carries over unchanged once static quotation bodies,
-and with them `dup` inside a quotation and Joy's `y`, enter the fragment.
+Over a table with no static quotations a quotation's code is only pushes
+and `i`, and `Ski/Total.lean` proves no program diverges, so both sides
+of `composition_diverges` are false there.  A static quotation's body is
+code: over the table of `[dup i] dup i`, `LoopTable.cloop_diverges` makes
+both sides true for the compiled program itself.
 -/
 
 -- ---------------------------------------------------------------------------

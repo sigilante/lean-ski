@@ -87,7 +87,7 @@ open Ski.Audit
   DecNat.of_steps DecItem.of_steps DecQuot.of_steps DecStack.of_steps Decodes.of_steps
   decodes_iff steps_thunk1 steps_thunk2
   dec_zero dec_suc dec_num dec_quot dec_stat dec_qcons dec_qunit dec_qthen dec_empty dec_push
-  dec_rval dec_rerr
+  dec_rval dec_rerr rtime_decodes_nothing
   encNat_dec encItem_dec encQuot_dec encStack_dec
   mkK_self mkK_ne mkS_self mkS_ne DecQuot.probeK DecQuot.probeS
   DecQuot.probe_cons DecQuot.probe_unit DecQuot.probe_then
@@ -140,8 +140,11 @@ open Ski.Audit
 #audit_clean NoQuot.elim NoQuot.words NoQuot.apply NoQuot.cp_compiles
   CorpusTable.elim CorpusTable.words CorpusTable.apply
   CorpusTable.cp_compiles CorpusTable.cq_compiles CorpusTable.cr_compiles
+  CorpusTable.compiled_up_eq CorpusTable.compiled_uq_eq CorpusTable.compiled_ur_eq
+  LoopTable.elim LoopTable.words LoopTable.apply LoopTable.cloop_compiles
 
 -- End to end: the corpus programs, and a compiled program that diverges
 #audit_clean NoQuot.up_six NoQuot.quote_i NoQuot.cat_i
   CorpusTable.uq_six CorpusTable.ur_over
   CorpusTable.stat1_run CorpusTable.omega_loop CorpusTable.omega_no_run CorpusTable.omega_diverges
+  LoopTable.loop_run LoopTable.loop_no_run LoopTable.cloop_diverges
