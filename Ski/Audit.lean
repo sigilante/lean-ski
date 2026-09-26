@@ -5,6 +5,7 @@ import Ski.Trace
 import Ski.Scott
 import Ski.Words
 import Ski.Decode
+import Ski.Leaf
 import Ski.Corpus
 
 /-!
@@ -76,3 +77,8 @@ open Ski.Audit
   encNat_dec encItem_dec encQuot_dec encStack_dec
   DecNat.functional DecItem.functional DecQuot.functional DecStack.functional
   Decodes.functional
+
+-- Leaf contracts: the outer layer, then one per word
+#audit_clean eval_rval dec_rvalW contract_val contract_err
+  wPop_empty wPop_push leaf_pop
+  dupD_push wDup_empty wDup_push leaf_dup

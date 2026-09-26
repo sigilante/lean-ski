@@ -4,5 +4,6 @@ import Ski.Trace
 import Ski.Scott
 import Ski.Words
 import Ski.Decode
+import Ski.Leaf
 import Ski.Corpus
 import Ski.Audit
