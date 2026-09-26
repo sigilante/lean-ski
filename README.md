@@ -49,7 +49,8 @@ both its forms.
 | `Ski/Weak.lean` | weak reduction (a contraction anywhere); `standardization`, `eval_back`, `church_rosser` |
 | `Ski/Scott.lean` | generated: the constructors of `nat`, `item`, `stack`, `quot`, `result` as compiled, with `*_elim` lemmas by `iter_sound rfl`; the twelve compiled kernel words; `add`, `seq`, `idW`, `applyU` |
 | `Ski/Words.lean` | `Item`, `Quotation` (with `stat k`, a table's static quotation), `Stack`; the quotation table `Kit`; `Word`, `phi`, the C model `cw` |
-| `Ski/Decode.lean` | the decode relations (probing at every continuation; a quotation at `n + 3`), `KitElim`, constructor lemmas, `enc*_dec`, `*.functional` |
+| `Ski/Open.lean` | `OTerm`, terms with inert variables: head reduction, substitution, closing, symbolic runs, and the split of weak reduction on open terms |
+| `Ski/Decode.lean` | the decode relations, probing at fresh variables (a quotation at `n + 3`); `*.of_wsteps` (closed under backward weak reduction), the closed `probe_*`, `KitElim`, constructor lemmas, `enc*_dec`, `*.functional` |
 | `Ski/Leaf.lean` | a leaf contract for every word over any input that decodes (`leafD_*`) and at the encoding (`leaf_*`); `KitWords`; `add_dec`, by fixpoint induction |
 | `Ski/Composition.lean` | `N`, `Compiles`, `Csem`, `seq_contract`, `composition`, `composition_agree` |
 | `Ski/Apply.lean` | `Run` (quotations, programs, words), `KitApply`, `run_sound`, `apply_sound`, `composition_apply` |

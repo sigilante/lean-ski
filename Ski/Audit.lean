@@ -3,6 +3,7 @@ import Ski.Basic
 import Ski.Fuel
 import Ski.Trace
 import Ski.Weak
+import Ski.Open
 import Ski.Scott
 import Ski.Words
 import Ski.Decode
@@ -76,28 +77,51 @@ open Ski.Audit
 #audit_clean Scott.Zero_elim Scott.Suc_elim Scott.Num_elim Scott.Quot_elim
   Scott.Empty_elim Scott.Push_elim Scott.QCons_elim Scott.QUnit_elim Scott.QThen_elim
   Scott.RVal_elim Scott.RErr_elim Scott.RTime_elim
+  Scott.Zero_oelim Scott.Suc_oelim Scott.Num_oelim Scott.Quot_oelim Scott.Empty_oelim
+  Scott.Push_oelim Scott.QCons_oelim Scott.QUnit_oelim Scott.QThen_oelim Scott.RVal_oelim
+  Scott.RErr_oelim Scott.RTime_oelim
 
 -- Canonicity: the pasted word terms against the corpus compilation
 #audit_clean canon_wDup canon_wSwap canon_wPop canon_wDip canon_wDo canon_wIfz
   canon_wLit canon_wQuote canon_wAdd canon_add canon_seq canon_idW canon_applyU_differs
   canon_wQcons_differs canon_wCat_differs canon_wUnit_differs
 
--- The decode relation: backward closure, constructors, encodings, functionality
-#audit_clean Steps.app2 Steps.app3 Steps.appF
+-- Open terms: head reduction, substitution, closing, symbolic runs, the split
+#audit_clean OSteps.single OSteps.trans OSteps.left ONeutral.no_step
+  OStep.no_S2 OStep.no_K1 OStep.no_I OStep.det osteps_neutral_det
+  fresh_toO fresh_exists OStep.subst OSteps.subst subst_agree
+  OStep.close OSteps.close close_toO toO_close close_appO subst_appO shiftAt_at subst_shiftAt
+  ostep?_sound oiter_sound
+  OWSteps.trans OWSteps.left OWSteps.right OWSteps.app OWSteps.appO OStep.weak OSteps.weak
+  WStep.toO WSteps.toO OWStep.occ Fresh.of_owsteps
+  OPar.refl OWStep.par OPar.wsteps OParI.par opar_split oparI_step opar_step opar_steps
+  owsteps_split OParIs.var0 OParIs.var1 OParIs.var2 owsteps_var0 owsteps_var1 owsteps_var2
+
+-- The decode relation: probing at fresh variables; substitution, closure under backward
+-- weak reduction (G1b), the closed probes, constructors, encodings, functionality
+#audit_clean probe_subst subst_end
+  DecNatO.subst DecItemO.subst DecQuotO.subst DecStackO.subst DecodesO.subst
+  DecNatO.of_owsteps DecItemO.of_owsteps DecQuotO.of_owsteps DecStackO.of_owsteps
+  DecodesO.of_owsteps
+  DecNat.of_wsteps DecItem.of_wsteps DecQuot.of_wsteps DecStack.of_wsteps Decodes.of_wsteps
+  Steps.app2 Steps.app3 Steps.appF
   DecNat.of_steps DecItem.of_steps DecQuot.of_steps DecStack.of_steps Decodes.of_steps
-  decodes_iff steps_thunk1 steps_thunk2
+  decodes_iff probe_close DecNatO.close DecItemO.close DecQuotO.close DecStackO.close
+  DecNat.probe_zero DecNat.probe_succ DecItem.probe_num DecItem.probe_quot
+  DecQuot.probe_stat DecQuot.probe_cons DecQuot.probe_unit DecQuot.probe_then
+  DecStack.probe_nil DecStack.probe_cons Decodes.probe_val Decodes.probe_err
+  steps_thunk1 steps_thunk2 owsteps_thunk1 owsteps_thunk2
   dec_zero dec_suc dec_num dec_quot dec_stat dec_qcons dec_qunit dec_qthen dec_empty dec_push
   dec_rval dec_rerr rtime_decodes_nothing
   encNat_dec encItem_dec encQuot_dec encStack_dec
-  mkK_self mkK_ne mkS_self mkS_ne DecQuot.probeK DecQuot.probeS
-  DecQuot.probe_cons DecQuot.probe_unit DecQuot.probe_then
-  DecQuot.stat_stat DecQuot.stat_cons DecQuot.stat_unit DecQuot.stat_then
-  DecQuot.cons_unit DecQuot.cons_then DecQuot.unit_then
+  ONeutral.v1 ONeutral.v2
+  DecNatO.functional DecItemO.functional DecQuotO.functional DecStackO.functional
+  DecodesO.functional
   DecNat.functional DecItem.functional DecQuot.functional DecStack.functional
   Decodes.functional
 
 -- Leaf contracts: shared steps, the table's skeletons, then per word its stages and leaves
-#audit_clean Contract.of_steps eval_rval dec_rvalW contract_val contract_err
+#audit_clean Contract.of_steps Contract.of_wsteps eval_rval dec_rvalW contract_val contract_err
   stack_err stack_push item_num_err item_quot item_quot_err item_num nat_zero nat_succ
   unitC_push unitQ_quot consC_push consQ_quot consR_qcons
   catC_push catQ_quot catR_qcons catThen_qthen

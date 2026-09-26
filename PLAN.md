@@ -84,8 +84,10 @@ and `KitApply`, and `Ski/Table.lean` (generated) supplies them for two
 tables by `iter_sound rfl`: the kernel with no static quotations
 (`NoQuot`) and the corpus table (`[dup +]`, `[dup]`).
 
-`Decodes` reads a value by probing at every choice of continuations, a
-quotation at `n + 3` of them, and is a function. Every word has a leaf
+`Decodes` reads a value by probing it at fresh variables (`OTerm`), a
+quotation at `n + 3` of them; at any closed continuations the probe then
+holds exactly (`probe_*`), decoding is a function, and it is closed under
+backward weak reduction (G1b). Every word has a leaf
 contract over any input that decodes to its stack; `add` is Class C, by
 fixpoint induction over a semantic loop invariant. `Run` is the big-step
 semantics of programs, words and quotations together, so a static
@@ -187,40 +189,40 @@ constructor's fields.
   divergence transfers forward (`diverges_of_wsteps`). `church_rosser`:
   weak reduction is confluent, through complete development `dev`.
   `standardization` and `eval_back` use no axioms.
-- **G1b. Decoding up to weak reduction — open.** This section first
-  listed, as a corollary of G1, that every relation of `Ski/Decode.lean`
-  is closed under backward weak reduction. It does not follow. A probe
-  demands that head reduction reach the continuation exactly,
-  `Steps (t ⬝ k0 ⬝ k1) k0`; standardization yields a head reduct `w'` with
-  `w' →w* k0`, not one equal to `k0`. The closure is still true, by
-  parametricity: `t` cannot inspect `k0`, so head reduction carries it
-  untouched. Stating that needs terms with variables, which `Term` does
-  not have. Two routes:
-  (a) *Parametricity.* Add variables and a substitution lemma, and read
-  the closed probe facts from generic ones. The hard part is the reverse
-  direction, recovering a generic fact from closed probes, since a
-  closed continuation can reduce its arguments.
-  (b) *Probes up to weak reduction.* Replace `Steps` by `WSteps` in each
-  probe clause. Closure under backward weak reduction becomes
-  transitivity, and `eval_back` recovers the `Eval` a `Contract` ends in.
-  Two steps this route needs beyond G1, found in review:
-  *Functionality over joinable terms.* Two probes of one term now reach
-  `S ⬝ f` and `S ⬝ f'` with `f` and `f'` only joinable, so the
-  functionality proofs must induct over pairs of terms with a common weak
-  reduct, not over one term. It works because every probe end (`K`, `S`,
-  `K ⬝ f`, `S ⬝ f`, `S ⬝ f ⬝ g`) is a non-redex whose weak reducts keep its
-  head and arity, so `church_rosser` separates distinct ends and joins
-  the fields of equal ones. Closure under *forward* weak reduction fails
-  for arbitrary continuations and is not needed.
-  *The converse over weak predecessors.* `wsteps_split` reaches only an
-  internal-step predecessor of a call `apT ⬝ x ⬝ th`, whose eliminator
-  weakly reduces to the self-reference rather than equalling it, so the
-  counted claims must generalize from `applyF` to its weak predecessors
-  and transport `applyF_stages` along them.
-  The remaining cost is that the leaf, composition and `apply` proofs
-  chain `Steps` today and would chain `WSteps`.
-  Route (b) is recommended: it uses only what G1 built, and G4 states its
-  laws up to weak reduction anyway.
+- **G1b. Decoding up to weak reduction — built, by route (a)**
+  (`Ski/Open.lean`, `Ski/Decode.lean`). A probe demands that head
+  reduction reach the continuation exactly, and standardization yields
+  only a head reduct that weakly reduces to it, so closure needs the
+  continuation carried untouched: parametricity. The decode relations now
+  probe at *fresh variables* of `OTerm`, `Term` with inert variables: a
+  term decodes when its open image, applied to the variables `vars b` for
+  every `b` above its own, head-reduces to the constructor's variable
+  applied to decoding fields. Three things follow.
+  *Closure*: `DecStack.of_wsteps` and its siblings, and
+  `Contract.of_wsteps` — if `t` weakly reduces to `u` and `u` decodes (or
+  meets a contract), so does `t`. A probe ends at a variable-headed term,
+  and internal parallel steps cannot change a variable at the head
+  (`OParIs.var0` and its siblings). Both use no axioms.
+  *The closed probes*: `DecStack.probe_cons` and its siblings recover the
+  old definitions exactly — at any closed continuations, head reduction
+  reaches the continuation applied to decoding fields — because head
+  reduction commutes with substitution. Every leaf, `apply` and converse
+  proof now calls these lemmas in place of the old definitions, with no
+  other change, and every headline statement is unchanged.
+  *Functionality*, with no markers: probes at the same variables end at
+  the same stuck term, and distinct constructors end at distinct
+  variables.
+  What is not proved: the reverse of the closed probes, that a term which
+  probes exactly at every closed continuation also probes at variables.
+  The new relation is therefore at least as strong as the old and not
+  shown equal. Where decoding is a conclusion (a contract's result) that
+  only strengthens the theorems; where it is a hypothesis (an input stack
+  in `composition_diverges`), it asks more of the input, and every input
+  the development builds meets it (`encStack_dec`, every word's result).
+  Route (b), probes up to weak reduction, was set aside: its converse
+  must reach each recursive call only up to internal reduction, and no
+  argument was found that the contraction count then falls strictly at
+  every call, which the converse's induction needs.
 - **G2. λ-terms and abstraction.** A Lean syntax of λ-terms over `S`,
   `K`, `I`, globals and named variables; `abs` implementing exactly the
   four rules; and `abs_beta : abs x M ⬝ N →w* M[N/x]`, which G1 turns into
@@ -236,7 +238,8 @@ constructor's fields.
   constructor, one lemma for every arity and position. `KitWords` and
   `KitApply` fix today's runs to exact skeleton terms (`consC`, `catC`)
   and contraction counts; restate them up to weak reduction ("reduces to
-  `RVal ⬝ X` with `X →w* Push …`"), which G1b makes as good for `Decodes`,
+  `RVal ⬝ X` with `X →w* Push …`"), which G1b makes as good for `Decodes`
+  (`DecStack.of_wsteps`, `Contract.of_wsteps`),
   and prove them from the source by β. `body_compiles` becomes the
   abstraction of `seq w (seq …)` over the eliminator. Target:
   `kitOf_laws : ∀ tbl, tbl.valid → KitElim ∧ KitWords ∧ KitApply` at

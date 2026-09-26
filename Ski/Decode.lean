@@ -13,78 +13,331 @@ a term, and a compiled word returns its value with unreduced fields:
 to one continuation per constructor and see which continuation the
 reduction reaches, then read that continuation's arguments the same way.
 
-`DecNat t n` and its siblings say that `t` probes to `n` **at every choice
-of continuations**.  A fixed set of markers would be enough to read a
-value, but a word receives its input under the next word's continuations,
-not under the reader's, so the leaf contracts need the universal form.
-The markers reappear in the functionality proofs: choosing `S` and `K` so
-that each constructor's probe ends in a distinct weak head normal form
-turns `steps_whnf_det` into a case split (`DecNat.functional` and its
-siblings).
+## Probing at variables
 
-The relations are closed under backward reduction (`DecNat.of_steps` and
-so on), so "`t` reduces to a term that probes to `v`" and "`t` probes to
-`v`" coincide (`decodes_iff`).  Each field reached by a probe is a thunk,
-`K ⬝ x ⬝ k` rather than `x` (see the `*_elim` lemmas of `Ski/Scott.lean`);
-the constructor lemmas `dec_suc`, `dec_push` and the rest absorb that.
+`DecNat t n` and its siblings probe `t` at **fresh variables**
+(`Ski/Open.lean`): `t` applied to the variables `vars b 0, vars b 1, …`,
+for every `b` above `t`'s own variables, must head-reduce to the variable
+of its constructor applied to fields that decode in turn (`DecNatO` and
+its siblings, on open terms).  A closed term decodes when its open image
+does.
+
+What a word needs is the closed form: probed at *any* closed continuations
+`k0, k1, …`, the term head-reduces exactly to the constructor's
+continuation applied to decoding fields.  That is `DecNat.probe_zero` and
+its siblings, by substituting the continuations for the variables, since
+head reduction commutes with substitution.  The generic probe implies
+every closed one; the converse, that exact probing at every closed
+continuation implies probing at variables, is not proved, so this relation
+is at least as strong as closed probing and not shown equal to it.
+
+Two things follow that exact probing at closed continuations does not
+obviously give.
+
+- **Closure under backward weak reduction** (`DecNat.of_wsteps` and the
+  rest, `Contract.of_wsteps` in `Ski/Leaf.lean`): if `t` weakly reduces to
+  `u` and `u` decodes, `t` does.  A probe of `u` ends in a variable-headed
+  term; by G1's split, `t`'s probe head-reduces to a term that reaches it
+  by internal parallel steps, and those cannot change a variable at the
+  head, so `t`'s probe ends at the same variable with fields that weakly
+  reduce to `u`'s.
+- **Functionality** (`Decodes.functional` and the rest), with no markers:
+  two probes of one term at the same variables end in the same stuck term,
+  and distinct constructors end at distinct variables.
+
+The fields a probe reaches are thunks, `K ⬝ x ⬝ k` rather than `x` (the
+`*_elim` lemmas of `Ski/Scott.lean`); the constructor lemmas `dec_suc`,
+`dec_push` and the rest absorb that through backward closure.
 
 ## Quotations
 
 A table with `n` static quotations has `n + 3` `quot` constructors, so a
-quotation is probed at a function `ks` of `n + 3` continuations, applied
-by `appF`: the `k`-th static quotation reaches `ks k`, and the runtime
-constructors reach `ks n`, `ks (n + 1)` and `ks (n + 2)`.  `KitElim` holds
-the table's elimination lemmas, which the constructor lemmas need; the
-functionality proof picks, for each pair of constructors, markers whose
-probes end in distinct weak head normal forms.
+quotation is probed at `n + 3` variables: the `k`-th static quotation
+reaches `vars b k`, and the runtime constructors reach `vars b n`,
+`vars b (n + 1)` and `vars b (n + 2)`.  `KitElim` holds the table's
+elimination lemmas on open terms, which the constructor lemmas need.
 -/
 
 -- ---------------------------------------------------------------------------
--- Probing, by recursion on the value
+-- Probing at fresh variables, by recursion on the value
 -- ---------------------------------------------------------------------------
-
-/-- `t` applied to the continuations `ks 0, …, ks (m - 1)`. -/
-def appF (t : Term) (ks : Nat → Term) : Nat → Term
-  | 0 => t
-  | m + 1 => appF t ks m ⬝ ks m
 
 variable [Kit]
 
 /-- `nat === Zero | Suc nat` -/
-def DecNat : Term → Nat → Prop
-  | t, 0 => ∀ k0 k1, Steps (t ⬝ k0 ⬝ k1) k0
-  | t, n + 1 => ∀ k0 k1, ∃ f, Steps (t ⬝ k0 ⬝ k1) (k1 ⬝ f) ∧ DecNat f n
+def DecNatO : OTerm → Nat → Prop
+  | t, 0 => ∀ b, Fresh b t → OSteps (appO t (vars b) 2) (.var (0 + b))
+  | t, n + 1 => ∀ b, Fresh b t → ∃ f,
+      OSteps (appO t (vars b) 2) (.var (1 + b) ⬝ₒ f) ∧ DecNatO f n
 
 mutual
   /-- `item === Num nat | Quot quot` -/
-  def DecItem : Term → Item → Prop
-    | t, .num n => ∀ k0 k1, ∃ f, Steps (t ⬝ k0 ⬝ k1) (k0 ⬝ f) ∧ DecNat f n
-    | t, .quot q => ∀ k0 k1, ∃ f, Steps (t ⬝ k0 ⬝ k1) (k1 ⬝ f) ∧ DecQuot f q
+  def DecItemO : OTerm → Item → Prop
+    | t, .num n => ∀ b, Fresh b t → ∃ f,
+        OSteps (appO t (vars b) 2) (.var (0 + b) ⬝ₒ f) ∧ DecNatO f n
+    | t, .quot q => ∀ b, Fresh b t → ∃ f,
+        OSteps (appO t (vars b) 2) (.var (1 + b) ⬝ₒ f) ∧ DecQuotO f q
   /-- `quot === Q_0 | … | Q_(n-1) | QCons item quot | QUnit item | QThen quot` -/
-  def DecQuot : Term → Quotation → Prop
-    | t, .stat k => k < Kit.n ∧ ∀ ks, Steps (appF t ks (Kit.n + 3)) (ks k)
-    | t, .cons x r => ∀ ks, ∃ f g,
-        Steps (appF t ks (Kit.n + 3)) (ks Kit.n ⬝ f ⬝ g) ∧ DecItem f x ∧ DecQuot g r
-    | t, .unit x => ∀ ks, ∃ f,
-        Steps (appF t ks (Kit.n + 3)) (ks (Kit.n + 1) ⬝ f) ∧ DecItem f x
-    | t, .then r => ∀ ks, ∃ f,
-        Steps (appF t ks (Kit.n + 3)) (ks (Kit.n + 2) ⬝ f) ∧ DecQuot f r
+  def DecQuotO : OTerm → Quotation → Prop
+    | t, .stat k => k < Kit.n ∧ ∀ b, Fresh b t →
+        OSteps (appO t (vars b) (Kit.n + 3)) (.var (k + b))
+    | t, .cons x r => ∀ b, Fresh b t → ∃ f g,
+        OSteps (appO t (vars b) (Kit.n + 3)) (.var (Kit.n + b) ⬝ₒ f ⬝ₒ g) ∧
+          DecItemO f x ∧ DecQuotO g r
+    | t, .unit x => ∀ b, Fresh b t → ∃ f,
+        OSteps (appO t (vars b) (Kit.n + 3)) (.var ((Kit.n + 1) + b) ⬝ₒ f) ∧ DecItemO f x
+    | t, .then r => ∀ b, Fresh b t → ∃ f,
+        OSteps (appO t (vars b) (Kit.n + 3)) (.var ((Kit.n + 2) + b) ⬝ₒ f) ∧ DecQuotO f r
 end
 
 /-- `stack === Empty | Push item stack` -/
-def DecStack : Term → Stack → Prop
-  | t, [] => ∀ k0 k1, Steps (t ⬝ k0 ⬝ k1) k0
-  | t, a :: s => ∀ k0 k1, ∃ f g,
-      Steps (t ⬝ k0 ⬝ k1) (k1 ⬝ f ⬝ g) ∧ DecItem f a ∧ DecStack g s
+def DecStackO : OTerm → Stack → Prop
+  | t, [] => ∀ b, Fresh b t → OSteps (appO t (vars b) 2) (.var (0 + b))
+  | t, a :: s => ∀ b, Fresh b t → ∃ f g,
+      OSteps (appO t (vars b) 2) (.var (1 + b) ⬝ₒ f ⬝ₒ g) ∧ DecItemO f a ∧ DecStackO g s
 
 /-- `result === RVal stack | RErr | RTime`.  `RTime` decodes to nothing. -/
-def Decodes : Term → Outcome → Prop
-  | t, .val s => ∀ k0 k1 k2, ∃ f, Steps (t ⬝ k0 ⬝ k1 ⬝ k2) (k0 ⬝ f) ∧ DecStack f s
-  | t, .err => ∀ k0 k1 k2, Steps (t ⬝ k0 ⬝ k1 ⬝ k2) k1
+def DecodesO : OTerm → Outcome → Prop
+  | t, .val s => ∀ b, Fresh b t → ∃ f,
+      OSteps (appO t (vars b) 3) (.var (0 + b) ⬝ₒ f) ∧ DecStackO f s
+  | t, .err => ∀ b, Fresh b t → OSteps (appO t (vars b) 3) (.var (1 + b))
+
+/-- A closed term decodes when its open image does. -/
+def DecNat (t : Term) (n : Nat) : Prop := DecNatO t.toO n
+def DecItem (t : Term) (x : Item) : Prop := DecItemO t.toO x
+def DecQuot (t : Term) (q : Quotation) : Prop := DecQuotO t.toO q
+def DecStack (t : Term) (s : Stack) : Prop := DecStackO t.toO s
+def Decodes (t : Term) (o : Outcome) : Prop := DecodesO t.toO o
 
 -- ---------------------------------------------------------------------------
--- Closure under backward reduction
+-- Probes move along substitutions
 -- ---------------------------------------------------------------------------
+
+/-- A probe at `vars b0`, substituted, is a probe of the substituted term at
+    any `vars b`. -/
+theorem probe_subst {t E : OTerm} {m b0 : Nat} (τ : Nat → OTerm) (b : Nat) (ht : Fresh b0 t)
+    (h : OSteps (appO t (vars b0) m) E) :
+    OSteps (appO (t.subst τ) (vars b) m) (E.subst (shiftAt τ b0 b)) := by
+  have h' := h.subst (shiftAt τ b0 b)
+  rw [subst_appO, subst_shiftAt ht] at h'
+  have e : (fun i => (vars b0 i).subst (shiftAt τ b0 b)) = vars b :=
+    funext fun i => shiftAt_at τ b0 b i
+  rw [e] at h'
+  exact h'
+
+theorem subst_end (τ : Nat → OTerm) (b0 b j : Nat) :
+    (OTerm.var (j + b0)).subst (shiftAt τ b0 b) = .var (j + b) :=
+  shiftAt_at τ b0 b j
+
+theorem DecNatO.subst : ∀ {n : Nat} {t : OTerm} (τ : Nat → OTerm), DecNatO t n →
+    DecNatO (t.subst τ) n
+  | 0, t, τ, h => by
+    intro b _
+    cases fresh_exists t with
+    | intro b0 hb0 =>
+      have e := probe_subst τ b hb0 (h b0 hb0)
+      rw [subst_end] at e
+      exact e
+  | n + 1, t, τ, h => by
+    intro b _
+    cases fresh_exists t with
+    | intro b0 hb0 =>
+      cases h b0 hb0 with
+      | intro f hf =>
+        have e := probe_subst τ b hb0 hf.1
+        simp only [OTerm.subst, shiftAt_at] at e
+        exact ⟨_, e, DecNatO.subst _ hf.2⟩
+
+mutual
+  theorem DecItemO.subst : ∀ {x : Item} {t : OTerm} (τ : Nat → OTerm), DecItemO t x →
+      DecItemO (t.subst τ) x
+    | .num n, t, τ, h => by
+      intro b _
+      cases fresh_exists t with
+      | intro b0 hb0 =>
+        cases h b0 hb0 with
+        | intro f hf =>
+          have e := probe_subst τ b hb0 hf.1
+          simp only [OTerm.subst, shiftAt_at] at e
+          exact ⟨_, e, DecNatO.subst _ hf.2⟩
+    | .quot q, t, τ, h => by
+      intro b _
+      cases fresh_exists t with
+      | intro b0 hb0 =>
+        cases h b0 hb0 with
+        | intro f hf =>
+          have e := probe_subst τ b hb0 hf.1
+          simp only [OTerm.subst, shiftAt_at] at e
+          exact ⟨_, e, DecQuotO.subst _ hf.2⟩
+  theorem DecQuotO.subst : ∀ {q : Quotation} {t : OTerm} (τ : Nat → OTerm), DecQuotO t q →
+      DecQuotO (t.subst τ) q
+    | .stat k, t, τ, h => by
+      refine ⟨h.1, fun b _ => ?_⟩
+      cases fresh_exists t with
+      | intro b0 hb0 =>
+        have e := probe_subst τ b hb0 (h.2 b0 hb0)
+        rw [subst_end] at e
+        exact e
+    | .cons x r, t, τ, h => by
+      intro b _
+      cases fresh_exists t with
+      | intro b0 hb0 =>
+        cases h b0 hb0 with
+        | intro f hf =>
+          cases hf with
+          | intro g hg =>
+            have e := probe_subst τ b hb0 hg.1
+            simp only [OTerm.subst, shiftAt_at] at e
+            exact ⟨_, _, e, DecItemO.subst _ hg.2.1, DecQuotO.subst _ hg.2.2⟩
+    | .unit x, t, τ, h => by
+      intro b _
+      cases fresh_exists t with
+      | intro b0 hb0 =>
+        cases h b0 hb0 with
+        | intro f hf =>
+          have e := probe_subst τ b hb0 hf.1
+          simp only [OTerm.subst, shiftAt_at] at e
+          exact ⟨_, e, DecItemO.subst _ hf.2⟩
+    | .then r, t, τ, h => by
+      intro b _
+      cases fresh_exists t with
+      | intro b0 hb0 =>
+        cases h b0 hb0 with
+        | intro f hf =>
+          have e := probe_subst τ b hb0 hf.1
+          simp only [OTerm.subst, shiftAt_at] at e
+          exact ⟨_, e, DecQuotO.subst _ hf.2⟩
+end
+
+theorem DecStackO.subst : ∀ {s : Stack} {t : OTerm} (τ : Nat → OTerm), DecStackO t s →
+    DecStackO (t.subst τ) s
+  | [], t, τ, h => by
+    intro b _
+    cases fresh_exists t with
+    | intro b0 hb0 =>
+      have e := probe_subst τ b hb0 (h b0 hb0)
+      rw [subst_end] at e
+      exact e
+  | a :: s, t, τ, h => by
+    intro b _
+    cases fresh_exists t with
+    | intro b0 hb0 =>
+      cases h b0 hb0 with
+      | intro f hf =>
+        cases hf with
+        | intro g hg =>
+          have e := probe_subst τ b hb0 hg.1
+          simp only [OTerm.subst, shiftAt_at] at e
+          exact ⟨_, _, e, DecItemO.subst _ hg.2.1, DecStackO.subst _ hg.2.2⟩
+
+theorem DecodesO.subst {o : Outcome} {t : OTerm} (τ : Nat → OTerm) (h : DecodesO t o) :
+    DecodesO (t.subst τ) o := by
+  cases o with
+  | val s =>
+    intro b _
+    cases fresh_exists t with
+    | intro b0 hb0 =>
+      cases h b0 hb0 with
+      | intro f hf =>
+        have e := probe_subst τ b hb0 hf.1
+        simp only [OTerm.subst, shiftAt_at] at e
+        exact ⟨_, e, DecStackO.subst _ hf.2⟩
+  | err =>
+    intro b _
+    cases fresh_exists t with
+    | intro b0 hb0 =>
+      have e := probe_subst τ b hb0 (h b0 hb0)
+      rw [subst_end] at e
+      exact e
+
+-- ---------------------------------------------------------------------------
+-- Closure under backward weak reduction
+-- ---------------------------------------------------------------------------
+
+theorem DecNatO.of_owsteps : ∀ {n : Nat} {t u : OTerm}, OWSteps t u → DecNatO u n →
+    DecNatO t n
+  | 0, _, _, h, hu => fun b hb =>
+    owsteps_var0 ((OWSteps.appO _ h 2).trans (hu b (hb.of_owsteps h)).weak)
+  | _ + 1, _, _, h, hu => fun b hb =>
+    match hu b (hb.of_owsteps h) with
+    | ⟨_, hf⟩ =>
+      match owsteps_var1 ((OWSteps.appO _ h 2).trans hf.1.weak) with
+      | ⟨_, h1, h2⟩ => ⟨_, h1, DecNatO.of_owsteps h2 hf.2⟩
+
+mutual
+  theorem DecItemO.of_owsteps : ∀ {x : Item} {t u : OTerm}, OWSteps t u → DecItemO u x →
+      DecItemO t x
+    | .num _, _, _, h, hu => fun b hb =>
+      match hu b (hb.of_owsteps h) with
+      | ⟨_, hf⟩ =>
+        match owsteps_var1 ((OWSteps.appO _ h 2).trans hf.1.weak) with
+        | ⟨_, h1, h2⟩ => ⟨_, h1, DecNatO.of_owsteps h2 hf.2⟩
+    | .quot _, _, _, h, hu => fun b hb =>
+      match hu b (hb.of_owsteps h) with
+      | ⟨_, hf⟩ =>
+        match owsteps_var1 ((OWSteps.appO _ h 2).trans hf.1.weak) with
+        | ⟨_, h1, h2⟩ => ⟨_, h1, DecQuotO.of_owsteps h2 hf.2⟩
+  theorem DecQuotO.of_owsteps : ∀ {q : Quotation} {t u : OTerm}, OWSteps t u → DecQuotO u q →
+      DecQuotO t q
+    | .stat _, _, _, h, hu => ⟨hu.1, fun b hb =>
+      owsteps_var0 ((OWSteps.appO _ h _).trans (hu.2 b (hb.of_owsteps h)).weak)⟩
+    | .cons _ _, _, _, h, hu => fun b hb =>
+      match hu b (hb.of_owsteps h) with
+      | ⟨_, _, hg⟩ =>
+        match owsteps_var2 ((OWSteps.appO _ h _).trans hg.1.weak) with
+        | ⟨_, _, h1, h2, h3⟩ =>
+          ⟨_, _, h1, DecItemO.of_owsteps h2 hg.2.1, DecQuotO.of_owsteps h3 hg.2.2⟩
+    | .unit _, _, _, h, hu => fun b hb =>
+      match hu b (hb.of_owsteps h) with
+      | ⟨_, hf⟩ =>
+        match owsteps_var1 ((OWSteps.appO _ h _).trans hf.1.weak) with
+        | ⟨_, h1, h2⟩ => ⟨_, h1, DecItemO.of_owsteps h2 hf.2⟩
+    | .then _, _, _, h, hu => fun b hb =>
+      match hu b (hb.of_owsteps h) with
+      | ⟨_, hf⟩ =>
+        match owsteps_var1 ((OWSteps.appO _ h _).trans hf.1.weak) with
+        | ⟨_, h1, h2⟩ => ⟨_, h1, DecQuotO.of_owsteps h2 hf.2⟩
+end
+
+theorem DecStackO.of_owsteps : ∀ {s : Stack} {t u : OTerm}, OWSteps t u → DecStackO u s →
+    DecStackO t s
+  | [], _, _, h, hu => fun b hb =>
+    owsteps_var0 ((OWSteps.appO _ h 2).trans (hu b (hb.of_owsteps h)).weak)
+  | _ :: _, _, _, h, hu => fun b hb =>
+    match hu b (hb.of_owsteps h) with
+    | ⟨_, _, hg⟩ =>
+      match owsteps_var2 ((OWSteps.appO _ h 2).trans hg.1.weak) with
+      | ⟨_, _, h1, h2, h3⟩ =>
+        ⟨_, _, h1, DecItemO.of_owsteps h2 hg.2.1, DecStackO.of_owsteps h3 hg.2.2⟩
+
+theorem DecodesO.of_owsteps {o : Outcome} {t u : OTerm} (h : OWSteps t u) (hu : DecodesO u o) :
+    DecodesO t o := by
+  cases o with
+  | val s =>
+    intro b hb
+    cases hu b (hb.of_owsteps h) with
+    | intro f hf =>
+      cases owsteps_var1 ((OWSteps.appO _ h 3).trans hf.1.weak) with
+      | intro f' h' => exact ⟨f', h'.1, DecStackO.of_owsteps h'.2 hf.2⟩
+  | err =>
+    intro b hb
+    exact owsteps_var0 ((OWSteps.appO _ h 3).trans (hu b (hb.of_owsteps h)).weak)
+
+/-- **Decoding is closed under backward weak reduction.** -/
+theorem DecNat.of_wsteps {t u : Term} {n : Nat} (h : WSteps t u) (hu : DecNat u n) :
+    DecNat t n := DecNatO.of_owsteps h.toO hu
+
+theorem DecItem.of_wsteps {t u : Term} {x : Item} (h : WSteps t u) (hu : DecItem u x) :
+    DecItem t x := DecItemO.of_owsteps h.toO hu
+
+theorem DecQuot.of_wsteps {t u : Term} {q : Quotation} (h : WSteps t u) (hu : DecQuot u q) :
+    DecQuot t q := DecQuotO.of_owsteps h.toO hu
+
+theorem DecStack.of_wsteps {t u : Term} {s : Stack} (h : WSteps t u) (hu : DecStack u s) :
+    DecStack t s := DecStackO.of_owsteps h.toO hu
+
+theorem Decodes.of_wsteps {t u : Term} {o : Outcome} (h : WSteps t u) (hu : Decodes u o) :
+    Decodes t o := DecodesO.of_owsteps h.toO hu
 
 theorem Steps.app2 {t u : Term} (a b : Term) (h : Steps t u) :
     Steps (t ⬝ a ⬝ b) (u ⬝ a ⬝ b) :=
@@ -94,75 +347,137 @@ theorem Steps.app3 {t u : Term} (a b c : Term) (h : Steps t u) :
     Steps (t ⬝ a ⬝ b ⬝ c) (u ⬝ a ⬝ b ⬝ c) :=
   Steps.left c (Steps.app2 a b h)
 
-theorem DecNat.of_steps {t u : Term} {n : Nat} (h : Steps t u) (hu : DecNat u n) :
-    DecNat t n := by
-  cases n with
-  | zero => exact fun k0 k1 => (h.app2 k0 k1).trans (hu k0 k1)
-  | succ n =>
-    intro k0 k1
-    cases hu k0 k1 with
-    | intro f hf => exact ⟨f, (h.app2 k0 k1).trans hf.1, hf.2⟩
-
-theorem DecItem.of_steps {t u : Term} {x : Item} (h : Steps t u) (hu : DecItem u x) :
-    DecItem t x := by
-  cases x with
-  | num n =>
-    intro k0 k1
-    cases hu k0 k1 with
-    | intro f hf => exact ⟨f, (h.app2 k0 k1).trans hf.1, hf.2⟩
-  | quot q =>
-    intro k0 k1
-    cases hu k0 k1 with
-    | intro f hf => exact ⟨f, (h.app2 k0 k1).trans hf.1, hf.2⟩
-
 theorem Steps.appF {t u : Term} (ks : Nat → Term) (h : Steps t u) :
     ∀ m, Steps (appF t ks m) (appF u ks m)
   | 0 => h
   | m + 1 => Steps.left (ks m) (Steps.appF ks h m)
 
+theorem DecNat.of_steps {t u : Term} {n : Nat} (h : Steps t u) (hu : DecNat u n) :
+    DecNat t n := DecNat.of_wsteps h.weak hu
+
+theorem DecItem.of_steps {t u : Term} {x : Item} (h : Steps t u) (hu : DecItem u x) :
+    DecItem t x := DecItem.of_wsteps h.weak hu
+
 theorem DecQuot.of_steps {t u : Term} {q : Quotation} (h : Steps t u) (hu : DecQuot u q) :
-    DecQuot t q := by
-  cases q with
-  | stat k => exact ⟨hu.1, fun ks => (h.appF ks _).trans (hu.2 ks)⟩
-  | cons x r =>
-    intro ks
-    cases hu ks with
-    | intro f hf =>
-      cases hf with
-      | intro g hg => exact ⟨f, g, (h.appF ks _).trans hg.1, hg.2⟩
-  | unit x =>
-    intro ks
-    cases hu ks with
-    | intro f hf => exact ⟨f, (h.appF ks _).trans hf.1, hf.2⟩
-  | «then» r =>
-    intro ks
-    cases hu ks with
-    | intro f hf => exact ⟨f, (h.appF ks _).trans hf.1, hf.2⟩
+    DecQuot t q := DecQuot.of_wsteps h.weak hu
 
 theorem DecStack.of_steps {t u : Term} {s : Stack} (h : Steps t u) (hu : DecStack u s) :
-    DecStack t s := by
-  cases s with
-  | nil => exact fun k0 k1 => (h.app2 k0 k1).trans (hu k0 k1)
-  | cons a s =>
-    intro k0 k1
-    cases hu k0 k1 with
-    | intro f hf =>
-      cases hf with
-      | intro g hg => exact ⟨f, g, (h.app2 k0 k1).trans hg.1, hg.2⟩
+    DecStack t s := DecStack.of_wsteps h.weak hu
 
 theorem Decodes.of_steps {t u : Term} {o : Outcome} (h : Steps t u) (hu : Decodes u o) :
-    Decodes t o := by
-  cases o with
-  | val s =>
-    intro k0 k1 k2
-    cases hu k0 k1 k2 with
-    | intro f hf => exact ⟨f, (h.app3 k0 k1 k2).trans hf.1, hf.2⟩
-  | err => exact fun k0 k1 k2 => (h.app3 k0 k1 k2).trans (hu k0 k1 k2)
+    Decodes t o := Decodes.of_wsteps h.weak hu
 
 /-- "Reduces to a term that probes to `o`" is "probes to `o`". -/
 theorem decodes_iff {t : Term} {o : Outcome} :
     Decodes t o ↔ ∃ u, Steps t u ∧ Decodes u o :=
   ⟨fun h => ⟨t, .refl t, h⟩, fun ⟨_, hs, hu⟩ => Decodes.of_steps hs hu⟩
+
+-- ---------------------------------------------------------------------------
+-- The closed probes: at any continuations, exactly
+-- ---------------------------------------------------------------------------
+
+/-- A probe of a closed term at `vars 0`, closed by `σ`. -/
+theorem probe_close {t : Term} {m : Nat} {E : OTerm} (σ : Nat → Term)
+    (h : OSteps (appO t.toO (vars 0) m) E) : Steps (appF t (fun i => σ i) m) (E.close σ) := by
+  have h' := h.close σ
+  rw [close_appO, close_toO] at h'
+  exact h'
+
+/-- Fields of an open probe, closed, decode. -/
+theorem DecNatO.close {f : OTerm} {n : Nat} (σ : Nat → Term) (h : DecNatO f n) :
+    DecNat (f.close σ) n := by
+  show DecNatO (f.close σ).toO n
+  rw [toO_close]
+  exact h.subst _
+
+theorem DecItemO.close {f : OTerm} {x : Item} (σ : Nat → Term) (h : DecItemO f x) :
+    DecItem (f.close σ) x := by
+  show DecItemO (f.close σ).toO x
+  rw [toO_close]
+  exact h.subst _
+
+theorem DecQuotO.close {f : OTerm} {q : Quotation} (σ : Nat → Term) (h : DecQuotO f q) :
+    DecQuot (f.close σ) q := by
+  show DecQuotO (f.close σ).toO q
+  rw [toO_close]
+  exact h.subst _
+
+theorem DecStackO.close {f : OTerm} {s : Stack} (σ : Nat → Term) (h : DecStackO f s) :
+    DecStack (f.close σ) s := by
+  show DecStackO (f.close σ).toO s
+  rw [toO_close]
+  exact h.subst _
+
+/-- Two continuations, as a substitution. -/
+def pick2 (k0 k1 : Term) : Nat → Term
+  | 0 => k0
+  | 1 => k1
+  | _ => K
+
+/-- Three continuations, as a substitution. -/
+def pick3 (k0 k1 k2 : Term) : Nat → Term
+  | 0 => k0
+  | 1 => k1
+  | 2 => k2
+  | _ => K
+
+theorem DecNat.probe_zero {t : Term} (h : DecNat t 0) (k0 k1 : Term) :
+    Steps (t ⬝ k0 ⬝ k1) k0 :=
+  probe_close (pick2 k0 k1) (h 0 (fresh_toO t 0))
+
+theorem DecNat.probe_succ {t : Term} {n : Nat} (h : DecNat t (n + 1)) (k0 k1 : Term) :
+    ∃ f, Steps (t ⬝ k0 ⬝ k1) (k1 ⬝ f) ∧ DecNat f n :=
+  match h 0 (fresh_toO t 0) with
+  | ⟨_, hf⟩ => ⟨_, probe_close (pick2 k0 k1) hf.1, hf.2.close _⟩
+
+theorem DecItem.probe_num {t : Term} {n : Nat} (h : DecItem t (.num n)) (k0 k1 : Term) :
+    ∃ f, Steps (t ⬝ k0 ⬝ k1) (k0 ⬝ f) ∧ DecNat f n :=
+  match h 0 (fresh_toO t 0) with
+  | ⟨_, hf⟩ => ⟨_, probe_close (pick2 k0 k1) hf.1, hf.2.close _⟩
+
+theorem DecItem.probe_quot {t : Term} {q : Quotation} (h : DecItem t (.quot q)) (k0 k1 : Term) :
+    ∃ f, Steps (t ⬝ k0 ⬝ k1) (k1 ⬝ f) ∧ DecQuot f q :=
+  match h 0 (fresh_toO t 0) with
+  | ⟨_, hf⟩ => ⟨_, probe_close (pick2 k0 k1) hf.1, hf.2.close _⟩
+
+theorem DecQuot.probe_stat {t : Term} {k : Nat} (h : DecQuot t (.stat k)) :
+    k < Kit.n ∧ ∀ ks, Steps (appF t ks (Kit.n + 3)) (ks k) :=
+  ⟨h.1, fun ks => probe_close ks (h.2 0 (fresh_toO t 0))⟩
+
+theorem DecQuot.probe_cons {t : Term} {x : Item} {r : Quotation} (h : DecQuot t (.cons x r))
+    (ks : Nat → Term) :
+    ∃ f g, Steps (appF t ks (Kit.n + 3)) (ks Kit.n ⬝ f ⬝ g) ∧ DecItem f x ∧ DecQuot g r :=
+  match h 0 (fresh_toO t 0) with
+  | ⟨_, _, hg⟩ => ⟨_, _, probe_close ks hg.1, hg.2.1.close _, hg.2.2.close _⟩
+
+theorem DecQuot.probe_unit {t : Term} {x : Item} (h : DecQuot t (.unit x)) (ks : Nat → Term) :
+    ∃ f, Steps (appF t ks (Kit.n + 3)) (ks (Kit.n + 1) ⬝ f) ∧ DecItem f x :=
+  match h 0 (fresh_toO t 0) with
+  | ⟨_, hf⟩ => ⟨_, probe_close ks hf.1, hf.2.close _⟩
+
+theorem DecQuot.probe_then {t : Term} {r : Quotation} (h : DecQuot t (.then r)) (ks : Nat → Term) :
+    ∃ f, Steps (appF t ks (Kit.n + 3)) (ks (Kit.n + 2) ⬝ f) ∧ DecQuot f r :=
+  match h 0 (fresh_toO t 0) with
+  | ⟨_, hf⟩ => ⟨_, probe_close ks hf.1, hf.2.close _⟩
+
+theorem DecStack.probe_nil {t : Term} (h : DecStack t []) (k0 k1 : Term) :
+    Steps (t ⬝ k0 ⬝ k1) k0 :=
+  probe_close (pick2 k0 k1) (h 0 (fresh_toO t 0))
+
+theorem DecStack.probe_cons {t : Term} {a : Item} {s : Stack} (h : DecStack t (a :: s))
+    (k0 k1 : Term) :
+    ∃ f g, Steps (t ⬝ k0 ⬝ k1) (k1 ⬝ f ⬝ g) ∧ DecItem f a ∧ DecStack g s :=
+  match h 0 (fresh_toO t 0) with
+  | ⟨_, _, hg⟩ => ⟨_, _, probe_close (pick2 k0 k1) hg.1, hg.2.1.close _, hg.2.2.close _⟩
+
+theorem Decodes.probe_val {t : Term} {s : Stack} (h : Decodes t (.val s)) (k0 k1 k2 : Term) :
+    ∃ f, Steps (t ⬝ k0 ⬝ k1 ⬝ k2) (k0 ⬝ f) ∧ DecStack f s :=
+  match h 0 (fresh_toO t 0) with
+  | ⟨_, hf⟩ => ⟨_, probe_close (pick3 k0 k1 k2) hf.1, hf.2.close _⟩
+
+theorem Decodes.probe_err {t : Term} (h : Decodes t .err) (k0 k1 k2 : Term) :
+    Steps (t ⬝ k0 ⬝ k1 ⬝ k2) k1 :=
+  probe_close (pick3 k0 k1 k2) (h 0 (fresh_toO t 0))
 
 -- ---------------------------------------------------------------------------
 -- Thunks: the fields a probe reaches
@@ -175,63 +490,72 @@ theorem steps_thunk1 (x k : Term) : Steps (K ⬝ x ⬝ k) x := .single (.K x k)
 theorem steps_thunk2 (x y k : Term) : Steps (K ⬝ K ⬝ x ⬝ y ⬝ k) y :=
   .step (.left k (.left y (.K K x))) (.single (.K y k))
 
+theorem owsteps_thunk1 (x k : OTerm) : OWSteps (.K ⬝ₒ x ⬝ₒ k) x := (OSteps.single (.K x k)).weak
+
+theorem owsteps_thunk2 (x y k : OTerm) : OWSteps (.K ⬝ₒ .K ⬝ₒ x ⬝ₒ y ⬝ₒ k) y :=
+  (OSteps.step (.left k (.left y (.K .K x))) (.single (.K y k))).weak
+
 -- ---------------------------------------------------------------------------
 -- Constructor lemmas: each Scott constructor, applied to decoding fields,
 -- decodes to the constructed value
 -- ---------------------------------------------------------------------------
 
-theorem dec_zero : DecNat Scott.Zero 0 := fun k0 k1 => Scott.Zero_elim k0 k1
+theorem dec_zero : DecNat Scott.Zero 0 := fun _ _ => Scott.Zero_oelim _ _
 
 theorem dec_suc {f : Term} {n : Nat} (h : DecNat f n) : DecNat (Scott.Suc ⬝ f) (n + 1) :=
-  fun k0 k1 => ⟨_, Scott.Suc_elim f k0 k1, DecNat.of_steps (steps_thunk1 f k1) h⟩
+  fun _ _ => ⟨_, Scott.Suc_oelim _ _ _, DecNatO.of_owsteps (owsteps_thunk1 _ _) h⟩
 
 theorem dec_num {f : Term} {n : Nat} (h : DecNat f n) : DecItem (Scott.Num ⬝ f) (.num n) :=
-  fun k0 k1 => ⟨_, Scott.Num_elim f k0 k1, DecNat.of_steps (steps_thunk1 f k0) h⟩
+  fun _ _ => ⟨_, Scott.Num_oelim _ _ _, DecNatO.of_owsteps (owsteps_thunk1 _ _) h⟩
 
 theorem dec_quot {f : Term} {q : Quotation} (h : DecQuot f q) :
     DecItem (Scott.Quot ⬝ f) (.quot q) :=
-  fun k0 k1 => ⟨_, Scott.Quot_elim f k0 k1, DecQuot.of_steps (steps_thunk1 f k1) h⟩
+  fun _ _ => ⟨_, Scott.Quot_oelim _ _ _, DecQuotO.of_owsteps (owsteps_thunk1 _ _) h⟩
 
-/-- A table's `quot` constructors eliminate as Scott constructors do.  The
-    kernel checks these per table (`Ski/Table.lean`). -/
+/-- A table's `quot` constructors eliminate as Scott constructors do, on open
+    terms.  The kernel checks these per table (`Ski/Table.lean`). -/
 class KitElim [Kit] : Prop where
-  Qs_elim : ∀ k, k < Kit.n → ∀ ks, Steps (appF (Kit.Qs k) ks (Kit.n + 3)) (ks k)
-  QCons_elim : ∀ x r ks, Steps (appF (Kit.QCons ⬝ x ⬝ r) ks (Kit.n + 3))
-    (ks Kit.n ⬝ (K ⬝ x ⬝ ks Kit.n) ⬝ (K ⬝ K ⬝ x ⬝ r ⬝ ks Kit.n))
-  QUnit_elim : ∀ x ks, Steps (appF (Kit.QUnit ⬝ x) ks (Kit.n + 3))
-    (ks (Kit.n + 1) ⬝ (K ⬝ x ⬝ ks (Kit.n + 1)))
-  QThen_elim : ∀ x ks, Steps (appF (Kit.QThen ⬝ x) ks (Kit.n + 3))
-    (ks (Kit.n + 2) ⬝ (K ⬝ x ⬝ ks (Kit.n + 2)))
+  Qs_elim : ∀ k, k < Kit.n → ∀ ks : Nat → OTerm,
+    OSteps (appO (Kit.Qs k).toO ks (Kit.n + 3)) (ks k)
+  QCons_elim : ∀ (x r : OTerm) (ks : Nat → OTerm),
+    OSteps (appO (Kit.QCons.toO ⬝ₒ x ⬝ₒ r) ks (Kit.n + 3))
+      (ks Kit.n ⬝ₒ (.K ⬝ₒ x ⬝ₒ ks Kit.n) ⬝ₒ (.K ⬝ₒ .K ⬝ₒ x ⬝ₒ r ⬝ₒ ks Kit.n))
+  QUnit_elim : ∀ (x : OTerm) (ks : Nat → OTerm),
+    OSteps (appO (Kit.QUnit.toO ⬝ₒ x) ks (Kit.n + 3))
+      (ks (Kit.n + 1) ⬝ₒ (.K ⬝ₒ x ⬝ₒ ks (Kit.n + 1)))
+  QThen_elim : ∀ (x : OTerm) (ks : Nat → OTerm),
+    OSteps (appO (Kit.QThen.toO ⬝ₒ x) ks (Kit.n + 3))
+      (ks (Kit.n + 2) ⬝ₒ (.K ⬝ₒ x ⬝ₒ ks (Kit.n + 2)))
 
 variable [KitElim]
 
 theorem dec_stat {k : Nat} (hk : k < Kit.n) : DecQuot (Kit.Qs k) (.stat k) :=
-  ⟨hk, KitElim.Qs_elim k hk⟩
+  ⟨hk, fun b _ => KitElim.Qs_elim k hk (vars b)⟩
 
 theorem dec_qcons {f g : Term} {x : Item} {r : Quotation} (hf : DecItem f x) (hg : DecQuot g r) :
     DecQuot (Kit.QCons ⬝ f ⬝ g) (.cons x r) :=
-  fun ks => ⟨_, _, KitElim.QCons_elim f g ks,
-    DecItem.of_steps (steps_thunk1 f _) hf, DecQuot.of_steps (steps_thunk2 f g _) hg⟩
+  fun b _ => ⟨_, _, KitElim.QCons_elim _ _ (vars b),
+    DecItemO.of_owsteps (owsteps_thunk1 _ _) hf, DecQuotO.of_owsteps (owsteps_thunk2 _ _ _) hg⟩
 
 theorem dec_qunit {f : Term} {x : Item} (h : DecItem f x) :
     DecQuot (Kit.QUnit ⬝ f) (.unit x) :=
-  fun ks => ⟨_, KitElim.QUnit_elim f ks, DecItem.of_steps (steps_thunk1 f _) h⟩
+  fun b _ => ⟨_, KitElim.QUnit_elim _ (vars b), DecItemO.of_owsteps (owsteps_thunk1 _ _) h⟩
 
 theorem dec_qthen {f : Term} {r : Quotation} (h : DecQuot f r) :
     DecQuot (Kit.QThen ⬝ f) (.then r) :=
-  fun ks => ⟨_, KitElim.QThen_elim f ks, DecQuot.of_steps (steps_thunk1 f _) h⟩
+  fun b _ => ⟨_, KitElim.QThen_elim _ (vars b), DecQuotO.of_owsteps (owsteps_thunk1 _ _) h⟩
 
-theorem dec_empty : DecStack Scott.Empty [] := fun k0 k1 => Scott.Empty_elim k0 k1
+theorem dec_empty : DecStack Scott.Empty [] := fun _ _ => Scott.Empty_oelim _ _
 
 theorem dec_push {f g : Term} {a : Item} {s : Stack} (hf : DecItem f a) (hg : DecStack g s) :
     DecStack (Scott.Push ⬝ f ⬝ g) (a :: s) :=
-  fun k0 k1 => ⟨_, _, Scott.Push_elim f g k0 k1,
-    DecItem.of_steps (steps_thunk1 f k1) hf, DecStack.of_steps (steps_thunk2 f g k1) hg⟩
+  fun _ _ => ⟨_, _, Scott.Push_oelim _ _ _ _,
+    DecItemO.of_owsteps (owsteps_thunk1 _ _) hf, DecStackO.of_owsteps (owsteps_thunk2 _ _ _) hg⟩
 
 theorem dec_rval {f : Term} {s : Stack} (h : DecStack f s) : Decodes (Scott.RVal ⬝ f) (.val s) :=
-  fun k0 k1 k2 => ⟨_, Scott.RVal_elim f k0 k1 k2, DecStack.of_steps (steps_thunk1 f k0) h⟩
+  fun _ _ => ⟨_, Scott.RVal_oelim _ _ _ _, DecStackO.of_owsteps (owsteps_thunk1 _ _) h⟩
 
-theorem dec_rerr : Decodes Scott.RErr .err := fun k0 k1 k2 => Scott.RErr_elim k0 k1 k2
+theorem dec_rerr : Decodes Scott.RErr .err := fun _ _ => Scott.RErr_oelim _ _ _
 
 /-- `RTime`, the fuelled `apply`'s timeout, decodes to no outcome: probed at
     `S`, `K`, `I` it ends in `I`, where a value ends in `S ⬝ f` and an error
@@ -240,12 +564,12 @@ theorem rtime_decodes_nothing (o : Outcome) : ¬ Decodes Scott.RTime o := by
   intro h
   cases o with
   | val s =>
-    cases h S K I with
+    cases h.probe_val S K I with
     | intro f hf =>
       have e := steps_whnf_det hf.1 (.S1 f) (Scott.RTime_elim S K I) .I
       cases e
   | err =>
-    have e := steps_whnf_det (h S K I) .K (Scott.RTime_elim S K I) .I
+    have e := steps_whnf_det (h.probe_err S K I) .K (Scott.RTime_elim S K I) .I
     cases e
 
 -- ---------------------------------------------------------------------------
@@ -279,263 +603,330 @@ theorem encStack_dec : (s : Stack) → s.all (Item.ok Kit.n) = true → DecStack
 -- ---------------------------------------------------------------------------
 -- Decoding is a function
 --
--- Each proof probes both derivations at the same markers, chosen so that
--- the constructors' probes end in distinct weak head normal forms; then
--- `steps_whnf_det` equates the ends, and constructor injectivity either
--- refutes the case or hands over the fields.
+-- Both derivations are probed at the same fresh variables.  The probes end in
+-- stuck terms, so `osteps_neutral_det` equates the ends; distinct
+-- constructors end at distinct variables, and equal ends hand over the
+-- fields.
 -- ---------------------------------------------------------------------------
 
-theorem DecNat.functional {t : Term} {n m : Nat} (hn : DecNat t n) (hm : DecNat t m) :
-    n = m := by
-  induction n generalizing t m with
+theorem ONeutral.v1 (c : Nat) (f : OTerm) : ONeutral (.var c ⬝ₒ f) := .app _ (.var c)
+
+theorem ONeutral.v2 (c : Nat) (f g : OTerm) : ONeutral (.var c ⬝ₒ f ⬝ₒ g) :=
+  .app _ (.app _ (.var c))
+
+theorem DecNatO.functional : ∀ {n m : Nat} {t : OTerm}, DecNatO t n → DecNatO t m → n = m := by
+  intro n
+  induction n with
   | zero =>
-    cases m with
-    | zero => rfl
-    | succ m =>
-      cases hm K S with
-      | intro f hf =>
-        have h := steps_whnf_det (hn K S) .K hf.1 (.S1 f)
-        cases h
+    intro m t hn hm
+    cases fresh_exists t with
+    | intro b hb =>
+      cases m with
+      | zero => rfl
+      | succ m =>
+        cases hm b hb with
+        | intro f hf =>
+          have e := osteps_neutral_det (hn b hb) (.var _) hf.1 (.v1 _ _)
+          cases e
   | succ n ih =>
-    cases m with
-    | zero =>
-      cases hn K S with
+    intro m t hn hm
+    cases fresh_exists t with
+    | intro b hb =>
+      cases hn b hb with
       | intro f hf =>
-        have h := steps_whnf_det hf.1 (.S1 f) (hm K S) .K
-        cases h
-    | succ m =>
-      cases hn K S with
-      | intro f hf =>
-        cases hm K S with
-        | intro f' hf' =>
-          have h := steps_whnf_det hf.1 (.S1 f) hf'.1 (.S1 f')
-          cases h
-          rw [ih hf.2 hf'.2]
-
-/-- Probe markers: `K` at `k`, `S` elsewhere, and the reverse. -/
-def mkK (k : Nat) : Nat → Term := fun i => if i = k then K else S
-def mkS (k : Nat) : Nat → Term := fun i => if i = k then S else K
-
-theorem mkK_self (k : Nat) : mkK k k = K := by simp [mkK]
-theorem mkK_ne {i k : Nat} (h : i ≠ k) : mkK k i = S := by simp [mkK, h]
-theorem mkS_self (k : Nat) : mkS k k = S := by simp [mkS]
-theorem mkS_ne {i k : Nat} (h : i ≠ k) : mkS k i = K := by simp [mkS, h]
-
-theorem DecQuot.probeK {t : Term} {k : Nat} (h : DecQuot t (.stat k)) :
-    Steps (appF t (mkK k) (Kit.n + 3)) K := by
-  have e := h.2 (mkK k)
-  rwa [mkK_self] at e
-
-theorem DecQuot.probeS {t : Term} {k : Nat} (h : DecQuot t (.stat k)) :
-    Steps (appF t (mkS k) (Kit.n + 3)) S := by
-  have e := h.2 (mkS k)
-  rwa [mkS_self] at e
-
-/-- The runtime constructors, probed at `mkK (n + 1)`: `S f g`, `K f`, `S f`. -/
-theorem DecQuot.probe_cons {t : Term} {x : Item} {r : Quotation} (h : DecQuot t (.cons x r)) :
-    ∃ f g, Steps (appF t (mkK (Kit.n + 1)) (Kit.n + 3)) (S ⬝ f ⬝ g) ∧ DecItem f x ∧ DecQuot g r := by
-  cases h (mkK (Kit.n + 1)) with
-  | intro f hf =>
-    cases hf with
-    | intro g hg =>
-      rw [mkK_ne (by omega)] at hg
-      exact ⟨f, g, hg⟩
-
-theorem DecQuot.probe_unit {t : Term} {x : Item} (h : DecQuot t (.unit x)) :
-    ∃ f, Steps (appF t (mkK (Kit.n + 1)) (Kit.n + 3)) (K ⬝ f) ∧ DecItem f x := by
-  cases h (mkK (Kit.n + 1)) with
-  | intro f hf =>
-    rw [mkK_self] at hf
-    exact ⟨f, hf⟩
-
-theorem DecQuot.probe_then {t : Term} {r : Quotation} (h : DecQuot t (.then r)) :
-    ∃ f, Steps (appF t (mkK (Kit.n + 1)) (Kit.n + 3)) (S ⬝ f) ∧ DecQuot f r := by
-  cases h (mkK (Kit.n + 1)) with
-  | intro f hf =>
-    rw [mkK_ne (by omega)] at hf
-    exact ⟨f, hf⟩
-
--- Distinct constructors never decode the same term.
-
-theorem DecQuot.stat_stat {t : Term} {k j : Nat} (hx : DecQuot t (.stat k))
-    (hy : DecQuot t (.stat j)) : k = j := by
-  cases Nat.decEq k j with
-  | isTrue h => exact h
-  | isFalse h =>
-    have e := hy.2 (mkK k)
-    rw [mkK_ne (Ne.symm h)] at e
-    have e' := steps_whnf_det hx.probeK .K e .S
-    cases e'
-
-theorem DecQuot.stat_cons {t : Term} {k : Nat} {y : Item} {r : Quotation}
-    (hx : DecQuot t (.stat k)) (hy : DecQuot t (.cons y r)) : False := by
-  cases hy (mkK k) with | intro f hf => cases hf with | intro g hg =>
-  rw [mkK_ne (Nat.ne_of_gt hx.1)] at hg
-  have e := steps_whnf_det hx.probeK .K hg.1 (.S2 f g)
-  cases e
-
-theorem DecQuot.stat_unit {t : Term} {k : Nat} {y : Item}
-    (hx : DecQuot t (.stat k)) (hy : DecQuot t (.unit y)) : False := by
-  cases hy (mkS k) with | intro f hf =>
-  rw [mkS_ne (by have := hx.1; omega)] at hf
-  have e := steps_whnf_det hx.probeS .S hf.1 (.K1 f)
-  cases e
-
-theorem DecQuot.stat_then {t : Term} {k : Nat} {r : Quotation}
-    (hx : DecQuot t (.stat k)) (hy : DecQuot t (.then r)) : False := by
-  cases hy (mkK k) with | intro f hf =>
-  rw [mkK_ne (by have := hx.1; omega)] at hf
-  have e := steps_whnf_det hx.probeK .K hf.1 (.S1 f)
-  cases e
-
-theorem DecQuot.cons_unit {t : Term} {x y : Item} {q : Quotation}
-    (hx : DecQuot t (.cons x q)) (hy : DecQuot t (.unit y)) : False := by
-  cases hx.probe_cons with | intro f hf => cases hf with | intro g hg =>
-  cases hy.probe_unit with | intro f' hf' =>
-  have e := steps_whnf_det hg.1 (.S2 f g) hf'.1 (.K1 f')
-  cases e
-
-theorem DecQuot.cons_then {t : Term} {x : Item} {q r : Quotation}
-    (hx : DecQuot t (.cons x q)) (hy : DecQuot t (.then r)) : False := by
-  cases hx.probe_cons with | intro f hf => cases hf with | intro g hg =>
-  cases hy.probe_then with | intro f' hf' =>
-  have e := steps_whnf_det hg.1 (.S2 f g) hf'.1 (.S1 f')
-  cases e
-
-theorem DecQuot.unit_then {t : Term} {x : Item} {r : Quotation}
-    (hx : DecQuot t (.unit x)) (hy : DecQuot t (.then r)) : False := by
-  cases hx.probe_unit with | intro f hf =>
-  cases hy.probe_then with | intro f' hf' =>
-  have e := steps_whnf_det hf.1 (.K1 f) hf'.1 (.S1 f')
-  cases e
+        cases m with
+        | zero =>
+          have e := osteps_neutral_det hf.1 (.v1 _ _) (hm b hb) (.var _)
+          cases e
+        | succ m =>
+          cases hm b hb with
+          | intro f' hf' =>
+            have e := osteps_neutral_det hf.1 (.v1 _ _) hf'.1 (.v1 _ _)
+            cases e
+            rw [ih hf.2 hf'.2]
 
 mutual
-  theorem DecItem.functional {t : Term} :
-      (x y : Item) → DecItem t x → DecItem t y → x = y
+  theorem DecItemO.functional {t : OTerm} :
+      (x y : Item) → DecItemO t x → DecItemO t y → x = y
     | .num n, .num m, hx, hy => by
-      cases hx S K with
-      | intro f hf =>
-        cases hy S K with
-        | intro f' hf' =>
-          have h := steps_whnf_det hf.1 (.S1 f) hf'.1 (.S1 f')
-          cases h
-          rw [DecNat.functional hf.2 hf'.2]
+      cases fresh_exists t with
+      | intro b hb =>
+        cases hx b hb with
+        | intro f hf =>
+          cases hy b hb with
+          | intro f' hf' =>
+            have e := osteps_neutral_det hf.1 (.v1 _ _) hf'.1 (.v1 _ _)
+            cases e
+            rw [DecNatO.functional hf.2 hf'.2]
     | .num n, .quot q, hx, hy => by
-      cases hx S K with
-      | intro f hf =>
-        cases hy S K with
-        | intro f' hf' =>
-          have h := steps_whnf_det hf.1 (.S1 f) hf'.1 (.K1 f')
-          cases h
+      cases fresh_exists t with
+      | intro b hb =>
+        cases hx b hb with
+        | intro f hf =>
+          cases hy b hb with
+          | intro f' hf' =>
+            have e := osteps_neutral_det hf.1 (.v1 _ _) hf'.1 (.v1 _ _)
+            injection e with e1
+            injection e1 with e2
+            exact absurd e2 (by omega)
     | .quot q, .num n, hx, hy => by
-      cases hx S K with
-      | intro f hf =>
-        cases hy S K with
-        | intro f' hf' =>
-          have h := steps_whnf_det hf.1 (.K1 f) hf'.1 (.S1 f')
-          cases h
+      cases fresh_exists t with
+      | intro b hb =>
+        cases hx b hb with
+        | intro f hf =>
+          cases hy b hb with
+          | intro f' hf' =>
+            have e := osteps_neutral_det hf.1 (.v1 _ _) hf'.1 (.v1 _ _)
+            injection e with e1
+            injection e1 with e2
+            exact absurd e2 (by omega)
     | .quot q, .quot r, hx, hy => by
-      cases hx S K with
-      | intro f hf =>
-        cases hy S K with
-        | intro f' hf' =>
-          have h := steps_whnf_det hf.1 (.K1 f) hf'.1 (.K1 f')
-          cases h
-          rw [DecQuot.functional q r hf.2 hf'.2]
-  theorem DecQuot.functional {t : Term} :
-      (q r : Quotation) → DecQuot t q → DecQuot t r → q = r
-    | .stat k, .stat j, hx, hy => by rw [DecQuot.stat_stat hx hy]
-    | .stat _, .cons _ _, hx, hy => (DecQuot.stat_cons hx hy).elim
-    | .stat _, .unit _, hx, hy => (DecQuot.stat_unit hx hy).elim
-    | .stat _, .then _, hx, hy => (DecQuot.stat_then hx hy).elim
-    | .cons _ _, .stat _, hx, hy => (DecQuot.stat_cons hy hx).elim
-    | .unit _, .stat _, hx, hy => (DecQuot.stat_unit hy hx).elim
-    | .then _, .stat _, hx, hy => (DecQuot.stat_then hy hx).elim
-    | .cons _ _, .unit _, hx, hy => (DecQuot.cons_unit hx hy).elim
-    | .cons _ _, .then _, hx, hy => (DecQuot.cons_then hx hy).elim
-    | .unit _, .cons _ _, hx, hy => (DecQuot.cons_unit hy hx).elim
-    | .unit _, .then _, hx, hy => (DecQuot.unit_then hx hy).elim
-    | .then _, .cons _ _, hx, hy => (DecQuot.cons_then hy hx).elim
-    | .then _, .unit _, hx, hy => (DecQuot.unit_then hy hx).elim
+      cases fresh_exists t with
+      | intro b hb =>
+        cases hx b hb with
+        | intro f hf =>
+          cases hy b hb with
+          | intro f' hf' =>
+            have e := osteps_neutral_det hf.1 (.v1 _ _) hf'.1 (.v1 _ _)
+            cases e
+            rw [DecQuotO.functional q r hf.2 hf'.2]
+  theorem DecQuotO.functional {t : OTerm} :
+      (q r : Quotation) → DecQuotO t q → DecQuotO t r → q = r
+    | .stat k, .stat j, hx, hy => by
+      cases fresh_exists t with
+      | intro b hb =>
+        have e := osteps_neutral_det (hx.2 b hb) (.var _) (hy.2 b hb) (.var _)
+        injection e with e1
+        rw [Nat.add_right_cancel e1]
+    | .stat _, .cons _ _, hx, hy => by
+      cases fresh_exists t with
+      | intro b hb =>
+        cases hy b hb with
+        | intro f hf =>
+          cases hf with
+          | intro g hg =>
+            have e := osteps_neutral_det (hx.2 b hb) (.var _) hg.1 (.v2 _ _ _)
+            cases e
+    | .stat _, .unit _, hx, hy => by
+      cases fresh_exists t with
+      | intro b hb =>
+        cases hy b hb with
+        | intro f hf =>
+          have e := osteps_neutral_det (hx.2 b hb) (.var _) hf.1 (.v1 _ _)
+          cases e
+    | .stat _, .then _, hx, hy => by
+      cases fresh_exists t with
+      | intro b hb =>
+        cases hy b hb with
+        | intro f hf =>
+          have e := osteps_neutral_det (hx.2 b hb) (.var _) hf.1 (.v1 _ _)
+          cases e
+    | .cons _ _, .stat _, hx, hy => by
+      cases fresh_exists t with
+      | intro b hb =>
+        cases hx b hb with
+        | intro f hf =>
+          cases hf with
+          | intro g hg =>
+            have e := osteps_neutral_det (hy.2 b hb) (.var _) hg.1 (.v2 _ _ _)
+            cases e
+    | .unit _, .stat _, hx, hy => by
+      cases fresh_exists t with
+      | intro b hb =>
+        cases hx b hb with
+        | intro f hf =>
+          have e := osteps_neutral_det (hy.2 b hb) (.var _) hf.1 (.v1 _ _)
+          cases e
+    | .then _, .stat _, hx, hy => by
+      cases fresh_exists t with
+      | intro b hb =>
+        cases hx b hb with
+        | intro f hf =>
+          have e := osteps_neutral_det (hy.2 b hb) (.var _) hf.1 (.v1 _ _)
+          cases e
     | .cons x q, .cons y r, hx, hy => by
-      cases hx.probe_cons with | intro f hf => cases hf with | intro g hg =>
-      cases hy.probe_cons with | intro f' hf' => cases hf' with | intro g' hg' =>
-      have e := steps_whnf_det hg.1 (.S2 f g) hg'.1 (.S2 f' g')
-      cases e
-      rw [DecItem.functional x y hg.2.1 hg'.2.1, DecQuot.functional q r hg.2.2 hg'.2.2]
+      cases fresh_exists t with
+      | intro b hb =>
+        cases hx b hb with
+        | intro f hf =>
+          cases hf with
+          | intro g hg =>
+            cases hy b hb with
+            | intro f' hf' =>
+              cases hf' with
+              | intro g' hg' =>
+                have e := osteps_neutral_det hg.1 (.v2 _ _ _) hg'.1 (.v2 _ _ _)
+                cases e
+                rw [DecItemO.functional x y hg.2.1 hg'.2.1, DecQuotO.functional q r hg.2.2 hg'.2.2]
+    | .cons _ _, .unit _, hx, hy => by
+      cases fresh_exists t with
+      | intro b hb =>
+        cases hx b hb with
+        | intro f hf =>
+          cases hf with
+          | intro g hg =>
+            cases hy b hb with
+            | intro f' hf' =>
+              have e := osteps_neutral_det hg.1 (.v2 _ _ _) hf'.1 (.v1 _ _)
+              injection e with e1
+              cases e1
+    | .cons _ _, .then _, hx, hy => by
+      cases fresh_exists t with
+      | intro b hb =>
+        cases hx b hb with
+        | intro f hf =>
+          cases hf with
+          | intro g hg =>
+            cases hy b hb with
+            | intro f' hf' =>
+              have e := osteps_neutral_det hg.1 (.v2 _ _ _) hf'.1 (.v1 _ _)
+              injection e with e1
+              cases e1
+    | .unit _, .cons _ _, hx, hy => by
+      cases fresh_exists t with
+      | intro b hb =>
+        cases hy b hb with
+        | intro f hf =>
+          cases hf with
+          | intro g hg =>
+            cases hx b hb with
+            | intro f' hf' =>
+              have e := osteps_neutral_det hg.1 (.v2 _ _ _) hf'.1 (.v1 _ _)
+              injection e with e1
+              cases e1
+    | .then _, .cons _ _, hx, hy => by
+      cases fresh_exists t with
+      | intro b hb =>
+        cases hy b hb with
+        | intro f hf =>
+          cases hf with
+          | intro g hg =>
+            cases hx b hb with
+            | intro f' hf' =>
+              have e := osteps_neutral_det hg.1 (.v2 _ _ _) hf'.1 (.v1 _ _)
+              injection e with e1
+              cases e1
     | .unit x, .unit y, hx, hy => by
-      cases hx.probe_unit with | intro f hf =>
-      cases hy.probe_unit with | intro f' hf' =>
-      have e := steps_whnf_det hf.1 (.K1 f) hf'.1 (.K1 f')
-      cases e
-      rw [DecItem.functional x y hf.2 hf'.2]
+      cases fresh_exists t with
+      | intro b hb =>
+        cases hx b hb with
+        | intro f hf =>
+          cases hy b hb with
+          | intro f' hf' =>
+            have e := osteps_neutral_det hf.1 (.v1 _ _) hf'.1 (.v1 _ _)
+            cases e
+            rw [DecItemO.functional x y hf.2 hf'.2]
+    | .unit _, .then _, hx, hy => by
+      cases fresh_exists t with
+      | intro b hb =>
+        cases hx b hb with
+        | intro f hf =>
+          cases hy b hb with
+          | intro f' hf' =>
+            have e := osteps_neutral_det hf.1 (.v1 _ _) hf'.1 (.v1 _ _)
+            injection e with e1
+            injection e1 with e2
+            exact absurd e2 (by omega)
+    | .then _, .unit _, hx, hy => by
+      cases fresh_exists t with
+      | intro b hb =>
+        cases hx b hb with
+        | intro f hf =>
+          cases hy b hb with
+          | intro f' hf' =>
+            have e := osteps_neutral_det hf.1 (.v1 _ _) hf'.1 (.v1 _ _)
+            injection e with e1
+            injection e1 with e2
+            exact absurd e2 (by omega)
     | .then q, .then r, hx, hy => by
-      cases hx.probe_then with | intro f hf =>
-      cases hy.probe_then with | intro f' hf' =>
-      have e := steps_whnf_det hf.1 (.S1 f) hf'.1 (.S1 f')
-      cases e
-      rw [DecQuot.functional q r hf.2 hf'.2]
+      cases fresh_exists t with
+      | intro b hb =>
+        cases hx b hb with
+        | intro f hf =>
+          cases hy b hb with
+          | intro f' hf' =>
+            have e := osteps_neutral_det hf.1 (.v1 _ _) hf'.1 (.v1 _ _)
+            cases e
+            rw [DecQuotO.functional q r hf.2 hf'.2]
 end
 
-theorem DecStack.functional {t : Term} {s s' : Stack} (hs : DecStack t s) (hs' : DecStack t s') :
+theorem DecStackO.functional : ∀ {s s' : Stack} {t : OTerm}, DecStackO t s → DecStackO t s' →
     s = s' := by
-  induction s generalizing t s' with
+  intro s
+  induction s with
   | nil =>
-    cases s' with
-    | nil => rfl
-    | cons b s' =>
-      cases hs' K S with
-      | intro f hf =>
-        cases hf with
-        | intro g hg =>
-          have h := steps_whnf_det (hs K S) .K hg.1 (.S2 f g)
-          cases h
+    intro s' t hs hs'
+    cases fresh_exists t with
+    | intro b hb =>
+      cases s' with
+      | nil => rfl
+      | cons _ _ =>
+        cases hs' b hb with
+        | intro f hf =>
+          cases hf with
+          | intro g hg =>
+            have e := osteps_neutral_det (hs b hb) (.var _) hg.1 (.v2 _ _ _)
+            cases e
   | cons a s ih =>
-    cases s' with
-    | nil =>
-      cases hs K S with
+    intro s' t hs hs'
+    cases fresh_exists t with
+    | intro b hb =>
+      cases hs b hb with
       | intro f hf =>
         cases hf with
         | intro g hg =>
-          have h := steps_whnf_det hg.1 (.S2 f g) (hs' K S) .K
-          cases h
-    | cons b s' =>
-      cases hs K S with
+          cases s' with
+          | nil =>
+            have e := osteps_neutral_det hg.1 (.v2 _ _ _) (hs' b hb) (.var _)
+            cases e
+          | cons a' s' =>
+            cases hs' b hb with
+            | intro f' hf' =>
+              cases hf' with
+              | intro g' hg' =>
+                have e := osteps_neutral_det hg.1 (.v2 _ _ _) hg'.1 (.v2 _ _ _)
+                cases e
+                rw [DecItemO.functional a a' hg.2.1 hg'.2.1, ih hg.2.2 hg'.2.2]
+
+theorem DecodesO.functional {t : OTerm} {o o' : Outcome} (ho : DecodesO t o)
+    (ho' : DecodesO t o') : o = o' := by
+  cases fresh_exists t with
+  | intro b hb =>
+    cases o with
+    | val s =>
+      cases ho b hb with
       | intro f hf =>
-        cases hf with
-        | intro g hg =>
-          cases hs' K S with
+        cases o' with
+        | val s' =>
+          cases ho' b hb with
           | intro f' hf' =>
-            cases hf' with
-            | intro g' hg' =>
-              have h := steps_whnf_det hg.1 (.S2 f g) hg'.1 (.S2 f' g')
-              cases h
-              rw [DecItem.functional a b hg.2.1 hg'.2.1, ih hg.2.2 hg'.2.2]
+            have e := osteps_neutral_det hf.1 (.v1 _ _) hf'.1 (.v1 _ _)
+            cases e
+            rw [DecStackO.functional hf.2 hf'.2]
+        | err =>
+          have e := osteps_neutral_det hf.1 (.v1 _ _) (ho' b hb) (.var _)
+          cases e
+    | err =>
+      cases o' with
+      | val s' =>
+        cases ho' b hb with
+        | intro f' hf' =>
+          have e := osteps_neutral_det (ho b hb) (.var _) hf'.1 (.v1 _ _)
+          cases e
+      | err => rfl
+
+theorem DecNat.functional {t : Term} {n m : Nat} (hn : DecNat t n) (hm : DecNat t m) : n = m :=
+  DecNatO.functional hn hm
+
+theorem DecItem.functional {t : Term} (x y : Item) (hx : DecItem t x) (hy : DecItem t y) :
+    x = y := DecItemO.functional x y hx hy
+
+theorem DecQuot.functional {t : Term} (q r : Quotation) (hq : DecQuot t q) (hr : DecQuot t r) :
+    q = r := DecQuotO.functional q r hq hr
+
+theorem DecStack.functional {t : Term} {s s' : Stack} (hs : DecStack t s) (hs' : DecStack t s') :
+    s = s' := DecStackO.functional hs hs'
 
 /-- **Decoding is a function.**  A term decodes to at most one outcome. -/
 theorem Decodes.functional {t : Term} {o o' : Outcome} (ho : Decodes t o) (ho' : Decodes t o') :
-    o = o' := by
-  cases o with
-  | val s =>
-    cases o' with
-    | val s' =>
-      cases ho S K S with
-      | intro f hf =>
-        cases ho' S K S with
-        | intro f' hf' =>
-          have h := steps_whnf_det hf.1 (.S1 f) hf'.1 (.S1 f')
-          cases h
-          rw [DecStack.functional hf.2 hf'.2]
-    | err =>
-      cases ho S K S with
-      | intro f hf =>
-        have h := steps_whnf_det hf.1 (.S1 f) (ho' S K S) .K
-        cases h
-  | err =>
-    cases o' with
-    | val s' =>
-      cases ho' S K S with
-      | intro f hf =>
-        have h := steps_whnf_det (ho S K S) .K hf.1 (.S1 f)
-        cases h
-    | err => rfl
+    o = o' := DecodesO.functional ho ho'

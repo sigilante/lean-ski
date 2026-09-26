@@ -37,9 +37,9 @@ scoped instance kit : Kit where
 
 scoped instance elim : KitElim where
   Qs_elim := fun k hk => absurd hk (Nat.not_lt_zero k)
-  QCons_elim := fun _ _ _ => iter_sound (k := 28) rfl
-  QUnit_elim := fun _ _ => iter_sound (k := 12) rfl
-  QThen_elim := fun _ _ => iter_sound (k := 10) rfl
+  QCons_elim := fun _ _ _ => oiter_sound (k := 28) rfl
+  QUnit_elim := fun _ _ => oiter_sound (k := 12) rfl
+  QThen_elim := fun _ _ => oiter_sound (k := 10) rfl
 
 scoped instance words : KitWords where
   wUnit_stages := fun _ => ⟨_, _, iter_sound (k := 3) rfl, iter_sound (k := 1) rfl, fun _ _ => iter_sound (k := 5) rfl⟩
@@ -97,12 +97,12 @@ scoped instance kit : Kit where
 
 scoped instance elim : KitElim where
   Qs_elim := fun k hk => match k, hk with
-      | 0, _ => fun _ => iter_sound (k := 10) rfl
-      | 1, _ => fun _ => iter_sound (k := 8) rfl
+      | 0, _ => fun _ => oiter_sound (k := 10) rfl
+      | 1, _ => fun _ => oiter_sound (k := 8) rfl
       | _ + 2, h => absurd h (by show ¬ (_ + 2 < 2); omega)
-  QCons_elim := fun _ _ _ => iter_sound (k := 38) rfl
-  QUnit_elim := fun _ _ => iter_sound (k := 18) rfl
-  QThen_elim := fun _ _ => iter_sound (k := 16) rfl
+  QCons_elim := fun _ _ _ => oiter_sound (k := 38) rfl
+  QUnit_elim := fun _ _ => oiter_sound (k := 18) rfl
+  QThen_elim := fun _ _ => oiter_sound (k := 16) rfl
 
 scoped instance words : KitWords where
   wUnit_stages := fun _ => ⟨_, _, iter_sound (k := 3) rfl, iter_sound (k := 1) rfl, fun _ _ => iter_sound (k := 5) rfl⟩
@@ -197,11 +197,11 @@ scoped instance kit : Kit where
 
 scoped instance elim : KitElim where
   Qs_elim := fun k hk => match k, hk with
-      | 0, _ => fun _ => iter_sound (k := 7) rfl
+      | 0, _ => fun _ => oiter_sound (k := 7) rfl
       | _ + 1, h => absurd h (by show ¬ (_ + 1 < 1); omega)
-  QCons_elim := fun _ _ _ => iter_sound (k := 33) rfl
-  QUnit_elim := fun _ _ => iter_sound (k := 15) rfl
-  QThen_elim := fun _ _ => iter_sound (k := 13) rfl
+  QCons_elim := fun _ _ _ => oiter_sound (k := 33) rfl
+  QUnit_elim := fun _ _ => oiter_sound (k := 15) rfl
+  QThen_elim := fun _ _ => oiter_sound (k := 13) rfl
 
 scoped instance words : KitWords where
   wUnit_stages := fun _ => ⟨_, _, iter_sound (k := 3) rfl, iter_sound (k := 1) rfl, fun _ _ => iter_sound (k := 5) rfl⟩

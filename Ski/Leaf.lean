@@ -55,6 +55,17 @@ theorem Contract.of_steps {t t' : Term} {o : Outcome} (h : Steps t t') (h' : Con
   cases h' with
   | intro u hu => exact ⟨u, ⟨h.trans hu.1.1, hu.1.2⟩, hu.2⟩
 
+/-- **Contracts are closed under backward weak reduction.**  If `t` weakly
+    reduces to `t'` and `t'` meets the contract, so does `t`: `t` reaches a
+    weak head normal form that weakly reduces to `t'`'s (`eval_back`), and
+    decoding is closed under backward weak reduction. -/
+theorem Contract.of_wsteps {t t' : Term} {o : Outcome} (h : WSteps t t') (h' : Contract t' o) :
+    Contract t o := by
+  cases h' with
+  | intro u hu =>
+    cases eval_back h hu.1 with
+    | intro v hv => exact ⟨v, hv.1, Decodes.of_wsteps hv.2 hu.2⟩
+
 /-- The quotation eliminator `apT` realizes the model `ap`. -/
 def ApSound (apT : Term) (ap : Quotation → Stack → Outcome) : Prop :=
   ∀ r u fr fu, DecQuot fr r → DecStack fu u → Contract (apT ⬝ fr ⬝ fu) (ap r u)
@@ -67,7 +78,7 @@ theorem eval_rval (g : Term) : Eval (Scott.RVal ⬝ g) (rvalW g) :=
   ⟨iter_sound (k := 2) rfl, .S2 _ _⟩
 
 theorem dec_rvalW {g : Term} {s : Stack} (h : DecStack g s) : Decodes (rvalW g) (.val s) :=
-  fun k0 _ _ => ⟨_, iter_sound (k := 12) rfl, DecStack.of_steps (steps_thunk1 g k0) h⟩
+  fun _ _ => ⟨_, oiter_sound (k := 12) rfl, DecStackO.of_owsteps (owsteps_thunk1 _ _) h⟩
 
 theorem contract_val {t g : Term} {s : Stack} (ht : Steps t (Scott.RVal ⬝ g))
     (hg : DecStack g s) : Contract t (.val s) :=
@@ -79,13 +90,13 @@ theorem contract_err {t : Term} (ht : Steps t Scott.RErr) : Contract t .err :=
 /-- An empty input stack takes the first continuation. -/
 theorem stack_err {s c0 c1 t : Term} (hs : DecStack s []) (h : Steps t (s ⬝ c0 ⬝ c1))
     (h0 : Steps c0 Scott.RErr) : Contract t .err :=
-  contract_err (h.trans ((hs c0 c1).trans h0))
+  contract_err (h.trans ((hs.probe_nil c0 c1).trans h0))
 
 /-- A non-empty input stack takes the second, with its top and rest. -/
 theorem stack_push {s c0 c1 t : Term} {a : Item} {S : Stack} (hs : DecStack s (a :: S))
     (h : Steps t (s ⬝ c0 ⬝ c1)) :
     ∃ f g, Steps t (c1 ⬝ f ⬝ g) ∧ DecItem f a ∧ DecStack g S := by
-  cases hs c0 c1 with
+  cases hs.probe_cons c0 c1 with
   | intro f hf =>
     cases hf with
     | intro g hg => exact ⟨f, g, h.trans hg.1, hg.2⟩
@@ -93,13 +104,13 @@ theorem stack_push {s c0 c1 t : Term} {a : Item} {S : Stack} (hs : DecStack s (a
 /-- A number where a quotation is wanted takes the first continuation. -/
 theorem item_num_err {x e0 e1 t : Term} {n : Nat} (hx : DecItem x (.num n))
     (h : Steps t (x ⬝ e0 ⬝ e1)) (he : ∀ f, Steps (e0 ⬝ f) Scott.RErr) : Contract t .err := by
-  cases hx e0 e1 with
+  cases hx.probe_num e0 e1 with
   | intro f hf => exact contract_err (h.trans (hf.1.trans (he f)))
 
 /-- A quotation takes the second continuation, with its body. -/
 theorem item_quot {x e0 e1 t : Term} {q : Quotation} (hx : DecItem x (.quot q))
     (h : Steps t (x ⬝ e0 ⬝ e1)) : ∃ f, Steps t (e1 ⬝ f) ∧ DecQuot f q := by
-  cases hx e0 e1 with
+  cases hx.probe_quot e0 e1 with
   | intro f hf => exact ⟨f, h.trans hf.1, hf.2⟩
 
 -- ---------------------------------------------------------------------------
@@ -388,8 +399,9 @@ theorem leaf_cat (ap : Quotation → Stack → Outcome) (S : Stack) (hS : S.all 
 --
 -- `wDip` runs until `apT` is at the head, applied to the quotation, the
 -- rest of the stack and three continuations.  What `apT` does there is
--- known only through `Decodes`, which probes at every continuation, and
--- `dip`'s own continuations are the ones it is probed at.
+-- known only through `Decodes`, whose closed probes hold at every
+-- continuation (`Decodes.probe_val`), and `dip`'s own continuations are the
+-- ones it is probed at.
 -- ---------------------------------------------------------------------------
 
 theorem wDip_stages (apT s : Term) : ∃ c0 c1,
@@ -433,10 +445,10 @@ theorem leafD_dip_run (apT : Term) (r : Quotation) (b : Item) (u : Stack) (o : O
   have ho := hap x g2 h3.2 h5.2.2
   cases o with
   | val v =>
-    cases ho k0 k1 k2 with
+    cases ho.probe_val k0 k1 k2 with
     | intro fv hv =>
       exact contract_val (run.trans (hv.1.trans (h6.2.1 fv))) (dec_push h5.2.1 hv.2)
-  | err => exact contract_err (run.trans ((ho k0 k1 k2).trans h6.2.2))
+  | err => exact contract_err (run.trans ((ho.probe_err k0 k1 k2).trans h6.2.2))
 
 theorem leafD_dip (apT : Term) (ap : Quotation → Stack → Outcome) (hap : ApSound apT ap)
     (S : Stack) {s : Term} (hs : DecStack s S) :
@@ -546,22 +558,22 @@ theorem leafD_quote (ap : Quotation → Stack → Outcome) (q : Quotation) (hq :
 /-- A quotation where a number is wanted takes the second continuation. -/
 theorem item_quot_err {x e0 e1 t : Term} {q : Quotation} (hx : DecItem x (.quot q))
     (h : Steps t (x ⬝ e0 ⬝ e1)) (he : ∀ f, Steps (e1 ⬝ f) Scott.RErr) : Contract t .err := by
-  cases hx e0 e1 with
+  cases hx.probe_quot e0 e1 with
   | intro f hf => exact contract_err (h.trans (hf.1.trans (he f)))
 
 /-- A number takes the first continuation, with its numeral. -/
 theorem item_num {x e0 e1 t : Term} {n : Nat} (hx : DecItem x (.num n))
     (h : Steps t (x ⬝ e0 ⬝ e1)) : ∃ f, Steps t (e0 ⬝ f) ∧ DecNat f n := by
-  cases hx e0 e1 with
+  cases hx.probe_num e0 e1 with
   | intro f hf => exact ⟨f, h.trans hf.1, hf.2⟩
 
 theorem nat_zero {x n0 n1 t : Term} (hx : DecNat x 0) (h : Steps t (x ⬝ n0 ⬝ n1)) :
     Steps t n0 :=
-  h.trans (hx n0 n1)
+  h.trans (hx.probe_zero n0 n1)
 
 theorem nat_succ {x n0 n1 t : Term} {m : Nat} (hx : DecNat x (m + 1))
     (h : Steps t (x ⬝ n0 ⬝ n1)) : ∃ f, Steps t (n1 ⬝ f) ∧ DecNat f m := by
-  cases hx n0 n1 with
+  cases hx.probe_succ n0 n1 with
   | intro f hf => exact ⟨f, h.trans hf.1, hf.2⟩
 
 theorem wIfz_stages (apT s : Term) : ∃ c0 c1,

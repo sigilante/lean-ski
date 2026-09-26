@@ -113,10 +113,10 @@ theorem seq_contract {f g s : Term} {o : Outcome} {k : Stack → Outcome}
     have run := h.1.trans (Steps.app3 k0 k1 k2 hu.1.1)
     cases o with
     | val S' =>
-      cases hu.2 k0 k1 k2 with
+      cases hu.2.probe_val k0 k1 k2 with
       | intro fv hv =>
         exact Contract.of_steps (run.trans (hv.1.trans (h.2.1 fv))) (hg S' fv rfl hv.2)
-    | err => exact contract_err (run.trans ((hu.2 k0 k1 k2).trans h.2.2))
+    | err => exact contract_err (run.trans ((hu.2.probe_err k0 k1 k2).trans h.2.2))
 
 -- ---------------------------------------------------------------------------
 -- The composition theorem

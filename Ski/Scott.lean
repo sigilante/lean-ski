@@ -1,4 +1,5 @@
 import Ski.Fuel
+import Ski.Open
 open Term
 
 /-!
@@ -10,7 +11,9 @@ lemma is the reference reducer's own contraction sequence on symbolic
 arguments, re-run by the kernel (`iter_sound rfl`).  The continuation
 receives the fields as unreduced applications — `K ⬝ n ⬝ s` for `n` —
 which is what bracket abstraction produces and what every word-level
-proof has to reason through.
+proof has to reason through.  Each `_oelim` lemma is the same run on
+open terms (`oiter_sound rfl`), which decoding uses to probe at
+variables.
 -/
 
 namespace Scott
@@ -23,9 +26,17 @@ theorem Zero_elim (k0 k1 : Term) :
     Steps (Zero ⬝ k0 ⬝ k1) k0 :=
   iter_sound (k := 1) rfl
 
+theorem Zero_oelim (k0 k1 : OTerm) :
+    OSteps (Zero.toO ⬝ₒ k0 ⬝ₒ k1) k0 :=
+  oiter_sound (k := 1) rfl
+
 theorem Suc_elim (x0 k0 k1 : Term) :
     Steps (Suc ⬝ x0 ⬝ k0 ⬝ k1) (k1 ⬝ ((K ⬝ x0) ⬝ k1)) :=
   iter_sound (k := 7) rfl
+
+theorem Suc_oelim (x0 k0 k1 : OTerm) :
+    OSteps (Suc.toO ⬝ₒ x0 ⬝ₒ k0 ⬝ₒ k1) (k1 ⬝ₒ ((OTerm.K ⬝ₒ x0) ⬝ₒ k1)) :=
+  oiter_sound (k := 7) rfl
 
 -- item === Num nat | Quot quot
 def Num : Term := ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))
@@ -35,9 +46,17 @@ theorem Num_elim (x0 k0 k1 : Term) :
     Steps (Num ⬝ x0 ⬝ k0 ⬝ k1) (k0 ⬝ ((K ⬝ x0) ⬝ k0)) :=
   iter_sound (k := 9) rfl
 
+theorem Num_oelim (x0 k0 k1 : OTerm) :
+    OSteps (Num.toO ⬝ₒ x0 ⬝ₒ k0 ⬝ₒ k1) (k0 ⬝ₒ ((OTerm.K ⬝ₒ x0) ⬝ₒ k0)) :=
+  oiter_sound (k := 9) rfl
+
 theorem Quot_elim (x0 k0 k1 : Term) :
     Steps (Quot ⬝ x0 ⬝ k0 ⬝ k1) (k1 ⬝ ((K ⬝ x0) ⬝ k1)) :=
   iter_sound (k := 7) rfl
+
+theorem Quot_oelim (x0 k0 k1 : OTerm) :
+    OSteps (Quot.toO ⬝ₒ x0 ⬝ₒ k0 ⬝ₒ k1) (k1 ⬝ₒ ((OTerm.K ⬝ₒ x0) ⬝ₒ k1)) :=
+  oiter_sound (k := 7) rfl
 
 -- stack === Empty | Push item stack
 def Empty : Term := K
@@ -47,9 +66,17 @@ theorem Empty_elim (k0 k1 : Term) :
     Steps (Empty ⬝ k0 ⬝ k1) k0 :=
   iter_sound (k := 1) rfl
 
+theorem Empty_oelim (k0 k1 : OTerm) :
+    OSteps (Empty.toO ⬝ₒ k0 ⬝ₒ k1) k0 :=
+  oiter_sound (k := 1) rfl
+
 theorem Push_elim (x0 x1 k0 k1 : Term) :
     Steps (Push ⬝ x0 ⬝ x1 ⬝ k0 ⬝ k1) ((k1 ⬝ ((K ⬝ x0) ⬝ k1)) ⬝ ((((K ⬝ K) ⬝ x0) ⬝ x1) ⬝ k1)) :=
   iter_sound (k := 19) rfl
+
+theorem Push_oelim (x0 x1 k0 k1 : OTerm) :
+    OSteps (Push.toO ⬝ₒ x0 ⬝ₒ x1 ⬝ₒ k0 ⬝ₒ k1) ((k1 ⬝ₒ ((OTerm.K ⬝ₒ x0) ⬝ₒ k1)) ⬝ₒ ((((OTerm.K ⬝ₒ OTerm.K) ⬝ₒ x0) ⬝ₒ x1) ⬝ₒ k1)) :=
+  oiter_sound (k := 19) rfl
 
 -- quot === QCons item quot | QUnit item | QThen quot
 def QCons : Term := ((S ⬝ (K ⬝ (S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ (K ⬝ K))))
@@ -60,13 +87,25 @@ theorem QCons_elim (x0 x1 k0 k1 k2 : Term) :
     Steps (QCons ⬝ x0 ⬝ x1 ⬝ k0 ⬝ k1 ⬝ k2) ((k0 ⬝ ((K ⬝ x0) ⬝ k0)) ⬝ ((((K ⬝ K) ⬝ x0) ⬝ x1) ⬝ k0)) :=
   iter_sound (k := 28) rfl
 
+theorem QCons_oelim (x0 x1 k0 k1 k2 : OTerm) :
+    OSteps (QCons.toO ⬝ₒ x0 ⬝ₒ x1 ⬝ₒ k0 ⬝ₒ k1 ⬝ₒ k2) ((k0 ⬝ₒ ((OTerm.K ⬝ₒ x0) ⬝ₒ k0)) ⬝ₒ ((((OTerm.K ⬝ₒ OTerm.K) ⬝ₒ x0) ⬝ₒ x1) ⬝ₒ k0)) :=
+  oiter_sound (k := 28) rfl
+
 theorem QUnit_elim (x0 k0 k1 k2 : Term) :
     Steps (QUnit ⬝ x0 ⬝ k0 ⬝ k1 ⬝ k2) (k1 ⬝ ((K ⬝ x0) ⬝ k1)) :=
   iter_sound (k := 12) rfl
 
+theorem QUnit_oelim (x0 k0 k1 k2 : OTerm) :
+    OSteps (QUnit.toO ⬝ₒ x0 ⬝ₒ k0 ⬝ₒ k1 ⬝ₒ k2) (k1 ⬝ₒ ((OTerm.K ⬝ₒ x0) ⬝ₒ k1)) :=
+  oiter_sound (k := 12) rfl
+
 theorem QThen_elim (x0 k0 k1 k2 : Term) :
     Steps (QThen ⬝ x0 ⬝ k0 ⬝ k1 ⬝ k2) (k2 ⬝ ((K ⬝ x0) ⬝ k2)) :=
   iter_sound (k := 10) rfl
+
+theorem QThen_oelim (x0 k0 k1 k2 : OTerm) :
+    OSteps (QThen.toO ⬝ₒ x0 ⬝ₒ k0 ⬝ₒ k1 ⬝ₒ k2) (k2 ⬝ₒ ((OTerm.K ⬝ₒ x0) ⬝ₒ k2)) :=
+  oiter_sound (k := 10) rfl
 
 -- result === RVal stack | RErr | RTime
 def RVal : Term := ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K)))
@@ -77,13 +116,25 @@ theorem RVal_elim (x0 k0 k1 k2 : Term) :
     Steps (RVal ⬝ x0 ⬝ k0 ⬝ k1 ⬝ k2) (k0 ⬝ ((K ⬝ x0) ⬝ k0)) :=
   iter_sound (k := 14) rfl
 
+theorem RVal_oelim (x0 k0 k1 k2 : OTerm) :
+    OSteps (RVal.toO ⬝ₒ x0 ⬝ₒ k0 ⬝ₒ k1 ⬝ₒ k2) (k0 ⬝ₒ ((OTerm.K ⬝ₒ x0) ⬝ₒ k0)) :=
+  oiter_sound (k := 14) rfl
+
 theorem RErr_elim (k0 k1 k2 : Term) :
     Steps (RErr ⬝ k0 ⬝ k1 ⬝ k2) k1 :=
   iter_sound (k := 2) rfl
 
+theorem RErr_oelim (k0 k1 k2 : OTerm) :
+    OSteps (RErr.toO ⬝ₒ k0 ⬝ₒ k1 ⬝ₒ k2) k1 :=
+  oiter_sound (k := 2) rfl
+
 theorem RTime_elim (k0 k1 k2 : Term) :
     Steps (RTime ⬝ k0 ⬝ k1 ⬝ k2) k2 :=
   iter_sound (k := 3) rfl
+
+theorem RTime_oelim (k0 k1 k2 : OTerm) :
+    OSteps (RTime.toO ⬝ₒ k0 ⬝ₒ k1 ⬝ₒ k2) k2 :=
+  oiter_sound (k := 3) rfl
 
 -- The kernel words, compiled (skilark.joy.COMPILED_KERNEL).  `wDip`, `wDo`
 -- and `wIfz` take the quotation eliminator `ap` first; `wLit` and `wQuote`

@@ -441,13 +441,13 @@ theorem run_sound {t : Job} {S : Stack} {o : Outcome} (h : Run t S o) : Sound t 
     intro z fq fs hz hq hs
     cases KitApply.applyF_stages (fixSelf applyF (I ⬝ z)) fq fs with | intro ks h =>
     exact Contract.of_steps
-      ((applySelf_cases hz ks h.1).trans ((hq.2 ks).trans (h.2.1 k hk)))
+      ((applySelf_cases hz ks h.1).trans ((hq.probe_stat.2 ks).trans (h.2.1 k hk)))
       (ih (KitApply.body_ok k hk) (fixSelf_inv hz) (KitApply.body_compiles k hk _) hs)
   | @cons x r S o _ ih =>
     unfold Sound
     intro z fq fs hz hq hs
     cases KitApply.applyF_stages (fixSelf applyF (I ⬝ z)) fq fs with | intro ks h =>
-    cases hq ks with | intro f hf => cases hf with | intro g hg =>
+    cases hq.probe_cons ks with | intro f hf => cases hf with | intro g hg =>
     cases h.2.2.1 f g with | intro P hP =>
     exact Contract.of_steps ((applySelf_cases hz ks h.1).trans (hg.1.trans hP.1))
       (ih (fixSelf_inv hz) hg.2.2
@@ -456,7 +456,7 @@ theorem run_sound {t : Job} {S : Stack} {o : Outcome} (h : Run t S o) : Sound t 
     unfold Sound
     intro z fq fs hz hq hs
     cases KitApply.applyF_stages (fixSelf applyF (I ⬝ z)) fq fs with | intro ks h =>
-    cases hq ks with | intro f hf =>
+    cases hq.probe_unit ks with | intro f hf =>
     cases h.2.2.2.1 f with | intro G hG =>
     exact contract_val ((applySelf_cases hz ks h.1).trans (hf.1.trans hG.1))
       (DecStack.of_steps hG.2 (dec_push hf.2 (DecStack.of_steps (steps_thunk1 _ _) hs)))
@@ -464,7 +464,7 @@ theorem run_sound {t : Job} {S : Stack} {o : Outcome} (h : Run t S o) : Sound t 
     unfold Sound
     intro z fq fs hz hq hs
     cases KitApply.applyF_stages (fixSelf applyF (I ⬝ z)) fq fs with | intro ks h =>
-    cases hq ks with | intro fb hb =>
+    cases hq.probe_then ks with | intro fb hb =>
     have hs' := DecStack.of_steps (steps_thunk2 (fixSelf applyF (I ⬝ z)) fs fb) hs
     exact Contract.of_steps
       ((applySelf_cases hz ks h.1).trans (hb.1.trans (h.2.2.2.2 fb)))
@@ -478,7 +478,7 @@ theorem run_sound {t : Job} {S : Stack} {o : Outcome} (h : Run t S o) : Sound t 
     unfold Sound
     intro z fq fs hz hq hs
     cases KitApply.applyF_stages (fixSelf applyF (I ⬝ z)) fq fs with | intro ks h =>
-    cases hq ks with | intro fb hb =>
+    cases hq.probe_then ks with | intro fb hb =>
     have hs' := DecStack.of_steps (steps_thunk2 (fixSelf applyF (I ⬝ z)) fs fb) hs
     exact Contract.of_steps
       ((applySelf_cases hz ks h.1).trans (hb.1.trans (h.2.2.2.2 fb)))
@@ -489,7 +489,7 @@ theorem run_sound {t : Job} {S : Stack} {o : Outcome} (h : Run t S o) : Sound t 
     unfold Sound
     intro z fq fs hz hq hs
     cases KitApply.applyF_stages (fixSelf applyF (I ⬝ z)) fq fs with | intro ks h =>
-    cases hq ks with | intro fb hb =>
+    cases hq.probe_then ks with | intro fb hb =>
     have hs' := DecStack.of_steps (steps_thunk2 (fixSelf applyF (I ⬝ z)) fs fb) hs
     exact Contract.of_steps
       ((applySelf_cases hz ks h.1).trans (hb.1.trans (h.2.2.2.2 fb)))

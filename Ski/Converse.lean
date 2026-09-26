@@ -355,7 +355,7 @@ theorem prog_complete_at {apT : Term} {n : Nat} (hS : ApSoundR apT ApplyRel)
       | err => exact ⟨_, .seq_err ho1⟩
       | val S' =>
         cases leafR hS hok.1 hs ho1.word_cwR with | intro u hu =>
-        cases hu.2 j0 j1 j2 with | intro fv hv =>
+        cases hu.2.probe_val j0 j1 j2 with | intro fv hv =>
         cases StepsN.tail
             (toWord.trans ((Steps.app3 j0 j1 j2 hu.1.1).trans (hv.1.trans (h.2.1 fv)))) hw ww with
         | intro m2 hm2 =>
@@ -378,7 +378,7 @@ theorem apply_complete_at {n : Nat} (hA : ∀ m, m < n → ApplyClaim m) : Apply
   cases KitApply.applyF_stages (fixSelf applyF (I ⬝ z)) fq fs with | intro ks h =>
   cases q with
   | stat k =>
-    cases reach (h.1.trans ((hq.2 ks).trans (h.2.1 k hq.1))) with
+    cases reach (h.1.trans ((hq.probe_stat.2 ks).trans (h.2.1 k hq.1))) with
     | intro m hm =>
       cases prog_complete_at (applySelf_soundR hz')
           (fun m' hm' _ _ _ _ _ hq' hs' hw' ww' => hA m' (Nat.lt_of_le_of_lt hm' hm.1) hz' hq' hs' hw' ww')
@@ -386,7 +386,7 @@ theorem apply_complete_at {n : Nat} (hA : ∀ m, m < n → ApplyClaim m) : Apply
       | intro o ho => exact ⟨o, .stat hq.1 ho⟩
   | unit x => exact ⟨_, .unit⟩
   | cons x r =>
-    cases hq ks with | intro f hf => cases hf with | intro g hg =>
+    cases hq.probe_cons ks with | intro f hf => cases hf with | intro g hg =>
     cases h.2.2.1 f g with | intro P hP =>
     cases reach (h.1.trans (hg.1.trans hP.1)) with | intro m hm =>
     cases hA m hm.1 hz' hg.2.2
@@ -400,7 +400,7 @@ theorem apply_complete_at {n : Nat} (hA : ∀ m, m < n → ApplyClaim m) : Apply
       cases a with
       | num k => exact ⟨_, .then_bad (fun _ _ e => by cases e)⟩
       | quot r =>
-        cases hq ks with | intro fb hb =>
+        cases hq.probe_then ks with | intro fb hb =>
         have hs' := DecStack.of_steps (steps_thunk2 (fixSelf applyF (I ⬝ z)) fs fb) hs
         have toSeq := h.1.trans (hb.1.trans (h.2.2.2.2 fb))
         cases seq_stages (Scott.wDo ⬝ fixSelf applyF (I ⬝ z))
@@ -417,7 +417,7 @@ theorem apply_complete_at {n : Nat} (hA : ∀ m, m < n → ApplyClaim m) : Apply
           | err => exact ⟨_, .then_err ho1⟩
           | val S' =>
             cases applySelf_sound ho1 hz' hx.2.1 hx.2.2 with | intro u hu =>
-            cases hu.2 j0 j1 j2 with | intro fv hv =>
+            cases hu.2.probe_val j0 j1 j2 with | intro fv hv =>
             have toRest := toCall.trans ((Steps.app3 j0 j1 j2 hu.1.1).trans
               (hv.1.trans ((hj.2.1 fv).trans (.single (.left fv (.left fb (.I _)))))))
             cases reach toRest with | intro m3 hm3 =>
