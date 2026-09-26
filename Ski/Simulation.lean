@@ -518,12 +518,13 @@ def progOf (src : List Nat) : Nm → Option GDef := fun n => (progDefs src).look
     ISA, then the program, then Tier 1. -/
 def genvOf (src : List Nat) : Nm → Term := fun n => (resolveIn (compiledEnv false src) n).getD K
 
-/-- Each global of `defs` compiled as the compiler compiles it. -/
+/-- Each global of `defs` compiled as the compiler compiles it (by
+    `ctorOF` and `compileF`, which the kernel evaluates fast). -/
 def fixedCheck (defs : List (Nm × GDef)) (genv : Nm → Term) : Bool :=
   defs.all fun p =>
     match defs.lookup p.1 with
-    | some (.ctor a j m) => genv p.1 == toTerm (ctorO a j m)
-    | some (.eqn e) => genv p.1 == e.compile genv
+    | some (.ctor a j m) => genv p.1 == toTerm (ctorOF a j m)
+    | some (.eqn e) => genv p.1 == e.compileF genv
     | none => true
 
 theorem lookup_some_mem : ∀ {l : List (Nm × GDef)} {n : Nm} {d : GDef},
@@ -551,6 +552,7 @@ theorem fixed_of_check {defs : List (Nm × GDef)} {genv : Nm → Term}
     | ⟨p, hp, hp1⟩ =>
       have hc := h p hp
       rw [hp1, hn] at hc
+      rw [← ctorOF_eq]
       exact beq_iff_eq.mp hc
   · intro n e hn
     have hn : defs.lookup n = some (.eqn e) := hn
@@ -558,6 +560,7 @@ theorem fixed_of_check {defs : List (Nm × GDef)} {genv : Nm → Term}
     | ⟨p, hp, hp1⟩ =>
       have hc := h p hp
       rw [hp1, hn] at hc
+      rw [← FEqn.compileF_eq]
       exact beq_iff_eq.mp hc
 
 -- ---------------------------------------------------------------------------

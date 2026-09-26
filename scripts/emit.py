@@ -13,6 +13,7 @@ the same contractions the reference reducer took, on symbolic arguments.
 A `Run` derivation is built on the host and checked by the kernel.
 """
 import sys, pathlib
+sys.setrecursionlimit(100000)
 sys.path.insert(0, "/Users/neal/SKIlark")
 import skijack
 from skijack.run import run_level0
@@ -500,7 +501,7 @@ SUITES = [  # (Lean name, doc, ascii text, unicode text)
     ("coverage", "the coverage file `scripts/coverage.ski`: signatures, the ISA, Tier 1, the prelude, λ, cells, axis picks, case, cores and an interpreter core",
      cov_text, to_unicode(cov_text)),
 ]
-for stem, lname in [("sec1-nat", "sec1Nat"), ("kernel-events", "kernelEvents")]:
+for stem, lname in [("sec1-nat", "sec1Nat"), ("kernel-events", "kernelEvents"), ("ascii-digits", "asciiDigits")]:
     SUITES.append((lname, f"`skijack`'s corpus file `{stem}`",
                    (CORPUS / f"{stem}.ascii.ski").read_text(encoding="utf-8"),
                    (CORPUS / f"{stem}.unicode.ski").read_text(encoding="utf-8")))
@@ -517,6 +518,36 @@ REFUSED = [
     ("unicode_in_ascii", "a Unicode spelling in the ASCII lexicon", "t ≡ A | B\n", "ascii"),
     ("ascii_in_unicode", "an ASCII spelling in the Unicode lexicon", "t === A | B\n", "unicode"),
 ]
+
+
+def post(t):
+    """A term's postfix codes (`Front.codeOf`): its function, its
+    argument, then 3."""
+    res = []
+    def go(t):
+        if isinstance(t, Atom):
+            res.append({"S": 0, "K": 1, "I": 2}[t.name])
+        else:
+            go(t.fn); go(t.arg); res.append(3)
+    go(t)
+    return res
+
+
+def pack(cs):
+    """Codes packed 25 to a number, base 6, each code plus one, least
+    significant first (`Front.codeOf`)."""
+    out = []
+    for k in range(0, len(cs), 25):
+        n = 0
+        for c in reversed(cs[k:k + 25]):
+            n = n * 6 + (c + 1)
+        out.append(n)
+    return out
+
+
+def codes_of(ns):
+    cs = [str(n) for n in ns]
+    return "[\n" + ",\n".join("  " + ", ".join(cs[k:k + 32]) for k in range(0, len(cs), 32)) + "]"
 
 
 def codes(text):
@@ -544,17 +575,16 @@ for lname, doc, atext, utext in SUITES:
     names = sorted(xa.terms)
     L += [f"/-- The ASCII text of {doc}. -/", f"def {lname}Text : List Nat := {codes(atext)}", "",
           f"/-- The Unicode text of {doc}. -/", f"def {lname}TextU : List Nat := {codes(utext)}", "",
-          f"def {lname}Names : List Nm := [" + ", ".join(f'nm! "{n}"' for n in names) + "]", "",
-          f"/-- `skijack`'s terms for {doc}. -/",
-          f"def {lname}Terms : List (Option Term) := [" +
-          ",\n  ".join(f"some {lean(xa.terms[n])}" for n in names) + "]", "",
-          f"/-- The front end compiles the ASCII text to every term `skijack` emits. -/",
-          f"theorem {lname}_agrees :",
-          f"    {lname}Names.map (termOf (compileWith false {lname}Text)) = {lname}Terms := by",
+          f"/-- `skijack`'s terms for {doc}, by name, as packed postfix codes",
+          "    (`Front.codeOf`); the code is injective, so equal codes mean equal terms. -/",
+          f"def {lname}Terms : List (Nm × List Nat) := [",
+          ",\n".join(f'  (nm! "{n}", {codes_of(pack(post(xa.terms[n])))})' for n in names) + "]", "",
+          f"/-- The front end compiles the ASCII text to every term `skijack` emits",
+          "    (`Front.agrees_termOf`), and to no other (`Front.agrees_termOf_rev`). -/",
+          f"theorem {lname}_agrees : agrees (compileWith false {lname}Text) {lname}Terms = true := by",
           "  decide +kernel", "",
           f"/-- And the Unicode text, to the same terms. -/",
-          f"theorem {lname}_unicode_agrees :",
-          f"    {lname}Names.map (termOf (compileWith true {lname}TextU)) = {lname}Terms := by",
+          f"theorem {lname}_unicode_agrees : agrees (compileWith true {lname}TextU) {lname}Terms = true := by",
           "  decide +kernel", "",
           f"/-- The simulation applies: the compiled program is the compiler's for the source. -/",
           f"theorem {lname}_fixed : Fixed (progOf {lname}Text) (genvOf {lname}Text) :=",

@@ -376,10 +376,14 @@ parameters, sibling resolution, `core.eq` names and an interpreter core's
 prelude, and refuses a program with an unresolved name, mutual recursion
 or a name defined twice, as `skijack` does. `Ski/Coverage.lean`
 (generated) checks, in the kernel, that it compiles a coverage file and
-two corpus files (`sec1-nat`, `kernel-events`), each in
-both lexicons, to every term `skijack` emits, that the simulation applies
-to each (`*_fixed`), and that nine programs `skijack` refuses are refused
-(`refuses_*`). Not covered: macros, level 1 (quotation, runs, scry,
+three corpus files (`sec1-nat`, `kernel-events`, `ascii-digits`), each in
+both lexicons, to exactly the terms `skijack` emits (`agrees_termOf`,
+`agrees_termOf_rev`), that the simulation applies to each (`*_fixed`),
+and that nine programs `skijack` refuses are refused (`refuses_*`). The
+kernel checks abstract by `absNF`, proved equal to `absN`: `absN`
+rechecks occurrence at every node, cubic for `ascii-digits`' 128-way type
+(220 s for its constructors), and `absNF` carries the term's variables
+(5 s). Not covered: macros, level 1 (quotation, runs, scry,
 namespaces, fuel), `skijack`'s generated interpreter forms, and its type
 discipline (Stage B), which only refuses.
 

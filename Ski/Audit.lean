@@ -120,6 +120,8 @@ open Ski.Audit
   OWStep.subst OWSteps.subst OWStep.close OWSteps.close close_agree occ_abs single_var
   abs_beta_subst absN_beta_subst WSteps.appT appT_append close_appL abs_beta_close
   absN_beta_close updC_self overrideC_self overrideC_append
+  absO_eq mem_abs OTerm.mem_vars absNV_eq absNF_eq wrapLiftF_eq compF_eq compLamF_eq
+  compDefF_eq compRecF_eq ctorOF_eq
   Scott.Zero_abs Scott.Suc_abs Scott.Num_abs Scott.Quot_abs Scott.Empty_abs Scott.Push_abs Scott.QCons_abs Scott.QUnit_abs Scott.QThen_abs Scott.RVal_abs Scott.RErr_abs Scott.RTime_abs
   CorpusTable.Q1_abs CorpusTable.Q2_abs CorpusTable.QCons_abs CorpusTable.QUnit_abs CorpusTable.QThen_abs LoopTable.Q1_abs LoopTable.QCons_abs LoopTable.QUnit_abs LoopTable.QThen_abs
   SumTable.Q1_abs SumTable.Q2_abs SumTable.Q3_abs SumTable.Q4_abs SumTable.Q5_abs
@@ -234,7 +236,10 @@ open Ski.Audit
   sec1Nat_unicode_agrees sec1Nat_fixed kernelEvents_agrees kernelEvents_unicode_agrees
   kernelEvents_fixed refuses_bare_number refuses_qualified_name refuses_unresolved_name
   refuses_mutual_recursion refuses_defined_twice refuses_one_item_cell refuses_incomplete_case
-  refuses_unicode_in_ascii refuses_ascii_in_unicode
+  refuses_unicode_in_ascii refuses_ascii_in_unicode asciiDigits_agrees
+  asciiDigits_unicode_agrees asciiDigits_fixed Front.FEqn.compileF_eq Front.takeEntry_lookup
+  Front.agreeEnv_lookup Front.agreeEnv_lookup_rev Front.agrees_termOf Front.agrees_termOf_rev
+  Front.lookup_cons_self Front.lookup_cons_ne Front.agreeEnv_cons
 
 -- The source semantics, run: normal-order proof search, the words' meaning from their
 -- source, every Run derivation a source run, and adequacy for the four compiled sources

@@ -77,3 +77,69 @@ def toTerm (t : OTerm) : Term := t.close fun _ => K
     fields: `λ fields conts. k_j fields`, compiled. -/
 def ctorO (a j m : Nat) : OTerm :=
   absN (List.range (a + m)) (appL (.var (a + j)) ((List.range a).map .var))
+
+-- ---------------------------------------------------------------------------
+-- The same scheme by `absNF`, for kernel evaluation
+-- ---------------------------------------------------------------------------
+
+/-- `wrapLift` by `absNF`. -/
+def wrapLiftF (caps ps : List Nat) (body : OTerm) : OTerm :=
+  appL (absNF (caps ++ ps) body) (caps.map .var)
+
+mutual
+  /-- `comp` by `absNF`. -/
+  def compF (scope : List Nat) : Src → OTerm
+    | .glob t => t.toO
+    | .var x => .var x
+    | .app f a => compF scope f ⬝ₒ compF scope a
+    | .lam x b => compLamF (scope.filter fun s => (Src.lam x b).occurs s) [x] b
+  /-- `compLam` by `absNF`. -/
+  def compLamF (caps ps : List Nat) : Src → OTerm
+    | .lam y b => compLamF caps (ps ++ [y]) b
+    | .glob t => wrapLiftF caps ps t.toO
+    | .var x => wrapLiftF caps ps (.var x)
+    | .app f a => wrapLiftF caps ps (compF (caps ++ ps) f ⬝ₒ compF (caps ++ ps) a)
+end
+
+theorem wrapLiftF_eq (caps ps : List Nat) (body : OTerm) :
+    wrapLiftF caps ps body = wrapLift caps ps body := by
+  unfold wrapLiftF wrapLift
+  rw [absNF_eq]
+
+mutual
+  theorem compF_eq (scope : List Nat) : ∀ s, compF scope s = comp scope s
+    | .glob _ => by rw [compF, comp]
+    | .var _ => by rw [compF, comp]
+    | .app f a => by rw [compF, comp, compF_eq scope f, compF_eq scope a]
+    | .lam x b => by rw [compF, comp, compLamF_eq]
+  theorem compLamF_eq (caps ps : List Nat) : ∀ s, compLamF caps ps s = compLam caps ps s
+    | .lam y b => by rw [compLamF, compLam, compLamF_eq]
+    | .glob _ => by rw [compLamF, compLam, wrapLiftF_eq]
+    | .var _ => by rw [compLamF, compLam, wrapLiftF_eq]
+    | .app f a => by
+      rw [compLamF, compLam, wrapLiftF_eq, compF_eq (caps ++ ps) f, compF_eq (caps ++ ps) a]
+end
+
+/-- `compDef` by `absNF`. -/
+def compDefF (xs : List Nat) (body : Src) : OTerm := absNF xs (compF xs body)
+
+theorem compDefF_eq (xs : List Nat) (body : Src) : compDefF xs body = compDef xs body := by
+  unfold compDefF compDef
+  rw [absNF_eq, compF_eq]
+
+/-- `compRec` by `absNF`. -/
+def compRecF (self : Nat) (xs : List Nat) (body : Src) : OTerm :=
+  Ycomb.toO ⬝ₒ absNF (self :: xs) (compF (self :: xs) body)
+
+theorem compRecF_eq (self : Nat) (xs : List Nat) (body : Src) :
+    compRecF self xs body = compRec self xs body := by
+  unfold compRecF compRec
+  rw [absNF_eq, compF_eq]
+
+/-- `ctorO` by `absNF`. -/
+def ctorOF (a j m : Nat) : OTerm :=
+  absNF (List.range (a + m)) (appL (.var (a + j)) ((List.range a).map .var))
+
+theorem ctorOF_eq (a j m : Nat) : ctorOF a j m = ctorO a j m := by
+  unfold ctorOF ctorO
+  rw [absNF_eq]

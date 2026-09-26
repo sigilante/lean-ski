@@ -708,9 +708,21 @@ def FEqn.compile (env : Nm → Term) (e : FEqn) : Term :=
   | some s => toTerm (compRec s e.params (e.body.resolve env))
   | none => toTerm (compDef e.params (e.body.resolve env))
 
-/-- A type's constructors, compiled. -/
+/-- `FEqn.compile` by `absNF`, which the kernel evaluates fast. -/
+def FEqn.compileF (env : Nm → Term) (e : FEqn) : Term :=
+  match e.self with
+  | some s => toTerm (compRecF s e.params (e.body.resolve env))
+  | none => toTerm (compDefF e.params (e.body.resolve env))
+
+theorem FEqn.compileF_eq (env : Nm → Term) (e : FEqn) : e.compileF env = e.compile env := by
+  unfold FEqn.compileF FEqn.compile
+  cases e.self with
+  | some s => exact congrArg toTerm (compRecF_eq _ _ _)
+  | none => exact congrArg toTerm (compDefF_eq _ _)
+
+/-- A type's constructors, compiled (by `ctorOF`, which is `ctorO`). -/
 def ctorTerms (d : TypeDecl) : List (Nm × Term) :=
-  List.zipWith (fun j p => (p.1, toTerm (ctorO p.2 j d.ctors.length)))
+  List.zipWith (fun j p => (p.1, toTerm (ctorOF p.2 j d.ctors.length)))
     (List.range d.ctors.length) d.ctors
 
 /-- The ISA, always. -/
@@ -750,7 +762,7 @@ def pass (done : List (Nm × Term)) : List (Nm × FEqn) → List (Nm × FEqn) ×
   | [] => ([], done)
   | (n, e) :: es =>
     if e.body.globs.all fun g => (resolveIn done g).isSome then
-      pass (done ++ [(n, e.compile fun g => (resolveIn done g).getD K)]) es
+      pass (done ++ [(n, e.compileF fun g => (resolveIn done g).getD K)]) es
     else
       let r := pass done es
       ((n, e) :: r.1, r.2)
@@ -814,6 +826,169 @@ def compiledEnv (u : Bool) (src : List Nat) : List (Nm × Term) :=
     | some fes => (passes (fes.length + 1) ((types ds).map ctorTerms).flatten fes).2
 
 def compileFile (src : List Nat) : Option (List (Nm × Term)) := compileWith false src
+
+/-- A term's postfix codes before `rest`: `0 1 2` for `S K I`, and `3` for
+    an application, after its function's and its argument's codes. -/
+def postC : Term → List Nat → List Nat
+  | S, rest => 0 :: rest
+  | K, rest => 1 :: rest
+  | I, rest => 2 :: rest
+  | f ⬝ a, rest => postC f (postC a (3 :: rest))
+
+/-- Codes packed 25 to a number in base 6, each code plus one, least
+    significant first: the compact form the generated checks give
+    `skijack`'s terms in.  `k` counts the codes in the chunk `cur`, whose
+    next digit weighs `p`. -/
+def packGo : List Nat → Nat → Nat → Nat → List Nat → List Nat
+  | [], k, cur, _, acc => (if k == 0 then acc else cur :: acc).reverse
+  | c :: r, k, cur, p, acc =>
+    if k + 1 == 25 then packGo r 0 0 1 ((cur + (c + 1) * p) :: acc)
+    else packGo r (k + 1) (cur + (c + 1) * p) (p * 6) acc
+
+/-- A term's packed codes. -/
+def codeOf (t : Term) : List Nat := packGo (postC t []) 0 0 1 []
+
+/-- The first entry for `n` taken out of `es`: its codes, and the rest. -/
+def takeEntry (n : Nm) : List (Nm × List Nat) → Option (List Nat × List (Nm × List Nat))
+  | [] => none
+  | (m, c) :: r =>
+    if n == m then some (c, r) else (takeEntry n r).map fun q => (q.1, (m, c) :: q.2)
+
+/-- Each compiled term has the codes `es` gives its name, and each entry of
+    `es` is used once.  One pass over the compiled file: the kernel does not
+    share a repeated `compileWith`, so a lookup per name would compile the
+    file once per name. -/
+def agreeEnv : List (Nm × Term) → List (Nm × List Nat) → Bool
+  | [], es => es.isEmpty
+  | (n, t) :: r, es =>
+    match takeEntry n es with
+    | some q => codeOf t == q.1 && agreeEnv r q.2
+    | none => false
+
+/-- `agreeEnv` for a file that may not compile. -/
+def agrees (file : Option (List (Nm × Term))) (es : List (Nm × List Nat)) : Bool :=
+  match file with
+  | some env => agreeEnv env es
+  | none => false
+
+theorem lookup_cons_self {β : Type} (n : Nm) (d : β) (r : List (Nm × β)) :
+    ((n, d) :: r).lookup n = some d := by
+  rw [List.lookup_cons, show (n == n) = true from beq_iff_eq.mpr rfl]
+
+theorem lookup_cons_ne {β : Type} {n m : Nm} (h : n ≠ m) (d : β) (r : List (Nm × β)) :
+    ((m, d) :: r).lookup n = r.lookup n := by
+  rw [List.lookup_cons, beq_false_of_ne h]
+
+theorem takeEntry_lookup : ∀ {es : List (Nm × List Nat)} {n : Nm} {c : List Nat}
+    {es' : List (Nm × List Nat)}, takeEntry n es = some (c, es') →
+    es.lookup n = some c ∧ ∀ k, k ≠ n → es'.lookup k = es.lookup k
+  | [], _, _, _, h => by cases h
+  | (m, d) :: r, n, c, es', h => by
+    by_cases e : n = m
+    · subst e
+      have h' : takeEntry n ((n, d) :: r) = some (d, r) := by
+        show (if (n == n) = true then some (d, r) else _) = _
+        rw [if_pos (beq_iff_eq.mpr rfl)]
+      rw [h'] at h
+      cases h
+      exact ⟨lookup_cons_self n d r, fun k hk => (lookup_cons_ne hk d r).symm⟩
+    · have hne : ¬ (n == m) = true := fun hb => e (beq_iff_eq.mp hb)
+      have h' : takeEntry n ((m, d) :: r) = (takeEntry n r).map fun q => (q.1, (m, d) :: q.2) := by
+        show (if (n == m) = true then some (d, r) else _) = _
+        rw [if_neg hne]
+      rw [h'] at h
+      cases hr : takeEntry n r with
+      | none => rw [hr] at h; cases h
+      | some q =>
+        cases q with
+        | mk c0 r' =>
+          rw [hr] at h
+          have h2 : (some (c0, (m, d) :: r') : Option (List Nat × List (Nm × List Nat))) =
+              some (c, es') := h
+          cases h2
+          have ih := takeEntry_lookup hr
+          refine ⟨by rw [lookup_cons_ne e]; exact ih.1, fun k hk => ?_⟩
+          by_cases ekm : k = m
+          · subst ekm; rw [lookup_cons_self, lookup_cons_self]
+          · rw [lookup_cons_ne ekm, lookup_cons_ne ekm]; exact ih.2 k hk
+
+theorem agreeEnv_cons (m : Nm) (t : Term) (r : List (Nm × Term)) (es : List (Nm × List Nat)) :
+    agreeEnv ((m, t) :: r) es =
+      match takeEntry m es with
+      | some q => (codeOf t == q.1 && agreeEnv r q.2)
+      | none => false := rfl
+
+/-- What `agreeEnv` checks: every name of `es` compiles, to a term with the
+    codes `es` gives it. -/
+theorem agreeEnv_lookup : ∀ {env : List (Nm × Term)} {es : List (Nm × List Nat)}
+    {n : Nm} {c : List Nat}, agreeEnv env es = true → es.lookup n = some c →
+    ∃ t, env.lookup n = some t ∧ codeOf t = c
+  | [], es, n, c, h, hl => by
+    cases es with
+    | nil => cases hl
+    | cons _ _ => cases h
+  | (m, t) :: r, es, n, c, h, hl => by
+    rw [agreeEnv_cons] at h
+    cases ht : takeEntry m es with
+    | none => rw [ht] at h; cases h
+    | some q =>
+      cases q with
+      | mk c0 es' =>
+        rw [ht] at h
+        have hb : (codeOf t == c0 && agreeEnv r es') = true := h
+        rw [Bool.and_eq_true] at hb
+        have hcode : codeOf t = c0 := beq_iff_eq.mp hb.1
+        have hq := takeEntry_lookup ht
+        by_cases e : n = m
+        · subst e
+          rw [hq.1] at hl
+          cases hl
+          exact ⟨t, lookup_cons_self n t r, hcode⟩
+        · have hl' : es'.lookup n = some c := by rw [hq.2 n e]; exact hl
+          match agreeEnv_lookup hb.2 hl' with
+          | ⟨t', ht', hc'⟩ => exact ⟨t', by rw [lookup_cons_ne e]; exact ht', hc'⟩
+
+/-- And conversely: every compiled name is one of `es`, with its codes. -/
+theorem agreeEnv_lookup_rev : ∀ {env : List (Nm × Term)} {es : List (Nm × List Nat)}
+    {n : Nm} {t : Term}, agreeEnv env es = true → env.lookup n = some t →
+    es.lookup n = some (codeOf t)
+  | [], _, _, _, _, hl => by cases hl
+  | (m, u) :: r, es, n, t, h, hl => by
+    rw [agreeEnv_cons] at h
+    cases ht : takeEntry m es with
+    | none => rw [ht] at h; cases h
+    | some q =>
+      cases q with
+      | mk c0 es' =>
+        rw [ht] at h
+        have hb : (codeOf u == c0 && agreeEnv r es') = true := h
+        rw [Bool.and_eq_true] at hb
+        have hcode : codeOf u = c0 := beq_iff_eq.mp hb.1
+        have hq := takeEntry_lookup ht
+        by_cases e : n = m
+        · subst e
+          rw [lookup_cons_self] at hl
+          cases hl
+          rw [hq.1, hcode]
+        · rw [lookup_cons_ne e] at hl
+          rw [← hq.2 n e]
+          exact agreeEnv_lookup_rev hb.2 hl
+
+/-- What `agrees` checks: every name of `es` compiles, to a term with the
+    codes `es` gives it, and every compiled name is one of `es`. -/
+theorem agrees_termOf {file : Option (List (Nm × Term))} {es : List (Nm × List Nat)}
+    (h : agrees file es = true) {n : Nm} {c : List Nat} (hl : es.lookup n = some c) :
+    ∃ t, file.bind (·.lookup n) = some t ∧ codeOf t = c := by
+  cases file with
+  | none => cases h
+  | some env => exact agreeEnv_lookup h hl
+
+theorem agrees_termOf_rev {file : Option (List (Nm × Term))} {es : List (Nm × List Nat)}
+    (h : agrees file es = true) {n : Nm} {t : Term} (ht : file.bind (·.lookup n) = some t) :
+    es.lookup n = some (codeOf t) := by
+  cases file with
+  | none => cases h
+  | some env => exact agreeEnv_lookup_rev h ht
 
 /-- A name's term in a compiled file. -/
 def termOf (file : Option (List (Nm × Term))) (n : Nm) : Option Term :=

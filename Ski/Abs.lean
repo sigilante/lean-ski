@@ -114,6 +114,49 @@ theorem abs_app (x : Nat) (e f : OTerm) :
 /-- `[x1] … [xn] t`, the formals in order. -/
 def absN (xs : List Nat) (t : OTerm) : OTerm := xs.foldr abs t
 
+/-- `abs x t` and `t.mem x` in one pass.  `abs` checks occurrence afresh
+    at every node, so the kernel evaluates it in time quadratic in the
+    term, cubic for a Scott constructor of `m` alternatives; this is linear.
+    `absO_eq` proves it the same, so kernel checks of large programs use it. -/
+def absO (x : Nat) : OTerm → OTerm × Bool
+  | .var y => if y = x then (.I, true) else (.K ⬝ₒ .var y, false)
+  | .app e f =>
+    match absO x e, absO x f with
+    | (e', be), (f', bf) =>
+      if (be || bf) = false then (.K ⬝ₒ .app e f, false)
+      else if f = .var x ∧ be = false then (e, true)
+      else (.S ⬝ₒ e' ⬝ₒ f', true)
+  | t => (.K ⬝ₒ t, false)
+
+theorem absO_eq (x : Nat) : ∀ t, absO x t = (abs x t, t.mem x)
+  | .S => rfl
+  | .K => rfl
+  | .I => rfl
+  | .var y => by
+    show (if y = x then (OTerm.I, true) else (.K ⬝ₒ .var y, false)) = (abs x (.var y), y == x)
+    by_cases h : y = x
+    · subst h; rw [if_pos rfl, abs_var, if_pos rfl, show (y == y) = true from beq_iff_eq.mpr rfl]
+    · rw [if_neg h, abs_var, if_neg h, beq_false_of_ne h]
+  | .app e f => by
+    rw [absO, absO_eq x e, absO_eq x f, abs_app]
+    show (if (e.mem x || f.mem x) = false then (OTerm.K ⬝ₒ .app e f, false)
+        else if f = .var x ∧ e.mem x = false then (e, true)
+        else (OTerm.S ⬝ₒ abs x e ⬝ₒ abs x f, true)) =
+      (if (e.mem x || f.mem x) = false then OTerm.K ⬝ₒ .app e f
+        else if f = .var x ∧ e.mem x = false then e
+        else OTerm.S ⬝ₒ abs x e ⬝ₒ abs x f, (e.mem x || f.mem x))
+    by_cases hm : (e.mem x || f.mem x) = false
+    · rw [if_pos hm, if_pos hm, hm]
+    · have ht : (e.mem x || f.mem x) = true := by
+        cases hb : (e.mem x || f.mem x)
+        · exact absurd hb hm
+        · rfl
+      rw [if_neg hm, if_neg hm, ht]
+      by_cases h2 : f = .var x ∧ e.mem x = false
+      · rw [if_pos h2, if_pos h2]
+      · rw [if_neg h2, if_neg h2]
+
+
 /-- A term without the variable abstracts to a constant. -/
 theorem abs_of_not_mem {x : Nat} : ∀ {t : OTerm}, t.mem x = false → abs x t = .K ⬝ₒ t
   | .S, _ => rfl
@@ -123,6 +166,110 @@ theorem abs_of_not_mem {x : Nat} : ∀ {t : OTerm}, t.mem x = false → abs x t 
     have hne : y ≠ x := fun e => by rw [mem_var.mpr e] at h; cases h
     rw [abs_var, if_neg hne]
   | .app e f, h => by rw [abs_app, if_pos h]
+
+/-- Abstraction removes its variable and keeps the rest. -/
+theorem mem_abs (x y : Nat) : ∀ t : OTerm, (abs x t).mem y = (t.mem y && y != x)
+  | .S => rfl
+  | .K => rfl
+  | .I => rfl
+  | .var z => by
+    by_cases h : z = x
+    · subst h
+      rw [abs_var, if_pos rfl]
+      show false = ((z == y) && (y != z))
+      by_cases hy : y = z
+      · subst hy; rw [bne_self_eq_false, Bool.and_false]
+      · rw [beq_false_of_ne (Ne.symm hy)]; rfl
+    · rw [abs_var, if_neg h]
+      show (false || (z == y)) = ((z == y) && (y != x))
+      by_cases hy : y = x
+      · subst hy; rw [beq_false_of_ne h, bne_self_eq_false]; rfl
+      · rw [bne_iff_ne.mpr hy, Bool.and_true, Bool.false_or]
+  | .app e f => by
+    rw [abs_app]
+    by_cases hm : (OTerm.app e f).mem x = false
+    · rw [if_pos hm]
+      show (false || (OTerm.app e f).mem y) = ((OTerm.app e f).mem y && (y != x))
+      by_cases hy : y = x
+      · subst hy; rw [hm, bne_self_eq_false]; rfl
+      · rw [bne_iff_ne.mpr hy, Bool.and_true, Bool.false_or]
+    · rw [if_neg hm]
+      by_cases h2 : f = .var x ∧ e.mem x = false
+      · rw [if_pos h2]
+        cases h2 with
+        | intro hf he =>
+          subst hf
+          show e.mem y = ((e.mem y || (x == y)) && (y != x))
+          by_cases hy : y = x
+          · subst hy; rw [he, bne_self_eq_false, Bool.and_false]
+          · rw [beq_false_of_ne (Ne.symm hy), Bool.or_false, bne_iff_ne.mpr hy, Bool.and_true]
+      · rw [if_neg h2]
+        show ((false || (abs x e).mem y) || (abs x f).mem y) = ((e.mem y || f.mem y) && (y != x))
+        rw [mem_abs x y e, mem_abs x y f]
+        cases e.mem y <;> cases f.mem y <;> cases (y != x) <;> rfl
+
+/-- The variables of a term, possibly repeated. -/
+def OTerm.vars : OTerm → List Nat
+  | .var y => [y]
+  | .app e f => e.vars ++ f.vars
+  | _ => []
+
+theorem OTerm.mem_vars (y : Nat) : ∀ t : OTerm, t.mem y = true ↔ y ∈ t.vars
+  | .S => by simp [OTerm.mem, OTerm.vars]
+  | .K => by simp [OTerm.mem, OTerm.vars]
+  | .I => by simp [OTerm.mem, OTerm.vars]
+  | .var z => by
+    show (z == y) = true ↔ y ∈ [z]
+    rw [beq_iff_eq, List.mem_singleton]
+    exact ⟨Eq.symm, Eq.symm⟩
+  | .app e f => by
+    show (e.mem y || f.mem y) = true ↔ y ∈ e.vars ++ f.vars
+    rw [Bool.or_eq_true, List.mem_append, OTerm.mem_vars y e, OTerm.mem_vars y f]
+
+/-- `absN`, innermost formal first, carrying the variables `vs` of the
+    term so far: a formal not among them costs one `K`, not a pass over the
+    term.  A Scott constructor of `m` alternatives abstracts in time linear
+    in `m`, where `absN` takes cubic time in the kernel. -/
+def absNV : List Nat → OTerm → List Nat → OTerm × List Nat
+  | [], t, vs => (t, vs)
+  | x :: xs, t, vs =>
+    match absNV xs t vs with
+    | (u, us) =>
+      if us.contains x then ((absO x u).1, us.filter (· != x)) else (.K ⬝ₒ u, us)
+
+theorem absNV_eq : ∀ (xs : List Nat) (t : OTerm) (vs : List Nat),
+    (∀ y, t.mem y = true ↔ y ∈ vs) →
+    (absNV xs t vs).1 = absN xs t ∧ ∀ y, (absN xs t).mem y = true ↔ y ∈ (absNV xs t vs).2
+  | [], _, _, h => ⟨rfl, h⟩
+  | x :: xs, t, vs, h => by
+    have ih := absNV_eq xs t vs h
+    cases hr : absNV xs t vs with
+    | mk u us =>
+      rw [hr] at ih
+      cases ih with
+      | intro hu hus =>
+        simp only at hu hus
+        subst hu
+        show (absNV (x :: xs) t vs).1 = abs x (absN xs t) ∧
+          ∀ y, (abs x (absN xs t)).mem y = true ↔ y ∈ (absNV (x :: xs) t vs).2
+        simp only [absNV, hr]
+        by_cases hx : us.contains x = true
+        · rw [if_pos hx, absO_eq]
+          refine ⟨rfl, fun y => ?_⟩
+          rw [mem_abs, List.mem_filter, Bool.and_eq_true, hus]
+        · rw [if_neg hx]
+          have hn : (absN xs t).mem x = false := by
+            cases hm : (absN xs t).mem x
+            · rfl
+            · exact absurd (List.contains_iff_mem.mpr ((hus x).mp hm)) hx
+          rw [abs_of_not_mem hn]
+          exact ⟨rfl, fun y => by simp only [OTerm.mem, Bool.false_or]; exact hus y⟩
+
+/-- `absN` by `absNV`. -/
+def absNF (xs : List Nat) (t : OTerm) : OTerm := (absNV xs t t.vars).1
+
+theorem absNF_eq (xs : List Nat) (t : OTerm) : absNF xs t = absN xs t :=
+  (absNV_eq xs t t.vars (OTerm.mem_vars · t)).1
 
 -- ---------------------------------------------------------------------------
 -- β
