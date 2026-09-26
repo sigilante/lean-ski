@@ -1,6 +1,8 @@
 import Ski.Composition
 open Term
 
+set_option linter.unusedSectionVars false
+
 /-!
 # `apply`: running quotations
 
@@ -38,6 +40,8 @@ This is the forward direction.  The converse (a compiled run that
 reaches a decodable normal form has a derivation), and with it the
 divergence biconditional, is not proved here.
 -/
+
+variable [Kit] [KitElim] [KitWords]
 
 -- ---------------------------------------------------------------------------
 -- The fixpoint combinator, generically
@@ -238,8 +242,8 @@ theorem leafR_ifz {apT : Term} {R : Quotation → Stack → Outcome → Prop} (h
 
 /-- **Every word meets its relational contract.** -/
 theorem leafR {apT : Term} {R : Quotation → Stack → Outcome → Prop} (hR : ApSoundR apT R)
-    {w : Word} {S : Stack} {s : Term} {o : Outcome} (hs : DecStack s S) (hc : CwR R w S o) :
-    Contract (wordTerm apT w ⬝ s) o := by
+    {w : Word} (hw : w.ok Kit.n = true) {S : Stack} {s : Term} {o : Outcome}
+    (hs : DecStack s S) (hc : CwR R w S o) : Contract (wordTerm apT w ⬝ s) o := by
   cases w with
   | dip => exact leafR_dip hR hs hc
   | i => exact leafR_i hR hs hc
@@ -251,101 +255,216 @@ theorem leafR {apT : Term} {R : Quotation → Stack → Outcome → Prop} (hR : 
   | cat => cases hc with | plain _ => exact leafD_cat _ S hs
   | unit => cases hc with | plain _ => exact leafD_unit _ S hs
   | lit n => cases hc with | plain _ => exact leafD_lit _ n S hs
-  | quote q => cases hc with | plain _ => exact leafD_quote _ q S hs
+  | quote q => cases hc with | plain _ => exact leafD_quote _ q hw S hs
   | add => cases hc with | plain _ => exact leafD_add _ S hs
 
-/-- **Composition, relationally.** -/
+/-- **Composition, relationally**, for any compiled form of the program. -/
 theorem composition_rel {apT : Term} {R : Quotation → Stack → Outcome → Prop}
     (hR : ApSoundR apT R) {p : List Word} {S : Stack} {o : Outcome} (h : CsemR R p S o) :
-    ∀ {s : Term}, DecStack s S → Contract (N apT p ⬝ s) o := by
+    p.all (Word.ok Kit.n) = true → ∀ {t s : Term}, Compiles apT p t → DecStack s S →
+      Contract (t ⬝ s) o := by
   induction h with
-  | nil S => exact fun hs => idW_contract hs
+  | nil S => exact fun _ _ s ht hs => Contract.of_steps (Steps.left s ht) (idW_contract hs)
   | @val w p S S' o hw hp ih =>
-    intro s hs
+    intro hok t s ht hs
+    simp only [List.all_cons, Bool.and_eq_true] at hok
     cases p with
     | nil =>
       cases hp
-      exact leafR hR hs hw
+      exact Contract.of_steps (Steps.left s ht) (leafR hR hok.1 hs hw)
     | cons w' p' =>
-      exact seq_contract (k := fun _ => o) (leafR hR hs hw)
-        (fun _ _ he ht => by cases he; exact ih ht)
+      cases ht with
+      | intro g hg =>
+        exact Contract.of_steps (Steps.left s hg.1)
+          (seq_contract (k := fun _ => o) (leafR hR hok.1 hs hw)
+            (fun _ _ he ht' => by cases he; exact ih hok.2 hg.2 ht'))
   | @err w p S hw =>
-    intro s hs
+    intro hok t s ht hs
+    simp only [List.all_cons, Bool.and_eq_true] at hok
     cases p with
-    | nil => exact leafR hR hs hw
+    | nil => exact Contract.of_steps (Steps.left s ht) (leafR hR hok.1 hs hw)
     | cons w' p' =>
-      exact seq_contract (k := fun _ => Outcome.err) (leafR hR hs hw)
-        (fun _ _ he _ => by cases he)
+      cases ht with
+      | intro g hg =>
+        exact Contract.of_steps (Steps.left s hg.1)
+          (seq_contract (k := fun _ => Outcome.err) (leafR hR hok.1 hs hw)
+            (fun _ _ he _ => by cases he))
+
+/-- The relation that holds at one `(q, u, o)` only. -/
+def only (q : Quotation) (u : Stack) (o : Outcome) : Quotation → Stack → Outcome → Prop :=
+  fun q' u' o' => q' = q ∧ u' = u ∧ o' = o
+
+theorem apSoundR_only {apT : Term} {q : Quotation} {u : Stack} {o : Outcome}
+    (h : ∀ fr fu, DecQuot fr q → DecStack fu u → Contract (apT ⬝ fr ⬝ fu) o) :
+    ApSoundR apT (only q u o) := by
+  intro q' u' o' hq
+  cases hq with
+  | intro e1 h2 =>
+    cases h2 with
+    | intro e2 e3 =>
+      subst e1 e2 e3
+      exact h
 
 -- ---------------------------------------------------------------------------
--- `ApplyRel` and the compiled `applyU`
+-- `Run`: quotations, programs and words, together
 -- ---------------------------------------------------------------------------
 
-/-- The big-step semantics of `applyU`.  `then b` is `i` followed by `b`. -/
-inductive ApplyRel : Quotation → Stack → Outcome → Prop
-  | cons {x r S o} : ApplyRel r (x :: S) o → ApplyRel (.cons x r) S o
-  | unit {x S} : ApplyRel (.unit x) S (.val (x :: S))
+/-- What `Run` runs: a quotation, a program, or one word. -/
+inductive Job
+  | quot (q : Quotation)
+  | prog (p : List Word)
+  | word (w : Word)
+
+/-- The big-step semantics of the compiled kernel with its table: a static
+    quotation runs its body, `then b` is `i` followed by `b`, a program
+    threads its words strictly, and the words that run a quotation run it
+    here.  A run that never returns has no derivation. -/
+inductive Run : Job → Stack → Outcome → Prop
+  | stat {k S o} : k < Kit.n → Run (.prog (Kit.body k)) S o → Run (.quot (.stat k)) S o
+  | cons {x r S o} : Run (.quot r) (x :: S) o → Run (.quot (.cons x r)) S o
+  | unit {x S} : Run (.quot (.unit x)) S (.val (x :: S))
   | then_val {b r t S' o} :
-      ApplyRel r t (.val S') → ApplyRel b S' o → ApplyRel (.then b) (.quot r :: t) o
-  | then_err {b r t} : ApplyRel r t .err → ApplyRel (.then b) (.quot r :: t) .err
-  | then_bad {b S} : (∀ r t, S ≠ .quot r :: t) → ApplyRel (.then b) S .err
+      Run (.quot r) t (.val S') → Run (.quot b) S' o → Run (.quot (.then b)) (.quot r :: t) o
+  | then_err {b r t} : Run (.quot r) t .err → Run (.quot (.then b)) (.quot r :: t) .err
+  | then_bad {b S} : (∀ r t, S ≠ .quot r :: t) → Run (.quot (.then b)) S .err
+  | nil (S) : Run (.prog []) S (.val S)
+  | seq_val {w p S S' o} : Run (.word w) S (.val S') → Run (.prog p) S' o → Run (.prog (w :: p)) S o
+  | seq_err {w p S} : Run (.word w) S .err → Run (.prog (w :: p)) S .err
+  | plain {w S} : w.ho = false → Run (.word w) S (cw (fun _ _ => .err) w S)
+  | i_run {r t o} : Run (.quot r) t o → Run (.word .i) (.quot r :: t) o
+  | i_bad {S} : (∀ r t, S ≠ .quot r :: t) → Run (.word .i) S .err
+  | dip_run {r b u o} : Run (.quot r) u o → Run (.word .dip) (.quot r :: b :: u) (dipOut b o)
+  | dip_bad {S} : (∀ r b u, S ≠ .quot r :: b :: u) → Run (.word .dip) S .err
+  | ifz_zero {sc z v o} : Run (.quot z) v o → Run (.word .ifz) (.quot sc :: .quot z :: .num 0 :: v) o
+  | ifz_succ {sc z m v o} :
+      Run (.quot sc) (.num m :: v) o → Run (.word .ifz) (.quot sc :: .quot z :: .num (m + 1) :: v) o
+  | ifz_bad {S} : (∀ sc z n v, S ≠ .quot sc :: .quot z :: .num n :: v) → Run (.word .ifz) S .err
+
+/-- Running a quotation. -/
+def ApplyRel (q : Quotation) (S : Stack) (o : Outcome) : Prop := Run (.quot q) S o
+
+theorem Run.word_cwR {w : Word} {S : Stack} {o : Outcome} (h : Run (.word w) S o) :
+    CwR ApplyRel w S o := by
+  cases h with
+  | plain hw => exact .plain hw
+  | i_run hr => exact .i_run hr
+  | i_bad hb => exact .i_bad hb
+  | dip_run hr => exact .dip_run hr
+  | dip_bad hb => exact .dip_bad hb
+  | ifz_zero hr => exact .ifz_zero hr
+  | ifz_succ hr => exact .ifz_succ hr
+  | ifz_bad hb => exact .ifz_bad hb
+
+theorem CwR.run {w : Word} {S : Stack} {o : Outcome} (h : CwR ApplyRel w S o) :
+    Run (.word w) S o := by
+  cases h with
+  | plain hw => exact .plain hw
+  | i_run hr => exact .i_run hr
+  | i_bad hb => exact .i_bad hb
+  | dip_run hr => exact .dip_run hr
+  | dip_bad hb => exact .dip_bad hb
+  | ifz_zero hr => exact .ifz_zero hr
+  | ifz_succ hr => exact .ifz_succ hr
+  | ifz_bad hb => exact .ifz_bad hb
+
+/-- A program's `Run` is its `CsemR` over `ApplyRel`. -/
+theorem Run.prog_csemR {t : Job} {S : Stack} {o : Outcome} (h : Run t S o) :
+    ∀ p, t = .prog p → CsemR ApplyRel p S o := by
+  induction h with
+  | nil S => intro p e; cases e; exact .nil S
+  | seq_val hw _ _ ih => intro p e; cases e; exact .val hw.word_cwR (ih _ rfl)
+  | seq_err hw => intro p e; cases e; exact .err hw.word_cwR
+  | _ => intro p e; cases e
+
+theorem CsemR.run {p : List Word} {S : Stack} {o : Outcome} (h : CsemR ApplyRel p S o) :
+    Run (.prog p) S o := by
+  induction h with
+  | nil S => exact .nil S
+  | val hw _ ih => exact .seq_val hw.run ih
+  | err hw => exact .seq_err hw.run
+
+-- ---------------------------------------------------------------------------
+-- The table's `applyU`
+-- ---------------------------------------------------------------------------
 
 /-- The argument of an application. -/
 def Term.argOf : Term → Term
   | app _ x => x
   | t => t
 
-/-- The body of `applyU`: `Scott.applyU` is `fixY ⬝ applyF`. -/
-def applyF : Term := Scott.applyU.argOf
+/-- The body of the table's `applyU`, which is `fixY ⬝ applyF`. -/
+def applyF : Term := Kit.applyU.argOf
 
-theorem applyU_unfold (fq fs : Term) :
-    Steps (Scott.applyU ⬝ fq ⬝ fs) (fixSelf applyF (fixB applyF) ⬝ fq ⬝ fs) :=
-  iter_sound (k := 1) rfl
-
-theorem applyF_stages (R q s : Term) : ∃ k0 k1 k2,
-    Steps (applyF ⬝ R ⬝ q ⬝ s) (q ⬝ k0 ⬝ k1 ⬝ k2) ∧
-    (∀ x r, ∃ P, Steps (k0 ⬝ x ⬝ r) (R ⬝ r ⬝ P) ∧
+/-- The table's `applyU` unrolls and runs to its cases, and each static
+    quotation's compiled term is a compiled form of its body.  The kernel checks these
+    per table (`Ski/Table.lean`). -/
+class KitApply [Kit] [KitElim] [KitWords] : Prop where
+  applyU_unfold : ∀ fq fs,
+    Steps (Kit.applyU ⬝ fq ⬝ fs) (fixSelf applyF (fixB applyF) ⬝ fq ⬝ fs)
+  applyF_stages : ∀ R q s, ∃ ks : Nat → Term,
+    Steps (applyF ⬝ R ⬝ q ⬝ s) (appF q ks (Kit.n + 3)) ∧
+    (∀ k, k < Kit.n → Steps (ks k) (Kit.bodyT k ⬝ R ⬝ s)) ∧
+    (∀ x r, ∃ P, Steps (ks Kit.n ⬝ x ⬝ r) (R ⬝ r ⬝ P) ∧
       Steps P (Scott.Push ⬝ x ⬝ (K ⬝ s ⬝ x))) ∧
-    (∀ x, ∃ G, Steps (k1 ⬝ x) (Scott.RVal ⬝ G) ∧ Steps G (Scott.Push ⬝ x ⬝ (K ⬝ s ⬝ x))) ∧
-    (∀ b, Steps (k2 ⬝ b)
-      (Scott.seq ⬝ (Scott.wDo ⬝ R) ⬝ (I ⬝ R ⬝ b) ⬝ (K ⬝ K ⬝ R ⬝ s ⬝ b))) :=
-  ⟨_, _, _, iter_sound (k := 25) rfl,
-    fun _ _ => ⟨_, iter_sound (k := 17) rfl, iter_sound (k := 9) rfl⟩,
-    fun _ => ⟨_, iter_sound (k := 6) rfl, iter_sound (k := 3) rfl⟩,
-    fun _ => iter_sound (k := 22) rfl⟩
+    (∀ x, ∃ G, Steps (ks (Kit.n + 1) ⬝ x) (Scott.RVal ⬝ G) ∧
+      Steps G (Scott.Push ⬝ x ⬝ (K ⬝ s ⬝ x))) ∧
+    (∀ b, Steps (ks (Kit.n + 2) ⬝ b)
+      (Scott.seq ⬝ (Scott.wDo ⬝ R) ⬝ (I ⬝ R ⬝ b) ⬝ (K ⬝ K ⬝ R ⬝ s ⬝ b)))
+  body_compiles : ∀ k, k < Kit.n → ∀ R, Compiles R (Kit.body k) (Kit.bodyT k ⬝ R)
+  body_ok : ∀ k, k < Kit.n → (Kit.body k).all (Word.ok Kit.n) = true
 
-/-- The recursion, over every self-reference of `applyU`. -/
-theorem applySelf_sound {q : Quotation} {S : Stack} {o : Outcome} (h : ApplyRel q S o) :
-    ∀ {z fq fs : Term}, Steps z (fixB applyF) → DecQuot fq q → DecStack fs S →
-      Contract (fixSelf applyF z ⬝ fq ⬝ fs) o := by
+variable [KitApply]
+
+/-- What a derivation promises of the compiled self-references of `applyU`. -/
+def Sound : Job → Stack → Outcome → Prop
+  | .quot q, st, o => ∀ {z fq fs : Term}, Steps z (fixB applyF) → DecQuot fq q → DecStack fs st →
+      Contract (fixSelf applyF z ⬝ fq ⬝ fs) o
+  | .prog p, st, o => p.all (Word.ok Kit.n) = true → ∀ {z t s : Term}, Steps z (fixB applyF) →
+      Compiles (fixSelf applyF z) p t → DecStack s st → Contract (t ⬝ s) o
+  | .word w, st, o => w.ok Kit.n = true → ∀ {z s : Term}, Steps z (fixB applyF) →
+      DecStack s st → Contract (wordTerm (fixSelf applyF z) w ⬝ s) o
+
+/-- The run of a self-reference to its cases. -/
+theorem applySelf_cases {z fq fs : Term} (hz : Steps z (fixB applyF)) (ks : Nat → Term)
+    (h : Steps (applyF ⬝ fixSelf applyF (I ⬝ z) ⬝ fq ⬝ fs) (appF fq ks (Kit.n + 3))) :
+    Steps (fixSelf applyF z ⬝ fq ⬝ fs) (appF fq ks (Kit.n + 3)) :=
+  (Steps.left fs (fixSelf_step hz fq)).trans h
+
+/-- **Every derivation is realized by the compiled terms.** -/
+theorem run_sound {t : Job} {S : Stack} {o : Outcome} (h : Run t S o) : Sound t S o := by
   induction h with
-  | @cons x r S o _ ih =>
+  | @stat k S o hk _ ih =>
+    unfold Sound
     intro z fq fs hz hq hs
-    cases applyF_stages (fixSelf applyF (I ⬝ z)) fq fs with | intro k0 h => cases h with
-    | intro k1 h => cases h with | intro k2 h =>
-    cases hq k0 k1 k2 with | intro f hf => cases hf with | intro g hg =>
-    cases h.2.1 f g with | intro P hP =>
+    cases KitApply.applyF_stages (fixSelf applyF (I ⬝ z)) fq fs with | intro ks h =>
     exact Contract.of_steps
-      ((Steps.left fs (fixSelf_step hz fq)).trans (h.1.trans (hg.1.trans hP.1)))
+      ((applySelf_cases hz ks h.1).trans ((hq.2 ks).trans (h.2.1 k hk)))
+      (ih (KitApply.body_ok k hk) (fixSelf_inv hz) (KitApply.body_compiles k hk _) hs)
+  | @cons x r S o _ ih =>
+    unfold Sound
+    intro z fq fs hz hq hs
+    cases KitApply.applyF_stages (fixSelf applyF (I ⬝ z)) fq fs with | intro ks h =>
+    cases hq ks with | intro f hf => cases hf with | intro g hg =>
+    cases h.2.2.1 f g with | intro P hP =>
+    exact Contract.of_steps ((applySelf_cases hz ks h.1).trans (hg.1.trans hP.1))
       (ih (fixSelf_inv hz) hg.2.2
         (DecStack.of_steps hP.2 (dec_push hg.2.1 (DecStack.of_steps (steps_thunk1 _ _) hs))))
   | @unit x S =>
+    unfold Sound
     intro z fq fs hz hq hs
-    cases applyF_stages (fixSelf applyF (I ⬝ z)) fq fs with | intro k0 h => cases h with
-    | intro k1 h => cases h with | intro k2 h =>
-    cases hq k0 k1 k2 with | intro f hf =>
-    cases h.2.2.1 f with | intro G hG =>
-    exact contract_val
-      ((Steps.left fs (fixSelf_step hz fq)).trans (h.1.trans (hf.1.trans hG.1)))
+    cases KitApply.applyF_stages (fixSelf applyF (I ⬝ z)) fq fs with | intro ks h =>
+    cases hq ks with | intro f hf =>
+    cases h.2.2.2.1 f with | intro G hG =>
+    exact contract_val ((applySelf_cases hz ks h.1).trans (hf.1.trans hG.1))
       (DecStack.of_steps hG.2 (dec_push hf.2 (DecStack.of_steps (steps_thunk1 _ _) hs)))
   | @then_val b r t S' o _ _ ih1 ih2 =>
+    unfold Sound
     intro z fq fs hz hq hs
-    cases applyF_stages (fixSelf applyF (I ⬝ z)) fq fs with | intro k0 h => cases h with
-    | intro k1 h => cases h with | intro k2 h =>
-    cases hq k0 k1 k2 with | intro fb hb =>
+    cases KitApply.applyF_stages (fixSelf applyF (I ⬝ z)) fq fs with | intro ks h =>
+    cases hq ks with | intro fb hb =>
     have hs' := DecStack.of_steps (steps_thunk2 (fixSelf applyF (I ⬝ z)) fs fb) hs
     exact Contract.of_steps
-      ((Steps.left fs (fixSelf_step hz fq)).trans (h.1.trans (hb.1.trans (h.2.2.2 fb))))
+      ((applySelf_cases hz ks h.1).trans (hb.1.trans (h.2.2.2.2 fb)))
       (seq_contract (k := fun _ => o)
         (leafD_i_run _ r t _ hs' fun _ _ hr hu => ih1 (fixSelf_inv hz) hr hu)
         (fun _ t' he ht => by
@@ -353,47 +472,97 @@ theorem applySelf_sound {q : Quotation} {S : Stack} {o : Outcome} (h : ApplyRel 
           exact Contract.of_steps (.single (.left t' (.left fb (.I _))))
             (ih2 (fixSelf_inv hz) hb.2 ht)))
   | @then_err b r t _ ih1 =>
+    unfold Sound
     intro z fq fs hz hq hs
-    cases applyF_stages (fixSelf applyF (I ⬝ z)) fq fs with | intro k0 h => cases h with
-    | intro k1 h => cases h with | intro k2 h =>
-    cases hq k0 k1 k2 with | intro fb hb =>
+    cases KitApply.applyF_stages (fixSelf applyF (I ⬝ z)) fq fs with | intro ks h =>
+    cases hq ks with | intro fb hb =>
     have hs' := DecStack.of_steps (steps_thunk2 (fixSelf applyF (I ⬝ z)) fs fb) hs
     exact Contract.of_steps
-      ((Steps.left fs (fixSelf_step hz fq)).trans (h.1.trans (hb.1.trans (h.2.2.2 fb))))
+      ((applySelf_cases hz ks h.1).trans (hb.1.trans (h.2.2.2.2 fb)))
       (seq_contract (k := fun _ => Outcome.err)
         (leafD_i_run _ r t _ hs' fun _ _ hr hu => ih1 (fixSelf_inv hz) hr hu)
         (fun _ _ he _ => by cases he))
   | @then_bad b S hbad =>
+    unfold Sound
     intro z fq fs hz hq hs
-    cases applyF_stages (fixSelf applyF (I ⬝ z)) fq fs with | intro k0 h => cases h with
-    | intro k1 h => cases h with | intro k2 h =>
-    cases hq k0 k1 k2 with | intro fb hb =>
+    cases KitApply.applyF_stages (fixSelf applyF (I ⬝ z)) fq fs with | intro ks h =>
+    cases hq ks with | intro fb hb =>
     have hs' := DecStack.of_steps (steps_thunk2 (fixSelf applyF (I ⬝ z)) fs fb) hs
     exact Contract.of_steps
-      ((Steps.left fs (fixSelf_step hz fq)).trans (h.1.trans (hb.1.trans (h.2.2.2 fb))))
+      ((applySelf_cases hz ks h.1).trans (hb.1.trans (h.2.2.2.2 fb)))
       (seq_contract (k := fun _ => Outcome.err)
         (leafR_i (apSoundR_empty _) hs' (CwR.i_bad hbad))
         (fun _ _ he _ => by cases he))
+  | nil S =>
+    exact fun _ _ _ s _ ht hs => Contract.of_steps (Steps.left s ht) (idW_contract hs)
+  | @seq_val w p S S' o _ hp ihw ihp =>
+    unfold Sound
+    intro hok z t s hz ht hs
+    simp only [List.all_cons, Bool.and_eq_true] at hok
+    cases p with
+    | nil =>
+      cases hp
+      exact Contract.of_steps (Steps.left s ht) (ihw hok.1 hz hs)
+    | cons w' p' =>
+      cases ht with
+      | intro g hg =>
+        exact Contract.of_steps (Steps.left s hg.1)
+          (seq_contract (k := fun _ => o) (ihw hok.1 hz hs)
+            (fun _ _ he ht' => by cases he; exact ihp hok.2 hz hg.2 ht'))
+  | @seq_err w p S _ ihw =>
+    unfold Sound
+    intro hok z t s hz ht hs
+    simp only [List.all_cons, Bool.and_eq_true] at hok
+    cases p with
+    | nil => exact Contract.of_steps (Steps.left s ht) (ihw hok.1 hz hs)
+    | cons w' p' =>
+      cases ht with
+      | intro g hg =>
+        exact Contract.of_steps (Steps.left s hg.1)
+          (seq_contract (k := fun _ => Outcome.err) (ihw hok.1 hz hs)
+            (fun _ _ he _ => by cases he))
+  | plain hw => exact fun hok _ _ _ hs => leafR (apSoundR_empty _) hok hs (.plain hw)
+  | @i_run r t o _ ih =>
+    exact fun _ _ _ hz hs =>
+      leafR_i (apSoundR_only fun _ _ hr hu => ih hz hr hu) hs (.i_run ⟨rfl, rfl, rfl⟩)
+  | i_bad hb => exact fun _ _ _ _ hs => leafR_i (apSoundR_empty _) hs (.i_bad hb)
+  | @dip_run r b u o _ ih =>
+    exact fun _ _ _ hz hs =>
+      leafR_dip (apSoundR_only fun _ _ hr hu => ih hz hr hu) hs (.dip_run ⟨rfl, rfl, rfl⟩)
+  | dip_bad hb => exact fun _ _ _ _ hs => leafR_dip (apSoundR_empty _) hs (.dip_bad hb)
+  | @ifz_zero sc z v o _ ih =>
+    exact fun _ _ _ hz hs =>
+      leafR_ifz (apSoundR_only fun _ _ hr hu => ih hz hr hu) hs (.ifz_zero ⟨rfl, rfl, rfl⟩)
+  | @ifz_succ sc z m v o _ ih =>
+    exact fun _ _ _ hz hs =>
+      leafR_ifz (apSoundR_only fun _ _ hr hu => ih hz hr hu) hs (.ifz_succ ⟨rfl, rfl, rfl⟩)
+  | ifz_bad hb => exact fun _ _ _ _ hs => leafR_ifz (apSoundR_empty _) hs (.ifz_bad hb)
 
-/-- **The compiled `applyU` realizes `ApplyRel`.** -/
-theorem apply_sound : ApSoundR Scott.applyU ApplyRel :=
+theorem applySelf_sound {q : Quotation} {S : Stack} {o : Outcome} (h : ApplyRel q S o)
+    {z fq fs : Term} (hz : Steps z (fixB applyF)) (hq : DecQuot fq q) (hs : DecStack fs S) :
+    Contract (fixSelf applyF z ⬝ fq ⬝ fs) o :=
+  run_sound h hz hq hs
+
+/-- **The table's compiled `applyU` realizes `ApplyRel`.** -/
+theorem apply_sound : ApSoundR Kit.applyU ApplyRel :=
   fun _ _ _ h fr fu hr hu =>
-    Contract.of_steps (applyU_unfold fr fu) (applySelf_sound h (.refl _) hr hu)
+    Contract.of_steps (KitApply.applyU_unfold fr fu) (applySelf_sound h (.refl _) hr hu)
 
-/-- **Composition with `apply`.**  A compiled program over the kernel, run
-    with the compiled `applyU`, meets the relational C model wherever the
-    model derives an outcome. -/
+/-- **Composition with `apply`.**  Any compiled form of a program over the
+    table, run with its compiled `applyU`, meets `Run` wherever `Run`
+    derives an outcome. -/
 theorem composition_apply {p : List Word} {S : Stack} {o : Outcome}
-    (h : CsemR ApplyRel p S o) {s : Term} (hs : DecStack s S) :
-    Contract (N Scott.applyU p ⬝ s) o :=
-  composition_rel apply_sound h hs
+    (h : Run (.prog p) S o) (hp : p.all (Word.ok Kit.n) = true) {t s : Term}
+    (ht : Compiles Kit.applyU p t) (hs : DecStack s S) : Contract (t ⬝ s) o :=
+  composition_rel apply_sound (h.prog_csemR p rfl) hp ht hs
 
-/-- `ApplyRel` is a function: the compiled term decides it. -/
+/-- `ApplyRel` is a function on valid inputs: the compiled term decides it. -/
 theorem ApplyRel.det {q : Quotation} {S : Stack} {o o' : Outcome}
+    (hq : q.ok Kit.n = true) (hS : S.all (Item.ok Kit.n) = true)
     (h : ApplyRel q S o) (h' : ApplyRel q S o') : o = o' := by
-  cases apply_sound _ _ _ h _ _ (encQuot_dec q) (encStack_dec S) with
+  cases apply_sound _ _ _ h _ _ (encQuot_dec q hq) (encStack_dec S hS) with
   | intro u hu =>
-    cases apply_sound _ _ _ h' _ _ (encQuot_dec q) (encStack_dec S) with
+    cases apply_sound _ _ _ h' _ _ (encQuot_dec q hq) (encStack_dec S hS) with
     | intro u' hu' =>
       have e := Eval.deterministic hu.1 hu'.1
       rw [← e] at hu'

@@ -1,6 +1,8 @@
 import Ski.Apply
 open Term
 
+set_option linter.unusedSectionVars false
+
 /-!
 # The converse, and the divergence biconditional
 
@@ -158,6 +160,8 @@ theorem StepsN.app3_left {n : Nat} {t a b c w : Term} (hw : StepsN n (t ⬝ a �
   cases StepsN.app_left h2.2.1 h2.2.2 with | intro m3 h3 => cases h3 with | intro v3 h3 =>
   exact ⟨m3, v3, Nat.le_trans h3.1 (Nat.le_trans h2.1 h1.1), h3.2.1, h3.2.2⟩
 
+variable [Kit] [KitElim] [KitWords]
+
 -- ---------------------------------------------------------------------------
 -- The paths a word takes to its quotation eliminator
 -- ---------------------------------------------------------------------------
@@ -229,98 +233,26 @@ theorem fixSelf_rest {F z : Term} (hz : Steps z (fixB F)) (a b : Term) :
   (Steps.left b (iter_sound (k := 2) rfl : Steps (S ⬝ I ⬝ I ⬝ z ⬝ a) (z ⬝ (I ⬝ z) ⬝ a))).trans
     ((Steps.app2 a b (Steps.left (I ⬝ z) hz)).trans (Steps.app2 a b (fixB_unfold F _)))
 
-/-- A normalizing self-reference of `applyU` has a derivation, by strong
-    induction on its contraction count. -/
-theorem applySelf_complete : ∀ (B n : Nat), n < B →
-    ∀ {z fq fs w : Term} {q : Quotation} {S : Stack}, Steps z (fixB applyF) →
-      DecQuot fq q → DecStack fs S → StepsN n (fixSelf applyF z ⬝ fq ⬝ fs) w → Whnf w →
-      ∃ o, ApplyRel q S o := by
-  intro B
-  induction B with
-  | zero => intro n hn; exact absurd hn (Nat.not_lt_zero n)
-  | succ B ih =>
-    intro n hn z fq fs w q S hz hq hs hw ww
-    have reach : ∀ {u : Term},
-        Steps (applyF ⬝ fixSelf applyF (I ⬝ z) ⬝ fq ⬝ fs) u → ∃ m, m < B ∧ StepsN m u w :=
-      fun hu =>
-        match StepsN.tail_lt (fixSelf_first applyF z fq fs) ((fixSelf_rest hz fq fs).trans hu)
-          hw ww with
-        | ⟨m, hm, hmw⟩ => ⟨m, Nat.lt_of_lt_of_le hm (Nat.le_of_lt_succ hn), hmw⟩
-    have hz' := fixSelf_inv hz
-    cases applyF_stages (fixSelf applyF (I ⬝ z)) fq fs with | intro k0 h => cases h with
-    | intro k1 h => cases h with | intro k2 h =>
-    cases q with
-    | unit x => exact ⟨_, .unit⟩
-    | cons x r =>
-      cases hq k0 k1 k2 with | intro f hf => cases hf with | intro g hg =>
-      cases h.2.1 f g with | intro P hP =>
-      cases reach (h.1.trans (hg.1.trans hP.1)) with | intro m hm =>
-      cases ih m hm.1 hz' hg.2.2
-          (DecStack.of_steps hP.2 (dec_push hg.2.1 (DecStack.of_steps (steps_thunk1 _ _) hs)))
-          hm.2 ww with
-      | intro o ho => exact ⟨o, .cons ho⟩
-    | «then» b =>
-      cases S with
-      | nil => exact ⟨_, .then_bad (fun _ _ e => by cases e)⟩
-      | cons a t =>
-        cases a with
-        | num k => exact ⟨_, .then_bad (fun _ _ e => by cases e)⟩
-        | quot r =>
-          cases hq k0 k1 k2 with | intro fb hb =>
-          have hs' := DecStack.of_steps (steps_thunk2 (fixSelf applyF (I ⬝ z)) fs fb) hs
-          have toSeq := h.1.trans (hb.1.trans (h.2.2.2 fb))
-          cases seq_stages (Scott.wDo ⬝ fixSelf applyF (I ⬝ z))
-              (I ⬝ fixSelf applyF (I ⬝ z) ⬝ fb) (K ⬝ K ⬝ fixSelf applyF (I ⬝ z) ⬝ fs ⬝ fb) with
-          | intro j0 hj => cases hj with | intro j1 hj => cases hj with | intro j2 hj =>
-          cases path_i (fixSelf applyF (I ⬝ z)) hs' with | intro x hx => cases hx with
-          | intro th hx =>
-          have toCall := toSeq.trans (hj.1.trans (Steps.app3 j0 j1 j2 hx.1))
-          cases reach toCall with | intro m1 hm1 =>
-          cases StepsN.app3_left hm1.2 ww with | intro m2 h2 => cases h2 with | intro v h2 =>
-          cases ih m2 (Nat.lt_of_le_of_lt h2.1 hm1.1) hz' hx.2.1 hx.2.2 h2.2.1 h2.2.2 with
-          | intro o1 ho1 =>
-            cases o1 with
-            | err => exact ⟨_, .then_err ho1⟩
-            | val S' =>
-              cases applySelf_sound ho1 hz' hx.2.1 hx.2.2 with | intro u hu =>
-              cases hu.2 j0 j1 j2 with | intro fv hv =>
-              have toRest := toCall.trans ((Steps.app3 j0 j1 j2 hu.1.1).trans
-                (hv.1.trans ((hj.2.1 fv).trans (.single (.left fv (.left fb (.I _)))))))
-              cases reach toRest with | intro m3 hm3 =>
-              cases ih m3 hm3.1 hz' hb.2 hv.2 hm3.2 ww with
-              | intro o2 ho2 => exact ⟨o2, .then_val ho1 ho2⟩
+variable [KitApply]
 
-/-- **The converse for `apply`.**  If the compiled `applyU` normalizes on
-    terms that decode to `q` and `S`, then `ApplyRel` derives an outcome. -/
-theorem apply_complete {fq fs : Term} {q : Quotation} {S : Stack}
-    (hc : Converges (Scott.applyU ⬝ fq ⬝ fs)) (hq : DecQuot fq q) (hs : DecStack fs S) :
-    ∃ o, ApplyRel q S o := by
-  cases hc with
-  | intro w hw =>
-    cases hw.1.counted with
-    | intro n hn =>
-      cases StepsN.tail (applyU_unfold fq fs) hn hw.2 with
-      | intro m hm => exact applySelf_complete (m + 1) m (Nat.lt_succ_self m) (.refl _) hq hs hm.2 hw.2
+/-- A normalizing self-reference of `applyU` has a derivation. -/
+def ApplyClaim (n : Nat) : Prop :=
+  ∀ {z fq fs w : Term} {q : Quotation} {S : Stack}, Steps z (fixB applyF) →
+    DecQuot fq q → DecStack fs S → StepsN n (fixSelf applyF z ⬝ fq ⬝ fs) w → Whnf w →
+    ∃ o, ApplyRel q S o
 
-/-- **`apply` diverges exactly when `ApplyRel` derives nothing.** -/
-theorem apply_diverges {fq fs : Term} {q : Quotation} {S : Stack}
-    (hq : DecQuot fq q) (hs : DecStack fs S) :
-    Diverges (Scott.applyU ⬝ fq ⬝ fs) ↔ ∀ o, ¬ ApplyRel q S o := by
-  constructor
-  · intro hd o h
-    cases apply_sound _ _ _ h _ _ hq hs with
-    | intro u hu => exact hd u hu.1
-  · intro hno u he
-    cases apply_complete ⟨u, he⟩ hq hs with
-    | intro o ho => exact hno o ho
+/-- Whenever the eliminator `apT` normalizes on decoding inputs within `n`
+    contractions, `ApplyRel` derives an outcome. -/
+def ElimClaim (apT : Term) (n : Nat) : Prop :=
+  ∀ {fq fs w : Term} {q : Quotation} {S : Stack}, DecQuot fq q → DecStack fs S →
+    StepsN n (apT ⬝ fq ⬝ fs) w → Whnf w → ∃ o, ApplyRel q S o
 
--- ---------------------------------------------------------------------------
--- Words and programs
--- ---------------------------------------------------------------------------
-
-/-- A normalizing word has a relational outcome. -/
-theorem word_complete {w : Word} {S : Stack} {s : Term} (hs : DecStack s S)
-    (hc : Converges (wordTerm Scott.applyU w ⬝ s)) : ∃ o, CwR ApplyRel w S o := by
+/-- A normalizing word has a derivation, given its eliminator's claim up to
+    the word's count. -/
+theorem word_complete_at {apT : Term} {n : Nat} (hE : ∀ m, m ≤ n → ElimClaim apT m) :
+    ∀ {s w' : Term} {w : Word} {S : Stack}, DecStack s S →
+      StepsN n (wordTerm apT w ⬝ s) w' → Whnf w' → ∃ o, Run (.word w) S o := by
+  intro s w' w S hs hw ww
   cases w with
   | dup => exact ⟨_, .plain rfl⟩
   | swap => exact ⟨_, .plain rfl⟩
@@ -338,8 +270,9 @@ theorem word_complete {w : Word} {S : Stack} {s : Term} (hs : DecStack s S)
       cases a with
       | num n => exact ⟨_, .i_bad (fun _ _ e => by cases e)⟩
       | quot r =>
-        cases path_i Scott.applyU hs with | intro x h => cases h with | intro th h =>
-        cases apply_complete (Converges.of_steps h.1 hc) h.2.1 h.2.2 with
+        cases path_i apT hs with | intro x h => cases h with | intro th h =>
+        cases StepsN.tail h.1 hw ww with | intro m hm =>
+        cases hE m hm.1 h.2.1 h.2.2 hm.2 ww with
         | intro o ho => exact ⟨o, .i_run ho⟩
   | dip =>
     cases S with
@@ -351,9 +284,11 @@ theorem word_complete {w : Word} {S : Stack} {s : Term} (hs : DecStack s S)
         cases t with
         | nil => exact ⟨_, .dip_bad (fun _ _ _ e => by cases e)⟩
         | cons b u =>
-          cases path_dip Scott.applyU hs with | intro x h => cases h with | intro g2 h =>
+          cases path_dip apT hs with | intro x h => cases h with | intro g2 h =>
           cases h with | intro k0 h => cases h with | intro k1 h => cases h with | intro k2 h =>
-          cases apply_complete (Converges.of_steps h.1 hc).app3_left h.2.1 h.2.2 with
+          cases StepsN.tail h.1 hw ww with | intro m hm =>
+          cases StepsN.app3_left hm.2 ww with | intro m' h' => cases h' with | intro v h' =>
+          cases hE m' (Nat.le_trans h'.1 hm.1) h.2.1 h.2.2 h'.2.1 h'.2.2 with
           | intro o ho => exact ⟨_, .dip_run ho⟩
   | ifz =>
     cases S with
@@ -367,73 +302,205 @@ theorem word_complete {w : Word} {S : Stack} {s : Term} (hs : DecStack s S)
     | cons b u =>
     cases b with
     | num n => exact ⟨_, .ifz_bad (fun _ _ _ _ e => by cases e)⟩
-    | quot z =>
+    | quot z' =>
     cases u with
     | nil => exact ⟨_, .ifz_bad (fun _ _ _ _ e => by cases e)⟩
     | cons c v =>
     cases c with
     | quot q => exact ⟨_, .ifz_bad (fun _ _ _ _ e => by cases e)⟩
     | num k =>
-    have hp := path_ifz Scott.applyU hs
+    have hp := path_ifz apT hs
     cases k with
     | zero =>
       cases hp.1 rfl with | intro y h => cases h with | intro g3 h =>
-      cases apply_complete (Converges.of_steps h.1 hc) h.2.1 h.2.2 with
+      cases StepsN.tail h.1 hw ww with | intro m hm =>
+      cases hE m hm.1 h.2.1 h.2.2 hm.2 ww with
       | intro o ho => exact ⟨o, .ifz_zero ho⟩
     | succ m =>
       cases hp.2 m rfl with | intro x h => cases h with | intro p h =>
-      cases apply_complete (Converges.of_steps h.1 hc) h.2.1 h.2.2 with
+      cases StepsN.tail h.1 hw ww with | intro m' hm =>
+      cases hE m' hm.1 h.2.1 h.2.2 hm.2 ww with
       | intro o ho => exact ⟨o, .ifz_succ ho⟩
 
-/-- **The converse of `composition_apply`.**  If a compiled program
-    normalizes on a term that decodes to `S`, the relational C model
-    derives an outcome for it. -/
-theorem composition_complete :
-    ∀ (p : List Word) (S : Stack) {s : Term}, DecStack s S →
-      Converges (N Scott.applyU p ⬝ s) → ∃ o, CsemR ApplyRel p S o
-  | [], st, _, _, _ => ⟨_, .nil st⟩
-  | [w], _, _, hs, hc => by
-    cases word_complete hs hc with
-    | intro o ho =>
-      cases o with
-      | val S' => exact ⟨_, .val ho (.nil S')⟩
-      | err => exact ⟨_, .err ho⟩
-  | w :: w' :: p, _, s, hs, hc => by
-    cases seq_stages (wordTerm Scott.applyU w) (N Scott.applyU (w' :: p)) s with
+/-- A normalizing compiled program has a derivation: by recursion on the
+    program, given a sound eliminator and its claim up to the program's
+    count. -/
+theorem prog_complete_at {apT : Term} {n : Nat} (hS : ApSoundR apT ApplyRel)
+    (hE : ∀ m, m ≤ n → ElimClaim apT m) :
+    ∀ (p : List Word) {t s w' : Term} {st : Stack}, p.all (Word.ok Kit.n) = true →
+      Compiles apT p t → DecStack s st → StepsN n (t ⬝ s) w' → Whnf w' →
+      ∃ o, Run (.prog p) st o
+  | [], _, _, _, st, _, _, _, _, _ => ⟨_, .nil st⟩
+  | [w], _, s, _, _, _, ht, hs, hw, ww => by
+    cases StepsN.tail (Steps.left s ht) hw ww with
+    | intro m hm =>
+      cases word_complete_at (fun m' hm' => hE m' (Nat.le_trans hm' hm.1)) hs hm.2 ww with
+      | intro o ho =>
+        cases o with
+        | val S' => exact ⟨_, .seq_val ho (.nil S')⟩
+        | err => exact ⟨_, .seq_err ho⟩
+  | w :: w' :: p, _, s, _, _, hok, ht, hs, hw, ww => by
+    simp only [List.all_cons, Bool.and_eq_true] at hok
+    cases ht with
+    | intro g hg =>
+    cases seq_stages (wordTerm apT w) g s with
     | intro j0 h => cases h with | intro j1 h => cases h with | intro j2 h =>
-    cases word_complete hs (Converges.of_steps h.1 hc).app3_left with
+    have toWord := (Steps.left s hg.1).trans h.1
+    cases StepsN.tail toWord hw ww with | intro m hm =>
+    cases StepsN.app3_left hm.2 ww with | intro m' h' => cases h' with | intro v h' =>
+    cases word_complete_at (fun m'' hm'' => hE m'' (Nat.le_trans hm'' (Nat.le_trans h'.1 hm.1)))
+        hs h'.2.1 h'.2.2 with
     | intro o1 ho1 =>
       cases o1 with
-      | err => exact ⟨_, .err ho1⟩
+      | err => exact ⟨_, .seq_err ho1⟩
       | val S' =>
-        cases leafR apply_sound hs ho1 with | intro u hu =>
+        cases leafR hS hok.1 hs ho1.word_cwR with | intro u hu =>
         cases hu.2 j0 j1 j2 with | intro fv hv =>
-        have hc' := Converges.of_steps
-          (h.1.trans ((Steps.app3 j0 j1 j2 hu.1.1).trans (hv.1.trans (h.2.1 fv)))) hc
-        cases composition_complete (w' :: p) S' hv.2 hc' with
-        | intro o ho => exact ⟨o, .val ho1 ho⟩
+        cases StepsN.tail
+            (toWord.trans ((Steps.app3 j0 j1 j2 hu.1.1).trans (hv.1.trans (h.2.1 fv)))) hw ww with
+        | intro m2 hm2 =>
+          cases prog_complete_at hS (fun m'' hm'' => hE m'' (Nat.le_trans hm'' hm2.1)) (w' :: p)
+              (by simp only [List.all_cons, Bool.and_eq_true]; exact hok.2) hg.2 hv.2 hm2.2 ww with
+          | intro o ho => exact ⟨o, .seq_val ho1 ho⟩
 
-/-- **The divergence biconditional.**  A compiled program diverges on a
-    term that decodes to `S` exactly when the relational C model derives
-    no outcome: two absence-of-derivation propositions, equivalent. -/
-theorem composition_diverges {p : List Word} {S : Stack} {s : Term} (hs : DecStack s S) :
-    Diverges (N Scott.applyU p ⬝ s) ↔ ∀ o, ¬ CsemR ApplyRel p S o := by
+theorem applySelf_soundR {z : Term} (hz : Steps z (fixB applyF)) :
+    ApSoundR (fixSelf applyF z) ApplyRel :=
+  fun _ _ _ h _ _ hr hu => applySelf_sound h hz hr hu
+
+/-- A normalizing self-reference of `applyU` has a derivation, from the
+    claim at every smaller count. -/
+theorem apply_complete_at {n : Nat} (hA : ∀ m, m < n → ApplyClaim m) : ApplyClaim n := by
+  intro z fq fs w q S hz hq hs hw ww
+  have reach : ∀ {u : Term},
+      Steps (applyF ⬝ fixSelf applyF (I ⬝ z) ⬝ fq ⬝ fs) u → ∃ m, m < n ∧ StepsN m u w :=
+    fun hu => StepsN.tail_lt (fixSelf_first applyF z fq fs) ((fixSelf_rest hz fq fs).trans hu) hw ww
+  have hz' := fixSelf_inv hz
+  cases KitApply.applyF_stages (fixSelf applyF (I ⬝ z)) fq fs with | intro ks h =>
+  cases q with
+  | stat k =>
+    cases reach (h.1.trans ((hq.2 ks).trans (h.2.1 k hq.1))) with
+    | intro m hm =>
+      cases prog_complete_at (applySelf_soundR hz')
+          (fun m' hm' _ _ _ _ _ hq' hs' hw' ww' => hA m' (Nat.lt_of_le_of_lt hm' hm.1) hz' hq' hs' hw' ww')
+          (Kit.body k) (KitApply.body_ok k hq.1) (KitApply.body_compiles k hq.1 _) hs hm.2 ww with
+      | intro o ho => exact ⟨o, .stat hq.1 ho⟩
+  | unit x => exact ⟨_, .unit⟩
+  | cons x r =>
+    cases hq ks with | intro f hf => cases hf with | intro g hg =>
+    cases h.2.2.1 f g with | intro P hP =>
+    cases reach (h.1.trans (hg.1.trans hP.1)) with | intro m hm =>
+    cases hA m hm.1 hz' hg.2.2
+        (DecStack.of_steps hP.2 (dec_push hg.2.1 (DecStack.of_steps (steps_thunk1 _ _) hs)))
+        hm.2 ww with
+    | intro o ho => exact ⟨o, .cons ho⟩
+  | «then» b =>
+    cases S with
+    | nil => exact ⟨_, .then_bad (fun _ _ e => by cases e)⟩
+    | cons a t =>
+      cases a with
+      | num k => exact ⟨_, .then_bad (fun _ _ e => by cases e)⟩
+      | quot r =>
+        cases hq ks with | intro fb hb =>
+        have hs' := DecStack.of_steps (steps_thunk2 (fixSelf applyF (I ⬝ z)) fs fb) hs
+        have toSeq := h.1.trans (hb.1.trans (h.2.2.2.2 fb))
+        cases seq_stages (Scott.wDo ⬝ fixSelf applyF (I ⬝ z))
+            (I ⬝ fixSelf applyF (I ⬝ z) ⬝ fb) (K ⬝ K ⬝ fixSelf applyF (I ⬝ z) ⬝ fs ⬝ fb) with
+        | intro j0 hj => cases hj with | intro j1 hj => cases hj with | intro j2 hj =>
+        cases path_i (fixSelf applyF (I ⬝ z)) hs' with | intro x hx => cases hx with
+        | intro th hx =>
+        have toCall := toSeq.trans (hj.1.trans (Steps.app3 j0 j1 j2 hx.1))
+        cases reach toCall with | intro m1 hm1 =>
+        cases StepsN.app3_left hm1.2 ww with | intro m2 h2 => cases h2 with | intro v h2 =>
+        cases hA m2 (Nat.lt_of_le_of_lt h2.1 hm1.1) hz' hx.2.1 hx.2.2 h2.2.1 h2.2.2 with
+        | intro o1 ho1 =>
+          cases o1 with
+          | err => exact ⟨_, .then_err ho1⟩
+          | val S' =>
+            cases applySelf_sound ho1 hz' hx.2.1 hx.2.2 with | intro u hu =>
+            cases hu.2 j0 j1 j2 with | intro fv hv =>
+            have toRest := toCall.trans ((Steps.app3 j0 j1 j2 hu.1.1).trans
+              (hv.1.trans ((hj.2.1 fv).trans (.single (.left fv (.left fb (.I _)))))))
+            cases reach toRest with | intro m3 hm3 =>
+            cases hA m3 hm3.1 hz' hb.2 hv.2 hm3.2 ww with
+            | intro o2 ho2 => exact ⟨o2, .then_val ho1 ho2⟩
+
+theorem apply_complete_all : ∀ n, ApplyClaim n := by
+  have h : ∀ B n, n < B → ApplyClaim n := by
+    intro B
+    induction B with
+    | zero => intro n hn; exact absurd hn (Nat.not_lt_zero n)
+    | succ B ih =>
+      intro n hn
+      exact apply_complete_at fun m hm => ih m (Nat.lt_of_lt_of_le hm (Nat.le_of_lt_succ hn))
+  exact fun n => h (n + 1) n (Nat.lt_succ_self n)
+
+/-- **The converse for `apply`.**  If the table's compiled `applyU`
+    normalizes on terms that decode to `q` and `S`, `ApplyRel` derives an
+    outcome. -/
+theorem apply_complete {fq fs : Term} {q : Quotation} {S : Stack}
+    (hc : Converges (Kit.applyU ⬝ fq ⬝ fs)) (hq : DecQuot fq q) (hs : DecStack fs S) :
+    ∃ o, ApplyRel q S o := by
+  cases hc with
+  | intro w hw =>
+    cases hw.1.counted with
+    | intro n hn =>
+      cases StepsN.tail (KitApply.applyU_unfold fq fs) hn hw.2 with
+      | intro m hm => exact apply_complete_all m (.refl _) hq hs hm.2 hw.2
+
+/-- **`apply` diverges exactly when `ApplyRel` derives nothing.** -/
+theorem apply_diverges {fq fs : Term} {q : Quotation} {S : Stack}
+    (hq : DecQuot fq q) (hs : DecStack fs S) :
+    Diverges (Kit.applyU ⬝ fq ⬝ fs) ↔ ∀ o, ¬ ApplyRel q S o := by
   constructor
   · intro hd o h
-    cases composition_apply h hs with
+    cases apply_sound _ _ _ h _ _ hq hs with
     | intro u hu => exact hd u hu.1
   · intro hno u he
-    cases composition_complete p S hs ⟨u, he⟩ with
+    cases apply_complete ⟨u, he⟩ hq hs with
+    | intro o ho => exact hno o ho
+
+-- ---------------------------------------------------------------------------
+-- Programs
+-- ---------------------------------------------------------------------------
+
+theorem applyU_claim (n : Nat) : ElimClaim Kit.applyU n := by
+  intro fq fs w q S hq hs hw ww
+  cases StepsN.tail (KitApply.applyU_unfold fq fs) hw ww with
+  | intro m hm => exact apply_complete_all m (.refl _) hq hs hm.2 ww
+
+/-- **The converse of `composition_apply`.**  If a compiled program
+    normalizes on a term that decodes to `S`, `Run` derives an outcome. -/
+theorem composition_complete {p : List Word} {S : Stack} {t s : Term}
+    (hp : p.all (Word.ok Kit.n) = true) (ht : Compiles Kit.applyU p t) (hs : DecStack s S)
+    (hc : Converges (t ⬝ s)) : ∃ o, Run (.prog p) S o := by
+  cases hc with
+  | intro w hw =>
+    cases hw.1.counted with
+    | intro n hn =>
+      exact prog_complete_at apply_sound (fun m _ => applyU_claim m) p hp ht hs hn hw.2
+
+/-- **The divergence biconditional.**  A compiled program diverges on a
+    term that decodes to `S` exactly when `Run` derives no outcome: two
+    absence-of-derivation propositions, equivalent. -/
+theorem composition_diverges {p : List Word} {S : Stack} {t s : Term}
+    (hp : p.all (Word.ok Kit.n) = true) (ht : Compiles Kit.applyU p t) (hs : DecStack s S) :
+    Diverges (t ⬝ s) ↔ ∀ o, ¬ Run (.prog p) S o := by
+  constructor
+  · intro hd o h
+    cases composition_apply h hp ht hs with
+    | intro u hu => exact hd u hu.1
+  · intro hno u he
+    cases composition_complete hp ht hs ⟨u, he⟩ with
     | intro o ho => exact hno o ho
 
 /-- **Agreement, both ways.**  Whatever a compiled program normalizes to
-    decodes to an outcome the relational C model derives. -/
-theorem composition_exact {p : List Word} {S : Stack} {s u : Term} {o : Outcome}
-    (hs : DecStack s S) (he : Eval (N Scott.applyU p ⬝ s) u) (hd : Decodes u o) :
-    CsemR ApplyRel p S o := by
-  cases composition_complete p S hs ⟨u, he⟩ with
+    decodes to an outcome `Run` derives. -/
+theorem composition_exact {p : List Word} {S : Stack} {t s u : Term} {o : Outcome}
+    (hp : p.all (Word.ok Kit.n) = true) (ht : Compiles Kit.applyU p t) (hs : DecStack s S)
+    (he : Eval (t ⬝ s) u) (hd : Decodes u o) : Run (.prog p) S o := by
+  cases composition_complete hp ht hs ⟨u, he⟩ with
   | intro o' ho' =>
-    cases composition_apply ho' hs with
+    cases composition_apply ho' hp ht hs with
     | intro u' hu' =>
       have e := Eval.deterministic he hu'.1
       rw [← e] at hu'

@@ -25,12 +25,12 @@ if grep -rn 'panic!' Ski/ Main.lean Ski.lean 2>/dev/null | grep -v '`' | grep -q
 echo "== gate 3: generated modules match the generator =="
 if [ -x /Users/neal/SKIlark/.venv/bin/python ] || command -v python3 >/dev/null; then
   tmp=$(mktemp -d)
-  cp Ski/Scott.lean Ski/Corpus.lean "$tmp"/
+  cp Ski/Scott.lean Ski/Corpus.lean Ski/Table.lean "$tmp"/
   if ( [ -x /Users/neal/SKIlark/.venv/bin/python ] && /Users/neal/SKIlark/.venv/bin/python scripts/emit.py >/dev/null 2>&1 ); then
-    if ! cmp -s Ski/Scott.lean "$tmp/Scott.lean" || ! cmp -s Ski/Corpus.lean "$tmp/Corpus.lean"; then
-      bad "Ski/Scott.lean or Ski/Corpus.lean differs from scripts/emit.py's output"
+    if ! cmp -s Ski/Scott.lean "$tmp/Scott.lean" || ! cmp -s Ski/Corpus.lean "$tmp/Corpus.lean" || ! cmp -s Ski/Table.lean "$tmp/Table.lean"; then
+      bad "Ski/Scott.lean, Ski/Corpus.lean or Ski/Table.lean differs from scripts/emit.py's output"
     else
-      note "ok — Scott.lean and Corpus.lean are what emit.py emits"
+      note "ok — Scott.lean, Corpus.lean and Table.lean are what emit.py emits"
     fi
   else
     note "skipped — skijack not available here; generated modules taken as committed"

@@ -1,6 +1,8 @@
 import Ski.Leaf
 open Term
 
+set_option linter.unusedSectionVars false
+
 /-!
 # Composition
 
@@ -18,6 +20,8 @@ other outcome is derivable: reduction is deterministic and decoding is a
 function.
 -/
 
+variable [Kit] [KitElim] [KitWords]
+
 /-- The term of a word as a compiled program uses it. -/
 def wordTerm (apT : Term) : Word → Term
   | .dip => phi .dip ⬝ apT
@@ -27,7 +31,7 @@ def wordTerm (apT : Term) : Word → Term
 
 /-- **Every word meets its contract**, at every input that decodes. -/
 theorem leaf_correct (apT : Term) (ap : Quotation → Stack → Outcome) (hap : ApSound apT ap)
-    (w : Word) (S : Stack) {s : Term} (hs : DecStack s S) :
+    (w : Word) (hw : w.ok Kit.n = true) (S : Stack) {s : Term} (hs : DecStack s S) :
     Contract (wordTerm apT w ⬝ s) (cw ap w S) := by
   cases w with
   | dup => exact leafD_dup ap S hs
@@ -40,7 +44,7 @@ theorem leaf_correct (apT : Term) (ap : Quotation → Stack → Outcome) (hap : 
   | i => exact leafD_i apT ap hap S hs
   | ifz => exact leafD_ifz apT ap hap S hs
   | lit n => exact leafD_lit ap n S hs
-  | quote q => exact leafD_quote ap q S hs
+  | quote q => exact leafD_quote ap q hw S hs
   | add => exact leafD_add ap S hs
 
 /-- Compile a word list, as `_Compiler.body` does. -/
@@ -53,6 +57,22 @@ def N (apT : Term) : List Word → Term
 def bindO : Outcome → (Stack → Outcome) → Outcome
   | .val S', k => k S'
   | .err, _ => .err
+
+/-- `t` is a compiled form of `p`: it reduces to `seq ⬝ w ⬝ g` with `g` a
+    compiled form of the rest, and so on to the last word.  Bracket
+    abstraction over the eliminator leaves each continuation of `seq` as an
+    unreduced argument, so the compiler's term for a program that passes the
+    eliminator on reaches `N` only one `seq` at a time; `N apT p` itself is a
+    compiled form of `p` (`compiles_N`). -/
+def Compiles (apT : Term) : List Word → Term → Prop
+  | [], t => Steps t Scott.idW
+  | [w], t => Steps t (wordTerm apT w)
+  | w :: w' :: p, t => ∃ g, Steps t (Scott.seq ⬝ wordTerm apT w ⬝ g) ∧ Compiles apT (w' :: p) g
+
+theorem compiles_N (apT : Term) : ∀ p, Compiles apT p (N apT p)
+  | [] => .refl _
+  | [_] => .refl _
+  | _ :: w' :: p => ⟨_, .refl _, compiles_N apT (w' :: p)⟩
 
 /-- Run a word list through the C model, threading the stack. -/
 def Csem (ap : Quotation → Stack → Outcome) : List Word → Stack → Outcome
@@ -102,21 +122,25 @@ theorem Csem_single (ap : Quotation → Stack → Outcome) (w : Word) (S : Stack
     term that decodes to `S`, reduces to a weak head normal form that
     decodes to the C model's outcome. -/
 theorem composition (apT : Term) (ap : Quotation → Stack → Outcome) (hap : ApSound apT ap) :
-    ∀ (p : List Word) (S : Stack) {s : Term}, DecStack s S → Contract (N apT p ⬝ s) (Csem ap p S)
-  | [], _, _, hs => idW_contract hs
-  | [w], st, _, hs => by
+    ∀ (p : List Word), p.all (Word.ok Kit.n) = true →
+      ∀ (S : Stack) {s : Term}, DecStack s S → Contract (N apT p ⬝ s) (Csem ap p S)
+  | [], _, _, _, hs => idW_contract hs
+  | [w], hp, st, _, hs => by
+    simp only [List.all_cons, List.all_nil, Bool.and_true] at hp
     rw [Csem_single]
-    exact leaf_correct apT ap hap w st hs
-  | w :: w' :: p, st, _, hs => by
-    exact seq_contract (leaf_correct apT ap hap w st hs)
-      (fun S' _ _ ht => composition apT ap hap (w' :: p) S' ht)
+    exact leaf_correct apT ap hap w hp st hs
+  | w :: w' :: p, hp, st, _, hs => by
+    simp only [List.all_cons, Bool.and_eq_true] at hp
+    exact seq_contract (leaf_correct apT ap hap w hp.1 st hs)
+      (fun S' _ _ ht => composition apT ap hap (w' :: p)
+        (by simp only [List.all_cons, Bool.and_eq_true]; exact hp.2) S' ht)
 
 /-- **Agreement.**  Any outcome derivable for a compiled program is the C
     model's. -/
 theorem composition_agree (apT : Term) (ap : Quotation → Stack → Outcome) (hap : ApSound apT ap)
-    (p : List Word) (S : Stack) {s u : Term} {o : Outcome} (hs : DecStack s S)
-    (he : Eval (N apT p ⬝ s) u) (hd : Decodes u o) : o = Csem ap p S := by
-  cases composition apT ap hap p S hs with
+    (p : List Word) (hp : p.all (Word.ok Kit.n) = true) (S : Stack) {s u : Term} {o : Outcome}
+    (hs : DecStack s S) (he : Eval (N apT p ⬝ s) u) (hd : Decodes u o) : o = Csem ap p S := by
+  cases composition apT ap hap p hp S hs with
   | intro u' hu' =>
     have h := Eval.deterministic he hu'.1
     rw [← h] at hu'
@@ -124,9 +148,10 @@ theorem composition_agree (apT : Term) (ap : Quotation → Stack → Outcome) (h
 
 /-- The same at the encoding of `S`. -/
 theorem composition_enc (apT : Term) (ap : Quotation → Stack → Outcome) (hap : ApSound apT ap)
-    (p : List Word) (S : Stack) :
+    (p : List Word) (hp : p.all (Word.ok Kit.n) = true) (S : Stack)
+    (hS : S.all (Item.ok Kit.n) = true) :
     ∃ t, Eval (N apT p ⬝ encStack S) t ∧ Decodes t (Csem ap p S) :=
-  composition apT ap hap p S (encStack_dec S)
+  composition apT ap hap p hp S (encStack_dec S hS)
 
 -- ---------------------------------------------------------------------------
 -- An eliminator for programs that run no quotation

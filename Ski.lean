@@ -10,5 +10,6 @@ import Ski.Apply
 import Ski.Converse
 import Ski.Total
 import Ski.Corpus
+import Ski.Table
 import Ski.Examples
 import Ski.Audit
