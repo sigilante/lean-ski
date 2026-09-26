@@ -1,0 +1,59 @@
+import Lean
+import Ski.Basic
+import Ski.Fuel
+import Ski.Trace
+import Ski.Scott
+
+/-!
+# The audit manifest — build-enforced
+
+Adopted from `lean-nock`.  Every name below is cited or citable, so it is
+API; a rename fails elaboration.  Every footprint is checked at `lake
+build`: a theorem whose axioms grow past `{propext, Quot.sound}`, or a
+`sorry` (`sorryAx`), fails the build.  There is no `native_decide` and no
+runtime bridge in this repository yet; when a bridge to Avon arrives it
+gets its own quarantined allow-list, as `Nock/RuntimeBridge.lean` does.
+-/
+
+open Lean Elab Command
+
+namespace Ski.Audit
+
+/-- Lean 4's standard foundations.  Nothing here may exceed this. -/
+def allowed : List Name := [``propext, ``Quot.sound]
+
+private def auditAgainst (allowed : List Name) (ids : Array Ident) : CommandElabM Unit := do
+  for id in ids do
+    let n ← liftCoreM <| realizeGlobalConstNoOverload id
+    let axs ← liftCoreM <| collectAxioms n
+    let bad := axs.filter (fun a => !allowed.contains a)
+    unless bad.isEmpty do
+      throwError
+        "AUDIT FAILURE for {n}\n  \
+         disallowed axioms: {bad.toList}\n  \
+         full footprint:    {axs.toList}\n  \
+         allowed here:      {allowed}\n\
+         If this is an intended change, update Ski/Audit.lean deliberately — \
+         do not widen the allow-list to make a build pass."
+
+/-- Fails the build unless every named constant's axiom footprint is contained
+    in `{propext, Quot.sound}`.  Also catches `sorryAx`. -/
+elab "#audit_clean " ids:ident+ : command => auditAgainst allowed ids
+
+end Ski.Audit
+
+open Ski.Audit
+
+-- L0: the calculus
+#audit_clean Whnf.no_step Step.det progress Steps.trans Steps.left Eval.deterministic
+
+-- L0: the fuel interpreter agrees with the relation
+#audit_clean step?_iff whnf_iff_step?_none iter_sound
+  evalF_sound evalF_mono evalF_complete diverges_iff_fuel runF_evalF
+
+-- L1: trace certificates
+#audit_clean certified_sound certified_complete traceF_certified
+
+-- The Scott constructors, as compiled
+#audit_clean Scott.Zero_elim Scott.Suc_elim Scott.Num_elim Scott.Quot_elim
+  Scott.Empty_elim Scott.Push_elim Scott.RVal_elim Scott.RErr_elim Scott.RTime_elim
