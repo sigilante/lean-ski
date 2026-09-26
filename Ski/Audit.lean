@@ -3,6 +3,8 @@ import Ski.Basic
 import Ski.Fuel
 import Ski.Trace
 import Ski.Scott
+import Ski.Words
+import Ski.Corpus
 
 /-!
 # The audit manifest — build-enforced
@@ -56,4 +58,10 @@ open Ski.Audit
 
 -- The Scott constructors, as compiled
 #audit_clean Scott.Zero_elim Scott.Suc_elim Scott.Num_elim Scott.Quot_elim
-  Scott.Empty_elim Scott.Push_elim Scott.RVal_elim Scott.RErr_elim Scott.RTime_elim
+  Scott.Empty_elim Scott.Push_elim Scott.QCons_elim Scott.QUnit_elim Scott.QThen_elim
+  Scott.RVal_elim Scott.RErr_elim Scott.RTime_elim
+
+-- Canonicity: the pasted word terms against the corpus compilation
+#audit_clean canon_wDup canon_wSwap canon_wPop canon_wDip canon_wDo canon_wIfz
+  canon_wLit canon_wQuote canon_wAdd
+  canon_wQcons_differs canon_wCat_differs canon_wUnit_differs
