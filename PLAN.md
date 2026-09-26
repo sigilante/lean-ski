@@ -248,9 +248,9 @@ constructor's fields.
   abstraction over a fresh self-parameter. `Src` is the desugared source,
   `comp` does the lifting and abstraction, `compDef` and `compRec` the
   definitions. Every table-independent equation of the kernel (the twelve
-  words, `seq`, `idW`, and the recursive `add`) is transcribed and checked
-  by `rfl` to compile to `skijack`'s term (`wPop_compiles` through
-  `add_compiles`). `Table` is a table as data (its size and its bodies as
+  words, `seq`, `idW`, and the recursive `add`) compiles to `skijack`'s
+  term (`wPop_compiles` through `add_compiles`). The equations were first
+  transcribed by hand; the front end below now reads them from the source. `Table` is a table as data (its size and its bodies as
   word lists), and `Table.kit : Table → Kit` compiles its constructors,
   `wQcons`, `wCat`, `wUnit`, each body `b_k` and `applyU` (with its
   `n + 3` arms and `Y`) from source. For each generated table,
@@ -310,12 +310,26 @@ do not.
 program using `y` (`3 sumto`) that runs end to end under the generic laws
 (met, G6: `SumTable.us_six`).
 
+**The front end — built** (`Ski/Front.lean`, `Ski/Source.lean`). The
+kernel's source enters as the text `skijack` compiled, character for
+character (`Ski/Source.lean`, generated), not as a transcription. A total
+lexer, parser and desugarer for SKIjack's core reads it, lowers each case
+in declaration order, and refuses an incomplete, mixed or repeated case
+as `skijack` does (`Front.refuses_*`, `lowers_in_declaration_order`).
+`compileFile` compiles a whole file. `KernelSrc` is the front end's
+reading of `kernelText`. `kernel_agrees` and the four `front_agrees`
+check, in the kernel, that Lean compiles each of the four source texts
+to every term `skijack` emitted for it: constructors, words, `applyU`,
+bodies, programs and corpus rows. `skijack` is now an untrusted second
+implementation, as its SPEC §0 describes.
+
 **What is still per table and per program.** Every theorem is stated for
 every valid table and every program. Three facts about each generated
 table or program are still checked one by one:
-- `skijack`'s terms equal the kernel's compilation of the source, by
-  `rfl` (`table_*`, `c*_eq`). The model of `skijack/expand.py` is checked
-  against four compilations, not proved for its code.
+- `skijack`'s terms equal the Lean compilation of the source, by the
+  kernel (`front_agrees`, `table_*`, `c*_eq`). The Lean compiler is
+  checked against `skijack` on four compilations; it is not yet proved
+  to simulate the source's own semantics.
 - the table is valid (`table_valid`).
 - for an end-to-end example, the program's `Run` derivation (`cs_run`
   and the hand-written ones in `Ski/Examples.lean`).

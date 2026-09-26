@@ -30,13 +30,13 @@ namespace NoQuot
 
 def table : Table := ⟨0, fun _ => []⟩
 
-theorem table_QCons : table.QCons = Scott.QCons := rfl
-theorem table_QUnit : table.QUnit = Scott.QUnit := rfl
-theorem table_QThen : table.QThen = Scott.QThen := rfl
-theorem table_wQcons : table.wQcons = Scott.wQcons := rfl
-theorem table_wCat : table.wCat = Scott.wCat := rfl
-theorem table_wUnit : table.wUnit = Scott.wUnit := rfl
-theorem table_applyU : table.applyU = Scott.applyU := rfl
+theorem table_QCons : table.QCons = Scott.QCons := by decide +kernel
+theorem table_QUnit : table.QUnit = Scott.QUnit := by decide +kernel
+theorem table_QThen : table.QThen = Scott.QThen := by decide +kernel
+theorem table_wQcons : table.wQcons = Scott.wQcons := by decide +kernel
+theorem table_wCat : table.wCat = Scott.wCat := by decide +kernel
+theorem table_wUnit : table.wUnit = Scott.wUnit := by decide +kernel
+theorem table_applyU : table.applyU = Scott.applyU := by decide +kernel
 
 /-- Every static quotation's body is valid over the table. -/
 theorem table_valid : table.Valid := fun k hk => absurd hk (Nat.not_lt_zero k)
@@ -49,7 +49,16 @@ scoped instance apply : KitApply := table.kit_apply table_valid
 def cp : Term := (K ⬝ ((((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ S))) ⬝ (K ⬝ ((S ⬝ (K ⬝ K)) ⬝ I)))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K)))))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ I)))))) ⬝ (((S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))))) ⬝ ((S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ (K ⬝ K))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K)))) ⬝ (((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K)) ⬝ K))) ⬝ ((((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ S))) ⬝ (K ⬝ ((S ⬝ (K ⬝ K)) ⬝ I)))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K)))))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ I)))))) ⬝ (((S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))))) ⬝ ((S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ (K ⬝ K))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K)))) ⬝ (((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K)) ⬝ (((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K)) ⬝ K)))) ⬝ ((((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ S))) ⬝ (K ⬝ ((S ⬝ (K ⬝ K)) ⬝ I)))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K)))))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ I)))))) ⬝ ((S ⬝ ((S ⬝ I) ⬝ (K ⬝ (K ⬝ K)))) ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ ((S ⬝ I) ⬝ (K ⬝ (K ⬝ K)))))) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ K)))) ⬝ (K ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ K)))) ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ (K ⬝ K))))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K)))))) ⬝ (((S ⬝ (K ⬝ ((S ⬝ I) ⬝ I))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ K)) ⬝ (K ⬝ ((S ⬝ I) ⬝ I)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ (S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))))))))))))) ⬝ ((S ⬝ (K ⬝ K)) ⬝ K)))))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K))))))))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K))))))))))) ⬝ ((((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ S))) ⬝ (K ⬝ ((S ⬝ (K ⬝ K)) ⬝ I)))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K)))))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ I)))))) ⬝ ((S ⬝ ((S ⬝ I) ⬝ (K ⬝ (K ⬝ K)))) ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ (K ⬝ K)))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ (K ⬝ K)))))))) ⬝ ((S ⬝ ((S ⬝ I) ⬝ (K ⬝ (K ⬝ K)))) ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ ((S ⬝ I) ⬝ (K ⬝ (K ⬝ K)))))) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ K)))) ⬝ (K ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ K)))) ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ (K ⬝ K))))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K)))))) ⬝ (((S ⬝ (K ⬝ ((S ⬝ I) ⬝ I))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ K)) ⬝ (K ⬝ ((S ⬝ I) ⬝ I)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ (S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))))))))))))) ⬝ ((S ⬝ (K ⬝ K)) ⬝ K)))))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K))))))))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K)))))))))))))))
 
 /-- `1 2 + dup +`: `skijack`'s term is the kernel's compilation of its words. -/
-theorem cp_eq : cp = table.progT [.lit 1, .lit 2, .add, .dup, .add] := rfl
+theorem cp_eq : cp = table.progT [.lit 1, .lit 2, .add, .dup, .add] := by
+  decide +kernel
+
+/-- The front end reads this compilation's source (`kernelText`,
+    `Ski/Source.lean`) and compiles it to every term `skijack` emitted for it. -/
+theorem front_agrees :
+    [nm! "QCons", nm! "QUnit", nm! "QThen", nm! "wQcons", nm! "wCat", nm! "wUnit", nm! "applyU", nm! "cp"].map
+      (Front.termOf (Front.compileFile kernelText)) =
+    [some Scott.QCons, some Scott.QUnit, some Scott.QThen, some Scott.wQcons, some Scott.wCat, some Scott.wUnit, some Scott.applyU, some cp] := by
+  decide +kernel
 
 end NoQuot
 
@@ -78,17 +87,17 @@ def b2 : Term := (K ⬝ ((S ⬝ ((S ⬝ I) ⬝ (K ⬝ (K ⬝ K)))) ⬝ (K ⬝ ((
 
 def table : Table := ⟨2, fun k => match k with | 0 => [.dup, .add] | 1 => [.dup] | _ => []⟩
 
-theorem table_Qs0 : table.Qs 0 = Q1 := rfl
-theorem table_Qs1 : table.Qs 1 = Q2 := rfl
-theorem table_QCons : table.QCons = QCons := rfl
-theorem table_QUnit : table.QUnit = QUnit := rfl
-theorem table_QThen : table.QThen = QThen := rfl
-theorem table_wQcons : table.wQcons = corpus_wQcons := rfl
-theorem table_wCat : table.wCat = corpus_wCat := rfl
-theorem table_wUnit : table.wUnit = corpus_wUnit := rfl
-theorem table_applyU : table.applyU = corpus_applyU := rfl
-theorem table_bodyT0 : table.bodyT 0 = b1 := rfl
-theorem table_bodyT1 : table.bodyT 1 = b2 := rfl
+theorem table_Qs0 : table.Qs 0 = Q1 := by decide +kernel
+theorem table_Qs1 : table.Qs 1 = Q2 := by decide +kernel
+theorem table_QCons : table.QCons = QCons := by decide +kernel
+theorem table_QUnit : table.QUnit = QUnit := by decide +kernel
+theorem table_QThen : table.QThen = QThen := by decide +kernel
+theorem table_wQcons : table.wQcons = corpus_wQcons := by decide +kernel
+theorem table_wCat : table.wCat = corpus_wCat := by decide +kernel
+theorem table_wUnit : table.wUnit = corpus_wUnit := by decide +kernel
+theorem table_applyU : table.applyU = corpus_applyU := by decide +kernel
+theorem table_bodyT0 : table.bodyT 0 = b1 := by decide +kernel
+theorem table_bodyT1 : table.bodyT 1 = b2 := by decide +kernel
 
 /-- Every static quotation's body is valid over the table. -/
 theorem table_valid : table.Valid := fun k hk => match k, hk with
@@ -104,29 +113,43 @@ scoped instance apply : KitApply := table.kit_apply table_valid
 def cp : Term := (K ⬝ ((((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ S))) ⬝ (K ⬝ ((S ⬝ (K ⬝ K)) ⬝ I)))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K)))))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ I)))))) ⬝ (((S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))))) ⬝ ((S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ (K ⬝ K))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K)))) ⬝ (((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K)) ⬝ K))) ⬝ ((((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ S))) ⬝ (K ⬝ ((S ⬝ (K ⬝ K)) ⬝ I)))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K)))))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ I)))))) ⬝ (((S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))))) ⬝ ((S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ (K ⬝ K))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K)))) ⬝ (((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K)) ⬝ (((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K)) ⬝ K)))) ⬝ ((((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ S))) ⬝ (K ⬝ ((S ⬝ (K ⬝ K)) ⬝ I)))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K)))))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ I)))))) ⬝ ((S ⬝ ((S ⬝ I) ⬝ (K ⬝ (K ⬝ K)))) ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ ((S ⬝ I) ⬝ (K ⬝ (K ⬝ K)))))) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ K)))) ⬝ (K ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ K)))) ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ (K ⬝ K))))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K)))))) ⬝ (((S ⬝ (K ⬝ ((S ⬝ I) ⬝ I))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ K)) ⬝ (K ⬝ ((S ⬝ I) ⬝ I)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ (S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))))))))))))) ⬝ ((S ⬝ (K ⬝ K)) ⬝ K)))))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K))))))))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K))))))))))) ⬝ ((((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ S))) ⬝ (K ⬝ ((S ⬝ (K ⬝ K)) ⬝ I)))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K)))))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ I)))))) ⬝ ((S ⬝ ((S ⬝ I) ⬝ (K ⬝ (K ⬝ K)))) ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ (K ⬝ K)))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ (K ⬝ K)))))))) ⬝ ((S ⬝ ((S ⬝ I) ⬝ (K ⬝ (K ⬝ K)))) ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ ((S ⬝ I) ⬝ (K ⬝ (K ⬝ K)))))) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ K)))) ⬝ (K ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ K)))) ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ (K ⬝ K))))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K)))))) ⬝ (((S ⬝ (K ⬝ ((S ⬝ I) ⬝ I))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ K)) ⬝ (K ⬝ ((S ⬝ I) ⬝ I)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ (S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))))))))))))) ⬝ ((S ⬝ (K ⬝ K)) ⬝ K)))))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K))))))))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K)))))))))))))))
 
 /-- `1 2 + dup +`: `skijack`'s term is the kernel's compilation of its words. -/
-theorem cp_eq : cp = table.progT [.lit 1, .lit 2, .add, .dup, .add] := rfl
+theorem cp_eq : cp = table.progT [.lit 1, .lit 2, .add, .dup, .add] := by
+  decide +kernel
 
 def cq : Term := ((S ⬝ (K ⬝ (((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ S))) ⬝ (K ⬝ ((S ⬝ (K ⬝ K)) ⬝ I)))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K)))))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ I)))))) ⬝ (((S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))))) ⬝ ((S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ (K ⬝ K))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K)))) ⬝ (((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K)) ⬝ (((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K)) ⬝ (((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K)) ⬝ K))))))) ⬝ ((S ⬝ (K ⬝ (((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ S))) ⬝ (K ⬝ ((S ⬝ (K ⬝ K)) ⬝ I)))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K)))))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ I)))))) ⬝ (((S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))))) ⬝ ((S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ (K ⬝ K))))) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K)))) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ K))))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ ((S ⬝ I) ⬝ (K ⬝ (K ⬝ K)))))) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ I) ⬝ (K ⬝ (K ⬝ (K ⬝ K))))))))) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ S))) ⬝ (K ⬝ K))))))))
 
 /-- `3 [dup +] i`: `skijack`'s term is the kernel's compilation of its words. -/
-theorem cq_eq : cq = table.progT [.lit 3, .quote (.stat 0), .i] := rfl
+theorem cq_eq : cq = table.progT [.lit 3, .quote (.stat 0), .i] := by
+  decide +kernel
 
 def cr : Term := ((S ⬝ (K ⬝ (((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ S))) ⬝ (K ⬝ ((S ⬝ (K ⬝ K)) ⬝ I)))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K)))))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ I)))))) ⬝ (((S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))))) ⬝ ((S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ (K ⬝ K))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K)))) ⬝ (((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K)) ⬝ K))))) ⬝ ((S ⬝ (K ⬝ (((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ S))) ⬝ (K ⬝ ((S ⬝ (K ⬝ K)) ⬝ I)))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K)))))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ I)))))) ⬝ (((S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))))) ⬝ ((S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ (K ⬝ K))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K)))) ⬝ (((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K)) ⬝ (((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K)) ⬝ K)))))) ⬝ ((S ⬝ (K ⬝ (((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ S))) ⬝ (K ⬝ ((S ⬝ (K ⬝ K)) ⬝ I)))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K)))))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ I)))))) ⬝ (((S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))))) ⬝ ((S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ (K ⬝ K))))) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K)))) ⬝ (K ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ K))))))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ S))) ⬝ (K ⬝ ((S ⬝ (K ⬝ K)) ⬝ I)))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K)))))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ I)))))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ ((S ⬝ I) ⬝ (K ⬝ (K ⬝ K)))))) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ I) ⬝ (K ⬝ (K ⬝ (K ⬝ K))))))))) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ I) ⬝ (K ⬝ (K ⬝ K)))))))) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ (S ⬝ (K ⬝ S)))))) ⬝ (K ⬝ (K ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ (K ⬝ K)))))))))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K)))))))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ I))))))))))))))) ⬝ (K ⬝ ((S ⬝ ((S ⬝ I) ⬝ (K ⬝ (K ⬝ K)))) ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ ((S ⬝ I) ⬝ (K ⬝ (K ⬝ K)))))) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ (K ⬝ K)))))))) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ (K ⬝ K)))))))))))))))
 
 /-- `1 2 over`: `skijack`'s term is the kernel's compilation of its words. -/
-theorem cr_eq : cr = table.progT [.lit 1, .lit 2, .quote (.stat 1), .dip, .swap] := rfl
+theorem cr_eq : cr = table.progT [.lit 1, .lit 2, .quote (.stat 1), .dip, .swap] := by
+  decide +kernel
 
 /-- The corpus row `compiled_up` is `cp` run with this table's `applyU`
     on the empty stack. -/
-theorem compiled_up_eq : compiled_up = cp ⬝ Kit.applyU ⬝ encStack [] := rfl
+theorem compiled_up_eq : compiled_up = cp ⬝ Kit.applyU ⬝ encStack [] := by
+  decide +kernel
 
 /-- The corpus row `compiled_uq` is `cq` run with this table's `applyU`
     on the empty stack. -/
-theorem compiled_uq_eq : compiled_uq = cq ⬝ Kit.applyU ⬝ encStack [] := rfl
+theorem compiled_uq_eq : compiled_uq = cq ⬝ Kit.applyU ⬝ encStack [] := by
+  decide +kernel
 
 /-- The corpus row `compiled_ur` is `cr` run with this table's `applyU`
     on the empty stack. -/
-theorem compiled_ur_eq : compiled_ur = cr ⬝ Kit.applyU ⬝ encStack [] := rfl
+theorem compiled_ur_eq : compiled_ur = cr ⬝ Kit.applyU ⬝ encStack [] := by
+  decide +kernel
+
+/-- The front end reads this compilation's source (`corpusText`,
+    `Ski/Source.lean`) and compiles it to every term `skijack` emitted for it. -/
+theorem front_agrees :
+    [nm! "Q1", nm! "Q2", nm! "QCons", nm! "QUnit", nm! "QThen", nm! "wQcons", nm! "wCat", nm! "wUnit", nm! "applyU", nm! "b1", nm! "b2", nm! "cp", nm! "cq", nm! "cr", nm! "up", nm! "uq", nm! "ur"].map
+      (Front.termOf (Front.compileFile corpusText)) =
+    [some Q1, some Q2, some QCons, some QUnit, some QThen, some corpus_wQcons, some corpus_wCat, some corpus_wUnit, some corpus_applyU, some b1, some b2, some cp, some cq, some cr, some compiled_up, some compiled_uq, some compiled_ur] := by
+  decide +kernel
 
 end CorpusTable
 
@@ -155,15 +178,15 @@ def b1 : Term := ((S ⬝ (K ⬝ (((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (
 
 def table : Table := ⟨1, fun k => match k with | 0 => [.dup, .i] | _ => []⟩
 
-theorem table_Qs0 : table.Qs 0 = Q1 := rfl
-theorem table_QCons : table.QCons = QCons := rfl
-theorem table_QUnit : table.QUnit = QUnit := rfl
-theorem table_QThen : table.QThen = QThen := rfl
-theorem table_wQcons : table.wQcons = wQcons := rfl
-theorem table_wCat : table.wCat = wCat := rfl
-theorem table_wUnit : table.wUnit = wUnit := rfl
-theorem table_applyU : table.applyU = applyU := rfl
-theorem table_bodyT0 : table.bodyT 0 = b1 := rfl
+theorem table_Qs0 : table.Qs 0 = Q1 := by decide +kernel
+theorem table_QCons : table.QCons = QCons := by decide +kernel
+theorem table_QUnit : table.QUnit = QUnit := by decide +kernel
+theorem table_QThen : table.QThen = QThen := by decide +kernel
+theorem table_wQcons : table.wQcons = wQcons := by decide +kernel
+theorem table_wCat : table.wCat = wCat := by decide +kernel
+theorem table_wUnit : table.wUnit = wUnit := by decide +kernel
+theorem table_applyU : table.applyU = applyU := by decide +kernel
+theorem table_bodyT0 : table.bodyT 0 = b1 := by decide +kernel
 
 /-- Every static quotation's body is valid over the table. -/
 theorem table_valid : table.Valid := fun k hk => match k, hk with
@@ -178,7 +201,16 @@ scoped instance apply : KitApply := table.kit_apply table_valid
 def cloop : Term := ((S ⬝ (K ⬝ (((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ S))) ⬝ (K ⬝ ((S ⬝ (K ⬝ K)) ⬝ I)))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K)))))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ I)))))) ⬝ (((S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))))) ⬝ ((S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ (K ⬝ K))))) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K)))) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ K)))))) ⬝ ((S ⬝ (K ⬝ (((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ S))) ⬝ (K ⬝ ((S ⬝ (K ⬝ K)) ⬝ I)))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K)))))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ I)))))) ⬝ ((S ⬝ ((S ⬝ I) ⬝ (K ⬝ (K ⬝ K)))) ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ (K ⬝ K)))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ (K ⬝ K)))))))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ ((S ⬝ I) ⬝ (K ⬝ (K ⬝ K)))))) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ I) ⬝ (K ⬝ (K ⬝ (K ⬝ K))))))))) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ S))) ⬝ (K ⬝ K))))))))
 
 /-- `[dup i] dup i`: `skijack`'s term is the kernel's compilation of its words. -/
-theorem cloop_eq : cloop = table.progT [.quote (.stat 0), .dup, .i] := rfl
+theorem cloop_eq : cloop = table.progT [.quote (.stat 0), .dup, .i] := by
+  decide +kernel
+
+/-- The front end reads this compilation's source (`loopText`,
+    `Ski/Source.lean`) and compiles it to every term `skijack` emitted for it. -/
+theorem front_agrees :
+    [nm! "Q1", nm! "QCons", nm! "QUnit", nm! "QThen", nm! "wQcons", nm! "wCat", nm! "wUnit", nm! "applyU", nm! "b1", nm! "cloop"].map
+      (Front.termOf (Front.compileFile loopText)) =
+    [some Q1, some QCons, some QUnit, some QThen, some wQcons, some wCat, some wUnit, some applyU, some b1, some cloop] := by
+  decide +kernel
 
 end LoopTable
 
@@ -223,23 +255,23 @@ def b5 : Term := ((S ⬝ (K ⬝ (((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (
 
 def table : Table := ⟨5, fun k => match k with | 0 => [.swap, .quote (.stat 2), .quote (.stat 3), .ifz] | 1 => [.dup, .cons] | 2 => [.pop, .lit 0] | 3 => [.dup, .quote (.stat 4), .dip, .lit 1, .add, .add] | 4 => [.swap, .i] | _ => []⟩
 
-theorem table_Qs0 : table.Qs 0 = Q1 := rfl
-theorem table_Qs1 : table.Qs 1 = Q2 := rfl
-theorem table_Qs2 : table.Qs 2 = Q3 := rfl
-theorem table_Qs3 : table.Qs 3 = Q4 := rfl
-theorem table_Qs4 : table.Qs 4 = Q5 := rfl
-theorem table_QCons : table.QCons = QCons := rfl
-theorem table_QUnit : table.QUnit = QUnit := rfl
-theorem table_QThen : table.QThen = QThen := rfl
-theorem table_wQcons : table.wQcons = wQcons := rfl
-theorem table_wCat : table.wCat = wCat := rfl
-theorem table_wUnit : table.wUnit = wUnit := rfl
-theorem table_applyU : table.applyU = applyU := rfl
-theorem table_bodyT0 : table.bodyT 0 = b1 := rfl
-theorem table_bodyT1 : table.bodyT 1 = b2 := rfl
-theorem table_bodyT2 : table.bodyT 2 = b3 := rfl
-theorem table_bodyT3 : table.bodyT 3 = b4 := rfl
-theorem table_bodyT4 : table.bodyT 4 = b5 := rfl
+theorem table_Qs0 : table.Qs 0 = Q1 := by decide +kernel
+theorem table_Qs1 : table.Qs 1 = Q2 := by decide +kernel
+theorem table_Qs2 : table.Qs 2 = Q3 := by decide +kernel
+theorem table_Qs3 : table.Qs 3 = Q4 := by decide +kernel
+theorem table_Qs4 : table.Qs 4 = Q5 := by decide +kernel
+theorem table_QCons : table.QCons = QCons := by decide +kernel
+theorem table_QUnit : table.QUnit = QUnit := by decide +kernel
+theorem table_QThen : table.QThen = QThen := by decide +kernel
+theorem table_wQcons : table.wQcons = wQcons := by decide +kernel
+theorem table_wCat : table.wCat = wCat := by decide +kernel
+theorem table_wUnit : table.wUnit = wUnit := by decide +kernel
+theorem table_applyU : table.applyU = applyU := by decide +kernel
+theorem table_bodyT0 : table.bodyT 0 = b1 := by decide +kernel
+theorem table_bodyT1 : table.bodyT 1 = b2 := by decide +kernel
+theorem table_bodyT2 : table.bodyT 2 = b3 := by decide +kernel
+theorem table_bodyT3 : table.bodyT 3 = b4 := by decide +kernel
+theorem table_bodyT4 : table.bodyT 4 = b5 := by decide +kernel
 
 /-- Every static quotation's body is valid over the table. -/
 theorem table_valid : table.Valid := fun k hk => match k, hk with
@@ -258,7 +290,8 @@ scoped instance apply : KitApply := table.kit_apply table_valid
 def cs : Term := ((S ⬝ (K ⬝ (((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ S))) ⬝ (K ⬝ ((S ⬝ (K ⬝ K)) ⬝ I)))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K)))))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ I)))))) ⬝ (((S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))))) ⬝ ((S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ (K ⬝ K))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K)))) ⬝ (((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K)) ⬝ (((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K)) ⬝ (((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K)) ⬝ K))))))) ⬝ ((S ⬝ (K ⬝ (((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ S))) ⬝ (K ⬝ ((S ⬝ (K ⬝ K)) ⬝ I)))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K)))))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ I)))))) ⬝ (((S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))))) ⬝ ((S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ (K ⬝ K))))) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K)))) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ K)))))))))) ⬝ ((S ⬝ (K ⬝ (((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ S))) ⬝ (K ⬝ ((S ⬝ (K ⬝ K)) ⬝ I)))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K)))))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ I)))))) ⬝ (((S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))))) ⬝ ((S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ (K ⬝ K))))) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K)))) ⬝ (K ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ K)))))))))) ⬝ ((S ⬝ (K ⬝ (((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ S))) ⬝ (K ⬝ ((S ⬝ (K ⬝ K)) ⬝ I)))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K)))))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ I)))))) ⬝ ((S ⬝ ((S ⬝ I) ⬝ (K ⬝ (K ⬝ K)))) ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ ((S ⬝ I) ⬝ (K ⬝ (K ⬝ K)))))) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ (K ⬝ K)))))))) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ (K ⬝ K))))))))))))) ⬝ ((S ⬝ (K ⬝ (((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ S))) ⬝ (K ⬝ ((S ⬝ (K ⬝ K)) ⬝ I)))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K)))))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ I)))))) ⬝ ((S ⬝ ((S ⬝ I) ⬝ (K ⬝ (K ⬝ K)))) ⬝ (K ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ I) ⬝ (K ⬝ (K ⬝ (K ⬝ K))))))) ⬝ (K ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ I) ⬝ (K ⬝ (K ⬝ K)))))) ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ I) ⬝ (K ⬝ (K ⬝ (K ⬝ K))))))))) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))))))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ (K ⬝ K))))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K)))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ ((S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ (K ⬝ K))))))))))) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K)))))) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K)))))))))))))))) ⬝ (K ⬝ K)))))))))))))) ⬝ ((S ⬝ (K ⬝ (((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ S))) ⬝ (K ⬝ ((S ⬝ (K ⬝ K)) ⬝ I)))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K)))))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ I)))))) ⬝ ((S ⬝ ((S ⬝ I) ⬝ (K ⬝ (K ⬝ K)))) ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ (K ⬝ K)))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ (K ⬝ K)))))))))) ⬝ ((S ⬝ (K ⬝ (((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ S))) ⬝ (K ⬝ ((S ⬝ (K ⬝ K)) ⬝ I)))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K)))))))) ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ I)))))) ⬝ ((S ⬝ ((S ⬝ I) ⬝ (K ⬝ (K ⬝ K)))) ⬝ (K ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ I) ⬝ (K ⬝ (K ⬝ (K ⬝ K))))))) ⬝ (K ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ I) ⬝ (K ⬝ (K ⬝ K)))))) ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ (K ⬝ K))))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K)))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ (S ⬝ (K ⬝ K)))))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ I))) ⬝ K))))) ⬝ (K ⬝ K)))))))))))) ⬝ K))))))))))))) ⬝ ((S ⬝ (K ⬝ (S ⬝ ((S ⬝ I) ⬝ (K ⬝ (K ⬝ K)))))) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ (K ⬝ (S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ I) ⬝ (K ⬝ (K ⬝ (K ⬝ K))))))))) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ K)) ⬝ S))) ⬝ (K ⬝ K)))))))))))))
 
 /-- `3 sumto`: `skijack`'s term is the kernel's compilation of its words. -/
-theorem cs_eq : cs = table.progT [.lit 3, .quote (.stat 0), .quote (.stat 1), .swap, .cat, .dup, .cons, .i] := rfl
+theorem cs_eq : cs = table.progT [.lit 3, .quote (.stat 0), .quote (.stat 1), .swap, .cat, .dup, .cons, .i] := by
+  decide +kernel
 
 /-- `3 sumto` on the empty stack: its derivation, built on the host. -/
 theorem cs_run : Run (.prog [.lit 3, .quote (.stat 0), .quote (.stat 1), .swap, .cat, .dup, .cons, .i]) [] (.val [.num 6]) :=
@@ -266,6 +299,15 @@ theorem cs_run : Run (.prog [.lit 3, .quote (.stat 0), .quote (.stat 1), .swap, 
 
 /-- The corpus row `sumto_us` is `cs` run with this table's `applyU`
     on the empty stack. -/
-theorem sumto_us_eq : sumto_us = cs ⬝ Kit.applyU ⬝ encStack [] := rfl
+theorem sumto_us_eq : sumto_us = cs ⬝ Kit.applyU ⬝ encStack [] := by
+  decide +kernel
+
+/-- The front end reads this compilation's source (`sumText`,
+    `Ski/Source.lean`) and compiles it to every term `skijack` emitted for it. -/
+theorem front_agrees :
+    [nm! "Q1", nm! "Q2", nm! "Q3", nm! "Q4", nm! "Q5", nm! "QCons", nm! "QUnit", nm! "QThen", nm! "wQcons", nm! "wCat", nm! "wUnit", nm! "applyU", nm! "b1", nm! "b2", nm! "b3", nm! "b4", nm! "b5", nm! "cs", nm! "us"].map
+      (Front.termOf (Front.compileFile sumText)) =
+    [some Q1, some Q2, some Q3, some Q4, some Q5, some QCons, some QUnit, some QThen, some wQcons, some wCat, some wUnit, some applyU, some b1, some b2, some b3, some b4, some b5, some cs, some sumto_us] := by
+  decide +kernel
 
 end SumTable

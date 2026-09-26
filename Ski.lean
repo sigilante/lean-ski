@@ -4,6 +4,9 @@ import Ski.Trace
 import Ski.Weak
 import Ski.Open
 import Ski.Abs
+import Ski.Compile
+import Ski.Front
+import Ski.Source
 import Ski.Kernel
 import Ski.Laws
 import Ski.Scott

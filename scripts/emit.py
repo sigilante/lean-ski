@@ -67,7 +67,10 @@ def whnf_shape(term, args):
     return lean(r.term), r.steps
 
 
-e = skijack.compile(joy.compiled({"p": "1 2 + dup +"}))
+#: the source text of each compilation, exactly as `skijack` reads it
+SOURCES = {}
+SOURCES["kernelText"] = joy.compiled({"p": "1 2 + dup +"})
+e = skijack.compile(SOURCES["kernelText"])
 
 #: the compiled kernel words, in Joy's order
 WORDS = ["wDup", "wSwap", "wPop", "wQcons", "wCat", "wUnit", "wDip", "wDo",
@@ -138,7 +141,8 @@ lines.append("end Scott")
 
 # --------------------------------------------------------------- Corpus.lean
 progs = {"p": "1 2 + dup +", "q": "3 [dup +] i", "r": "1 2 over"}
-c = skijack.compile(joy.compiled(progs))
+SOURCES["corpusText"] = joy.compiled(progs)
+c = skijack.compile(SOURCES["corpusText"])
 i = skijack.compile(joy.interpreted(progs))
 rows = []
 for label, exp, names in [("compiled", c, ["up", "uq", "ur"]), ("interpreted", i, ["up", "uq", "ur"])]:
@@ -147,7 +151,8 @@ for label, exp, names in [("compiled", c, ["up", "uq", "ur"]), ("interpreted", i
         rows.append((f"{label}_{n}", lean(exp.terms[n]), r.steps, progs[n[1:]]))
 #: Joy's recursion, through Kerby's `y`, in a compilation of its own
 sum_progs = {"s": "3 sumto"}
-sx = skijack.compile(joy.compiled(sum_progs))
+SOURCES["sumText"] = joy.compiled(sum_progs)
+sx = skijack.compile(SOURCES["sumText"])
 r = run_level0(sx.terms["us"], 5_000_000)
 assert r.status.name == "WHNF"
 rows.append(("sumto_us", lean(sx.terms["us"]), r.steps, sum_progs["s"]))
@@ -313,7 +318,7 @@ def lean_item(x):
     return f".num {x[1]}" if x[0] == "num" else "(.quot _)"
 
 
-def emit_table(ns, doc, X, quots, qidx, names, programs, rows=None, runs=()):
+def emit_table(ns, doc, X, quots, qidx, names, programs, text, rows=None, runs=()):
     T = X.terms
     n = len(quots)
     L = [f"namespace {ns}", "", f"/-! {doc} -/", ""]
@@ -340,11 +345,11 @@ def emit_table(ns, doc, X, quots, qidx, names, programs, rows=None, runs=()):
     ref = lambda field: names[field] if names[field] != field else field
     L += [f"def table : Table := ⟨{n}, {body}⟩", ""]
     for k in range(n):
-        L.append(f"theorem table_Qs{k} : table.Qs {k} = Q{k + 1} := rfl")
+        L.append(f"theorem table_Qs{k} : table.Qs {k} = Q{k + 1} := by decide +kernel")
     for field in ["QCons", "QUnit", "QThen", "wQcons", "wCat", "wUnit", "applyU"]:
-        L.append(f"theorem table_{field} : table.{field} = {ref(field)} := rfl")
+        L.append(f"theorem table_{field} : table.{field} = {ref(field)} := by decide +kernel")
     for k in range(n):
-        L.append(f"theorem table_bodyT{k} : table.bodyT {k} = b{k + 1} := rfl")
+        L.append(f"theorem table_bodyT{k} : table.bodyT {k} = b{k + 1} := by decide +kernel")
     L += ["", "/-- Every static quotation's body is valid over the table. -/",
           f"theorem table_valid : table.Valid := {by_index(n, ['rfl' for _ in range(n)], True)}", "",
           "scoped instance kit : Kit := table.kit",
@@ -357,7 +362,8 @@ def emit_table(ns, doc, X, quots, qidx, names, programs, rows=None, runs=()):
         ws = joy.expand(joy.parse(src), joy.DEFINITIONS)
         L += [f"def c{pname} : Term := {lean(T['c' + pname])}", "",
               f"/-- `{src}`: `skijack`'s term is the kernel's compilation of its words. -/",
-              f"theorem c{pname}_eq : c{pname} = table.progT {lean_words(ws, qidx)} := rfl", ""]
+              f"theorem c{pname}_eq : c{pname} = table.progT {lean_words(ws, qidx)} := by",
+              "  decide +kernel", ""]
         if pname in runs:
             # a bracketed quotation is its static index
             def lit(ws):
@@ -374,7 +380,22 @@ def emit_table(ns, doc, X, quots, qidx, names, programs, rows=None, runs=()):
         assert T["u" + pname] == App(App(T["c" + pname], T["applyU"]), T["Empty"])
         L += [f"/-- The corpus row `{rows}_u{pname}` is `c{pname}` run with this table's `applyU`",
               "    on the empty stack. -/",
-              f"theorem {rows}_u{pname}_eq : {rows}_u{pname} = c{pname} ⬝ Kit.applyU ⬝ encStack [] := rfl", ""]
+              f"theorem {rows}_u{pname}_eq : {rows}_u{pname} = c{pname} ⬝ Kit.applyU ⬝ encStack [] := by",
+              "  decide +kernel", ""]
+    # the front end, on this compilation's whole source
+    front = [(f"Q{k + 1}", f"Q{k + 1}") for k in range(n)]
+    front += [(f, ref(f)) for f in ["QCons", "QUnit", "QThen", "wQcons", "wCat", "wUnit", "applyU"]]
+    front += [(f"b{k + 1}", f"b{k + 1}") for k in range(n)]
+    front += [(f"c{p}", f"c{p}") for p in programs]
+    if rows:
+        front += [(f"u{p}", f"{rows}_u{p}") for p in programs]
+    L += ["/-- The front end reads this compilation's source (`" + text + "`,",
+          "    `Ski/Source.lean`) and compiles it to every term `skijack` emitted for it. -/",
+          "theorem front_agrees :",
+          "    [" + ", ".join(f'nm! "{a}"' for a, _ in front) + "].map",
+          f"      (Front.termOf (Front.compileFile {text})) =",
+          "    [" + ", ".join(f"some {b}" for _, b in front) + "] := by",
+          "  decide +kernel", ""]
     L += [f"end {ns}", ""]
     return L
 
@@ -405,27 +426,53 @@ L += emit_table("NoQuot",
                 "The kernel of `Ski/Scott.lean`: a table with no static quotations.",
                 e, [], tqidx,
                 {k: f"Scott.{k}" for k in ["QCons", "QUnit", "QThen", "wQcons", "wCat", "wUnit", "applyU"]},
-                tprogs)
+                tprogs, "kernelText")
 cquots, cqidx = quotation_table(progs)
 L += emit_table("CorpusTable",
                 "The corpus compilation's table: " + ", ".join(f"`[{joy.words(q)}]`" for q in cquots) + ".",
                 c, cquots, cqidx,
                 {"QCons": "QCons", "QUnit": "QUnit", "QThen": "QThen", "wQcons": "corpus_wQcons",
                  "wCat": "corpus_wCat", "wUnit": "corpus_wUnit", "applyU": "corpus_applyU"},
-                progs, rows="compiled")
+                progs, "corpusText", rows="compiled")
 loop_progs = {"loop": "[dup i] dup i"}
-lx = skijack.compile(joy.compiled(loop_progs))
+SOURCES["loopText"] = joy.compiled(loop_progs)
+lx = skijack.compile(SOURCES["loopText"])
 lquots, lqidx = quotation_table(loop_progs)
 L += emit_table("LoopTable",
                 "The table of `[dup i] dup i`: one static quotation, " + ", ".join(f"`[{joy.words(q)}]`" for q in lquots) + ", whose body runs a quotation.",
                 lx, lquots, lqidx,
                 {k: k for k in ["QCons", "QUnit", "QThen", "wQcons", "wCat", "wUnit", "applyU"]},
-                loop_progs)
+                loop_progs, "loopText")
 squots, sqidx = quotation_table(sum_progs)
 L += emit_table("SumTable",
                 "The table of `3 sumto`, which recurses through Kerby's `y`: " + ", ".join(f"`[{joy.words(q)}]`" for q in squots) + ".",
                 sx, squots, sqidx,
                 {k: k for k in ["QCons", "QUnit", "QThen", "wQcons", "wCat", "wUnit", "applyU"]},
-                sum_progs, rows="sumto", runs={"s": "[.num 6]"})
+                sum_progs, "sumText", rows="sumto", runs={"s": "[.num 6]"})
 (OUT / "Table.lean").write_text("\n".join(L), encoding="utf-8")
 print("Table.lean:", (OUT / "Table.lean").stat().st_size, "bytes")
+
+# --------------------------------------------------------------- Source.lean
+# The source texts, as code points, for the front end of Ski/Front.lean.
+DOCS = {
+    "kernelText": "the compilation of `1 2 + dup +` alone, whose terms `Ski/Scott.lean` holds",
+    "corpusText": "the corpus compilation (`CorpusTable`)",
+    "loopText": "the compilation of `[dup i] dup i` (`LoopTable`)",
+    "sumText": "the compilation of `3 sumto` (`SumTable`)",
+}
+L = ['/-!', '# The source `skijack` compiled',
+     '',
+     'Generated by `scripts/emit.py`; do not edit.  Each definition is the text',
+     '`skilark.joy.compiled` produced and `skijack` 0.2.0 compiled, character',
+     'for character, as code points: the front end of `Ski/Front.lean` reads',
+     'these and nothing else.  Each doc comment shows the same text.', '-/', '']
+for name, text in SOURCES.items():
+    assert "-/" not in text and "/-" not in text
+    L += [f"/-- The source of {DOCS[name]}:", "", "```", text.rstrip("\n"), "```", "-/"]
+    codes = [str(ord(ch)) for ch in text]
+    rows = [", ".join(codes[k:k + 24]) for k in range(0, len(codes), 24)]
+    L.append(f"def {name} : List Nat := [")
+    L.append(",\n".join("  " + r for r in rows))
+    L += ["]", ""]
+(OUT / "Source.lean").write_text("\n".join(L), encoding="utf-8")
+print("Source.lean:", (OUT / "Source.lean").stat().st_size, "bytes")

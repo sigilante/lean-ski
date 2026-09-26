@@ -190,7 +190,10 @@ variable (tb : Table)
 theorem wUnit_stages (s : Term) : ∃ c1,
     WSteps (tb.wUnit ⬝ s) (s ⬝ Scott.RErr ⬝ c1) ∧
     ∀ f g, WSteps (c1 ⬝ f ⬝ g) (Scott.RVal ⬝ (Scott.Push ⬝ (Scott.Quot ⬝ (tb.QUnit ⬝ f)) ⬝ g)) :=
-  ⟨_, compDef1_beta 0 (KernelSrc.wUnit tb.QUnit) s, fun f g =>
+by
+  have h0 := compDef1_beta 0 (KernelSrc.wUnit tb.QUnit) s
+  conv at h0 => arg 2; rw [KernelSrc.wUnit_def]
+  exact ⟨_, h0, fun f g =>
     match lam2_beta rfl _ f g with
     | ⟨_, h⟩ => h⟩
 
@@ -200,7 +203,10 @@ theorem wQcons_stages (s : Term) : ∃ c1,
       ∀ x, ∃ d1, WSteps (e1 ⬝ x) (g ⬝ Scott.RErr ⬝ d1) ∧
         ∀ f2 g2, WSteps (d1 ⬝ f2 ⬝ g2)
           (Scott.RVal ⬝ (Scott.Push ⬝ (Scott.Quot ⬝ (tb.QCons ⬝ f2 ⬝ x)) ⬝ g2)) :=
-  ⟨_, compDef1_beta 0 (KernelSrc.wQcons tb.QCons) s, fun f g =>
+by
+  have h0 := compDef1_beta 0 (KernelSrc.wQcons tb.QCons) s
+  conv at h0 => arg 2; rw [KernelSrc.wQcons_def]
+  exact ⟨_, h0, fun f g =>
     match lam2_beta rfl _ f g with
     | ⟨_, h⟩ => ⟨_, _, h,
       fun n => match lam1_beta rfl _ n with | ⟨_, h1⟩ => h1,
@@ -215,7 +221,10 @@ theorem wCat_stages (s : Term) : ∃ c1,
           (∀ n, WSteps (e0' ⬝ n) Scott.RErr) ∧
           ∀ y, WSteps (e1' ⬝ y) (Scott.RVal ⬝ (Scott.Push ⬝
             (Scott.Quot ⬝ (tb.QCons ⬝ (Scott.Quot ⬝ y) ⬝ (tb.QThen ⬝ x))) ⬝ g2)) :=
-  ⟨_, compDef1_beta 0 (KernelSrc.wCat tb.QCons tb.QThen) s, fun f g =>
+by
+  have h0 := compDef1_beta 0 (KernelSrc.wCat tb.QCons tb.QThen) s
+  conv at h0 => arg 2; rw [KernelSrc.wCat_def]
+  exact ⟨_, h0, fun f g =>
     match lam2_beta rfl _ f g with
     | ⟨_, h⟩ => ⟨_, _, h,
       fun n => match lam1_beta rfl _ n with | ⟨_, h1⟩ => h1,
@@ -354,18 +363,21 @@ theorem applySrc_ev (sc : List Nat) (γ : Nat → Term) :
   rw [ev_arms]
 
 theorem armCons_beta (sc : List Nat) (γ : Nat → Term) (x r : Term) :
-    WSteps (KernelSrc.armCons.ev sc γ ⬝ x ⬝ r) (γ 0 ⬝ r ⬝ (Scott.Push ⬝ x ⬝ γ 2)) :=
-  match lam2_beta rfl γ x r with
+    WSteps (KernelSrc.armCons.ev sc γ ⬝ x ⬝ r) (γ 0 ⬝ r ⬝ (Scott.Push ⬝ x ⬝ γ 2)) := by
+  rw [KernelSrc.armCons_def]
+  exact match lam2_beta rfl γ x r with
   | ⟨_, h⟩ => h
 
 theorem armUnit_beta (sc : List Nat) (γ : Nat → Term) (x : Term) :
-    WSteps (KernelSrc.armUnit.ev sc γ ⬝ x) (Scott.RVal ⬝ (Scott.Push ⬝ x ⬝ γ 2)) :=
-  match lam1_beta rfl γ x with
+    WSteps (KernelSrc.armUnit.ev sc γ ⬝ x) (Scott.RVal ⬝ (Scott.Push ⬝ x ⬝ γ 2)) := by
+  rw [KernelSrc.armUnit_def]
+  exact match lam1_beta rfl γ x with
   | ⟨_, h⟩ => h
 
 theorem armThen_beta (sc : List Nat) (γ : Nat → Term) (b : Term) :
-    WSteps (KernelSrc.armThen.ev sc γ ⬝ b) (Scott.seq ⬝ (Scott.wDo ⬝ γ 0) ⬝ (γ 0 ⬝ b) ⬝ γ 2) :=
-  match lam1_beta rfl γ b with
+    WSteps (KernelSrc.armThen.ev sc γ ⬝ b) (Scott.seq ⬝ (Scott.wDo ⬝ γ 0) ⬝ (γ 0 ⬝ b) ⬝ γ 2) := by
+  rw [KernelSrc.armThen_def]
+  exact match lam1_beta rfl γ b with
   | ⟨_, h⟩ => h
 
 theorem kit_applyU_unfold (fq fs : Term) :

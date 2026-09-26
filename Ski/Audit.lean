@@ -5,6 +5,9 @@ import Ski.Trace
 import Ski.Weak
 import Ski.Open
 import Ski.Abs
+import Ski.Compile
+import Ski.Front
+import Ski.Source
 import Ski.Kernel
 import Ski.Laws
 import Ski.Programs
@@ -115,8 +118,14 @@ open Ski.Audit
   SumTable.Q1_abs SumTable.Q2_abs SumTable.Q3_abs SumTable.Q4_abs SumTable.Q5_abs
   SumTable.QCons_abs SumTable.QUnit_abs SumTable.QThen_abs
 
--- The kernel's source, compiled (G3): skijack's compilation modeled, pinned to its terms
-#audit_clean wPop_compiles wDup_compiles wSwap_compiles wDip_compiles wDo_compiles wIfz_compiles
+-- The kernel's source, compiled (G3): read from the text skijack compiled by the front end,
+-- which agrees with skijack on every term; skijack's compilation modeled, pinned to its terms
+#audit_clean Front.refuses_incomplete Front.refuses_mixed Front.refuses_repeated
+  Front.lowers_in_declaration_order kernel_agrees kernel_formals kernel_wUnit kernel_wQcons kernel_wCat kernel_applyU
+  KernelSrc.wUnit_def KernelSrc.wQcons_def KernelSrc.wCat_def KernelSrc.armCons_def
+  KernelSrc.armUnit_def KernelSrc.armThen_def
+  NoQuot.front_agrees CorpusTable.front_agrees LoopTable.front_agrees SumTable.front_agrees
+  wPop_compiles wDup_compiles wSwap_compiles wDip_compiles wDo_compiles wIfz_compiles
   wLit_compiles wQuote_compiles wAdd_compiles add_compiles seq_compiles idW_compiles
   wQcons0_compiles wCat0_compiles wUnit0_compiles NoQuot.table_QCons NoQuot.table_QUnit
   NoQuot.table_QThen NoQuot.table_wQcons NoQuot.table_wCat NoQuot.table_wUnit

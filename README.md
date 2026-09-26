@@ -48,7 +48,10 @@ three corpus programs in both forms, and `3 sumto` compiled.
 | `Ski/Trace.lean` | `certified` (a verifier's check of a trace), `certified_sound`, `certified_complete`, `traceF` and `traceF_certified` |
 | `Ski/Weak.lean` | weak reduction (a contraction anywhere); `standardization`, `eval_back`, `church_rosser`; `par_step_le` (a head step costs a parallel reduct at most one) |
 | `Ski/Abs.lean` | bracket abstraction as `skijack` does it (`abs`, `absN`), `abs_beta`, `absN_beta`, `abs_subst`; β for all formals under any substitution, `absN_beta_subst` and `absN_beta_close` |
-| `Ski/Kernel.lean` | `skijack`'s compilation modeled (case lowering, λ-lifting, `absN`, `Y`), the kernel's source, and `Table.kit : Table → Kit`; a program's term `Table.progT`; every kernel equation pinned to `skijack`'s term |
+| `Ski/Compile.lean` | the compilation scheme: `Src`, λ-lifting (`comp`), `compDef`, `compRec` with `Y`, Scott constructors (`ctorO`) |
+| `Ski/Front.lean` | SKIjack's front end in Lean: lexer, parser and case lowering over code points, `compileFile`; refuses what `skijack` refuses |
+| `Ski/Source.lean` | generated: the four source texts `skijack` compiled, character for character |
+| `Ski/Kernel.lean` | the kernel's equations as the front end reads them from `kernelText` (`KernelSrc`), `kernel_agrees`, and `Table.kit : Table → Kit`; a program's term `Table.progT` |
 | `Ski/Laws.lean` | the law classes for the kit compiled from every valid table: `Table.kit_elim`, `Table.kit_words`, `Table.kit_apply`, by β for compiled source |
 | `Ski/Scott.lean` | generated: the constructors of `nat`, `item`, `stack`, `quot`, `result` as compiled, with `*_elim` lemmas by `iter_sound rfl`; the twelve compiled kernel words; `add`, `seq`, `idW`, `applyU` |
 | `Ski/Words.lean` | `Item`, `Quotation` (with `stat k`, a table's static quotation), `Stack`; the quotation table `Kit`; `Word`, `phi`, the C model `cw` |
@@ -63,7 +66,7 @@ three corpus programs in both forms, and `3 sumto` compiled.
 | `Ski/Table.lean` | generated: the tables `NoQuot`, `CorpusTable`, `LoopTable` and `SumTable` (`3 sumto`) as data, checked by `rfl` against `skijack`'s terms (`table_*`) and valid (`table_valid`), their laws from `Ski/Laws.lean`; each program's term pinned to the kernel's compilation of its words (`c*_eq`), the corpus rows as those programs run, and `3 sumto`'s derivation (`cs_run`) |
 | `Ski/Examples.lean` | `1 2 + dup +`, `3 [dup +] i`, `1 2 over` end to end from `skijack`'s terms; `cloop_diverges`: the compiled `[dup i] dup i` diverges; `us_six`: `3 sumto`, through Joy's `y`, decodes to `[6]` |
 | `Ski/Audit.lean` | the manifest and the `#audit_clean` command |
-| `scripts/emit.py` | regenerates `Scott.lean`, `Corpus.lean` and `Table.lean` from `skijack` (needs the SKIlark venv); gate 3 checks the committed files match |
+| `scripts/emit.py` | regenerates `Scott.lean`, `Corpus.lean`, `Table.lean` and `Source.lean` from `skijack` (needs the SKIlark venv); gate 3 checks the committed files match |
 
 ## Fuel
 

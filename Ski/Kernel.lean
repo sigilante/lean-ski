@@ -1,5 +1,6 @@
 import Ski.Words
-import Ski.Abs
+import Ski.Front
+import Ski.Source
 open Term
 
 /-!
@@ -9,235 +10,246 @@ G3 of `PLAN.md` §3: the compiled kernel as a function of the quotation
 table, so that the laws can be proved once (G4) instead of checked per
 table.
 
-## How `skijack` compiles
+## The source
 
-Read from `skijack/expand.py` (`_lower_case`, `_Codegen`,
-`expand_program`) and `aviary_kernel/abstraction.py`:
-
-1. A case `e |> { C x… body; … }` lowers to `e` applied to one
-   continuation per constructor, in declaration order, each the λ over
-   that constructor's fields (`desugar`).
-2. A λ chain `λ p… . body` is lifted to its own combinator (`_Codegen.lift`):
-   its formals are the enclosing binders free in it, in scope order, then
-   `p…`; the use site is that combinator applied to those binders.
-3. Every combinator is bracket-abstracted over its formals, innermost last
-   (`absN`), after its globals are expanded to closed terms.
-4. A recursive equation `f xs = body` becomes `Y` applied to the
-   abstraction over a fresh self-parameter followed by `xs`.
-
-`Src` is the source after step 1; `comp` does steps 2 and 3, `compDef` a
-definition, `compRec` a recursive one.  Globals are closed terms
-(`Src.glob`).
+The kernel's equations are the front end's (`Ski/Front.lean`) reading of
+`kernelText` (`Ski/Source.lean`): the text `skijack` compiled, character
+for character.  `KernelSrc.wPop` and the rest are that reading, lowered,
+with the globals resolved: constructors and helpers to the terms of
+`Ski/Scott.lean`, and the table's `QCons`, `QUnit` and `QThen` to
+parameters, so that `Table.kit` can take them from any table.
 
 ## Fidelity
 
-Every equation of the kernel that does not depend on the table is
-compiled here from its source, transcribed from
-`skilark.joy.COMPILED_KERNEL` after `skijack`'s desugaring, and checked by
-`rfl` against the term `skijack` emitted (`wPop_compiles` through
-`add_compiles`).  The table-dependent terms are functions of a `Table`
-(`Table.kit`), checked against each generated table in `Ski/Table.lean`
-(`table_*` theorems); `Ski/Laws.lean` proves the laws of `Table.kit` for
-every valid table.  A binder name reused by sibling λs in the source is
-given distinct numbers here; no binder shadows an enclosing one, so the
-captures are the same.
+Three checks tie this to `skijack`, all by the kernel (`decide +kernel`):
+
+- `kernel_agrees`: the front end compiles the whole of `kernelText`, and
+  every term `Ski/Scott.lean` holds is what it gives, word for word;
+- `wPop_compiles` through `wUnit0_compiles`: each `KernelSrc` equation,
+  compiled with the formals `kernel_formals` records, is `skijack`'s term;
+- the per-table checks of `Ski/Table.lean`.
+
+`kernel_wQcons` and its siblings give the lowered equations the proofs of
+`Ski/Laws.lean` read, as literals the kernel checks against the front
+end's output; `KernelSrc.wQcons_def` and its siblings rewrite by them.
 -/
 
-inductive Src
-  | glob (t : Term)
-  | var (x : Nat)
-  | app (f a : Src)
-  | lam (x : Nat) (b : Src)
-
-infixl:70 " ⬝ₛ " => Src.app
-
-/-- The variable `x` occurs free. -/
-def Src.occurs (x : Nat) : Src → Bool
-  | .glob _ => false
-  | .var y => y == x
-  | .app f a => f.occurs x || a.occurs x
-  | .lam y b => y != x && b.occurs x
-
-/-- A lifted combinator: `absN` over the captured binders then the
-    parameters, applied to the captured binders. -/
-def wrapLift (caps ps : List Nat) (body : OTerm) : OTerm :=
-  appL (absN (caps ++ ps) body) (caps.map .var)
-
-mutual
-  /-- Compile a source term in a scope of binders. -/
-  def comp (scope : List Nat) : Src → OTerm
-    | .glob t => t.toO
-    | .var x => .var x
-    | .app f a => comp scope f ⬝ₒ comp scope a
-    | .lam x b => compLam (scope.filter fun s => (Src.lam x b).occurs s) [x] b
-  /-- Lift a λ chain: collect its parameters, then compile its body in the
-      scope of the captured binders and the parameters. -/
-  def compLam (caps ps : List Nat) : Src → OTerm
-    | .lam y b => compLam caps (ps ++ [y]) b
-    | .glob t => wrapLift caps ps t.toO
-    | .var x => wrapLift caps ps (.var x)
-    | .app f a => wrapLift caps ps (comp (caps ++ ps) f ⬝ₒ comp (caps ++ ps) a)
-end
-
-/-- A definition `f xs = body`. -/
-def compDef (xs : List Nat) (body : Src) : OTerm := absN xs (comp xs body)
-
-/-- The fixpoint combinator, as `skijack` overrides it. -/
-def Ycomb : Term := S ⬝ (K ⬝ (S ⬝ I ⬝ I)) ⬝ (S ⬝ (S ⬝ (K ⬝ S) ⬝ K) ⬝ (K ⬝ (S ⬝ I ⬝ I)))
-
-/-- A recursive definition `f xs = body`, with `self` for `f` in `body`. -/
-def compRec (self : Nat) (xs : List Nat) (body : Src) : OTerm :=
-  Ycomb.toO ⬝ₒ absN (self :: xs) (comp (self :: xs) body)
-
-/-- A closed compiled term as a `Term`. -/
-def toTerm (t : OTerm) : Term := t.close fun _ => K
-
 -- ---------------------------------------------------------------------------
--- The kernel's equations, after desugaring
+-- The kernel's equations, read from their source
 -- ---------------------------------------------------------------------------
+
+open Front
+
+/-- An equation of `kernelText`, lowered. -/
+def kernelEqn (n : Nm) : FEqn := (fileEqn kernelText n).getD ⟨[], none, .glob []⟩
+
+/-- The globals the kernel's words name, as `skijack` compiled them. -/
+def scottEnv : List (Nm × Term) :=
+  [(nm! "Zero", Scott.Zero), (nm! "Suc", Scott.Suc), (nm! "Num", Scott.Num),
+   (nm! "Quot", Scott.Quot), (nm! "Empty", Scott.Empty), (nm! "Push", Scott.Push),
+   (nm! "RVal", Scott.RVal), (nm! "RErr", Scott.RErr), (nm! "RTime", Scott.RTime),
+   (nm! "add", Scott.add), (nm! "seq", Scott.seq), (nm! "idW", Scott.idW),
+   (nm! "wDo", Scott.wDo)]
+
+/-- The globals, with a table's `quot` constructors. -/
+def kernelEnv (qcons qunit qthen : Term) (n : Nm) : Term :=
+  if n = nm! "QCons" then qcons
+  else if n = nm! "QUnit" then qunit
+  else if n = nm! "QThen" then qthen
+  else (scottEnv.lookup n).getD K
 
 namespace KernelSrc
 
-open Src
+/-- An equation's body, lowered and resolved. -/
+def of (n : Nm) (qcons qunit qthen : Term) : Src :=
+  (kernelEqn n).body.resolve (kernelEnv qcons qunit qthen)
 
-abbrev g := Src.glob
-abbrev v := Src.var
+def wPop : Src := of (nm! "wPop") Scott.QCons Scott.QUnit Scott.QThen
+def wDup : Src := of (nm! "wDup") Scott.QCons Scott.QUnit Scott.QThen
+def wSwap : Src := of (nm! "wSwap") Scott.QCons Scott.QUnit Scott.QThen
+def wQcons (qcons : Term) : Src := of (nm! "wQcons") qcons Scott.QUnit Scott.QThen
+def wCat (qcons qthen : Term) : Src := of (nm! "wCat") qcons Scott.QUnit qthen
+def wUnit (qunit : Term) : Src := of (nm! "wUnit") Scott.QCons qunit Scott.QThen
+def wDip : Src := of (nm! "wDip") Scott.QCons Scott.QUnit Scott.QThen
+def wDo : Src := of (nm! "wDo") Scott.QCons Scott.QUnit Scott.QThen
+def wIfz : Src := of (nm! "wIfz") Scott.QCons Scott.QUnit Scott.QThen
+def wLit : Src := of (nm! "wLit") Scott.QCons Scott.QUnit Scott.QThen
+def wQuote : Src := of (nm! "wQuote") Scott.QCons Scott.QUnit Scott.QThen
+def wAdd : Src := of (nm! "wAdd") Scott.QCons Scott.QUnit Scott.QThen
+def add : Src := of (nm! "add") Scott.QCons Scott.QUnit Scott.QThen
+def seq : Src := of (nm! "seq") Scott.QCons Scott.QUnit Scott.QThen
+def idW : Src := of (nm! "idW") Scott.QCons Scott.QUnit Scott.QThen
 
--- s0 a1 t2 : (s RErr) (λa t. RVal t)
-def wPop : Src := v 0 ⬝ₛ g Scott.RErr ⬝ₛ lam 1 (lam 2 (g Scott.RVal ⬝ₛ v 2))
+/-- The three branches of `applyU`'s case that do not depend on the table:
+    `applyU q s = q |> { QCons x r …; QUnit x …; QThen b … }` lowers to
+    `q ⬝ armCons ⬝ armUnit ⬝ armThen`. -/
+def applyArms : CSrc → List CSrc
+  | .app (.app (.app _ a) b) c => [a, b, c]
+  | _ => []
 
--- s0 a1 t2 : (s RErr) (λa t. RVal (Push a (Push a t)))
-def wDup : Src :=
-  v 0 ⬝ₛ g Scott.RErr ⬝ₛ lam 1 (lam 2
-    (g Scott.RVal ⬝ₛ (g Scott.Push ⬝ₛ v 1 ⬝ₛ (g Scott.Push ⬝ₛ v 1 ⬝ₛ v 2))))
+def arm (i : Nat) : Src :=
+  ((applyArms (kernelEqn (nm! "applyU")).body).getD i (.glob [])).resolve
+    (kernelEnv Scott.QCons Scott.QUnit Scott.QThen)
 
--- s0 a1 t2 b3 u4 : (s RErr) (λa t. (t RErr) (λb u. RVal (Push b (Push a u))))
-def wSwap : Src :=
-  v 0 ⬝ₛ g Scott.RErr ⬝ₛ lam 1 (lam 2
-    (v 2 ⬝ₛ g Scott.RErr ⬝ₛ lam 3 (lam 4
-      (g Scott.RVal ⬝ₛ (g Scott.Push ⬝ₛ v 3 ⬝ₛ (g Scott.Push ⬝ₛ v 1 ⬝ₛ v 4))))))
-
--- s0 a1 t2 n3 r4 b5 u6 :
--- (s RErr) (λa t. (a (λn. RErr)) (λr. (t RErr) (λb u. RVal (Push (Quot (QCons b r)) u))))
-def wQcons (qcons : Term) : Src :=
-  v 0 ⬝ₛ g Scott.RErr ⬝ₛ lam 1 (lam 2
-    (v 1 ⬝ₛ lam 3 (g Scott.RErr) ⬝ₛ lam 4
-      (v 2 ⬝ₛ g Scott.RErr ⬝ₛ lam 5 (lam 6
-        (g Scott.RVal ⬝ₛ (g Scott.Push ⬝ₛ (g Scott.Quot ⬝ₛ (g qcons ⬝ₛ v 5 ⬝ₛ v 4)) ⬝ₛ v 6))))))
-
--- s0 a1 t2 n3 r4 b5 u6 m7 l8 :
--- (s RErr) (λa t. (a (λn. RErr)) (λr. (t RErr) (λb u. (b (λm. RErr))
---   (λl. RVal (Push (Quot (QCons (Quot l) (QThen r))) u)))))
-def wCat (qcons qthen : Term) : Src :=
-  v 0 ⬝ₛ g Scott.RErr ⬝ₛ lam 1 (lam 2
-    (v 1 ⬝ₛ lam 3 (g Scott.RErr) ⬝ₛ lam 4
-      (v 2 ⬝ₛ g Scott.RErr ⬝ₛ lam 5 (lam 6
-        (v 5 ⬝ₛ lam 7 (g Scott.RErr) ⬝ₛ lam 8
-          (g Scott.RVal ⬝ₛ (g Scott.Push ⬝ₛ
-            (g Scott.Quot ⬝ₛ (g qcons ⬝ₛ (g Scott.Quot ⬝ₛ v 8) ⬝ₛ (g qthen ⬝ₛ v 4))) ⬝ₛ v 6)))))))
-
--- s0 a1 t2 : (s RErr) (λa t. RVal (Push (Quot (QUnit a)) t))
-def wUnit (qunit : Term) : Src :=
-  v 0 ⬝ₛ g Scott.RErr ⬝ₛ lam 1 (lam 2
-    (g Scott.RVal ⬝ₛ (g Scott.Push ⬝ₛ (g Scott.Quot ⬝ₛ (g qunit ⬝ₛ v 1)) ⬝ₛ v 2)))
-
--- ap0 s1 a2 t3 n4 r5 b6 u7 v8 :
--- (s RErr) (λa t. (a (λn. RErr)) (λr. (t RErr) (λb u. ap r u (λv. RVal (Push b v)) RErr RTime)))
-def wDip : Src :=
-  v 1 ⬝ₛ g Scott.RErr ⬝ₛ lam 2 (lam 3
-    (v 2 ⬝ₛ lam 4 (g Scott.RErr) ⬝ₛ lam 5
-      (v 3 ⬝ₛ g Scott.RErr ⬝ₛ lam 6 (lam 7
-        (v 0 ⬝ₛ v 5 ⬝ₛ v 7 ⬝ₛ lam 8 (g Scott.RVal ⬝ₛ (g Scott.Push ⬝ₛ v 6 ⬝ₛ v 8))
-          ⬝ₛ g Scott.RErr ⬝ₛ g Scott.RTime)))))
-
--- ap0 s1 a2 t3 n4 r5 : (s RErr) (λa t. (a (λn. RErr)) (λr. ap r t))
-def wDo : Src :=
-  v 1 ⬝ₛ g Scott.RErr ⬝ₛ lam 2 (lam 3
-    (v 2 ⬝ₛ lam 4 (g Scott.RErr) ⬝ₛ lam 5 (v 0 ⬝ₛ v 5 ⬝ₛ v 3)))
-
--- ap0 s1 a2 t3 n4 sc5 b6 u7 n8 z9 c10 v11 n12 m13 r14 :
--- (s RErr) (λa t. (a (λn. RErr)) (λsc. (t RErr) (λb u. (b (λn. RErr)) (λz. (u RErr)
---   (λc v. (c (λn. (n (ap z v)) (λm. ap sc (Push (Num m) v)))) (λr. RErr))))))
-def wIfz : Src :=
-  v 1 ⬝ₛ g Scott.RErr ⬝ₛ lam 2 (lam 3
-    (v 2 ⬝ₛ lam 4 (g Scott.RErr) ⬝ₛ lam 5
-      (v 3 ⬝ₛ g Scott.RErr ⬝ₛ lam 6 (lam 7
-        (v 6 ⬝ₛ lam 8 (g Scott.RErr) ⬝ₛ lam 9
-          (v 7 ⬝ₛ g Scott.RErr ⬝ₛ lam 10 (lam 11
-            (v 10 ⬝ₛ lam 12
-                (v 12 ⬝ₛ (v 0 ⬝ₛ v 9 ⬝ₛ v 11) ⬝ₛ lam 13
-                  (v 0 ⬝ₛ v 5 ⬝ₛ (g Scott.Push ⬝ₛ (g Scott.Num ⬝ₛ v 13) ⬝ₛ v 11)))
-              ⬝ₛ lam 14 (g Scott.RErr)))))))))
-
--- n0 s1 : RVal (Push (Num n) s)
-def wLit : Src := g Scott.RVal ⬝ₛ (g Scott.Push ⬝ₛ (g Scott.Num ⬝ₛ v 0) ⬝ₛ v 1)
-
--- r0 s1 : RVal (Push (Quot r) s)
-def wQuote : Src := g Scott.RVal ⬝ₛ (g Scott.Push ⬝ₛ (g Scott.Quot ⬝ₛ v 0) ⬝ₛ v 1)
-
--- s0 a1 t2 b3 u4 m5 n6 r7 r8 :
--- (s RErr) (λa t. (t RErr) (λb u. (a (λm. (b (λn. RVal (Push (Num (add m n)) u))) (λr. RErr)))
---   (λr. RErr)))
-def wAdd : Src :=
-  v 0 ⬝ₛ g Scott.RErr ⬝ₛ lam 1 (lam 2
-    (v 2 ⬝ₛ g Scott.RErr ⬝ₛ lam 3 (lam 4
-      (v 1 ⬝ₛ lam 5
-          (v 3 ⬝ₛ lam 6
-              (g Scott.RVal ⬝ₛ
-                (g Scott.Push ⬝ₛ (g Scott.Num ⬝ₛ (g Scott.add ⬝ₛ v 5 ⬝ₛ v 6)) ⬝ₛ v 4))
-            ⬝ₛ lam 7 (g Scott.RErr))
-        ⬝ₛ lam 8 (g Scott.RErr)))))
-
--- self0 m1 n2 k3 : (n m) (λk. Suc (self m k))
-def add : Src := v 2 ⬝ₛ v 1 ⬝ₛ lam 3 (g Scott.Suc ⬝ₛ (v 0 ⬝ₛ v 1 ⬝ₛ v 3))
-
--- f0 g1 s2 t3 : (f s) (λt. g t) RErr RTime
-def seq : Src := v 0 ⬝ₛ v 2 ⬝ₛ lam 3 (v 1 ⬝ₛ v 3) ⬝ₛ g Scott.RErr ⬝ₛ g Scott.RTime
-
--- s0 : RVal s
-def idW : Src := g Scott.RVal ⬝ₛ v 0
-
--- The table-independent arms of `applyU`'s case, with self0 q1 s2 x3 r4 x5 b6:
--- λx r. self r (Push x s)
-def armCons : Src := lam 3 (lam 4 (v 0 ⬝ₛ v 4 ⬝ₛ (g Scott.Push ⬝ₛ v 3 ⬝ₛ v 2)))
-
--- λx. RVal (Push x s)
-def armUnit : Src := lam 5 (g Scott.RVal ⬝ₛ (g Scott.Push ⬝ₛ v 5 ⬝ₛ v 2))
-
--- λb. seq (wDo self) (self b) s
-def armThen : Src := lam 6 (g Scott.seq ⬝ₛ (g Scott.wDo ⬝ₛ v 0) ⬝ₛ (v 0 ⬝ₛ v 6) ⬝ₛ v 2)
+def armCons : Src := arm 0
+def armUnit : Src := arm 1
+def armThen : Src := arm 2
 
 end KernelSrc
 
 -- ---------------------------------------------------------------------------
--- The table-independent equations compile to skijack's terms
+-- The front end agrees with `skijack` on the whole kernel
 -- ---------------------------------------------------------------------------
 
-theorem wPop_compiles : toTerm (compDef [0] KernelSrc.wPop) = Scott.wPop := rfl
-theorem wDup_compiles : toTerm (compDef [0] KernelSrc.wDup) = Scott.wDup := rfl
-theorem wSwap_compiles : toTerm (compDef [0] KernelSrc.wSwap) = Scott.wSwap := rfl
-theorem wDip_compiles : toTerm (compDef [0, 1] KernelSrc.wDip) = Scott.wDip := rfl
-theorem wDo_compiles : toTerm (compDef [0, 1] KernelSrc.wDo) = Scott.wDo := rfl
-theorem wIfz_compiles : toTerm (compDef [0, 1] KernelSrc.wIfz) = Scott.wIfz := rfl
-theorem wLit_compiles : toTerm (compDef [0, 1] KernelSrc.wLit) = Scott.wLit := rfl
-theorem wQuote_compiles : toTerm (compDef [0, 1] KernelSrc.wQuote) = Scott.wQuote := rfl
-theorem wAdd_compiles : toTerm (compDef [0] KernelSrc.wAdd) = Scott.wAdd := rfl
-theorem add_compiles : toTerm (compRec 0 [1, 2] KernelSrc.add) = Scott.add := rfl
-theorem seq_compiles : toTerm (compDef [0, 1, 2] KernelSrc.seq) = Scott.seq := rfl
-theorem idW_compiles : toTerm (compDef [0] KernelSrc.idW) = Scott.idW := rfl
-theorem wQcons0_compiles : toTerm (compDef [0] (KernelSrc.wQcons Scott.QCons)) = Scott.wQcons := rfl
+/-- **The front end reads and compiles `kernelText` to `skijack`'s terms**:
+    every constructor, word and helper of `Ski/Scott.lean`. -/
+theorem kernel_agrees :
+    [nm! "Zero", nm! "Suc", nm! "Num", nm! "Quot", nm! "Empty", nm! "Push", nm! "QCons",
+     nm! "QUnit", nm! "QThen", nm! "RVal", nm! "RErr", nm! "RTime",
+     nm! "wDup", nm! "wSwap", nm! "wPop", nm! "wQcons", nm! "wCat", nm! "wUnit", nm! "wDip",
+     nm! "wDo", nm! "wIfz", nm! "wLit", nm! "wQuote", nm! "wAdd",
+     nm! "add", nm! "seq", nm! "idW", nm! "applyU"].map (termOf (compileFile kernelText)) =
+    [some Scott.Zero, some Scott.Suc, some Scott.Num, some Scott.Quot, some Scott.Empty,
+     some Scott.Push, some Scott.QCons, some Scott.QUnit, some Scott.QThen, some Scott.RVal,
+     some Scott.RErr, some Scott.RTime,
+     some Scott.wDup, some Scott.wSwap, some Scott.wPop, some Scott.wQcons, some Scott.wCat,
+     some Scott.wUnit, some Scott.wDip, some Scott.wDo, some Scott.wIfz, some Scott.wLit,
+     some Scott.wQuote, some Scott.wAdd,
+     some Scott.add, some Scott.seq, some Scott.idW, some Scott.applyU] := by
+  decide +kernel
+
+/-- The formals of each equation: parameters, then whether it is recursive. -/
+theorem kernel_formals :
+    [nm! "wPop", nm! "wDup", nm! "wSwap", nm! "wQcons", nm! "wCat", nm! "wUnit", nm! "wDip",
+     nm! "wDo", nm! "wIfz", nm! "wLit", nm! "wQuote", nm! "wAdd", nm! "add", nm! "seq",
+     nm! "idW", nm! "applyU"].map (fun n => ((kernelEqn n).params, (kernelEqn n).self)) =
+    [([0], none), ([0], none), ([0], none), ([0], none), ([0], none), ([0], none),
+     ([0, 1], none), ([0, 1], none), ([0, 1], none), ([0, 1], none), ([0, 1], none),
+     ([0], none), ([1, 2], some 0), ([0, 1, 2], none), ([0], none), ([1, 2], some 0)] := by
+  decide +kernel
+
+-- ---------------------------------------------------------------------------
+-- Each lowered equation compiles to `skijack`'s term
+-- ---------------------------------------------------------------------------
+
+theorem wPop_compiles : toTerm (compDef [0] KernelSrc.wPop) = Scott.wPop := by decide +kernel
+theorem wDup_compiles : toTerm (compDef [0] KernelSrc.wDup) = Scott.wDup := by decide +kernel
+theorem wSwap_compiles : toTerm (compDef [0] KernelSrc.wSwap) = Scott.wSwap := by decide +kernel
+theorem wDip_compiles : toTerm (compDef [0, 1] KernelSrc.wDip) = Scott.wDip := by decide +kernel
+theorem wDo_compiles : toTerm (compDef [0, 1] KernelSrc.wDo) = Scott.wDo := by decide +kernel
+theorem wIfz_compiles : toTerm (compDef [0, 1] KernelSrc.wIfz) = Scott.wIfz := by decide +kernel
+theorem wLit_compiles : toTerm (compDef [0, 1] KernelSrc.wLit) = Scott.wLit := by decide +kernel
+theorem wQuote_compiles : toTerm (compDef [0, 1] KernelSrc.wQuote) = Scott.wQuote := by
+  decide +kernel
+theorem wAdd_compiles : toTerm (compDef [0] KernelSrc.wAdd) = Scott.wAdd := by decide +kernel
+theorem add_compiles : toTerm (compRec 0 [1, 2] KernelSrc.add) = Scott.add := by decide +kernel
+theorem seq_compiles : toTerm (compDef [0, 1, 2] KernelSrc.seq) = Scott.seq := by decide +kernel
+theorem idW_compiles : toTerm (compDef [0] KernelSrc.idW) = Scott.idW := by decide +kernel
+theorem wQcons0_compiles : toTerm (compDef [0] (KernelSrc.wQcons Scott.QCons)) = Scott.wQcons := by
+  decide +kernel
 theorem wCat0_compiles :
-    toTerm (compDef [0] (KernelSrc.wCat Scott.QCons Scott.QThen)) = Scott.wCat := rfl
-theorem wUnit0_compiles : toTerm (compDef [0] (KernelSrc.wUnit Scott.QUnit)) = Scott.wUnit := rfl
+    toTerm (compDef [0] (KernelSrc.wCat Scott.QCons Scott.QThen)) = Scott.wCat := by
+  decide +kernel
+theorem wUnit0_compiles : toTerm (compDef [0] (KernelSrc.wUnit Scott.QUnit)) = Scott.wUnit := by
+  decide +kernel
+
+-- ---------------------------------------------------------------------------
+-- The lowered equations the proofs read, checked against the front end
+-- ---------------------------------------------------------------------------
+
+section
+local macro:max "g! " s:str : term => `(CSrc.glob (nm! $s))
+local macro:max "v! " x:num : term => `(CSrc.var $x)
+local infixl:70 " ⬝c " => CSrc.app
+
+/-- `wUnit s = s |> { Empty RErr; Push a t (RVal (Push (Quot (QUnit a)) t)) }`,
+    lowered: `s0 a1 t2`. -/
+theorem kernel_wUnit : kernelEqn (nm! "wUnit") = ⟨[0], none,
+    v! 0 ⬝c g! "RErr" ⬝c .lam 1 (.lam 2
+      (g! "RVal" ⬝c (g! "Push" ⬝c (g! "Quot" ⬝c (g! "QUnit" ⬝c v! 1)) ⬝c v! 2)))⟩ := by
+  decide +kernel
+
+/-- `wQcons`, lowered: `s0 a1 t2 n3 r4 b5 u6`. -/
+theorem kernel_wQcons : kernelEqn (nm! "wQcons") = ⟨[0], none,
+    v! 0 ⬝c g! "RErr" ⬝c .lam 1 (.lam 2
+      (v! 1 ⬝c .lam 3 (g! "RErr") ⬝c .lam 4
+        (v! 2 ⬝c g! "RErr" ⬝c .lam 5 (.lam 6
+          (g! "RVal" ⬝c (g! "Push" ⬝c (g! "Quot" ⬝c (g! "QCons" ⬝c v! 5 ⬝c v! 4)) ⬝c v! 6))))))⟩ := by
+  decide +kernel
+
+/-- `wCat`, lowered: `s0 a1 t2 n3 r4 b5 u6 m7 l8`. -/
+theorem kernel_wCat : kernelEqn (nm! "wCat") = ⟨[0], none,
+    v! 0 ⬝c g! "RErr" ⬝c .lam 1 (.lam 2
+      (v! 1 ⬝c .lam 3 (g! "RErr") ⬝c .lam 4
+        (v! 2 ⬝c g! "RErr" ⬝c .lam 5 (.lam 6
+          (v! 5 ⬝c .lam 7 (g! "RErr") ⬝c .lam 8
+            (g! "RVal" ⬝c (g! "Push" ⬝c
+              (g! "Quot" ⬝c (g! "QCons" ⬝c (g! "Quot" ⬝c v! 8) ⬝c (g! "QThen" ⬝c v! 4)))
+              ⬝c v! 6)))))))⟩ := by
+  decide +kernel
+
+/-- `applyU`, lowered for a table with no static quotations:
+    `self0 q1 s2 x3 r4 x5 b6`. -/
+theorem kernel_applyU : kernelEqn (nm! "applyU") = ⟨[1, 2], some 0,
+    v! 1
+      ⬝c .lam 3 (.lam 4 (v! 0 ⬝c v! 4 ⬝c (g! "Push" ⬝c v! 3 ⬝c v! 2)))
+      ⬝c .lam 5 (g! "RVal" ⬝c (g! "Push" ⬝c v! 5 ⬝c v! 2))
+      ⬝c .lam 6 (g! "seq" ⬝c (g! "wDo" ⬝c v! 0) ⬝c (v! 0 ⬝c v! 6) ⬝c v! 2)⟩ := by
+  decide +kernel
+
+theorem KernelSrc.wUnit_def (qunit : Term) : KernelSrc.wUnit qunit =
+    (v! 0 ⬝c g! "RErr" ⬝c .lam 1 (.lam 2
+      (g! "RVal" ⬝c (g! "Push" ⬝c (g! "Quot" ⬝c (g! "QUnit" ⬝c v! 1)) ⬝c v! 2)))).resolve
+      (kernelEnv Scott.QCons qunit Scott.QThen) := by
+  unfold KernelSrc.wUnit KernelSrc.of
+  rw [kernel_wUnit]
+
+theorem KernelSrc.wQcons_def (qcons : Term) : KernelSrc.wQcons qcons =
+    (v! 0 ⬝c g! "RErr" ⬝c .lam 1 (.lam 2
+      (v! 1 ⬝c .lam 3 (g! "RErr") ⬝c .lam 4
+        (v! 2 ⬝c g! "RErr" ⬝c .lam 5 (.lam 6
+          (g! "RVal" ⬝c (g! "Push" ⬝c (g! "Quot" ⬝c (g! "QCons" ⬝c v! 5 ⬝c v! 4)) ⬝c v! 6))))))
+      ).resolve (kernelEnv qcons Scott.QUnit Scott.QThen) := by
+  unfold KernelSrc.wQcons KernelSrc.of
+  rw [kernel_wQcons]
+
+theorem KernelSrc.wCat_def (qcons qthen : Term) : KernelSrc.wCat qcons qthen =
+    (v! 0 ⬝c g! "RErr" ⬝c .lam 1 (.lam 2
+      (v! 1 ⬝c .lam 3 (g! "RErr") ⬝c .lam 4
+        (v! 2 ⬝c g! "RErr" ⬝c .lam 5 (.lam 6
+          (v! 5 ⬝c .lam 7 (g! "RErr") ⬝c .lam 8
+            (g! "RVal" ⬝c (g! "Push" ⬝c
+              (g! "Quot" ⬝c (g! "QCons" ⬝c (g! "Quot" ⬝c v! 8) ⬝c (g! "QThen" ⬝c v! 4)))
+              ⬝c v! 6)))))))).resolve (kernelEnv qcons Scott.QUnit qthen) := by
+  unfold KernelSrc.wCat KernelSrc.of
+  rw [kernel_wCat]
+
+theorem KernelSrc.armCons_def : KernelSrc.armCons =
+    (CSrc.lam 3 (.lam 4 (v! 0 ⬝c v! 4 ⬝c (g! "Push" ⬝c v! 3 ⬝c v! 2)))).resolve
+      (kernelEnv Scott.QCons Scott.QUnit Scott.QThen) := by
+  unfold KernelSrc.armCons KernelSrc.arm
+  rw [kernel_applyU]
+  rfl
+
+theorem KernelSrc.armUnit_def : KernelSrc.armUnit =
+    (CSrc.lam 5 (g! "RVal" ⬝c (g! "Push" ⬝c v! 5 ⬝c v! 2))).resolve
+      (kernelEnv Scott.QCons Scott.QUnit Scott.QThen) := by
+  unfold KernelSrc.armUnit KernelSrc.arm
+  rw [kernel_applyU]
+  rfl
+
+theorem KernelSrc.armThen_def : KernelSrc.armThen =
+    (CSrc.lam 6 (g! "seq" ⬝c (g! "wDo" ⬝c v! 0) ⬝c (v! 0 ⬝c v! 6) ⬝c v! 2)).resolve
+      (kernelEnv Scott.QCons Scott.QUnit Scott.QThen) := by
+  unfold KernelSrc.armThen KernelSrc.arm
+  rw [kernel_applyU]
+  rfl
+
+end
 
 -- ---------------------------------------------------------------------------
 -- A quotation table, compiled
 -- ---------------------------------------------------------------------------
-
-/-- The constructor at position `j` of a sum with `m` constructors, with `a`
-    fields: `λ fields conts. k_j fields`, compiled. -/
-def ctorO (a j m : Nat) : OTerm :=
-  absN (List.range (a + m)) (appL (.var (a + j)) ((List.range a).map .var))
 
 /-- A table of static quotations: how many, and each one's code. -/
 structure Table where
