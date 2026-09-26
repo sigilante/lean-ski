@@ -78,14 +78,15 @@ open Ski.Audit
   DecNat.functional DecItem.functional DecQuot.functional DecStack.functional
   Decodes.functional
 
--- Leaf contracts: the outer layer, then one per word
-#audit_clean eval_rval dec_rvalW contract_val contract_err
-  wPop_empty wPop_push leaf_pop
-  dupD_push wDup_empty wDup_push leaf_dup
-#audit_clean swapC_push swapT_push wSwap_empty wSwap_one wSwap_two leaf_swap
-  unitC_push unitQ_quot wUnit_empty wUnit_push leaf_unit
-  consC_push consQ_quot consR_qcons wQcons_empty wQcons_num wQcons_one wQcons_two leaf_cons
-  catC_push catQ_quot catR_qcons catThen_qthen
-  wCat_empty wCat_num wCat_one wCat_quot_num wCat_two leaf_cat
-#audit_clean dipK_val dipK_err wDip_empty wDip_num wDip_one wDip_two cw_dip
-  leaf_dip_run leaf_dip
+-- Leaf contracts: shared steps, then per word its stages, skeletons and leaves
+#audit_clean Contract.of_steps eval_rval dec_rvalW contract_val contract_err
+  stack_err stack_push item_num_err item_quot
+  wPop_stages leafD_pop leaf_pop
+  dupD_push wDup_stages leafD_dup leaf_dup
+  swapC_push swapT_push wSwap_stages leafD_swap leaf_swap
+  unitC_push unitQ_quot wUnit_stages leafD_unit leaf_unit
+  consC_push consQ_quot consR_qcons wQcons_stages leafD_cons leaf_cons
+  catC_push catQ_quot catR_qcons catThen_qthen wCat_stages leafD_cat leaf_cat
+  wDip_stages cw_dip leafD_dip_run leafD_dip leaf_dip
+  wDo_stages leafD_i_run leafD_i leaf_i
+  litC_push quoteC_push wLit_run wQuote_run leafD_lit leafD_quote

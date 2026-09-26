@@ -4,25 +4,56 @@ open Term
 /-!
 # Leaf contracts
 
-`leaf_w ap S` says the compiled word `phi w`, applied to the encoding of
-`S`, reduces to a weak head normal form that decodes to `cw ap w S`.
-This is the requested form `Steps (phi w ⬝ encStack S) t ∧ Decodes t …`,
-strengthened from `Steps` to `Eval`: the word also terminates at `t`.
-Every word except `dip`, `i` and `ifz` ignores `ap`.
+`Contract t o` says `t` reduces to a weak head normal form that decodes to
+`o`.  The leaf contract of word `w` is
 
-Each proof has the same three parts.  The kernel re-runs the word on a
-symbolic stack (`iter_sound rfl`, as for the `*_elim` lemmas), down to
-`RErr` or to `RVal` applied to a result stack; normal order stops there,
-because the result stack is an argument.  `contract_err` and
-`contract_val` finish the outer layer once and for all.  What remains is
-that the result stack decodes, which the constructor lemmas of
-`Ski/Decode.lean` give once its combinator reduces to `Push`
-applications (`dupD_push` for `dup`).
+    DecStack s S → Contract (phi w ⬝ s) (cw ap w S)
+
+for **every** term `s` that decodes to `S`, not only for `encStack S`: in a
+composed program a word receives its predecessor's result stack, which is
+a thunk, not an encoding.  `leaf_w` is the special case `s = encStack S`,
+in the form `Steps (phi w ⬝ encStack S) t ∧ Decodes t (cw ap w S)`
+strengthened to `Eval`.
+
+## Stages
+
+A compiled word cases on its input by applying it to two continuations.
+Normal order then stops with the input at the head, and the input's
+decoding says where it goes next: to the first continuation if the stack
+is empty, to the second, applied to the top and the rest, if not.  A stage
+lemma (`wSwap_stages` and the rest) chains these stops: each clause is a
+run by `iter_sound rfl` on symbolic terms, down to the next input at the
+head, to `RErr`, or to `RVal` of a result skeleton.  The continuations
+are existentials, hundreds of atoms long, which the kernel's `rfl`
+supplies; nothing in a leaf proof looks inside them.  The skeleton lemmas
+reduce each result to Scott constructors, and the constructor lemmas of
+`Ski/Decode.lean` decode it.
+
+## Words that run a quotation
+
+`dip` and `i` stop with the quotation eliminator `apT` at the head,
+applied to the quotation and the rest of the stack.  `ApSound apT ap` is
+the contract they assume of it: `apT`, applied to anything that decodes
+to `r` and `u`, meets `Contract` for `ap r u`.  The `*_run` lemmas assume
+it only at the one `(r, u)` the stack supplies, so they apply to an
+eliminator that diverges elsewhere.
 -/
 
 -- ---------------------------------------------------------------------------
--- The outer layer: `RVal ⬝ g` and `RErr`
+-- Contracts, and the steps every leaf shares
 -- ---------------------------------------------------------------------------
+
+/-- `t` reduces to a weak head normal form that decodes to `o`. -/
+def Contract (t : Term) (o : Outcome) : Prop := ∃ u, Eval t u ∧ Decodes u o
+
+theorem Contract.of_steps {t t' : Term} {o : Outcome} (h : Steps t t') (h' : Contract t' o) :
+    Contract t o := by
+  cases h' with
+  | intro u hu => exact ⟨u, ⟨h.trans hu.1.1, hu.1.2⟩, hu.2⟩
+
+/-- The quotation eliminator `apT` realizes the model `ap`. -/
+def ApSound (apT : Term) (ap : Quotation → Stack → Outcome) : Prop :=
+  ∀ r u fr fu, DecQuot fr r → DecStack fu u → Contract (apT ⬝ fr ⬝ fu) (ap r u)
 
 /-- The weak head normal form of `RVal ⬝ g`. -/
 def rvalW (g : Term) : Term :=
@@ -35,30 +66,59 @@ theorem dec_rvalW {g : Term} {s : Stack} (h : DecStack g s) : Decodes (rvalW g) 
   fun k0 _ _ => ⟨_, iter_sound (k := 12) rfl, DecStack.of_steps (steps_thunk1 g k0) h⟩
 
 theorem contract_val {t g : Term} {s : Stack} (ht : Steps t (Scott.RVal ⬝ g))
-    (hg : DecStack g s) : ∃ u, Eval t u ∧ Decodes u (.val s) :=
+    (hg : DecStack g s) : Contract t (.val s) :=
   ⟨rvalW g, ⟨ht.trans (eval_rval g).1, (eval_rval g).2⟩, dec_rvalW hg⟩
 
-theorem contract_err {t : Term} (ht : Steps t Scott.RErr) : ∃ u, Eval t u ∧ Decodes u .err :=
+theorem contract_err {t : Term} (ht : Steps t Scott.RErr) : Contract t .err :=
   ⟨Scott.RErr, ⟨ht, .K1 K⟩, dec_rerr⟩
+
+/-- An empty input stack takes the first continuation. -/
+theorem stack_err {s c0 c1 t : Term} (hs : DecStack s []) (h : Steps t (s ⬝ c0 ⬝ c1))
+    (h0 : Steps c0 Scott.RErr) : Contract t .err :=
+  contract_err (h.trans ((hs c0 c1).trans h0))
+
+/-- A non-empty input stack takes the second, with its top and rest. -/
+theorem stack_push {s c0 c1 t : Term} {a : Item} {S : Stack} (hs : DecStack s (a :: S))
+    (h : Steps t (s ⬝ c0 ⬝ c1)) :
+    ∃ f g, Steps t (c1 ⬝ f ⬝ g) ∧ DecItem f a ∧ DecStack g S := by
+  cases hs c0 c1 with
+  | intro f hf =>
+    cases hf with
+    | intro g hg => exact ⟨f, g, h.trans hg.1, hg.2⟩
+
+/-- A number where a quotation is wanted takes the first continuation. -/
+theorem item_num_err {x e0 e1 t : Term} {n : Nat} (hx : DecItem x (.num n))
+    (h : Steps t (x ⬝ e0 ⬝ e1)) (he : ∀ f, Steps (e0 ⬝ f) Scott.RErr) : Contract t .err := by
+  cases hx e0 e1 with
+  | intro f hf => exact contract_err (h.trans (hf.1.trans (he f)))
+
+/-- A quotation takes the second continuation, with its body. -/
+theorem item_quot {x e0 e1 t : Term} {q : Quotation} (hx : DecItem x (.quot q))
+    (h : Steps t (x ⬝ e0 ⬝ e1)) : ∃ f, Steps t (e1 ⬝ f) ∧ DecQuot f q := by
+  cases hx e0 e1 with
+  | intro f hf => exact ⟨f, h.trans hf.1, hf.2⟩
 
 -- ---------------------------------------------------------------------------
 -- pop   ( a — )
 -- ---------------------------------------------------------------------------
 
-theorem wPop_empty : Steps (Scott.wPop ⬝ Scott.Empty) Scott.RErr := iter_sound (k := 5) rfl
+theorem wPop_stages (s : Term) : ∃ c0 c1,
+    Steps (Scott.wPop ⬝ s) (s ⬝ c0 ⬝ c1) ∧ Steps c0 Scott.RErr ∧
+    ∀ f g, Steps (c1 ⬝ f ⬝ g) (Scott.RVal ⬝ g) :=
+  ⟨_, _, iter_sound (k := 3) rfl, iter_sound (k := 1) rfl, fun _ _ => iter_sound (k := 2) rfl⟩
 
-theorem wPop_push (x y : Term) :
-    Steps (Scott.wPop ⬝ (Scott.Push ⬝ x ⬝ y))
-      (Scott.RVal ⬝ (K ⬝ K ⬝ x ⬝ y ⬝ (K ⬝ (K ⬝ Scott.RVal) ⬝ (Scott.Push ⬝ x ⬝ y)))) :=
-  iter_sound (k := 24) rfl
+theorem leafD_pop (ap : Quotation → Stack → Outcome) (S : Stack) {s : Term}
+    (hs : DecStack s S) : Contract (phi .pop ⬝ s) (cw ap .pop S) := by
+  cases wPop_stages s with | intro c0 h => cases h with | intro c1 h =>
+  cases S with
+  | nil => exact stack_err hs h.1 h.2.1
+  | cons a t =>
+    cases stack_push hs h.1 with | intro f h1 => cases h1 with | intro g h1 =>
+    exact contract_val (h1.1.trans (h.2.2 f g)) h1.2.2
 
 theorem leaf_pop (ap : Quotation → Stack → Outcome) (S : Stack) :
-    ∃ t, Eval (phi .pop ⬝ encStack S) t ∧ Decodes t (cw ap .pop S) := by
-  cases S with
-  | nil => exact contract_err wPop_empty
-  | cons a s =>
-    exact contract_val (wPop_push _ _)
-      (DecStack.of_steps (steps_thunk2 _ _ _) (encStack_dec s))
+    ∃ t, Eval (phi .pop ⬝ encStack S) t ∧ Decodes t (cw ap .pop S) :=
+  leafD_pop ap S (encStack_dec S)
 
 -- ---------------------------------------------------------------------------
 -- dup   ( a — a a )
@@ -67,43 +127,28 @@ theorem leaf_pop (ap : Quotation → Stack → Outcome) (S : Stack) :
 /-- `λ a t. Push a (Push a t)`, as bracket abstraction leaves it. -/
 def dupD : Term := S ⬝ (S ⬝ (K ⬝ S) ⬝ (S ⬝ (K ⬝ K) ⬝ Scott.Push)) ⬝ Scott.Push
 
-/-- The continuation `wDup` hands a non-empty stack. -/
-def dupK : Term := S ⬝ (K ⬝ (S ⬝ (K ⬝ Scott.RVal))) ⬝ dupD
-
 theorem dupD_push (a t : Term) :
     Steps (dupD ⬝ a ⬝ t) (Scott.Push ⬝ a ⬝ (Scott.Push ⬝ a ⬝ t)) :=
   iter_sound (k := 7) rfl
 
-theorem wDup_empty : Steps (Scott.wDup ⬝ Scott.Empty) Scott.RErr := iter_sound (k := 5) rfl
+theorem wDup_stages (s : Term) : ∃ c0 c1,
+    Steps (Scott.wDup ⬝ s) (s ⬝ c0 ⬝ c1) ∧ Steps c0 Scott.RErr ∧
+    ∀ f g, Steps (c1 ⬝ f ⬝ g) (Scott.RVal ⬝ (dupD ⬝ f ⬝ g)) :=
+  ⟨_, _, iter_sound (k := 3) rfl, iter_sound (k := 1) rfl, fun _ _ => iter_sound (k := 5) rfl⟩
 
-theorem wDup_push (x y : Term) :
-    Steps (Scott.wDup ⬝ (Scott.Push ⬝ x ⬝ y))
-      (Scott.RVal ⬝ (dupD ⬝ (K ⬝ x ⬝ (K ⬝ dupK ⬝ (Scott.Push ⬝ x ⬝ y)))
-                          ⬝ (K ⬝ K ⬝ x ⬝ y ⬝ (K ⬝ dupK ⬝ (Scott.Push ⬝ x ⬝ y))))) :=
-  iter_sound (k := 27) rfl
+theorem leafD_dup (ap : Quotation → Stack → Outcome) (S : Stack) {s : Term}
+    (hs : DecStack s S) : Contract (phi .dup ⬝ s) (cw ap .dup S) := by
+  cases wDup_stages s with | intro c0 h => cases h with | intro c1 h =>
+  cases S with
+  | nil => exact stack_err hs h.1 h.2.1
+  | cons a t =>
+    cases stack_push hs h.1 with | intro f h1 => cases h1 with | intro g h1 =>
+    exact contract_val (h1.1.trans (h.2.2 f g))
+      (DecStack.of_steps (dupD_push _ _) (dec_push h1.2.1 (dec_push h1.2.1 h1.2.2)))
 
 theorem leaf_dup (ap : Quotation → Stack → Outcome) (S : Stack) :
-    ∃ t, Eval (phi .dup ⬝ encStack S) t ∧ Decodes t (cw ap .dup S) := by
-  cases S with
-  | nil => exact contract_err wDup_empty
-  | cons a s =>
-    let k := K ⬝ dupK ⬝ encStack (a :: s)
-    have ha := DecItem.of_steps (steps_thunk1 (encItem a) k) (encItem_dec a)
-    have hs := DecStack.of_steps (steps_thunk2 (encItem a) (encStack s) k) (encStack_dec s)
-    exact contract_val (wDup_push _ _)
-      (DecStack.of_steps (dupD_push _ _) (dec_push ha (dec_push ha hs)))
-
-/-!
-## Longer runs: junk continuations
-
-From `swap` on, a word's run leaves each field of its result as a thunk
-`K ⬝ x ⬝ j` or `K ⬝ K ⬝ x ⬝ y ⬝ j`, where the junk `j` is a continuation
-built from the word's own body, hundreds of atoms long and never
-inspected again.  The run lemmas quantify it away (`∃ j0 j1 …`), and the
-kernel's `rfl` supplies it.  What stays in the statement is the result's
-skeleton — a small combinator applied to the thunks — and the skeleton
-lemmas reduce each one to Scott constructors.
--/
+    ∃ t, Eval (phi .dup ⬝ encStack S) t ∧ Decodes t (cw ap .dup S) :=
+  leafD_dup ap S (encStack_dec S)
 
 -- ---------------------------------------------------------------------------
 -- swap   ( a b — b a )
@@ -123,37 +168,33 @@ theorem swapT_push (f0 f1 f2 : Term) :
     Steps (swapT ⬝ f0 ⬝ f1 ⬝ f2) (Scott.Push ⬝ f0 ⬝ f2) :=
   iter_sound (k := 3) rfl
 
-theorem wSwap_empty : Steps (Scott.wSwap ⬝ Scott.Empty) Scott.RErr := iter_sound (k := 5) rfl
+theorem wSwap_stages (s : Term) : ∃ c0 c1,
+    Steps (Scott.wSwap ⬝ s) (s ⬝ c0 ⬝ c1) ∧ Steps c0 Scott.RErr ∧
+    ∀ f g, ∃ d0 d1, Steps (c1 ⬝ f ⬝ g) (g ⬝ d0 ⬝ d1) ∧ Steps d0 Scott.RErr ∧
+      ∀ f2 g2, Steps (d1 ⬝ f2 ⬝ g2) (Scott.RVal ⬝ (swapC ⬝ f ⬝ f2 ⬝ g2)) :=
+  ⟨_, _, iter_sound (k := 3) rfl, iter_sound (k := 1) rfl, fun _ _ =>
+    ⟨_, _, iter_sound (k := 6) rfl, iter_sound (k := 1) rfl, fun _ _ => iter_sound (k := 9) rfl⟩⟩
 
-theorem wSwap_one (x : Term) :
-    Steps (Scott.wSwap ⬝ (Scott.Push ⬝ x ⬝ Scott.Empty)) Scott.RErr :=
-  iter_sound (k := 32) rfl
-
-theorem wSwap_two (x x2 y2 : Term) : ∃ j0 j1 j2,
-    Steps (Scott.wSwap ⬝ (Scott.Push ⬝ x ⬝ (Scott.Push ⬝ x2 ⬝ y2)))
-      (Scott.RVal ⬝ (swapC ⬝ (K ⬝ x ⬝ j0) ⬝ (K ⬝ x2 ⬝ j1) ⬝ (K ⬝ K ⬝ x2 ⬝ y2 ⬝ j2))) :=
-  ⟨_, _, _, iter_sound (k := 58) rfl⟩
+theorem leafD_swap (ap : Quotation → Stack → Outcome) (S : Stack) {s : Term}
+    (hs : DecStack s S) : Contract (phi .swap ⬝ s) (cw ap .swap S) := by
+  cases wSwap_stages s with | intro c0 h => cases h with | intro c1 h =>
+  cases S with
+  | nil => exact stack_err hs h.1 h.2.1
+  | cons a t =>
+    cases stack_push hs h.1 with | intro f h1 => cases h1 with | intro g h1 =>
+    cases h.2.2 f g with | intro d0 h2 => cases h2 with | intro d1 h2 =>
+    cases t with
+    | nil => exact stack_err h1.2.2 (h1.1.trans h2.1) h2.2.1
+    | cons b u =>
+      cases stack_push h1.2.2 (h1.1.trans h2.1) with | intro f2 h3 =>
+      cases h3 with | intro g2 h3 =>
+      exact contract_val (h3.1.trans (h2.2.2 f2 g2))
+        (DecStack.of_steps (swapC_push _ _ _)
+          (dec_push h3.2.1 (DecStack.of_steps (swapT_push _ _ _) (dec_push h1.2.1 h3.2.2))))
 
 theorem leaf_swap (ap : Quotation → Stack → Outcome) (S : Stack) :
-    ∃ t, Eval (phi .swap ⬝ encStack S) t ∧ Decodes t (cw ap .swap S) := by
-  cases S with
-  | nil => exact contract_err wSwap_empty
-  | cons a t =>
-    cases t with
-    | nil => exact contract_err (wSwap_one _)
-    | cons b u =>
-      cases wSwap_two (encItem a) (encItem b) (encStack u) with
-      | intro j0 h =>
-        cases h with
-        | intro j1 h =>
-          cases h with
-          | intro j2 h =>
-            have ha := DecItem.of_steps (steps_thunk1 _ j0) (encItem_dec a)
-            have hb := DecItem.of_steps (steps_thunk1 _ j1) (encItem_dec b)
-            have hu := DecStack.of_steps (steps_thunk2 (encItem b) _ j2) (encStack_dec u)
-            exact contract_val h
-              (DecStack.of_steps (swapC_push _ _ _)
-                (dec_push hb (DecStack.of_steps (swapT_push _ _ _) (dec_push ha hu))))
+    ∃ t, Eval (phi .swap ⬝ encStack S) t ∧ Decodes t (cw ap .swap S) :=
+  leafD_swap ap S (encStack_dec S)
 
 -- ---------------------------------------------------------------------------
 -- unit   ( a — [a] )
@@ -173,27 +214,25 @@ theorem unitQ_quot (f0 : Term) :
     Steps (unitQ ⬝ f0) (Scott.Quot ⬝ (Scott.QUnit ⬝ f0)) :=
   iter_sound (k := 2) rfl
 
-theorem wUnit_empty : Steps (Scott.wUnit ⬝ Scott.Empty) Scott.RErr := iter_sound (k := 5) rfl
+theorem wUnit_stages (s : Term) : ∃ c0 c1,
+    Steps (Scott.wUnit ⬝ s) (s ⬝ c0 ⬝ c1) ∧ Steps c0 Scott.RErr ∧
+    ∀ f g, Steps (c1 ⬝ f ⬝ g) (Scott.RVal ⬝ (unitC ⬝ f ⬝ g)) :=
+  ⟨_, _, iter_sound (k := 3) rfl, iter_sound (k := 1) rfl, fun _ _ => iter_sound (k := 5) rfl⟩
 
-theorem wUnit_push (x y : Term) : ∃ j0 j1,
-    Steps (Scott.wUnit ⬝ (Scott.Push ⬝ x ⬝ y))
-      (Scott.RVal ⬝ (unitC ⬝ (K ⬝ x ⬝ j0) ⬝ (K ⬝ K ⬝ x ⬝ y ⬝ j1))) :=
-  ⟨_, _, iter_sound (k := 27) rfl⟩
+theorem leafD_unit (ap : Quotation → Stack → Outcome) (S : Stack) {s : Term}
+    (hs : DecStack s S) : Contract (phi .unit ⬝ s) (cw ap .unit S) := by
+  cases wUnit_stages s with | intro c0 h => cases h with | intro c1 h =>
+  cases S with
+  | nil => exact stack_err hs h.1 h.2.1
+  | cons a t =>
+    cases stack_push hs h.1 with | intro f h1 => cases h1 with | intro g h1 =>
+    exact contract_val (h1.1.trans (h.2.2 f g))
+      (DecStack.of_steps (unitC_push _ _)
+        (dec_push (DecItem.of_steps (unitQ_quot _) (dec_quot (dec_qunit h1.2.1))) h1.2.2))
 
 theorem leaf_unit (ap : Quotation → Stack → Outcome) (S : Stack) :
-    ∃ t, Eval (phi .unit ⬝ encStack S) t ∧ Decodes t (cw ap .unit S) := by
-  cases S with
-  | nil => exact contract_err wUnit_empty
-  | cons a s =>
-    cases wUnit_push (encItem a) (encStack s) with
-    | intro j0 h =>
-      cases h with
-      | intro j1 h =>
-        have ha := DecItem.of_steps (steps_thunk1 _ j0) (encItem_dec a)
-        have hs := DecStack.of_steps (steps_thunk2 (encItem a) _ j1) (encStack_dec s)
-        exact contract_val h
-          (DecStack.of_steps (unitC_push _ _)
-            (dec_push (DecItem.of_steps (unitQ_quot _) (dec_quot (dec_qunit ha))) hs))
+    ∃ t, Eval (phi .unit ⬝ encStack S) t ∧ Decodes t (cw ap .unit S) :=
+  leafD_unit ap S (encStack_dec S)
 
 -- ---------------------------------------------------------------------------
 -- cons   ( b [r] — [b r] )
@@ -220,46 +259,43 @@ theorem consR_qcons (f0 f1 : Term) :
     Steps (consR ⬝ f0 ⬝ f1) (Scott.QCons ⬝ f1 ⬝ (K ⬝ f0 ⬝ f1)) :=
   iter_sound (k := 3) rfl
 
-theorem wQcons_empty : Steps (Scott.wQcons ⬝ Scott.Empty) Scott.RErr := iter_sound (k := 5) rfl
+theorem wQcons_stages (s : Term) : ∃ c0 c1,
+    Steps (Scott.wQcons ⬝ s) (s ⬝ c0 ⬝ c1) ∧ Steps c0 Scott.RErr ∧
+    ∀ f g, ∃ e0 e1, Steps (c1 ⬝ f ⬝ g) (f ⬝ e0 ⬝ e1) ∧ (∀ n, Steps (e0 ⬝ n) Scott.RErr) ∧
+      ∀ x, ∃ d0 d1, Steps (e1 ⬝ x) (g ⬝ d0 ⬝ d1) ∧ Steps d0 Scott.RErr ∧
+        ∀ f2 g2, Steps (d1 ⬝ f2 ⬝ g2) (Scott.RVal ⬝ (consC ⬝ x ⬝ f2 ⬝ g2)) :=
+  ⟨_, _, iter_sound (k := 3) rfl, iter_sound (k := 1) rfl, fun _ _ =>
+    ⟨_, _, iter_sound (k := 10) rfl, fun _ => iter_sound (k := 2) rfl, fun _ =>
+      ⟨_, _, iter_sound (k := 10) rfl, iter_sound (k := 1) rfl, fun _ _ =>
+        iter_sound (k := 7) rfl⟩⟩⟩
 
-theorem wQcons_num (n y : Term) :
-    Steps (Scott.wQcons ⬝ (Scott.Push ⬝ (Scott.Num ⬝ n) ⬝ y)) Scott.RErr :=
-  iter_sound (k := 44) rfl
-
-theorem wQcons_one (r : Term) :
-    Steps (Scott.wQcons ⬝ (Scott.Push ⬝ (Scott.Quot ⬝ r) ⬝ Scott.Empty)) Scott.RErr :=
-  iter_sound (k := 54) rfl
-
-theorem wQcons_two (r x2 y2 : Term) : ∃ j0 j1 j2,
-    Steps (Scott.wQcons ⬝ (Scott.Push ⬝ (Scott.Quot ⬝ r) ⬝ (Scott.Push ⬝ x2 ⬝ y2)))
-      (Scott.RVal ⬝ (consC ⬝ (K ⬝ r ⬝ j0) ⬝ (K ⬝ x2 ⬝ j1) ⬝ (K ⬝ K ⬝ x2 ⬝ y2 ⬝ j2))) :=
-  ⟨_, _, _, iter_sound (k := 78) rfl⟩
+theorem leafD_cons (ap : Quotation → Stack → Outcome) (S : Stack) {s : Term}
+    (hs : DecStack s S) : Contract (phi .cons ⬝ s) (cw ap .cons S) := by
+  cases wQcons_stages s with | intro c0 h => cases h with | intro c1 h =>
+  cases S with
+  | nil => exact stack_err hs h.1 h.2.1
+  | cons a t =>
+    cases stack_push hs h.1 with | intro f h1 => cases h1 with | intro g h1 =>
+    cases h.2.2 f g with | intro e0 h2 => cases h2 with | intro e1 h2 =>
+    cases a with
+    | num n => exact item_num_err h1.2.1 (h1.1.trans h2.1) h2.2.1
+    | quot q =>
+      cases item_quot h1.2.1 (h1.1.trans h2.1) with | intro x h3 =>
+      cases h2.2.2 x with | intro d0 h4 => cases h4 with | intro d1 h4 =>
+      cases t with
+      | nil => exact stack_err h1.2.2 (h3.1.trans h4.1) h4.2.1
+      | cons b u =>
+        cases stack_push h1.2.2 (h3.1.trans h4.1) with | intro f2 h5 =>
+        cases h5 with | intro g2 h5 =>
+        have hr := DecQuot.of_steps (consR_qcons _ _)
+          (dec_qcons h5.2.1 (DecQuot.of_steps (steps_thunk1 _ _) h3.2))
+        exact contract_val (h5.1.trans (h4.2.2 f2 g2))
+          (DecStack.of_steps (consC_push _ _ _)
+            (dec_push (DecItem.of_steps (consQ_quot _ _) (dec_quot hr)) h5.2.2))
 
 theorem leaf_cons (ap : Quotation → Stack → Outcome) (S : Stack) :
-    ∃ t, Eval (phi .cons ⬝ encStack S) t ∧ Decodes t (cw ap .cons S) := by
-  cases S with
-  | nil => exact contract_err wQcons_empty
-  | cons a t =>
-    cases a with
-    | num n => exact contract_err (wQcons_num _ _)
-    | quot q =>
-      cases t with
-      | nil => exact contract_err (wQcons_one _)
-      | cons b u =>
-        cases wQcons_two (encQuot q) (encItem b) (encStack u) with
-        | intro j0 h =>
-          cases h with
-          | intro j1 h =>
-            cases h with
-            | intro j2 h =>
-              have hq := DecQuot.of_steps (steps_thunk1 _ j0) (encQuot_dec q)
-              have hb := DecItem.of_steps (steps_thunk1 _ j1) (encItem_dec b)
-              have hu := DecStack.of_steps (steps_thunk2 (encItem b) _ j2) (encStack_dec u)
-              have hr := DecQuot.of_steps (consR_qcons _ _)
-                (dec_qcons hb (DecQuot.of_steps (steps_thunk1 _ _) hq))
-              exact contract_val h
-                (DecStack.of_steps (consC_push _ _ _)
-                  (dec_push (DecItem.of_steps (consQ_quot _ _) (dec_quot hr)) hu))
+    ∃ t, Eval (phi .cons ⬝ encStack S) t ∧ Decodes t (cw ap .cons S) :=
+  leafD_cons ap S (encStack_dec S)
 
 -- ---------------------------------------------------------------------------
 -- cat   ( [l] [r] — [[l] i r] )
@@ -295,98 +331,74 @@ theorem catThen_qthen (f0 f2 : Term) :
     Steps (catThen ⬝ f0 ⬝ f2) (Scott.QThen ⬝ f0) :=
   iter_sound (k := 3) rfl
 
-theorem wCat_empty : Steps (Scott.wCat ⬝ Scott.Empty) Scott.RErr := iter_sound (k := 5) rfl
+theorem wCat_stages (s : Term) : ∃ c0 c1,
+    Steps (Scott.wCat ⬝ s) (s ⬝ c0 ⬝ c1) ∧ Steps c0 Scott.RErr ∧
+    ∀ f g, ∃ e0 e1, Steps (c1 ⬝ f ⬝ g) (f ⬝ e0 ⬝ e1) ∧ (∀ n, Steps (e0 ⬝ n) Scott.RErr) ∧
+      ∀ x, ∃ d0 d1, Steps (e1 ⬝ x) (g ⬝ d0 ⬝ d1) ∧ Steps d0 Scott.RErr ∧
+        ∀ f2 g2, ∃ e0' e1', Steps (d1 ⬝ f2 ⬝ g2) (f2 ⬝ e0' ⬝ e1') ∧
+          (∀ n, Steps (e0' ⬝ n) Scott.RErr) ∧
+          ∀ y, Steps (e1' ⬝ y) (Scott.RVal ⬝ (catC ⬝ x ⬝ g2 ⬝ y)) :=
+  ⟨_, _, iter_sound (k := 3) rfl, iter_sound (k := 1) rfl, fun _ _ =>
+    ⟨_, _, iter_sound (k := 10) rfl, fun _ => iter_sound (k := 2) rfl, fun _ =>
+      ⟨_, _, iter_sound (k := 10) rfl, iter_sound (k := 1) rfl, fun _ _ =>
+        ⟨_, _, iter_sound (k := 12) rfl, fun _ => iter_sound (k := 2) rfl, fun _ =>
+          iter_sound (k := 9) rfl⟩⟩⟩⟩
 
-theorem wCat_num (n y : Term) :
-    Steps (Scott.wCat ⬝ (Scott.Push ⬝ (Scott.Num ⬝ n) ⬝ y)) Scott.RErr :=
-  iter_sound (k := 44) rfl
-
-theorem wCat_one (r : Term) :
-    Steps (Scott.wCat ⬝ (Scott.Push ⬝ (Scott.Quot ⬝ r) ⬝ Scott.Empty)) Scott.RErr :=
-  iter_sound (k := 54) rfl
-
-theorem wCat_quot_num (r m y2 : Term) :
-    Steps (Scott.wCat ⬝ (Scott.Push ⬝ (Scott.Quot ⬝ r) ⬝ (Scott.Push ⬝ (Scott.Num ⬝ m) ⬝ y2)))
-      Scott.RErr :=
-  iter_sound (k := 95) rfl
-
-theorem wCat_two (r l y2 : Term) : ∃ j0 j1 j2,
-    Steps (Scott.wCat ⬝ (Scott.Push ⬝ (Scott.Quot ⬝ r) ⬝ (Scott.Push ⬝ (Scott.Quot ⬝ l) ⬝ y2)))
-      (Scott.RVal ⬝ (catC ⬝ (K ⬝ r ⬝ j0) ⬝ (K ⬝ K ⬝ (Scott.Quot ⬝ l) ⬝ y2 ⬝ j1) ⬝ (K ⬝ l ⬝ j2))) :=
-  ⟨_, _, _, iter_sound (k := 100) rfl⟩
+theorem leafD_cat (ap : Quotation → Stack → Outcome) (S : Stack) {s : Term}
+    (hs : DecStack s S) : Contract (phi .cat ⬝ s) (cw ap .cat S) := by
+  cases wCat_stages s with | intro c0 h => cases h with | intro c1 h =>
+  cases S with
+  | nil => exact stack_err hs h.1 h.2.1
+  | cons a t =>
+    cases stack_push hs h.1 with | intro f h1 => cases h1 with | intro g h1 =>
+    cases h.2.2 f g with | intro e0 h2 => cases h2 with | intro e1 h2 =>
+    cases a with
+    | num n => exact item_num_err h1.2.1 (h1.1.trans h2.1) h2.2.1
+    | quot r =>
+      cases item_quot h1.2.1 (h1.1.trans h2.1) with | intro x h3 =>
+      cases h2.2.2 x with | intro d0 h4 => cases h4 with | intro d1 h4 =>
+      cases t with
+      | nil => exact stack_err h1.2.2 (h3.1.trans h4.1) h4.2.1
+      | cons b u =>
+        cases stack_push h1.2.2 (h3.1.trans h4.1) with | intro f2 h5 =>
+        cases h5 with | intro g2 h5 =>
+        cases h4.2.2 f2 g2 with | intro e0' h6 => cases h6 with | intro e1' h6 =>
+        cases b with
+        | num m => exact item_num_err h5.2.1 (h5.1.trans h6.1) h6.2.1
+        | quot l =>
+          cases item_quot h5.2.1 (h5.1.trans h6.1) with | intro y h7 =>
+          have hq := DecQuot.of_steps (catR_qcons _ _)
+            (dec_qcons (dec_quot h7.2) (DecQuot.of_steps (catThen_qthen _ _) (dec_qthen h3.2)))
+          exact contract_val (h7.1.trans (h6.2.2 y))
+            (DecStack.of_steps (catC_push _ _ _)
+              (dec_push (DecItem.of_steps (catQ_quot _ _) (dec_quot hq))
+                (DecStack.of_steps (steps_thunk2 _ _ _) h5.2.2)))
 
 theorem leaf_cat (ap : Quotation → Stack → Outcome) (S : Stack) :
-    ∃ t, Eval (phi .cat ⬝ encStack S) t ∧ Decodes t (cw ap .cat S) := by
-  cases S with
-  | nil => exact contract_err wCat_empty
-  | cons a t =>
-    cases a with
-    | num n => exact contract_err (wCat_num _ _)
-    | quot r =>
-      cases t with
-      | nil => exact contract_err (wCat_one _)
-      | cons b u =>
-        cases b with
-        | num m => exact contract_err (wCat_quot_num _ _ _)
-        | quot l =>
-          cases wCat_two (encQuot r) (encQuot l) (encStack u) with
-          | intro j0 h =>
-            cases h with
-            | intro j1 h =>
-              cases h with
-              | intro j2 h =>
-                have hr := DecQuot.of_steps (steps_thunk1 _ j0) (encQuot_dec r)
-                have hu := DecStack.of_steps (steps_thunk2 (Scott.Quot ⬝ encQuot l) _ j1) (encStack_dec u)
-                have hl := DecQuot.of_steps (steps_thunk1 _ j2) (encQuot_dec l)
-                have hq := DecQuot.of_steps (catR_qcons _ _)
-                  (dec_qcons (dec_quot hl) (DecQuot.of_steps (catThen_qthen _ _) (dec_qthen hr)))
-                exact contract_val h
-                  (DecStack.of_steps (catC_push _ _ _)
-                    (dec_push (DecItem.of_steps (catQ_quot _ _) (dec_quot hq))
-                      (DecStack.of_steps (steps_thunk2 _ _ _) hu)))
+    ∃ t, Eval (phi .cat ⬝ encStack S) t ∧ Decodes t (cw ap .cat S) :=
+  leafD_cat ap S (encStack_dec S)
 
 -- ---------------------------------------------------------------------------
--- dip   ( b [r] — r b )   with `ap` running `r`
+-- dip   ( b [r] — r b )   with `apT` running `r`
 --
--- `wDip` runs until the quotation eliminator is at the head, applied to
--- thunks of `r` and `u` and to three continuations.  What `ap` does there
--- is known only through `Decodes`, which is why that relation probes at
--- every continuation: `dip`'s own continuations are the ones it is probed
--- at.  The core lemma is pointwise in `(r, u)`, so it applies to an `ap`
--- that diverges elsewhere; `leaf_dip` is its corollary for a total model.
+-- `wDip` runs until `apT` is at the head, applied to the quotation, the
+-- rest of the stack and three continuations.  What `apT` does there is
+-- known only through `Decodes`, which probes at every continuation, and
+-- `dip`'s own continuations are the ones it is probed at.
 -- ---------------------------------------------------------------------------
 
-/-- `λ b u v. RVal (Push b v)`. -/
-def dipV : Term := S ⬝ (K ⬝ K) ⬝ (S ⬝ (K ⬝ (S ⬝ (K ⬝ Scott.RVal))) ⬝ Scott.Push)
-
-/-- The value continuation `wDip` hands `ap`, applied to its result stack. -/
-theorem dipK_val (a1 a2 a3 a4 v : Term) :
-    Steps (K ⬝ (K ⬝ dipV) ⬝ a1 ⬝ a2 ⬝ a3 ⬝ a4 ⬝ v) (Scott.RVal ⬝ (Scott.Push ⬝ a3 ⬝ v)) :=
-  iter_sound (k := 9) rfl
-
-/-- The error continuation `wDip` hands `ap`. -/
-theorem dipK_err (a1 a2 a3 a4 : Term) :
-    Steps (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K)))) ⬝ a1 ⬝ a2 ⬝ a3 ⬝ a4) Scott.RErr :=
-  iter_sound (k := 4) rfl
-
-theorem wDip_empty (apT : Term) : Steps (Scott.wDip ⬝ apT ⬝ Scott.Empty) Scott.RErr :=
-  iter_sound (k := 7) rfl
-
-theorem wDip_num (apT n y : Term) :
-    Steps (Scott.wDip ⬝ apT ⬝ (Scott.Push ⬝ (Scott.Num ⬝ n) ⬝ y)) Scott.RErr :=
-  iter_sound (k := 50) rfl
-
-theorem wDip_one (apT r : Term) :
-    Steps (Scott.wDip ⬝ apT ⬝ (Scott.Push ⬝ (Scott.Quot ⬝ r) ⬝ Scott.Empty)) Scott.RErr :=
-  iter_sound (k := 64) rfl
-
-theorem wDip_two (apT r x2 y2 : Term) : ∃ j0 j1 j2 a1 a2 a4 e1 e2 e3 e4 k2,
-    Steps (Scott.wDip ⬝ apT ⬝ (Scott.Push ⬝ (Scott.Quot ⬝ r) ⬝ (Scott.Push ⬝ x2 ⬝ y2)))
-      (apT ⬝ (K ⬝ r ⬝ j0) ⬝ (K ⬝ K ⬝ x2 ⬝ y2 ⬝ j1)
-        ⬝ (K ⬝ (K ⬝ dipV) ⬝ a1 ⬝ a2 ⬝ (K ⬝ x2 ⬝ j2) ⬝ a4)
-        ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K)))) ⬝ e1 ⬝ e2 ⬝ e3 ⬝ e4)
-        ⬝ k2) :=
-  ⟨_, _, _, _, _, _, _, _, _, _, _, iter_sound (k := 133) rfl⟩
+theorem wDip_stages (apT s : Term) : ∃ c0 c1,
+    Steps (Scott.wDip ⬝ apT ⬝ s) (s ⬝ c0 ⬝ c1) ∧ Steps c0 Scott.RErr ∧
+    ∀ f g, ∃ e0 e1, Steps (c1 ⬝ f ⬝ g) (f ⬝ e0 ⬝ e1) ∧ (∀ n, Steps (e0 ⬝ n) Scott.RErr) ∧
+      ∀ x, ∃ d0 d1, Steps (e1 ⬝ x) (g ⬝ d0 ⬝ d1) ∧ Steps d0 Scott.RErr ∧
+        ∀ f2 g2, ∃ k0 k1 k2, Steps (d1 ⬝ f2 ⬝ g2) (apT ⬝ x ⬝ g2 ⬝ k0 ⬝ k1 ⬝ k2) ∧
+          (∀ v, Steps (k0 ⬝ v) (Scott.RVal ⬝ (Scott.Push ⬝ f2 ⬝ v))) ∧
+          Steps k1 Scott.RErr :=
+  ⟨_, _, iter_sound (k := 5) rfl, iter_sound (k := 1) rfl, fun _ _ =>
+    ⟨_, _, iter_sound (k := 14) rfl, fun _ => iter_sound (k := 2) rfl, fun _ =>
+      ⟨_, _, iter_sound (k := 14) rfl, iter_sound (k := 1) rfl, fun _ _ =>
+        ⟨_, _, _, iter_sound (k := 52) rfl, fun _ => iter_sound (k := 9) rfl,
+          iter_sound (k := 4) rfl⟩⟩⟩⟩
 
 /-- `dip`'s outcome once `ap r u` has returned `o`. -/
 def dipOut (b : Item) : Outcome → Outcome
@@ -398,39 +410,125 @@ theorem cw_dip (ap : Quotation → Stack → Outcome) (r : Quotation) (b : Item)
   simp only [cw]
   cases ap r u <;> rfl
 
-theorem leaf_dip_run (apT : Term) (r : Quotation) (b : Item) (u : Stack) (o : Outcome)
+/-- `dip` on a well-shaped stack, assuming `apT` only at the `(r, u)` it
+    supplies.  `dip` needs `ap`'s result only up to `Decodes`. -/
+theorem leafD_dip_run (apT : Term) (r : Quotation) (b : Item) (u : Stack) (o : Outcome)
+    {s : Term} (hs : DecStack s (.quot r :: b :: u))
     (hap : ∀ fr fu, DecQuot fr r → DecStack fu u → Decodes (apT ⬝ fr ⬝ fu) o) :
-    ∃ t, Eval (phi .dip ⬝ apT ⬝ encStack (.quot r :: b :: u)) t ∧ Decodes t (dipOut b o) := by
-  cases wDip_two apT (encQuot r) (encItem b) (encStack u) with
-  | intro j0 h => cases h with | intro j1 h => cases h with | intro j2 h =>
-  cases h with | intro a1 h => cases h with | intro a2 h => cases h with | intro a4 h =>
-  cases h with | intro e1 h => cases h with | intro e2 h => cases h with | intro e3 h =>
-  cases h with | intro e4 h => cases h with | intro k2 h =>
-    have hr := DecQuot.of_steps (steps_thunk1 _ j0) (encQuot_dec r)
-    have hu := DecStack.of_steps (steps_thunk2 (encItem b) _ j1) (encStack_dec u)
-    have hb := DecItem.of_steps (steps_thunk1 _ j2) (encItem_dec b)
-    have ho := hap _ _ hr hu
-    cases o with
-    | val v =>
-      cases ho (K ⬝ (K ⬝ dipV) ⬝ a1 ⬝ a2 ⬝ (K ⬝ encItem b ⬝ j2) ⬝ a4)
-          (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K)))) ⬝ e1 ⬝ e2 ⬝ e3 ⬝ e4) k2 with
-      | intro f hf =>
-        exact contract_val (h.trans (hf.1.trans (dipK_val _ _ _ _ _))) (dec_push hb hf.2)
-    | err =>
-      exact contract_err (h.trans ((ho _ _ k2).trans (dipK_err _ _ _ _)))
+    Contract (phi .dip ⬝ apT ⬝ s) (dipOut b o) := by
+  cases wDip_stages apT s with | intro c0 h => cases h with | intro c1 h =>
+  cases stack_push hs h.1 with | intro f h1 => cases h1 with | intro g h1 =>
+  cases h.2.2 f g with | intro e0 h2 => cases h2 with | intro e1 h2 =>
+  cases item_quot h1.2.1 (h1.1.trans h2.1) with | intro x h3 =>
+  cases h2.2.2 x with | intro d0 h4 => cases h4 with | intro d1 h4 =>
+  cases stack_push h1.2.2 (h3.1.trans h4.1) with | intro f2 h5 => cases h5 with | intro g2 h5 =>
+  cases h4.2.2 f2 g2 with | intro k0 h6 => cases h6 with | intro k1 h6 =>
+  cases h6 with | intro k2 h6 =>
+  have run := h5.1.trans h6.1
+  have ho := hap x g2 h3.2 h5.2.2
+  cases o with
+  | val v =>
+    cases ho k0 k1 k2 with
+    | intro fv hv =>
+      exact contract_val (run.trans (hv.1.trans (h6.2.1 fv))) (dec_push h5.2.1 hv.2)
+  | err => exact contract_err (run.trans ((ho k0 k1 k2).trans h6.2.2))
 
-theorem leaf_dip (apT : Term) (ap : Quotation → Stack → Outcome)
-    (hap : ∀ r u fr fu, DecQuot fr r → DecStack fu u → Decodes (apT ⬝ fr ⬝ fu) (ap r u))
-    (S : Stack) :
-    ∃ t, Eval (phi .dip ⬝ apT ⬝ encStack S) t ∧ Decodes t (cw ap .dip S) := by
+theorem leafD_dip (apT : Term) (ap : Quotation → Stack → Outcome) (hap : ApSound apT ap)
+    (S : Stack) {s : Term} (hs : DecStack s S) :
+    Contract (phi .dip ⬝ apT ⬝ s) (cw ap .dip S) := by
+  cases wDip_stages apT s with | intro c0 h => cases h with | intro c1 h =>
   cases S with
-  | nil => exact contract_err (wDip_empty apT)
+  | nil => exact stack_err hs h.1 h.2.1
   | cons a t =>
+    cases stack_push hs h.1 with | intro f h1 => cases h1 with | intro g h1 =>
+    cases h.2.2 f g with | intro e0 h2 => cases h2 with | intro e1 h2 =>
     cases a with
-    | num n => exact contract_err (wDip_num _ _ _)
+    | num n => exact item_num_err h1.2.1 (h1.1.trans h2.1) h2.2.1
     | quot r =>
+      cases item_quot h1.2.1 (h1.1.trans h2.1) with | intro x h3 =>
+      cases h2.2.2 x with | intro d0 h4 => cases h4 with | intro d1 h4 =>
       cases t with
-      | nil => exact contract_err (wDip_one _ _)
+      | nil => exact stack_err h1.2.2 (h3.1.trans h4.1) h4.2.1
       | cons b u =>
         rw [cw_dip]
-        exact leaf_dip_run apT r b u (ap r u) (hap r u)
+        exact leafD_dip_run apT r b u (ap r u) hs fun fr fu hr hu =>
+          match hap r u fr fu hr hu with
+          | ⟨_, he, hd⟩ => Decodes.of_steps he.1 hd
+
+theorem leaf_dip (apT : Term) (ap : Quotation → Stack → Outcome) (hap : ApSound apT ap)
+    (S : Stack) :
+    ∃ t, Eval (phi .dip ⬝ apT ⬝ encStack S) t ∧ Decodes t (cw ap .dip S) :=
+  leafD_dip apT ap hap S (encStack_dec S)
+
+-- ---------------------------------------------------------------------------
+-- i   ( [r] — r )   with `apT` running `r`
+-- ---------------------------------------------------------------------------
+
+theorem wDo_stages (apT s : Term) : ∃ c0 c1,
+    Steps (Scott.wDo ⬝ apT ⬝ s) (s ⬝ c0 ⬝ c1) ∧ Steps c0 Scott.RErr ∧
+    ∀ f g, ∃ e0 e1, Steps (c1 ⬝ f ⬝ g) (f ⬝ e0 ⬝ e1) ∧ (∀ n, Steps (e0 ⬝ n) Scott.RErr) ∧
+      ∀ x, Steps (e1 ⬝ x) (apT ⬝ x ⬝ (K ⬝ K ⬝ apT ⬝ g ⬝ x)) :=
+  ⟨_, _, iter_sound (k := 5) rfl, iter_sound (k := 1) rfl, fun _ _ =>
+    ⟨_, _, iter_sound (k := 14) rfl, fun _ => iter_sound (k := 2) rfl, fun _ =>
+      iter_sound (k := 11) rfl⟩⟩
+
+theorem leafD_i_run (apT : Term) (r : Quotation) (t : Stack) (o : Outcome)
+    {s : Term} (hs : DecStack s (.quot r :: t))
+    (hap : ∀ fr fu, DecQuot fr r → DecStack fu t → Contract (apT ⬝ fr ⬝ fu) o) :
+    Contract (phi .i ⬝ apT ⬝ s) o := by
+  cases wDo_stages apT s with | intro c0 h => cases h with | intro c1 h =>
+  cases stack_push hs h.1 with | intro f h1 => cases h1 with | intro g h1 =>
+  cases h.2.2 f g with | intro e0 h2 => cases h2 with | intro e1 h2 =>
+  cases item_quot h1.2.1 (h1.1.trans h2.1) with | intro x h3 =>
+  exact Contract.of_steps (h3.1.trans (h2.2.2 x))
+    (hap x _ h3.2 (DecStack.of_steps (steps_thunk2 _ _ _) h1.2.2))
+
+theorem leafD_i (apT : Term) (ap : Quotation → Stack → Outcome) (hap : ApSound apT ap)
+    (S : Stack) {s : Term} (hs : DecStack s S) :
+    Contract (phi .i ⬝ apT ⬝ s) (cw ap .i S) := by
+  cases wDo_stages apT s with | intro c0 h => cases h with | intro c1 h =>
+  cases S with
+  | nil => exact stack_err hs h.1 h.2.1
+  | cons a t =>
+    cases stack_push hs h.1 with | intro f h1 => cases h1 with | intro g h1 =>
+    cases h.2.2 f g with | intro e0 h2 => cases h2 with | intro e1 h2 =>
+    cases a with
+    | num n => exact item_num_err h1.2.1 (h1.1.trans h2.1) h2.2.1
+    | quot r => exact leafD_i_run apT r t (ap r t) hs (hap r t)
+
+theorem leaf_i (apT : Term) (ap : Quotation → Stack → Outcome) (hap : ApSound apT ap)
+    (S : Stack) :
+    ∃ t, Eval (phi .i ⬝ apT ⬝ encStack S) t ∧ Decodes t (cw ap .i S) :=
+  leafD_i apT ap hap S (encStack_dec S)
+
+-- ---------------------------------------------------------------------------
+-- lit n   ( — n )   and   quote q   ( — [q] )
+-- ---------------------------------------------------------------------------
+
+/-- `λ n s. Push (Num n) s`. -/
+def litC : Term := S ⬝ (K ⬝ Scott.Push) ⬝ Scott.Num
+
+/-- `λ q s. Push (Quot q) s`. -/
+def quoteC : Term := S ⬝ (K ⬝ Scott.Push) ⬝ Scott.Quot
+
+theorem litC_push (n s : Term) : Steps (litC ⬝ n ⬝ s) (Scott.Push ⬝ (Scott.Num ⬝ n) ⬝ s) :=
+  iter_sound (k := 2) rfl
+
+theorem quoteC_push (q s : Term) : Steps (quoteC ⬝ q ⬝ s) (Scott.Push ⬝ (Scott.Quot ⬝ q) ⬝ s) :=
+  iter_sound (k := 2) rfl
+
+theorem wLit_run (n s : Term) : Steps (Scott.wLit ⬝ n ⬝ s) (Scott.RVal ⬝ (litC ⬝ n ⬝ s)) :=
+  iter_sound (k := 4) rfl
+
+theorem wQuote_run (q s : Term) : Steps (Scott.wQuote ⬝ q ⬝ s) (Scott.RVal ⬝ (quoteC ⬝ q ⬝ s)) :=
+  iter_sound (k := 4) rfl
+
+theorem leafD_lit (ap : Quotation → Stack → Outcome) (n : Nat) (S : Stack) {s : Term}
+    (hs : DecStack s S) : Contract (phi (.lit n) ⬝ s) (cw ap (.lit n) S) :=
+  contract_val (wLit_run _ _)
+    (DecStack.of_steps (litC_push _ _) (dec_push (dec_num (encNat_dec n)) hs))
+
+theorem leafD_quote (ap : Quotation → Stack → Outcome) (q : Quotation) (S : Stack) {s : Term}
+    (hs : DecStack s S) : Contract (phi (.quote q) ⬝ s) (cw ap (.quote q) S) :=
+  contract_val (wQuote_run _ _)
+    (DecStack.of_steps (quoteC_push _ _) (dec_push (dec_quot (encQuot_dec q)) hs))
