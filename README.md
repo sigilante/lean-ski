@@ -46,8 +46,11 @@ both its forms.
 | `Ski/Basic.lean` | `Term`, `Whnf`, `Step` (one congruence rule, `left`), `Step.det`, `progress`, `Steps`, `Eval`, `Eval.deterministic`, `Diverges` |
 | `Ski/Fuel.lean` | `step?`, `iter`, `evalF`, `runF`; `step?_iff`, `evalF_sound`, `evalF_complete`, `evalF_mono`, `diverges_iff_fuel` |
 | `Ski/Trace.lean` | `certified` (a verifier's check of a trace), `certified_sound`, `certified_complete`, `traceF` and `traceF_certified` |
-| `Ski/Scott.lean` | generated: the constructors of `nat`, `item`, `stack`, `result` as compiled, with `*_elim` lemmas by `iter_sound rfl` |
-| `Ski/Corpus.lean` | generated: SKIlark programs in both forms with the reference counts |
+| `Ski/Scott.lean` | generated: the constructors of `nat`, `item`, `stack`, `quot`, `result` as compiled, with `*_elim` lemmas by `iter_sound rfl`, and the twelve compiled kernel words |
+| `Ski/Words.lean` | `Item`, `Quotation`, `Stack` and their encodings; `Word` and `phi`; the C model `cw`, with the quotation eliminator as a parameter |
+| `Ski/Decode.lean` | the decode relations (probing at every continuation), backward closure, constructor lemmas, `enc*_dec`, and `*.functional` |
+| `Ski/Leaf.lean` | leaf contracts for the Class A words: `leaf_pop`, `leaf_dup`, `leaf_swap`, `leaf_unit`, `leaf_cons`, `leaf_cat`, `leaf_dip` |
+| `Ski/Corpus.lean` | generated: SKIlark programs in both forms with the reference counts, and a canonicity test per word |
 | `Ski/Audit.lean` | the manifest and the `#audit_clean` command |
 | `scripts/emit.py` | regenerates `Scott.lean` and `Corpus.lean` from `skijack` (needs the SKIlark venv); gate 3 checks the committed files match |
 
