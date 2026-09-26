@@ -65,7 +65,7 @@ open Ski.Audit
 
 -- Canonicity: the pasted word terms against the corpus compilation
 #audit_clean canon_wDup canon_wSwap canon_wPop canon_wDip canon_wDo canon_wIfz
-  canon_wLit canon_wQuote canon_wAdd
+  canon_wLit canon_wQuote canon_wAdd canon_add canon_seq canon_idW
   canon_wQcons_differs canon_wCat_differs canon_wUnit_differs
 
 -- The decode relation: backward closure, constructors, encodings, functionality
@@ -91,3 +91,6 @@ open Ski.Audit
   wDo_stages leafD_i_run leafD_i leaf_i
   litC_push quoteC_push wLit_run wQuote_run leafD_lit leafD_quote
 #audit_clean item_quot_err item_num nat_zero nat_succ wIfz_stages leafD_ifz leaf_ifz
+-- Class C: the compiled add, by fixpoint induction, and its word
+#audit_clean add_self addB_unfold addSelf_step addF_stages addSelf_dec add_dec
+  addC_push addN_num addT_tail wAdd_stages leafD_add leaf_add

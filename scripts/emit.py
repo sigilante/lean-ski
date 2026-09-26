@@ -40,6 +40,10 @@ e = skijack.compile(joy.compiled({"p": "1 2 + dup +"}))
 #: the compiled kernel words, in Joy's order
 WORDS = ["wDup", "wSwap", "wPop", "wQcons", "wCat", "wUnit", "wDip", "wDo",
          "wIfz", "wLit", "wQuote", "wAdd"]
+
+#: the kernel's helpers the proofs name: numeral addition (inlined into
+#: wAdd) and composition
+HELPERS = ["add", "seq", "idW"]
 types = {name: decl for name, decl in e.types.items()}
 
 # ---------------------------------------------------------------- Scott.lean
@@ -78,6 +82,9 @@ lines += ["-- The kernel words, compiled (skilark.joy.COMPILED_KERNEL).  `wDip`,
           "-- quotations; these are the terms for a program with none.", ""]
 for w in WORDS:
     lines.append(f"def {w} : Term := {lean(e.terms[w])}")
+lines += ["", "-- The kernel's helpers: `add` (inlined into `wAdd`) and composition.", ""]
+for w in HELPERS:
+    lines.append(f"def {w} : Term := {lean(e.terms[w])}")
 lines.append("")
 lines.append("end Scott")
 (OUT / "Scott.lean").write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -114,10 +121,10 @@ lines.append("def corpus : List Row := [")
 lines.append(",\n".join(f'  ⟨"{name}", "{src}", {name}, {steps}⟩' for name, _, steps, src in rows))
 lines.append("]")
 lines += ["", "-- canonicity: the pasted word terms against the corpus compilation", ""]
-for w in WORDS:
+for w in WORDS + HELPERS:
     lines.append(f"def corpus_{w} : Term := {lean(c.terms[w])}")
 lines.append("")
-for w in WORDS:
+for w in WORDS + HELPERS:
     if e.terms[w] == c.terms[w]:
         lines.append(f"theorem canon_{w} : Scott.{w} = corpus_{w} := rfl")
     else:

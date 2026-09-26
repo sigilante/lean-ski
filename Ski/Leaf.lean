@@ -627,3 +627,129 @@ theorem leaf_ifz (apT : Term) (ap : Quotation → Stack → Outcome) (hap : ApSo
     (S : Stack) :
     ∃ t, Eval (phi .ifz ⬝ apT ⬝ encStack S) t ∧ Decodes t (cw ap .ifz S) :=
   leafD_ifz apT ap hap S (encStack_dec S)
+
+-- ---------------------------------------------------------------------------
+-- add   ( n m — m+n )   Class C: the compiled `add` recurses on its numeral
+--
+-- `Scott.add` is `Y ⬝ addF` for the fixpoint combinator
+-- `Y = S (K (S I I)) (S (S (K S) K) (K (S I I)))`.  Unrolling never returns
+-- to a syntactically equal term: each round wraps the self-application in
+-- one more `I`, and normal order does not reduce arguments.  So the loop
+-- invariant is semantic: `addSelf z` behaves as `add` whenever `z` reduces
+-- to `addB`, and `I ⬝ z` reduces to `addB` again (`addSelf_step`).
+-- `add_dec` is then an induction on the second numeral.
+-- ---------------------------------------------------------------------------
+
+/-- `λ self m n. n |> { Zero m; Suc k (Suc (self m k)) }`, compiled. -/
+def addF : Term :=
+  S ⬝ (K ⬝ (S ⬝ (S ⬝ (K ⬝ S) ⬝ (S ⬝ (K ⬝ (S ⬝ I)) ⬝ K))))
+    ⬝ (S ⬝ (K ⬝ (S ⬝ (K ⬝ K))) ⬝ (S ⬝ (K ⬝ (S ⬝ (K ⬝ Scott.Suc)))))
+
+/-- The fixpoint's self-application, `λ x. addF (x x)`. -/
+def addB : Term := S ⬝ (S ⬝ (K ⬝ S) ⬝ K) ⬝ (K ⬝ (S ⬝ I ⬝ I)) ⬝ addF
+
+/-- A self-reference of `add`, as the unrolling produces it. -/
+def addSelf (z : Term) : Term := K ⬝ (S ⬝ I ⬝ I) ⬝ addF ⬝ z
+
+theorem add_self (m n : Term) : Steps (Scott.add ⬝ m ⬝ n) (addSelf addB ⬝ m ⬝ n) :=
+  iter_sound (k := 1) rfl
+
+theorem addB_unfold (y : Term) : Steps (addB ⬝ y) (addF ⬝ addSelf y) :=
+  iter_sound (k := 5) rfl
+
+theorem addSelf_step {z : Term} (hz : Steps z addB) (m n : Term) :
+    Steps (addSelf z ⬝ m ⬝ n) (addF ⬝ addSelf (I ⬝ z) ⬝ m ⬝ n) :=
+  (iter_sound (k := 3) rfl : Steps (addSelf z ⬝ m ⬝ n) (z ⬝ (I ⬝ z) ⬝ m ⬝ n)).trans
+    ((Steps.app2 m n (Steps.left (I ⬝ z) hz)).trans (Steps.app2 m n (addB_unfold _)))
+
+theorem addF_stages (R fm fn : Term) : ∃ c1,
+    Steps (addF ⬝ R ⬝ fm ⬝ fn) (fn ⬝ (K ⬝ fm ⬝ fn) ⬝ c1) ∧
+    ∀ f1, Steps (c1 ⬝ f1) (Scott.Suc ⬝ (R ⬝ fm ⬝ f1)) :=
+  ⟨_, iter_sound (k := 10) rfl, fun _ => iter_sound (k := 9) rfl⟩
+
+theorem addSelf_dec (n : Nat) : ∀ {z fm fn : Term} {m : Nat}, Steps z addB →
+    DecNat fm m → DecNat fn n → DecNat (addSelf z ⬝ fm ⬝ fn) (m + n) := by
+  induction n with
+  | zero =>
+    intro z fm fn m hz hm hn
+    cases addF_stages (addSelf (I ⬝ z)) fm fn with
+    | intro c1 h =>
+      exact DecNat.of_steps
+        ((addSelf_step hz fm fn).trans ((nat_zero hn h.1).trans (steps_thunk1 fm fn))) hm
+  | succ n ih =>
+    intro z fm fn m hz hm hn
+    cases addF_stages (addSelf (I ⬝ z)) fm fn with
+    | intro c1 h =>
+      cases nat_succ hn ((addSelf_step hz fm fn).trans h.1) with
+      | intro f1 h1 =>
+        show DecNat _ ((m + n) + 1)
+        exact DecNat.of_steps (h1.1.trans (h.2 f1))
+          (dec_suc (ih (Steps.step (.I z) hz) hm h1.2))
+
+/-- **The compiled `add` adds.**  Class C's leaf lemma. -/
+theorem add_dec {fm fn : Term} {m n : Nat} (hm : DecNat fm m) (hn : DecNat fn n) :
+    DecNat (Scott.add ⬝ fm ⬝ fn) (m + n) :=
+  DecNat.of_steps (add_self fm fn) (addSelf_dec n (.refl _) hm hn)
+
+/-- `λ m n. Num (add m n)`. -/
+def addN : Term := S ⬝ (K ⬝ (S ⬝ (K ⬝ Scott.Num))) ⬝ Scott.add
+
+/-- `λ u m n. u`. -/
+def addT : Term := S ⬝ (K ⬝ K) ⬝ K
+
+/-- `λ u m n. Push (Num (add m n)) u`. -/
+def addC : Term :=
+  S ⬝ (K ⬝ (S ⬝ (S ⬝ (K ⬝ S) ⬝ (S ⬝ (K ⬝ (S ⬝ (K ⬝ Scott.Push))) ⬝ addN)))) ⬝ addT
+
+theorem addC_push (u m n : Term) :
+    Steps (addC ⬝ u ⬝ m ⬝ n) (Scott.Push ⬝ (addN ⬝ m ⬝ n) ⬝ (addT ⬝ u ⬝ m ⬝ n)) :=
+  iter_sound (k := 10) rfl
+
+theorem addN_num (m n : Term) : Steps (addN ⬝ m ⬝ n) (Scott.Num ⬝ (Scott.add ⬝ m ⬝ n)) :=
+  iter_sound (k := 4) rfl
+
+theorem addT_tail (u m n : Term) : Steps (addT ⬝ u ⬝ m ⬝ n) u :=
+  iter_sound (k := 4) rfl
+
+theorem wAdd_stages (s : Term) : ∃ c0 c1,
+    Steps (Scott.wAdd ⬝ s) (s ⬝ c0 ⬝ c1) ∧ Steps c0 Scott.RErr ∧
+    ∀ f g, ∃ d0 d1, Steps (c1 ⬝ f ⬝ g) (g ⬝ d0 ⬝ d1) ∧ Steps d0 Scott.RErr ∧
+    ∀ f2 g2, ∃ e0 e1, Steps (d1 ⬝ f2 ⬝ g2) (f ⬝ e0 ⬝ e1) ∧ (∀ q, Steps (e1 ⬝ q) Scott.RErr) ∧
+    ∀ m, ∃ e2 e3, Steps (e0 ⬝ m) (f2 ⬝ e2 ⬝ e3) ∧ (∀ q, Steps (e3 ⬝ q) Scott.RErr) ∧
+    ∀ n, Steps (e2 ⬝ n) (Scott.RVal ⬝ (addC ⬝ g2 ⬝ m ⬝ n)) :=
+  ⟨_, _, iter_sound (k := 3) rfl, iter_sound (k := 1) rfl, fun _ _ =>
+    ⟨_, _, iter_sound (k := 6) rfl, iter_sound (k := 1) rfl, fun _ _ =>
+    ⟨_, _, iter_sound (k := 23) rfl, fun _ => iter_sound (k := 4) rfl, fun _ =>
+    ⟨_, _, iter_sound (k := 21) rfl, fun _ => iter_sound (k := 4) rfl, fun _ =>
+      iter_sound (k := 7) rfl⟩⟩⟩⟩
+
+theorem leafD_add (ap : Quotation → Stack → Outcome) (S : Stack) {s : Term}
+    (hs : DecStack s S) : Contract (phi .add ⬝ s) (cw ap .add S) := by
+  cases wAdd_stages s with | intro c0 h => cases h with | intro c1 h =>
+  cases S with
+  | nil => exact stack_err hs h.1 h.2.1
+  | cons a t =>
+  cases stack_push hs h.1 with | intro f h1 => cases h1 with | intro g h1 =>
+  cases h.2.2 f g with | intro d0 h2 => cases h2 with | intro d1 h2 =>
+  cases t with
+  | nil => cases a <;> exact stack_err h1.2.2 (h1.1.trans h2.1) h2.2.1
+  | cons b u =>
+  cases stack_push h1.2.2 (h1.1.trans h2.1) with | intro f2 h3 => cases h3 with | intro g2 h3 =>
+  cases h2.2.2 f2 g2 with | intro e0 h4 => cases h4 with | intro e1 h4 =>
+  cases a with
+  | quot q => exact item_quot_err h1.2.1 (h3.1.trans h4.1) h4.2.1
+  | num m =>
+  cases item_num h1.2.1 (h3.1.trans h4.1) with | intro x h5 =>
+  cases h4.2.2 x with | intro e0' h6 => cases h6 with | intro e1' h6 =>
+  cases b with
+  | quot q => exact item_quot_err h3.2.1 (h5.1.trans h6.1) h6.2.1
+  | num n =>
+  cases item_num h3.2.1 (h5.1.trans h6.1) with | intro y h7 =>
+  exact contract_val (h7.1.trans (h6.2.2 y))
+    (DecStack.of_steps (addC_push _ _ _)
+      (dec_push (DecItem.of_steps (addN_num _ _) (dec_num (add_dec h5.2 h7.2)))
+        (DecStack.of_steps (addT_tail _ _ _) h3.2.2)))
+
+theorem leaf_add (ap : Quotation → Stack → Outcome) (S : Stack) :
+    ∃ t, Eval (phi .add ⬝ encStack S) t ∧ Decodes t (cw ap .add S) :=
+  leafD_add ap S (encStack_dec S)
