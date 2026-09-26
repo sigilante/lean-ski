@@ -223,17 +223,26 @@ constructor's fields.
   must reach each recursive call only up to internal reduction, and no
   argument was found that the contraction count then falls strictly at
   every call, which the converse's induction needs.
-- **G2. λ-terms and abstraction.** A Lean syntax of λ-terms over `S`,
-  `K`, `I`, globals and named variables; `abs` implementing exactly the
-  four rules; and `abs_beta : abs x M ⬝ N →w* M[N/x]`, which G1 turns into
-  a head-reduction fact up to weak reduction of the result.
+- **G2. λ-terms and abstraction — built** (`Ski/Abs.lean`). The source
+  syntax is `OTerm` (G1b): `S`, `K`, `I` and variables for the formals,
+  with globals entering as closed terms, as `skijack` expands them before
+  abstracting. `abs` is `bracket_abstract` rule for rule, tested in the
+  same order. `abs_beta : abs x M ⬝ N →w* M[N/x]`; `abs_beta_head` is the
+  same as head steps followed by internal parallel steps (G1's split);
+  `absN_beta` is β for all the formals at once, for closed arguments,
+  through `abs_subst` (abstraction commutes with substituting a closed
+  term for another variable). Fidelity: for every Scott constructor of
+  every table, a generated `*_abs` theorem checks by `rfl` that `absN` of
+  its source `λ fields conts. k_j fields` is the term `skijack` emitted
+  (21 constructors across `Ski/Scott.lean` and `Ski/Table.lean`), and the
+  generator first checks the same with aviary's own abstraction.
 - **G3. The kernel's source as a function of the table.** The `n + 3`
   constructors of `quot`, `applyU`'s case with `n + 3` arms, `wQcons`,
   `wCat`, `wUnit` and each body `b_k`, written as λ-terms after
   `COMPILED_KERNEL`, and `kitOf : Table → Kit` compiling them with `abs`.
-  First check the constructor encoding and case lowering against
-  `skijack`'s source; any further optimizer rule found there enters `abs`
-  before G4 starts.
+  The constructor encoding is already confirmed (G2's `*_abs` tests);
+  case lowering and the compilation of the λs it introduces must be
+  checked against `skijack`'s source the same way before G4 starts.
 - **G4. The laws, generically.** `KitElim` becomes β-reduction of a Scott
   constructor, one lemma for every arity and position. `KitWords` and
   `KitApply` fix today's runs to exact skeleton terms (`consC`, `catC`)

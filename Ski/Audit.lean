@@ -4,6 +4,7 @@ import Ski.Fuel
 import Ski.Trace
 import Ski.Weak
 import Ski.Open
+import Ski.Abs
 import Ski.Scott
 import Ski.Words
 import Ski.Decode
@@ -96,6 +97,13 @@ open Ski.Audit
   WStep.toO WSteps.toO OWStep.occ Fresh.of_owsteps
   OPar.refl OWStep.par OPar.wsteps OParI.par opar_split oparI_step opar_step opar_steps
   owsteps_split OParIs.var0 OParIs.var1 OParIs.var2 owsteps_var0 owsteps_var1 owsteps_var2
+
+-- Bracket abstraction (G2): skijack's four rules, β, and fidelity to skijack's terms
+#audit_clean mem_var mem_app OTerm.mem_of_occ OTerm.not_occ mem_toO single_self single_ne
+  subst_var subst_single_of_not_mem abs_var abs_app abs_of_not_mem abs_beta abs_beta_head
+  mem_subst_single subst_eq_var_iff abs_subst absN_subst OWSteps.appL absN_beta
+  Scott.Zero_abs Scott.Suc_abs Scott.Num_abs Scott.Quot_abs Scott.Empty_abs Scott.Push_abs Scott.QCons_abs Scott.QUnit_abs Scott.QThen_abs Scott.RVal_abs Scott.RErr_abs Scott.RTime_abs
+  CorpusTable.Q1_abs CorpusTable.Q2_abs CorpusTable.QCons_abs CorpusTable.QUnit_abs CorpusTable.QThen_abs LoopTable.Q1_abs LoopTable.QCons_abs LoopTable.QUnit_abs LoopTable.QThen_abs
 
 -- The decode relation: probing at fresh variables; substitution, closure under backward
 -- weak reduction (G1b), the closed probes, constructors, encodings, functionality
