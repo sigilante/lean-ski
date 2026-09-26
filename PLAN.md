@@ -3,8 +3,8 @@
 > **Status (2026-09-25).** L0 and L1 built and audited: the calculus, the
 > fuel interpreter, trace certificates, the compiled Scott constructors,
 > and conformance against `skijack` on six SKIlark programs. §2 items 1–6
-> are built for the kernel without static quotations, item 6 in the forward
-> direction; the rest is a plan. Where this document and the build differ, the build
+> are built for the kernel without static quotations, with the divergence
+> biconditional; the rest is a plan. Where this document and the build differ, the build
 > is authoritative.
 
 *The end of this program is a zero-knowledge proof of correct SKI execution
@@ -90,9 +90,13 @@ hypotheses.
 `apply_sound` proves the compiled `applyU` realizes `ApplyRel`, its
 big-step semantics, by induction on the derivation over every
 self-reference of the fixpoint; `composition_apply` extends `composition`
-to programs that run quotations. This is the forward direction. The
-converse, and with it `composition_diverges`, needs the backward
-simulation `lean-nock` does by strong induction on fuel, and is open.
+to programs that run quotations. `composition_complete` is the converse,
+by strong induction on the contraction count, since `QThen` runs a
+quotation that is no part of the one being run; `composition_diverges`
+follows: a compiled program diverges exactly when the relational C model
+derives no outcome. Whether a program without static quotations can
+diverge at all is open; with static quotation bodies, which admit Joy's
+`y`, the biconditional covers real loops.
 
 Every theorem above is in the audit manifest with footprint
 `{propext, Quot.sound}` or narrower.
