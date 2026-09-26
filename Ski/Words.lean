@@ -78,3 +78,46 @@ def phi : Word → Term
   | .lit n => Scott.wLit ⬝ encNat n
   | .quote q => Scott.wQuote ⬝ encQuot q
   | .add => Scott.wAdd
+
+/-!
+## The C model
+
+`cw ap w S` is the outcome of word `w` on stack `S`, transcribed from the
+equations of `skilark.joy.COMPILED_KERNEL`.  It is `lean-nock`'s `cw`,
+with one change: the higher-order words `dip`, `i` and `ifz` run a
+quotation, and a quotation can loop (`[dup cons] dup cons i`), so no total
+function computes them.  The model takes the quotation's meaning as the
+parameter `ap`, as the compiled terms take the eliminator `ap`, and is
+total in every word.
+
+Divergence is therefore not an outcome.  `Outcome` has `val` and `err`,
+the compiled kernel's `RVal` and `RErr`; a run that never returns has no
+outcome, and the relation that runs quotations (§2.6 of `PLAN.md`, where
+`ap` is realized) is where its absence shows up as the absence of a
+derivation, exactly as `CEval` in `lean-nock` leaves an infinite `while`
+underivable.  `RTime` is the fuelled `apply`'s timeout; no word produces
+it on its own, and it decodes to no outcome.
+-/
+
+inductive Outcome
+  | val (s : Stack)
+  | err
+
+def cw (ap : Quotation → Stack → Outcome) : Word → Stack → Outcome
+  | .dup, a :: t => .val (a :: a :: t)
+  | .swap, a :: b :: u => .val (b :: a :: u)
+  | .pop, _ :: t => .val t
+  | .cons, .quot r :: b :: u => .val (.quot (.cons b r) :: u)
+  | .cat, .quot r :: .quot l :: u => .val (.quot (.cons (.quot l) (.then r)) :: u)
+  | .unit, a :: t => .val (.quot (.unit a) :: t)
+  | .dip, .quot r :: b :: u =>
+    match ap r u with
+    | .val v => .val (b :: v)
+    | .err => .err
+  | .i, .quot r :: t => ap r t
+  | .ifz, .quot _ :: .quot z :: .num 0 :: v => ap z v
+  | .ifz, .quot sc :: .quot _ :: .num (m + 1) :: v => ap sc (.num m :: v)
+  | .lit n, s => .val (.num n :: s)
+  | .quote q, s => .val (.quot q :: s)
+  | .add, .num m :: .num n :: u => .val (.num (m + n) :: u)
+  | _, _ => .err
