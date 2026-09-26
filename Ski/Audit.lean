@@ -74,6 +74,7 @@ open Ski.Audit
   par_split parI_step par_step par_steps standardization
   ParIs.wsteps wsteps_split ParI.whnf ParIs.whnf eval_back diverges_of_wsteps
   par_dev Pars.trans WSteps.pars Pars.wsteps par_strip pars_confluent church_rosser
+  par_step_le Par.whnf
 
 -- The Scott constructors, as compiled
 #audit_clean Scott.Zero_elim Scott.Suc_elim Scott.Num_elim Scott.Quot_elim
@@ -103,6 +104,9 @@ open Ski.Audit
 #audit_clean mem_var mem_app OTerm.mem_of_occ OTerm.not_occ mem_toO single_self single_ne
   subst_var subst_single_of_not_mem abs_var abs_app abs_of_not_mem abs_beta abs_beta_head
   mem_subst_single subst_eq_var_iff abs_subst absN_subst OWSteps.appL absN_beta
+  OWStep.subst OWSteps.subst OWStep.close OWSteps.close close_agree occ_abs single_var
+  abs_beta_subst absN_beta_subst WSteps.appT appT_append close_appL abs_beta_close
+  absN_beta_close updC_self overrideC_self overrideC_append
   Scott.Zero_abs Scott.Suc_abs Scott.Num_abs Scott.Quot_abs Scott.Empty_abs Scott.Push_abs Scott.QCons_abs Scott.QUnit_abs Scott.QThen_abs Scott.RVal_abs Scott.RErr_abs Scott.RTime_abs
   CorpusTable.Q1_abs CorpusTable.Q2_abs CorpusTable.QCons_abs CorpusTable.QUnit_abs CorpusTable.QThen_abs LoopTable.Q1_abs LoopTable.QCons_abs LoopTable.QUnit_abs LoopTable.QThen_abs
 

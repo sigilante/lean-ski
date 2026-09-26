@@ -390,3 +390,67 @@ theorem church_rosser {t u v : Term} (hu : WSteps t u) (hv : WSteps t v) :
     ∃ w, WSteps u w ∧ WSteps v w := by
   cases pars_confluent hu.pars hv.pars with
   | intro w hw => exact ⟨w, hw.1.wsteps, hw.2.wsteps⟩
+
+-- ---------------------------------------------------------------------------
+-- Parallel reduction does not lengthen the run to a normal form
+-- ---------------------------------------------------------------------------
+
+/-- A head step and a parallel step from one term: the parallel reduct
+    takes at most one head step to a parallel reduct of the head step's
+    result. -/
+theorem par_step_le {t t1 u : Term} (hs : Step t t1) (hp : Par t u) :
+    ∃ u1, (u1 = u ∨ Step u u1) ∧ Par t1 u1 := by
+  induction hs generalizing u with
+  | S f g x =>
+    cases hp with
+    | app h1 hx =>
+      cases h1 with
+      | app h2 hg =>
+        cases h2 with
+        | app h3 hf =>
+          cases h3
+          exact ⟨_, .inr (.S _ _ _), .app (.app hf hx) (.app hg hx)⟩
+    | S3 hf hg hx => exact ⟨_, .inl rfl, .app (.app hf hx) (.app hg hx)⟩
+  | K x y =>
+    cases hp with
+    | app h1 _ =>
+      cases h1 with
+      | app h2 hx =>
+        cases h2
+        exact ⟨_, .inr (.K _ _), hx⟩
+    | K2 _ hx => exact ⟨_, .inl rfl, hx⟩
+  | I x =>
+    cases hp with
+    | app h1 hx =>
+      cases h1
+      exact ⟨_, .inr (.I _), hx⟩
+    | I1 hx => exact ⟨_, .inl rfl, hx⟩
+  | left x h ih =>
+    cases hp with
+    | app hf hx =>
+      cases ih hf with
+      | intro f1 hf1 =>
+        cases hf1.1 with
+        | inl e => exact ⟨_, .inl (by rw [e]), .app hf1.2 hx⟩
+        | inr s => exact ⟨_, .inr (.left _ s), .app hf1.2 hx⟩
+    | K2 _ _ => exact (Whnf.no_step (.K1 _) h).elim
+    | I1 _ => exact (Whnf.no_step .I h).elim
+    | S3 _ _ _ => exact (Whnf.no_step (.S2 _ _) h).elim
+
+/-- A parallel reduct of a weak head normal form is one. -/
+theorem Par.whnf {t u : Term} (hp : Par t u) (hw : Whnf t) : Whnf u := by
+  cases hw with
+  | S => cases hp; exact .S
+  | K => cases hp; exact .K
+  | I => cases hp; exact .I
+  | S1 x =>
+    cases hp with
+    | app h1 _ => cases h1; exact .S1 _
+  | S2 x y =>
+    cases hp with
+    | app h1 _ =>
+      cases h1 with
+      | app h2 _ => cases h2; exact .S2 _ _
+  | K1 x =>
+    cases hp with
+    | app h1 _ => cases h1; exact .K1 _

@@ -299,3 +299,215 @@ theorem absN_beta : ∀ (xs : List Nat) (Ns : List Term) (M : OTerm),
       (absN_beta xs Ns _ hd.2 (Nat.succ.inj hl))
   | [], _ :: _, _, _, hl => by cases hl
   | _ :: _, [], _, _, hl => by cases hl
+
+-- ---------------------------------------------------------------------------
+-- β under any substitution, for any arguments
+-- ---------------------------------------------------------------------------
+
+theorem OWStep.subst (τ : Nat → OTerm) {t u : OTerm} (h : OWStep t u) :
+    OWStep (t.subst τ) (u.subst τ) := by
+  induction h with
+  | S f g x => exact .S _ _ _
+  | K x y => exact .K _ _
+  | I x => exact .I _
+  | left x _ ih => exact .left _ ih
+  | right f _ ih => exact .right _ ih
+
+theorem OWSteps.subst (τ : Nat → OTerm) {t u : OTerm} (h : OWSteps t u) :
+    OWSteps (t.subst τ) (u.subst τ) := by
+  induction h with
+  | refl t => exact .refl _
+  | step h _ ih => exact .step (h.subst τ) ih
+
+theorem OWStep.close (σ : Nat → Term) {t u : OTerm} (h : OWStep t u) :
+    WStep (t.close σ) (u.close σ) := by
+  induction h with
+  | S f g x => exact .S _ _ _
+  | K x y => exact .K _ _
+  | I x => exact .I _
+  | left x _ ih => exact .left _ ih
+  | right f _ ih => exact .right _ ih
+
+theorem OWSteps.close (σ : Nat → Term) {t u : OTerm} (h : OWSteps t u) :
+    WSteps (t.close σ) (u.close σ) := by
+  induction h with
+  | refl t => exact .refl _
+  | step h _ ih => exact .step (h.close σ) ih
+
+theorem close_agree {σ₁ σ₂ : Nat → Term} :
+    ∀ {t : OTerm}, (∀ i, Occ i t → σ₁ i = σ₂ i) → t.close σ₁ = t.close σ₂
+  | .S, _ => rfl
+  | .K, _ => rfl
+  | .I, _ => rfl
+  | .var i, h => h i (.var i)
+  | .app f x, h => by
+    show Term.app (f.close σ₁) (x.close σ₁) = Term.app (f.close σ₂) (x.close σ₂)
+    rw [close_agree (fun i hi => h i (.left x hi)), close_agree (fun i hi => h i (.right f hi))]
+
+/-- `[x] t` has no variable `t` lacks, and not `x`. -/
+theorem occ_abs {x y : Nat} : ∀ {t : OTerm}, Occ y (abs x t) → Occ y t ∧ y ≠ x
+  | .S, h => by
+    have h' : Occ y (.K ⬝ₒ .S) := h
+    cases h' with
+    | left _ h1 => cases h1
+    | right _ h1 => cases h1
+  | .K, h => by
+    have h' : Occ y (.K ⬝ₒ .K) := h
+    cases h' with
+    | left _ h1 => cases h1
+    | right _ h1 => cases h1
+  | .I, h => by
+    have h' : Occ y (.K ⬝ₒ .I) := h
+    cases h' with
+    | left _ h1 => cases h1
+    | right _ h1 => cases h1
+  | .var z, h => by
+    rw [abs_var] at h
+    by_cases hz : z = x
+    · rw [if_pos hz] at h
+      cases h
+    · rw [if_neg hz] at h
+      cases h with
+      | left _ h1 => cases h1
+      | right _ h1 =>
+        cases h1
+        exact ⟨.var y, hz⟩
+  | .app e f, h => by
+    rw [abs_app] at h
+    by_cases hm : (OTerm.app e f).mem x = false
+    · rw [if_pos hm] at h
+      cases h with
+      | left _ h1 => cases h1
+      | right _ h1 =>
+        exact ⟨h1, fun e' => by subst e'; rw [OTerm.mem_of_occ h1] at hm; cases hm⟩
+    · rw [if_neg hm] at h
+      by_cases he : f = .var x ∧ e.mem x = false
+      · rw [if_pos he] at h
+        exact ⟨.left f h, fun e' => by subst e'; rw [OTerm.mem_of_occ h] at he; cases he.2⟩
+      · rw [if_neg he] at h
+        cases h with
+        | left _ h1 =>
+          cases h1 with
+          | left _ h2 => cases h2
+          | right _ h2 =>
+            have r := occ_abs h2
+            exact ⟨.left f r.1, r.2⟩
+        | right _ h1 =>
+          have r := occ_abs h1
+          exact ⟨.right e r.1, r.2⟩
+
+/-- `ρ` with `N` for `x`. -/
+def upd (ρ : Nat → OTerm) (x : Nat) (N : OTerm) : Nat → OTerm :=
+  fun y => if y = x then N else ρ y
+
+/-- `ρ` with the arguments for the formals, first to last; a later formal
+    of the same name wins, as it does under abstraction. -/
+def override : (Nat → OTerm) → List Nat → List OTerm → Nat → OTerm
+  | ρ, x :: xs, N :: Ns => override (upd ρ x N) xs Ns
+  | ρ, _, _ => ρ
+
+theorem single_var (x : Nat) : single x (.var x) = OTerm.var :=
+  funext fun y => by
+    by_cases h : y = x
+    · rw [single, if_pos h, h]
+    · rw [single, if_neg h]
+
+/-- β for one formal under a substitution: nothing is captured, because
+    `[x] A` has no variables but `A`'s other than `x`. -/
+theorem abs_beta_subst (x : Nat) (A : OTerm) (ρ : Nat → OTerm) (N : OTerm) :
+    OWSteps ((abs x A).subst ρ ⬝ₒ N) (A.subst (upd ρ x N)) := by
+  have h0 := (abs_beta x (.var x) A).subst (upd ρ x N)
+  rw [single_var, subst_var] at h0
+  have e1 : (abs x A).subst (upd ρ x N) = (abs x A).subst ρ :=
+    subst_agree fun i hi => if_neg (occ_abs hi).2
+  have e2 : (OTerm.var x).subst (upd ρ x N) = N := if_pos rfl
+  have h1 : OWSteps ((abs x A).subst (upd ρ x N) ⬝ₒ (OTerm.var x).subst (upd ρ x N))
+      (A.subst (upd ρ x N)) := h0
+  rw [e1, e2] at h1
+  exact h1
+
+/-- **β for all the formals, under any substitution, for any arguments.**
+    `([x1] … [xn] M)[ρ]` applied to `N1 … Nn` weakly reduces to `M` with
+    `Ni` for `xi` and `ρ` for the rest. -/
+theorem absN_beta_subst : ∀ (xs : List Nat) (M : OTerm) (ρ : Nat → OTerm) (Ns : List OTerm),
+    Ns.length = xs.length → OWSteps (appL ((absN xs M).subst ρ) Ns) (M.subst (override ρ xs Ns))
+  | [], _, _, [], _ => .refl _
+  | x :: xs, M, ρ, N :: Ns, hl =>
+    (OWSteps.appL (abs_beta_subst x (absN xs M) ρ N) Ns).trans
+      (absN_beta_subst xs M (upd ρ x N) Ns (Nat.succ.inj hl))
+  | [], _, _, _ :: _, hl => by cases hl
+  | _ :: _, _, _, [], hl => by cases hl
+
+-- ---------------------------------------------------------------------------
+-- The same for closed terms
+-- ---------------------------------------------------------------------------
+
+/-- `t` applied to a list of closed arguments. -/
+def appT : Term → List Term → Term
+  | t, [] => t
+  | t, a :: as => appT (t ⬝ a) as
+
+theorem WSteps.appT {t u : Term} (h : WSteps t u) : ∀ as, WSteps (appT t as) (appT u as)
+  | [] => h
+  | a :: as => WSteps.appT (WSteps.left a h) as
+
+theorem appT_append (t : Term) : ∀ as bs, appT t (as ++ bs) = appT (appT t as) bs
+  | [], _ => rfl
+  | a :: as, bs => appT_append (t ⬝ a) as bs
+
+theorem close_appL (σ : Nat → Term) : ∀ (t : OTerm) (as : List OTerm),
+    (appL t as).close σ = appT (t.close σ) (as.map (OTerm.close σ))
+  | _, [] => rfl
+  | t, a :: as => close_appL σ (t ⬝ₒ a) as
+
+/-- `γ` with `N` for `x`. -/
+def updC (γ : Nat → Term) (x : Nat) (N : Term) : Nat → Term :=
+  fun y => if y = x then N else γ y
+
+/-- `γ` with the arguments for the formals, first to last. -/
+def overrideC : (Nat → Term) → List Nat → List Term → Nat → Term
+  | γ, x :: xs, N :: Ns => overrideC (updC γ x N) xs Ns
+  | γ, _, _ => γ
+
+theorem abs_beta_close (x : Nat) (A : OTerm) (γ : Nat → Term) (N : Term) :
+    WSteps ((abs x A).close γ ⬝ N) (A.close (updC γ x N)) := by
+  have h0 := (abs_beta x (.var x) A).close (updC γ x N)
+  rw [single_var, subst_var] at h0
+  have e1 : (abs x A).close (updC γ x N) = (abs x A).close γ :=
+    close_agree fun i hi => if_neg (occ_abs hi).2
+  have e2 : (OTerm.var x).close (updC γ x N) = N := if_pos rfl
+  have h1 : WSteps ((abs x A).close (updC γ x N) ⬝ (OTerm.var x).close (updC γ x N))
+      (A.close (updC γ x N)) := h0
+  rw [e1, e2] at h1
+  exact h1
+
+/-- **β for all the formals, closed.** -/
+theorem absN_beta_close : ∀ (xs : List Nat) (M : OTerm) (γ : Nat → Term) (Ns : List Term),
+    Ns.length = xs.length → WSteps (appT ((absN xs M).close γ) Ns) (M.close (overrideC γ xs Ns))
+  | [], _, _, [], _ => .refl _
+  | x :: xs, M, γ, N :: Ns, hl =>
+    (WSteps.appT (abs_beta_close x (absN xs M) γ N) Ns).trans
+      (absN_beta_close xs M (updC γ x N) Ns (Nat.succ.inj hl))
+  | [], _, _, _ :: _, hl => by cases hl
+  | _ :: _, _, _, [], hl => by cases hl
+
+theorem updC_self (γ : Nat → Term) (x : Nat) : updC γ x (γ x) = γ :=
+  funext fun y => by
+    by_cases h : y = x
+    · rw [updC, if_pos h, h]
+    · rw [updC, if_neg h]
+
+/-- Overriding formals with their own values changes nothing. -/
+theorem overrideC_self : ∀ (γ : Nat → Term) (xs : List Nat), overrideC γ xs (xs.map γ) = γ
+  | _, [] => rfl
+  | γ, x :: xs => by
+    show overrideC (updC γ x (γ x)) xs (xs.map γ) = γ
+    rw [updC_self]
+    exact overrideC_self γ xs
+
+theorem overrideC_append : ∀ (γ : Nat → Term) (xs ys : List Nat) (as bs : List Term),
+    as.length = xs.length → overrideC γ (xs ++ ys) (as ++ bs) = overrideC (overrideC γ xs as) ys bs
+  | _, [], _, [], _, _ => rfl
+  | γ, x :: xs, ys, a :: as, bs, hl => overrideC_append (updC γ x a) xs ys as bs (Nat.succ.inj hl)
+  | _, [], _, _ :: _, _, hl => by cases hl
+  | _, _ :: _, _, [], _, hl => by cases hl
