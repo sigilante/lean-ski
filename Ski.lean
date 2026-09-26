@@ -18,6 +18,7 @@ import Ski.Apply
 import Ski.Converse
 import Ski.Total
 import Ski.Programs
+import Ski.Simulation
 import Ski.Corpus
 import Ski.Table
 import Ski.Examples

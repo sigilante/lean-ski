@@ -11,6 +11,7 @@ import Ski.Source
 import Ski.Kernel
 import Ski.Laws
 import Ski.Programs
+import Ski.Simulation
 import Ski.Scott
 import Ski.Words
 import Ski.Decode
@@ -211,6 +212,15 @@ open Ski.Audit
   Table.ev_arms Table.applySrc_ev Table.armCons_beta Table.armUnit_beta Table.armThen_beta
   Table.kit_applyU_unfold Table.kit_applyF_stages Table.encItem_eq Table.encQuot_eq
   Table.ev_wordSrc Table.ev_bodySrc Table.kit_body_compiles Table.kit_apply
+
+-- The compiler simulates the source semantics: λ-lifted β, δ with Y for recursion, Scott
+-- case; the fixedness of each compiled source; `wPop` on a push, from the source
+#audit_clean Front.CSrc.occurs_resolve Front.CSrc.peel_resolve compLam_chain
+  All2.length All2.append All2.split All2.getD Tr.apps Tr.apps_inv Tr.override Tr.junk tr_inst
+  ycomb_step fixSelf_unroll getD_app_left getD_app_right map_getD_range overrideC_range
+  ctor_close_beta Tr.unroll simulation simulation_steps lookup_some_mem fixed_of_check
+  kernel_fixed corpus_fixed loop_fixed sum_fixed prog_wPop prog_Push prog_RVal genv_kernel
+  wPop_source wPop_push
 
 -- Every program over every table (G6): divergence invariant under weak reduction, and
 -- the forward theorem, the biconditional and agreement for the kernel's compilation

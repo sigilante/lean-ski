@@ -323,13 +323,32 @@ to every term `skijack` emitted for it: constructors, words, `applyU`,
 bodies, programs and corpus rows. `skijack` is now an untrusted second
 implementation, as its SPEC §0 describes.
 
+**The compiler simulates the source semantics — built**
+(`Ski/Simulation.lean`). The source gets its own operational semantics,
+`SStep`, on closed terms with closures, as λ-lifted code runs: β for a
+closure applied to all its parameters, δ for a global equation (a
+recursive one binds its self-parameter to itself), and Scott case (a
+constructor applied to its fields and one continuation per constructor
+selects its own), all under weak congruence. `Tr` relates a source term
+to its compiled forms; it is a relation because `Y` unrolls a recursive
+global to a self-reference that is not its compiled term but behaves as
+it does. `simulation`: if `c` steps to `c'` and `t` is a compiled form of
+`c`, then `t` weakly reduces to a compiled form of `c'`, for every
+program whose compiled globals are what the compiler gives
+(`Fixed`). `kernel_fixed`, `corpus_fixed`, `loop_fixed` and `sum_fixed`
+check that for the four compiled sources. `wPop_push` applies it: the
+source run of `wPop (Push x y)` gives `Scott.wPop ⬝ (Scott.Push ⬝ x ⬝ y)
+→w* Scott.RVal ⬝ y`. Not proved: the converse (every target run comes
+from a source run), and `cw` derived from the source equations, which
+this theorem now makes a matter of source-level reasoning.
+
 **What is still per table and per program.** Every theorem is stated for
 every valid table and every program. Three facts about each generated
 table or program are still checked one by one:
 - `skijack`'s terms equal the Lean compilation of the source, by the
   kernel (`front_agrees`, `table_*`, `c*_eq`). The Lean compiler is
-  checked against `skijack` on four compilations; it is not yet proved
-  to simulate the source's own semantics.
+  checked against `skijack` on four compilations, and proved to simulate
+  the source's semantics (below).
 - the table is valid (`table_valid`).
 - for an end-to-end example, the program's `Run` derivation (`cs_run`
   and the hand-written ones in `Ski/Examples.lean`).

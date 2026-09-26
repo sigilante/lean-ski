@@ -62,6 +62,7 @@ three corpus programs in both forms, and `3 sumto` compiled.
 | `Ski/Apply.lean` | `Run` (quotations, programs, words), `KitApply`, `run_sound`, `apply_sound`, `composition_apply` |
 | `Ski/Converse.lean` | counted reduction, not lengthened by weak reduction (`StepsN.wtail`); `apply_complete`, `composition_complete`, and the biconditionals `apply_diverges`, `composition_diverges` |
 | `Ski/Programs.lean` | every program over every valid table: `Table.program_apply`, `Table.program_diverges`, `Table.program_exact`, with `diverges_iff_of_wsteps` |
+| `Ski/Simulation.lean` | the source semantics (λ-lifted β, δ with `Y`, Scott case) and `simulation`: every source step is matched by weak SKI steps; `kernel_fixed` and siblings for the four sources; `wPop_push` |
 | `Ski/Total.lean` | over a table with no static quotations nothing diverges: `apply_total`, `program_converges` |
 | `Ski/Table.lean` | generated: the tables `NoQuot`, `CorpusTable`, `LoopTable` and `SumTable` (`3 sumto`) as data, checked by `rfl` against `skijack`'s terms (`table_*`) and valid (`table_valid`), their laws from `Ski/Laws.lean`; each program's term pinned to the kernel's compilation of its words (`c*_eq`), the corpus rows as those programs run, and `3 sumto`'s derivation (`cs_run`) |
 | `Ski/Examples.lean` | `1 2 + dup +`, `3 [dup +] i`, `1 2 over` end to end from `skijack`'s terms; `cloop_diverges`: the compiled `[dup i] dup i` diverges; `us_six`: `3 sumto`, through Joy's `y`, decodes to `[6]` |
