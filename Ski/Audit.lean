@@ -6,6 +6,8 @@ import Ski.Scott
 import Ski.Words
 import Ski.Decode
 import Ski.Leaf
+import Ski.Composition
+import Ski.Examples
 import Ski.Corpus
 
 /-!
@@ -94,3 +96,8 @@ open Ski.Audit
 -- Class C: the compiled add, by fixpoint induction, and its word
 #audit_clean add_self addB_unfold addSelf_step addF_stages addSelf_dec add_dec
   addC_push addN_num addT_tail wAdd_stages leafD_add leaf_add
+
+-- Composition: the word table, the two schemas, the theorem, and one program end to end
+#audit_clean leaf_correct idW_contract seq_stages seq_contract Csem_single
+  composition composition_agree composition_enc apErr_sound
+  compiled_cp_N up_six

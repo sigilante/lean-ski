@@ -5,5 +5,7 @@ import Ski.Scott
 import Ski.Words
 import Ski.Decode
 import Ski.Leaf
+import Ski.Composition
 import Ski.Corpus
+import Ski.Examples
 import Ski.Audit
