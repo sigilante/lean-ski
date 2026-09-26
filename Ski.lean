@@ -14,6 +14,7 @@ import Ski.Composition
 import Ski.Apply
 import Ski.Converse
 import Ski.Total
+import Ski.Programs
 import Ski.Corpus
 import Ski.Table
 import Ski.Examples

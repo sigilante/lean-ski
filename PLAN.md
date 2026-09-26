@@ -166,8 +166,8 @@ quotation table (G4, `Ski/Laws.lean`), so a program with a new static
 quotation needs only its table as data and the `rfl` checks that
 `skijack`'s terms are that kit's (G5). Before G4, a table's laws were
 about thirty facts the kernel checked by `iter_sound rfl` in a generated
-instance. G6 remains: the corpus extended with Joy's recursion
-combinators.
+instance. G6 states the headline theorems for every program over every
+valid table, and runs `3 sumto`, built on Joy's `y`, end to end.
 
 **What `skijack` does.** Read from `aviary_kernel/abstraction.py` and
 `skijack/expand.py`: bracket abstraction is Curry's four rules with eta,
@@ -280,9 +280,23 @@ constructor's fields.
   G4. The per-table laws are gone: `Ski/Table.lean` falls from 46 kB to
   41 kB, and what remains is `skijack`'s literal terms, the
   constructors' `*_abs` checks, and the programs' `c*_compiles`.
-- **G6. The payoff.** `composition_diverges` and `composition_exact` for
-  every program SKIlark's compiled form accepts, with no per-program
-  instance, including Joy's recursion combinators (`y`, `sumto`).
+- **G6. The payoff — built** (`Ski/Programs.lean`). A program compiles
+  as a static quotation's body does (`Table.progT`), and
+  `progT_wsteps` reduces `progT p ⬝ ap ⬝ s` weakly to `N ap p ⬝ s`, so no
+  program needs a `Compiles` proof. Divergence is invariant under weak
+  reduction (`diverges_iff_of_wsteps`, from `StepsN.wtail`). For every
+  valid table, every program valid over it and every stack term that
+  decodes: `Table.program_apply` (a `Run` derivation is realized),
+  `Table.program_diverges` (the compiled program diverges exactly when
+  `Run` derives nothing) and `Table.program_exact` (whatever it
+  normalizes to decodes to a derived outcome). The generator pins each
+  program's term to `progT` of its words by `rfl` (`c*_eq`), in place of
+  the per-program `c*_compiles` runs. `3 sumto` is a fourth table
+  (`SumTable`, five static quotations) and a corpus row, `sumto_us`, whose
+  10,297 contractions `lake exe main` checks against the reference
+  reducer. Its `Run` derivation is built on the host and checked by the
+  kernel (`cs_run`). `SumTable.us_six` proves the row reaches a weak head
+  normal form that decodes to `[6]`, and `us_exact` proves nothing else.
 
 **Rejected: characterizing the output.** One could read off the families
 `skijack` emits (constructor `k` of `m`, `applyU` with `n` arms) and prove
@@ -294,7 +308,17 @@ do not.
 **Acceptance.** The three classes at `tbl.kit` in the manifest (met, G4);
 `Ski/Table.lean` generated as data (met, G5); the corpus extended with a
 program using `y` (`3 sumto`) that runs end to end under the generic laws
-(G6, open).
+(met, G6: `SumTable.us_six`).
+
+**What is still per table and per program.** Every theorem is stated for
+every valid table and every program. Three facts about each generated
+table or program are still checked one by one:
+- `skijack`'s terms equal the kernel's compilation of the source, by
+  `rfl` (`table_*`, `c*_eq`). The model of `skijack/expand.py` is checked
+  against four compilations, not proved for its code.
+- the table is valid (`table_valid`).
+- for an end-to-end example, the program's `Run` derivation (`cs_run`
+  and the hand-written ones in `Ski/Examples.lean`).
 
 ## 4. Prior art, placed
 

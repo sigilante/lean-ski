@@ -292,8 +292,13 @@ def bodySrc : List Word → Src
   | [w] => tb.wordSrc w
   | w :: w' :: ws => .glob Scott.seq ⬝ₛ tb.wordSrc w ⬝ₛ bodySrc (w' :: ws)
 
+/-- A word list's compiled term, which takes the eliminator first:
+    `c ap = seq w1 (seq w2 … wm)`.  A program and a static quotation's body
+    compile alike. -/
+def progT (p : List Word) : Term := toTerm (compDef [0] (tb.bodySrc p))
+
 /-- The `k`-th static quotation's compiled term, `b_k`. -/
-def bodyT (k : Nat) : Term := toTerm (compDef [0] (tb.bodySrc (tb.body k)))
+def bodyT (k : Nat) : Term := tb.progT (tb.body k)
 
 /-- `applyU q s = q |> { Q_k (b_k applyU s)…; QCons x r (applyU r (Push x s));
     QUnit x (RVal (Push x s)); QThen b (seq (wDo applyU) (applyU b) s) }`,

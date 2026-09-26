@@ -7,6 +7,7 @@ import Ski.Open
 import Ski.Abs
 import Ski.Kernel
 import Ski.Laws
+import Ski.Programs
 import Ski.Scott
 import Ski.Words
 import Ski.Decode
@@ -111,6 +112,8 @@ open Ski.Audit
   absN_beta_close updC_self overrideC_self overrideC_append
   Scott.Zero_abs Scott.Suc_abs Scott.Num_abs Scott.Quot_abs Scott.Empty_abs Scott.Push_abs Scott.QCons_abs Scott.QUnit_abs Scott.QThen_abs Scott.RVal_abs Scott.RErr_abs Scott.RTime_abs
   CorpusTable.Q1_abs CorpusTable.Q2_abs CorpusTable.QCons_abs CorpusTable.QUnit_abs CorpusTable.QThen_abs LoopTable.Q1_abs LoopTable.QCons_abs LoopTable.QUnit_abs LoopTable.QThen_abs
+  SumTable.Q1_abs SumTable.Q2_abs SumTable.Q3_abs SumTable.Q4_abs SumTable.Q5_abs
+  SumTable.QCons_abs SumTable.QUnit_abs SumTable.QThen_abs
 
 -- The kernel's source, compiled (G3): skijack's compilation modeled, pinned to its terms
 #audit_clean wPop_compiles wDup_compiles wSwap_compiles wDip_compiles wDo_compiles wIfz_compiles
@@ -123,6 +126,10 @@ open Ski.Audit
   CorpusTable.table_bodyT0 CorpusTable.table_bodyT1 LoopTable.table_Qs0
   LoopTable.table_QCons LoopTable.table_QUnit LoopTable.table_QThen LoopTable.table_wQcons
   LoopTable.table_wCat LoopTable.table_wUnit LoopTable.table_applyU LoopTable.table_bodyT0
+  SumTable.table_Qs0 SumTable.table_Qs1 SumTable.table_Qs2 SumTable.table_Qs3 SumTable.table_Qs4
+  SumTable.table_QCons SumTable.table_QUnit SumTable.table_QThen SumTable.table_wQcons
+  SumTable.table_wCat SumTable.table_wUnit SumTable.table_applyU SumTable.table_bodyT0
+  SumTable.table_bodyT1 SumTable.table_bodyT2 SumTable.table_bodyT3 SumTable.table_bodyT4
 
 -- The decode relation: probing at fresh variables; substitution, closure under backward
 -- weak reduction (G1b), the closed probes, constructors, encodings, functionality
@@ -196,16 +203,24 @@ open Ski.Audit
   Table.kit_applyU_unfold Table.kit_applyF_stages Table.encItem_eq Table.encQuot_eq
   Table.ev_wordSrc Table.ev_bodySrc Table.kit_body_compiles Table.kit_apply
 
--- The quotation tables as data (G5): each valid, its laws the generic ones, and the
--- programs' compiled forms
-#audit_clean NoQuot.table_valid NoQuot.elim NoQuot.words NoQuot.apply NoQuot.cp_compiles
+-- Every program over every table (G6): divergence invariant under weak reduction, and
+-- the forward theorem, the biconditional and agreement for the kernel's compilation
+#audit_clean diverges_iff_of_wsteps Table.progT_wsteps Table.program_apply
+  Table.program_diverges Table.program_exact
+
+-- The quotation tables as data (G5): each valid, its laws the generic ones; each
+-- program's term the kernel's compilation of its words (G6)
+#audit_clean NoQuot.table_valid NoQuot.elim NoQuot.words NoQuot.apply NoQuot.cp_eq
   CorpusTable.table_valid CorpusTable.elim CorpusTable.words CorpusTable.apply
-  CorpusTable.cp_compiles CorpusTable.cq_compiles CorpusTable.cr_compiles
+  CorpusTable.cp_eq CorpusTable.cq_eq CorpusTable.cr_eq
   CorpusTable.compiled_up_eq CorpusTable.compiled_uq_eq CorpusTable.compiled_ur_eq
-  LoopTable.table_valid LoopTable.elim LoopTable.words LoopTable.apply LoopTable.cloop_compiles
+  LoopTable.table_valid LoopTable.elim LoopTable.words LoopTable.apply LoopTable.cloop_eq
+  SumTable.table_valid SumTable.elim SumTable.words SumTable.apply SumTable.cs_eq
+  SumTable.cs_run SumTable.sumto_us_eq
 
 -- End to end: the corpus programs, and a compiled program that diverges
 #audit_clean NoQuot.up_six NoQuot.quote_i NoQuot.cat_i
   CorpusTable.uq_six CorpusTable.ur_over
   CorpusTable.stat1_run CorpusTable.omega_loop CorpusTable.omega_no_run CorpusTable.omega_diverges
   LoopTable.loop_run LoopTable.loop_no_run LoopTable.cloop_diverges
+  SumTable.us_six SumTable.us_exact
