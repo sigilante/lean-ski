@@ -82,3 +82,8 @@ open Ski.Audit
 #audit_clean eval_rval dec_rvalW contract_val contract_err
   wPop_empty wPop_push leaf_pop
   dupD_push wDup_empty wDup_push leaf_dup
+#audit_clean swapC_push swapT_push wSwap_empty wSwap_one wSwap_two leaf_swap
+  unitC_push unitQ_quot wUnit_empty wUnit_push leaf_unit
+  consC_push consQ_quot consR_qcons wQcons_empty wQcons_num wQcons_one wQcons_two leaf_cons
+  catC_push catQ_quot catR_qcons catThen_qthen
+  wCat_empty wCat_num wCat_one wCat_quot_num wCat_two leaf_cat
