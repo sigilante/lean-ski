@@ -43,7 +43,7 @@ WORDS = ["wDup", "wSwap", "wPop", "wQcons", "wCat", "wUnit", "wDip", "wDo",
 
 #: the kernel's helpers the proofs name: numeral addition (inlined into
 #: wAdd) and composition
-HELPERS = ["add", "seq", "idW"]
+HELPERS = ["add", "seq", "idW", "applyU"]
 types = {name: decl for name, decl in e.types.items()}
 
 # ---------------------------------------------------------------- Scott.lean

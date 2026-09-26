@@ -7,6 +7,7 @@ import Ski.Words
 import Ski.Decode
 import Ski.Leaf
 import Ski.Composition
+import Ski.Apply
 import Ski.Examples
 import Ski.Corpus
 
@@ -67,7 +68,7 @@ open Ski.Audit
 
 -- Canonicity: the pasted word terms against the corpus compilation
 #audit_clean canon_wDup canon_wSwap canon_wPop canon_wDip canon_wDo canon_wIfz
-  canon_wLit canon_wQuote canon_wAdd canon_add canon_seq canon_idW
+  canon_wLit canon_wQuote canon_wAdd canon_add canon_seq canon_idW canon_applyU_differs
   canon_wQcons_differs canon_wCat_differs canon_wUnit_differs
 
 -- The decode relation: backward closure, constructors, encodings, functionality
@@ -101,3 +102,9 @@ open Ski.Audit
 #audit_clean leaf_correct idW_contract seq_stages seq_contract Csem_single
   composition composition_agree composition_enc apErr_sound
   compiled_cp_N up_six
+
+-- apply: the fixpoint, the relational semantics, and the compiled applyU
+#audit_clean fix_unfold fixB_unfold fixSelf_step fixSelf_inv apSoundR_empty
+  leafR_i leafR_dip leafR_ifz leafR composition_rel
+  applyU_unfold applyF_stages applySelf_sound apply_sound composition_apply ApplyRel.det
+  quote_i cat_i
