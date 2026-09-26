@@ -1,0 +1,22 @@
+-- Generation: an object type with a leaf outside the ISA, the Maybe
+-- shape (one outcome-shaped type is both outcome and result), a core
+-- with a parameter whose own leaf equation is passed it, a user-written
+-- `rb` that the generated one yields to, and a core that writes its own
+-- `step` and so gets only the loop.
+term === S | K | I | App term term | Hole
+maybe === Nothing | Just term
+
+rb h args = args h h
+
+wfP e := {
+  stepHole acc = Just e
+}
+
+wfS := {
+  step m = Nothing
+}
+
+-- an ordinary core is left alone
+plain := {
+  id x = x
+}

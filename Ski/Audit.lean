@@ -230,8 +230,9 @@ open Ski.Audit
   kernel_fixed corpus_fixed loop_fixed sum_fixed prog_wPop prog_Push prog_RVal genv_kernel
   wPop_source wPop_push
 
--- The front end's coverage of level 0 and macros: files in both lexicons agree with skijack term for
--- term and the simulation applies to them; programs skijack refuses are refused
+-- The front end's coverage of level 0, macros and generated forms: files in both lexicons
+-- agree with skijack term for term and the simulation applies to them; programs skijack
+-- refuses are refused
 #audit_clean coverage_agrees coverage_unicode_agrees coverage_fixed sec1Nat_agrees
   sec1Nat_unicode_agrees sec1Nat_fixed kernelEvents_agrees kernelEvents_unicode_agrees
   kernelEvents_fixed refuses_bare_number refuses_qualified_name refuses_unresolved_name
@@ -242,6 +243,14 @@ open Ski.Audit
   Front.lookup_cons_self Front.lookup_cons_ne Front.agreeEnv_cons
   macros_agrees macros_unicode_agrees macros_fixed refuses_macro_unapplied refuses_macro_too_few
   refuses_macro_capturing refuses_macro_no_fixpoint refuses_too_deep
+  generate_agrees generate_unicode_agrees generate_fixed sec2C_agrees sec2C_unicode_agrees
+  sec2C_fixed sec3Swap_agrees sec3Swap_unicode_agrees sec3Swap_fixed interpT3_agrees
+  interpT3_unicode_agrees interpT3_fixed interpWhnff_agrees interpWhnff_unicode_agrees
+  interpWhnff_fixed interpWhnffWritten_agrees interpWhnffWritten_unicode_agrees
+  interpWhnffWritten_fixed interpWhnffWrittenLoop_agrees interpWhnffWrittenLoop_unicode_agrees
+  interpWhnffWrittenLoop_fixed scryWfn_agrees scryWfn_unicode_agrees scryWfn_fixed
+  refuses_gen_two_apps refuses_gen_non_leaf refuses_gen_two_objects refuses_gen_no_outcome
+  refuses_gen_ctor_count refuses_gen_loop1_only refuses_gen_no_leaf_result refuses_gen_no_spare
 
 -- The source semantics, run: normal-order proof search, the words' meaning from their
 -- source, every Run derivation a source run, and adequacy for the four compiled sources

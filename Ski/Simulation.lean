@@ -501,15 +501,17 @@ end
 
 /-- A file's globals: each type's constructors, then the equations the
     compiler compiles (`fileFEqns`: the prelude it keeps, its equations,
-    a core's under `core.eq`). -/
+    a core's under `core.eq`).  A declaration named `S`, `K` or `I` is
+    not one: at level 0 those names are always the ISA (`resolveIn`), so
+    an object type's leaves of those names are reached only by quotation. -/
 def progDefs (src : List Nat) : List (Nm × GDef) :=
-  match parseFile src with
+  match readFile src with
   | none => []
   | some ds =>
-    (types ds).flatMap (fun d =>
+    ((types ds).flatMap (fun d =>
       List.zipWith (fun j p => (p.1, GDef.ctor p.2 j d.ctors.length)) (List.range d.ctors.length)
         d.ctors) ++
-    ((fileFEqns ds).getD []).map (fun p => (p.1, GDef.eqn p.2))
+    ((fileFEqns ds).getD []).map (fun p => (p.1, GDef.eqn p.2))).filter fun p => !isISA p.1
 
 /-- The program a file declares. -/
 def progOf (src : List Nat) : Nm → Option GDef := fun n => (progDefs src).lookup n

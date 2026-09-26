@@ -368,7 +368,7 @@ SKI (`λx. f x` compiles to `f`), so head-step counting alone does not
 bound source runs, and a general proof needs a measure on source terms
 that η-steps decrease.
 
-**The front end's coverage — level 0 and macros** (`Ski/Front.lean`,
+**The front end's coverage — level 0, macros and generated forms** (`Ski/Front.lean`,
 `Ski/Coverage.lean`). The front end reads SKIjack's level 0 in both
 lexicons: types, signatures, equations, definitions, cores (with
 parameters, sibling resolution, `core.eq` names and an interpreter core's
@@ -378,20 +378,27 @@ or a name defined twice, as `skijack` does. It expands `:=*` macros as
 `expand_macros` does: capture-avoiding substitution with `skijack`'s
 fresh names, λ and case binders shadowing, the last declaration and the
 last parameter winning, and its three limits (nesting 256, 100 nested
-unfoldings, 200 000 substitutions); an applied `:=!` macro is refused.
+unfoldings, 200 000 substitutions); an applied `:=!` macro is refused. It
+generates what `generate.py` generates for a file with an object type:
+the walker `sp` and rebuilder `rb`, the default `S`/`K`/`I` step
+equations, and each interpreter core's `step` and fuel loop from the
+outcome and result types, refusing the shapes `generate.py` refuses.
 `Ski/Coverage.lean` (generated) checks, in the kernel, that it compiles a
-coverage file, a macro file and three corpus files (`sec1-nat`, `kernel-events`, `ascii-digits`), each in
-both lexicons, to exactly the terms `skijack` emits (`agrees_termOf`,
-`agrees_termOf_rev`), that the simulation applies to each (`*_fixed`),
-and that fourteen programs `skijack` refuses are refused (`refuses_*`),
-five of them for macros or nesting. The substitution limit is not
+coverage file, a macro file, a generation file and ten of the seventeen
+corpus files `skijack` accepts, each in both lexicons, to exactly the
+terms `skijack` emits (`agrees_termOf`, `agrees_termOf_rev`), that the
+simulation applies to each (`*_fixed`), and that twenty-two programs
+`skijack` refuses are refused (`refuses_*`): nine at level 0, five for
+macros or nesting, eight for generation. The other seven corpus files use
+level 1. A declaration named `S`, `K` or `I`, such as an object type's
+leaf, is not a global of the source program (`progDefs`): level 0 always
+resolves those names to the ISA. The substitution limit is not
 exercised: reaching it costs 200 000 substitutions in the kernel. The
 kernel checks abstract by `absNF`, proved equal to `absN`: `absN`
 rechecks occurrence at every node, cubic for `ascii-digits`' 128-way type
 (220 s for its constructors), and `absNF` carries the term's variables
-(5 s). Not covered: level 1 (quotation, runs, scry,
-namespaces, fuel), `skijack`'s generated interpreter forms, and its type
-discipline (Stage B), which only refuses.
+(5 s). Not covered: level 1 (quotation, runs, scry, namespaces, fuel) and
+the type discipline (Stage A and Stage B), which only refuses.
 
 **What is still per table and per program.** Every theorem is stated for
 every valid table and every program. Three facts about each generated

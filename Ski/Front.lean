@@ -51,6 +51,11 @@ than 256 is refused whole, as `skijack` refuses it.
 - `parseWith` parses every declaration (`pExpr` and its siblings), with
   fuel proportional to the tokens, so every function is total and
   structural.
+- `generate` adds, for a file with an object type, the forms
+  `generate.py` adds: the walker `sp`, the rebuilder `rb`, the default
+  `S`/`K`/`I` step equations, and each interpreter core's `step` and fuel
+  loop, each unless the file defines the name (`readWith` is parsing then
+  generation).
 - `expandE` expands macros in each equation and definition before
   anything else, as `expand_macros` does: capture-avoiding substitution
   (`substE`) with `skijack`'s fresh names, λ and case binders shadowing a
@@ -237,10 +242,15 @@ mutual
 end
 
 /-- A type: its name and its constructors with their arities, in
-    declaration order. -/
+    declaration order, and with their field types. -/
 structure TypeDecl where
   name : Nm
   ctors : List (Nm × Nat)
+  ftys : List (Nm × List Nm)
+
+/-- A type from its constructors and their field types. -/
+def TypeDecl.of (n : Nm) (cs : List (Nm × List Nm)) : TypeDecl :=
+  ⟨n, cs.map fun c => (c.1, c.2.length), cs⟩
 
 /-- An equation `f x… = e`, a definition `f := e` with no parameters, or
     a core's equation: then `name` is `core.f`, `bare` is `f`, `params`
@@ -275,18 +285,19 @@ def atomStart : Tok → Bool
   | _ => false
 
 /-- The constructors of a type declaration, to the end of the line. -/
-def parseCtors : List Tok → List Nm → List (Nm × Nat) → Option (List (Nm × Nat) × List Tok)
+def parseCtors : List Tok → List Nm → List (Nm × List Nm) →
+    Option (List (Nm × List Nm) × List Tok)
   | [], cur, out =>
     match cur.reverse with
-    | c :: fs => some (out.reverse ++ [(c, fs.length)], [])
+    | c :: fs => some (out.reverse ++ [(c, fs)], [])
     | [] => none
   | .nl :: r, cur, out =>
     match cur.reverse with
-    | c :: fs => some (out.reverse ++ [(c, fs.length)], .nl :: r)
+    | c :: fs => some (out.reverse ++ [(c, fs)], .nl :: r)
     | [] => none
   | .bar :: r, cur, out =>
     match cur.reverse with
-    | c :: fs => parseCtors r [] ((c, fs.length) :: out)
+    | c :: fs => parseCtors r [] ((c, fs) :: out)
     | [] => none
   | .ident x :: r, cur, out => parseCtors r (x :: cur) out
   | _, _, _ => none
@@ -297,7 +308,7 @@ def collectTypes : List Tok → List TypeDecl → Option (List TypeDecl)
   | [], acc => some acc.reverse
   | .ident n :: .defTy :: r, acc =>
     match parseCtors r [] [] with
-    | some (cs, _) => collectTypes r (⟨n, cs⟩ :: acc)
+    | some (cs, _) => collectTypes r (TypeDecl.of n cs :: acc)
     | none => none
   | _ :: r, acc => collectTypes r acc
 
@@ -480,7 +491,7 @@ def pDecl (ar : Nm → Option Nat) (f : Nat) (ts : List Tok) : Option (Decl × L
   match pNames ts [] with
   | some ([n], .defTy :: r) =>
     match parseCtors r [] [] with
-    | some (cs, rest) => some (.ty ⟨n, cs⟩, rest)
+    | some (cs, rest) => some (.ty (TypeDecl.of n cs), rest)
     | none => none
   | some ([_], .colon :: r) =>
     match pSig r with
@@ -741,6 +752,221 @@ def Eqn.expand (ms : List (Nm × Macro)) (e : Eqn) : Option Eqn :=
   (expandE 400 ms 0 0 200000 e.body).map fun r => { e with body := r.1 }
 
 -- ---------------------------------------------------------------------------
+-- Type-generated forms (`skijack/generate.py`)
+-- ---------------------------------------------------------------------------
+
+/-- `f x1 … xn`. -/
+def apE (f : Expr) (xs : List Expr) : Expr := xs.foldl .app f
+
+/-- The object type: the one type with exactly one constructor of two
+    fields of its own type (the application), every other constructor a
+    leaf. -/
+structure ObjT where
+  decl : TypeDecl
+  app : Nm
+  leaves : List (Nm × List Nm)
+
+/-- The file's object type (`find_object_type`): `some none` when there is
+    none, `none` when the file is refused — a type with two application
+    constructors, an object type with a non-leaf beside its application, or
+    two object types. -/
+def findObject (tys : List TypeDecl) : Option (Option ObjT) :=
+  let cands := tys.filterMap fun d =>
+    let apps := d.ftys.filter fun c => c.2.length == 2 && c.2.all (· == d.name)
+    match apps with
+    | [] => none
+    | a :: _ => some (d, apps.length, a)
+  if cands.any (fun c => c.2.1 != 1) then none
+  else
+    let objs := cands.map fun (d, _, a) => (⟨d, a.1, d.ftys.filter (·.1 != a.1)⟩ : ObjT)
+    if objs.any (fun o => o.leaves.any (!·.2.isEmpty)) then none
+    else
+      match objs with
+      | [] => some none
+      | [o] => some (some o)
+      | _ => none
+
+/-- The loop's types (`LoopTypes`): the step outcome `O` with its
+    term-carrying constructor `stepped` and first leaf `done`, the result
+    `R` with its term-carrying `value` and last leaf `timeout`, and the
+    `R` constructor each other `O` constructor maps to. -/
+structure LoopT where
+  outcome : TypeDecl
+  stepped : Nm
+  done : Nm
+  value : Nm
+  timeout : Nm
+  mapping : List (Nm × Nm)
+
+/-- A type's first constructor carrying exactly one field, of type `t`,
+    and its other constructors (`_carrier`). -/
+def carrier (d : TypeDecl) (t : Nm) : Option ((Nm × List Nm) × List (Nm × List Nm)) :=
+  if d.ftys.length < 2 then none
+  else
+    match d.ftys.find? (fun c => c.2 == [t]) with
+    | none => none
+    | some c => some (c, d.ftys.filter (·.1 != c.1))
+
+/-- `_build_loop_types`: `O`'s first leaf is done, a payload constructor
+    maps to `R`'s at the same position, the other leaves map in order onto
+    `R`'s leaves but its value and its last leaf, the timeout. -/
+def buildLoop (od : TypeDecl) (st : Nm × List Nm) (rest : List (Nm × List Nm))
+    (rd : TypeDecl) (v : Nm × List Nm) : Option LoopT :=
+  let rNull := rd.ftys.filter (·.2.isEmpty)
+  match rNull.getLast? with
+  | none => none
+  | some timeout =>
+    let spare := rNull.filter fun c => c.1 != timeout.1 && c.1 != v.1
+    match (rest.filter (·.2.isEmpty)).head? with
+    | none => none
+    | some done =>
+      let step := fun (acc : List (Nm × Nm) × Nat) (c : Nm × List Nm) =>
+        if c.2.isEmpty then
+          match spare[acc.2]? with
+          | some sc => some (acc.1 ++ [(c.1, sc.1)], acc.2 + 1)
+          | none => none
+        else
+          match od.ftys.findIdx? (·.1 == c.1) with
+          | none => none
+          | some idx =>
+            match rd.ftys[idx]? with
+            | some rc => if rc.2.length == c.2.length then some (acc.1 ++ [(c.1, rc.1)], acc.2) else none
+            | none => none
+      ((rest.filter (·.1 != done.1)).foldlM step ([(done.1, v.1)], 0)).map fun r =>
+        ⟨od, st.1, done.1, v.1, timeout.1, r.1⟩
+
+/-- `find_loop_types`: the types other than the object type with a
+    carrier; the first of the last two is `O` and the last `R`, or the one
+    is both.  They must have as many constructors. -/
+def findLoop (tys : List TypeDecl) (o : ObjT) : Option LoopT :=
+  let cands := tys.filterMap fun d =>
+    if d.name == o.decl.name then none else (carrier d o.decl.name).map fun r => (d, r.1, r.2)
+  let pick := fun (od : TypeDecl) (st : Nm × List Nm) (rest : List (Nm × List Nm))
+      (rd : TypeDecl) (v : Nm × List Nm) =>
+    if od.ftys.length != rd.ftys.length then none else buildLoop od st rest rd v
+  match cands.reverse with
+  | [] => none
+  | [(od, st, rest)] => pick od st rest od st
+  | (rd, v, _) :: (od, st, rest) :: _ => pick od st rest rd v
+
+/-- The spine walker `sp` and the rebuilder `rb`, with their helpers
+    (`_walker_and_rebuilder`). -/
+def walker (o : ObjT) : List (Nm × List Nm × Expr) :=
+  let n := o.leaves.length
+  let conts := (List.range n).map fun i => nm! "c" ++ decimal i
+  let res := (o.leaves.zip (List.range n)).map fun (c, j) =>
+    (nm! "res" ++ c.1, nm! "acc" :: conts, apE (.name (nm! "c" ++ decimal j)) [.name (nm! "acc")])
+  let slots := o.decl.ftys.map fun c =>
+    if c.1 == o.app then apE (.name (nm! "spApp")) [.name (nm! "sp"), .name (nm! "acc")]
+    else apE (.name (nm! "res" ++ c.1)) [.name (nm! "acc")]
+  res ++
+    [(nm! "spApp", [nm! "f", nm! "acc", nm! "t", nm! "u"],
+        apE (.name (nm! "f")) [.name (nm! "t"),
+          apE (.name (nm! "cons")) [.name (nm! "u"), .name (nm! "acc")]]),
+     (nm! "sp", [nm! "m", nm! "acc"], apE (.name (nm! "m")) slots),
+     (nm! "rb1", [nm! "f", nm! "h", nm! "x", nm! "xs"],
+        apE (.name (nm! "f")) [apE (.name o.app) [.name (nm! "h"), .name (nm! "x")], .name (nm! "xs")]),
+     (nm! "rb", [nm! "h", nm! "args"],
+        apE (.name (nm! "args")) [.name (nm! "h"),
+          apE (.name (nm! "rb1")) [.name (nm! "rb"), .name (nm! "h")]])]
+
+/-- The ISA's default step equations, for the leaves named `I`, `K`, `S`
+    (`_default_step_equations`). -/
+def defaultSteps (o : ObjT) (lt : LoopT) : List (Nm × List Nm × Expr) :=
+  let has := fun c => o.leaves.any (·.1 == c)
+  let st := Expr.name lt.stepped
+  let dn := Expr.name lt.done
+  let app := fun a b => apE (.name o.app) [a, b]
+  let x := Expr.name (nm! "x")
+  let y := Expr.name (nm! "y")
+  let z := Expr.name (nm! "z")
+  let r := Expr.name (nm! "r")
+  let rest := Expr.name (nm! "rest")
+  let args := Expr.name (nm! "args")
+  let rb := fun a => apE (.name (nm! "rb")) [a, rest]
+  (if has [73] then
+    [(nm! "stepI1", [nm! "x", nm! "rest"], apE st [rb x]),
+     (nm! "stepI", [nm! "args"], apE args [dn, .name (nm! "stepI1")])] else []) ++
+  (if has [75] then
+    [(nm! "stepK2", [nm! "x", nm! "y", nm! "rest"], apE st [rb x]),
+     (nm! "stepK1", [nm! "x", nm! "r"], apE r [dn, apE (.name (nm! "stepK2")) [x]]),
+     (nm! "stepK", [nm! "args"], apE args [dn, .name (nm! "stepK1")])] else []) ++
+  (if has [83] then
+    [(nm! "stepS3", [nm! "x", nm! "y", nm! "z", nm! "rest"], apE st [rb (app (app x z) (app y z))]),
+     (nm! "stepS2", [nm! "x", nm! "y", nm! "r2"],
+        apE (.name (nm! "r2")) [dn, apE (.name (nm! "stepS3")) [x, y]]),
+     (nm! "stepS1", [nm! "x", nm! "r"], apE r [dn, apE (.name (nm! "stepS2")) [x]]),
+     (nm! "stepS", [nm! "args"], apE args [dn, .name (nm! "stepS1")])] else [])
+
+/-- A core that writes `step`, `loop` or a step equation for a
+    constructor of the object type (`is_interpreter_core`). -/
+def isInterp (o : ObjT) (eqs : List (Nm × List Nm × Expr)) : Bool :=
+  let names := eqs.map (·.1)
+  names.contains (nm! "step") || names.contains (nm! "loop") ||
+    o.decl.ftys.any fun c => names.contains (nm! "step" ++ c.1)
+
+/-- An interpreter core with its `step` and its fuel loop added unless it
+    writes them (`_fill_core`); `loop1` without `loop` is refused. -/
+def fillCore (o : ObjT) (lt : LoopT) (ps : List Nm) (eqs : List (Nm × List Nm × Expr)) :
+    Option (List (Nm × List Nm × Expr)) :=
+  let have_ := eqs.map (·.1)
+  let pv := ps.map Expr.name
+  let step :=
+    if have_.contains (nm! "step") then []
+    else
+      let slots := o.leaves.map fun c =>
+        let n := nm! "step" ++ c.1
+        if have_.contains n then apE (.name n) pv else .name n
+      [(nm! "step", [nm! "m"], apE (.name (nm! "sp")) ([.name (nm! "m"), .name (nm! "nil")] ++ slots))]
+  if have_.contains (nm! "loop") then some (eqs ++ step)
+  else if have_.contains (nm! "loop1") then none
+  else
+    let conts := lt.outcome.ftys.map fun c =>
+      if c.1 == lt.stepped then apE (.name (nm! "f")) (pv ++ [.name (nm! "n2")])
+      else if c.1 == lt.done then apE (.name lt.value) [.name (nm! "m")]
+      else .name ((lt.mapping.lookup c.1).getD c.1)
+    some (eqs ++ step ++
+      [(nm! "loop1", [nm! "f", nm! "m", nm! "n2"],
+          apE (apE (.name (nm! "step")) pv) (.name (nm! "m") :: conts)),
+       (nm! "loop", [nm! "n", nm! "m"],
+          apE (.name (nm! "n")) [.name lt.timeout,
+            apE (apE (.name (nm! "loop1")) pv) [.name (nm! "loop"), .name (nm! "m")]])])
+
+/-- **Generation** (`generate`): with an object type, every interpreter
+    core gets its `step` and fuel loop, and the walker, the rebuilder and
+    the default step equations are appended, each unless the file defines
+    its name.  Without one, the file is unchanged. -/
+def generate (ds : List Decl) : Option (List Decl) :=
+  let tys := ds.filterMap fun d => match d with | .ty t => some t | _ => none
+  match findObject tys with
+  | none => none
+  | some none => some ds
+  | some (some o) =>
+    match findLoop tys o with
+    | none => none
+    | some lt =>
+      let taken := ds.flatMap fun d =>
+        match d with
+        | .ty t => t.ctors.map (·.1)
+        | .eqn e => [e.name]
+        | .macro n _ _ _ => [n]
+        | .core c _ _ => [c]
+        | .sig => []
+      let extra := (walker o ++ defaultSteps o lt).filter fun e => !taken.contains e.1
+      let fill : Decl → Option Decl := fun d =>
+        match d with
+        | Decl.core c ps eqs =>
+          if isInterp o eqs then (fillCore o lt ps eqs).map (Decl.core c ps ·) else some d
+        | _ => some d
+      (ds.mapM fill).map fun l =>
+        l ++ extra.map fun (n, ps, b) => Decl.eqn ⟨n, n, ps, b, none, []⟩
+
+/-- **Reading a file**: parsing, then generation. -/
+def readWith (u : Bool) (src : List Nat) : Option (List Decl) := (parseWith u src).bind generate
+
+def readFile (src : List Nat) : Option (List Decl) := readWith false src
+
+-- ---------------------------------------------------------------------------
 -- Desugaring: case lowering, λ, cells and picks, binders numbered
 -- ---------------------------------------------------------------------------
 
@@ -920,7 +1146,7 @@ def eqns : List Decl → List Eqn
 
 /-- A file's equation, lowered. -/
 def fileEqn (src : List Nat) (n : Nm) : Option FEqn :=
-  match parseFile src with
+  match readFile src with
   | none => none
   | some ds =>
     match (eqns ds).find? (fun e => e.name == n) with
@@ -1033,7 +1259,7 @@ def fileFEqns (ds : List Decl) : Option (List (Nm × FEqn)) :=
     defines it.  A file with a name defined twice, an unresolved name or
     mutual recursion is refused. -/
 def compileWith (u : Bool) (src : List Nat) : Option (List (Nm × Term)) :=
-  match parseWith u src with
+  match readWith u src with
   | none => none
   | some ds =>
     match fileFEqns ds with
@@ -1051,7 +1277,7 @@ def compileWith (u : Bool) (src : List Nat) : Option (List (Nm × Term)) :=
 /-- The environment a file's equations were compiled in: its compiled
     program-level names and `core.eq`s, without the bare aliases. -/
 def compiledEnv (u : Bool) (src : List Nat) : List (Nm × Term) :=
-  match parseWith u src with
+  match readWith u src with
   | none => []
   | some ds =>
     match fileFEqns ds with
