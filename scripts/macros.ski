@@ -1,0 +1,74 @@
+-- Macros: `skijack` expands `:=*` at each use, hygienically for its
+-- parameters, before case lowering.  Each equation below exercises one
+-- rule of `expand_macros` or `substitute`.
+
+bool === True | False
+nat === Z | Su n
+
+-- plain, nested, and zero-parameter macros
+twice f x :=* f (f x)
+flip f a b :=* f b a
+kk :=* K
+twiceK x = twice kk x
+flipped x y z = flip x y z
+nested x = twice (\y. twice S y) x
+
+-- extra arguments are applied after the expansion
+extra f g x = twice f x g
+
+-- a parameter substituted under a λ that would capture it is renamed
+under x :=* \y. x
+hyg y = under y
+-- the fresh name avoids the names already free: `y_` is taken
+under2 x :=* \y. \y_. x y
+hyg2 y y_ = under2 (y y_)
+
+-- renaming `y` to `y_` renames the inner `y_` in turn
+inner x :=* \y. \y_. y x
+nest y = inner y
+
+-- a two-field branch: both binders checked, the captured one renamed
+pr === P a b
+sw p x :=* p |> { P a b [x b] }
+swU a p = sw p a
+
+-- the body's other free names resolve where it is used
+useZ :=* z
+freeAt z = useZ
+
+-- λ and case binders shadow a macro; an equation's parameters do not
+shadowL = \kk. kk
+shadowC b = b |> { True kk; False kk }
+shadowP kk = kk
+
+-- a case, a cell and a pick inside a macro body
+cond b t e :=* b |> { True t; False e }
+pick2 p :=* 2@p
+cellOf a b :=* [a b]
+useCond b = cond b S K
+usePick p = pick2 (cellOf p p)
+
+-- a case binder renamed when a parameter's value would be captured
+predOr d n :=* n |> { Z d; Su m m }
+useMatch m n = predOr m n
+
+-- the last parameter of a name wins, as a dictionary does
+dup x x :=* x
+useDup a b = dup a b
+
+-- the last declaration of a macro wins
+later :=* S
+later :=* I
+useLater = later
+
+-- a capturing macro without parameters, used bare
+cap :=! K
+useCap = cap
+
+-- macros in a core
+walk := {
+  go x = twice I x
+}
+
+-- nesting of exactly 256, the deepest `skijack` accepts
+edge x = x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x

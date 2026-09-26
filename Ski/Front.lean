@@ -21,6 +21,7 @@ SKIjack's level 0, as `SPEC.md` §1–§5 and `skijack/parser.py`,
     f x1 … xn = e                   an equation
     f := e                          a definition
     c p… := { equation… }           a core: parameters prepended to each
+    m p… :=* e                      a macro, expanded at each use
     e ::= name | e e | (e) | e |> { C b… e; … } | \x.e | [e e …] | n@e
 
 in either lexicon, ASCII or Unicode (`≡ ≔ ▹ → λ ⊑ ⍝`, and the Tier 1
@@ -36,10 +37,12 @@ program-level name (constructors, equations, definitions and the prelude
 1 (`B C W Y`).  A core's equation is `core.eq`, and its bare name when no
 other core defines it; an interpreter core's name is its `loop`.
 
-Not read, and refused: macros (`:=*`), quotation and everything of level
-1 (`< >`, `|-`, `?^`, `ns{`, fuel), qualified names, bare numbers.  A
-program with an unresolved name, mutual recursion, or a name defined
-twice is refused whole, as `skijack` refuses it.
+Not read, and refused: quotation and everything of level 1 (`< >`, `|-`,
+`?^`, `ns{`, fuel), qualified names, bare numbers, and an applied
+capturing macro (`:=!`).  A program with an unresolved name, mutual
+recursion, a name defined twice, a macro applied to too few arguments,
+a macro that does not reach a fixpoint, or an expression nested deeper
+than 256 is refused whole, as `skijack` refuses it.
 
 ## The passes
 
@@ -48,6 +51,10 @@ twice is refused whole, as `skijack` refuses it.
 - `parseWith` parses every declaration (`pExpr` and its siblings), with
   fuel proportional to the tokens, so every function is total and
   structural.
+- `expandE` expands macros in each equation and definition before
+  anything else, as `expand_macros` does: capture-avoiding substitution
+  (`substE`) with `skijack`'s fresh names, λ and case binders shadowing a
+  macro, and its three limits.
 - `dExpr` lowers each case to its scrutinee applied to one continuation
   per constructor, **in declaration order**, each continuation the λ over
   that branch's binders (`_lower_case`).  A case whose branches do not
@@ -58,7 +65,8 @@ twice is refused whole, as `skijack` refuses it.
 - `compileFile` compiles every declaration: a constructor to `ctorO`, an
   equation to `compDef` or `compRec` (`Ski/Compile.lean`), once every
   global it names is compiled, as `skijack` expands globals to closed
-  terms before abstraction.
+  terms before abstraction.  It computes them by `ctorOF`, `compDefF` and
+  `compRecF`, proved equal and linear to evaluate in the kernel.
 
 Names are lists of code points; `nm! "wPop"` writes one.
 -/
@@ -98,6 +106,8 @@ inductive Tok
   | lbrack
   | rbrack
   | nl
+  | macro
+  | cmacro
   deriving DecidableEq, Repr
 
 def isLetter (c : Nat) : Bool := (65 ≤ c && c ≤ 90) || (97 ≤ c && c ≤ 122) || c == 95
@@ -133,8 +143,8 @@ def lexA : List Nat → Mode → List Tok → Option (List Tok)
   | [], m, acc => some ((flushM m).reverse ++ acc).reverse
   | c :: r, .comment, acc => if c == 10 then lexA r .none (.nl :: acc) else lexA r .comment acc
   | 45 :: 45 :: r, m, acc => lexA r .comment ((flushM m).reverse ++ acc)
-  | 58 :: 61 :: 42 :: _, _, _ => none
-  | 58 :: 61 :: 33 :: _, _, _ => none
+  | 58 :: 61 :: 42 :: r, m, acc => lexA r .none ([.macro] ++ (flushM m).reverse ++ acc)
+  | 58 :: 61 :: 33 :: r, m, acc => lexA r .none ([.cmacro] ++ (flushM m).reverse ++ acc)
   | 61 :: 61 :: 61 :: r, m, acc => lexA r .none ([.defTy] ++ (flushM m).reverse ++ acc)
   | 124 :: 62 :: r, m, acc => lexA r .none ([.pipe] ++ (flushM m).reverse ++ acc)
   | 124 :: 45 :: _, _, _ => none
@@ -168,8 +178,8 @@ def lexU : List Nat → Mode → List Tok → Option (List Tok)
   | [], m, acc => some ((flushM m).reverse ++ acc).reverse
   | c :: r, .comment, acc => if c == 10 then lexU r .none (.nl :: acc) else lexU r .comment acc
   | 9053 :: r, m, acc => lexU r .comment ((flushM m).reverse ++ acc)
-  | 8788 :: 42 :: _, _, _ => none
-  | 8788 :: 33 :: _, _, _ => none
+  | 8788 :: 42 :: r, m, acc => lexU r .none ([.macro] ++ (flushM m).reverse ++ acc)
+  | 8788 :: 33 :: r, m, acc => lexU r .none ([.cmacro] ++ (flushM m).reverse ++ acc)
   | 8801 :: r, m, acc => lexU r .none ([.defTy] ++ (flushM m).reverse ++ acc)
   | 9657 :: r, m, acc => lexU r .none ([.pipe] ++ (flushM m).reverse ++ acc)
   | 8788 :: r, m, acc => lexU r .none ([.assign] ++ (flushM m).reverse ++ acc)
@@ -248,6 +258,8 @@ inductive Decl
   | sig
   | eqn (e : Eqn)
   | core (name : Nm) (params : List Nm) (eqs : List (Nm × List Nm × Expr))
+  /-- `name params :=* body`, or `:=!` when `capturing`. -/
+  | macro (name : Nm) (params : List Nm) (body : Expr) (capturing : Bool)
 
 -- ---------------------------------------------------------------------------
 -- Parsing
@@ -478,6 +490,14 @@ def pDecl (ar : Nm → Option Nat) (f : Nat) (ts : List Tok) : Option (Decl × L
     match pCoreEqs ar f r with
     | some (eqs, rest) => if endDecl rest then some (.core n ps eqs, rest) else none
     | none => none
+  | some (n :: ps, .macro :: r) =>
+    match pExpr ar false f r with
+    | some (e, rest) => if endDecl rest then some (.macro n ps e false, rest) else none
+    | none => none
+  | some (n :: ps, .cmacro :: r) =>
+    match pExpr ar false f r with
+    | some (e, rest) => if endDecl rest then some (.macro n ps e true, rest) else none
+    | none => none
   | some ([n], .assign :: r) =>
     match pExpr ar false f r with
     | some (e, rest) =>
@@ -510,6 +530,215 @@ def parseWith (u : Bool) (src : List Nat) : Option (List Decl) :=
     | some tys => pDecls (arity tys) (ts.length + 1) ts
 
 def parseFile (src : List Nat) : Option (List Decl) := parseWith false src
+
+-- ---------------------------------------------------------------------------
+-- Macros (`skijack/expand.py`, pass 1)
+-- ---------------------------------------------------------------------------
+
+/-- A macro: its parameters, its body, and whether it was declared
+    capturing (`:=!`). -/
+structure Macro where
+  params : List Nm
+  body : Expr
+  capturing : Bool
+
+mutual
+  /-- The names free in an expression; a case branch's constructor counts. -/
+  def freeE : Expr → List Nm
+    | .name n => [n]
+    | .app f a => freeE f ++ freeE a
+    | .case e bs => freeE e ++ freeB bs
+    | .lam x b => (freeE b).filter (· != x)
+    | .cell items => freeI items
+    | .pick _ e => freeE e
+  def freeB : Branches → List Nm
+    | .nil => []
+    | .cons c xs body rest => c :: (freeE body).filter (fun y => !xs.contains y) ++ freeB rest
+  def freeI : Items → List Nm
+    | .nil => []
+    | .cons e rest => freeE e ++ freeI rest
+end
+
+mutual
+  /-- Nesting depth: the fuel substitution needs. -/
+  def depthE : Expr → Nat
+    | .name _ => 0
+    | .app f a => max (depthE f) (depthE a) + 1
+    | .case e bs => max (depthE e) (depthB bs) + 1
+    | .lam _ b => depthE b + 1
+    | .cell items => depthI items + 1
+    | .pick _ e => depthE e + 1
+  def depthB : Branches → Nat
+    | .nil => 0
+    | .cons _ _ body rest => max (depthE body) (depthB rest)
+  def depthI : Items → Nat
+    | .nil => 0
+    | .cons e rest => max (depthE e) (depthI rest)
+end
+
+/-- Each branch body through `g`, which sees and may rename the branch's
+    binders, threading a state. -/
+def Branches.traverse {σ : Type} (g : σ → List Nm → Expr → Option (List Nm × Expr × σ)) :
+    Branches → σ → Option (Branches × σ)
+  | .nil, st => some (.nil, st)
+  | .cons c xs body rest, st =>
+    match g st xs body with
+    | none => none
+    | some (xs', body', st1) =>
+      match Branches.traverse g rest st1 with
+      | none => none
+      | some (rest', st2) => some (.cons c xs' body' rest', st2)
+
+/-- Each item through `g`, threading a state. -/
+def Items.traverse {σ : Type} (g : σ → Expr → Option (Expr × σ)) :
+    Items → σ → Option (Items × σ)
+  | .nil, st => some (.nil, st)
+  | .cons e rest, st =>
+    match g st e with
+    | none => none
+    | some (e', st1) =>
+      match Items.traverse g rest st1 with
+      | none => none
+      | some (rest', st2) => some (.cons e' rest', st2)
+
+/-- A number's decimal digits, as code points. -/
+def decimal (i : Nat) : Nm := (Nat.toDigits 10 i).map Char.toNat
+
+/-- `base`, `base0`, `base1`, …: the first not taken (`_fresh`).  Among
+    `taken.length + 1` distinct candidates one is free. -/
+def freshFrom (base : Nm) (taken : List Nm) : Nat → Nat → Nm
+  | 0, _ => base
+  | f + 1, i =>
+    if taken.contains (base ++ decimal i) then freshFrom base taken f (i + 1)
+    else base ++ decimal i
+
+def fresh (base : Nm) (taken : List Nm) : Nm :=
+  if taken.contains base then freshFrom base taken (taken.length + 1) 0 else base
+
+/-- A dictionary from pairs: the last pair for a key wins, as Python's
+    `dict(zip(…))`. -/
+def dictOf : List (Nm × Expr) → List (Nm × Expr) :=
+  List.foldl (fun acc p => acc.filter (·.1 != p.1) ++ [p]) []
+
+/-- **Capture-avoiding substitution** (`substitute`): a binder that would
+    capture a name free in a substituted expression is renamed to
+    `fresh (binder ++ "_") …` first (`_rename_binders`).  The fuel is the
+    expression's depth plus one; renaming preserves depth. -/
+def substE : Nat → List (Nm × Expr) → Expr → Option Expr
+  | 0, _, _ => none
+  | f + 1, sub, e =>
+    if sub.isEmpty then some e
+    else
+      let rn : Nm → Expr → Option (Nm × Expr) := fun b body =>
+        let fb := freeE body
+        let danger := (sub.filter fun p => p.1 != b && fb.contains p.1).flatMap fun p => freeE p.2
+        if danger.contains b then
+          let fr := fresh (b ++ [95]) (danger ++ fb ++ sub.map (·.1))
+          (substE f [(b, .name fr)] body).map fun body' => (fr, body')
+        else some (b, body)
+      match e with
+      | .name n => some ((sub.lookup n).getD (.name n))
+      | .app a b =>
+        match substE f sub a, substE f sub b with
+        | some a', some b' => some (.app a' b')
+        | _, _ => none
+      | .cell items =>
+        (items.traverse (fun _ x => (substE f sub x).map fun x' => (x', ())) ()).map
+          fun r => .cell r.1
+      | .pick n x => (substE f sub x).map (.pick n)
+      | .lam x b =>
+        match rn x b with
+        | none => none
+        | some (x', b') => (substE f (sub.filter (·.1 != x')) b').map (.lam x')
+      | .case sc bs =>
+        let g : Unit → List Nm → Expr → Option (List Nm × Expr × Unit) := fun _ xs body =>
+          match xs.foldlM (fun (acc : List Nm × Expr) b =>
+              (rn b acc.2).map fun r => (acc.1 ++ [r.1], r.2)) ([], body) with
+          | none => none
+          | some (nb, body') =>
+            (substE f (sub.filter fun p => !nb.contains p.1) body').map fun b'' => (nb, b'', ())
+        match bs.traverse g () with
+        | none => none
+        | some (bs', _) => (substE f sub sc).map fun sc' => .case sc' bs'
+
+/-- An application's head and its arguments, in order. -/
+def spine : Expr → Expr × List Expr
+  | .app f a => let r := spine f; (r.1, r.2 ++ [a])
+  | e => (e, [])
+
+/-- **Macro expansion to a fixpoint** (`expand_macros`), with `skijack`'s
+    three limits: nesting `depth` at most 256, nested unfoldings `unfold`
+    at most 100, and 200 000 substitutions in all (`budget`, threaded).  A
+    macro with parameters must be applied to all of them; a capturing
+    macro may not be applied; λ and case binders shadow macros.  Each call
+    spends one fuel and adds one to `depth` or `unfold`, so from fuel 400 a
+    limit is always reached before the fuel runs out. -/
+def expandE : Nat → List (Nm × Macro) → Nat → Nat → Nat → Expr → Option (Expr × Nat)
+  | 0, _, _, _, _, _ => none
+  | f + 1, ms, depth, unfold, budget, e =>
+    if 256 < depth || 100 < unfold || budget == 0 then none
+    else
+      let plain : Expr → Expr → Option (Expr × Nat) := fun g a =>
+        match expandE f ms (depth + 1) unfold budget g with
+        | none => none
+        | some (g', b1) =>
+          match expandE f ms (depth + 1) unfold b1 a with
+          | none => none
+          | some (a', b2) => some (.app g' a', b2)
+      match e with
+      | .name n =>
+        match ms.lookup n with
+        | some m =>
+          if m.params.isEmpty then expandE f ms depth (unfold + 1) (budget - 1) m.body else none
+        | none => some (e, budget)
+      | .app g a =>
+        match spine (.app g a) with
+        | (.name n, args) =>
+          match ms.lookup n with
+          | some m =>
+            if m.capturing then none
+            else if args.length < m.params.length then none
+            else
+              match args.foldlM (fun (acc : List Expr × Nat) x =>
+                  (expandE f ms (depth + 1) unfold acc.2 x).map fun r => (acc.1 ++ [r.1], r.2))
+                  ([], budget) with
+              | none => none
+              | some (args', b1) =>
+                match substE (depthE m.body + 1) (dictOf (m.params.zip args')) m.body with
+                | none => none
+                | some body =>
+                  match expandE f ms depth (unfold + 1) (b1 - 1) body with
+                  | none => none
+                  | some (out, b2) => some ((args'.drop m.params.length).foldl .app out, b2)
+          | none => plain g a
+        | _ => plain g a
+      | .cell items =>
+        (items.traverse (fun bu x => expandE f ms (depth + 1) unfold bu x) budget).map
+          fun r => (.cell r.1, r.2)
+      | .pick n x => (expandE f ms (depth + 1) unfold budget x).map fun r => (.pick n r.1, r.2)
+      | .lam x b =>
+        (expandE f (ms.filter (·.1 != x)) (depth + 1) unfold budget b).map
+          fun r => (.lam x r.1, r.2)
+      | .case sc bs =>
+        let g : Nat → List Nm → Expr → Option (List Nm × Expr × Nat) := fun bu xs body =>
+          (expandE f (ms.filter fun p => !xs.contains p.1) (depth + 1) unfold bu body).map
+            fun r => (xs, r.1, r.2)
+        match bs.traverse g budget with
+        | none => none
+        | some (bs', b1) =>
+          (expandE f ms (depth + 1) unfold b1 sc).map fun r => (.case r.1 bs', r.2)
+
+/-- A file's macros, the last declaration of a name winning. -/
+def macrosOf (ds : List Decl) : List (Nm × Macro) :=
+  (ds.filterMap fun d =>
+    match d with
+    | .macro n ps b c => some (n, (⟨ps, b, c⟩ : Macro))
+    | _ => none).reverse
+
+/-- An equation's body with its file's macros expanded, from a fresh
+    budget, as `skijack` expands each equation and definition. -/
+def Eqn.expand (ms : List (Nm × Macro)) (e : Eqn) : Option Eqn :=
+  (expandE 400 ms 0 0 200000 e.body).map fun r => { e with body := r.1 }
 
 -- ---------------------------------------------------------------------------
 -- Desugaring: case lowering, λ, cells and picks, binders numbered
@@ -696,7 +925,10 @@ def fileEqn (src : List Nat) (n : Nm) : Option FEqn :=
   | some ds =>
     match (eqns ds).find? (fun e => e.name == n) with
     | none => none
-    | some e => dEqn (types ds) e
+    | some e =>
+      match e.expand (macrosOf ds) with
+      | none => none
+      | some e' => dEqn (types ds) e'
 
 -- ---------------------------------------------------------------------------
 -- Compiling a file
@@ -773,14 +1005,15 @@ def passes : Nat → List (Nm × Term) → List (Nm × FEqn) → List (Nm × FEq
     let r := pass done es
     passes k r.2 r.1
 
-/-- A file's globals to compile: its equations lowered, the prelude it does
+/-- A file's globals to compile: its equations, macros expanded, lowered; the prelude it does
     not redefine, and each interpreter core's name for its `loop`. -/
 def fileFEqns (ds : List Decl) : Option (List (Nm × FEqn)) :=
   let tys := types ds
   let es := eqns ds
   let defined := (tys.map fun d => d.ctors.map (·.1)).flatten ++
     (es.filter fun e => e.core.isNone).map (·.name)
-  match es.mapM (fun e => (dEqn tys e).map fun fe => (e.name, fe)) with
+  let ms := macrosOf ds
+  match es.mapM (fun e => (e.expand ms).bind fun e' => (dEqn tys e').map fun fe => (e.name, fe)) with
   | none => none
   | some fes =>
     let loops := (ds.filterMap fun d =>

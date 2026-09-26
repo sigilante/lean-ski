@@ -230,7 +230,7 @@ open Ski.Audit
   kernel_fixed corpus_fixed loop_fixed sum_fixed prog_wPop prog_Push prog_RVal genv_kernel
   wPop_source wPop_push
 
--- The front end's coverage of level 0: files in both lexicons agree with skijack term for
+-- The front end's coverage of level 0 and macros: files in both lexicons agree with skijack term for
 -- term and the simulation applies to them; programs skijack refuses are refused
 #audit_clean coverage_agrees coverage_unicode_agrees coverage_fixed sec1Nat_agrees
   sec1Nat_unicode_agrees sec1Nat_fixed kernelEvents_agrees kernelEvents_unicode_agrees
@@ -240,6 +240,8 @@ open Ski.Audit
   asciiDigits_unicode_agrees asciiDigits_fixed Front.FEqn.compileF_eq Front.takeEntry_lookup
   Front.agreeEnv_lookup Front.agreeEnv_lookup_rev Front.agrees_termOf Front.agrees_termOf_rev
   Front.lookup_cons_self Front.lookup_cons_ne Front.agreeEnv_cons
+  macros_agrees macros_unicode_agrees macros_fixed refuses_macro_unapplied refuses_macro_too_few
+  refuses_macro_capturing refuses_macro_no_fixpoint refuses_too_deep
 
 -- The source semantics, run: normal-order proof search, the words' meaning from their
 -- source, every Run derivation a source run, and adequacy for the four compiled sources

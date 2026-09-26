@@ -368,22 +368,28 @@ SKI (`λx. f x` compiles to `f`), so head-step counting alone does not
 bound source runs, and a general proof needs a measure on source terms
 that η-steps decrease.
 
-**The front end's coverage — level 0** (`Ski/Front.lean`,
+**The front end's coverage — level 0 and macros** (`Ski/Front.lean`,
 `Ski/Coverage.lean`). The front end reads SKIjack's level 0 in both
 lexicons: types, signatures, equations, definitions, cores (with
 parameters, sibling resolution, `core.eq` names and an interpreter core's
 `loop`), λ, cells, axis picks and case, with the ISA, Tier 1 and the
 prelude, and refuses a program with an unresolved name, mutual recursion
-or a name defined twice, as `skijack` does. `Ski/Coverage.lean`
-(generated) checks, in the kernel, that it compiles a coverage file and
-three corpus files (`sec1-nat`, `kernel-events`, `ascii-digits`), each in
+or a name defined twice, as `skijack` does. It expands `:=*` macros as
+`expand_macros` does: capture-avoiding substitution with `skijack`'s
+fresh names, λ and case binders shadowing, the last declaration and the
+last parameter winning, and its three limits (nesting 256, 100 nested
+unfoldings, 200 000 substitutions); an applied `:=!` macro is refused.
+`Ski/Coverage.lean` (generated) checks, in the kernel, that it compiles a
+coverage file, a macro file and three corpus files (`sec1-nat`, `kernel-events`, `ascii-digits`), each in
 both lexicons, to exactly the terms `skijack` emits (`agrees_termOf`,
 `agrees_termOf_rev`), that the simulation applies to each (`*_fixed`),
-and that nine programs `skijack` refuses are refused (`refuses_*`). The
+and that fourteen programs `skijack` refuses are refused (`refuses_*`),
+five of them for macros or nesting. The substitution limit is not
+exercised: reaching it costs 200 000 substitutions in the kernel. The
 kernel checks abstract by `absNF`, proved equal to `absN`: `absN`
 rechecks occurrence at every node, cubic for `ascii-digits`' 128-way type
 (220 s for its constructors), and `absNF` carries the term's variables
-(5 s). Not covered: macros, level 1 (quotation, runs, scry,
+(5 s). Not covered: level 1 (quotation, runs, scry,
 namespaces, fuel), `skijack`'s generated interpreter forms, and its type
 discipline (Stage B), which only refuses.
 

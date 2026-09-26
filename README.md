@@ -68,7 +68,7 @@ three corpus programs in both forms, and `3 sumto` compiled.
 | `Ski/SourceRun.lean` | every `Run` derivation is a run of the source program (`run_source`) |
 | `Ski/Adequacy.lean` | the compiled program, the source program and `Run` agree: `exact_iff`, `diverges_iff_source` |
 | `Ski/SourceTables.lean` | the four compiled sources meet adequacy's hypotheses; `3 sumto` reaches `[6]` at the source, `[dup i] dup i` nothing |
-| `Ski/Coverage.lean` | generated: level-0 files in both lexicons compiled to `skijack`'s terms, the simulation applying to each, and programs `skijack` refuses refused |
+| `Ski/Coverage.lean` | generated: level-0 and macro files in both lexicons compiled to `skijack`'s terms, the simulation applying to each, and programs `skijack` refuses refused |
 | `Ski/Total.lean` | over a table with no static quotations nothing diverges: `apply_total`, `program_converges` |
 | `Ski/Table.lean` | generated: the tables `NoQuot`, `CorpusTable`, `LoopTable` and `SumTable` (`3 sumto`) as data, checked by `rfl` against `skijack`'s terms (`table_*`) and valid (`table_valid`), their laws from `Ski/Laws.lean`; each program's term pinned to the kernel's compilation of its words (`c*_eq`), the corpus rows as those programs run, and `3 sumto`'s derivation (`cs_run`) |
 | `Ski/Examples.lean` | `1 2 + dup +`, `3 [dup +] i`, `1 2 over` end to end from `skijack`'s terms; `cloop_diverges`: the compiled `[dup i] dup i` diverges; `us_six`: `3 sumto`, through Joy's `y`, decodes to `[6]` |
