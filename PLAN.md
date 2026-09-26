@@ -263,11 +263,11 @@ constructor's fields.
   and prove them from the source by β. `body_compiles` becomes the
   abstraction of `seq w (seq …)` over the eliminator. Target: the three
   classes at `tbl.kit` (`Ski/Kernel.lean`) for every valid `tbl : Table`.
-- **G5. Pinning.** The generator emits each table as data (`n`, the
-  bodies as word lists) instead of as terms and laws, and a gated test
-  checks `kitOf tbl` equal to `skijack`'s terms by `decide`: the
-  canonicity test, extended to the four table words. `Ski/Table.lean`
-  shrinks from 30 kB of laws to the tables and these tests.
+- **G5. Pinning.** G3 already emits each table as data (`table`) and
+  checks `table.kit` against `skijack`'s terms by `rfl`. Once G4 proves
+  the laws for every `tbl.kit`, the generator drops the per-table `Kit`
+  instances and their laws, and `Ski/Table.lean` shrinks from 30 kB to
+  the tables and those checks.
 - **G6. The payoff.** `composition_diverges` and `composition_exact` for
   every program SKIlark's compiled form accepts, with no per-program
   instance, including Joy's recursion combinators (`y`, `sumto`).
@@ -279,7 +279,7 @@ those families directly. That is cheaper for `KitElim`, but `applyU` is
 proofs keyed to that shape break on the optimizer's next rule, and G1–G2
 do not.
 
-**Acceptance.** `kitOf_laws` in the manifest; `Ski/Table.lean` generated
+**Acceptance.** The three classes at `tbl.kit` in the manifest; `Ski/Table.lean` generated
 as data; the corpus extended with a program using `y` (`3 sumto`) that
 runs end to end under the generic laws.
 
