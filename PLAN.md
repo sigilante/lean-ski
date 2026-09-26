@@ -78,11 +78,13 @@ manuscript), so a quotation's code enters only at compile time, as a
 constructor of the per-program sum `quot`. The development is therefore
 stated over a `Kit`: one table of static quotations, with the four terms
 that build or eliminate `quot` (`wQcons`, `wCat`, `wUnit`, `applyU`) and
-each static quotation's body. Everything is proved once over a kit; the
-facts the kernel checks per table are the fields of `KitElim`, `KitWords`
-and `KitApply`, and `Ski/Table.lean` (generated) supplies them for two
-tables by `iter_sound rfl`: the kernel with no static quotations
-(`NoQuot`) and the corpus table (`[dup +]`, `[dup]`).
+each static quotation's body. Everything is proved once over a kit. What
+a table must satisfy is the three law classes `KitElim`, `KitWords` and
+`KitApply`, and `Ski/Laws.lean` proves them for the kit compiled from
+every valid table (G4, §3). `Ski/Table.lean` (generated) gives three
+tables as data and checks by `rfl` that compiling each gives `skijack`'s
+terms: the kernel with no static quotations (`NoQuot`), the corpus table
+(`[dup +]`, `[dup]`) and the table of `[dup i] dup i` (`LoopTable`).
 
 `Decodes` reads a value by probing it at fresh variables (`OTerm`), a
 quotation at `n + 3` of them; at any closed continuations the probe then
@@ -159,13 +161,13 @@ whether item 6 is a result or a conjecture. (Built; see §1.)
 
 ## 3. Next: every table at once
 
-The three law classes hold for every quotation table, and the next project
-is to prove it. Today a table's laws are about thirty facts the kernel
-checks by `iter_sound rfl`, so a program with a new static quotation needs
-a newly generated instance before any theorem applies to it. The generic
-form proves `KitElim`, `KitWords` and `KitApply` once, for the kit
-compiled from any table, and shrinks the generator's per-table work to
-one equality test.
+The three law classes hold for the kit compiled from every valid
+quotation table (G4, `Ski/Laws.lean`), so a program with a new static
+quotation needs only its table as data and the `rfl` checks that
+`skijack`'s terms are that kit's (G5). Before G4, a table's laws were
+about thirty facts the kernel checked by `iter_sound rfl` in a generated
+instance. G6 remains: the corpus extended with Joy's recursion
+combinators.
 
 **What `skijack` does.** Read from `aviary_kernel/abstraction.py` and
 `skijack/expand.py`: bracket abstraction is Curry's four rules with eta,
@@ -254,20 +256,30 @@ constructor's fields.
   `n + 3` arms and `Y`) from source. For each generated table,
   `Ski/Table.lean` checks every one of those terms by `rfl` against
   `skijack`'s (27 `table_*` theorems across the three tables).
-- **G4. The laws, generically.** `KitElim` becomes β-reduction of a Scott
-  constructor, one lemma for every arity and position. `KitWords` and
-  `KitApply` fix today's runs to exact skeleton terms (`consC`, `catC`)
-  and contraction counts; restate them up to weak reduction ("reduces to
-  `RVal ⬝ X` with `X →w* Push …`"), which G1b makes as good for `Decodes`
-  (`DecStack.of_wsteps`, `Contract.of_wsteps`),
-  and prove them from the source by β. `body_compiles` becomes the
-  abstraction of `seq w (seq …)` over the eliminator. Target: the three
-  classes at `tbl.kit` (`Ski/Kernel.lean`) for every valid `tbl : Table`.
-- **G5. Pinning.** G3 already emits each table as data (`table`) and
-  checks `table.kit` against `skijack`'s terms by `rfl`. Once G4 proves
-  the laws for every `tbl.kit`, the generator drops the per-table `Kit`
-  instances and their laws, and `Ski/Table.lean` shrinks from 30 kB to
-  the tables and those checks.
+- **G4. The laws, generically — built** (`Ski/Laws.lean`). The laws are
+  restated up to weak reduction, and every one is β for compiled source.
+  `absN_beta_subst` and `absN_beta_close` (`Ski/Abs.lean`) reduce an
+  abstraction applied to all its formals to its body, under any
+  substitution and with no capture condition. `lam1_beta` and `lam2_beta`
+  do the same for a λ-lifted combinator, and `Src.ev` reads the result
+  back as source. `KitElim` is `ctor_beta`, one lemma for every arity and
+  position, on open terms. `KitWords` runs `unit`, `cons` and `cat` to
+  `RVal` of the table's constructors applied to the fields; the skeletons
+  (`consC`, `catC` and the rest) are gone. `KitApply` keeps `Y`'s
+  unrolling as head reduction and runs the arms by β; `body_compiles` is
+  `bodyT k ⬝ R →w* N R (body k)`. The consumers accept weak runs:
+  `Contract.of_wsteps` and the `*W` shared steps for the forward theorem,
+  and for the converse `StepsN.wtail`, which says weak reduction never
+  lengthens the run to a normal form, from `par_step_le` (`Ski/Weak.lean`):
+  a head step costs a parallel reduct at most one. Target met:
+  `Table.kit_elim`, `Table.kit_words` and `Table.kit_apply` for every
+  `tb : Table` with `tb.Valid`.
+- **G5. Pinning — built.** The generator emits each table as data
+  (`table`) with its `table_*` `rfl` checks against `skijack`'s terms and
+  `table_valid`. Its instances are `table.kit` and the three theorems of
+  G4. The per-table laws are gone: `Ski/Table.lean` falls from 46 kB to
+  41 kB, and what remains is `skijack`'s literal terms, the
+  constructors' `*_abs` checks, and the programs' `c*_compiles`.
 - **G6. The payoff.** `composition_diverges` and `composition_exact` for
   every program SKIlark's compiled form accepts, with no per-program
   instance, including Joy's recursion combinators (`y`, `sumto`).
@@ -279,9 +291,10 @@ those families directly. That is cheaper for `KitElim`, but `applyU` is
 proofs keyed to that shape break on the optimizer's next rule, and G1–G2
 do not.
 
-**Acceptance.** The three classes at `tbl.kit` in the manifest; `Ski/Table.lean` generated
-as data; the corpus extended with a program using `y` (`3 sumto`) that
-runs end to end under the generic laws.
+**Acceptance.** The three classes at `tbl.kit` in the manifest (met, G4);
+`Ski/Table.lean` generated as data (met, G5); the corpus extended with a
+program using `y` (`3 sumto`) that runs end to end under the generic laws
+(G6, open).
 
 ## 4. Prior art, placed
 

@@ -20,12 +20,16 @@ absence-of-derivation propositions.
 from the stack, which is no part of the quotation being run.  So the
 converse for `apply` is a strong induction on the number of contractions
 to normal form, `StepsN`, as `lean-nock`'s backward simulation is on
-fuel.  Two facts about a normalizing run carry it.  Every term the run
-passes through normalizes in no more steps (`StepsN.tail`), and in
+fuel.  Three facts about a normalizing run carry it.  Every term the
+run passes through normalizes in no more steps (`StepsN.tail`), and in
 strictly fewer after the first contraction (`StepsN.tail_lt`), because
-reduction is deterministic.  And if `t ⬝ a` normalizes, so does `t`, in
-no more steps (`StepsN.app_left`), because normal order reduces the head
-first.
+reduction is deterministic.  Every weak reduct of such a term also
+normalizes in no more steps (`StepsN.wtail`, `StepsN.wtail_lt`), because
+a head step of `t` costs a parallel reduct of `t` at most one head step
+(`par_step_le`); the table's laws are weak reductions (`Ski/Laws.lean`),
+and this fact lets them carry the measure.  And if `t ⬝ a` normalizes,
+so does `t`, in no more steps (`StepsN.app_left`), because normal order
+reduces the head first.
 
 A recursive call of `applyU` is always reached after the first
 contraction of the call that makes it, so the measure falls.  In the
@@ -97,6 +101,52 @@ theorem StepsN.tail_lt {t t1 u w : Term} {n : Nat} (s : Step t t1) (h : Steps t1
     | intro m' hm' =>
       rw [hm.1]
       exact ⟨m', Nat.lt_succ_of_le hm'.1, hm'.2⟩
+
+/-- **Weak reduction does not lengthen the run to a normal form.**  A head
+    step of `t` costs a parallel reduct of `t` at most one head step
+    (`par_step_le`), and a parallel reduct of a weak head normal form is one;
+    weak reduction is a chain of parallel steps. -/
+theorem StepsN.par {t u w : Term} {n : Nat} (hp : Par t u) (hw : StepsN n t w) (ww : Whnf w) :
+    ∃ m w', m ≤ n ∧ StepsN m u w' ∧ Whnf w' := by
+  induction hw generalizing u with
+  | refl t => exact ⟨0, u, Nat.le_refl 0, .refl u, hp.whnf ww⟩
+  | step s _ ih =>
+    cases par_step_le s hp with
+    | intro u1 h =>
+      cases ih h.2 ww with
+      | intro m h' =>
+        cases h' with
+        | intro w' h' =>
+          cases h.1 with
+          | inl e => exact ⟨m, w', Nat.le_succ_of_le h'.1, e ▸ h'.2⟩
+          | inr s' => exact ⟨m + 1, w', Nat.succ_le_succ h'.1, .step s' h'.2.1, h'.2.2⟩
+
+theorem StepsN.wtail {t u w : Term} {n : Nat} (h : WSteps t u) (hw : StepsN n t w) (ww : Whnf w) :
+    ∃ m w', m ≤ n ∧ StepsN m u w' ∧ Whnf w' := by
+  induction h generalizing n w with
+  | refl _ => exact ⟨n, w, Nat.le_refl n, hw, ww⟩
+  | step s _ ih =>
+    cases StepsN.par s.par hw ww with
+    | intro m h1 =>
+      cases h1 with
+      | intro w1 h1 =>
+        cases ih h1.2.1 h1.2.2 with
+        | intro m' h2 =>
+          cases h2 with
+          | intro w2 h2 => exact ⟨m', w2, Nat.le_trans h2.1 h1.1, h2.2⟩
+
+/-- After a first contraction, any weak reduct normalizes in strictly
+    fewer steps. -/
+theorem StepsN.wtail_lt {t t1 u w : Term} {n : Nat} (s : Step t t1) (h : WSteps t1 u)
+    (hw : StepsN n t w) (ww : Whnf w) : ∃ m w', m < n ∧ StepsN m u w' ∧ Whnf w' := by
+  cases StepsN.after_step s hw ww with
+  | intro m hm =>
+    cases StepsN.wtail h hm.2 ww with
+    | intro m' h' =>
+      cases h' with
+      | intro w' h' =>
+        rw [hm.1]
+        exact ⟨m', w', Nat.lt_succ_of_le h'.1, h'.2⟩
 
 theorem Whnf.fn {t a : Term} (h : Whnf (t ⬝ a)) : Whnf t := by
   cases h with
@@ -371,27 +421,30 @@ theorem applySelf_soundR {z : Term} (hz : Steps z (fixB applyF)) :
     claim at every smaller count. -/
 theorem apply_complete_at {n : Nat} (hA : ∀ m, m < n → ApplyClaim m) : ApplyClaim n := by
   intro z fq fs w q S hz hq hs hw ww
-  have reach : ∀ {u : Term},
-      Steps (applyF ⬝ fixSelf applyF (I ⬝ z) ⬝ fq ⬝ fs) u → ∃ m, m < n ∧ StepsN m u w :=
-    fun hu => StepsN.tail_lt (fixSelf_first applyF z fq fs) ((fixSelf_rest hz fq fs).trans hu) hw ww
+  have reach : ∀ {u : Term}, WSteps (applyF ⬝ fixSelf applyF (I ⬝ z) ⬝ fq ⬝ fs) u →
+      ∃ m w', m < n ∧ StepsN m u w' ∧ Whnf w' :=
+    fun hu => StepsN.wtail_lt (fixSelf_first applyF z fq fs)
+      ((fixSelf_rest hz fq fs).weak.trans hu) hw ww
   have hz' := fixSelf_inv hz
   cases KitApply.applyF_stages (fixSelf applyF (I ⬝ z)) fq fs with | intro ks h =>
   cases q with
   | stat k =>
-    cases reach (h.1.trans ((hq.probe_stat.2 ks).trans (h.2.1 k hq.1))) with
+    cases reach (h.1.trans ((hq.probe_stat.2 ks).weak.trans ((h.2.1 k hq.1).trans
+        (WSteps.left fs (KitApply.body_compiles k hq.1 _))))) with
     | intro m hm =>
-      cases prog_complete_at (applySelf_soundR hz')
-          (fun m' hm' _ _ _ _ _ hq' hs' hw' ww' => hA m' (Nat.lt_of_le_of_lt hm' hm.1) hz' hq' hs' hw' ww')
-          (Kit.body k) (KitApply.body_ok k hq.1) (KitApply.body_compiles k hq.1 _) hs hm.2 ww with
-      | intro o ho => exact ⟨o, .stat hq.1 ho⟩
+      cases hm with
+      | intro w' hm =>
+        cases prog_complete_at (applySelf_soundR hz')
+            (fun m' hm' _ _ _ _ _ hq' hs' hw' ww' =>
+              hA m' (Nat.lt_of_le_of_lt hm' hm.1) hz' hq' hs' hw' ww')
+            (Kit.body k) (KitApply.body_ok k hq.1) (compiles_N _ _) hs hm.2.1 hm.2.2 with
+        | intro o ho => exact ⟨o, .stat hq.1 ho⟩
   | unit x => exact ⟨_, .unit⟩
   | cons x r =>
     cases hq.probe_cons ks with | intro f hf => cases hf with | intro g hg =>
-    cases h.2.2.1 f g with | intro P hP =>
-    cases reach (h.1.trans (hg.1.trans hP.1)) with | intro m hm =>
-    cases hA m hm.1 hz' hg.2.2
-        (DecStack.of_steps hP.2 (dec_push hg.2.1 (DecStack.of_steps (steps_thunk1 _ _) hs)))
-        hm.2 ww with
+    cases reach (h.1.trans (hg.1.weak.trans (h.2.2.1 f g))) with | intro m hm =>
+    cases hm with | intro w' hm =>
+    cases hA m hm.1 hz' hg.2.2 (dec_push hg.2.1 hs) hm.2.1 hm.2.2 with
     | intro o ho => exact ⟨o, .cons ho⟩
   | «then» b =>
     cases S with
@@ -401,16 +454,14 @@ theorem apply_complete_at {n : Nat} (hA : ∀ m, m < n → ApplyClaim m) : Apply
       | num k => exact ⟨_, .then_bad (fun _ _ e => by cases e)⟩
       | quot r =>
         cases hq.probe_then ks with | intro fb hb =>
-        have hs' := DecStack.of_steps (steps_thunk2 (fixSelf applyF (I ⬝ z)) fs fb) hs
-        have toSeq := h.1.trans (hb.1.trans (h.2.2.2.2 fb))
-        cases seq_stages (Scott.wDo ⬝ fixSelf applyF (I ⬝ z))
-            (I ⬝ fixSelf applyF (I ⬝ z) ⬝ fb) (K ⬝ K ⬝ fixSelf applyF (I ⬝ z) ⬝ fs ⬝ fb) with
+        have toSeq := h.1.trans (hb.1.weak.trans (h.2.2.2.2 fb))
+        cases seq_stages (Scott.wDo ⬝ fixSelf applyF (I ⬝ z)) (fixSelf applyF (I ⬝ z) ⬝ fb) fs with
         | intro j0 hj => cases hj with | intro j1 hj => cases hj with | intro j2 hj =>
-        cases path_i (fixSelf applyF (I ⬝ z)) hs' with | intro x hx => cases hx with
+        cases path_i (fixSelf applyF (I ⬝ z)) hs with | intro x hx => cases hx with
         | intro th hx =>
-        have toCall := toSeq.trans (hj.1.trans (Steps.app3 j0 j1 j2 hx.1))
-        cases reach toCall with | intro m1 hm1 =>
-        cases StepsN.app3_left hm1.2 ww with | intro m2 h2 => cases h2 with | intro v h2 =>
+        have toCall := toSeq.trans (hj.1.trans (Steps.app3 j0 j1 j2 hx.1)).weak
+        cases reach toCall with | intro m1 hm1 => cases hm1 with | intro w1 hm1 =>
+        cases StepsN.app3_left hm1.2.1 hm1.2.2 with | intro m2 h2 => cases h2 with | intro v h2 =>
         cases hA m2 (Nat.lt_of_le_of_lt h2.1 hm1.1) hz' hx.2.1 hx.2.2 h2.2.1 h2.2.2 with
         | intro o1 ho1 =>
           cases o1 with
@@ -418,10 +469,10 @@ theorem apply_complete_at {n : Nat} (hA : ∀ m, m < n → ApplyClaim m) : Apply
           | val S' =>
             cases applySelf_sound ho1 hz' hx.2.1 hx.2.2 with | intro u hu =>
             cases hu.2.probe_val j0 j1 j2 with | intro fv hv =>
-            have toRest := toCall.trans ((Steps.app3 j0 j1 j2 hu.1.1).trans
-              (hv.1.trans ((hj.2.1 fv).trans (.single (.left fv (.left fb (.I _)))))))
-            cases reach toRest with | intro m3 hm3 =>
-            cases hA m3 hm3.1 hz' hb.2 hv.2 hm3.2 ww with
+            have toRest := toCall.trans
+              ((Steps.app3 j0 j1 j2 hu.1.1).trans (hv.1.trans (hj.2.1 fv))).weak
+            cases reach toRest with | intro m3 hm3 => cases hm3 with | intro w3 hm3 =>
+            cases hA m3 hm3.1 hz' hb.2 hv.2 hm3.2.1 hm3.2.2 with
             | intro o2 ho2 => exact ⟨o2, .then_val ho1 ho2⟩
 
 theorem apply_complete_all : ∀ n, ApplyClaim n := by

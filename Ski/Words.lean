@@ -28,9 +28,9 @@ The sum is per program, and so are the terms that build or eliminate it:
 not.  A `Kit` is one table: its size `n`, its `quot` constructors, those
 four terms, and each static quotation's body as words (`body`) and as
 the compiled term (`bodyT`).  Everything proved over a `Kit` holds for
-every table; what the kernel checks per table is collected in the law
-classes `KitElim`, `KitWords` and `KitApply`, and the instances are
-generated (`Ski/Table.lean`).
+every table.  What a table must satisfy is collected in the law classes
+`KitElim`, `KitWords` and `KitApply`; `Ski/Laws.lean` proves all three
+for the kit compiled from any valid table (`Table.kit`, `Ski/Kernel.lean`).
 
 A static index is meaningful only below `n`; `Quotation.ok n` says a
 quotation mentions no other.

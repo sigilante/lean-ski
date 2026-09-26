@@ -229,56 +229,6 @@ def stage(t, T):
                        or (isinstance(u, App) and u.fn == T["RVal"]))
 
 
-def table_facts(X, quots):
-    T = X.terms
-    n = len(quots)
-    A = Atom
-    ks = [A(f"k{i}") for i in range(n + 3)]
-    x, r, s, f, g, f2, g2, y, R, q, b = map(A, "x r s f g f2 g2 y R q b".split())
-    F = {}
-    F["Qs"] = [count_until(ap_(T[f"Q{k + 1}"], *ks), lambda u: u == ks[k])[0] for k in range(n)]
-    F["QCons"] = stage(ap_(T["QCons"], x, r, *ks), T)[0]
-    F["QUnit"] = stage(ap_(T["QUnit"], x, *ks), T)[0]
-    F["QThen"] = stage(ap_(T["QThen"], x, *ks), T)[0]
-
-    # unit: s c0 c1; c0; c1 f g
-    c, u = stage(ap_(T["wUnit"], s), T); a = head_args(u)[1]
-    F["unit"] = [c, stage(a[0], T)[0], stage(ap_(a[1], f, g), T)[0]]
-    # cons: s c0 c1; c0; c1 f g -> f e0 e1; e0 n; e1 x -> g d0 d1; d0; d1 f2 g2
-    c, u = stage(ap_(T["wQcons"], s), T); a = head_args(u)[1]
-    k2, v = stage(ap_(a[1], f, g), T); e = head_args(v)[1]
-    k4, w = stage(ap_(e[1], x), T); d = head_args(w)[1]
-    F["cons"] = [c, stage(a[0], T)[0], k2, stage(ap_(e[0], A("nn")), T)[0], k4,
-                 stage(d[0], T)[0], stage(ap_(d[1], f2, g2), T)[0]]
-    # cat: as cons, then d1 f2 g2 -> f2 e0' e1'; e0' n; e1' y
-    c, u = stage(ap_(T["wCat"], s), T); a = head_args(u)[1]
-    k2, v = stage(ap_(a[1], f, g), T); e = head_args(v)[1]
-    k4, w = stage(ap_(e[1], x), T); d = head_args(w)[1]
-    k6, z = stage(ap_(d[1], f2, g2), T); e2 = head_args(z)[1]
-    F["cat"] = [c, stage(a[0], T)[0], k2, stage(ap_(e[0], A("nn")), T)[0], k4,
-                stage(d[0], T)[0], k6, stage(ap_(e2[0], A("nn")), T)[0],
-                stage(ap_(e2[1], y), T)[0]]
-    # applyU = Y applyF
-    SII = ap_(A("S"), A("I"), A("I"))
-    Y = ap_(A("S"), ap_(A("K"), SII), ap_(A("S"), ap_(A("S"), ap_(A("K"), A("S")), A("K")), ap_(A("K"), SII)))
-    assert T["applyU"].fn == Y, "applyU is not Y applied to its body"
-    AF = T["applyU"].arg
-    c, u = stage(ap_(AF, R, q, s), T)
-    h, kk = head_args(u)
-    assert h == q and len(kk) == n + 3
-    F["apply"] = c
-    F["stat"] = [count_until(kk[k], lambda t, k=k: t == ap_(T[f"b{k + 1}"], R, s))[0] for k in range(n)]
-    c1, t1 = stage(ap_(kk[n], x, r), T)
-    P = t1.arg
-    push = ap_(T["Push"], x, ap_(A("K"), s, x))
-    F["cons_branch"] = [c1, count_until(P, lambda t: t == push)[0]]
-    c1, t1 = stage(ap_(kk[n + 1], x), T)
-    F["unit_branch"] = [c1, count_until(t1.arg, lambda t: t == push)[0]]
-    then_t = ap_(T["seq"], ap_(T["wDo"], R), ap_(A("I"), R, b), ap_(A("K"), A("K"), R, s, b))
-    F["then_branch"] = count_until(ap_(kk[n + 2], b), lambda t: t == then_t)[0]
-    return F
-
-
 def lean_words(ws, quot_index):
     out = []
     for w in ws:
@@ -367,7 +317,6 @@ def by_index(n, arms, fallback):
 def emit_table(ns, doc, X, quots, qidx, names, programs, rows=None):
     T = X.terms
     n = len(quots)
-    F = table_facts(X, quots)
     L = [f"namespace {ns}", "", f"/-! {doc} -/", ""]
     for k in range(n):
         L.append(f"def Q{k + 1} : Term := {lean(T[f'Q{k + 1}'])}")
@@ -386,48 +335,23 @@ def emit_table(ns, doc, X, quots, qidx, names, programs, rows=None):
         L.append(f"def b{k + 1} : Term := {lean(T[f'b{k + 1}'])}")
     if n:
         L.append("")
-    qs = "fun _ => K" if n == 0 else "fun k => match k with" + "".join(
-        f" | {k} => Q{k + 1}" for k in range(n)) + " | _ => K"
+    # the table as data, and its kit compiled from source, term for term
     body = "fun _ => []" if n == 0 else "fun k => match k with" + "".join(
         f" | {k} => {lean_words(quots[k], qidx)}" for k in range(n)) + " | _ => []"
-    bodyT = "fun _ => K" if n == 0 else "fun k => match k with" + "".join(
-        f" | {k} => b{k + 1}" for k in range(n)) + " | _ => K"
-    L += ["scoped instance kit : Kit where",
-          f"  n := {n}", f"  Qs := {qs}"]
+    ref = lambda field: names[field] if names[field] != field else field
+    L += [f"def table : Table := ⟨{n}, {body}⟩", ""]
+    for k in range(n):
+        L.append(f"theorem table_Qs{k} : table.Qs {k} = Q{k + 1} := rfl")
     for field in ["QCons", "QUnit", "QThen", "wQcons", "wCat", "wUnit", "applyU"]:
-        L.append(f"  {field} := {names[field]}")
-    L += [f"  body := {body}", f"  bodyT := {bodyT}", ""]
-    it = lambda k: f"iter_sound (k := {k}) rfl"
-    oit = lambda k: f"oiter_sound (k := {k}) rfl"
-    L += ["scoped instance elim : KitElim where",
-          "  Qs_elim := " + by_index(n, [f"fun _ => {oit(c)}" for c in F["Qs"]], True),
-          f"  QCons_elim := fun _ _ _ => {oit(F['QCons'])}",
-          f"  QUnit_elim := fun _ _ => {oit(F['QUnit'])}",
-          f"  QThen_elim := fun _ _ => {oit(F['QThen'])}", ""]
-    u, co, ca = F["unit"], F["cons"], F["cat"]
-    L += ["scoped instance words : KitWords where",
-          f"  wUnit_stages := fun _ => ⟨_, _, {it(u[0])}, {it(u[1])}, fun _ _ => {it(u[2])}⟩",
-          f"  wQcons_stages := fun _ => ⟨_, _, {it(co[0])}, {it(co[1])}, fun _ _ =>",
-          f"    ⟨_, _, {it(co[2])}, fun _ => {it(co[3])}, fun _ =>",
-          f"      ⟨_, _, {it(co[4])}, {it(co[5])}, fun _ _ => {it(co[6])}⟩⟩⟩",
-          f"  wCat_stages := fun _ => ⟨_, _, {it(ca[0])}, {it(ca[1])}, fun _ _ =>",
-          f"    ⟨_, _, {it(ca[2])}, fun _ => {it(ca[3])}, fun _ =>",
-          f"      ⟨_, _, {it(ca[4])}, {it(ca[5])}, fun _ _ =>",
-          f"        ⟨_, _, {it(ca[6])}, fun _ => {it(ca[7])}, fun _ => {it(ca[8])}⟩⟩⟩⟩", ""]
-    holes = ", ".join("_" for _ in range(n + 3))
-    stat = by_index(n, [it(c) for c in F["stat"]], True)
-    bodyC = by_index(n, [f"fun _ => {compiles_proof(X, quots[k], App(T[f'b{k + 1}'], Atom('R')), Atom('R'), qidx)}" for k in range(n)], True)
-    bodyok = by_index(n, ["rfl" for _ in range(n)], True)
-    cb, ub = F["cons_branch"], F["unit_branch"]
-    L += ["scoped instance apply : KitApply where",
-          "  applyU_unfold := fun _ _ => iter_sound (k := 1) rfl",
-          f"  applyF_stages := fun _ _ _ => ⟨fun i => [{holes}].getD i K, {it(F['apply'])},",
-          f"    {stat},",
-          f"    fun _ _ => ⟨_, {it(cb[0])}, {it(cb[1])}⟩,",
-          f"    fun _ => ⟨_, {it(ub[0])}, {it(ub[1])}⟩,",
-          f"    fun _ => {it(F['then_branch'])}⟩",
-          f"  body_compiles := {bodyC}",
-          f"  body_ok := {bodyok}", ""]
+        L.append(f"theorem table_{field} : table.{field} = {ref(field)} := rfl")
+    for k in range(n):
+        L.append(f"theorem table_bodyT{k} : table.bodyT {k} = b{k + 1} := rfl")
+    L += ["", "/-- Every static quotation's body is valid over the table. -/",
+          f"theorem table_valid : table.Valid := {by_index(n, ['rfl' for _ in range(n)], True)}", "",
+          "scoped instance kit : Kit := table.kit",
+          "scoped instance elim : KitElim := table.kit_elim",
+          "scoped instance words : KitWords := table.kit_words",
+          "scoped instance apply : KitApply := table.kit_apply table_valid", ""]
     # programs whose quotations are all in this table
     for pname, src in programs.items():
         ws = joy.expand(joy.parse(src), joy.DEFINITIONS)
@@ -438,16 +362,6 @@ def emit_table(ns, doc, X, quots, qidx, names, programs, rows=None):
               f"theorem c{pname}_compiles (apT : Term) :",
               f"    Compiles apT {lean_words(ws, qidx)} (c{pname} ⬝ apT) :=",
               f"  {prf}", ""]
-    # the table as data, and its kit compiled from source, term for term
-    ref = lambda field: names[field] if names[field] != field else field
-    L += [f"def table : Table := ⟨{n}, {body}⟩", ""]
-    for k in range(n):
-        L.append(f"theorem table_Qs{k} : table.Qs {k} = Q{k + 1} := rfl")
-    for field in ["QCons", "QUnit", "QThen", "wQcons", "wCat", "wUnit", "applyU"]:
-        L.append(f"theorem table_{field} : table.{field} = {ref(field)} := rfl")
-    for k in range(n):
-        L.append(f"theorem table_bodyT{k} : table.bodyT {k} = b{k + 1} := rfl")
-    L.append("")
     # the corpus rows are these programs, run with this table's applyU on the empty stack
     for pname in (programs if rows else []):
         assert T["u" + pname] == App(App(T["c" + pname], T["applyU"]), T["Empty"])
@@ -461,22 +375,23 @@ def emit_table(ns, doc, X, quots, qidx, names, programs, rows=None):
 tprogs = {"p": "1 2 + dup +"}
 tquots, tqidx = quotation_table(tprogs)
 assert not tquots
-L = ['import Ski.Corpus', 'import Ski.Converse', 'import Ski.Kernel', 'open Term', '',
+L = ['import Ski.Corpus', 'import Ski.Laws', 'open Term', '',
      'set_option maxRecDepth 4096', '',
      '/-!', '# Quotation tables',
      '',
      'Generated by `scripts/emit.py` from `skijack` 0.2.0; do not edit.  Each',
-     'namespace is one compilation\'s table of static quotations as a `Kit`,',
-     'with the laws of `KitElim`, `KitWords` and `KitApply` checked by the',
-     'kernel re-running the reference reducer\'s contractions (`iter_sound',
-     'rfl`), and, for each program of the compilation, the fact that its',
-     'compiled term is a compiled form of its words; `table` is the table as',
-     'data, and each `table_*` theorem checks by `rfl` that compiling the',
-     'kernel\'s source for it (`Table.kit`, `Ski/Kernel.lean`) gives the term',
-     '`skijack` emitted; for the corpus table,',
-     'the corpus rows are those programs run on the empty stack.  The',
-     'instances are scoped: `open NoQuot`, `open CorpusTable` or `open',
-     'LoopTable` selects one.', '-/', '']
+     'namespace is one compilation\'s table of static quotations, as data:',
+     '`table` gives the number of static quotations and each one\'s words.',
+     'Each `table_*` theorem checks by `rfl` that compiling the kernel\'s',
+     'source for the table (`Table.kit`, `Ski/Kernel.lean`) gives the term',
+     '`skijack` emitted, and the `*_abs` theorems do the same for the',
+     'constructors through `absN` directly.  The laws are not checked here:',
+     '`Ski/Laws.lean` proves them for every valid table, and `table_valid`',
+     'is the validity of this one.  For each program of the compilation,',
+     '`c*_compiles` says its compiled term is a compiled form of its words;',
+     'for the corpus table, the corpus rows are those programs run on the',
+     'empty stack.  The instances are scoped: `open NoQuot`, `open',
+     'CorpusTable` or `open LoopTable` selects one.', '-/', '']
 L += emit_table("NoQuot",
                 "The kernel of `Ski/Scott.lean`: a table with no static quotations.",
                 e, [], tqidx,

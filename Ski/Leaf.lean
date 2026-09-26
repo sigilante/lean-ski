@@ -31,6 +31,13 @@ supplies; nothing in a leaf proof looks inside them.  The skeleton lemmas
 reduce each result to Scott constructors, and the constructor lemmas of
 `Ski/Decode.lean` decode it.
 
+The table's words `unit`, `cons` and `cat` differ between tables, so
+their stages are the class `KitWords`, stated up to weak reduction and
+proved for every table from source (`Ski/Laws.lean`).  Their results are
+the table's constructors applied to the fields, with no skeleton; the
+shared steps take weak runs in their `*W` forms, through
+`Contract.of_wsteps`.
+
 ## Words that run a quotation
 
 `dip` and `i` stop with the quotation eliminator `apT` at the head,
@@ -114,96 +121,66 @@ theorem item_quot {x e0 e1 t : Term} {q : Quotation} (hx : DecItem x (.quot q))
   | intro f hf => exact ⟨f, h.trans hf.1, hf.2⟩
 
 -- ---------------------------------------------------------------------------
--- The table's words: `unit`, `cons` and `cat` build `quot` values, so their
--- terms are the table's.  Their result skeletons are the same combinators
--- over the table's constructors, and reduce to them for every table
--- (`unitC_push` and the rest); the runs down to those skeletons are
--- checked per table, as the fields of `KitWords`.
+-- The same, up to weak reduction
 -- ---------------------------------------------------------------------------
 
-/-- `λ a. Quot (QUnit a)`. -/
-def unitQ : Term := S ⬝ (K ⬝ Scott.Quot) ⬝ Kit.QUnit
+theorem contract_valW {t g : Term} {s : Stack} (ht : WSteps t (Scott.RVal ⬝ g))
+    (hg : DecStack g s) : Contract t (.val s) :=
+  Contract.of_wsteps ht (contract_val (.refl _) hg)
 
-/-- `λ a t. Push (Quot (QUnit a)) t`. -/
-def unitC : Term := S ⬝ (K ⬝ Scott.Push) ⬝ unitQ
+theorem contract_errW {t : Term} (ht : WSteps t Scott.RErr) : Contract t .err :=
+  Contract.of_wsteps ht (contract_err (.refl _))
 
-theorem unitC_push (f0 f1 : Term) :
-    Steps (unitC ⬝ f0 ⬝ f1) (Scott.Push ⬝ (unitQ ⬝ f0) ⬝ f1) :=
-  iter_sound (k := 2) rfl
+theorem stack_errW {s c1 t : Term} (hs : DecStack s []) (h : WSteps t (s ⬝ Scott.RErr ⬝ c1)) :
+    Contract t .err :=
+  Contract.of_wsteps h (contract_err (hs.probe_nil _ _))
 
-theorem unitQ_quot (f0 : Term) :
-    Steps (unitQ ⬝ f0) (Scott.Quot ⬝ (Kit.QUnit ⬝ f0)) :=
-  iter_sound (k := 2) rfl
+theorem stack_pushW {s c0 c1 t : Term} {a : Item} {S : Stack} (hs : DecStack s (a :: S))
+    (h : WSteps t (s ⬝ c0 ⬝ c1)) :
+    ∃ f g, WSteps t (c1 ⬝ f ⬝ g) ∧ DecItem f a ∧ DecStack g S := by
+  cases hs.probe_cons c0 c1 with
+  | intro f hf =>
+    cases hf with
+    | intro g hg => exact ⟨f, g, h.trans hg.1.weak, hg.2⟩
 
-/-- `λ r b. QCons b r`, with `r` passed back as a thunk. -/
-def consR : Term := S ⬝ (K ⬝ (S ⬝ Kit.QCons)) ⬝ K
+theorem item_num_errW {x e0 e1 t : Term} {n : Nat} (hx : DecItem x (.num n))
+    (h : WSteps t (x ⬝ e0 ⬝ e1)) (he : ∀ f, WSteps (e0 ⬝ f) Scott.RErr) : Contract t .err := by
+  cases hx.probe_num e0 e1 with
+  | intro f hf => exact contract_errW (h.trans (hf.1.weak.trans (he f)))
 
-/-- `λ r b. Quot (QCons b r)`. -/
-def consQ : Term := S ⬝ (K ⬝ (S ⬝ (K ⬝ Scott.Quot))) ⬝ consR
+theorem item_quotW {x e0 e1 t : Term} {q : Quotation} (hx : DecItem x (.quot q))
+    (h : WSteps t (x ⬝ e0 ⬝ e1)) : ∃ f, WSteps t (e1 ⬝ f) ∧ DecQuot f q := by
+  cases hx.probe_quot e0 e1 with
+  | intro f hf => exact ⟨f, h.trans hf.1.weak, hf.2⟩
 
-/-- `λ r b u. Push (Quot (QCons b r)) u`. -/
-def consC : Term := S ⬝ (K ⬝ (S ⬝ (K ⬝ Scott.Push))) ⬝ consQ
+-- ---------------------------------------------------------------------------
+-- The table's words: `unit`, `cons` and `cat` build `quot` values, so their
+-- terms are the table's.  Each runs, up to weak reduction, to the next
+-- input at the head, to `RErr`, or to `RVal` of its result built from the
+-- table's constructors; bracket abstraction gives exactly these runs for
+-- every table (`Table.kit_words`, `Ski/Laws.lean`).
+-- ---------------------------------------------------------------------------
 
-theorem consC_push (f0 f1 f2 : Term) :
-    Steps (consC ⬝ f0 ⬝ f1 ⬝ f2) (Scott.Push ⬝ (consQ ⬝ f0 ⬝ f1) ⬝ f2) :=
-  iter_sound (k := 4) rfl
-
-theorem consQ_quot (f0 f1 : Term) :
-    Steps (consQ ⬝ f0 ⬝ f1) (Scott.Quot ⬝ (consR ⬝ f0 ⬝ f1)) :=
-  iter_sound (k := 4) rfl
-
-theorem consR_qcons (f0 f1 : Term) :
-    Steps (consR ⬝ f0 ⬝ f1) (Kit.QCons ⬝ f1 ⬝ (K ⬝ f0 ⬝ f1)) :=
-  iter_sound (k := 3) rfl
-
-/-- `λ r l. QThen r`. -/
-def catThen : Term := S ⬝ (K ⬝ K) ⬝ Kit.QThen
-
-/-- `λ r l. QCons (Quot l) (QThen r)`. -/
-def catR : Term := S ⬝ (K ⬝ (S ⬝ (S ⬝ (K ⬝ Kit.QCons) ⬝ Scott.Quot))) ⬝ catThen
-
-/-- `λ r l. Quot (QCons (Quot l) (QThen r))`. -/
-def catQ : Term := S ⬝ (K ⬝ (S ⬝ (K ⬝ Scott.Quot))) ⬝ catR
-
-/-- `λ r u l. Push (Quot (QCons (Quot l) (QThen r))) u`. -/
-def catC : Term :=
-  S ⬝ (S ⬝ (K ⬝ S) ⬝ (S ⬝ (K ⬝ K) ⬝ (S ⬝ (K ⬝ S) ⬝ (S ⬝ (K ⬝ (S ⬝ (K ⬝ Scott.Push))) ⬝ catQ))))
-    ⬝ (K ⬝ K)
-
-theorem catC_push (f0 f1 f2 : Term) :
-    Steps (catC ⬝ f0 ⬝ f1 ⬝ f2) (Scott.Push ⬝ (catQ ⬝ f0 ⬝ f2) ⬝ (K ⬝ K ⬝ f0 ⬝ f1 ⬝ f2)) :=
-  iter_sound (k := 14) rfl
-
-theorem catQ_quot (f0 f2 : Term) :
-    Steps (catQ ⬝ f0 ⬝ f2) (Scott.Quot ⬝ (catR ⬝ f0 ⬝ f2)) :=
-  iter_sound (k := 4) rfl
-
-theorem catR_qcons (f0 f2 : Term) :
-    Steps (catR ⬝ f0 ⬝ f2) (Kit.QCons ⬝ (Scott.Quot ⬝ f2) ⬝ (catThen ⬝ f0 ⬝ f2)) :=
-  iter_sound (k := 5) rfl
-
-theorem catThen_qthen (f0 f2 : Term) :
-    Steps (catThen ⬝ f0 ⬝ f2) (Kit.QThen ⬝ f0) :=
-  iter_sound (k := 3) rfl
-
-/-- The table's `unit`, `cons` and `cat` run to their skeletons.  The
-    kernel checks these per table (`Ski/Table.lean`). -/
+/-- The table's `unit`, `cons` and `cat` run to their results, up to weak
+    reduction. -/
 class KitWords [Kit] : Prop where
-  wUnit_stages : ∀ s : Term, ∃ c0 c1,
-    Steps (Kit.wUnit ⬝ s) (s ⬝ c0 ⬝ c1) ∧ Steps c0 Scott.RErr ∧
-    ∀ f g, Steps (c1 ⬝ f ⬝ g) (Scott.RVal ⬝ (unitC ⬝ f ⬝ g))
-  wQcons_stages : ∀ s : Term, ∃ c0 c1,
-    Steps (Kit.wQcons ⬝ s) (s ⬝ c0 ⬝ c1) ∧ Steps c0 Scott.RErr ∧
-    ∀ f g, ∃ e0 e1, Steps (c1 ⬝ f ⬝ g) (f ⬝ e0 ⬝ e1) ∧ (∀ n, Steps (e0 ⬝ n) Scott.RErr) ∧
-      ∀ x, ∃ d0 d1, Steps (e1 ⬝ x) (g ⬝ d0 ⬝ d1) ∧ Steps d0 Scott.RErr ∧
-        ∀ f2 g2, Steps (d1 ⬝ f2 ⬝ g2) (Scott.RVal ⬝ (consC ⬝ x ⬝ f2 ⬝ g2))
-  wCat_stages : ∀ s : Term, ∃ c0 c1,
-    Steps (Kit.wCat ⬝ s) (s ⬝ c0 ⬝ c1) ∧ Steps c0 Scott.RErr ∧
-    ∀ f g, ∃ e0 e1, Steps (c1 ⬝ f ⬝ g) (f ⬝ e0 ⬝ e1) ∧ (∀ n, Steps (e0 ⬝ n) Scott.RErr) ∧
-      ∀ x, ∃ d0 d1, Steps (e1 ⬝ x) (g ⬝ d0 ⬝ d1) ∧ Steps d0 Scott.RErr ∧
-        ∀ f2 g2, ∃ e0' e1', Steps (d1 ⬝ f2 ⬝ g2) (f2 ⬝ e0' ⬝ e1') ∧
-          (∀ n, Steps (e0' ⬝ n) Scott.RErr) ∧
-          ∀ y, Steps (e1' ⬝ y) (Scott.RVal ⬝ (catC ⬝ x ⬝ g2 ⬝ y))
+  wUnit_stages : ∀ s : Term, ∃ c1,
+    WSteps (Kit.wUnit ⬝ s) (s ⬝ Scott.RErr ⬝ c1) ∧
+    ∀ f g, WSteps (c1 ⬝ f ⬝ g) (Scott.RVal ⬝ (Scott.Push ⬝ (Scott.Quot ⬝ (Kit.QUnit ⬝ f)) ⬝ g))
+  wQcons_stages : ∀ s : Term, ∃ c1,
+    WSteps (Kit.wQcons ⬝ s) (s ⬝ Scott.RErr ⬝ c1) ∧
+    ∀ f g, ∃ e0 e1, WSteps (c1 ⬝ f ⬝ g) (f ⬝ e0 ⬝ e1) ∧ (∀ n, WSteps (e0 ⬝ n) Scott.RErr) ∧
+      ∀ x, ∃ d1, WSteps (e1 ⬝ x) (g ⬝ Scott.RErr ⬝ d1) ∧
+        ∀ f2 g2, WSteps (d1 ⬝ f2 ⬝ g2)
+          (Scott.RVal ⬝ (Scott.Push ⬝ (Scott.Quot ⬝ (Kit.QCons ⬝ f2 ⬝ x)) ⬝ g2))
+  wCat_stages : ∀ s : Term, ∃ c1,
+    WSteps (Kit.wCat ⬝ s) (s ⬝ Scott.RErr ⬝ c1) ∧
+    ∀ f g, ∃ e0 e1, WSteps (c1 ⬝ f ⬝ g) (f ⬝ e0 ⬝ e1) ∧ (∀ n, WSteps (e0 ⬝ n) Scott.RErr) ∧
+      ∀ x, ∃ d1, WSteps (e1 ⬝ x) (g ⬝ Scott.RErr ⬝ d1) ∧
+        ∀ f2 g2, ∃ e0' e1', WSteps (d1 ⬝ f2 ⬝ g2) (f2 ⬝ e0' ⬝ e1') ∧
+          (∀ n, WSteps (e0' ⬝ n) Scott.RErr) ∧
+          ∀ y, WSteps (e1' ⬝ y) (Scott.RVal ⬝ (Scott.Push ⬝
+            (Scott.Quot ⬝ (Kit.QCons ⬝ (Scott.Quot ⬝ y) ⬝ (Kit.QThen ⬝ x))) ⬝ g2))
 
 variable [KitWords]
 
@@ -311,14 +288,12 @@ theorem leaf_swap (ap : Quotation → Stack → Outcome) (S : Stack) (hS : S.all
 
 theorem leafD_unit (ap : Quotation → Stack → Outcome) (S : Stack) {s : Term}
     (hs : DecStack s S) : Contract (phi .unit ⬝ s) (cw ap .unit S) := by
-  cases KitWords.wUnit_stages s with | intro c0 h => cases h with | intro c1 h =>
+  cases KitWords.wUnit_stages s with | intro c1 h =>
   cases S with
-  | nil => exact stack_err hs h.1 h.2.1
+  | nil => exact stack_errW hs h.1
   | cons a t =>
-    cases stack_push hs h.1 with | intro f h1 => cases h1 with | intro g h1 =>
-    exact contract_val (h1.1.trans (h.2.2 f g))
-      (DecStack.of_steps (unitC_push _ _)
-        (dec_push (DecItem.of_steps (unitQ_quot _) (dec_quot (dec_qunit h1.2.1))) h1.2.2))
+    cases stack_pushW hs h.1 with | intro f h1 => cases h1 with | intro g h1 =>
+    exact contract_valW (h1.1.trans (h.2 f g)) (dec_push (dec_quot (dec_qunit h1.2.1)) h1.2.2)
 
 theorem leaf_unit (ap : Quotation → Stack → Outcome) (S : Stack) (hS : S.all (Item.ok Kit.n) = true) :
     ∃ t, Eval (phi .unit ⬝ encStack S) t ∧ Decodes t (cw ap .unit S) :=
@@ -330,27 +305,24 @@ theorem leaf_unit (ap : Quotation → Stack → Outcome) (S : Stack) (hS : S.all
 
 theorem leafD_cons (ap : Quotation → Stack → Outcome) (S : Stack) {s : Term}
     (hs : DecStack s S) : Contract (phi .cons ⬝ s) (cw ap .cons S) := by
-  cases KitWords.wQcons_stages s with | intro c0 h => cases h with | intro c1 h =>
+  cases KitWords.wQcons_stages s with | intro c1 h =>
   cases S with
-  | nil => exact stack_err hs h.1 h.2.1
+  | nil => exact stack_errW hs h.1
   | cons a t =>
-    cases stack_push hs h.1 with | intro f h1 => cases h1 with | intro g h1 =>
-    cases h.2.2 f g with | intro e0 h2 => cases h2 with | intro e1 h2 =>
+    cases stack_pushW hs h.1 with | intro f h1 => cases h1 with | intro g h1 =>
+    cases h.2 f g with | intro e0 h2 => cases h2 with | intro e1 h2 =>
     cases a with
-    | num n => exact item_num_err h1.2.1 (h1.1.trans h2.1) h2.2.1
+    | num n => exact item_num_errW h1.2.1 (h1.1.trans h2.1) h2.2.1
     | quot q =>
-      cases item_quot h1.2.1 (h1.1.trans h2.1) with | intro x h3 =>
-      cases h2.2.2 x with | intro d0 h4 => cases h4 with | intro d1 h4 =>
+      cases item_quotW h1.2.1 (h1.1.trans h2.1) with | intro x h3 =>
+      cases h2.2.2 x with | intro d1 h4 =>
       cases t with
-      | nil => exact stack_err h1.2.2 (h3.1.trans h4.1) h4.2.1
+      | nil => exact stack_errW h1.2.2 (h3.1.trans h4.1)
       | cons b u =>
-        cases stack_push h1.2.2 (h3.1.trans h4.1) with | intro f2 h5 =>
+        cases stack_pushW h1.2.2 (h3.1.trans h4.1) with | intro f2 h5 =>
         cases h5 with | intro g2 h5 =>
-        have hr := DecQuot.of_steps (consR_qcons _ _)
-          (dec_qcons h5.2.1 (DecQuot.of_steps (steps_thunk1 _ _) h3.2))
-        exact contract_val (h5.1.trans (h4.2.2 f2 g2))
-          (DecStack.of_steps (consC_push _ _ _)
-            (dec_push (DecItem.of_steps (consQ_quot _ _) (dec_quot hr)) h5.2.2))
+        exact contract_valW (h5.1.trans (h4.2 f2 g2))
+          (dec_push (dec_quot (dec_qcons h5.2.1 h3.2)) h5.2.2)
 
 theorem leaf_cons (ap : Quotation → Stack → Outcome) (S : Stack) (hS : S.all (Item.ok Kit.n) = true) :
     ∃ t, Eval (phi .cons ⬝ encStack S) t ∧ Decodes t (cw ap .cons S) :=
@@ -362,33 +334,29 @@ theorem leaf_cons (ap : Quotation → Stack → Outcome) (S : Stack) (hS : S.all
 
 theorem leafD_cat (ap : Quotation → Stack → Outcome) (S : Stack) {s : Term}
     (hs : DecStack s S) : Contract (phi .cat ⬝ s) (cw ap .cat S) := by
-  cases KitWords.wCat_stages s with | intro c0 h => cases h with | intro c1 h =>
+  cases KitWords.wCat_stages s with | intro c1 h =>
   cases S with
-  | nil => exact stack_err hs h.1 h.2.1
+  | nil => exact stack_errW hs h.1
   | cons a t =>
-    cases stack_push hs h.1 with | intro f h1 => cases h1 with | intro g h1 =>
-    cases h.2.2 f g with | intro e0 h2 => cases h2 with | intro e1 h2 =>
+    cases stack_pushW hs h.1 with | intro f h1 => cases h1 with | intro g h1 =>
+    cases h.2 f g with | intro e0 h2 => cases h2 with | intro e1 h2 =>
     cases a with
-    | num n => exact item_num_err h1.2.1 (h1.1.trans h2.1) h2.2.1
+    | num n => exact item_num_errW h1.2.1 (h1.1.trans h2.1) h2.2.1
     | quot r =>
-      cases item_quot h1.2.1 (h1.1.trans h2.1) with | intro x h3 =>
-      cases h2.2.2 x with | intro d0 h4 => cases h4 with | intro d1 h4 =>
+      cases item_quotW h1.2.1 (h1.1.trans h2.1) with | intro x h3 =>
+      cases h2.2.2 x with | intro d1 h4 =>
       cases t with
-      | nil => exact stack_err h1.2.2 (h3.1.trans h4.1) h4.2.1
+      | nil => exact stack_errW h1.2.2 (h3.1.trans h4.1)
       | cons b u =>
-        cases stack_push h1.2.2 (h3.1.trans h4.1) with | intro f2 h5 =>
+        cases stack_pushW h1.2.2 (h3.1.trans h4.1) with | intro f2 h5 =>
         cases h5 with | intro g2 h5 =>
-        cases h4.2.2 f2 g2 with | intro e0' h6 => cases h6 with | intro e1' h6 =>
+        cases h4.2 f2 g2 with | intro e0' h6 => cases h6 with | intro e1' h6 =>
         cases b with
-        | num m => exact item_num_err h5.2.1 (h5.1.trans h6.1) h6.2.1
+        | num m => exact item_num_errW h5.2.1 (h5.1.trans h6.1) h6.2.1
         | quot l =>
-          cases item_quot h5.2.1 (h5.1.trans h6.1) with | intro y h7 =>
-          have hq := DecQuot.of_steps (catR_qcons _ _)
-            (dec_qcons (dec_quot h7.2) (DecQuot.of_steps (catThen_qthen _ _) (dec_qthen h3.2)))
-          exact contract_val (h7.1.trans (h6.2.2 y))
-            (DecStack.of_steps (catC_push _ _ _)
-              (dec_push (DecItem.of_steps (catQ_quot _ _) (dec_quot hq))
-                (DecStack.of_steps (steps_thunk2 _ _ _) h5.2.2)))
+          cases item_quotW h5.2.1 (h5.1.trans h6.1) with | intro y h7 =>
+          exact contract_valW (h7.1.trans (h6.2.2 y))
+            (dec_push (dec_quot (dec_qcons (dec_quot h7.2) (dec_qthen h3.2))) h5.2.2)
 
 theorem leaf_cat (ap : Quotation → Stack → Outcome) (S : Stack) (hS : S.all (Item.ok Kit.n) = true) :
     ∃ t, Eval (phi .cat ⬝ encStack S) t ∧ Decodes t (cw ap .cat S) :=

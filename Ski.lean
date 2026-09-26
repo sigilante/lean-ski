@@ -5,6 +5,7 @@ import Ski.Weak
 import Ski.Open
 import Ski.Abs
 import Ski.Kernel
+import Ski.Laws
 import Ski.Scott
 import Ski.Words
 import Ski.Decode

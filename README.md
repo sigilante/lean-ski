@@ -46,9 +46,10 @@ both its forms.
 | `Ski/Basic.lean` | `Term`, `Whnf`, `Step` (one congruence rule, `left`), `Step.det`, `progress`, `Steps`, `Eval`, `Eval.deterministic`, `Diverges` |
 | `Ski/Fuel.lean` | `step?`, `iter`, `evalF`, `runF`; `step?_iff`, `evalF_sound`, `evalF_complete`, `evalF_mono`, `diverges_iff_fuel` |
 | `Ski/Trace.lean` | `certified` (a verifier's check of a trace), `certified_sound`, `certified_complete`, `traceF` and `traceF_certified` |
-| `Ski/Weak.lean` | weak reduction (a contraction anywhere); `standardization`, `eval_back`, `church_rosser` |
-| `Ski/Abs.lean` | bracket abstraction as `skijack` does it (`abs`, `absN`), `abs_beta`, `absN_beta`, `abs_subst` |
+| `Ski/Weak.lean` | weak reduction (a contraction anywhere); `standardization`, `eval_back`, `church_rosser`; `par_step_le` (a head step costs a parallel reduct at most one) |
+| `Ski/Abs.lean` | bracket abstraction as `skijack` does it (`abs`, `absN`), `abs_beta`, `absN_beta`, `abs_subst`; β for all formals under any substitution, `absN_beta_subst` and `absN_beta_close` |
 | `Ski/Kernel.lean` | `skijack`'s compilation modeled (case lowering, λ-lifting, `absN`, `Y`), the kernel's source, and `Table.kit : Table → Kit`; every kernel equation pinned to `skijack`'s term |
+| `Ski/Laws.lean` | the law classes for the kit compiled from every valid table: `Table.kit_elim`, `Table.kit_words`, `Table.kit_apply`, by β for compiled source |
 | `Ski/Scott.lean` | generated: the constructors of `nat`, `item`, `stack`, `quot`, `result` as compiled, with `*_elim` lemmas by `iter_sound rfl`; the twelve compiled kernel words; `add`, `seq`, `idW`, `applyU` |
 | `Ski/Words.lean` | `Item`, `Quotation` (with `stat k`, a table's static quotation), `Stack`; the quotation table `Kit`; `Word`, `phi`, the C model `cw` |
 | `Ski/Open.lean` | `OTerm`, terms with inert variables: head reduction, substitution, closing, symbolic runs, and the split of weak reduction on open terms |
@@ -56,9 +57,9 @@ both its forms.
 | `Ski/Leaf.lean` | a leaf contract for every word over any input that decodes (`leafD_*`) and at the encoding (`leaf_*`); `KitWords`; `add_dec`, by fixpoint induction |
 | `Ski/Composition.lean` | `N`, `Compiles`, `Csem`, `seq_contract`, `composition`, `composition_agree` |
 | `Ski/Apply.lean` | `Run` (quotations, programs, words), `KitApply`, `run_sound`, `apply_sound`, `composition_apply` |
-| `Ski/Converse.lean` | counted reduction; `apply_complete`, `composition_complete`, and the biconditionals `apply_diverges`, `composition_diverges` |
+| `Ski/Converse.lean` | counted reduction, not lengthened by weak reduction (`StepsN.wtail`); `apply_complete`, `composition_complete`, and the biconditionals `apply_diverges`, `composition_diverges` |
 | `Ski/Total.lean` | over a table with no static quotations nothing diverges: `apply_total`, `program_converges` |
-| `Ski/Table.lean` | generated: the tables `NoQuot`, `CorpusTable` and `LoopTable` as `Kit` instances, every law by `iter_sound rfl`, each program's compiled form, and the corpus rows as those programs run |
+| `Ski/Table.lean` | generated: the tables `NoQuot`, `CorpusTable` and `LoopTable` as data, checked by `rfl` against `skijack`'s terms (`table_*`) and valid (`table_valid`), their laws from `Ski/Laws.lean`; each program's compiled form, and the corpus rows as those programs run |
 | `Ski/Examples.lean` | `1 2 + dup +`, `3 [dup +] i`, `1 2 over` end to end from `skijack`'s terms; `cloop_diverges`: the compiled `[dup i] dup i` diverges |
 | `Ski/Audit.lean` | the manifest and the `#audit_clean` command |
 | `scripts/emit.py` | regenerates `Scott.lean`, `Corpus.lean` and `Table.lean` from `skijack` (needs the SKIlark venv); gate 3 checks the committed files match |

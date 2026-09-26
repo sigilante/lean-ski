@@ -37,7 +37,8 @@ compiled here from its source, transcribed from
 `rfl` against the term `skijack` emitted (`wPop_compiles` through
 `add_compiles`).  The table-dependent terms are functions of a `Table`
 (`Table.kit`), checked against each generated table in `Ski/Table.lean`
-(`kit_*` theorems).  A binder name reused by sibling λs in the source is
+(`table_*` theorems); `Ski/Laws.lean` proves the laws of `Table.kit` for
+every valid table.  A binder name reused by sibling λs in the source is
 given distinct numbers here; no binder shadows an enclosing one, so the
 captures are the same.
 -/
@@ -196,6 +197,16 @@ def seq : Src := v 0 ⬝ₛ v 2 ⬝ₛ lam 3 (v 1 ⬝ₛ v 3) ⬝ₛ g Scott.REr
 -- s0 : RVal s
 def idW : Src := g Scott.RVal ⬝ₛ v 0
 
+-- The table-independent arms of `applyU`'s case, with self0 q1 s2 x3 r4 x5 b6:
+-- λx r. self r (Push x s)
+def armCons : Src := lam 3 (lam 4 (v 0 ⬝ₛ v 4 ⬝ₛ (g Scott.Push ⬝ₛ v 3 ⬝ₛ v 2)))
+
+-- λx. RVal (Push x s)
+def armUnit : Src := lam 5 (g Scott.RVal ⬝ₛ (g Scott.Push ⬝ₛ v 5 ⬝ₛ v 2))
+
+-- λb. seq (wDo self) (self b) s
+def armThen : Src := lam 6 (g Scott.seq ⬝ₛ (g Scott.wDo ⬝ₛ v 0) ⬝ₛ (v 0 ⬝ₛ v 6) ⬝ₛ v 2)
+
 end KernelSrc
 
 -- ---------------------------------------------------------------------------
@@ -289,9 +300,7 @@ def bodyT (k : Nat) : Term := toTerm (compDef [0] (tb.bodySrc (tb.body k)))
     with self0 q1 s2 x3 r4 x5 b6. -/
 def applySrc : Src :=
   (List.range tb.n).foldl (fun acc k => acc ⬝ₛ (.glob (tb.bodyT k) ⬝ₛ .var 0 ⬝ₛ .var 2)) (.var 1)
-    ⬝ₛ .lam 3 (.lam 4 (.var 0 ⬝ₛ .var 4 ⬝ₛ (.glob Scott.Push ⬝ₛ .var 3 ⬝ₛ .var 2)))
-    ⬝ₛ .lam 5 (.glob Scott.RVal ⬝ₛ (.glob Scott.Push ⬝ₛ .var 5 ⬝ₛ .var 2))
-    ⬝ₛ .lam 6 (.glob Scott.seq ⬝ₛ (.glob Scott.wDo ⬝ₛ .var 0) ⬝ₛ (.var 0 ⬝ₛ .var 6) ⬝ₛ .var 2)
+    ⬝ₛ KernelSrc.armCons ⬝ₛ KernelSrc.armUnit ⬝ₛ KernelSrc.armThen
 
 def applyU : Term := toTerm (compRec 0 [1, 2] tb.applySrc)
 

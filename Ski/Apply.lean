@@ -399,21 +399,20 @@ def Term.argOf : Term → Term
 def applyF : Term := Kit.applyU.argOf
 
 /-- The table's `applyU` unrolls and runs to its cases, and each static
-    quotation's compiled term is a compiled form of its body.  The kernel checks these
-    per table (`Ski/Table.lean`). -/
+    quotation's compiled term runs to its body's compiled form; the runs
+    after the unrolling are up to weak reduction.  Bracket abstraction
+    gives exactly these for every valid table (`Table.kit_apply`,
+    `Ski/Laws.lean`). -/
 class KitApply [Kit] [KitElim] [KitWords] : Prop where
   applyU_unfold : ∀ fq fs,
     Steps (Kit.applyU ⬝ fq ⬝ fs) (fixSelf applyF (fixB applyF) ⬝ fq ⬝ fs)
   applyF_stages : ∀ R q s, ∃ ks : Nat → Term,
-    Steps (applyF ⬝ R ⬝ q ⬝ s) (appF q ks (Kit.n + 3)) ∧
-    (∀ k, k < Kit.n → Steps (ks k) (Kit.bodyT k ⬝ R ⬝ s)) ∧
-    (∀ x r, ∃ P, Steps (ks Kit.n ⬝ x ⬝ r) (R ⬝ r ⬝ P) ∧
-      Steps P (Scott.Push ⬝ x ⬝ (K ⬝ s ⬝ x))) ∧
-    (∀ x, ∃ G, Steps (ks (Kit.n + 1) ⬝ x) (Scott.RVal ⬝ G) ∧
-      Steps G (Scott.Push ⬝ x ⬝ (K ⬝ s ⬝ x))) ∧
-    (∀ b, Steps (ks (Kit.n + 2) ⬝ b)
-      (Scott.seq ⬝ (Scott.wDo ⬝ R) ⬝ (I ⬝ R ⬝ b) ⬝ (K ⬝ K ⬝ R ⬝ s ⬝ b)))
-  body_compiles : ∀ k, k < Kit.n → ∀ R, Compiles R (Kit.body k) (Kit.bodyT k ⬝ R)
+    WSteps (applyF ⬝ R ⬝ q ⬝ s) (appF q ks (Kit.n + 3)) ∧
+    (∀ k, k < Kit.n → WSteps (ks k) (Kit.bodyT k ⬝ R ⬝ s)) ∧
+    (∀ x r, WSteps (ks Kit.n ⬝ x ⬝ r) (R ⬝ r ⬝ (Scott.Push ⬝ x ⬝ s))) ∧
+    (∀ x, WSteps (ks (Kit.n + 1) ⬝ x) (Scott.RVal ⬝ (Scott.Push ⬝ x ⬝ s))) ∧
+    (∀ b, WSteps (ks (Kit.n + 2) ⬝ b) (Scott.seq ⬝ (Scott.wDo ⬝ R) ⬝ (R ⬝ b) ⬝ s))
+  body_compiles : ∀ k, k < Kit.n → ∀ R, WSteps (Kit.bodyT k ⬝ R) (N R (Kit.body k))
   body_ok : ∀ k, k < Kit.n → (Kit.body k).all (Word.ok Kit.n) = true
 
 variable [KitApply]
@@ -429,9 +428,9 @@ def Sound : Job → Stack → Outcome → Prop
 
 /-- The run of a self-reference to its cases. -/
 theorem applySelf_cases {z fq fs : Term} (hz : Steps z (fixB applyF)) (ks : Nat → Term)
-    (h : Steps (applyF ⬝ fixSelf applyF (I ⬝ z) ⬝ fq ⬝ fs) (appF fq ks (Kit.n + 3))) :
-    Steps (fixSelf applyF z ⬝ fq ⬝ fs) (appF fq ks (Kit.n + 3)) :=
-  (Steps.left fs (fixSelf_step hz fq)).trans h
+    (h : WSteps (applyF ⬝ fixSelf applyF (I ⬝ z) ⬝ fq ⬝ fs) (appF fq ks (Kit.n + 3))) :
+    WSteps (fixSelf applyF z ⬝ fq ⬝ fs) (appF fq ks (Kit.n + 3)) :=
+  (Steps.left fs (fixSelf_step hz fq)).weak.trans h
 
 /-- **Every derivation is realized by the compiled terms.** -/
 theorem run_sound {t : Job} {S : Stack} {o : Outcome} (h : Run t S o) : Sound t S o := by
@@ -440,61 +439,55 @@ theorem run_sound {t : Job} {S : Stack} {o : Outcome} (h : Run t S o) : Sound t 
     unfold Sound
     intro z fq fs hz hq hs
     cases KitApply.applyF_stages (fixSelf applyF (I ⬝ z)) fq fs with | intro ks h =>
-    exact Contract.of_steps
-      ((applySelf_cases hz ks h.1).trans ((hq.probe_stat.2 ks).trans (h.2.1 k hk)))
-      (ih (KitApply.body_ok k hk) (fixSelf_inv hz) (KitApply.body_compiles k hk _) hs)
+    exact Contract.of_wsteps
+      ((applySelf_cases hz ks h.1).trans ((hq.probe_stat.2 ks).weak.trans
+        ((h.2.1 k hk).trans (WSteps.left fs (KitApply.body_compiles k hk _)))))
+      (ih (KitApply.body_ok k hk) (fixSelf_inv hz) (compiles_N _ _) hs)
   | @cons x r S o _ ih =>
     unfold Sound
     intro z fq fs hz hq hs
     cases KitApply.applyF_stages (fixSelf applyF (I ⬝ z)) fq fs with | intro ks h =>
     cases hq.probe_cons ks with | intro f hf => cases hf with | intro g hg =>
-    cases h.2.2.1 f g with | intro P hP =>
-    exact Contract.of_steps ((applySelf_cases hz ks h.1).trans (hg.1.trans hP.1))
-      (ih (fixSelf_inv hz) hg.2.2
-        (DecStack.of_steps hP.2 (dec_push hg.2.1 (DecStack.of_steps (steps_thunk1 _ _) hs))))
+    exact Contract.of_wsteps ((applySelf_cases hz ks h.1).trans (hg.1.weak.trans (h.2.2.1 f g)))
+      (ih (fixSelf_inv hz) hg.2.2 (dec_push hg.2.1 hs))
   | @unit x S =>
     unfold Sound
     intro z fq fs hz hq hs
     cases KitApply.applyF_stages (fixSelf applyF (I ⬝ z)) fq fs with | intro ks h =>
     cases hq.probe_unit ks with | intro f hf =>
-    cases h.2.2.2.1 f with | intro G hG =>
-    exact contract_val ((applySelf_cases hz ks h.1).trans (hf.1.trans hG.1))
-      (DecStack.of_steps hG.2 (dec_push hf.2 (DecStack.of_steps (steps_thunk1 _ _) hs)))
+    exact contract_valW ((applySelf_cases hz ks h.1).trans (hf.1.weak.trans (h.2.2.2.1 f)))
+      (dec_push hf.2 hs)
   | @then_val b r t S' o _ _ ih1 ih2 =>
     unfold Sound
     intro z fq fs hz hq hs
     cases KitApply.applyF_stages (fixSelf applyF (I ⬝ z)) fq fs with | intro ks h =>
     cases hq.probe_then ks with | intro fb hb =>
-    have hs' := DecStack.of_steps (steps_thunk2 (fixSelf applyF (I ⬝ z)) fs fb) hs
-    exact Contract.of_steps
-      ((applySelf_cases hz ks h.1).trans (hb.1.trans (h.2.2.2.2 fb)))
+    exact Contract.of_wsteps
+      ((applySelf_cases hz ks h.1).trans (hb.1.weak.trans (h.2.2.2.2 fb)))
       (seq_contract (k := fun _ => o)
-        (leafD_i_run _ r t _ hs' fun _ _ hr hu => ih1 (fixSelf_inv hz) hr hu)
-        (fun _ t' he ht => by
+        (leafD_i_run _ r t _ hs fun _ _ hr hu => ih1 (fixSelf_inv hz) hr hu)
+        (fun _ _ he ht => by
           cases he
-          exact Contract.of_steps (.single (.left t' (.left fb (.I _))))
-            (ih2 (fixSelf_inv hz) hb.2 ht)))
+          exact ih2 (fixSelf_inv hz) hb.2 ht))
   | @then_err b r t _ ih1 =>
     unfold Sound
     intro z fq fs hz hq hs
     cases KitApply.applyF_stages (fixSelf applyF (I ⬝ z)) fq fs with | intro ks h =>
     cases hq.probe_then ks with | intro fb hb =>
-    have hs' := DecStack.of_steps (steps_thunk2 (fixSelf applyF (I ⬝ z)) fs fb) hs
-    exact Contract.of_steps
-      ((applySelf_cases hz ks h.1).trans (hb.1.trans (h.2.2.2.2 fb)))
+    exact Contract.of_wsteps
+      ((applySelf_cases hz ks h.1).trans (hb.1.weak.trans (h.2.2.2.2 fb)))
       (seq_contract (k := fun _ => Outcome.err)
-        (leafD_i_run _ r t _ hs' fun _ _ hr hu => ih1 (fixSelf_inv hz) hr hu)
+        (leafD_i_run _ r t _ hs fun _ _ hr hu => ih1 (fixSelf_inv hz) hr hu)
         (fun _ _ he _ => by cases he))
   | @then_bad b S hbad =>
     unfold Sound
     intro z fq fs hz hq hs
     cases KitApply.applyF_stages (fixSelf applyF (I ⬝ z)) fq fs with | intro ks h =>
     cases hq.probe_then ks with | intro fb hb =>
-    have hs' := DecStack.of_steps (steps_thunk2 (fixSelf applyF (I ⬝ z)) fs fb) hs
-    exact Contract.of_steps
-      ((applySelf_cases hz ks h.1).trans (hb.1.trans (h.2.2.2.2 fb)))
+    exact Contract.of_wsteps
+      ((applySelf_cases hz ks h.1).trans (hb.1.weak.trans (h.2.2.2.2 fb)))
       (seq_contract (k := fun _ => Outcome.err)
-        (leafR_i (apSoundR_empty _) hs' (CwR.i_bad hbad))
+        (leafR_i (apSoundR_empty _) hs (CwR.i_bad hbad))
         (fun _ _ he _ => by cases he))
   | nil S =>
     exact fun _ _ _ s _ ht hs => Contract.of_steps (Steps.left s ht) (idW_contract hs)

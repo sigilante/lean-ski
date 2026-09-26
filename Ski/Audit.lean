@@ -6,6 +6,7 @@ import Ski.Weak
 import Ski.Open
 import Ski.Abs
 import Ski.Kernel
+import Ski.Laws
 import Ski.Scott
 import Ski.Words
 import Ski.Decode
@@ -59,10 +60,11 @@ end Ski.Audit
 open Ski.Audit
 
 -- L0: the calculus
-#audit_clean Whnf.no_step Step.det progress Steps.trans Steps.left Eval.deterministic
+#audit_clean Whnf.no_step Step.det progress Steps.single Steps.trans Steps.left
+  steps_whnf_det Eval.deterministic
 
 -- L0: the fuel interpreter agrees with the relation
-#audit_clean step?_iff whnf_iff_step?_none iter_sound
+#audit_clean step?_none step?_sound step?_complete step?_iff whnf_iff_step?_none iter_sound
   evalF_sound evalF_mono evalF_complete diverges_iff_fuel runF_evalF
 
 -- L1: trace certificates
@@ -145,11 +147,10 @@ open Ski.Audit
   DecNat.functional DecItem.functional DecQuot.functional DecStack.functional
   Decodes.functional
 
--- Leaf contracts: shared steps, the table's skeletons, then per word its stages and leaves
+-- Leaf contracts: shared steps, their weak forms, then per word its stages and leaves
 #audit_clean Contract.of_steps Contract.of_wsteps eval_rval dec_rvalW contract_val contract_err
   stack_err stack_push item_num_err item_quot item_quot_err item_num nat_zero nat_succ
-  unitC_push unitQ_quot consC_push consQ_quot consR_qcons
-  catC_push catQ_quot catR_qcons catThen_qthen
+  contract_valW contract_errW stack_errW stack_pushW item_num_errW item_quotW
   wPop_stages leafD_pop leaf_pop
   dupD_push wDup_stages leafD_dup leaf_dup
   swapC_push swapT_push wSwap_stages leafD_swap leaf_swap
@@ -175,6 +176,7 @@ open Ski.Audit
 
 -- The converse and the divergence biconditional
 #audit_clean StepsN.steps Steps.counted StepsN.tail StepsN.after_step StepsN.tail_lt
+  StepsN.par StepsN.wtail StepsN.wtail_lt
   Whnf.fn StepsN.app_left Converges.of_steps Converges.app_left Converges.app3_left
   StepsN.app3_left path_i path_dip path_ifz fixSelf_first fixSelf_rest
   word_complete_at prog_complete_at applySelf_soundR apply_complete_at apply_complete_all
@@ -185,12 +187,22 @@ open Ski.Audit
 #audit_clean cw_ok apply_total_bound apply_total word_total program_total
   program_converges program_not_diverges
 
--- The quotation tables: each law checked by the kernel, and the programs' compiled forms
-#audit_clean NoQuot.elim NoQuot.words NoQuot.apply NoQuot.cp_compiles
-  CorpusTable.elim CorpusTable.words CorpusTable.apply
+-- The laws for every table (G4): compiled source under β, the constructors, the words, apply
+#audit_clean close_comp_ev compLam_body wrapLift_beta lam1_beta lam2_beta compDef1_beta
+  appL_append subst_appL appO_eq override_append override_range ctor_beta
+  Table.wUnit_stages Table.wQcons_stages Table.wCat_stages Table.kit_elim Table.kit_words
+  Table.appF_agree Table.armsK_lt Table.armsK_n Table.armsK_n1 Table.armsK_n2 Table.appF_armsK
+  Table.ev_arms Table.applySrc_ev Table.armCons_beta Table.armUnit_beta Table.armThen_beta
+  Table.kit_applyU_unfold Table.kit_applyF_stages Table.encItem_eq Table.encQuot_eq
+  Table.ev_wordSrc Table.ev_bodySrc Table.kit_body_compiles Table.kit_apply
+
+-- The quotation tables as data (G5): each valid, its laws the generic ones, and the
+-- programs' compiled forms
+#audit_clean NoQuot.table_valid NoQuot.elim NoQuot.words NoQuot.apply NoQuot.cp_compiles
+  CorpusTable.table_valid CorpusTable.elim CorpusTable.words CorpusTable.apply
   CorpusTable.cp_compiles CorpusTable.cq_compiles CorpusTable.cr_compiles
   CorpusTable.compiled_up_eq CorpusTable.compiled_uq_eq CorpusTable.compiled_ur_eq
-  LoopTable.elim LoopTable.words LoopTable.apply LoopTable.cloop_compiles
+  LoopTable.table_valid LoopTable.elim LoopTable.words LoopTable.apply LoopTable.cloop_compiles
 
 -- End to end: the corpus programs, and a compiled program that diverges
 #audit_clean NoQuot.up_six NoQuot.quote_i NoQuot.cat_i

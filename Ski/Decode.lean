@@ -55,7 +55,8 @@ A table with `n` static quotations has `n + 3` `quot` constructors, so a
 quotation is probed at `n + 3` variables: the `k`-th static quotation
 reaches `vars b k`, and the runtime constructors reach `vars b n`,
 `vars b (n + 1)` and `vars b (n + 2)`.  `KitElim` holds the table's
-elimination lemmas on open terms, which the constructor lemmas need.
+elimination lemmas on open terms, up to weak reduction, which the
+constructor lemmas need.
 -/
 
 -- ---------------------------------------------------------------------------
@@ -513,37 +514,40 @@ theorem dec_quot {f : Term} {q : Quotation} (h : DecQuot f q) :
   fun _ _ => ⟨_, Scott.Quot_oelim _ _ _, DecQuotO.of_owsteps (owsteps_thunk1 _ _) h⟩
 
 /-- A table's `quot` constructors eliminate as Scott constructors do, on open
-    terms.  The kernel checks these per table (`Ski/Table.lean`). -/
+    terms, up to weak reduction: applied to the eliminator's continuations,
+    each weakly reduces to its continuation applied to its fields.  Bracket
+    abstraction gives exactly this (`absN_beta_subst`), for every table
+    (`Table.kit_elim`, `Ski/Laws.lean`); G1's split recovers the head run a
+    probe needs (`owsteps_var0` and its siblings). -/
 class KitElim [Kit] : Prop where
   Qs_elim : ∀ k, k < Kit.n → ∀ ks : Nat → OTerm,
-    OSteps (appO (Kit.Qs k).toO ks (Kit.n + 3)) (ks k)
+    OWSteps (appO (Kit.Qs k).toO ks (Kit.n + 3)) (ks k)
   QCons_elim : ∀ (x r : OTerm) (ks : Nat → OTerm),
-    OSteps (appO (Kit.QCons.toO ⬝ₒ x ⬝ₒ r) ks (Kit.n + 3))
-      (ks Kit.n ⬝ₒ (.K ⬝ₒ x ⬝ₒ ks Kit.n) ⬝ₒ (.K ⬝ₒ .K ⬝ₒ x ⬝ₒ r ⬝ₒ ks Kit.n))
+    OWSteps (appO (Kit.QCons.toO ⬝ₒ x ⬝ₒ r) ks (Kit.n + 3)) (ks Kit.n ⬝ₒ x ⬝ₒ r)
   QUnit_elim : ∀ (x : OTerm) (ks : Nat → OTerm),
-    OSteps (appO (Kit.QUnit.toO ⬝ₒ x) ks (Kit.n + 3))
-      (ks (Kit.n + 1) ⬝ₒ (.K ⬝ₒ x ⬝ₒ ks (Kit.n + 1)))
+    OWSteps (appO (Kit.QUnit.toO ⬝ₒ x) ks (Kit.n + 3)) (ks (Kit.n + 1) ⬝ₒ x)
   QThen_elim : ∀ (x : OTerm) (ks : Nat → OTerm),
-    OSteps (appO (Kit.QThen.toO ⬝ₒ x) ks (Kit.n + 3))
-      (ks (Kit.n + 2) ⬝ₒ (.K ⬝ₒ x ⬝ₒ ks (Kit.n + 2)))
+    OWSteps (appO (Kit.QThen.toO ⬝ₒ x) ks (Kit.n + 3)) (ks (Kit.n + 2) ⬝ₒ x)
 
 variable [KitElim]
 
 theorem dec_stat {k : Nat} (hk : k < Kit.n) : DecQuot (Kit.Qs k) (.stat k) :=
-  ⟨hk, fun b _ => KitElim.Qs_elim k hk (vars b)⟩
+  ⟨hk, fun b _ => owsteps_var0 (KitElim.Qs_elim k hk (vars b))⟩
 
 theorem dec_qcons {f g : Term} {x : Item} {r : Quotation} (hf : DecItem f x) (hg : DecQuot g r) :
-    DecQuot (Kit.QCons ⬝ f ⬝ g) (.cons x r) :=
-  fun b _ => ⟨_, _, KitElim.QCons_elim _ _ (vars b),
-    DecItemO.of_owsteps (owsteps_thunk1 _ _) hf, DecQuotO.of_owsteps (owsteps_thunk2 _ _ _) hg⟩
+    DecQuot (Kit.QCons ⬝ f ⬝ g) (.cons x r) := fun b _ =>
+  match owsteps_var2 (KitElim.QCons_elim f.toO g.toO (vars b)) with
+  | ⟨_, _, h⟩ => ⟨_, _, h.1, DecItemO.of_owsteps h.2.1 hf, DecQuotO.of_owsteps h.2.2 hg⟩
 
 theorem dec_qunit {f : Term} {x : Item} (h : DecItem f x) :
-    DecQuot (Kit.QUnit ⬝ f) (.unit x) :=
-  fun b _ => ⟨_, KitElim.QUnit_elim _ (vars b), DecItemO.of_owsteps (owsteps_thunk1 _ _) h⟩
+    DecQuot (Kit.QUnit ⬝ f) (.unit x) := fun b _ =>
+  match owsteps_var1 (KitElim.QUnit_elim f.toO (vars b)) with
+  | ⟨_, h'⟩ => ⟨_, h'.1, DecItemO.of_owsteps h'.2 h⟩
 
 theorem dec_qthen {f : Term} {r : Quotation} (h : DecQuot f r) :
-    DecQuot (Kit.QThen ⬝ f) (.then r) :=
-  fun b _ => ⟨_, KitElim.QThen_elim _ (vars b), DecQuotO.of_owsteps (owsteps_thunk1 _ _) h⟩
+    DecQuot (Kit.QThen ⬝ f) (.then r) := fun b _ =>
+  match owsteps_var1 (KitElim.QThen_elim f.toO (vars b)) with
+  | ⟨_, h'⟩ => ⟨_, h'.1, DecQuotO.of_owsteps h'.2 h⟩
 
 theorem dec_empty : DecStack Scott.Empty [] := fun _ _ => Scott.Empty_oelim _ _
 
