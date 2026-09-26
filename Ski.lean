@@ -4,6 +4,7 @@ import Ski.Trace
 import Ski.Weak
 import Ski.Open
 import Ski.Abs
+import Ski.Kernel
 import Ski.Scott
 import Ski.Words
 import Ski.Decode

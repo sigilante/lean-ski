@@ -1,5 +1,6 @@
 import Ski.Corpus
 import Ski.Converse
+import Ski.Kernel
 open Term
 
 set_option maxRecDepth 4096
@@ -12,7 +13,10 @@ namespace is one compilation's table of static quotations as a `Kit`,
 with the laws of `KitElim`, `KitWords` and `KitApply` checked by the
 kernel re-running the reference reducer's contractions (`iter_sound
 rfl`), and, for each program of the compilation, the fact that its
-compiled term is a compiled form of its words; for the corpus table,
+compiled term is a compiled form of its words; `table` is the table as
+data, and each `table_*` theorem checks by `rfl` that compiling the
+kernel's source for it (`Table.kit`, `Ski/Kernel.lean`) gives the term
+`skijack` emitted; for the corpus table,
 the corpus rows are those programs run on the empty stack.  The
 instances are scoped: `open NoQuot`, `open CorpusTable` or `open
 LoopTable` selects one.
@@ -67,6 +71,16 @@ def cp : Term := (K ⬝ ((((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (
 theorem cp_compiles (apT : Term) :
     Compiles apT [.lit 1, .lit 2, .add, .dup, .add] (cp ⬝ apT) :=
   ⟨_, iter_sound (k := 1) rfl, ⟨_, iter_sound (k := 0) rfl, ⟨_, iter_sound (k := 0) rfl, ⟨_, iter_sound (k := 0) rfl, iter_sound (k := 0) rfl⟩⟩⟩⟩
+
+def table : Table := ⟨0, fun _ => []⟩
+
+theorem table_QCons : table.QCons = Scott.QCons := rfl
+theorem table_QUnit : table.QUnit = Scott.QUnit := rfl
+theorem table_QThen : table.QThen = Scott.QThen := rfl
+theorem table_wQcons : table.wQcons = Scott.wQcons := rfl
+theorem table_wCat : table.wCat = Scott.wCat := rfl
+theorem table_wUnit : table.wUnit = Scott.wUnit := rfl
+theorem table_applyU : table.applyU = Scott.applyU := rfl
 
 end NoQuot
 
@@ -165,6 +179,20 @@ theorem cr_compiles (apT : Term) :
     Compiles apT [.lit 1, .lit 2, .quote (.stat 1), .dip, .swap] (cr ⬝ apT) :=
   ⟨_, iter_sound (k := 2) rfl, ⟨_, iter_sound (k := 2) rfl, ⟨_, iter_sound (k := 2) rfl, ⟨_, iter_sound (k := 3) rfl, iter_sound (k := 1) rfl⟩⟩⟩⟩
 
+def table : Table := ⟨2, fun k => match k with | 0 => [.dup, .add] | 1 => [.dup] | _ => []⟩
+
+theorem table_Qs0 : table.Qs 0 = Q1 := rfl
+theorem table_Qs1 : table.Qs 1 = Q2 := rfl
+theorem table_QCons : table.QCons = QCons := rfl
+theorem table_QUnit : table.QUnit = QUnit := rfl
+theorem table_QThen : table.QThen = QThen := rfl
+theorem table_wQcons : table.wQcons = corpus_wQcons := rfl
+theorem table_wCat : table.wCat = corpus_wCat := rfl
+theorem table_wUnit : table.wUnit = corpus_wUnit := rfl
+theorem table_applyU : table.applyU = corpus_applyU := rfl
+theorem table_bodyT0 : table.bodyT 0 = b1 := rfl
+theorem table_bodyT1 : table.bodyT 1 = b2 := rfl
+
 /-- The corpus row `compiled_up` is `cp` run with this table's `applyU`
     on the empty stack. -/
 theorem compiled_up_eq : compiled_up = cp ⬝ Kit.applyU ⬝ encStack [] := rfl
@@ -255,5 +283,17 @@ def cloop : Term := ((S ⬝ (K ⬝ (((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K �
 theorem cloop_compiles (apT : Term) :
     Compiles apT [.quote (.stat 0), .dup, .i] (cloop ⬝ apT) :=
   ⟨_, iter_sound (k := 2) rfl, ⟨_, iter_sound (k := 2) rfl, iter_sound (k := 0) rfl⟩⟩
+
+def table : Table := ⟨1, fun k => match k with | 0 => [.dup, .i] | _ => []⟩
+
+theorem table_Qs0 : table.Qs 0 = Q1 := rfl
+theorem table_QCons : table.QCons = QCons := rfl
+theorem table_QUnit : table.QUnit = QUnit := rfl
+theorem table_QThen : table.QThen = QThen := rfl
+theorem table_wQcons : table.wQcons = wQcons := rfl
+theorem table_wCat : table.wCat = wCat := rfl
+theorem table_wUnit : table.wUnit = wUnit := rfl
+theorem table_applyU : table.applyU = applyU := rfl
+theorem table_bodyT0 : table.bodyT 0 = b1 := rfl
 
 end LoopTable

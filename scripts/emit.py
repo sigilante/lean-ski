@@ -438,6 +438,16 @@ def emit_table(ns, doc, X, quots, qidx, names, programs, rows=None):
               f"theorem c{pname}_compiles (apT : Term) :",
               f"    Compiles apT {lean_words(ws, qidx)} (c{pname} ⬝ apT) :=",
               f"  {prf}", ""]
+    # the table as data, and its kit compiled from source, term for term
+    ref = lambda field: names[field] if names[field] != field else field
+    L += [f"def table : Table := ⟨{n}, {body}⟩", ""]
+    for k in range(n):
+        L.append(f"theorem table_Qs{k} : table.Qs {k} = Q{k + 1} := rfl")
+    for field in ["QCons", "QUnit", "QThen", "wQcons", "wCat", "wUnit", "applyU"]:
+        L.append(f"theorem table_{field} : table.{field} = {ref(field)} := rfl")
+    for k in range(n):
+        L.append(f"theorem table_bodyT{k} : table.bodyT {k} = b{k + 1} := rfl")
+    L.append("")
     # the corpus rows are these programs, run with this table's applyU on the empty stack
     for pname in (programs if rows else []):
         assert T["u" + pname] == App(App(T["c" + pname], T["applyU"]), T["Empty"])
@@ -451,7 +461,7 @@ def emit_table(ns, doc, X, quots, qidx, names, programs, rows=None):
 tprogs = {"p": "1 2 + dup +"}
 tquots, tqidx = quotation_table(tprogs)
 assert not tquots
-L = ['import Ski.Corpus', 'import Ski.Converse', 'open Term', '',
+L = ['import Ski.Corpus', 'import Ski.Converse', 'import Ski.Kernel', 'open Term', '',
      'set_option maxRecDepth 4096', '',
      '/-!', '# Quotation tables',
      '',
@@ -460,7 +470,10 @@ L = ['import Ski.Corpus', 'import Ski.Converse', 'open Term', '',
      'with the laws of `KitElim`, `KitWords` and `KitApply` checked by the',
      'kernel re-running the reference reducer\'s contractions (`iter_sound',
      'rfl`), and, for each program of the compilation, the fact that its',
-     'compiled term is a compiled form of its words; for the corpus table,',
+     'compiled term is a compiled form of its words; `table` is the table as',
+     'data, and each `table_*` theorem checks by `rfl` that compiling the',
+     'kernel\'s source for it (`Table.kit`, `Ski/Kernel.lean`) gives the term',
+     '`skijack` emitted; for the corpus table,',
      'the corpus rows are those programs run on the empty stack.  The',
      'instances are scoped: `open NoQuot`, `open CorpusTable` or `open',
      'LoopTable` selects one.', '-/', '']

@@ -48,6 +48,7 @@ both its forms.
 | `Ski/Trace.lean` | `certified` (a verifier's check of a trace), `certified_sound`, `certified_complete`, `traceF` and `traceF_certified` |
 | `Ski/Weak.lean` | weak reduction (a contraction anywhere); `standardization`, `eval_back`, `church_rosser` |
 | `Ski/Abs.lean` | bracket abstraction as `skijack` does it (`abs`, `absN`), `abs_beta`, `absN_beta`, `abs_subst` |
+| `Ski/Kernel.lean` | `skijack`'s compilation modeled (case lowering, λ-lifting, `absN`, `Y`), the kernel's source, and `Table.kit : Table → Kit`; every kernel equation pinned to `skijack`'s term |
 | `Ski/Scott.lean` | generated: the constructors of `nat`, `item`, `stack`, `quot`, `result` as compiled, with `*_elim` lemmas by `iter_sound rfl`; the twelve compiled kernel words; `add`, `seq`, `idW`, `applyU` |
 | `Ski/Words.lean` | `Item`, `Quotation` (with `stat k`, a table's static quotation), `Stack`; the quotation table `Kit`; `Word`, `phi`, the C model `cw` |
 | `Ski/Open.lean` | `OTerm`, terms with inert variables: head reduction, substitution, closing, symbolic runs, and the split of weak reduction on open terms |

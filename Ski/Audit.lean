@@ -5,6 +5,7 @@ import Ski.Trace
 import Ski.Weak
 import Ski.Open
 import Ski.Abs
+import Ski.Kernel
 import Ski.Scott
 import Ski.Words
 import Ski.Decode
@@ -104,6 +105,18 @@ open Ski.Audit
   mem_subst_single subst_eq_var_iff abs_subst absN_subst OWSteps.appL absN_beta
   Scott.Zero_abs Scott.Suc_abs Scott.Num_abs Scott.Quot_abs Scott.Empty_abs Scott.Push_abs Scott.QCons_abs Scott.QUnit_abs Scott.QThen_abs Scott.RVal_abs Scott.RErr_abs Scott.RTime_abs
   CorpusTable.Q1_abs CorpusTable.Q2_abs CorpusTable.QCons_abs CorpusTable.QUnit_abs CorpusTable.QThen_abs LoopTable.Q1_abs LoopTable.QCons_abs LoopTable.QUnit_abs LoopTable.QThen_abs
+
+-- The kernel's source, compiled (G3): skijack's compilation modeled, pinned to its terms
+#audit_clean wPop_compiles wDup_compiles wSwap_compiles wDip_compiles wDo_compiles wIfz_compiles
+  wLit_compiles wQuote_compiles wAdd_compiles add_compiles seq_compiles idW_compiles
+  wQcons0_compiles wCat0_compiles wUnit0_compiles NoQuot.table_QCons NoQuot.table_QUnit
+  NoQuot.table_QThen NoQuot.table_wQcons NoQuot.table_wCat NoQuot.table_wUnit
+  NoQuot.table_applyU CorpusTable.table_Qs0 CorpusTable.table_Qs1 CorpusTable.table_QCons
+  CorpusTable.table_QUnit CorpusTable.table_QThen CorpusTable.table_wQcons
+  CorpusTable.table_wCat CorpusTable.table_wUnit CorpusTable.table_applyU
+  CorpusTable.table_bodyT0 CorpusTable.table_bodyT1 LoopTable.table_Qs0
+  LoopTable.table_QCons LoopTable.table_QUnit LoopTable.table_QThen LoopTable.table_wQcons
+  LoopTable.table_wCat LoopTable.table_wUnit LoopTable.table_applyU LoopTable.table_bodyT0
 
 -- The decode relation: probing at fresh variables; substitution, closure under backward
 -- weak reduction (G1b), the closed probes, constructors, encodings, functionality

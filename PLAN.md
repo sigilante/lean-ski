@@ -236,13 +236,24 @@ constructor's fields.
   its source `λ fields conts. k_j fields` is the term `skijack` emitted
   (21 constructors across `Ski/Scott.lean` and `Ski/Table.lean`), and the
   generator first checks the same with aviary's own abstraction.
-- **G3. The kernel's source as a function of the table.** The `n + 3`
-  constructors of `quot`, `applyU`'s case with `n + 3` arms, `wQcons`,
-  `wCat`, `wUnit` and each body `b_k`, written as λ-terms after
-  `COMPILED_KERNEL`, and `kitOf : Table → Kit` compiling them with `abs`.
-  The constructor encoding is already confirmed (G2's `*_abs` tests);
-  case lowering and the compilation of the λs it introduces must be
-  checked against `skijack`'s source the same way before G4 starts.
+- **G3. The kernel's source as a function of the table — built**
+  (`Ski/Kernel.lean`). `skijack` compiles in four steps, read from
+  `skijack/expand.py`: a case lowers to its scrutinee applied to one
+  continuation per constructor; each λ chain is λ-lifted to its own
+  combinator, whose formals are the enclosing binders free in it (in scope
+  order) then its parameters; every combinator is bracket-abstracted over
+  its formals; and a recursive equation becomes `Y` applied to the
+  abstraction over a fresh self-parameter. `Src` is the desugared source,
+  `comp` does the lifting and abstraction, `compDef` and `compRec` the
+  definitions. Every table-independent equation of the kernel (the twelve
+  words, `seq`, `idW`, and the recursive `add`) is transcribed and checked
+  by `rfl` to compile to `skijack`'s term (`wPop_compiles` through
+  `add_compiles`). `Table` is a table as data (its size and its bodies as
+  word lists), and `Table.kit : Table → Kit` compiles its constructors,
+  `wQcons`, `wCat`, `wUnit`, each body `b_k` and `applyU` (with its
+  `n + 3` arms and `Y`) from source. For each generated table,
+  `Ski/Table.lean` checks every one of those terms by `rfl` against
+  `skijack`'s (27 `table_*` theorems across the three tables).
 - **G4. The laws, generically.** `KitElim` becomes β-reduction of a Scott
   constructor, one lemma for every arity and position. `KitWords` and
   `KitApply` fix today's runs to exact skeleton terms (`consC`, `catC`)
@@ -250,9 +261,8 @@ constructor's fields.
   `RVal ⬝ X` with `X →w* Push …`"), which G1b makes as good for `Decodes`
   (`DecStack.of_wsteps`, `Contract.of_wsteps`),
   and prove them from the source by β. `body_compiles` becomes the
-  abstraction of `seq w (seq …)` over the eliminator. Target:
-  `kitOf_laws : ∀ tbl, tbl.valid → KitElim ∧ KitWords ∧ KitApply` at
-  `kitOf tbl`.
+  abstraction of `seq w (seq …)` over the eliminator. Target: the three
+  classes at `tbl.kit` (`Ski/Kernel.lean`) for every valid `tbl : Table`.
 - **G5. Pinning.** The generator emits each table as data (`n`, the
   bodies as word lists) instead of as terms and laws, and a gated test
   checks `kitOf tbl` equal to `skijack`'s terms by `decide`: the
