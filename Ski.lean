@@ -7,6 +7,7 @@ import Ski.Decode
 import Ski.Leaf
 import Ski.Composition
 import Ski.Apply
+import Ski.Converse
 import Ski.Corpus
 import Ski.Examples
 import Ski.Audit

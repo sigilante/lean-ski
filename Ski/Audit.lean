@@ -8,6 +8,7 @@ import Ski.Decode
 import Ski.Leaf
 import Ski.Composition
 import Ski.Apply
+import Ski.Converse
 import Ski.Examples
 import Ski.Corpus
 
@@ -108,3 +109,10 @@ open Ski.Audit
   leafR_i leafR_dip leafR_ifz leafR composition_rel
   applyU_unfold applyF_stages applySelf_sound apply_sound composition_apply ApplyRel.det
   quote_i cat_i
+
+-- The converse and the divergence biconditional
+#audit_clean StepsN.steps Steps.counted StepsN.tail StepsN.after_step StepsN.tail_lt
+  Whnf.fn StepsN.app_left Converges.of_steps Converges.app_left Converges.app3_left
+  StepsN.app3_left path_i path_dip path_ifz fixSelf_first fixSelf_rest
+  applySelf_complete apply_complete apply_diverges
+  word_complete composition_complete composition_diverges composition_exact
