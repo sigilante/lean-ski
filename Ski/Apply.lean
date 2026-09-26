@@ -8,37 +8,40 @@ set_option linter.unusedSectionVars false
 
 SKIlark defunctionalizes quotations, and the compiled kernel runs one with
 
-    applyU q s = q |> { QCons x r (applyU r (Push x s)); QUnit x (RVal (Push x s));
-                        QThen b (seq (wDo applyU) (applyU b) s) }
+    applyU q s = q |> { Q_k (b_k applyU s); QCons x r (applyU r (Push x s));
+                        QUnit x (RVal (Push x s)); QThen b (seq (wDo applyU) (applyU b) s) }
 
-so Joy's `i` is `wDo applyU`, a case over the constructors plus `seq`.
-`ApplyRel q S o` is its big-step semantics: `QCons` pushes and continues,
-`QUnit` pushes and stops, `QThen b` pops a quotation, runs it, then runs
-`b`, strictly.  A run that never returns has no derivation.
+so Joy's `i` is `wDo applyU`, a case over the table's constructors plus
+`seq`: a static quotation runs its compiled body `b_k`, `QCons` pushes and
+continues, `QUnit` pushes and stops, and `QThen b` pops a quotation, runs
+it, then runs `b`, strictly.
+
+## `Run`
+
+`Run` is the big-step semantics of quotations, programs and words
+together, so that a static quotation can run its body, a program, and the
+words of that program can run quotations again.  A run that never returns
+has no derivation.  `ApplyRel q S o` is `Run (.quot q) S o`.
 
 ## The relational word semantics
 
-With `apply` a relation, the words that run quotations get a relational
-model: `CwR R w S o` is `cw` with the quotation's meaning given by a
-relation `R`, and `CsemR R` threads it through a word list.
-`ApSoundR apT R` says the eliminator term meets `R` wherever `R` derives.
-`composition_rel` is `composition` over this semantics: it needs only
-the leaves' pointwise forms (`leafD_i_run`, `leafD_dip_run`), since each
-use of `R` supplies the one `(r, u)` it is needed at.
+The words that run quotations also get a relational model on their own:
+`CwR R w S o` is `cw` with the quotation's meaning given by a relation
+`R`, and `CsemR R` threads it through a word list.  `ApSoundR apT R` says
+the eliminator term meets `R` wherever `R` derives.  `composition_rel` is
+`composition` over this semantics, for any compiled form of the program.
 
 ## The theorem
 
-`apply_sound : ApSoundR Scott.applyU ApplyRel`.  `applyU` is `Y` applied
-to its body, as `add` is, and the recursion is proved over every
-self-reference `fixSelf applyF z` with `z ⟶* fixB applyF`, by induction on
-the `ApplyRel` derivation.  `composition_apply` follows: every compiled
-program over the no-static-quotation kernel, run with the compiled
-`applyU`, meets the relational C model wherever it derives an outcome.
-`ApplyRel.det` falls out: the relation is a function.
-
-This is the forward direction.  The converse (a compiled run that
-reaches a decodable normal form has a derivation), and with it the
-divergence biconditional, is not proved here.
+`apply_sound : ApSoundR Kit.applyU ApplyRel`.  The table's `applyU` is
+`Y` applied to its body, as `add` is, and `run_sound` proves every `Run`
+derivation realized by every self-reference `fixSelf applyF z` with
+`z ⟶* fixB applyF`, by induction on the derivation; each `i`, `dip` or
+`ifz` step uses the relational leaves at the singleton relation `only`
+its induction hypothesis supplies.  `composition_apply` follows: every
+compiled program over the table, run with its compiled `applyU`, meets
+`Run` wherever `Run` derives an outcome.  The converse, and with it the
+divergence biconditional, is `Ski/Converse.lean`.
 -/
 
 variable [Kit] [KitElim] [KitWords]

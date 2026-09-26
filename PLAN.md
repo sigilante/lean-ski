@@ -3,9 +3,11 @@
 > **Status (2026-09-25).** L0 and L1 built and audited: the calculus, the
 > fuel interpreter, trace certificates, the compiled Scott constructors,
 > and conformance against `skijack` on six SKIlark programs. §2 items 1–6
-> are built for the kernel without static quotations, with the divergence
-> biconditional; the rest is a plan. Where this document and the build differ, the build
-> is authoritative.
+> are built over any quotation table, with the divergence biconditional,
+> and checked for two tables: the kernel with no static quotations and the
+> corpus table. §3, every table at once, is the next project; the rest is a
+> plan. Where this document and the build differ, the build is
+> authoritative.
 
 *The end of this program is a zero-knowledge proof of correct SKI execution
 with verified jets as its precompiles — a proof system whose entire
@@ -22,7 +24,7 @@ repository is the Lean spine that joins the two for SKI.*
 
 `lean-ski` is the **proof-facing semantics**. It is not a runtime (that is
 Avon, planned in SKIjack's `avon/DESIGN.md`), not a compiler (that is
-`skijack`), and not a prover (§4). It is what each of those is checked
+`skijack`), and not a prover (§5). It is what each of those is checked
 against, in the order Zorp's Pure Nock package fixes: a language core (L0),
 executable trace certificates (L1), and the representation a prover
 consumes (L2) — with, between L1 and L2, the layer Nock never had, a
@@ -69,37 +71,37 @@ contraction (493 for `1 2 + dup +` compiled, 2,014 interpreted). The
 generator (`scripts/emit.py`) is the only place `skijack` is needed, and
 gate 3 checks the committed modules are its output.
 
-**The language layer, §2 items 1–6** (`Ski/Words.lean`, `Ski/Decode.lean`,
-`Ski/Leaf.lean`, `Ski/Composition.lean`, `Ski/Apply.lean`). `phi` is the
-twelve compiled words. `wQcons`, `wCat`, `wUnit` and `applyU` build or
-case on `quot` values, and `quot` gains a constructor per static
-quotation, so `phi` is fixed to programs with none. `cw` takes the
-quotation eliminator as a parameter. `Decodes` reads a value by probing
-at every choice of continuations and is a function.
+**The language layer, §2 items 1–6** (`Ski/Words.lean` through
+`Ski/Total.lean`, `Ski/Table.lean`, `Ski/Examples.lean`). No `{S, K, I}`
+term quotes a live term (Proposition `prop:quote` of the ski-in-ski
+manuscript), so a quotation's code enters only at compile time, as a
+constructor of the per-program sum `quot`. The development is therefore
+stated over a `Kit`: one table of static quotations, with the four terms
+that build or eliminate `quot` (`wQcons`, `wCat`, `wUnit`, `applyU`) and
+each static quotation's body. Everything is proved once over a kit; the
+facts the kernel checks per table are the fields of `KitElim`, `KitWords`
+and `KitApply`, and `Ski/Table.lean` (generated) supplies them for two
+tables by `iter_sound rfl`: the kernel with no static quotations
+(`NoQuot`) and the corpus table (`[dup +]`, `[dup]`).
 
-Every word has a leaf contract over any input that decodes to its stack,
-which is what lets `seq_contract` hand one word's result, a thunk, to the
-next. `add` is Class C: the compiled `add` is `Y` of its body, and
-`add_dec` inducts on the numeral over a semantic loop invariant, since
-each unrolling wraps the self-application in one more `I`.
-`composition` proves every compiled word list meets `Csem`, and
-`compiled_cp_N` pins the compiler's program term to `N` of its words, so
-`up_six` runs the corpus program `1 2 + dup +` to `[6]` with no
-hypotheses.
+`Decodes` reads a value by probing at every choice of continuations, a
+quotation at `n + 3` of them, and is a function. Every word has a leaf
+contract over any input that decodes to its stack; `add` is Class C, by
+fixpoint induction over a semantic loop invariant. `Run` is the big-step
+semantics of programs, words and quotations together, so a static
+quotation runs its body; `Compiles` relates a word list to the compiler's
+term, which reaches `N` one `seq` at a time. `composition_apply` is the
+forward theorem, `composition_complete` its converse by strong induction
+on the contraction count, and `composition_diverges` the biconditional: a
+compiled program diverges exactly when `Run` derives no outcome.
 
-`apply_sound` proves the compiled `applyU` realizes `ApplyRel`, its
-big-step semantics, by induction on the derivation over every
-self-reference of the fixpoint; `composition_apply` extends `composition`
-to programs that run quotations. `composition_complete` is the converse,
-by strong induction on the contraction count, since `QThen` runs a
-quotation that is no part of the one being run; `composition_diverges`
-follows: a compiled program diverges exactly when the relational C model
-derives no outcome. Without static quotations nothing diverges
-(`program_converges`, `Ski/Total.lean`): a quotation built at run time
-carries data and `i`, and runs on no more than it was given. Code, and
-with it divergence, enters only at the compile-time line; extending the
-fragment to static quotation bodies, which admit Joy's `y`, is what makes
-the biconditional bite, and is the next item.
+Both directions bite. `uq_six` and `ur_over` run `3 [dup +] i` and
+`1 2 over` from skijack's terms to `[6]` and `[1, 2, 1]`, and
+`omega_diverges` is a compiled program over the corpus table, `[Ω] dup i`
+with `Ω` built from the static `[dup]`, that provably never reaches a
+weak head normal form. Without static quotations nothing diverges
+(`program_converges`): a quotation built at run time carries data and
+`i`, and runs on no more than it was given.
 
 Every theorem above is in the audit manifest with footprint
 `{propext, Quot.sound}` or narrower.
@@ -144,9 +146,81 @@ The jet paper's pipeline, module for module (see `lean-nock`'s
 
 Effort: the decode relation and the constructor lemmas are the bulk, weeks;
 the word table is days after that; `apply` is the theorem that decides
-whether item 6 is a result or a conjecture.
+whether item 6 is a result or a conjecture. (Built; see §1.)
 
-## 3. Prior art, placed
+## 3. Next: every table at once
+
+The three law classes hold for every quotation table, and the next project
+is to prove it. Today a table's laws are about thirty facts the kernel
+checks by `iter_sound rfl`, so a program with a new static quotation needs
+a newly generated instance before any theorem applies to it. The generic
+form proves `KitElim`, `KitWords` and `KitApply` once, for the kit
+compiled from any table, and shrinks the generator's per-table work to
+one equality test.
+
+**What `skijack` does.** Read from `aviary_kernel/abstraction.py` and
+`skijack/expand.py`: bracket abstraction is Curry's four rules with eta,
+
+    [x] x = I      [x] E = K E  (x not in E)
+    [x] (E x) = E  (x not in E) [x] (E F) = S ([x] E) ([x] F);
+
+recursion enters only through `Y`, whose `{S, K, I}` form is the one
+explicit override; and a case lowers to the scrutinee applied to one
+continuation per constructor, in declaration order, each a λ over that
+constructor's fields.
+
+**The work, in dependency order.**
+
+- **G1. Weak reduction and standardization.** Head reduction reaches the
+  output of bracket abstraction only up to reductions pending inside
+  arguments, which is why `Compiles` exists. Define `WStep`, a contraction
+  anywhere, and prove that head reduction commutes past it: if
+  `t →w* u` and `u →h* w`, then `t →h* w'` with `w' →w* w`. Corollary:
+  every relation of `Ski/Decode.lean`, and `Contract`, is closed under
+  backward weak reduction. This is standardization for combinatory logic,
+  classically proved with parallel reduction, and the plan's one lemma
+  with no `rfl` shortcut; budget a few hundred lines.
+- **G2. λ-terms and abstraction.** A Lean syntax of λ-terms over `S`,
+  `K`, `I`, globals and named variables; `abs` implementing exactly the
+  four rules; and `abs_beta : abs x M ⬝ N →w* M[N/x]`, which G1 turns into
+  a head-reduction fact up to weak reduction of the result.
+- **G3. The kernel's source as a function of the table.** The `n + 3`
+  constructors of `quot`, `applyU`'s case with `n + 3` arms, `wQcons`,
+  `wCat`, `wUnit` and each body `b_k`, written as λ-terms after
+  `COMPILED_KERNEL`, and `kitOf : Table → Kit` compiling them with `abs`.
+  First check the constructor encoding and case lowering against
+  `skijack`'s source; any further optimizer rule found there enters `abs`
+  before G4 starts.
+- **G4. The laws, generically.** `KitElim` becomes β-reduction of a Scott
+  constructor, one lemma for every arity and position. `KitWords` and
+  `KitApply` fix today's runs to exact skeleton terms (`consC`, `catC`)
+  and contraction counts; restate them up to weak reduction ("reduces to
+  `RVal ⬝ X` with `X →w* Push …`"), which G1 makes as good for `Decodes`,
+  and prove them from the source by β. `body_compiles` becomes the
+  abstraction of `seq w (seq …)` over the eliminator. Target:
+  `kitOf_laws : ∀ tbl, tbl.valid → KitElim ∧ KitWords ∧ KitApply` at
+  `kitOf tbl`.
+- **G5. Pinning.** The generator emits each table as data (`n`, the
+  bodies as word lists) instead of as terms and laws, and a gated test
+  checks `kitOf tbl` equal to `skijack`'s terms by `decide`: the
+  canonicity test, extended to the four table words. `Ski/Table.lean`
+  shrinks from 30 kB of laws to the tables and these tests.
+- **G6. The payoff.** `composition_diverges` and `composition_exact` for
+  every program SKIlark's compiled form accepts, with no per-program
+  instance, including Joy's recursion combinators (`y`, `sumto`).
+
+**Rejected: characterizing the output.** One could read off the families
+`skijack` emits (constructor `k` of `m`, `applyU` with `n` arms) and prove
+those families directly. That is cheaper for `KitElim`, but `applyU` is
+3,078 atoms at eight programs and its shape depends on every body;
+proofs keyed to that shape break on the optimizer's next rule, and G1–G2
+do not.
+
+**Acceptance.** `kitOf_laws` in the manifest; `Ski/Table.lean` generated
+as data; the corpus extended with a program using `y` (`3 sumto`) that
+runs end to end under the generic laws.
+
+## 4. Prior art, placed
 
 - **`lean-nock`** (Davis): Nock 4K relational semantics, fuel, the
   co-derivation composition theorem over Class D, the audit discipline.
@@ -168,7 +242,7 @@ whether item 6 is a result or a conjecture.
   the executable-semantics-with-prover route this repository does not take,
   because K's claims cannot state divergence and Lean's can.
 
-## 4. The endgame: zero knowledge
+## 5. The endgame: zero knowledge
 
 Three statements, in rising strength, all about the same three rules.
 
@@ -202,10 +276,11 @@ running `runF`'s C extraction), which measures cost per contraction;
 (d) the custom AIR, with the K-free `lean-ski` definition as its
 specification and the corpus counts as its tests.
 
-## 5. Acceptance
+## 6. Acceptance
 
 L0/L1: `lake build` elaborates the manifest, `gates.sh` passes, `lake exe
 main` matches the reference on every corpus row — done. Language layer:
-`composition_term` over SKIlark's Class D with `apply`, every leaf in the
-manifest. Endgame: a proof of execution for one corpus program verified by
+composition and the divergence biconditional over SKIlark's compiled form
+with `apply`, every leaf in the manifest — done for any table whose laws
+are supplied, and checked for two; for every table at once, §3. Endgame: a proof of execution for one corpus program verified by
 a third party, with its jet table and per-contraction cost reported.

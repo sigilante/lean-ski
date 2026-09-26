@@ -47,17 +47,17 @@ both its forms.
 | `Ski/Fuel.lean` | `step?`, `iter`, `evalF`, `runF`; `step?_iff`, `evalF_sound`, `evalF_complete`, `evalF_mono`, `diverges_iff_fuel` |
 | `Ski/Trace.lean` | `certified` (a verifier's check of a trace), `certified_sound`, `certified_complete`, `traceF` and `traceF_certified` |
 | `Ski/Scott.lean` | generated: the constructors of `nat`, `item`, `stack`, `quot`, `result` as compiled, with `*_elim` lemmas by `iter_sound rfl`; the twelve compiled kernel words; `add`, `seq`, `idW`, `applyU` |
-| `Ski/Words.lean` | `Item`, `Quotation`, `Stack` and their encodings; `Word` and `phi`; the C model `cw`, with the quotation eliminator as a parameter |
-| `Ski/Decode.lean` | the decode relations (probing at every continuation), backward closure, constructor lemmas, `enc*_dec`, and `*.functional` |
-| `Ski/Leaf.lean` | a leaf contract for every word, over any input that decodes (`leafD_*`), and at the encoding (`leaf_*`); `add_dec`, the compiled `add` by fixpoint induction |
-| `Ski/Composition.lean` | `N`, `Csem`, `seq_contract`, `composition`, `composition_agree` |
-| `Ski/Apply.lean` | `ApplyRel`, the relational word semantics, `composition_rel`, `apply_sound` (the compiled `applyU` realizes `ApplyRel`), `composition_apply` |
+| `Ski/Words.lean` | `Item`, `Quotation` (with `stat k`, a table's static quotation), `Stack`; the quotation table `Kit`; `Word`, `phi`, the C model `cw` |
+| `Ski/Decode.lean` | the decode relations (probing at every continuation; a quotation at `n + 3`), `KitElim`, constructor lemmas, `enc*_dec`, `*.functional` |
+| `Ski/Leaf.lean` | a leaf contract for every word over any input that decodes (`leafD_*`) and at the encoding (`leaf_*`); `KitWords`; `add_dec`, by fixpoint induction |
+| `Ski/Composition.lean` | `N`, `Compiles`, `Csem`, `seq_contract`, `composition`, `composition_agree` |
+| `Ski/Apply.lean` | `Run` (quotations, programs, words), `KitApply`, `run_sound`, `apply_sound`, `composition_apply` |
 | `Ski/Converse.lean` | counted reduction; `apply_complete`, `composition_complete`, and the biconditionals `apply_diverges`, `composition_diverges` |
-| `Ski/Total.lean` | without static quotations nothing diverges: `apply_total`, `program_converges` |
-| `Ski/Examples.lean` | `up_six`: the compiled `1 2 + dup +` decodes to `[6]`; `quote_i`, `cat_i` run quotations |
-| `Ski/Corpus.lean` | generated: SKIlark programs in both forms with the reference counts, a canonicity test per word and helper, and `compiled_cp_N` (the compiled program is `N` of its words) |
+| `Ski/Total.lean` | over a table with no static quotations nothing diverges: `apply_total`, `program_converges` |
+| `Ski/Table.lean` | generated: the tables `NoQuot` and `CorpusTable` as `Kit` instances, every law by `iter_sound rfl`, and each corpus program's compiled form |
+| `Ski/Examples.lean` | `1 2 + dup +`, `3 [dup +] i`, `1 2 over` end to end from `skijack`'s terms; `omega_diverges`, a compiled program that diverges |
 | `Ski/Audit.lean` | the manifest and the `#audit_clean` command |
-| `scripts/emit.py` | regenerates `Scott.lean` and `Corpus.lean` from `skijack` (needs the SKIlark venv); gate 3 checks the committed files match |
+| `scripts/emit.py` | regenerates `Scott.lean`, `Corpus.lean` and `Table.lean` from `skijack` (needs the SKIlark venv); gate 3 checks the committed files match |
 
 ## Fuel
 
