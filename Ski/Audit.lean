@@ -2,6 +2,7 @@ import Lean
 import Ski.Basic
 import Ski.Fuel
 import Ski.Trace
+import Ski.Weak
 import Ski.Scott
 import Ski.Words
 import Ski.Decode
@@ -63,6 +64,13 @@ open Ski.Audit
 
 -- L1: trace certificates
 #audit_clean certified_sound certified_complete traceF_certified
+
+-- Weak reduction: standardization, normalization transfer, confluence
+#audit_clean WSteps.single WSteps.trans WSteps.left WSteps.right WSteps.app Step.weak Steps.weak
+  Par.refl WStep.par Par.wsteps ParI.par
+  par_split parI_step par_step par_steps standardization
+  ParIs.wsteps wsteps_split ParI.whnf ParIs.whnf eval_back diverges_of_wsteps
+  par_dev Pars.trans WSteps.pars Pars.wsteps par_strip pars_confluent church_rosser
 
 -- The Scott constructors, as compiled
 #audit_clean Scott.Zero_elim Scott.Suc_elim Scott.Num_elim Scott.Quot_elim

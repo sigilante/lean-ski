@@ -171,15 +171,37 @@ constructor's fields.
 
 **The work, in dependency order.**
 
-- **G1. Weak reduction and standardization.** Head reduction reaches the
-  output of bracket abstraction only up to reductions pending inside
-  arguments, which is why `Compiles` exists. Define `WStep`, a contraction
-  anywhere, and prove that head reduction commutes past it: if
-  `t →w* u` and `u →h* w`, then `t →h* w'` with `w' →w* w`. Corollary:
-  every relation of `Ski/Decode.lean`, and `Contract`, is closed under
-  backward weak reduction. This is standardization for combinatory logic,
-  classically proved with parallel reduction, and the plan's one lemma
-  with no `rfl` shortcut; budget a few hundred lines.
+- **G1. Weak reduction and standardization — built** (`Ski/Weak.lean`).
+  `WStep` is a contraction anywhere. `standardization`: if `t →w* u` and
+  `u →h* w`, then `t →h* w'` with `w' →w* w`, by Takahashi's method over
+  parallel reduction (`par_split` separates head steps from an internal
+  step, `parI_step` commutes the two). `eval_back`: if `u` reaches a weak
+  head normal form, so does every `t` that weakly reduces to it, so
+  divergence transfers forward (`diverges_of_wsteps`). `church_rosser`:
+  weak reduction is confluent, through complete development `dev`.
+  `standardization` and `eval_back` use no axioms.
+- **G1b. Decoding up to weak reduction — open.** This section first
+  listed, as a corollary of G1, that every relation of `Ski/Decode.lean`
+  is closed under backward weak reduction. It does not follow. A probe
+  demands that head reduction reach the continuation exactly,
+  `Steps (t ⬝ k0 ⬝ k1) k0`; standardization yields a head reduct `w'` with
+  `w' →w* k0`, not one equal to `k0`. The closure is still true, by
+  parametricity: `t` cannot inspect `k0`, so head reduction carries it
+  untouched. Stating that needs terms with variables, which `Term` does
+  not have. Two routes:
+  (a) *Parametricity.* Add variables and a substitution lemma, and read
+  the closed probe facts from generic ones. The hard part is the reverse
+  direction, recovering a generic fact from closed probes, since a
+  closed continuation can reduce its arguments.
+  (b) *Probes up to weak reduction.* Replace `Steps` by `WSteps` in each
+  probe clause. Closure becomes transitivity; functionality comes from
+  `church_rosser`, since `K` and `S ⬝ f ⬝ g` have no common weak reduct;
+  and `eval_back` recovers the `Eval` a `Contract` ends in. The cost is
+  that the leaf, composition and `apply` proofs chain `Steps` today and
+  would chain `WSteps`, and the converse, which counts head steps, needs
+  `wsteps_split` at every probe.
+  Route (b) is recommended: it uses only what G1 built, and G4 states its
+  laws up to weak reduction anyway.
 - **G2. λ-terms and abstraction.** A Lean syntax of λ-terms over `S`,
   `K`, `I`, globals and named variables; `abs` implementing exactly the
   four rules; and `abs_beta : abs x M ⬝ N →w* M[N/x]`, which G1 turns into
@@ -195,7 +217,7 @@ constructor's fields.
   constructor, one lemma for every arity and position. `KitWords` and
   `KitApply` fix today's runs to exact skeleton terms (`consC`, `catC`)
   and contraction counts; restate them up to weak reduction ("reduces to
-  `RVal ⬝ X` with `X →w* Push …`"), which G1 makes as good for `Decodes`,
+  `RVal ⬝ X` with `X →w* Push …`"), which G1b makes as good for `Decodes`,
   and prove them from the source by β. `body_compiles` becomes the
   abstraction of `seq w (seq …)` over the eliminator. Target:
   `kitOf_laws : ∀ tbl, tbl.valid → KitElim ∧ KitWords ∧ KitApply` at

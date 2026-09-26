@@ -1,6 +1,7 @@
 import Ski.Basic
 import Ski.Fuel
 import Ski.Trace
+import Ski.Weak
 import Ski.Scott
 import Ski.Words
 import Ski.Decode
