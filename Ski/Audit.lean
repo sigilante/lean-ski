@@ -87,3 +87,5 @@ open Ski.Audit
   consC_push consQ_quot consR_qcons wQcons_empty wQcons_num wQcons_one wQcons_two leaf_cons
   catC_push catQ_quot catR_qcons catThen_qthen
   wCat_empty wCat_num wCat_one wCat_quot_num wCat_two leaf_cat
+#audit_clean dipK_val dipK_err wDip_empty wDip_num wDip_one wDip_two cw_dip
+  leaf_dip_run leaf_dip

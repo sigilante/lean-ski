@@ -344,3 +344,93 @@ theorem leaf_cat (ap : Quotation → Stack → Outcome) (S : Stack) :
                   (DecStack.of_steps (catC_push _ _ _)
                     (dec_push (DecItem.of_steps (catQ_quot _ _) (dec_quot hq))
                       (DecStack.of_steps (steps_thunk2 _ _ _) hu)))
+
+-- ---------------------------------------------------------------------------
+-- dip   ( b [r] — r b )   with `ap` running `r`
+--
+-- `wDip` runs until the quotation eliminator is at the head, applied to
+-- thunks of `r` and `u` and to three continuations.  What `ap` does there
+-- is known only through `Decodes`, which is why that relation probes at
+-- every continuation: `dip`'s own continuations are the ones it is probed
+-- at.  The core lemma is pointwise in `(r, u)`, so it applies to an `ap`
+-- that diverges elsewhere; `leaf_dip` is its corollary for a total model.
+-- ---------------------------------------------------------------------------
+
+/-- `λ b u v. RVal (Push b v)`. -/
+def dipV : Term := S ⬝ (K ⬝ K) ⬝ (S ⬝ (K ⬝ (S ⬝ (K ⬝ Scott.RVal))) ⬝ Scott.Push)
+
+/-- The value continuation `wDip` hands `ap`, applied to its result stack. -/
+theorem dipK_val (a1 a2 a3 a4 v : Term) :
+    Steps (K ⬝ (K ⬝ dipV) ⬝ a1 ⬝ a2 ⬝ a3 ⬝ a4 ⬝ v) (Scott.RVal ⬝ (Scott.Push ⬝ a3 ⬝ v)) :=
+  iter_sound (k := 9) rfl
+
+/-- The error continuation `wDip` hands `ap`. -/
+theorem dipK_err (a1 a2 a3 a4 : Term) :
+    Steps (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K)))) ⬝ a1 ⬝ a2 ⬝ a3 ⬝ a4) Scott.RErr :=
+  iter_sound (k := 4) rfl
+
+theorem wDip_empty (apT : Term) : Steps (Scott.wDip ⬝ apT ⬝ Scott.Empty) Scott.RErr :=
+  iter_sound (k := 7) rfl
+
+theorem wDip_num (apT n y : Term) :
+    Steps (Scott.wDip ⬝ apT ⬝ (Scott.Push ⬝ (Scott.Num ⬝ n) ⬝ y)) Scott.RErr :=
+  iter_sound (k := 50) rfl
+
+theorem wDip_one (apT r : Term) :
+    Steps (Scott.wDip ⬝ apT ⬝ (Scott.Push ⬝ (Scott.Quot ⬝ r) ⬝ Scott.Empty)) Scott.RErr :=
+  iter_sound (k := 64) rfl
+
+theorem wDip_two (apT r x2 y2 : Term) : ∃ j0 j1 j2 a1 a2 a4 e1 e2 e3 e4 k2,
+    Steps (Scott.wDip ⬝ apT ⬝ (Scott.Push ⬝ (Scott.Quot ⬝ r) ⬝ (Scott.Push ⬝ x2 ⬝ y2)))
+      (apT ⬝ (K ⬝ r ⬝ j0) ⬝ (K ⬝ K ⬝ x2 ⬝ y2 ⬝ j1)
+        ⬝ (K ⬝ (K ⬝ dipV) ⬝ a1 ⬝ a2 ⬝ (K ⬝ x2 ⬝ j2) ⬝ a4)
+        ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K)))) ⬝ e1 ⬝ e2 ⬝ e3 ⬝ e4)
+        ⬝ k2) :=
+  ⟨_, _, _, _, _, _, _, _, _, _, _, iter_sound (k := 133) rfl⟩
+
+/-- `dip`'s outcome once `ap r u` has returned `o`. -/
+def dipOut (b : Item) : Outcome → Outcome
+  | .val v => .val (b :: v)
+  | .err => .err
+
+theorem cw_dip (ap : Quotation → Stack → Outcome) (r : Quotation) (b : Item) (u : Stack) :
+    cw ap .dip (.quot r :: b :: u) = dipOut b (ap r u) := by
+  simp only [cw]
+  cases ap r u <;> rfl
+
+theorem leaf_dip_run (apT : Term) (r : Quotation) (b : Item) (u : Stack) (o : Outcome)
+    (hap : ∀ fr fu, DecQuot fr r → DecStack fu u → Decodes (apT ⬝ fr ⬝ fu) o) :
+    ∃ t, Eval (phi .dip ⬝ apT ⬝ encStack (.quot r :: b :: u)) t ∧ Decodes t (dipOut b o) := by
+  cases wDip_two apT (encQuot r) (encItem b) (encStack u) with
+  | intro j0 h => cases h with | intro j1 h => cases h with | intro j2 h =>
+  cases h with | intro a1 h => cases h with | intro a2 h => cases h with | intro a4 h =>
+  cases h with | intro e1 h => cases h with | intro e2 h => cases h with | intro e3 h =>
+  cases h with | intro e4 h => cases h with | intro k2 h =>
+    have hr := DecQuot.of_steps (steps_thunk1 _ j0) (encQuot_dec r)
+    have hu := DecStack.of_steps (steps_thunk2 (encItem b) _ j1) (encStack_dec u)
+    have hb := DecItem.of_steps (steps_thunk1 _ j2) (encItem_dec b)
+    have ho := hap _ _ hr hu
+    cases o with
+    | val v =>
+      cases ho (K ⬝ (K ⬝ dipV) ⬝ a1 ⬝ a2 ⬝ (K ⬝ encItem b ⬝ j2) ⬝ a4)
+          (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K)))) ⬝ e1 ⬝ e2 ⬝ e3 ⬝ e4) k2 with
+      | intro f hf =>
+        exact contract_val (h.trans (hf.1.trans (dipK_val _ _ _ _ _))) (dec_push hb hf.2)
+    | err =>
+      exact contract_err (h.trans ((ho _ _ k2).trans (dipK_err _ _ _ _)))
+
+theorem leaf_dip (apT : Term) (ap : Quotation → Stack → Outcome)
+    (hap : ∀ r u fr fu, DecQuot fr r → DecStack fu u → Decodes (apT ⬝ fr ⬝ fu) (ap r u))
+    (S : Stack) :
+    ∃ t, Eval (phi .dip ⬝ apT ⬝ encStack S) t ∧ Decodes t (cw ap .dip S) := by
+  cases S with
+  | nil => exact contract_err (wDip_empty apT)
+  | cons a t =>
+    cases a with
+    | num n => exact contract_err (wDip_num _ _ _)
+    | quot r =>
+      cases t with
+      | nil => exact contract_err (wDip_one _ _)
+      | cons b u =>
+        rw [cw_dip]
+        exact leaf_dip_run apT r b u (ap r u) (hap r u)
