@@ -36,10 +36,10 @@ the call for the rest.
 ## The fragment
 
 The kernel here has no static quotations, so a quotation's code is only
-pushes and `i`.  Whether such a program can diverge at all is not
-settled here; the biconditional holds either way, and becomes a claim
-about real loops once static quotation bodies (and so `dup` inside a
-quotation, and Joy's `y`) enter the fragment.
+pushes and `i`, and `Ski/Total.lean` proves no such program diverges:
+both sides of `composition_diverges` are false here.  The biconditional
+is stated so that it carries over unchanged once static quotation bodies,
+and with them `dup` inside a quotation and Joy's `y`, enter the fragment.
 -/
 
 -- ---------------------------------------------------------------------------

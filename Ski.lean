@@ -8,6 +8,7 @@ import Ski.Leaf
 import Ski.Composition
 import Ski.Apply
 import Ski.Converse
+import Ski.Total
 import Ski.Corpus
 import Ski.Examples
 import Ski.Audit

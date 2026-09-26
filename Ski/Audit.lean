@@ -9,6 +9,7 @@ import Ski.Leaf
 import Ski.Composition
 import Ski.Apply
 import Ski.Converse
+import Ski.Total
 import Ski.Examples
 import Ski.Corpus
 
@@ -116,3 +117,7 @@ open Ski.Audit
   StepsN.app3_left path_i path_dip path_ifz fixSelf_first fixSelf_rest
   applySelf_complete apply_complete apply_diverges
   word_complete composition_complete composition_diverges composition_exact
+
+-- Without static quotations, nothing diverges
+#audit_clean apply_total_bound apply_total word_total program_total
+  program_converges program_not_diverges

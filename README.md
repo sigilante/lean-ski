@@ -53,6 +53,7 @@ both its forms.
 | `Ski/Composition.lean` | `N`, `Csem`, `seq_contract`, `composition`, `composition_agree` |
 | `Ski/Apply.lean` | `ApplyRel`, the relational word semantics, `composition_rel`, `apply_sound` (the compiled `applyU` realizes `ApplyRel`), `composition_apply` |
 | `Ski/Converse.lean` | counted reduction; `apply_complete`, `composition_complete`, and the biconditionals `apply_diverges`, `composition_diverges` |
+| `Ski/Total.lean` | without static quotations nothing diverges: `apply_total`, `program_converges` |
 | `Ski/Examples.lean` | `up_six`: the compiled `1 2 + dup +` decodes to `[6]`; `quote_i`, `cat_i` run quotations |
 | `Ski/Corpus.lean` | generated: SKIlark programs in both forms with the reference counts, a canonicity test per word and helper, and `compiled_cp_N` (the compiled program is `N` of its words) |
 | `Ski/Audit.lean` | the manifest and the `#audit_clean` command |

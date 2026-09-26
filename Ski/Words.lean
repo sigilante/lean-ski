@@ -12,12 +12,18 @@ tests in `Ski/Corpus.lean` pin each term against a second compilation.
 
 `Item`, `Quotation` and `Stack` are the compiled kernel's `item`, `quot`
 and `stack` as Lean data, and `encItem`, `encQuot` and `encStack` apply the
-Scott constructors of `Ski/Scott.lean` to them.  `Quotation` has no static
-constructors: the terms of `Ski/Scott.lean` come from a program with no
-bracketed quotations, so its `quot` sum is `QCons | QUnit | QThen` alone.
-A program with `k` static quotations compiles `wQcons`, `wCat` and `wUnit`
-to different terms (`canon_wQcons_differs` and its two siblings), and
-extending `Quotation` to it means one more generated `phi` per `k`.
+Scott constructors of `Ski/Scott.lean` to them.
+
+No closed `{S, K, I}` term turns a live term into data (Proposition
+`prop:quote` of the ski-in-ski manuscript, after Jay and Given-Wilson), so
+a quotation's code enters a program only at compile time: SKIlark makes
+each static quotation a constructor of a closed sum `quot`.  The sum is
+therefore per program, and so are the terms that build or eliminate it:
+`wQcons`, `wCat`, `wUnit` and `applyU` differ between compilations
+(`canon_wQcons_differs` and its siblings), while the other nine words do
+not.  The terms of `Ski/Scott.lean` come from a program with no bracketed
+quotations, so `Quotation` here is `QCons | QUnit | QThen` alone, and a
+quotation carries data and `i` but no code (see `Ski/Total.lean`).
 
 ## Parameters
 

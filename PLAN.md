@@ -94,9 +94,12 @@ to programs that run quotations. `composition_complete` is the converse,
 by strong induction on the contraction count, since `QThen` runs a
 quotation that is no part of the one being run; `composition_diverges`
 follows: a compiled program diverges exactly when the relational C model
-derives no outcome. Whether a program without static quotations can
-diverge at all is open; with static quotation bodies, which admit Joy's
-`y`, the biconditional covers real loops.
+derives no outcome. Without static quotations nothing diverges
+(`program_converges`, `Ski/Total.lean`): a quotation built at run time
+carries data and `i`, and runs on no more than it was given. Code, and
+with it divergence, enters only at the compile-time line; extending the
+fragment to static quotation bodies, which admit Joy's `y`, is what makes
+the biconditional bite, and is the next item.
 
 Every theorem above is in the audit manifest with footprint
 `{propext, Quot.sound}` or narrower.
@@ -111,6 +114,10 @@ The jet paper's pipeline, module for module (see `lean-nock`'s
    term `skijack` emits for each compiled word (`wDup`, 77 atoms), pasted
    by the generator with a test that it equals the emitted term — the
    paper's canonicity requirement, since dispatch matches on structure.
+   Canonicity holds for the nine words that never touch `quot`; it fails,
+   necessarily, for the four that do, since the ski-in-ski manuscript's
+   Proposition `prop:quote` puts a quotation's code on the compile-time
+   side and the `quot` sum is closed per program.
 2. **The C model `cw`.** `cw : Word → Stack → Outcome` over Lean stacks
    (`List Item`) and the three-valued outcome set `val | err | diverge`,
    nearly verbatim from the Nock version.
