@@ -63,6 +63,11 @@ three corpus programs in both forms, and `3 sumto` compiled.
 | `Ski/Converse.lean` | counted reduction, not lengthened by weak reduction (`StepsN.wtail`); `apply_complete`, `composition_complete`, and the biconditionals `apply_diverges`, `composition_diverges` |
 | `Ski/Programs.lean` | every program over every valid table: `Table.program_apply`, `Table.program_diverges`, `Table.program_exact`, with `diverges_iff_of_wsteps` |
 | `Ski/Simulation.lean` | the source semantics (λ-lifted β, δ with `Y`, Scott case) and `simulation`: every source step is matched by weak SKI steps; `kernel_fixed` and siblings for the four sources; `wPop_push` |
+| `Ski/SourceEval.lean` | normal-order source steps (`sstep?`, `seval`) proved sound into the source semantics, and runs filled from placeholders (`SSteps.substC`) |
+| `Ski/SourceJoy.lean` | `cw` from the source: every word's equation, run on a stack's encoding, reaches `cw`'s outcome (`plain_source`, `cwR_source`) |
+| `Ski/SourceRun.lean` | every `Run` derivation is a run of the source program (`run_source`) |
+| `Ski/Adequacy.lean` | the compiled program, the source program and `Run` agree: `exact_iff`, `diverges_iff_source` |
+| `Ski/SourceTables.lean` | the four compiled sources meet adequacy's hypotheses; `3 sumto` reaches `[6]` at the source, `[dup i] dup i` nothing |
 | `Ski/Total.lean` | over a table with no static quotations nothing diverges: `apply_total`, `program_converges` |
 | `Ski/Table.lean` | generated: the tables `NoQuot`, `CorpusTable`, `LoopTable` and `SumTable` (`3 sumto`) as data, checked by `rfl` against `skijack`'s terms (`table_*`) and valid (`table_valid`), their laws from `Ski/Laws.lean`; each program's term pinned to the kernel's compilation of its words (`c*_eq`), the corpus rows as those programs run, and `3 sumto`'s derivation (`cs_run`) |
 | `Ski/Examples.lean` | `1 2 + dup +`, `3 [dup +] i`, `1 2 over` end to end from `skijack`'s terms; `cloop_diverges`: the compiled `[dup i] dup i` diverges; `us_six`: `3 sumto`, through Joy's `y`, decodes to `[6]` |

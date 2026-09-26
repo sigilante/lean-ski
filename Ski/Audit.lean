@@ -12,6 +12,11 @@ import Ski.Kernel
 import Ski.Laws
 import Ski.Programs
 import Ski.Simulation
+import Ski.SourceEval
+import Ski.SourceJoy
+import Ski.SourceRun
+import Ski.Adequacy
+import Ski.SourceTables
 import Ski.Scott
 import Ski.Words
 import Ski.Decode
@@ -221,6 +226,24 @@ open Ski.Audit
   ctor_close_beta Tr.unroll simulation simulation_steps lookup_some_mem fixed_of_check
   kernel_fixed corpus_fixed loop_fixed sum_fixed prog_wPop prog_Push prog_RVal genv_kernel
   wPop_source wPop_push
+
+-- The source semantics, run: normal-order proof search, the words' meaning from their
+-- source, every Run derivation a source run, and adequacy for the four compiled sources
+#audit_clean Cl.apps_append Cl.spine_apps SStep.apps_left SSteps.single SSteps.trans SSteps.left
+  SSteps.right SStep.mono SSteps.mono headStep_sound sstep?_sound seval_sound Cl.substC_apps
+  inst_substC overrideCl_substC getD_map_substC junk_substC SStep.substC SSteps.substC
+  holeT_ne_K fill_K kernel_mono kernelDefs_sources add_source dup_source swap_source pop_source
+  cons_source cat_source unit_source lit_source quote_source add_word_source plain_source
+  i_run_source i_bad_source dip_stages outS_val_cases outS_err_cases SSteps.apps_left
+  dip_run_source dip_bad_source ifz_zero_source ifz_succ_source ifz_bad_source cwR_source
+  inst_natC inst_itemCS inst_quoteCS inst_wordC inst_bodyC seq_source_stages seq_source
+  armsOf_length inst_arms applyU_dispatch getD_map_range getD_armsOf_static getD_armsOf_last
+  arm_fill3 arm_fill4 armCons_source armUnit_source armThen_source idW_source run_source
+  tr_gref_eq tr_natS tr_itemS tr_quotS tr_stackS tr_wordS tr_progS tr_ctor_inv dec_of_tr_natS
+  dec_of_tr_itemS dec_of_tr_quotS dec_of_tr_stackS contract_of_tr_outS converges_of_tr_outS
+  tr_srcRun run_of_source exact_iff diverges_iff_source of_tableCheck NoQuot.adequate
+  CorpusTable.adequate LoopTable.adequate SumTable.adequate SumTable.source_six
+  SumTable.source_exact LoopTable.source_diverges
 
 -- Every program over every table (G6): divergence invariant under weak reduction, and
 -- the forward theorem, the biconditional and agreement for the kernel's compilation

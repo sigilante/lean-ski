@@ -19,6 +19,11 @@ import Ski.Converse
 import Ski.Total
 import Ski.Programs
 import Ski.Simulation
+import Ski.SourceEval
+import Ski.SourceJoy
+import Ski.SourceRun
+import Ski.Adequacy
+import Ski.SourceTables
 import Ski.Corpus
 import Ski.Table
 import Ski.Examples
