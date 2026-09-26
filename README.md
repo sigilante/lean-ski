@@ -46,11 +46,14 @@ both its forms.
 | `Ski/Basic.lean` | `Term`, `Whnf`, `Step` (one congruence rule, `left`), `Step.det`, `progress`, `Steps`, `Eval`, `Eval.deterministic`, `Diverges` |
 | `Ski/Fuel.lean` | `step?`, `iter`, `evalF`, `runF`; `step?_iff`, `evalF_sound`, `evalF_complete`, `evalF_mono`, `diverges_iff_fuel` |
 | `Ski/Trace.lean` | `certified` (a verifier's check of a trace), `certified_sound`, `certified_complete`, `traceF` and `traceF_certified` |
-| `Ski/Scott.lean` | generated: the constructors of `nat`, `item`, `stack`, `quot`, `result` as compiled, with `*_elim` lemmas by `iter_sound rfl`, and the twelve compiled kernel words |
+| `Ski/Scott.lean` | generated: the constructors of `nat`, `item`, `stack`, `quot`, `result` as compiled, with `*_elim` lemmas by `iter_sound rfl`; the twelve compiled kernel words; `add`, `seq`, `idW`, `applyU` |
 | `Ski/Words.lean` | `Item`, `Quotation`, `Stack` and their encodings; `Word` and `phi`; the C model `cw`, with the quotation eliminator as a parameter |
 | `Ski/Decode.lean` | the decode relations (probing at every continuation), backward closure, constructor lemmas, `enc*_dec`, and `*.functional` |
-| `Ski/Leaf.lean` | leaf contracts for the Class A words: `leaf_pop`, `leaf_dup`, `leaf_swap`, `leaf_unit`, `leaf_cons`, `leaf_cat`, `leaf_dip` |
-| `Ski/Corpus.lean` | generated: SKIlark programs in both forms with the reference counts, and a canonicity test per word |
+| `Ski/Leaf.lean` | a leaf contract for every word, over any input that decodes (`leafD_*`), and at the encoding (`leaf_*`); `add_dec`, the compiled `add` by fixpoint induction |
+| `Ski/Composition.lean` | `N`, `Csem`, `seq_contract`, `composition`, `composition_agree` |
+| `Ski/Apply.lean` | `ApplyRel`, the relational word semantics, `composition_rel`, `apply_sound` (the compiled `applyU` realizes `ApplyRel`), `composition_apply` |
+| `Ski/Examples.lean` | `up_six`: the compiled `1 2 + dup +` decodes to `[6]`; `quote_i`, `cat_i` run quotations |
+| `Ski/Corpus.lean` | generated: SKIlark programs in both forms with the reference counts, a canonicity test per word and helper, and `compiled_cp_N` (the compiled program is `N` of its words) |
 | `Ski/Audit.lean` | the manifest and the `#audit_clean` command |
 | `scripts/emit.py` | regenerates `Scott.lean` and `Corpus.lean` from `skijack` (needs the SKIlark venv); gate 3 checks the committed files match |
 

@@ -2,8 +2,9 @@
 
 > **Status (2026-09-25).** L0 and L1 built and audited: the calculus, the
 > fuel interpreter, trace certificates, the compiled Scott constructors,
-> and conformance against `skijack` on six SKIlark programs. §2 items 1–4
-> are built for the Class A words; items 5 and 6 and the rest are a plan. Where this document and the build differ, the build
+> and conformance against `skijack` on six SKIlark programs. §2 items 1–6
+> are built for the kernel without static quotations, item 6 in the forward
+> direction; the rest is a plan. Where this document and the build differ, the build
 > is authoritative.
 
 *The end of this program is a zero-knowledge proof of correct SKI execution
@@ -68,18 +69,30 @@ contraction (493 for `1 2 + dup +` compiled, 2,014 interpreted). The
 generator (`scripts/emit.py`) is the only place `skijack` is needed, and
 gate 3 checks the committed modules are its output.
 
-**The language layer, items 1–4 of §2** (`Ski/Words.lean`,
-`Ski/Decode.lean`, `Ski/Leaf.lean`). `phi` is the twelve compiled words;
-nine match the corpus compilation term for term, and `wQcons`, `wCat` and
-`wUnit` do not, because they build `quot` values and `quot` gains a
-constructor per static quotation. `phi` is therefore fixed to programs with
-no static quotations, and `Quotation` has no static constructors. `cw`
-takes the quotation eliminator as a parameter `ap`, as the compiled `dip`,
-`i` and `ifz` do. `DecNat`, `DecStack`, `Decodes` and their siblings read
-a value by probing at every choice of continuations; each is a function.
-Seven leaves are proved in the form `Eval (phi w ⬝ encStack S) t ∧
-Decodes t (cw ap w S)`; `leaf_dip_run` assumes `ap` only at the one
-quotation and stack the input supplies.
+**The language layer, §2 items 1–6** (`Ski/Words.lean`, `Ski/Decode.lean`,
+`Ski/Leaf.lean`, `Ski/Composition.lean`, `Ski/Apply.lean`). `phi` is the
+twelve compiled words. `wQcons`, `wCat`, `wUnit` and `applyU` build or
+case on `quot` values, and `quot` gains a constructor per static
+quotation, so `phi` is fixed to programs with none. `cw` takes the
+quotation eliminator as a parameter. `Decodes` reads a value by probing
+at every choice of continuations and is a function.
+
+Every word has a leaf contract over any input that decodes to its stack,
+which is what lets `seq_contract` hand one word's result, a thunk, to the
+next. `add` is Class C: the compiled `add` is `Y` of its body, and
+`add_dec` inducts on the numeral over a semantic loop invariant, since
+each unrolling wraps the self-application in one more `I`.
+`composition` proves every compiled word list meets `Csem`, and
+`compiled_cp_N` pins the compiler's program term to `N` of its words, so
+`up_six` runs the corpus program `1 2 + dup +` to `[6]` with no
+hypotheses.
+
+`apply_sound` proves the compiled `applyU` realizes `ApplyRel`, its
+big-step semantics, by induction on the derivation over every
+self-reference of the fixpoint; `composition_apply` extends `composition`
+to programs that run quotations. This is the forward direction. The
+converse, and with it `composition_diverges`, needs the backward
+simulation `lean-nock` does by strong induction on fuel, and is open.
 
 Every theorem above is in the audit manifest with footprint
 `{propext, Quot.sound}` or narrower.
