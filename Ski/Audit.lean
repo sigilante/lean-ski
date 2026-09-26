@@ -4,6 +4,7 @@ import Ski.Fuel
 import Ski.Trace
 import Ski.Scott
 import Ski.Words
+import Ski.Decode
 import Ski.Corpus
 
 /-!
@@ -65,3 +66,13 @@ open Ski.Audit
 #audit_clean canon_wDup canon_wSwap canon_wPop canon_wDip canon_wDo canon_wIfz
   canon_wLit canon_wQuote canon_wAdd
   canon_wQcons_differs canon_wCat_differs canon_wUnit_differs
+
+-- The decode relation: backward closure, constructors, encodings, functionality
+#audit_clean Steps.app2 Steps.app3
+  DecNat.of_steps DecItem.of_steps DecQuot.of_steps DecStack.of_steps Decodes.of_steps
+  decodes_iff steps_thunk1 steps_thunk2
+  dec_zero dec_suc dec_num dec_quot dec_qcons dec_qunit dec_qthen dec_empty dec_push
+  dec_rval dec_rerr
+  encNat_dec encItem_dec encQuot_dec encStack_dec
+  DecNat.functional DecItem.functional DecQuot.functional DecStack.functional
+  Decodes.functional

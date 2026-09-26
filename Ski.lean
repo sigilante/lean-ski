@@ -3,5 +3,6 @@ import Ski.Fuel
 import Ski.Trace
 import Ski.Scott
 import Ski.Words
+import Ski.Decode
 import Ski.Corpus
 import Ski.Audit
