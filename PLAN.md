@@ -132,8 +132,14 @@ least `2↑↑(k+1)` call-by-name steps (`no_elementary_bound`). Stratum 3 is pr
 breaks strong normalization. `fix (λx. x)` is typed and has no
 call-by-name normal form, and its compiled term `Y ⬝ I` diverges, timing out
 at every fuel. `fix (λx. inl c)` still evaluates, so fuel is the only
-uniform treatment. Without `fix`, typed closed realizers evaluate. Still
-open: the census.
+uniform treatment. Without `fix`, typed closed realizers evaluate. The Σ-protocol algebra's glue lies in stratum 1
+(`Ski/Sigma.lean`). AND and OR are primitive and threshold is a fold.
+Introduction, projection, case, OR commutation, threshold weakening, and
+the prover's composition of every plan are closed, typed and additively
+affine, so the stratum-1 bounds apply at the source and on the compiled
+term. With projections as the product's eliminator, using both halves of
+one pair variable (`λp. (snd p, fst p)`) is contraction, and not glue.
+Still open: the census.
 
 **The compiled constructors** (`Ski/Scott.lean`, generated). `Zero` is
 `K`; `Suc` is eight atoms; `Push` twenty-two. Each elimination lemma is the

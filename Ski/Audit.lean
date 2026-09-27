@@ -14,6 +14,7 @@ import Ski.Tait
 import Ski.Stratum
 import Ski.Stratum2
 import Ski.Stratum3
+import Ski.Sigma
 import Ski.Bridge
 import Ski.Cost
 import Ski.CostAdd
@@ -391,3 +392,11 @@ open Ski.Audit
   Rz.omegaF_typed Rz.WHF.no_lam Rz.WHF.no_const Rz.omegaF_reducts Rz.omegaF_diverges
   Rz.fixConst_evaluates Rz.compiled_omegaF Rz.compiled_omegaF_diverges
   Rz.compiled_omegaF_timeout Rz.compiled_fixConst_converges Rz.fixfree_evaluates
+
+-- The Σ-protocol algebra: AND, OR and threshold (a fold); its glue lies in stratum 1
+#audit_clean Rz.thrPlan_isSome Rz.Stratum1.app Rz.Stratum1.source_bound Rz.Stratum1.compiled_bound
+  Rz.closedAt_mono Rz.acnt_closed Rz.idT_s1 Rz.andI_s1 Rz.fstE_s1 Rz.sndE_s1 Rz.inlI_s1
+  Rz.inrI_s1 Rz.caseE_s1 Rz.orComm_s1 Rz.thrTake_s1 Rz.thrSkip_s1 Rz.thrWeaken_s1
+  Rz.Plan.build_typed Rz.Plan.build_closed Rz.Plan.build_acnt Rz.Plan.build_affA
+  Rz.acnt_lams Rz.closedAt_lams Rz.lams_typed Rz.lams_affA Rz.Plan.compose_s1
+  Rz.thr_compose_s1 Rz.glue_stratum1 Rz.glue_bounds Rz.swapT_not_affA Rz.thrPlan_extract
