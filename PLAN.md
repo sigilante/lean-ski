@@ -123,7 +123,12 @@ where `K` discards it. So a compiled affine glue realizer applied to
 witnesses head-normalizes within its combinator count plus the witnesses'
 costs (`glue_head_bound`). For variables shared across a case's branches,
 compilation threads them through the continuations (`trA`,
-`glue_head_bound_add`). Still open: strata 2 and 3, and the census.
+`glue_head_bound_add`). Stratum 2 is proved (`Ski/Stratum2.lean`): typed
+realizers with contraction normalize (`strong_normalization`,
+`compiled_converges`) but admit no elementary bound. The tower `two two ⋯
+two` applied to a Boolean toggle has additive size `8k + 17` and takes at
+least `2↑↑(k+1)` call-by-name steps (`no_elementary_bound`). Still open:
+stratum 3 (`fix`) and the census.
 
 **The compiled constructors** (`Ski/Scott.lean`, generated). `Zero` is
 `K`; `Suc` is eight atoms; `Push` twenty-two. Each elimination lemma is the

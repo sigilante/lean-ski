@@ -12,6 +12,7 @@ import Ski.Transfer
 import Ski.Realize
 import Ski.Tait
 import Ski.Stratum
+import Ski.Stratum2
 import Ski.Bridge
 import Ski.Cost
 import Ski.CostAdd
@@ -372,3 +373,14 @@ open Ski.Audit
   Rz.overrideG_ext Rz.brS_OG Rz.trA_peel Rz.og_usualA Rz.ogsemA Rz.compiledA_Q
   Rz.glue_head_bound_add Rz.sharedT_not_aff Rz.sharedT_affA Rz.sharedT_typed
   Rz.sharedT_leaves Rz.sharedT_bound
+
+-- Stratum 2: contraction normalizes, with no elementary bound on call-by-name steps
+#audit_clean Rz.WH.no_lam Rz.WH.no_pair Rz.WH.no_inl Rz.WH.no_inr Rz.WH.det Rz.IsInj.no_step
+  Rz.case_dec Rz.LB.back Rz.LB.backN Rz.LB_case Rz.LB_tog Rz.sub_beta1_shift Rz.LB_two
+  Rz.iterN_succ' Rz.iterN_add Rz.iterN_sq Rz.LB_towerT Rz.iterN_succ_zero Rz.evalT_lower
+  Rz.twoT_typed Rz.togT_typed Rz.towerT_typed Rz.evalT_typed Rz.asz_towerT Rz.asz_evalT
+  Rz.Typed.ren Rz.Typed.sub Rz.WH.typed Rz.closedAt_ren Rz.closedAt_sub Rz.WH.closed
+  Rz.WH.step Rz.WH.wh? Rz.wh?_sound Rz.Tm.SN.wh_normal Rz.Typed.const_inv Rz.canonical
+  Rz.WHN.typed Rz.WHN.closed Rz.evaluates_inj Rz.closedAt_twoT Rz.closedAt_togT
+  Rz.closedAt_towerT Rz.closedAt_evalT Rz.evalT_terminates Rz.two_pow_pos' Rz.lt_two_pow'
+  Rz.two_pow_lt Rz.expT_lt Rz.tw_add Rz.pow_le_tw Rz.tw_beats_linear Rz.no_elementary_bound

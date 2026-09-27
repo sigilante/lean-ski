@@ -10,6 +10,7 @@ import Ski.Transfer
 import Ski.Realize
 import Ski.Tait
 import Ski.Stratum
+import Ski.Stratum2
 import Ski.Compile
 import Ski.Quote
 import Ski.Front
