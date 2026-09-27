@@ -8,6 +8,8 @@ import Ski.Lambda
 import Ski.Quote
 import Ski.Open
 import Ski.Abs
+import Ski.Transfer
+import Ski.Realize
 import Ski.Compile
 import Ski.Front
 import Ski.Check
@@ -262,6 +264,20 @@ open Ski.Audit
   Lam.normal_unique Lam.lstep?_sound Lam.lstep?_none Lam.lnf_sound
   tr_sub tr_ren tr_S tr_K tr_I tr_wstep tr_wsteps tr_SK no_quote_of_separated
   quote_separated no_quote
+
+-- Part II's transfer lemmas: standardization (qualitative; the counted form refuted in the
+-- kernel), and counted β for the compiler's bracket abstraction
+#audit_clean eval_of_wsteps counted_standardization_false OWStepsN.weak OWStepsN.trans
+  OWStepsN.left OWStepsN.right OWStepsN.app OWStepsN.appL vsize_pos vsize_of_closed
+  vsize_app_open vsize_app_le mem_of_closed closed_of_mem closedB_toO subst_closed vsize_subst
+  closedB_abs_of_closed vsize_abs abs_beta_count vsize_absN vsize_substL absN_beta_count
+
+-- Part II's logic: realizability, soundness of the combinator system, completeness by
+-- bracket abstraction (Curry's theorem)
+#audit_clean Real.back Whnf.wstep Whnf.wsteps_K real_atom_iff real_atom_diverges lam_beta
+  pairT_beta fstT_beta sndT_beta inlT_beta inrT_beta caseT_beta K_beta KI_beta soundness
+  OTypes.congr toO_ne_var OTypes.var_inv OTypes.app_inv abs_types OTypes.close OTypes.real
+  nd_compile completeness completeness_closed nd_realizes
 
 -- The source semantics, run: normal-order proof search, the words' meaning from their
 -- source, every Run derivation a source run, and adequacy for the four compiled sources

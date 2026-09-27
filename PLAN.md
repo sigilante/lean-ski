@@ -88,6 +88,25 @@ reduces `Q M` to the encoding of `M` over `S | K | I | App` for every `M`,
 since the encodings of `S K S` and `S K K` have different normal forms,
 computed by the kernel. This is Proposition 3.1 of the metacircular paper.
 
+**Part II: a logic of proofs** (`Ski/Realize.lean`, `Ski/Transfer.lean`).
+Formulas are NP atoms, `∧`, `∨`, `→` and `∃` over witnesses. Realizers
+are closed terms: a witness for an atom, Scott pairs and injections, and
+witness maps. An atom's realizer is a witness on which the verifier
+evaluates to `K` (`real_atom_iff`). The combinator system (Hilbert
+axioms for `S K I`, modus ponens, Scott constants) is sound (`soundness`).
+Natural deduction compiles to it by bracket abstraction (`completeness`),
+which is Curry's theorem. Existential elimination is left out: in
+combinator form it needs `∀` over witnesses. Of the two transfer lemmas,
+standardization holds in its qualitative form (`eval_of_wsteps`). Its
+counted form is false: `S I I (I F)` takes 10 head steps, and its weak
+reduct `S I I F` takes 8 (`counted_standardization_false`), because weak
+reduction shares a redex that head reduction contracts once per copy. So a
+step bound on the trace must be proved of head reduction directly. β for
+the compiler's bracket abstraction is counted: at most `3^k · vsize M`
+weak steps for `k` formals (`absN_beta_count`). Still open: the typed
+realizer language with Tait's normalization, the additive census, and
+the budget-exact bound on compiled realizers.
+
 **The compiled constructors** (`Ski/Scott.lean`, generated). `Zero` is
 `K`; `Suc` is eight atoms; `Push` twenty-two. Each elimination lemma is the
 reference reducer's contraction sequence on symbolic arguments, re-run by
