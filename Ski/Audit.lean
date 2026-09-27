@@ -11,6 +11,7 @@ import Ski.Abs
 import Ski.Transfer
 import Ski.Realize
 import Ski.Tait
+import Ski.Bridge
 import Ski.Compile
 import Ski.Front
 import Ski.Check
@@ -279,6 +280,8 @@ open Ski.Audit
   pairT_beta fstT_beta sndT_beta inlT_beta inrT_beta caseT_beta K_beta KI_beta soundness
   OTypes.congr toO_ne_var OTypes.var_inv OTypes.app_inv abs_types OTypes.close OTypes.real
   nd_compile completeness completeness_closed nd_realizes
+  unpackT_beta subst_toO abs_subst_self compile_substW close_subst_single ndx_realizes
+  NDX.exElim exElim_realizes
 
 -- Part II's realizer language: simply typed λ with products and sums, strongly
 -- normalizing by Tait's method
@@ -292,6 +295,12 @@ open Ski.Audit
   Rz.cr Rz.Red.sn Rz.Red.step Rz.Red.steps Rz.Red.neutral Rz.Red.var Rz.Red.const Rz.Red.lam
   Rz.Red.fst_pair Rz.Red.snd_pair Rz.Red.inl Rz.Red.inr Rz.Red.case Rz.fundamental
   Rz.strong_normalization Rz.omega_not_sn Rz.omega_untyped
+
+-- The bridge: a typed realizer, written as SKIjack source and compiled by `comp`, converges
+#audit_clean Rz.Converges.back Rz.RS.back Rz.converges_whnf Rz.pairG_beta Rz.inlG_beta
+  Rz.inrG_beta Rz.RS.inh_conv Rz.RS.conv Rz.RS.pair Rz.RS.inl Rz.RS.inr Rz.absN_append
+  Rz.wrapLift_close Rz.comp_lam_close Rz.projS_beta Rz.EnvOK.cons Rz.sem Rz.compiled_RS
+  Rz.compiled_converges Rz.compiled_apply_converges Rz.glue_converges
 
 -- The source semantics, run: normal-order proof search, the words' meaning from their
 -- source, every Run derivation a source run, and adequacy for the four compiled sources

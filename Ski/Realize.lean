@@ -29,9 +29,15 @@ compiled by `skijack`'s bracket abstraction (`abs`).  The compiled term
 has the proof's type in the combinator system (`abs_types`).  This is
 Curry's theorem, instantiated.
 
-Existential elimination is not in this fragment.  In combinator form it
-applies the pair to a function of type `∀ w. φ w → C`, and this logic has
-no `∀` over witnesses; §logic of the paper records the choice.
+**Existential elimination** needs `∀` over witnesses, realized by maps from
+witnesses (`Form.all`).  Its eliminator is `unpackT`, `λ p f. p f`, which
+applies a pair to a map of type `∀ w. φ w → C`, and `gen` types such maps.
+Natural deduction with witness abstraction (`NDX`) is sound for the
+compiled terms (`ndx_realizes`).  The elimination rule is derived
+(`NDX.exElim`).  `∀` appears only as the type of the eliminator's
+argument; public inputs stay substituted, as the paper requires.
+Completeness in the syntactic form, for `Types`, covers the fragment without
+witness abstraction; witness abstraction is covered by realizability.
 -/
 
 /-- Formulas. -/
@@ -41,6 +47,7 @@ inductive Form
   | or (A B : Form)
   | imp (A B : Form)
   | ex (φ : Term → Form)
+  | all (φ : Term → Form)
 
 /-- `Real φ r`: `r` realizes `φ`. -/
 def Real : Form → Term → Prop
@@ -51,6 +58,7 @@ def Real : Form → Term → Prop
     (∃ b, (∀ f g, WSteps (r ⬝ f ⬝ g) (g ⬝ b)) ∧ Real B b)
   | .imp A B, r => ∀ a, Real A a → Real B (r ⬝ a)
   | .ex φ, r => ∃ w b, (∀ k, WSteps (r ⬝ k) (k ⬝ w ⬝ b)) ∧ Real (φ w) b
+  | .all φ, r => ∀ w, Real (φ w) (r ⬝ w)
 
 /-- **Realizability is closed under backward weak reduction.** -/
 theorem Real.back : ∀ (A : Form) {r r' : Term}, WSteps r r' → Real A r' → Real A r
@@ -76,6 +84,7 @@ theorem Real.back : ∀ (A : Form) {r r' : Term}, WSteps r r' → Real A r' → 
     | intro w hr =>
       cases hr with
       | intro b hr => exact ⟨w, b, fun k => (WSteps.left k h).trans (hr.1 k), hr.2⟩
+  | .all φ, _, _, h, hr => fun w => Real.back (φ w) (WSteps.left w h) (hr w)
 
 -- ---------------------------------------------------------------------------
 -- Atoms: the verifier accepts
@@ -172,6 +181,12 @@ theorem inrT_beta (b f g : Term) : WSteps (inrT ⬝ b ⬝ f ⬝ g) (g ⬝ b) :=
 theorem caseT_beta (s f g : Term) : WSteps (caseT ⬝ s ⬝ f ⬝ g) (s ⬝ f ⬝ g) :=
   lam_beta [0, 1, 2] _ [s, f, g] rfl
 
+/-- `λ p f. p f`: existential elimination, the pair applied to a map over
+    witnesses. -/
+def unpackT : Term := lam [0, 1] (v0 ⬝ₒ v1)
+
+theorem unpackT_beta (p f : Term) : WSteps (unpackT ⬝ p ⬝ f) (p ⬝ f) := lam_beta [0, 1] _ [p, f] rfl
+
 -- ---------------------------------------------------------------------------
 -- The combinator system and its soundness
 -- ---------------------------------------------------------------------------
@@ -193,6 +208,9 @@ inductive Types : Term → Form → Prop
       Types caseT (.imp (.or A B) (.imp (.imp A C) (.imp (.imp B C) C)))
   | pack {φ : Term → Form} (w : Term) : Types (pairT ⬝ w) (.imp (φ w) (.ex φ))
   | witness {V x w : Term} : WSteps (V ⬝ x ⬝ w) K → Types w (.atom V x)
+  | unpack {φ : Term → Form} {C : Form} :
+      Types unpackT (.imp (.ex φ) (.imp (.all fun w => .imp (φ w) C) C))
+  | gen {f : Term} {φ : Term → Form} : (∀ w, Types (f ⬝ w) (φ w)) → Types f (.all φ)
 
 theorem K_beta (a b : Term) : WSteps (K ⬝ a ⬝ b) a := .single (.K a b)
 
@@ -238,6 +256,14 @@ theorem soundness {t : Term} {A : Form} (h : Types t A) : Real A t := by
         exact Real.back C ((caseT_beta s f g).trans (hb.1 f g)) (hg b hb.2)
   | pack w => intro b hb; exact ⟨w, b, fun k => pairT_beta w b k, hb⟩
   | witness h => exact h
+  | @unpack φ C =>
+    intro p hp f hf
+    cases hp with
+    | intro w hp =>
+      cases hp with
+      | intro b hp =>
+        exact Real.back C ((unpackT_beta p f).trans (hp.1 f)) (hf w b hp.2)
+  | gen _ ih => exact ih
 
 -- ---------------------------------------------------------------------------
 -- Open terms, and abstraction preserves types
@@ -348,6 +374,8 @@ inductive PT
   | lam (x : Nat) (b : PT)
   | app (f a : PT)
   | const (t : Term)
+  | wlam (x : Nat) (b : PT)
+  | wit (w : Term)
 
 /-- Compilation by bracket abstraction. -/
 def PT.compile : PT → OTerm
@@ -355,6 +383,8 @@ def PT.compile : PT → OTerm
   | .lam x b => abs x b.compile
   | .app f a => f.compile ⬝ₒ a.compile
   | .const t => t.toO
+  | .wlam x b => abs x b.compile
+  | .wit w => w.toO
 
 /-- The natural-deduction rules: assumption, implication introduction,
     modus ponens, and constants. -/
@@ -392,3 +422,137 @@ theorem completeness_closed {Γ : Nat → Form} {p : PT} {A : Form} (h : ND Γ p
 theorem nd_realizes {Γ : Nat → Form} {p : PT} {A : Form} (h : ND Γ p A)
     {γ : Nat → Term} (hγ : ∀ n, Real (Γ n) (γ n)) : Real A (p.compile.close γ) :=
   (nd_compile h).real hγ
+
+-- ---------------------------------------------------------------------------
+-- Existential elimination: abstraction over witnesses
+-- ---------------------------------------------------------------------------
+
+/-- Replace the witness variable `x` by the witness `w`.  A binder of the same
+    name shadows it. -/
+def PT.substW (x : Nat) (w : Term) : PT → PT
+  | .var y => if y = x then .wit w else .var y
+  | .lam y b => if y = x then .lam y b else .lam y (b.substW x w)
+  | .app f a => .app (f.substW x w) (a.substW x w)
+  | .const t => .const t
+  | .wlam y b => if y = x then .wlam y b else .wlam y (b.substW x w)
+  | .wit v => .wit v
+
+theorem subst_toO (τ : Nat → OTerm) : ∀ t : Term, t.toO.subst τ = t.toO
+  | .S => rfl
+  | .K => rfl
+  | .I => rfl
+  | .app f a => by
+    show OTerm.app (f.toO.subst τ) (a.toO.subst τ) = .app f.toO a.toO
+    rw [subst_toO τ f, subst_toO τ a]
+
+theorem abs_subst_self (x : Nat) (N B : OTerm) : (abs x B).subst (single x N) = abs x B :=
+  subst_single_of_not_mem (by rw [mem_abs]; simp)
+
+/-- Compilation commutes with substituting a witness. -/
+theorem compile_substW (x : Nat) (w : Term) : ∀ p : PT,
+    (p.substW x w).compile = p.compile.subst (single x w.toO)
+  | .var y => by
+    by_cases hy : y = x
+    · subst hy
+      simp only [PT.substW, if_true, PT.compile, OTerm.subst, single_self]
+    · simp only [PT.substW, hy, if_false, PT.compile, OTerm.subst, single_ne _ hy]
+  | .lam y b => by
+    by_cases hy : y = x
+    · subst hy
+      simp only [PT.substW, if_true, PT.compile]
+      exact (abs_subst_self y _ _).symm
+    · simp only [PT.substW, hy, if_false, PT.compile]
+      rw [compile_substW x w b, abs_subst hy (mem_toO y w)]
+  | .app f a => by
+    simp only [PT.substW, PT.compile, OTerm.subst, compile_substW x w f, compile_substW x w a]
+  | .const t => by simp only [PT.substW, PT.compile, subst_toO]
+  | .wlam y b => by
+    by_cases hy : y = x
+    · subst hy
+      simp only [PT.substW, if_true, PT.compile]
+      exact (abs_subst_self y _ _).symm
+    · simp only [PT.substW, hy, if_false, PT.compile]
+      rw [compile_substW x w b, abs_subst hy (mem_toO y w)]
+  | .wit v => by simp only [PT.substW, PT.compile, subst_toO]
+
+/-- Closing after substituting a witness is closing with the witness. -/
+theorem close_subst_single (x : Nat) (w : Term) (γ : Nat → Term) : ∀ B : OTerm,
+    (B.subst (single x w.toO)).close γ = B.close (updC γ x w)
+  | .S => rfl
+  | .K => rfl
+  | .I => rfl
+  | .var y => by
+    by_cases hy : y = x
+    · subst hy
+      show (single y w.toO y).close γ = updC γ y w y
+      rw [single_self, close_toO]
+      exact (if_pos rfl).symm
+    · show (single x w.toO y).close γ = updC γ x w y
+      rw [single_ne _ hy]
+      exact (if_neg hy).symm
+  | .app f a => by
+    show Term.app _ _ = Term.app _ _
+    rw [close_subst_single x w γ f, close_subst_single x w γ a]
+
+/-- Natural deduction with existential elimination: the rules of `ND`, a
+    witness abstraction introducing `∀` over witnesses, and packing a witness.
+    Existential elimination is the constant `unpackT` applied to the pair and
+    to a witness abstraction. -/
+inductive NDX : (Nat → Form) → PT → Form → Prop
+  | var (Γ : Nat → Form) (n : Nat) : NDX Γ (.var n) (Γ n)
+  | lam {Γ : Nat → Form} {x : Nat} {A B : Form} {b : PT} :
+      NDX (extF Γ x A) b B → NDX Γ (.lam x b) (.imp A B)
+  | app {Γ : Nat → Form} {f a : PT} {A B : Form} :
+      NDX Γ f (.imp A B) → NDX Γ a A → NDX Γ (.app f a) B
+  | const {Γ : Nat → Form} {t : Term} {A : Form} : Types t A → NDX Γ (.const t) A
+  | wlam {Γ : Nat → Form} {x : Nat} {φ : Term → Form} {b : PT} :
+      (∀ w, NDX Γ (b.substW x w) (φ w)) → NDX Γ (.wlam x b) (.all φ)
+  | pack {Γ : Nat → Form} {φ : Term → Form} (w : Term) :
+      NDX Γ (.app (.const pairT) (.wit w)) (.imp (φ w) (.ex φ))
+
+/-- **Natural deduction with existential elimination is sound for the
+    compiled terms**: a proof compiled by bracket abstraction realizes its
+    formula, given realizers for its assumptions. -/
+theorem ndx_realizes {Γ : Nat → Form} {p : PT} {A : Form} (h : NDX Γ p A) :
+    ∀ {γ : Nat → Term}, (∀ n, Real (Γ n) (γ n)) → Real A (p.compile.close γ) := by
+  induction h with
+  | var Γ n => intro γ hγ; exact hγ n
+  | @lam Γ x A B b _ ih =>
+    intro γ hγ a ha
+    refine Real.back B (abs_beta_close x b.compile γ a) (ih fun n => ?_)
+    show Real (if n = x then A else Γ n) (if n = x then a else γ n)
+    by_cases hn : n = x
+    · rw [if_pos hn, if_pos hn]; exact ha
+    · rw [if_neg hn, if_neg hn]; exact hγ n
+  | app _ _ ihf iha => intro γ hγ; exact ihf hγ _ (iha hγ)
+  | const ht => intro γ _; show Real _ ((Term.toO _).close γ); rw [close_toO]; exact soundness ht
+  | @wlam Γ x φ b _ ih =>
+    intro γ hγ w
+    have h1 := ih w hγ
+    rw [compile_substW, close_subst_single] at h1
+    exact Real.back (φ w) (abs_beta_close x b.compile γ w) h1
+  | pack w =>
+    intro γ _
+    show Real _ (pairT.toO.close γ ⬝ w.toO.close γ)
+    rw [close_toO, close_toO]
+    exact soundness (.pack w)
+
+/-- **Existential elimination**, derived: from a proof of `∃ w. φ w` and, for
+    every witness `w`, a proof of `C` from an assumption `y : φ w`, a proof of
+    `C`.  The witness is the abstracted variable `x`. -/
+theorem NDX.exElim {Γ : Nat → Form} {p b : PT} {φ : Term → Form} {C : Form} {x y : Nat}
+    (hxy : y ≠ x) (hp : NDX Γ p (.ex φ))
+    (hb : ∀ w, NDX (extF Γ y (φ w)) (b.substW x w) C) :
+    NDX Γ (.app (.app (.const unpackT) p) (.wlam x (.lam y b))) C := by
+  refine .app (.app (.const .unpack) hp) (.wlam fun w => ?_)
+  show NDX Γ (if y = x then .lam y b else .lam y (b.substW x w)) (.imp (φ w) C)
+  rw [if_neg hxy]
+  exact .lam (hb w)
+
+/-- Existential elimination, realized: its compiled term realizes `C`. -/
+theorem exElim_realizes {Γ : Nat → Form} {p b : PT} {φ : Term → Form} {C : Form} {x y : Nat}
+    (hxy : y ≠ x) (hp : NDX Γ p (.ex φ))
+    (hb : ∀ w, NDX (extF Γ y (φ w)) (b.substW x w) C) {γ : Nat → Term}
+    (hγ : ∀ n, Real (Γ n) (γ n)) :
+    Real C ((PT.app (.app (.const unpackT) p) (.wlam x (.lam y b))).compile.close γ) :=
+  ndx_realizes (NDX.exElim hxy hp hb) hγ

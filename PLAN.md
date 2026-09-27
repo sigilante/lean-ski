@@ -107,10 +107,14 @@ weak steps for `k` formals (`absN_beta_count`). The typed realizer
 language (`Ski/Tait.lean`) is simply typed λ with products and sums over
 opaque base types (witness types) and constants (verifiers). Every typed
 term is strongly normalizing under full reduction
-(`strong_normalization`), by Tait's reducibility. Still open: carrying
-termination from a realizer to its compiled `SKI` term through
-`simulation`, the additive census, and the budget-exact bound on
-compiled realizers.
+(`strong_normalization`), by Tait's reducibility. A typed closed realizer,
+written as SKIjack source and compiled by `comp`, converges
+(`compiled_converges`, `Ski/Bridge.lean`); the proof is Tait's argument
+on the compiled `SKI` terms, and needs no simulation. Existential
+elimination is in: `∀` over witnesses types the eliminator's argument,
+and natural deduction with witness abstraction is sound for the compiled
+terms (`ndx_realizes`). Still open: the additive census and the step
+bound on compiled affine realizers.
 
 **The compiled constructors** (`Ski/Scott.lean`, generated). `Zero` is
 `K`; `Suc` is eight atoms; `Push` twenty-two. Each elimination lemma is the

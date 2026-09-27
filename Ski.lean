@@ -27,6 +27,7 @@ import Ski.Converse
 import Ski.Total
 import Ski.Programs
 import Ski.Simulation
+import Ski.Bridge
 import Ski.SourceEval
 import Ski.SourceJoy
 import Ski.SourceRun
