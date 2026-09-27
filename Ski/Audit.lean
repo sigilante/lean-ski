@@ -230,9 +230,9 @@ open Ski.Audit
   kernel_fixed corpus_fixed loop_fixed sum_fixed prog_wPop prog_Push prog_RVal genv_kernel
   wPop_source wPop_push
 
--- The front end's coverage of level 0, macros and generated forms: files in both lexicons
--- agree with skijack term for term and the simulation applies to them; programs skijack
--- refuses are refused
+-- The front end's coverage of SKIjack (level 0, macros, generated forms, level 1): files in
+-- both lexicons agree with skijack term for term and the simulation applies to them;
+-- programs skijack refuses are refused
 #audit_clean coverage_agrees coverage_unicode_agrees coverage_fixed sec1Nat_agrees
   sec1Nat_unicode_agrees sec1Nat_fixed kernelEvents_agrees kernelEvents_unicode_agrees
   kernelEvents_fixed refuses_bare_number refuses_qualified_name refuses_unresolved_name
@@ -251,6 +251,45 @@ open Ski.Audit
   interpWhnffWrittenLoop_fixed scryWfn_agrees scryWfn_unicode_agrees scryWfn_fixed
   refuses_gen_two_apps refuses_gen_non_leaf refuses_gen_two_objects refuses_gen_no_outcome
   refuses_gen_ctor_count refuses_gen_loop1_only refuses_gen_no_leaf_result refuses_gen_no_spare
+  refuses_corpus_miscForms_ascii refuses_corpus_miscForms_unicode refuses_corpus_sec4Interp_ascii
+  refuses_corpus_sec4Interp_unicode refuses_corpus_sec5Lookup_ascii
+  refuses_corpus_sec5Lookup_unicode refuses_corpus_syntax3Resolver_ascii
+  refuses_corpus_syntax3Resolver_unicode
+  level1_agrees level1_unicode_agrees level1_fixed level1Flipa_agrees level1Flipa_unicode_agrees
+  level1Flipa_fixed parseChars_agrees parseChars_unicode_agrees parseChars_fixed scryBlock_agrees
+  scryBlock_unicode_agrees scryBlock_fixed scryNs_agrees scryNs_unicode_agrees scryNs_fixed
+  scryWfq_agrees scryWfq_unicode_agrees scryWfq_fixed tower_agrees tower_unicode_agrees
+  tower_fixed wordsToNumbers_agrees wordsToNumbers_unicode_agrees wordsToNumbers_fixed
+  refuses_l1_no_object refuses_l1_nested_fuel refuses_l1_not_core refuses_l1_no_default
+  refuses_l1_param_count refuses_l1_no_loop refuses_l1_no_scry_leaf refuses_l1_bad_segment
+  refuses_l1_payload refuses_l1_no_answer refuses_l1_no_eq5 refuses_l1_fact_not_quote
+  refuses_l1_no_leaf refuses_l1_forward_datum refuses_l1_quote_in_equation
+  refuses_l1_bad_path_type refuses_type_twice refuses_core_twice refuses_core_equation_twice
+
+-- skijack's checker: Stage A and Stage B, ported; where it passes the checked compilation
+-- is the unchecked one, and it passes exactly where skijack's does
+#audit_clean Front.checkedWith_of_pass Front.checkedWith_of_fail
+  coverage_check_refuses coverage_unicode_check_refuses macros_check_refuses
+  macros_unicode_check_refuses level1_checks level1_unicode_checks generate_check_refuses
+  generate_unicode_check_refuses sec1Nat_checks sec1Nat_unicode_checks kernelEvents_checks
+  kernelEvents_unicode_checks asciiDigits_checks asciiDigits_unicode_checks sec2C_checks
+  sec2C_unicode_checks sec3Swap_checks sec3Swap_unicode_checks interpT3_checks
+  interpT3_unicode_checks interpWhnff_checks interpWhnff_unicode_checks interpWhnffWritten_checks
+  interpWhnffWritten_unicode_checks interpWhnffWrittenLoop_checks
+  interpWhnffWrittenLoop_unicode_checks scryWfn_checks scryWfn_unicode_checks level1Flipa_checks
+  level1Flipa_unicode_checks parseChars_checks parseChars_unicode_checks scryBlock_checks
+  scryBlock_unicode_checks scryNs_checks scryNs_unicode_checks scryWfq_checks
+  scryWfq_unicode_checks tower_checks tower_unicode_checks wordsToNumbers_checks
+  wordsToNumbers_unicode_checks refuses_checked_a_type_equation_twice
+  refuses_checked_a_macro_twice refuses_checked_a_case_in_macro refuses_checked_a_eq_lambda
+  refuses_checked_a_eq_partial_ctor refuses_checked_a_eq_combinator refuses_checked_a_eq_equation
+  refuses_checked_a_eq_core refuses_checked_a_eq_macro refuses_checked_a_quote_binder
+  refuses_checked_a_quote_arity refuses_checked_a_step_app refuses_checked_a_step_binders
+  refuses_checked_a_step_order refuses_checked_a_loop_binders refuses_checked_a_segment_arity
+  refuses_checked_b_function_as_datum refuses_checked_b_signature refuses_checked_b_eq_data
+  refuses_checked_b_nominal refuses_checked_b_pick_function refuses_checked_b_undeclared_field
+  checks_omega checks_signature_ok checks_datum_applied checks_cells_and_picks checks_lists
+  checks_case_typed checks_eq_on_data checks_cell_applied
 
 -- The source semantics, run: normal-order proof search, the words' meaning from their
 -- source, every Run derivation a source run, and adequacy for the four compiled sources

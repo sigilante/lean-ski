@@ -491,6 +491,8 @@ def to_unicode(t):
     t = (t.replace("===", "≡").replace(":=", "≔").replace("|>", "▹").replace("->", "→")
          .replace("\\", "λ").replace("--", "⍝"))
     t = _re.sub(r"(\d+)@", r"\1⊑", t)
+    t = t.replace("|-", "⊢").replace("?^", "∵").replace("=>", "↦").replace("@[]", "₍₎")
+    t = _re.sub(r"@(\d+)", lambda m: "".join(chr(0x2080 + int(c)) for c in m.group(1)), t)
     for a, b in [("B", "∘"), ("C", "⇄"), ("W", "⋈"), ("Y", "Υ")]:
         t = _re.sub(r"(?<![A-Za-z0-9_'])" + a + r"(?![A-Za-z0-9_'])", b, t)
     return t
@@ -504,13 +506,19 @@ SUITES = [  # (Lean name, doc, ascii text, unicode text)
 mac_text = (pathlib.Path(__file__).resolve().parent / "macros.ski").read_text(encoding="utf-8")
 SUITES.append(("macros", "the macro file `scripts/macros.ski`: expansion, hygiene, shadowing, and the last declaration or parameter winning",
                mac_text, to_unicode(mac_text)))
+l1_text = (pathlib.Path(__file__).resolve().parent / "level1.ski").read_text(encoding="utf-8")
+SUITES.append(("level1", "the level-1 file `scripts/level1.ski`: data named by level 0 and inlined by later data, nested quotation, runs with and without fuel",
+               l1_text, to_unicode(l1_text)))
 gen_text = (pathlib.Path(__file__).resolve().parent / "generate.ski").read_text(encoding="utf-8")
 SUITES.append(("generate", "the generation file `scripts/generate.ski`: a leaf outside the ISA, the Maybe shape, a parameterized core, a user-written `rb`, a core that writes its own `step`",
                gen_text, to_unicode(gen_text)))
 for stem, lname in [("sec1-nat", "sec1Nat"), ("kernel-events", "kernelEvents"), ("ascii-digits", "asciiDigits"),
                     ("sec2-c", "sec2C"), ("sec3-swap", "sec3Swap"), ("interp-t3", "interpT3"),
                     ("interp-whnff", "interpWhnff"), ("interp-whnff-written", "interpWhnffWritten"),
-                    ("interp-whnff-written-loop", "interpWhnffWrittenLoop"), ("scry-wfn", "scryWfn")]:
+                    ("interp-whnff-written-loop", "interpWhnffWrittenLoop"), ("scry-wfn", "scryWfn"),
+                    ("level1-flipa", "level1Flipa"), ("parse-chars", "parseChars"), ("scry-block", "scryBlock"),
+                    ("scry-ns", "scryNs"), ("scry-wfq", "scryWfq"), ("tower", "tower"),
+                    ("words-to-numbers", "wordsToNumbers")]:
     SUITES.append((lname, f"`skijack`'s corpus file `{stem}`",
                    (CORPUS / f"{stem}.ascii.ski").read_text(encoding="utf-8"),
                    (CORPUS / f"{stem}.unicode.ski").read_text(encoding="utf-8")))
@@ -539,7 +547,31 @@ REFUSED = [
     ("gen_loop1_only", "an interpreter core with `loop1` but no `loop`", "t === L | A t t\no === St t | D\nc := {\n  step m = m\n  loop1 f m n2 = m\n}\n", "ascii"),
     ("gen_no_leaf_result", "a result type without a leaf", "t === L | A t t\no === St t | P t\n", "ascii"),
     ("gen_no_spare", "an outcome leaf with no result leaf to map to", "t === L | A t t\no === St t | D | E\nr === V t | T | W t\n", "ascii"),
+    ("l1_no_object", "a quotation without an object type", "d := <K>\n", "ascii"),
+    ("l1_nested_fuel", "a nested quotation with fuel", "t === S | K | I | A t t\no === St t | D\nd := <K <I>@3>\n", "ascii"),
+    ("l1_not_core", "a run whose interpreter is not a core", "t === S | K | I | A t t\no === St t | D\nr := K |- <K>@3\n", "ascii"),
+    ("l1_no_default", "a run with no interpreter and no `whnfF`", "t === S | K | I | A t t\no === St t | D\nr := <K>@3\n", "ascii"),
+    ("l1_param_count", "a run whose interpreter lacks its arguments", "t === S | K | I | A t t\no === St t | D\nwfP e := {\n  step m = e\n}\nr := wfP |- <K>@3\n", "ascii"),
+    ("l1_no_loop", "a run whose core has no fuel loop", "t === S | K | I | A t t\no === St t | D\nc := {\n  f x = x\n}\nr := c |- <K>@3\n", "ascii"),
+    ("l1_no_scry_leaf", "a scry without a `Scry` leaf", "t === S | K | I | A t t\no === St t | D\npath === Nil | Cons seg path\nseg === Ay\nd := <?^/ay>\n", "ascii"),
+    ("l1_bad_segment", "a path segment that names no segment constructor", "t === S | K | I | A t t | Scry\no === St t | D\npath === Nil | Cons seg path\nseg === Ay\nd := <?^/bee>\n", "ascii"),
+    ("l1_payload", "a path segment with a payload", "t === S | K | I | A t t | Scry\no === St t | D\npath === Nil | Cons seg path\nseg === Ay\nd := <?^/ay[K]>\n", "ascii"),
+    ("l1_no_answer", "a namespace literal without an answer type", "t === S | K | I | A t t\no === St t | D\nEQ5 m = m\npath === Nil | Cons seg path\nseg === Ay\nn := ns{/ay => <K>}\n", "ascii"),
+    ("l1_no_eq5", "a namespace literal without `EQ5`", "t === S | K | I | A t t\nans === OJ t | ON\no === St t | D\nr === RV t | RE\npath === Nil | Cons seg path\nseg === Ay\nn := ns{/ay => <K>}\n", "ascii"),
+    ("l1_fact_not_quote", "a fact whose value is not a quotation", "t === S | K | I | A t t\nans === OJ t | ON\no === St t | D\nr === RV t | RE\npath === Nil | Cons seg path\nseg === Ay\nEQ5 m = m\nn := ns{/ay => K}\n", "ascii"),
+    ("l1_no_leaf", "a quotation of an atom the object type has no leaf for", "t === S | I | A t t\no === St t | D\nd := <K>\n", "ascii"),
+    ("l1_forward_datum", "a datum naming a later one", "t === S | K | I | A t t\no === St t | D\nd1 := <d2>\nd2 := <K>\n", "ascii"),
+    ("l1_quote_in_equation", "a quotation in an equation", "t === S | K | I | A t t\no === St t | D\nf x = <K>\n", "ascii"),
+    ("l1_bad_path_type", "a malformed path type", "t === S | K | I | A t t\no === St t | D\npath === Nil | Cons path\nd := <K>\n", "ascii"),
+    ("type_twice", "a type declared twice", "t === A\nt === B\n", "ascii"),
+    ("core_twice", "a core declared twice", "c := {\n  f x = x\n}\nc := {\n  g x = x\n}\n", "ascii"),
+    ("core_equation_twice", "a core defining an equation twice", "c := {\n  f x = x\n  f y = y\n}\n", "ascii"),
 ]
+for stem, lname in [("misc-forms", "miscForms"), ("sec4-interp", "sec4Interp"),
+                    ("sec5-lookup", "sec5Lookup"), ("syntax3-resolver", "syntax3Resolver")]:
+    for lex in ("ascii", "unicode"):
+        REFUSED.append((f"corpus_{lname}_{lex}", f"`skijack`'s corpus file `{stem}` ({lex})",
+                        (CORPUS / f"{stem}.{lex}.ski").read_text(encoding="utf-8"), lex))
 
 
 def post(t):
@@ -577,29 +609,80 @@ def codes(text):
     return "[\n" + ",\n".join("  " + ", ".join(cs[k:k + 24]) for k in range(0, len(cs), 24)) + "]"
 
 
-L = ['import Ski.Simulation', 'open Term Front', '',
+def check_outcome(text, lexicon):
+    """`None` when `skijack` with its checker compiles `text`, else the
+    name of what it raised."""
+    try:
+        skijack.compile(text, lexicon=lexicon, check=True)
+    except Exception as e:
+        return type(e).__name__
+    return None
+
+
+#: programs `skijack`'s checker refuses, Stage A then Stage B
+CHECK_REFUSED = [
+    ("a_type_equation_twice", "a type and an equation of one name", "t === A\nt x = x\n"),
+    ("a_macro_twice", "a macro declared twice", "m :=* K\nm :=* S\nf = m\n"),
+    ("a_case_in_macro", "an incomplete case in an unused macro", "t === A | B\nm x :=* x |> { A K }\n"),
+    ("a_eq_lambda", "a λ compared by `EQ`", "EQ a b = a\nf x = EQ (\\y. y) x\n"),
+    ("a_eq_partial_ctor", "a partially applied constructor compared by `EQ`", "t === A t | B\nEQ a b = a\nf x = EQ A x\n"),
+    ("a_eq_combinator", "a combinator compared by `EQ`", "EQ a b = a\nf x = EQ K x\n"),
+    ("a_eq_equation", "an equation compared by `EQ`", "EQ a b = a\ng y = y\nf x = EQ g x\n"),
+    ("a_eq_core", "a core compared by `EQ`", "c := {\n  h y = y\n}\nEQ a b = a\nf x = EQ c x\n"),
+    ("a_eq_macro", "a macro compared by `EQ`", "m :=* K\nEQ a b = a\nf x = EQ m x\n"),
+    ("a_quote_binder", "a λ's binder inside a quotation", "t === S | K | I | A t t\no === St t | D\nd := <\\x. x>\n"),
+    ("a_quote_arity", "a constructor of another type unsaturated inside a quotation", "t === S | K | I | A t t\no === St t | D\nnat === Z | Su nat\nd := <Su>\n"),
+    ("a_step_app", "a step equation for the application constructor", "t === S | K | I | A t t\no === St t | D\nc := {\n  stepA m = m\n}\n"),
+    ("a_step_binders", "a `step` of two binders", "t === S | K | I | A t t\no === St t | D\nc := {\n  step m n = m\n}\n"),
+    ("a_step_order", "leaf equations installed out of declaration order", "t === S | K | I | A t t\no === St t | D\nc := {\n  step m = sp m nil stepK stepS stepI\n}\n"),
+    ("a_loop_binders", "a `loop` of one binder", "t === S | K | I | A t t\no === St t | D\nc := {\n  step m = m\n  loop n = n\n}\n"),
+    ("a_segment_arity", "a path segment with a field", "t === S | K | I | A t t | Scry\no === St t | D\npath === Nil | Cons seg path\nseg === Ay seg\nd := <?^/ay>\n"),
+    ("b_function_as_datum", "a function where a datum is expected", "nat === Z | Su nat\nf = Su K\n"),
+    ("b_signature", "a signature the equation does not have", "f : nat\nnat === Z | Su nat\nf x = x\n"),
+    ("b_eq_data", "a function reaching an operand of `EQ`", "bool === T | F\nEQ a b = a\nf x = EQ x T\ng = f K\n"),
+    ("b_nominal", "a datum of one type where another is expected", "a === A1 | A2\nb === B1 | B2\nf x = x |> { A1 B1; A2 B2 }\ng = f B1\n"),
+    ("b_pick_function", "a pick from a function", "h = 2@K\n"),
+    ("b_undeclared_field", "a field of an undeclared type", "t === A u\n"),
+]
+#: programs `skijack`'s checker accepts
+CHECK_ACCEPTED = [
+    ("omega", "a self-application, typed equirecursively", "omega = S I I (S I I)\n"),
+    ("signature_ok", "a signature that holds", "nat === Z | Su nat\nf : nat -> nat\nf x = Su x\n"),
+    ("datum_applied", "a datum applied to its continuations", "nat === Z | Su nat\nisZ n = n K (K (K I))\n"),
+    ("cells_and_picks", "cells and picks", "f p = 2@p\ng = f [K S]\n"),
+    ("lists", "the prelude's lists", "f = cons K nil\n"),
+    ("case_typed", "a case typed nominally", "a === A1 | A2\nb === B1 | B2\nf x = x |> { A1 B1; A2 B2 }\ng = f A1\n"),
+    ("eq_on_data", "data compared by `EQ`", "bool === T | F\nEQ a b = a\nf x = EQ x T\ng = f F\n"),
+    ("cell_applied", "a cell applied, as a datum may be", "f = [K S] K\n"),
+]
+
+
+L = ['import Ski.Simulation', 'import Ski.TypeCheck', 'open Term Front', '',
      'set_option maxRecDepth 100000', '',
-     '/-!', '# The front end\'s coverage of level 0, macros and generated forms',
+     '/-!', '# The front end\'s coverage of SKIjack',
      '',
      'Generated by `scripts/emit.py` from `skijack` 0.2.0; do not edit.  For each',
      'file, in both lexicons, the front end (`Ski/Front.lean`) compiles it to',
      'exactly the terms `skijack` emits for it (`*_agrees`, `*_unicode_agrees`), and',
      'the compiled program is what the compiler gives for its source program',
      '(`*_fixed`), so the simulation of `Ski/Simulation.lean` applies to it.',
-     'The terms are `skijack`\'s with its checker off; its checker only',
-     'refuses, and these files compile the same with it on where it accepts',
-     'them.  Each `refuses_*` program is one `skijack` refuses with or without',
-     'its checker, and the front end refuses it too.', '-/', '']
+     'The terms are `skijack`\'s with its checker off.  Its checker only',
+     'refuses: `*_checks` and `*_check_refuses` state, for each file and',
+     'lexicon, that the front end\'s checker (`Ski/Check.lean`, Stage A;',
+     '`Ski/TypeCheck.lean`, Stage B) passes exactly where `skijack`\'s does.',
+     'Each `refuses_*` program is one `skijack` refuses with or without its',
+     'checker, and the front end refuses it too; each `refuses_checked_*` one',
+     'its checker refuses, and each `checks_*` one its checker accepts.', '-/', '']
 for lname, doc, atext, utext in SUITES:
     xa = skijack.compile(atext, check=False)
     xu = skijack.compile(utext, lexicon="unicode", check=False)
     assert set(xa.terms) == set(xu.terms) and all(xa.terms[k] == xu.terms[k] for k in xa.terms), lname
     names = sorted(xa.terms)
-    L += [f"/-- The ASCII text of {doc}. -/", f"def {lname}Text : List Nat := {codes(atext)}", "",
-          f"/-- The Unicode text of {doc}. -/", f"def {lname}TextU : List Nat := {codes(utext)}", "",
+    L += [f"/-- The ASCII text of {doc}. -/", f"noncomputable def {lname}Text : List Nat := {codes(atext)}", "",
+          f"/-- The Unicode text of {doc}. -/", f"noncomputable def {lname}TextU : List Nat := {codes(utext)}", "",
           f"/-- `skijack`'s terms for {doc}, by name, as packed postfix codes",
           "    (`Front.codeOf`); the code is injective, so equal codes mean equal terms. -/",
-          f"def {lname}Terms : List (Nm × List Nat) := [",
+          f"noncomputable def {lname}Terms : List (Nm × List Nat) := [",
           ",\n".join(f'  (nm! "{n}", {codes_of(pack(post(xa.terms[n])))})' for n in names) + "]", "",
           f"/-- The front end compiles the ASCII text to every term `skijack` emits",
           "    (`Front.agrees_termOf`), and to no other (`Front.agrees_termOf_rev`). -/",
@@ -611,6 +694,19 @@ for lname, doc, atext, utext in SUITES:
           f"/-- The simulation applies: the compiled program is the compiler's for the source. -/",
           f"theorem {lname}_fixed : Fixed (progOf {lname}Text) (genvOf {lname}Text) :=",
           "  fixed_of_check (by decide +kernel)", ""]
+    for suffix, u, var, text, lexicon in [("", "false", "Text", atext, "ascii"),
+                                          ("_unicode", "true", "TextU", utext, "unicode")]:
+        why = check_outcome(text, lexicon)
+        if why is None:
+            L += [f"/-- `skijack` with its checker on accepts the {lexicon.upper() if lexicon == 'ascii' else 'Unicode'} text, and so does the front end's",
+                  "    checker; the terms are the same (`Front.checkedWith_of_pass`). -/",
+                  f"theorem {lname}{suffix}_checks : checkPass {u} {lname}{var} = true := by",
+                  "  decide +kernel", ""]
+        else:
+            L += [f"/-- `skijack`'s checker refuses the {lexicon.upper() if lexicon == 'ascii' else 'Unicode'} text (`{why}`); so does the",
+                  "    front end's (`Front.checkedWith_of_fail`). -/",
+                  f"theorem {lname}{suffix}_check_refuses : checkPass {u} {lname}{var} = false := by",
+                  "  decide +kernel", ""]
 for key, doc, text, lexicon in REFUSED:
     try:
         skijack.compile(text, lexicon=lexicon, check=False)
@@ -621,6 +717,30 @@ for key, doc, text, lexicon in REFUSED:
     u = "true" if lexicon == "unicode" else "false"
     L += [f"/-- `skijack` refuses {doc}; so does the front end. -/",
           f"theorem refuses_{key} : compileWith {u} {codes(text)} = none := by",
+          "  decide +kernel", ""]
+for key, doc, text in CHECK_REFUSED:
+    why = check_outcome(text, "ascii")
+    assert why is not None, f"skijack's checker accepts the {key} program"
+    try:
+        skijack.compile(text, check=False)
+        plain = True
+    except Exception:
+        plain = False
+    if plain:
+        L += [f"/-- `skijack`'s checker refuses {doc} (`{why}`), which it compiles",
+              "    without the checker; so do the front end's checker and compiler. -/",
+              f"theorem refuses_checked_{key} :",
+              f"    checkPass false {codes(text)} = false ∧",
+              f"      (compileWith false {codes(text)}).isSome = true := by",
+              "  decide +kernel", ""]
+    else:
+        L += [f"/-- `skijack`'s checker refuses {doc} (`{why}`); so does the front end's. -/",
+              f"theorem refuses_checked_{key} : checkPass false {codes(text)} = false := by",
+              "  decide +kernel", ""]
+for key, doc, text in CHECK_ACCEPTED:
+    assert check_outcome(text, "ascii") is None, f"skijack's checker refuses the {key} program"
+    L += [f"/-- `skijack`'s checker accepts {doc}; so does the front end's. -/",
+          f"theorem checks_{key} : checkPass false {codes(text)} = true := by",
           "  decide +kernel", ""]
 (OUT / "Coverage.lean").write_text("\n".join(L), encoding="utf-8")
 print("Coverage.lean:", (OUT / "Coverage.lean").stat().st_size, "bytes")

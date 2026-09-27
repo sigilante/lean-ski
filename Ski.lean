@@ -6,6 +6,8 @@ import Ski.Open
 import Ski.Abs
 import Ski.Compile
 import Ski.Front
+import Ski.Check
+import Ski.TypeCheck
 import Ski.Source
 import Ski.Kernel
 import Ski.Laws

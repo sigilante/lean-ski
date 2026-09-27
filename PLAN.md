@@ -368,37 +368,72 @@ SKI (`λx. f x` compiles to `f`), so head-step counting alone does not
 bound source runs, and a general proof needs a measure on source terms
 that η-steps decrease.
 
-**The front end's coverage — level 0, macros and generated forms** (`Ski/Front.lean`,
-`Ski/Coverage.lean`). The front end reads SKIjack's level 0 in both
-lexicons: types, signatures, equations, definitions, cores (with
-parameters, sibling resolution, `core.eq` names and an interpreter core's
-`loop`), λ, cells, axis picks and case, with the ISA, Tier 1 and the
-prelude, and refuses a program with an unresolved name, mutual recursion
-or a name defined twice, as `skijack` does. It expands `:=*` macros as
-`expand_macros` does: capture-avoiding substitution with `skijack`'s
-fresh names, λ and case binders shadowing, the last declaration and the
-last parameter winning, and its three limits (nesting 256, 100 nested
-unfoldings, 200 000 substitutions); an applied `:=!` macro is refused. It
-generates what `generate.py` generates for a file with an object type:
-the walker `sp` and rebuilder `rb`, the default `S`/`K`/`I` step
-equations, and each interpreter core's `step` and fuel loop from the
-outcome and result types, refusing the shapes `generate.py` refuses.
-`Ski/Coverage.lean` (generated) checks, in the kernel, that it compiles a
-coverage file, a macro file, a generation file and ten of the seventeen
-corpus files `skijack` accepts, each in both lexicons, to exactly the
-terms `skijack` emits (`agrees_termOf`, `agrees_termOf_rev`), that the
-simulation applies to each (`*_fixed`), and that twenty-two programs
-`skijack` refuses are refused (`refuses_*`): nine at level 0, five for
-macros or nesting, eight for generation. The other seven corpus files use
-level 1. A declaration named `S`, `K` or `I`, such as an object type's
-leaf, is not a global of the source program (`progDefs`): level 0 always
-resolves those names to the ISA. The substitution limit is not
-exercised: reaching it costs 200 000 substitutions in the kernel. The
-kernel checks abstract by `absNF`, proved equal to `absN`: `absN`
-rechecks occurrence at every node, cubic for `ascii-digits`' 128-way type
-(220 s for its constructors), and `absNF` carries the term's variables
-(5 s). Not covered: level 1 (quotation, runs, scry, namespaces, fuel) and
-the type discipline (Stage A and Stage B), which only refuses.
+**The front end's coverage of SKIjack** (`Ski/Front.lean`,
+`Ski/Coverage.lean`). The front end reads all of SKIjack that `skijack`
+compiles, in both lexicons:
+
+- level 0: types, signatures, equations, definitions, cores (with
+  parameters, sibling resolution, `core.eq` names and an interpreter
+  core's `loop`), λ, cells, axis picks and case, with the ISA, Tier 1 and
+  the prelude;
+- macros (`:=*`), as `expand_macros` expands them: capture-avoiding
+  substitution with `skijack`'s fresh names, λ and case binders
+  shadowing, the last declaration and parameter winning, and its three
+  limits (nesting 256, 100 nested unfoldings, 200 000 substitutions);
+- the forms `generate.py` generates for a file with an object type: the
+  walker `sp`, the rebuilder `rb`, the default `S`/`K`/`I` step
+  equations, and each interpreter core's `step` and fuel loop;
+- level 1 (pass 6): data `<e>`, quoted over the object type with nested
+  quotation and scry `?^/a/b`; runs `[i a… |-] <e>@n`, packaged as the
+  interpreter core's loop applied to its arguments, the fuel numeral and
+  the datum; namespace literals `ns{…}`, compiled to resolvers through
+  `EQ5`. Data join the program in declaration order, so level 0 may name
+  them and later data may inline what names them.
+
+`Ski/Coverage.lean` (generated) checks in the kernel that the front end
+compiles, in both lexicons, a coverage file, a macro file, a generation
+file, a level-1 file and all seventeen corpus files `skijack` accepts to
+exactly the terms `skijack` emits (`agrees_termOf`,
+`agrees_termOf_rev`), that the simulation applies to each (`*_fixed`),
+and that forty-one programs `skijack` refuses are refused (`refuses_*`):
+at level 0, for macros or nesting, for generation, and at level 1; and
+the four corpus files `skijack` refuses are refused in both lexicons
+(`refuses_corpus_*`). A
+declaration named `S`, `K` or `I`, such as an object type's leaf, and a
+level-1 declaration are not globals of the source semantics
+(`progDefs`): level 0 resolves those names to the ISA, and a datum or
+run is a closed term. The substitution limit is not exercised: reaching
+it costs 200 000 substitutions in the kernel. The kernel checks abstract
+by `absNF`, proved equal to `absN`: `absN` rechecks occurrence at every
+node, cubic for `ascii-digits`' 128-way type (220 s for its
+constructors), and `absNF` carries the term's variables (5 s).
+
+Where `skijack` emits a term that is not closed, the front end refuses
+instead: an equation or a run's argument that names a run, and a
+namespace literal whose `EQ5` names a datum, keep an atom for which
+`skijack` defines no term. **The checker** (`Ski/Check.lean`, `Ski/TypeCheck.lean`). `skijack`
+checks before it compiles: Stage A (`check.py`) over the parsed program,
+for scope, case, data positions, the two symbol tables and the
+interpreter interface; Stage B (`typecheck.py`) over the generated
+program, Hindley–Milner with an oriented, equirecursive unifier in which
+a datum may be applied and a function is never a datum. Both only refuse,
+so `checkPass` is a Boolean and `checkedWith_of_pass` proves that where it
+passes the checked compilation is the unchecked one. Stage B is ported
+object for object: a type is a node in an arena whose index is its
+identity, flags are updated in place, and nodes are allocated where the
+Python allocates, so sharing and every flag update are the Python's.
+Each walk is bounded by the Python's recursion limit, 1000; the Python's
+Stage B recurses without end on `scripts/coverage.ski` (even at a limit
+of a million), and the bound refuses it as the Python's `RecursionError`
+does, in the same group (`arith.plus`). `Ski/Coverage.lean` checks, for
+every file and lexicon, that the front end's checker passes exactly where
+`skijack`'s does (`*_checks`, `*_check_refuses`), and thirty programs,
+twenty-two the checker refuses (`refuses_checked_*`, sixteen at Stage A
+and six at Stage B) and eight it accepts (`checks_*`). A differential
+test (every corpus and script file with each line deleted in turn, 629
+programs) finds the front end and `skijack` agreeing on every
+compilation, every term, every checked compilation and every verdict of
+the checker.
 
 **What is still per table and per program.** Every theorem is stated for
 every valid table and every program. Three facts about each generated

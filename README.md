@@ -49,7 +49,9 @@ three corpus programs in both forms, and `3 sumto` compiled.
 | `Ski/Weak.lean` | weak reduction (a contraction anywhere); `standardization`, `eval_back`, `church_rosser`; `par_step_le` (a head step costs a parallel reduct at most one) |
 | `Ski/Abs.lean` | bracket abstraction as `skijack` does it (`abs`, `absN`), `abs_beta`, `absN_beta`, `abs_subst`; β for all formals under any substitution, `absN_beta_subst` and `absN_beta_close` |
 | `Ski/Compile.lean` | the compilation scheme: `Src`, λ-lifting (`comp`), `compDef`, `compRec` with `Y`, Scott constructors (`ctorO`) |
-| `Ski/Front.lean` | SKIjack's level-0 front end in Lean, both lexicons: lexer, parser, case lowering, λ, cells, picks, cores, the prelude, `compileWith`; refuses what `skijack` refuses |
+| `Ski/Front.lean` | SKIjack's front end in Lean, both lexicons: lexer, parser, macros, generated forms, case lowering, λ, cells, picks, cores, the prelude, level 1 (data, runs, scry, namespace literals), `compileWith`; refuses what `skijack` refuses |
+| `Ski/Check.lean` | `skijack`'s checker, Stage A (`check.py`): scope, case, data positions, the two symbol tables, the interpreter interface |
+| `Ski/TypeCheck.lean` | Stage B (`typecheck.py`), ported object for object: oriented, equirecursive Hindley–Milner; `checkPass`, and `checkedWith_of_pass`: the checker only refuses |
 | `Ski/Source.lean` | generated: the four source texts `skijack` compiled, character for character |
 | `Ski/Kernel.lean` | the kernel's equations as the front end reads them from `kernelText` (`KernelSrc`), `kernel_agrees`, and `Table.kit : Table → Kit`; a program's term `Table.progT` |
 | `Ski/Laws.lean` | the law classes for the kit compiled from every valid table: `Table.kit_elim`, `Table.kit_words`, `Table.kit_apply`, by β for compiled source |
@@ -68,7 +70,7 @@ three corpus programs in both forms, and `3 sumto` compiled.
 | `Ski/SourceRun.lean` | every `Run` derivation is a run of the source program (`run_source`) |
 | `Ski/Adequacy.lean` | the compiled program, the source program and `Run` agree: `exact_iff`, `diverges_iff_source` |
 | `Ski/SourceTables.lean` | the four compiled sources meet adequacy's hypotheses; `3 sumto` reaches `[6]` at the source, `[dup i] dup i` nothing |
-| `Ski/Coverage.lean` | generated: level-0, macro, generation and corpus files in both lexicons compiled to `skijack`'s terms, the simulation applying to each, and programs `skijack` refuses refused |
+| `Ski/Coverage.lean` | generated: SKIjack files (level 0, macros, generation, level 1, the corpus) in both lexicons compiled to `skijack`'s terms, the simulation applying to each, and programs `skijack` refuses refused |
 | `Ski/Total.lean` | over a table with no static quotations nothing diverges: `apply_total`, `program_converges` |
 | `Ski/Table.lean` | generated: the tables `NoQuot`, `CorpusTable`, `LoopTable` and `SumTable` (`3 sumto`) as data, checked by `rfl` against `skijack`'s terms (`table_*`) and valid (`table_valid`), their laws from `Ski/Laws.lean`; each program's term pinned to the kernel's compilation of its words (`c*_eq`), the corpus rows as those programs run, and `3 sumto`'s derivation (`cs_run`) |
 | `Ski/Examples.lean` | `1 2 + dup +`, `3 [dup +] i`, `1 2 over` end to end from `skijack`'s terms; `cloop_diverges`: the compiled `[dup i] dup i` diverges; `us_six`: `3 sumto`, through Joy's `y`, decodes to `[6]` |

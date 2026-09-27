@@ -22,6 +22,9 @@ SKIjack's level 0, as `SPEC.md` §1–§5 and `skijack/parser.py`,
     f := e                          a definition
     c p… := { equation… }           a core: parameters prepended to each
     m p… :=* e                      a macro, expanded at each use
+    d := <e>                        a datum: e quoted over the object type
+    r := [i a… |-] <e>@n            a run of an interpreter core, fuel n
+    n := ns{/p => <e>, …}           a namespace literal, a resolver
     e ::= name | e e | (e) | e |> { C b… e; … } | \x.e | [e e …] | n@e
 
 in either lexicon, ASCII or Unicode (`≡ ≔ ▹ → λ ⊑ ⍝`, and the Tier 1
@@ -37,12 +40,16 @@ program-level name (constructors, equations, definitions and the prelude
 1 (`B C W Y`).  A core's equation is `core.eq`, and its bare name when no
 other core defines it; an interpreter core's name is its `loop`.
 
-Not read, and refused: quotation and everything of level 1 (`< >`, `|-`,
-`?^`, `ns{`, fuel), qualified names, bare numbers, and an applied
-capturing macro (`:=!`).  A program with an unresolved name, mutual
-recursion, a name defined twice, a macro applied to too few arguments,
-a macro that does not reach a fixpoint, or an expression nested deeper
-than 256 is refused whole, as `skijack` refuses it.
+Inside `< >` a leaf of the object type is that leaf, even `S`, `K` or
+`I`; juxtaposition is its application constructor; any other name is
+inlined as its level-0 term and quoted; `?^/a/b` is the `Scry` leaf
+applied to the path `Cons A (Cons B Nil)`.  Refused, as `skijack`
+refuses them: a qualified name where it is compiled, a bare number, an
+applied capturing macro (`:=!`), a path payload, and a program with an
+unresolved name, mutual recursion, a name, type or core defined twice, a
+macro applied to too few arguments or without a fixpoint, an expression
+nested deeper than 256, or a level-1 declaration without the types it
+needs.
 
 ## The passes
 
@@ -56,6 +63,10 @@ than 256 is refused whole, as `skijack` refuses it.
   `S`/`K`/`I` step equations, and each interpreter core's `step` and fuel
   loop, each unless the file defines the name (`readWith` is parsing then
   generation).
+- Level 1 (`compileDecls`, pass 6 of `expand.py`): each datum and
+  namespace literal in declaration order, each joining the program so
+  later declarations may name it; then each run, as its interpreter
+  core's loop applied to its arguments, a fuel numeral and its datum.
 - `expandE` expands macros in each equation and definition before
   anything else, as `expand_macros` does: capture-avoiding substitution
   (`substE`) with `skijack`'s fresh names, λ and case binders shadowing a
@@ -113,6 +124,16 @@ inductive Tok
   | nl
   | macro
   | cmacro
+  | qopen
+  | qclose
+  | fuel (n : Nat)
+  | policy
+  | scry
+  | turnstile
+  | nsopen
+  | mapsto
+  | comma
+  | slash
   deriving DecidableEq, Repr
 
 def isLetter (c : Nat) : Bool := (65 ≤ c && c ≤ 90) || (97 ≤ c && c ≤ 122) || c == 95
@@ -124,10 +145,12 @@ inductive Mode
   | ident (acc : List Nat)
   | num (n : Nat)
   | comment
+  | fuel (n : Nat)
 
 def flushM : Mode → List Tok
   | .ident acc => [.ident acc.reverse]
   | .num n => [.num n]
+  | .fuel n => [.fuel n]
   | _ => []
 
 /-- A letter, digit, `_` or `'`, in the middle of reading `m`. -/
@@ -137,6 +160,10 @@ def lexWord (c : Nat) : Mode → Option (List Tok × Mode)
   | .num n =>
     if isDigit c then some ([], .num (10 * n + (c - 48)))
     else if isLetter c then some ([.num n], .ident [c])
+    else none
+  | .fuel n =>
+    if isLetter c then some ([.fuel n], .ident [c])
+    else if isDigit c then some ([.fuel n], .num (c - 48))
     else none
   | _ =>
     if isLetter c then some ([], .ident [c])
@@ -152,9 +179,13 @@ def lexA : List Nat → Mode → List Tok → Option (List Tok)
   | 58 :: 61 :: 33 :: r, m, acc => lexA r .none ([.cmacro] ++ (flushM m).reverse ++ acc)
   | 61 :: 61 :: 61 :: r, m, acc => lexA r .none ([.defTy] ++ (flushM m).reverse ++ acc)
   | 124 :: 62 :: r, m, acc => lexA r .none ([.pipe] ++ (flushM m).reverse ++ acc)
-  | 124 :: 45 :: _, _, _ => none
+  | 124 :: 45 :: r, m, acc => lexA r .none ([.turnstile] ++ (flushM m).reverse ++ acc)
+  | 110 :: 115 :: 123 :: r, .none, acc => lexA r .none (.nsopen :: acc)
+  | 110 :: 115 :: 123 :: r, .num n, acc => lexA r .none ([.nsopen, .num n] ++ acc)
+  | 110 :: 115 :: 123 :: r, .fuel n, acc => lexA r .none ([.nsopen, .fuel n] ++ acc)
+  | 63 :: 94 :: r, m, acc => lexA r .none ([.scry] ++ (flushM m).reverse ++ acc)
   | 58 :: 61 :: r, m, acc => lexA r .none ([.assign] ++ (flushM m).reverse ++ acc)
-  | 61 :: 62 :: _, _, _ => none
+  | 61 :: 62 :: r, m, acc => lexA r .none ([.mapsto] ++ (flushM m).reverse ++ acc)
   | 45 :: 62 :: r, m, acc => lexA r .none ([.arrow] ++ (flushM m).reverse ++ acc)
   | 58 :: r, m, acc => lexA r .none ([.colon] ++ (flushM m).reverse ++ acc)
   | 61 :: r, m, acc => lexA r .none ([.eq] ++ (flushM m).reverse ++ acc)
@@ -169,13 +200,23 @@ def lexA : List Nat → Mode → List Tok → Option (List Tok)
   | 123 :: r, m, acc => lexA r .none ([.lbrace] ++ (flushM m).reverse ++ acc)
   | 125 :: r, m, acc => lexA r .none ([.rbrace] ++ (flushM m).reverse ++ acc)
   | 64 :: r, .num n, acc => lexA r .none (.axis n :: acc)
+  | 64 :: 91 :: 93 :: r, m, acc => lexA r .none ([.policy] ++ (flushM m).reverse ++ acc)
+  | 64 :: c :: r, m, acc =>
+    if isDigit c then lexA r (.fuel (c - 48)) ((flushM m).reverse ++ acc) else none
+  | 60 :: r, m, acc => lexA r .none ([.qopen] ++ (flushM m).reverse ++ acc)
+  | 62 :: r, m, acc => lexA r .none ([.qclose] ++ (flushM m).reverse ++ acc)
+  | 44 :: r, m, acc => lexA r .none ([.comma] ++ (flushM m).reverse ++ acc)
+  | 47 :: r, m, acc => lexA r .none ([.slash] ++ (flushM m).reverse ++ acc)
   | 10 :: r, m, acc => lexA r .none ([.nl] ++ (flushM m).reverse ++ acc)
   | c :: r, m, acc =>
     if c == 32 || c == 9 || c == 13 then lexA r .none ((flushM m).reverse ++ acc)
     else
-      match lexWord c m with
-      | some (ts, m') => lexA r m' (ts.reverse ++ acc)
-      | none => none
+      match m, isDigit c with
+      | .fuel n, true => lexA r (.fuel (10 * n + (c - 48))) acc
+      | _, _ =>
+        match lexWord c m with
+        | some (ts, m') => lexA r m' (ts.reverse ++ acc)
+        | none => none
 
 /-- The Unicode lexicon: its own spellings, the Tier 1 glyphs, and
     subscript digits inside an identifier. -/
@@ -188,6 +229,17 @@ def lexU : List Nat → Mode → List Tok → Option (List Tok)
   | 8801 :: r, m, acc => lexU r .none ([.defTy] ++ (flushM m).reverse ++ acc)
   | 9657 :: r, m, acc => lexU r .none ([.pipe] ++ (flushM m).reverse ++ acc)
   | 8788 :: r, m, acc => lexU r .none ([.assign] ++ (flushM m).reverse ++ acc)
+  | 8757 :: r, m, acc => lexU r .none ([.scry] ++ (flushM m).reverse ++ acc)
+  | 8866 :: r, m, acc => lexU r .none ([.turnstile] ++ (flushM m).reverse ++ acc)
+  | 8614 :: r, m, acc => lexU r .none ([.mapsto] ++ (flushM m).reverse ++ acc)
+  | 8333 :: 8334 :: r, m, acc => lexU r .none ([.policy] ++ (flushM m).reverse ++ acc)
+  | 110 :: 115 :: 123 :: r, .none, acc => lexU r .none (.nsopen :: acc)
+  | 110 :: 115 :: 123 :: r, .num n, acc => lexU r .none ([.nsopen, .num n] ++ acc)
+  | 110 :: 115 :: 123 :: r, .fuel n, acc => lexU r .none ([.nsopen, .fuel n] ++ acc)
+  | 60 :: r, m, acc => lexU r .none ([.qopen] ++ (flushM m).reverse ++ acc)
+  | 62 :: r, m, acc => lexU r .none ([.qclose] ++ (flushM m).reverse ++ acc)
+  | 44 :: r, m, acc => lexU r .none ([.comma] ++ (flushM m).reverse ++ acc)
+  | 47 :: r, m, acc => lexU r .none ([.slash] ++ (flushM m).reverse ++ acc)
   | 8594 :: r, m, acc => lexU r .none ([.arrow] ++ (flushM m).reverse ++ acc)
   | 58 :: r, m, acc => lexU r .none ([.colon] ++ (flushM m).reverse ++ acc)
   | 61 :: r, m, acc => lexU r .none ([.eq] ++ (flushM m).reverse ++ acc)
@@ -213,7 +265,8 @@ def lexU : List Nat → Mode → List Tok → Option (List Tok)
     else if 8320 ≤ c && c ≤ 8329 then
       match m with
       | .ident a => lexU r (.ident ((c - 8320 + 48) :: a)) acc
-      | _ => none
+      | .fuel n => lexU r (.fuel (10 * n + (c - 8320))) acc
+      | _ => lexU r (.fuel (c - 8320)) ((flushM m).reverse ++ acc)
     else
       match lexWord c m with
       | some (ts, m') => lexU r m' (ts.reverse ++ acc)
@@ -223,6 +276,13 @@ def lexU : List Nat → Mode → List Tok → Option (List Tok)
 -- Syntax
 -- ---------------------------------------------------------------------------
 
+/-- A quotation's fuel: none, a number (`@10`), or the runtime's policy
+    (`@[]`). -/
+inductive QFuel
+  | none
+  | num (n : Nat)
+  | policy
+
 mutual
   inductive Expr
     | name (n : Nm)
@@ -231,6 +291,15 @@ mutual
     | lam (x : Nm) (b : Expr)
     | cell (items : Items)
     | pick (n : Nat) (e : Expr)
+    /-- `<e>`, `<e>@n`, `<e>@[]`: a quotation, a datum when it has no fuel. -/
+    | quote (e : Expr) (fuel : QFuel)
+    /-- `i |- <e>@n`: a run of the interpreter `i`. -/
+    | run (i : Expr) (e : Expr) (fuel : QFuel)
+    /-- `?^/a/b`: a scry, its segments' tags and whether each carries a
+        payload. -/
+    | scry (path : List (Nm × Bool))
+    /-- `ns{/a => <e>, …}`: a namespace literal. -/
+    | nslit (facts : Facts)
   /-- Case branches, in source order: constructor, binders, body. -/
   inductive Branches
     | nil
@@ -239,6 +308,10 @@ mutual
   inductive Items
     | nil
     | cons (e : Expr) (rest : Items)
+  /-- A namespace literal's facts: a path and its value. -/
+  inductive Facts
+    | nil
+    | cons (path : List (Nm × Bool)) (v : Expr) (rest : Facts)
 end
 
 /-- A type: its name and its constructors with their arities, in
@@ -265,11 +338,14 @@ structure Eqn where
 
 inductive Decl
   | ty (d : TypeDecl)
-  | sig
+  | sig (name : Nm) (tys : List Nm)
   | eqn (e : Eqn)
   | core (name : Nm) (params : List Nm) (eqs : List (Nm × List Nm × Expr))
   /-- `name params :=* body`, or `:=!` when `capturing`. -/
   | macro (name : Nm) (params : List Nm) (body : Expr) (capturing : Bool)
+  /-- `name := e` whose right side is a quotation, a run or a namespace
+      literal: level 1. -/
+  | qdef (name : Nm) (e : Expr)
 
 -- ---------------------------------------------------------------------------
 -- Parsing
@@ -281,7 +357,7 @@ def sk : Bool → List Tok → List Tok
   | _, ts => ts
 
 def atomStart : Tok → Bool
-  | .ident _ | .lparen | .lbrack | .axis _ | .lam | .num _ => true
+  | .ident _ | .lparen | .lbrack | .axis _ | .lam | .num _ | .qopen | .scry | .nsopen => true
   | _ => false
 
 /-- The constructors of a type declaration, to the end of the line. -/
@@ -323,6 +399,12 @@ def takeIdents (d : Bool) : Nat → List Tok → Option (List Nm × List Tok)
       | none => none
     | _ => none
 
+/-- A qualified name's further parts, `.b.c`: joined by a code point no
+    source name holds, so a qualified name never resolves, as in `skijack`. -/
+def qualTail : List Tok → Nm → Nm × List Tok
+  | .dot :: .ident y :: r, acc => qualTail r (acc ++ [0] ++ y)
+  | ts, acc => (acc, ts)
+
 /-- The binary digits of an axis below its leading one: `false` for the
     head, `true` for the tail. -/
 def axisSteps (n : Nat) : List Bool :=
@@ -347,6 +429,10 @@ mutual
           | some (bs, r2) => pCases ar d f (.case e bs) r2
           | none => none
         | _ => none
+      | .turnstile :: r =>
+        match pQuote ar d f r with
+        | some ((q, fu), r1) => pCases ar d f (.run e q fu) r1
+        | none => none
       | _ => some (e, ts)
   /-- `app ::= atom atom*` -/
   def pApp (ar : Nm → Option Nat) (d : Bool) : Nat → List Tok → Option (Expr × List Tok)
@@ -371,8 +457,26 @@ mutual
     | 0, _ => none
     | f + 1, ts =>
       match sk d ts with
-      | .ident _ :: .dot :: .ident _ :: _ => none
-      | .ident x :: r => some (.name x, r)
+      | .ident x :: r => let q := qualTail r x; some (.name q.1, q.2)
+      | .qopen :: r =>
+        match pQuote ar d f (.qopen :: r) with
+        | some ((e, fu), r1) => some (.quote e fu, r1)
+        | none => none
+      | .scry :: r =>
+        match pPath ar d f r with
+        | some ([], _) => none
+        | some (p, r1) => some (.scry p, r1)
+        | none => none
+      | .nsopen :: r =>
+        match sk true r with
+        | .rbrace :: r1 => some (.nslit .nil, r1)
+        | _ =>
+          match pFacts ar f r with
+          | some (fs, r1) =>
+            match sk d r1 with
+            | .rbrace :: r2 => some (.nslit fs, r2)
+            | _ => none
+          | none => none
       | .lparen :: r =>
         match pExpr ar true f r with
         | some (e, r') =>
@@ -402,6 +506,63 @@ mutual
           | _ => none
         | _ => none
       | _ => none
+  /-- `<e>` and its fuel, `@n` or `@[]` right after the `>`. -/
+  def pQuote (ar : Nm → Option Nat) (d : Bool) : Nat → List Tok → Option ((Expr × QFuel) × List Tok)
+    | 0, _ => none
+    | f + 1, ts =>
+      match sk d ts with
+      | .qopen :: r =>
+        match pExpr ar true f r with
+        | some (e, r') =>
+          match sk d r' with
+          | .qclose :: .fuel n :: r'' => some ((e, .num n), r'')
+          | .qclose :: .policy :: r'' => some ((e, .policy), r'')
+          | .qclose :: r'' => some ((e, .none), r'')
+          | _ => none
+        | none => none
+      | _ => none
+  /-- A path's segments `/tag`, each with or without a `[e]` payload. -/
+  def pPath (ar : Nm → Option Nat) (d : Bool) : Nat → List Tok → Option (List (Nm × Bool) × List Tok)
+    | 0, _ => none
+    | f + 1, .slash :: r =>
+      match sk d r with
+      | .ident t :: .lbrack :: r2 =>
+        match pExpr ar true f r2 with
+        | some (_, r3) =>
+          match sk d r3 with
+          | .rbrack :: r4 =>
+            match pPath ar d f r4 with
+            | some (ss, r5) => some ((t, true) :: ss, r5)
+            | none => none
+          | _ => none
+        | none => none
+      | .ident t :: r1 =>
+        match pPath ar d f r1 with
+        | some (ss, r5) => some ((t, false) :: ss, r5)
+        | none => none
+      | _ => none
+    | _ + 1, ts => some ([], ts)
+  /-- A namespace literal's facts `path => e`, separated by commas,
+      newlines invisible. -/
+  def pFacts (ar : Nm → Option Nat) : Nat → List Tok → Option (Facts × List Tok)
+    | 0, _ => none
+    | f + 1, ts =>
+      match pPath ar true f ts with
+      | some ([], _) => none
+      | some (p, r) =>
+        match sk true r with
+        | .mapsto :: r1 =>
+          match pExpr ar true f r1 with
+          | some (v, r2) =>
+            match sk true r2 with
+            | .comma :: r3 =>
+              match pFacts ar f r3 with
+              | some (fs, r4) => some (.cons p v fs, r4)
+              | none => none
+            | _ => some (.cons p v .nil, r2)
+          | none => none
+        | _ => none
+      | none => none
   /-- A cell's items, atoms, newlines invisible. -/
   def pItems (ar : Nm → Option Nat) : Nat → List Tok → Option (Items × List Tok)
     | 0, _ => none
@@ -460,9 +621,9 @@ def endDecl : List Tok → Bool
   | _ => false
 
 /-- A signature's types, `T (-> T)*`, to the end of the line. -/
-def pSig : List Tok → Option (List Tok)
-  | .ident _ :: .arrow :: r => pSig r
-  | .ident _ :: r => if endDecl r then some r else none
+def pSig : List Tok → Option (List Nm × List Tok)
+  | .ident t :: .arrow :: r => (pSig r).map fun p => (t :: p.1, p.2)
+  | .ident t :: r => if endDecl r then some ([t], r) else none
   | _ => none
 
 /-- A core's equations, `name binder* = e`, each ending at a newline or
@@ -493,9 +654,9 @@ def pDecl (ar : Nm → Option Nat) (f : Nat) (ts : List Tok) : Option (Decl × L
     match parseCtors r [] [] with
     | some (cs, rest) => some (.ty (TypeDecl.of n cs), rest)
     | none => none
-  | some ([_], .colon :: r) =>
+  | some ([n], .colon :: r) =>
     match pSig r with
-    | some rest => some (.sig, rest)
+    | some (ts, rest) => some (.sig n ts, rest)
     | none => none
   | some (n :: ps, .assign :: .lbrace :: r) =>
     match pCoreEqs ar f r with
@@ -512,7 +673,11 @@ def pDecl (ar : Nm → Option Nat) (f : Nat) (ts : List Tok) : Option (Decl × L
   | some ([n], .assign :: r) =>
     match pExpr ar false f r with
     | some (e, rest) =>
-      if endDecl rest then some (.eqn ⟨n, n, [], e, none, []⟩, rest) else none
+      if endDecl rest then
+        match e with
+        | .quote .. | .run .. | .nslit _ => some (.qdef n e, rest)
+        | _ => some (.eqn ⟨n, n, [], e, none, []⟩, rest)
+      else none
     | none => none
   | some (n :: ps, .eq :: r) =>
     match pExpr ar false f r with
@@ -562,6 +727,10 @@ mutual
     | .lam x b => (freeE b).filter (· != x)
     | .cell items => freeI items
     | .pick _ e => freeE e
+    | .quote e _ => freeE e
+    | .run i e _ => freeE e ++ freeE i
+    | .scry _ => []
+    | .nslit _ => []
   def freeB : Branches → List Nm
     | .nil => []
     | .cons c xs body rest => c :: (freeE body).filter (fun y => !xs.contains y) ++ freeB rest
@@ -579,6 +748,10 @@ mutual
     | .lam _ b => depthE b + 1
     | .cell items => depthI items + 1
     | .pick _ e => depthE e + 1
+    | .quote e _ => depthE e + 1
+    | .run i e _ => max (depthE i) (depthE e) + 1
+    | .scry _ => 0
+    | .nslit _ => 0
   def depthB : Branches → Nat
     | .nil => 0
     | .cons _ _ body rest => max (depthE body) (depthB rest)
@@ -671,6 +844,7 @@ def substE : Nat → List (Nm × Expr) → Expr → Option Expr
         match bs.traverse g () with
         | none => none
         | some (bs', _) => (substE f sub sc).map fun sc' => .case sc' bs'
+      | _ => none
 
 /-- An application's head and its arguments, in order. -/
 def spine : Expr → Expr × List Expr
@@ -738,6 +912,7 @@ def expandE : Nat → List (Nm × Macro) → Nat → Nat → Nat → Expr → Op
         | none => none
         | some (bs', b1) =>
           (expandE f ms (depth + 1) unfold b1 sc).map fun r => (.case r.1 bs', r.2)
+      | _ => none
 
 /-- A file's macros, the last declaration of a name winning. -/
 def macrosOf (ds : List Decl) : List (Nm × Macro) :=
@@ -792,6 +967,7 @@ def findObject (tys : List TypeDecl) : Option (Option ObjT) :=
     `R` constructor each other `O` constructor maps to. -/
 structure LoopT where
   outcome : TypeDecl
+  result : Nm
   stepped : Nm
   done : Nm
   value : Nm
@@ -833,7 +1009,7 @@ def buildLoop (od : TypeDecl) (st : Nm × List Nm) (rest : List (Nm × List Nm))
             | some rc => if rc.2.length == c.2.length then some (acc.1 ++ [(c.1, rc.1)], acc.2) else none
             | none => none
       ((rest.filter (·.1 != done.1)).foldlM step ([(done.1, v.1)], 0)).map fun r =>
-        ⟨od, st.1, done.1, v.1, timeout.1, r.1⟩
+        ⟨od, rd.name, st.1, done.1, v.1, timeout.1, r.1⟩
 
 /-- `find_loop_types`: the types other than the object type with a
     carrier; the first of the last two is `O` and the last `R`, or the one
@@ -951,7 +1127,8 @@ def generate (ds : List Decl) : Option (List Decl) :=
         | .eqn e => [e.name]
         | .macro n _ _ _ => [n]
         | .core c _ _ => [c]
-        | .sig => []
+        | .qdef n _ => [n]
+        | .sig _ _ => []
       let extra := (walker o ++ defaultSteps o lt).filter fun e => !taken.contains e.1
       let fill : Decl → Option Decl := fun d =>
         match d with
@@ -1084,6 +1261,7 @@ mutual
         match dExpr tys q sc e k with
         | none => none
         | some (e', k1) => some (pickC q e' (axisSteps n), k1)
+    | _, _ => none
   def dBranches (tys : List TypeDecl) (q : Nm → Nm) (sc : List (Nm × Nat)) :
       Branches → Nat → Option (List (Nm × CSrc) × Nat)
     | .nil, k => some ([], k)
@@ -1237,7 +1415,9 @@ def fileFEqns (ds : List Decl) : Option (List (Nm × FEqn)) :=
   let tys := types ds
   let es := eqns ds
   let defined := (tys.map fun d => d.ctors.map (·.1)).flatten ++
-    (es.filter fun e => e.core.isNone).map (·.name)
+    (es.filter fun e => e.core.isNone).map (·.name) ++
+    ds.filterMap (fun d => match d with | .qdef n _ => some n | _ => none)
+  let cores := ds.filterMap fun d => match d with | .core c _ eqs => some (c, eqs.map (·.1)) | _ => none
   let ms := macrosOf ds
   match es.mapM (fun e => (e.expand ms).bind fun e' => (dEqn tys e').map fun fe => (e.name, fe)) with
   | none => none
@@ -1249,40 +1429,346 @@ def fileFEqns (ds : List Decl) : Option (List (Nm × FEqn)) :=
           some (c, (⟨[], none, .glob (c ++ [46] ++ nm! "loop")⟩ : FEqn))
         else none
       | _ => none)
-    if nodup defined then
+    if nodup defined && nodup (tys.map (·.name)) && nodup (cores.map (·.1)) &&
+        cores.all (fun c => nodup c.2) then
       some ((prelude.filter fun p => !defined.contains p.1) ++ fes ++ loops)
     else none
 
-/-- **Compile a file**, in the ASCII (`u = false`) or Unicode lexicon:
-    every constructor and every equation to the closed term `skijack`
-    emits, a core's equation also under its bare name when no other core
-    defines it.  A file with a name defined twice, an unresolved name or
-    mutual recursion is refused. -/
-def compileWith (u : Bool) (src : List Nat) : Option (List (Nm × Term)) :=
-  match readWith u src with
+-- ---------------------------------------------------------------------------
+-- Level 1: quotation, runs, scry and namespace literals (`expand.py`, pass 6)
+-- ---------------------------------------------------------------------------
+
+/-- `find_answer_type`: the one carrier type besides the object, outcome
+    and result types, with its carrier `hit` and last leaf `notyet`;
+    `some none` when there is none, `none` when the file is refused. -/
+def findAnswer (tys : List TypeDecl) (o : ObjT) (lt : LoopT) : Option (Option (Nm × Nm)) :=
+  let cands := tys.filterMap fun d =>
+    if d.name == o.decl.name || d.name == lt.outcome.name || d.name == lt.result then none
+    else (carrier d o.decl.name).map fun r => (d, r.1)
+  match cands with
+  | [] => some none
+  | [(d, hit)] => ((d.ftys.filter (·.2.isEmpty)).getLast?).map fun nt => some (hit.1, nt.1)
+  | _ => none
+
+/-- `find_path_type`: the type named `path`, which must be
+    `Nil | Cons seg path`: its nil, its cons and its segment type. -/
+def findPath (tys : List TypeDecl) : Option (Option (Nm × Nm × Nm)) :=
+  match tys.find? (·.name == nm! "path") with
+  | none => some none
+  | some d =>
+    let nils := d.ftys.filter (·.2.isEmpty)
+    let conses := d.ftys.filter fun c => c.2.length == 2 && c.2[1]? == some d.name
+    match nils, conses with
+    | [n], [c] =>
+      if d.ftys.length == 2 then (c.2.head?).map fun sg => some (n.1, c.1, sg) else none
+    | _, _ => none
+
+/-- What a quotation is compiled against: the types, the macros, the
+    object type's leaves with their constructors' terms, its application
+    constructor's term, and the path type. -/
+structure QCtx where
+  tys : List TypeDecl
+  ms : List (Nm × Macro)
+  leaves : List (Nm × Term)
+  appT : Term
+  path : Option (Nm × Nm × Nm)
+
+/-- A segment's constructor: its tag with the first letter capitalized. -/
+def capital : Nm → Nm
+  | c :: r => (if 97 ≤ c && c ≤ 122 then c - 32 else c) :: r
+  | [] => []
+
+/-- `path_expr`: `/a/b` is `Cons A (Cons B Nil)`, each tag a constructor
+    of the segment type; a payload is refused. -/
+def pathExpr (q : QCtx) (p : List (Nm × Bool)) : Option Expr :=
+  match q.path with
   | none => none
-  | some ds =>
-    match fileFEqns ds with
+  | some (nilC, consC, seg) =>
+    p.foldr (fun s acc => acc.bind fun e =>
+      let c := capital s.1
+      if !s.2 && (q.tys.find? (·.name == seg)).any (·.ctors.any (·.1 == c)) then
+        some (apE (.name consC) [.name c, e])
+      else none) (some (.name nilC))
+
+/-- `?^p` inside a quotation: the object type's `Scry` leaf applied to the
+    path. -/
+def scryOf (q : QCtx) (p : List (Nm × Bool)) : Option Expr :=
+  match q.leaves.lookup (nm! "Scry") with
+  | none => none
+  | some _ => (pathExpr q p).map fun pe => .app (.name (nm! "Scry")) pe
+
+/-- A nested datum's placeholder name, which no source name spells. -/
+def placeholder (k : Nat) : Nm := 0 :: decimal k
+
+mutual
+  /-- `strip`: each nested quotation compiled by `nest` and replaced by a
+      placeholder, each scry by its expression; a nested quotation with
+      fuel or an interpreter, a run or a namespace literal is refused. -/
+  def stripE (nest : Expr → Option Term) (sc : List (Nm × Bool) → Option Expr) :
+      Expr → List (Nm × Term) → Option (Expr × List (Nm × Term))
+    | .name n, s => some (.name n, s)
+    | .app a b, s =>
+      match stripE nest sc a s with
+      | none => none
+      | some (a', s1) => (stripE nest sc b s1).map fun r => (.app a' r.1, r.2)
+    | .case e bs, s =>
+      match stripE nest sc e s with
+      | none => none
+      | some (e', s1) => (stripB nest sc bs s1).map fun r => (.case e' r.1, r.2)
+    | .lam x b, s => (stripE nest sc b s).map fun r => (.lam x r.1, r.2)
+    | .cell items, s => (stripI nest sc items s).map fun r => (.cell r.1, r.2)
+    | .pick n e, s => (stripE nest sc e s).map fun r => (.pick n r.1, r.2)
+    | .quote e .none, s =>
+      (nest e).map fun t => (.name (placeholder s.length), s ++ [(placeholder s.length, t)])
+    | .scry p, s => (sc p).map fun e => (e, s)
+    | _, _ => none
+  def stripB (nest : Expr → Option Term) (sc : List (Nm × Bool) → Option Expr) :
+      Branches → List (Nm × Term) → Option (Branches × List (Nm × Term))
+    | .nil, s => some (.nil, s)
+    | .cons c xs body rest, s =>
+      match stripE nest sc body s with
+      | none => none
+      | some (b', s1) => (stripB nest sc rest s1).map fun r => (.cons c xs b' r.1, r.2)
+  def stripI (nest : Expr → Option Term) (sc : List (Nm × Bool) → Option Expr) :
+      Items → List (Nm × Term) → Option (Items × List (Nm × Term))
+    | .nil, s => some (.nil, s)
+    | .cons e rest, s =>
+      match stripE nest sc e s with
+      | none => none
+      | some (e', s1) => (stripI nest sc rest s1).map fun r => (.cons e' r.1, r.2)
+end
+
+/-- Globals resolved inside a quotation (`qresolve`): a nested datum, then
+    a leaf of the object type as the free variable `k + j`, above every
+    binder, then a level-0 name. -/
+def CSrc.resolveQ (subs : List (Nm × Term)) (leafIx : Nm → Option Nat) (k : Nat)
+    (done : List (Nm × Term)) : CSrc → Option Src
+  | .glob n =>
+    match subs.lookup n with
+    | some t => some (.glob t)
+    | none =>
+      match leafIx n with
+      | some j => some (.var (k + j))
+      | none => (resolveIn done n).map .glob
+  | .var x => some (.var x)
+  | .app f a =>
+    match CSrc.resolveQ subs leafIx k done f, CSrc.resolveQ subs leafIx k done a with
+    | some f', some a' => some (.app f' a')
+    | _, _ => none
+  | .lam x b => (CSrc.resolveQ subs leafIx k done b).map (.lam x)
+
+/-- **The encoding** (`Encoder.quote`): `S`, `K`, `I` to the leaves of those
+    names, the variable `k + j` to leaf `j`, an application to the
+    application constructor. -/
+def encodeO (leaves : List (Nm × Term)) (appT : Term) (k : Nat) : OTerm → Option Term
+  | .S => leaves.lookup [83]
+  | .K => leaves.lookup [75]
+  | .I => leaves.lookup [73]
+  | .var i => if k ≤ i then (leaves[i - k]?).map (·.2) else none
+  | .app f a =>
+    match encodeO leaves appT k f, encodeO leaves appT k a with
+    | some f', some a' => some (appT ⬝ f' ⬝ a')
+    | _, _ => none
+
+/-- **A quotation's datum** (`quote_expr`): nested quotations first, then
+    macros, case lowering, and compilation as a definition with the leaves
+    free, then the encoding.  The fuel bounds the nesting of quotations. -/
+def quoteAt (q : QCtx) (done : List (Nm × Term)) : Nat → Expr → Option Term
+  | 0, _ => none
+  | f + 1, e =>
+    match stripE (quoteAt q done f) (scryOf q) e [] with
     | none => none
-    | some fes =>
-      let r := passes (fes.length + 1) ((types ds).map ctorTerms).flatten fes
-      if r.1.isEmpty then
-        let es := eqns ds
-        let bare := es.filterMap fun e =>
-          if e.core.isSome && (es.filter fun e' => e'.core.isSome && e'.bare == e.bare).length == 1
-          then (r.2.lookup e.name).map fun t => (e.bare, t) else none
-        some (bare ++ r.2)
+    | some (body, subs) =>
+      match expandE 400 q.ms 0 0 200000 body with
+      | none => none
+      | some (b, _) =>
+        match dExpr q.tys id [] b 0 with
+        | none => none
+        | some (cs, k) =>
+          match cs.resolveQ subs (fun n => q.leaves.findIdx? (·.1 == n)) k done with
+          | none => none
+          | some src => encodeO q.leaves q.appT k (compDefF [] src)
+
+/-- A namespace literal's resolver (`resolver_term`):
+    `λp. EQ5 p k1 (hit a1) (… notyet)`, first match winning. -/
+def resolverTerm (eq hit notyet : Term) (facts : List (Term × Term)) : Term :=
+  toTerm (absNF [0] (facts.foldr (fun f body =>
+    eq.toO ⬝ₒ .var 0 ⬝ₒ f.1.toO ⬝ₒ (hit.toO ⬝ₒ f.2.toO) ⬝ₒ body) notyet.toO))
+
+/-- A namespace literal's facts, as a list. -/
+def Facts.toList : Facts → List (List (Nm × Bool) × Expr)
+  | .nil => []
+  | .cons p v r => (p, v) :: r.toList
+
+/-- A dictionary update: `n` set to `t`, in place when present. -/
+def dset (d : List (Nm × Term)) (p : Nm × Term) : List (Nm × Term) :=
+  if d.any (·.1 == p.1) then d.map fun q => if q.1 == p.1 then p else q else d ++ [p]
+
+/-- A level-1 run, before packaging: its name, its interpreter, its datum
+    and its fuel. -/
+structure Run where
+  name : Nm
+  interp : Option Expr
+  datum : Term
+  fuel : QFuel
+
+/-- One level-1 declaration in pass 6a: a namespace literal or a datum is
+    compiled and joins the environment, and the pending equations are
+    retried; a run's datum is compiled and kept. -/
+def step1 (q : QCtx) (hitNt : Option (Term × Term))
+    (st : List (Nm × FEqn) × List (Nm × Term) × List Run) (d : Nm × Expr) :
+    Option (List (Nm × FEqn) × List (Nm × Term) × List Run) :=
+  let (pend, done, runs) := st
+  let join := fun (t : Term) =>
+    let r := passes (pend.length + 1) (done ++ [(d.1, t)]) pend
+    (r.1, r.2, runs)
+  match d.2 with
+  | .nslit facts =>
+    match hitNt, done.lookup (nm! "EQ5") with
+    | some (hit, nt), some eq =>
+      (facts.toList.mapM fun (pv : List (Nm × Bool) × Expr) =>
+        let p := pv.1
+        match pv.2 with
+        | Expr.quote e QFuel.none =>
+          match (pathExpr q p).bind fun pe => quoteAt q done (depthE pe + 1) pe,
+              quoteAt q done (depthE e + 1) e with
+          | some k, some a => some (k, a)
+          | _, _ => none
+        | _ => none).map fun fs => join (resolverTerm eq hit nt fs)
+    | _, _ => none
+  | .quote e .none => (quoteAt q done (depthE e + 1) e).map join
+  | .quote e fu =>
+    (quoteAt q done (depthE e + 1) e).map fun t => (pend, done, runs ++ [⟨d.1, none, t, fu⟩])
+  | .run i e fu =>
+    (quoteAt q done (depthE e + 1) e).map fun t => (pend, done, runs ++ [⟨d.1, some i, t, fu⟩])
+  | _ => none
+
+/-- A type's constructors' terms, by name. -/
+def allCtorTerms (tys : List TypeDecl) : List (Nm × Term) := (tys.map ctorTerms).flatten
+
+/-- Passes 6a and 6b over the file's level-1 declarations `qs`, which need
+    an object type, and the loop, answer and path types well formed. -/
+def level1 (ds : List Decl) (tys : List TypeDecl) (pend : List (Nm × FEqn))
+    (done : List (Nm × Term)) (qs : List (Nm × Expr)) :
+    Option (List (Nm × FEqn) × List (Nm × Term) × List Run) :=
+  match findObject tys with
+  | some (some o) =>
+    match findLoop tys o with
+    | none => none
+    | some lt =>
+      match findAnswer tys o lt, findPath tys with
+      | some ans, some pt =>
+        let cts := ctorTerms o.decl
+        let leaves := o.leaves.map fun c => (c.1, (cts.lookup c.1).getD K)
+        let q : QCtx := ⟨tys, macrosOf ds, leaves, (cts.lookup o.app).getD K, pt⟩
+        let hitNt := ans.bind fun (h, n) =>
+          match (allCtorTerms tys).lookup h, (allCtorTerms tys).lookup n with
+          | some ht, some nt => some (ht, nt)
+          | _, _ => none
+        (qs.foldlM (step1 q hitNt) (pend, done, [])).map fun st =>
+          let r := passes (st.1.length + 1) st.2.1 st.1
+          (r.1, r.2, st.2.2)
+      | _, _ => none
+  | _ => none
+
+/-- The file's output (`expand_all`): the compiled environment, then each
+    core equation under its bare name when no other core defines it and
+    no level-1 declaration takes it, then each interpreter core's name for
+    its loop. -/
+def assemble (ds : List Decl) (done : List (Nm × Term)) : List (Nm × Term) :=
+  let es := eqns ds
+  let quoted := ds.filterMap fun d => match d with | .qdef n _ => some n | _ => none
+  let bare := es.filterMap fun e =>
+    if e.core.isSome && (es.filter fun e' => e'.core.isSome && e'.bare == e.bare).length == 1 &&
+        !quoted.contains e.bare
+    then (done.lookup e.name).map fun t => (e.bare, t) else none
+  let loops := ds.filterMap fun d =>
+    match d with
+    | .core c _ eqs =>
+      if eqs.any (·.1 == nm! "loop") then (done.lookup (c ++ [46] ++ nm! "loop")).map (c, ·)
+      else none
+    | _ => none
+  (done ++ bare ++ loops).foldl dset []
+
+/-- Pass 6c: each run with a numeric fuel is its interpreter core's loop
+    applied to the core's arguments, the fuel numeral and the datum; a
+    run without an interpreter uses the core `whnfF`.  A run under the
+    runtime's policy has no term. -/
+def packageRuns (ds : List Decl) (tys : List TypeDecl) (done : List (Nm × Term)) :
+    List (Nm × Term) → List Run → Option (List (Nm × Term))
+  | out, [] => some out
+  | out, r :: rs =>
+    let cores := ds.filterMap fun d =>
+      match d with
+      | .core c ps eqs => some (c, ps.length, eqs.any (·.1 == nm! "loop"))
+      | _ => none
+    let spine? : Option (Nm × List Expr) :=
+      match r.interp with
+      | none => if cores.any (·.1 == nm! "whnfF") then some (nm! "whnfF", []) else none
+      | some i =>
+        match spine i with
+        | (.name c, args) =>
+          match cores.find? (·.1 == c) with
+          | some (_, k, _) => if args.length == k then some (c, args) else none
+          | none => none
+        | _ => none
+    let param := fun (a : Expr) =>
+      match expandE 400 (macrosOf ds) 0 0 200000 a with
+      | none => none
+      | some (b, _) =>
+        match dExpr tys id [] b 0 with
+        | none => none
+        | some (cs, _) =>
+          if cs.globs.all fun g => (resolveIn done g).isSome then
+            some (toTerm (compDefF [] (cs.resolve fun g => (resolveIn done g).getD K)))
+          else none
+    match spine? with
+    | none => none
+    | some (c, args) =>
+      if !(cores.any fun p => p.1 == c && p.2.2) then none
+      else
+        match out.lookup c, args.mapM param with
+        | some it, some ps =>
+          match r.fuel with
+          | .num n =>
+            match out.lookup (nm! "zero"), out.lookup (nm! "suc") with
+            | some z, some sc =>
+              let numeral := (List.range n).foldl (fun t _ => sc ⬝ t) z
+              packageRuns ds tys done (dset out (r.name, ps.foldl (· ⬝ ·) it ⬝ numeral ⬝ r.datum)) rs
+            | _, _ => none
+          | _ => packageRuns ds tys done out rs
+        | _, _ => none
+
+/-- A file's compiled output and the environment its equations were
+    compiled in, or `none` when it is refused. -/
+def compileDecls (ds : List Decl) : Option (List (Nm × Term) × List (Nm × Term)) :=
+  match fileFEqns ds with
+  | none => none
+  | some fes =>
+    let tys := types ds
+    let r := passes (fes.length + 1) (allCtorTerms tys) fes
+    let qs := ds.filterMap fun d => match d with | .qdef n e => some (n, e) | _ => none
+    let l1 := if qs.isEmpty then some (r.1, r.2, []) else level1 ds tys r.1 r.2 qs
+    match l1 with
+    | none => none
+    | some (pend, done, runs) =>
+      if pend.isEmpty then (packageRuns ds tys done (assemble ds done) runs).map (·, done)
       else none
 
+/-- **Compile a file**, in the ASCII (`u = false`) or Unicode lexicon:
+    every constructor, equation and level-1 declaration to the closed term
+    `skijack` emits, a core's equation also under its bare name when no
+    other core defines it.  A file `skijack` refuses is refused. -/
+def compileWith (u : Bool) (src : List Nat) : Option (List (Nm × Term)) :=
+  (readWith u src).bind fun ds => (compileDecls ds).map (·.1)
+
 /-- The environment a file's equations were compiled in: its compiled
-    program-level names and `core.eq`s, without the bare aliases. -/
+    program-level names, `core.eq`s and level-1 data, without the bare
+    aliases or the runs. -/
 def compiledEnv (u : Bool) (src : List Nat) : List (Nm × Term) :=
-  match readWith u src with
+  match (readWith u src).bind compileDecls with
+  | some r => r.2
   | none => []
-  | some ds =>
-    match fileFEqns ds with
-    | none => []
-    | some fes => (passes (fes.length + 1) ((types ds).map ctorTerms).flatten fes).2
 
 def compileFile (src : List Nat) : Option (List (Nm × Term)) := compileWith false src
 

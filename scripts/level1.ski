@@ -1,0 +1,22 @@
+-- Level 1: data, runs and their order.  A datum joins the program when it
+-- is compiled, so a level-0 equation may name it and a later datum may
+-- inline that equation; a run is packaged last and has no term under the
+-- runtime's policy.
+term === S | K | I | App term term
+maybe === Nothing | Just term
+
+whnfF := { step m = sp m nil stepS stepK stepI }
+
+-- a datum, and an equation that names it
+d0 := <K I>
+useD x = d0 x
+
+-- a later datum inlines that equation, and quotes a quotation
+d1 := <useD <S>>
+
+-- runs: the default interpreter with fuel, and a named one under the policy
+r1 := <K I S>@5
+r2 := whnfF |- <d1>@[]
+
+-- a macro never used may name what never resolves
+qm :=* a.b
