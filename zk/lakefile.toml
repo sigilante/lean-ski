@@ -1,0 +1,19 @@
+name = "SkiZk"
+version = "0.1.0"
+defaultTargets = ["SkiZk"]
+
+# The zero-knowledge layer: SKI reduction as a traversable language in the
+# sense of Zorp's framework, and terms as Pure Nock nouns with their
+# fingerprints.  Depends on the core by path and on Pure Nock (which brings
+# Mathlib), so the core stays free of both.
+[[require]]
+name = "Ski"
+path = ".."
+
+[[require]]
+name = "nock-pure"
+git = "https://github.com/nockchain/pure-nock-lean.git"
+rev = "4838863baa2d49e38573efa3474e77bf1154f300"
+
+[[lean_lib]]
+name = "SkiZk"
