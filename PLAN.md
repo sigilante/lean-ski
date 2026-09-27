@@ -103,9 +103,14 @@ reduct `S I I F` takes 8 (`counted_standardization_false`), because weak
 reduction shares a redex that head reduction contracts once per copy. So a
 step bound on the trace must be proved of head reduction directly. β for
 the compiler's bracket abstraction is counted: at most `3^k · vsize M`
-weak steps for `k` formals (`absN_beta_count`). Still open: the typed
-realizer language with Tait's normalization, the additive census, and
-the budget-exact bound on compiled realizers.
+weak steps for `k` formals (`absN_beta_count`). The typed realizer
+language (`Ski/Tait.lean`) is simply typed λ with products and sums over
+opaque base types (witness types) and constants (verifiers). Every typed
+term is strongly normalizing under full reduction
+(`strong_normalization`), by Tait's reducibility. Still open: carrying
+termination from a realizer to its compiled `SKI` term through
+`simulation`, the additive census, and the budget-exact bound on
+compiled realizers.
 
 **The compiled constructors** (`Ski/Scott.lean`, generated). `Zero` is
 `K`; `Suc` is eight atoms; `Push` twenty-two. Each elimination lemma is the

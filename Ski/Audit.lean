@@ -10,6 +10,7 @@ import Ski.Open
 import Ski.Abs
 import Ski.Transfer
 import Ski.Realize
+import Ski.Tait
 import Ski.Compile
 import Ski.Front
 import Ski.Check
@@ -278,6 +279,19 @@ open Ski.Audit
   pairT_beta fstT_beta sndT_beta inlT_beta inrT_beta caseT_beta K_beta KI_beta soundness
   OTypes.congr toO_ne_var OTypes.var_inv OTypes.app_inv abs_types OTypes.close OTypes.real
   nd_compile completeness completeness_closed nd_realizes
+
+-- Part II's realizer language: simply typed λ with products and sums, strongly
+-- normalizing by Tait's method
+#audit_clean Rz.Tm.upr_comp Rz.Tm.ren_ren Rz.Tm.up_ren_comp Rz.Tm.sub_ren Rz.Tm.ren_up_comp
+  Rz.Tm.ren_sub Rz.Tm.up_comp Rz.Tm.sub_sub Rz.Tm.up_var Rz.Tm.sub_var Rz.Tm.sub_beta1
+  Rz.Tm.ren_beta1 Rz.Tm.beta1_up Rz.Tm.Steps.single Rz.Tm.Steps.trans Rz.Tm.Steps.map
+  Rz.Tm.Step.ren Rz.Tm.Step.sub Rz.Tm.SN.step Rz.Tm.SN.steps Rz.Tm.SN.of_map Rz.Tm.SN.of_sub
+  Rz.Tm.SN.of_app Rz.Tm.SN.of_fst Rz.Tm.inl_step_inv Rz.Tm.inr_step_inv Rz.Tm.sn_inl
+  Rz.Tm.sn_inr Rz.Tm.inl_steps_inv Rz.Tm.inr_steps_inv Rz.Tm.app_step_neutral
+  Rz.Tm.fst_step_neutral Rz.Tm.snd_step_neutral Rz.Tm.neutral_steps_first
+  Rz.cr Rz.Red.sn Rz.Red.step Rz.Red.steps Rz.Red.neutral Rz.Red.var Rz.Red.const Rz.Red.lam
+  Rz.Red.fst_pair Rz.Red.snd_pair Rz.Red.inl Rz.Red.inr Rz.Red.case Rz.fundamental
+  Rz.strong_normalization Rz.omega_not_sn Rz.omega_untyped
 
 -- The source semantics, run: normal-order proof search, the words' meaning from their
 -- source, every Run derivation a source run, and adequacy for the four compiled sources

@@ -8,6 +8,7 @@ import Ski.Open
 import Ski.Abs
 import Ski.Transfer
 import Ski.Realize
+import Ski.Tait
 import Ski.Compile
 import Ski.Quote
 import Ski.Front
