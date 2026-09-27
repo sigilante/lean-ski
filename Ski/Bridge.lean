@@ -17,6 +17,7 @@ language `comp` compiles:
 - a projection lowers as SKIjack lowers a case: the scrutinee applied to
   the continuation `λ a b. a` (or `λ a b. b`);
 - a case is the scrutinee applied to its two branches;
+- a split is the pair applied to its continuation;
 - constants are globals.
 
 Variables are de Bruijn indices in the realizer, and named by binder depth
@@ -78,6 +79,7 @@ def trS (d : Nat) : Tm γ → Src
   | .inl a => .glob inlG ⬝ₛ trS d a
   | .inr b => .glob inrG ⬝ₛ trS d b
   | .case s f g => trS d s ⬝ₛ trS d f ⬝ₛ trS d g
+  | .split t k => trS d t ⬝ₛ trS d k
 
 /-- Every variable is bound: its index is below the binder depth. -/
 def closedAt : Nat → Tm γ → Prop
@@ -91,6 +93,7 @@ def closedAt : Nat → Tm γ → Prop
   | d, .inl a => closedAt d a
   | d, .inr b => closedAt d b
   | d, .case s f g => closedAt d s ∧ closedAt d f ∧ closedAt d g
+  | d, .split t k => closedAt d t ∧ closedAt d k
 
 /-- The compiled term of a closed realizer. -/
 def compiled (t : Tm γ) : Term := toTerm (comp [] (trS ι 0 t))
@@ -346,6 +349,13 @@ theorem sem {sig : γ → Ty β} {Γ : Nat → Ty β} {t : Tm γ} {A : Ty β}
     | inr hr =>
       cases hr with
       | intro b hb => exact RS.back C (hb.1 _ _) (hg b hb.2)
+  | @split Γ A B C t k _ _ iht ihk =>
+    intro d hd γ hγ sc
+    have hk := usual ihk d hd.2 γ hγ sc
+    cases (usual iht d hd.1 γ hγ sc).2 with
+    | intro a hp =>
+      cases hp with
+      | intro b hp => exact RS.back C (hp.1 _) (hk a hp.2.1 b hp.2.2)
 
 /-- **A typed closed realizer compiles to a related term.** -/
 theorem compiled_RS {sig : γ → Ty β} {Γ : Nat → Ty β} {t : Tm γ} {A : Ty β}
@@ -391,7 +401,7 @@ theorem compiled_apply_converges {sig : γ → Ty β} {Γ : Nat → Ty β} {t : 
   exact (key Ws ws _ hl hw (compiled_RS ι h hc ht)).conv
 
 /-- **The glue converges**: a typed closed realizer without constants (pairs,
-    projections, injections, case, λ and application only) compiles to a
+    projections, split, injections, case, λ and application only) compiles to a
     converging term, with no hypothesis left. -/
 theorem glue_converges {Γ : Nat → Ty β} {t : Tm Empty} {A : Ty β}
     (h : Typed Empty.elim Γ t A) (ht : closedAt 0 t) :

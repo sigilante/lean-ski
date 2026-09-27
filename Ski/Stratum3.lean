@@ -132,6 +132,9 @@ inductive WHF : Tm (FixLab β γ) → Tm (FixLab β γ) → Prop
   | snd {t t' : Tm (FixLab β γ)} : WHF t t' → WHF (.snd t) (.snd t')
   | caseS {s s' : Tm (FixLab β γ)} (f g : Tm (FixLab β γ)) :
       WHF s s' → WHF (.case s f g) (.case s' f g)
+  | splitβ (a b k : Tm (FixLab β γ)) : WHF (.split (.pair a b) k) (.app (.app k a) b)
+  | splitT {t t' : Tm (FixLab β γ)} (k : Tm (FixLab β γ)) :
+      WHF t t' → WHF (.split t k) (.split t' k)
 
 /-- Exactly `n` steps. -/
 inductive WHFN : Nat → Tm (FixLab β γ) → Tm (FixLab β γ) → Prop

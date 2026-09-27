@@ -28,9 +28,9 @@ glue needs no constants.
 **The glue** is the realizer transformations the algebra uses:
 - composition: pairing, injections, threshold's take and skip, and the whole
   prover composition `compose p` of a plan, as a function of its witnesses;
-- elimination: projections, case, commutation of `∨`, `∨` distributed over
-  a context, and threshold
-  weakening `thr (k + 1) φs ⇒ thr k φs`, a fold of cases.
+- elimination: projections, split, case, commutation of `∧` and of `∨`, `∨`
+  distributed over a context, and threshold weakening
+  `thr (k + 1) φs ⇒ thr k φs`, a fold of cases.
 
 **The theorem** (`glue_stratum1`): every glue term is in stratum 1, that is
 closed, typed at its type, and additively affine (`Stratum1`).  Stratum 1 is
@@ -44,12 +44,14 @@ count.  OR distributed over a context (`orDist`) is not: the context appears
 in both branches of a case, and only the additive count puts it in stratum 1
 (`orDist_needs_additive`).
 
-**What is not glue.**  Products here are eliminated by projections.  A term
-that uses both halves of one pair variable, `λp. (snd p, fst p)`, mentions
-`p` twice, so the census puts it in stratum 2 (`swapT_not_affA`).  The glue
-proved here is the list in `glue_stratum1`.  AND-commutation and any other
-use of both conjuncts would need an affine pair eliminator (a split), which
-the realizer language does not have.
+**Both conjuncts: the split.**  A projection uses one half of a pair.  A
+term that uses both halves of one pair variable by projections,
+`λp. (snd p, fst p)`, mentions `p` twice, so the census puts it in stratum 2
+(`swapT_not_affA`).  The split `split p k` binds both halves at once, in
+`k`'s two arguments, and mentions `p` once.  So AND-commutation by split,
+`λp. split p (λ a b. (b, a))`, is in stratum 1 (`andComm_s1`), as is split
+itself (`splitE_s1`).  The glue proved here is the list in
+`glue_stratum1`.
 -/
 
 namespace Rz
@@ -204,6 +206,7 @@ theorem closedAt_mono : ∀ {t : Tm Empty} {d e : Nat}, closedAt d t → d ≤ e
   | .inr u, _, _, h, hde => closedAt_mono (t := u) h hde
   | .case _ _ _, _, _, h, hde =>
     ⟨closedAt_mono h.1 hde, closedAt_mono h.2.1 hde, closedAt_mono h.2.2 hde⟩
+  | .split _ _, _, _, h, hde => ⟨closedAt_mono h.1 hde, closedAt_mono h.2 hde⟩
 
 /-- A term closed at depth `d` has no occurrences at indices from `d` on. -/
 theorem acnt_closed : ∀ {t : Tm Empty} {d i : Nat}, closedAt d t → d ≤ i → acnt i t = 0
@@ -228,6 +231,9 @@ theorem acnt_closed : ∀ {t : Tm Empty} {d i : Nat}, closedAt d t → d ≤ i �
     show acnt _ s + max (acnt _ f) (acnt _ g) = 0
     rw [acnt_closed h.1 hdi, acnt_closed h.2.1 hdi, acnt_closed h.2.2 hdi]
     rfl
+  | .split t k, _, _, h, hdi => by
+    show acnt _ t + acnt _ k = 0
+    rw [acnt_closed h.1 hdi, acnt_closed h.2 hdi]
 
 -- ---------------------------------------------------------------------------
 -- The glue
@@ -245,6 +251,11 @@ def inlI : Tm Empty := .lam (.inl (.var 0))
 def inrI : Tm Empty := .lam (.inr (.var 0))
 /-- OR elimination, `λ s f g. case s f g`. -/
 def caseE : Tm Empty := .lam (.lam (.lam (.case (.var 2) (.var 1) (.var 0))))
+/-- AND elimination by split, `λ p k. split p k`. -/
+def splitE : Tm Empty := .lam (.lam (.split (.var 1) (.var 0)))
+/-- AND commutes, by split: `λ p. split p (λ a b. (b, a))`.  Each half of
+    the pair is bound once. -/
+def andComm : Tm Empty := .lam (.split (.var 0) (.lam (.lam (.pair (.var 0) (.var 1)))))
 /-- OR commutes: `λ s. case s (λ a. inr a) (λ b. inl b)`. -/
 def orComm : Tm Empty := .lam (.case (.var 0) (.lam (.inr (.var 0))) (.lam (.inl (.var 0))))
 /-- Threshold, take the first component: `λ a r. inl (a, r)`. -/
@@ -287,6 +298,17 @@ theorem caseE_s1 (φ ψ : SF) (C : Ty SBase) :
     show 0 < 0 + 1 + 1 + 1 by omega⟩,
    fun _ => .lam (.lam (.lam (.case (.var _ 2) (.var _ 1) (.var _ 0)))),
    ⟨by decide, by decide, by decide, trivial, trivial, trivial⟩⟩
+
+theorem splitE_s1 (φ ψ : SF) (C : Ty SBase) :
+    Stratum1 splitE (.arr (den (.and φ ψ)) (.arr (.arr (den φ) (.arr (den ψ) C)) C)) :=
+  ⟨⟨show 1 < 0 + 1 + 1 by omega, show 0 < 0 + 1 + 1 by omega⟩,
+   fun _ => .lam (.lam (.split (.var _ 1) (.var _ 0))),
+   ⟨by decide, by decide, trivial, trivial⟩⟩
+
+theorem andComm_s1 (φ ψ : SF) : Stratum1 andComm (.arr (den (.and φ ψ)) (den (.and ψ φ))) :=
+  ⟨⟨show 0 < 0 + 1 by omega, show 0 < 0 + 1 + 1 + 1 by omega, show 1 < 0 + 1 + 1 + 1 by omega⟩,
+   fun _ => .lam (.split (.var _ 0) (.lam (.lam (.pair (.var _ 0) (.var _ 1))))),
+   ⟨by decide, trivial, by decide, by decide, trivial, trivial⟩⟩
 
 theorem orComm_s1 (φ ψ : SF) : Stratum1 orComm (.arr (den (.or φ ψ)) (den (.or ψ φ))) :=
   ⟨⟨show 0 < 0 + 1 by omega, show 0 < 0 + 1 + 1 by omega, show 0 < 0 + 1 + 1 by omega⟩,
@@ -519,9 +541,9 @@ theorem thr_compose_s1 (k : Nat) {φs : List SF} (os : OPlans φs) (h : k ≤ os
 -- ---------------------------------------------------------------------------
 
 /-- **The glue of the Σ-protocol algebra lies in stratum 1**: AND, OR and
-    threshold introduction, projection, case, commutation of OR, OR
-    distributed over a context, threshold weakening, and the prover's
-    composition of every plan, each at its type. -/
+    threshold introduction, projection, split, case, commutation of AND and
+    of OR, OR distributed over a context, threshold weakening, and the
+    prover's composition of every plan, each at its type. -/
 theorem glue_stratum1 :
     Stratum1 idT (den .top) ∧
     (∀ φ ψ, Stratum1 andI (.arr (den φ) (.arr (den ψ) (den (.and φ ψ))))) ∧
@@ -531,6 +553,9 @@ theorem glue_stratum1 :
     (∀ φ ψ, Stratum1 inrI (.arr (den ψ) (den (.or φ ψ)))) ∧
     (∀ φ ψ C, Stratum1 caseE
       (.arr (den (.or φ ψ)) (.arr (.arr (den φ) C) (.arr (.arr (den ψ) C) C)))) ∧
+    (∀ φ ψ C, Stratum1 splitE
+      (.arr (den (.and φ ψ)) (.arr (.arr (den φ) (.arr (den ψ) C)) C))) ∧
+    (∀ φ ψ, Stratum1 andComm (.arr (den (.and φ ψ)) (den (.and ψ φ)))) ∧
     (∀ φ ψ, Stratum1 orComm (.arr (den (.or φ ψ)) (den (.or ψ φ)))) ∧
     (∀ δ φ ψ, Stratum1 orDist
       (.arr (den δ) (.arr (den (.or φ ψ)) (den (.or (.and φ δ) (.and ψ δ)))))) ∧
@@ -539,8 +564,8 @@ theorem glue_stratum1 :
     (∀ φ k φs, Stratum1 thrSkip (.arr (den (thrF (k + 1) φs)) (den (thrF (k + 1) (φ :: φs))))) ∧
     (∀ k φs, Stratum1 (thrWeaken k φs) (.arr (den (thrF (k + 1) φs)) (den (thrF k φs)))) ∧
     (∀ φ (p : Plan φ), Stratum1 p.compose (arrowsDesc p.nA p.slotTy (den φ))) :=
-  ⟨idT_s1, andI_s1, fstE_s1, sndE_s1, inlI_s1, inrI_s1, caseE_s1, orComm_s1, orDist_s1, thrTake_s1,
-    thrSkip_s1, thrWeaken_s1, fun _ p => p.compose_s1⟩
+  ⟨idT_s1, andI_s1, fstE_s1, sndE_s1, inlI_s1, inrI_s1, caseE_s1, splitE_s1, andComm_s1,
+    orComm_s1, orDist_s1, thrTake_s1, thrSkip_s1, thrWeaken_s1, fun _ p => p.compose_s1⟩
 
 /-- **The stratum-1 bounds, for the glue**: a glue term, alone or applied to
     other glue, takes fewer call-by-name steps than its additive size, and its
@@ -553,11 +578,13 @@ theorem glue_bounds {t : Tm Empty} {A : Ty SBase} (h : Stratum1 t A) :
     Q (gty A) (compiledA Empty.elim t) (compiledA Empty.elim t).leaves :=
   ⟨fun _ _ hn => h.source_bound hn, h.compiled_bound⟩
 
-/-- `λ p. (snd p, fst p)`: using both halves of one pair variable. -/
+/-- `λ p. (snd p, fst p)`: AND-commutation by projections, using both halves
+    of one pair variable. -/
 def swapT : Tm Empty := .lam (.pair (.snd (.var 0)) (.fst (.var 0)))
 
-/-- **The boundary**: swapping a pair's halves mentions the pair twice, so it
-    is not additively affine; it is contraction, in stratum 2. -/
+/-- **The boundary**: swapping a pair's halves by projections mentions the
+    pair twice, so it is not additively affine; it is contraction, in
+    stratum 2.  The split does the same work in stratum 1 (`andComm_s1`). -/
 theorem swapT_not_affA : ¬ AffA swapT := fun h => absurd h.1 (by decide)
 
 end Rz

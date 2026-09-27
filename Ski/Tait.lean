@@ -5,8 +5,9 @@ Part II's realizer language: simply typed λ-calculus with products and sums,
 over opaque base types and opaque constants.  An atom's witness type is a
 base type, and its verifier a constant, so neither needs a definition
 here.  Terms use de Bruijn indices; reduction (`Step`) is full, under
-binders too, with β for functions, projections for pairs, and case for
-injections.  Case takes its branches as functions, so λ is the only binder.
+binders too, with β for functions, projections and split for pairs, and
+case for injections.  Case takes its branches as functions, and split its
+continuation `A ⇒ B ⇒ C`, so λ is the only binder.
 
 **Every typed term is strongly normalizing** (`strong_normalization`), by
 Tait's method as in Girard's *Proofs and Types*.  Reducibility `Red A t`
@@ -51,6 +52,7 @@ inductive Tm (γ : Type) where
   | inl (a : Tm γ)
   | inr (b : Tm γ)
   | case (s f g : Tm γ)
+  | split (t k : Tm γ)
 
 namespace Tm
 
@@ -73,6 +75,7 @@ def ren (ξ : Nat → Nat) : Tm γ → Tm γ
   | inl a => inl (ren ξ a)
   | inr b => inr (ren ξ b)
   | case s f g => case (ren ξ s) (ren ξ f) (ren ξ g)
+  | split t k => split (ren ξ t) (ren ξ k)
 
 def up (σ : Nat → Tm γ) : Nat → Tm γ
   | 0 => var 0
@@ -89,6 +92,7 @@ def sub (σ : Nat → Tm γ) : Tm γ → Tm γ
   | inl a => inl (sub σ a)
   | inr b => inr (sub σ b)
   | case s f g => case (sub σ s) (sub σ f) (sub σ g)
+  | split t k => split (sub σ t) (sub σ k)
 
 /-- `a` for the variable 0, the rest shifted down. -/
 def beta1 (a : Tm γ) : Nat → Tm γ
@@ -114,6 +118,7 @@ theorem ren_ren : ∀ (t : Tm γ) (ξ ζ : Nat → Nat), ren ξ (ren ζ t) = ren
   | inl a, ξ, ζ => by simp only [ren, ren_ren a]
   | inr b, ξ, ζ => by simp only [ren, ren_ren b]
   | case s f g, ξ, ζ => by simp only [ren, ren_ren s, ren_ren f, ren_ren g]
+  | split t k, ξ, ζ => by simp only [ren, ren_ren t, ren_ren k]
 
 theorem up_ren_comp (σ : Nat → Tm γ) (ξ : Nat → Nat) : up σ ∘ upr ξ = up (σ ∘ ξ) := by
   funext n; cases n <;> rfl
@@ -130,6 +135,7 @@ theorem sub_ren : ∀ (t : Tm γ) (σ : Nat → Tm γ) (ξ : Nat → Nat),
   | inl a, σ, ξ => by simp only [ren, sub, sub_ren a]
   | inr b, σ, ξ => by simp only [ren, sub, sub_ren b]
   | case s f g, σ, ξ => by simp only [ren, sub, sub_ren s, sub_ren f, sub_ren g]
+  | split t k, σ, ξ => by simp only [ren, sub, sub_ren t, sub_ren k]
 
 theorem ren_up_comp (ξ : Nat → Nat) (σ : Nat → Tm γ) :
     ren (upr ξ) ∘ up σ = up (ren ξ ∘ σ) := by
@@ -153,6 +159,7 @@ theorem ren_sub : ∀ (t : Tm γ) (ξ : Nat → Nat) (σ : Nat → Tm γ),
   | inl a, ξ, σ => by simp only [ren, sub, ren_sub a]
   | inr b, ξ, σ => by simp only [ren, sub, ren_sub b]
   | case s f g, ξ, σ => by simp only [ren, sub, ren_sub s, ren_sub f, ren_sub g]
+  | split t k, ξ, σ => by simp only [ren, sub, ren_sub t, ren_sub k]
 
 theorem up_comp (σ τ : Nat → Tm γ) : sub (up σ) ∘ up τ = up (sub σ ∘ τ) := by
   funext n
@@ -174,6 +181,7 @@ theorem sub_sub : ∀ (t : Tm γ) (σ τ : Nat → Tm γ), sub σ (sub τ t) = s
   | inl a, σ, τ => by simp only [sub, sub_sub a]
   | inr b, σ, τ => by simp only [sub, sub_sub b]
   | case s f g, σ, τ => by simp only [sub, sub_sub s, sub_sub f, sub_sub g]
+  | split t k, σ, τ => by simp only [sub, sub_sub t, sub_sub k]
 
 theorem up_var : up (var (γ := γ)) = var := by
   funext n; cases n <;> rfl
@@ -189,6 +197,7 @@ theorem sub_var : ∀ t : Tm γ, sub var t = t
   | inl a => by simp only [sub, sub_var a]
   | inr b => by simp only [sub, sub_var b]
   | case s f g => by simp only [sub, sub_var s, sub_var f, sub_var g]
+  | split t k => by simp only [sub, sub_var t, sub_var k]
 
 /-- Substitution through a β-contractum. -/
 theorem sub_beta1 (σ : Nat → Tm γ) (a b : Tm γ) :
@@ -247,6 +256,9 @@ inductive Step : Tm γ → Tm γ → Prop
   | caseS {s s' : Tm γ} (f g : Tm γ) : Step s s' → Step (case s f g) (case s' f g)
   | caseF (s : Tm γ) {f f' : Tm γ} (g : Tm γ) : Step f f' → Step (case s f g) (case s f' g)
   | caseG (s f : Tm γ) {g g' : Tm γ} : Step g g' → Step (case s f g) (case s f g')
+  | splitβ (a b k : Tm γ) : Step (split (pair a b) k) (app (app k a) b)
+  | splitT {t t' : Tm γ} (k : Tm γ) : Step t t' → Step (split t k) (split t' k)
+  | splitK (t : Tm γ) {k k' : Tm γ} : Step k k' → Step (split t k) (split t k')
 
 inductive Steps : Tm γ → Tm γ → Prop
   | refl (t : Tm γ) : Steps t t
@@ -285,6 +297,9 @@ theorem Step.ren (ξ : Nat → Nat) {t u : Tm γ} (h : Step t u) : Step (ren ξ 
   | caseS f g _ ih => exact .caseS _ _ (ih ξ)
   | caseF s g _ ih => exact .caseF _ _ (ih ξ)
   | caseG s f _ ih => exact .caseG _ _ (ih ξ)
+  | splitβ a b k => exact .splitβ _ _ _
+  | splitT k _ ih => exact .splitT _ (ih ξ)
+  | splitK t _ ih => exact .splitK _ (ih ξ)
 
 theorem Step.sub (σ : Nat → Tm γ) {t u : Tm γ} (h : Step t u) : Step (sub σ t) (sub σ u) := by
   induction h generalizing σ with
@@ -305,6 +320,9 @@ theorem Step.sub (σ : Nat → Tm γ) {t u : Tm γ} (h : Step t u) : Step (sub �
   | caseS f g _ ih => exact .caseS _ _ (ih σ)
   | caseF s g _ ih => exact .caseF _ _ (ih σ)
   | caseG s f _ ih => exact .caseG _ _ (ih σ)
+  | splitβ a b k => exact .splitβ _ _ _
+  | splitT k _ ih => exact .splitT _ (ih σ)
+  | splitK t _ ih => exact .splitK _ (ih σ)
 
 -- ---------------------------------------------------------------------------
 -- Strong normalization
@@ -596,6 +614,27 @@ theorem Red.case {A B C : Ty β} {s f g : Tm γ} (hs : Red (.sum A B) s)
         | caseF _ _ h => exact ihf _ h (hf.step h) hg
         | caseG _ _ h => exact ihg _ h (hg.step h)
 
+/-- A pair's components are reducible. -/
+theorem Red.pair_inv {A B : Ty β} {a b : Tm γ} (h : Red (.prod A B) (Tm.pair a b)) :
+    Red A a ∧ Red B b :=
+  ⟨h.1.step (.fstβ a b), h.2.step (.sndβ a b)⟩
+
+theorem Red.split {A B C : Ty β} {t k : Tm γ} (ht : Red (.prod A B) t)
+    (hk : Red (.arr A (.arr B C)) k) : Red C (Tm.split t k) := by
+  have hst := ht.sn
+  induction hst generalizing k with
+  | @intro t hst' iht =>
+    have hsk := hk.sn
+    induction hsk with
+    | @intro k hsk' ihk =>
+      refine Red.neutral trivial fun v hv => ?_
+      cases hv with
+      | splitβ a b _ =>
+        have hab := Red.pair_inv ht
+        exact hk a hab.1 b hab.2
+      | splitT _ h => exact iht _ h (ht.step h) hk
+      | splitK _ h => exact ihk _ h (hk.step h)
+
 -- ---------------------------------------------------------------------------
 -- Typing and the fundamental lemma
 -- ---------------------------------------------------------------------------
@@ -626,6 +665,9 @@ inductive Typed (sig : γ → Ty β) : (Nat → Ty β) → Tm γ → Ty β → P
   | case {Γ : Nat → Ty β} {A B C : Ty β} {s f g : Tm γ} :
       Typed sig Γ s (.sum A B) → Typed sig Γ f (.arr A C) → Typed sig Γ g (.arr B C) →
         Typed sig Γ (Tm.case s f g) C
+  | split {Γ : Nat → Ty β} {A B C : Ty β} {t k : Tm γ} :
+      Typed sig Γ t (.prod A B) → Typed sig Γ k (.arr A (.arr B C)) →
+        Typed sig Γ (Tm.split t k) C
 
 /-- **The fundamental lemma**: a typed term, under a substitution of
     reducible terms for its variables, is reducible. -/
@@ -651,6 +693,7 @@ theorem fundamental {sig : γ → Ty β} {Γ : Nat → Ty β} {t : Tm γ} {A : T
   | inl _ ih => intro σ hσ; exact Red.inl (ih σ hσ)
   | inr _ ih => intro σ hσ; exact Red.inr (ih σ hσ)
   | case _ _ _ ihs ihf ihg => intro σ hσ; exact Red.case (ihs σ hσ) (ihf σ hσ) (ihg σ hσ)
+  | split _ _ iht ihk => intro σ hσ; exact Red.split (iht σ hσ) (ihk σ hσ)
 
 /-- **Strong normalization**: every typed term of the realizer language is
     strongly normalizing. -/

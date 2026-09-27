@@ -302,7 +302,8 @@ open Ski.Audit
   Rz.Tm.sn_inr Rz.Tm.inl_steps_inv Rz.Tm.inr_steps_inv Rz.Tm.app_step_neutral
   Rz.Tm.fst_step_neutral Rz.Tm.snd_step_neutral Rz.Tm.neutral_steps_first
   Rz.cr Rz.Red.sn Rz.Red.step Rz.Red.steps Rz.Red.neutral Rz.Red.var Rz.Red.const Rz.Red.lam
-  Rz.Red.fst_pair Rz.Red.snd_pair Rz.Red.inl Rz.Red.inr Rz.Red.case Rz.fundamental
+  Rz.Red.fst_pair Rz.Red.snd_pair Rz.Red.inl Rz.Red.inr Rz.Red.case Rz.Red.pair_inv
+  Rz.Red.split Rz.fundamental
   Rz.strong_normalization Rz.omega_not_sn Rz.omega_untyped
 
 -- Stratum 1 at the source: call-by-name steps of an additively affine realizer shrink its
@@ -412,7 +413,7 @@ open Ski.Audit
 -- The Σ-protocol algebra: AND, OR and threshold (a fold); its glue lies in stratum 1
 #audit_clean Rz.thrPlan_isSome Rz.Stratum1.app Rz.Stratum1.source_bound Rz.Stratum1.compiled_bound
   Rz.closedAt_mono Rz.acnt_closed Rz.idT_s1 Rz.andI_s1 Rz.fstE_s1 Rz.sndE_s1 Rz.inlI_s1
-  Rz.inrI_s1 Rz.caseE_s1 Rz.orComm_s1 Rz.thrTake_s1 Rz.thrSkip_s1 Rz.thrWeaken_s1
+  Rz.inrI_s1 Rz.caseE_s1 Rz.splitE_s1 Rz.andComm_s1 Rz.orComm_s1 Rz.thrTake_s1 Rz.thrSkip_s1 Rz.thrWeaken_s1
   Rz.Plan.build_typed Rz.Plan.build_closed Rz.Plan.build_acnt Rz.Plan.build_affA
   Rz.acnt_lams Rz.closedAt_lams Rz.lams_typed Rz.lams_affA Rz.Plan.compose_s1
   Rz.thr_compose_s1 Rz.glue_stratum1 Rz.glue_bounds Rz.swapT_not_affA Rz.orDist_s1 Rz.orDist_needs_additive Rz.thrPlan_extract

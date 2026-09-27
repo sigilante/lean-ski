@@ -819,6 +819,7 @@ def Tm.cnt : Nat → Tm γ → Nat
   | i, .inl a => a.cnt i
   | i, .inr b => b.cnt i
   | i, .case s f g => s.cnt i + f.cnt i + g.cnt i
+  | i, .split t k => t.cnt i + k.cnt i
 
 /-- **Affine**: every λ's variable occurs at most once in its body, counting
     both branches of a case. -/
@@ -833,6 +834,7 @@ def Tm.Aff : Tm γ → Prop
   | .inl a => a.Aff
   | .inr b => b.Aff
   | .case s f g => s.Aff ∧ f.Aff ∧ g.Aff
+  | .split t k => t.Aff ∧ k.Aff
 
 /-- The free variables below `d` occur at most once. -/
 def AffAt (d : Nat) (t : Tm γ) : Prop := ∀ i, i < d → t.cnt i ≤ 1
@@ -910,6 +912,12 @@ theorem Src.cnt_trS : ∀ (t : Tm γ) (d n : Nat), closedAt d t →
     by_cases hn : n < d
     · rw [if_pos hn, if_pos hn, if_pos hn, if_pos hn]; rfl
     · rw [if_neg hn, if_neg hn, if_neg hn, if_neg hn]
+  | .split t k, d, n, h => by
+    show (trS ι d t).cnt n + (trS ι d k).cnt n = _
+    rw [Src.cnt_trS t d n h.1, Src.cnt_trS k d n h.2]
+    by_cases hn : n < d
+    · rw [if_pos hn, if_pos hn, if_pos hn]; rfl
+    · rw [if_neg hn, if_neg hn, if_neg hn]
 
 /-- The parameters of the λ-chain at the top of `trS d t` are distinct names
     from `d` up. -/
@@ -930,6 +938,7 @@ theorem trS_peel : ∀ (t : Tm γ) (d : Nat),
   | .inl _, _ => ⟨trivial, fun _ h => by cases h⟩
   | .inr _, _ => ⟨trivial, fun _ h => by cases h⟩
   | .case _ _ _, _ => ⟨trivial, fun _ h => by cases h⟩
+  | .split _ _, _ => ⟨trivial, fun _ h => by cases h⟩
 
 theorem distinct_of_nodup : ∀ {xs : List Nat}, xs.Nodup → Distinct xs
   | [], _ => trivial
@@ -1090,6 +1099,7 @@ theorem og_usual {Γ : Nat → Ty β} {t : Tm γ} {A : Ty β} (hs : SemOG ι Γ 
   | inl _ => exact hs d Γc sc hΓ hd ha haff hsc
   | inr _ => exact hs d Γc sc hΓ hd ha haff hsc
   | case _ _ _ => exact hs d Γc sc hΓ hd ha haff hsc
+  | split _ _ => exact hs d Γc sc hΓ hd ha haff hsc
 
 /-- **Compiled affine realizers are typed**: under the chain form, by
     induction on the typing derivation. -/
@@ -1154,6 +1164,12 @@ theorem ogsem {sig : γ → Ty β} (hq : ∀ c, Q (gty (sig c)) (ι c) (ι c).le
     exact .appL (.appL (.sub (og_usual ι ihs d Γc sc hΓ hd.1 has haff.1 hsc) (.sumE _ _ _))
       (og_usual ι ihf d Γc sc hΓ hd.2.1 haf haff.2.1 hsc))
       (og_usual ι ihg d Γc sc hΓ hd.2.2 hag haff.2.2 hsc)
+  | @split Γ A B C t k _ _ iht ihk =>
+    intro d Γc sc hΓ hd ha haff hsc
+    have hat : AffAt d t := fun i hi => by have := ha i hi; simp only [Tm.cnt] at this; omega
+    have hak : AffAt d k := fun i hi => by have := ha i hi; simp only [Tm.cnt] at this; omega
+    exact .appL (.sub (og_usual ι iht d Γc sc hΓ hd.1 hat haff.1 hsc) (.prodE _ _ _))
+      (og_usual ι ihk d Γc sc hΓ hd.2 hak haff.2 hsc)
 
 theorem envsum_zero : ∀ M : OTerm, envsum (fun _ => 0) M = 0
   | .var _ => rfl

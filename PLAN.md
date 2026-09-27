@@ -106,13 +106,16 @@ step bound on the trace must be proved of head reduction directly. β for
 the compiler's bracket abstraction is counted: at most `3^k · vsize M`
 weak steps for `k` formals (`absN_beta_count`). The typed realizer
 language (`Ski/Tait.lean`) is simply typed λ with products and sums over
-opaque base types (witness types) and constants (verifiers). Every typed
+opaque base types (witness types) and constants (verifiers); a product is
+eliminated by projection or by split, which binds both halves at once. Every typed
 term is strongly normalizing under full reduction
 (`strong_normalization`), by Tait's reducibility. A typed closed realizer,
 written as SKIjack source and compiled by `comp`, converges when its atom
 verifiers realize their types (`compiled_converges`, `Ski/Bridge.lean`);
 constant-free glue converges outright (`glue_converges`); the proof is Tait's argument
-on the compiled `SKI` terms, and needs no simulation. Existential
+on the compiled `SKI` terms, and needs no simulation. The same holds for the
+threaded compilation the prover runs (`compiledA_converges`,
+`Ski/BridgeA.lean`), so convergence and the cost bound speak of one term. Existential
 elimination is in: `∀` over witnesses types the eliminator's argument,
 and natural deduction with witness abstraction is sound for the compiled
 terms (`ndx_realizes`). Stratum 1 is proved at the source
@@ -129,21 +132,26 @@ compilation threads them through the continuations (`trA`,
 realizers with contraction normalize (`strong_normalization`,
 `compiled_converges`) but admit no elementary bound. The tower `two two ⋯
 two` applied to a Boolean toggle has additive size `8k + 17` and takes at
-least `2↑↑(k+1)` call-by-name steps (`no_elementary_bound`). Stratum 3 is proved
+least `2↑↑(k+1)` call-by-name steps (`no_elementary_bound`). The bound holds
+on the compiled trace too (`Ski/Stratum2C.lean`): under either compilation,
+every normal-order reduction of the compiled tower to a weak head normal
+form takes at least `2↑↑(k+1)` steps, and the compiled term has `6k + 39`
+combinators plus the witness's (`compiled_no_elementary_bound`). Stratum 3 is proved
 (`Ski/Stratum3.lean`): a typed fixed point, compiled to SKIjack's `Y`,
 breaks strong normalization. `fix (λx. x)` is typed and has no
 call-by-name normal form, and its compiled term `Y ⬝ I` diverges, timing out
 at every fuel. `fix (λx. inl c)` still evaluates, so fuel is the only
 uniform treatment. Without `fix`, typed closed realizers evaluate. The Σ-protocol algebra's glue lies in stratum 1
 (`Ski/Sigma.lean`). AND and OR are primitive and threshold is a fold.
-Introduction, projection, case, OR commutation, threshold weakening, and
-the prover's composition of every plan are closed, typed and additively
-affine, so the stratum-1 bounds apply at the source and on the compiled
-term. OR distributed over a context shares the context across a
+Introduction, projection, split, case, AND and OR commutation, threshold
+weakening, and the prover's composition of every plan are closed, typed and
+additively affine, so the stratum-1 bounds apply at the source and on the
+compiled term. OR distributed over a context shares the context across a
 case's branches, so only the additive count puts it in stratum 1
-(`additive_rule_needed_glue`). With projections as the product's eliminator,
-using both halves of one pair variable (`λp. (snd p, fst p)`) is
-contraction; the theorem covers the glue listed in `glue_stratum1`.
+(`additive_rule_needed_glue`). Using both halves of one pair variable by
+projections (`λp. (snd p, fst p)`) is contraction; the split binds both
+halves once, so AND commutation by split is in stratum 1 (`andComm_s1`).
+The theorem covers the glue listed in `glue_stratum1`.
 The census is computable and exact
 (`Ski/Census.lean`): stratum 3 if a fixed point occurs, 1 if additively
 affine, 2 otherwise. Each stratum carries its theorem in the language with

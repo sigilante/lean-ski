@@ -17,9 +17,10 @@ context through a case needs (`orDist`, `Ski/Sigma.lean`).
 the larger branch.
 
 **Reduction** (`WH`) is call-by-name to weak head normal form:
-- β, projection of a pair, and case of an injection, at the head;
-- congruence only in function, projection and scrutinee position, so a
-  discarded branch is never touched.
+- β, projection of a pair, split of a pair, and case of an injection, at
+  the head;
+- congruence only in function, projection, split and scrutinee position,
+  so a discarded branch is never touched.
 
 **The theorem.**  Every step strictly decreases the additive size
 (`WH.asz_lt`) and preserves additive affinity (`WH.affA`).  So every
@@ -57,6 +58,7 @@ def asz : Tm γ → Nat
   | .inl a => asz a + 1
   | .inr b => asz b + 1
   | .case s f g => asz s + max (asz f) (asz g) + 1
+  | .split t k => asz t + asz k + 2
 
 /-- Additive occurrences of the variable of index `i`: the larger of the two
     branches of a case. -/
@@ -71,6 +73,7 @@ def acnt : Nat → Tm γ → Nat
   | i, .inl a => acnt i a
   | i, .inr b => acnt i b
   | i, .case s f g => acnt i s + max (acnt i f) (acnt i g)
+  | i, .split t k => acnt i t + acnt i k
 
 /-- **Additively affine**: every λ's variable occurs at most once, under the
     additive count. -/
@@ -85,6 +88,7 @@ def AffA : Tm γ → Prop
   | .inl a => AffA a
   | .inr b => AffA b
   | .case s f g => AffA s ∧ AffA f ∧ AffA g
+  | .split t k => AffA t ∧ AffA k
 
 theorem asz_pos : ∀ t : Tm γ, 1 ≤ asz t := by
   intro t; cases t <;> simp only [asz] <;> omega
@@ -104,6 +108,7 @@ theorem asz_ren : ∀ (t : Tm γ) (ξ : Nat → Nat), asz (ren ξ t) = asz t
   | .inl a, ξ => by simp only [ren, asz, asz_ren a]
   | .inr b, ξ => by simp only [ren, asz, asz_ren b]
   | .case s f g, ξ => by simp only [ren, asz, asz_ren s, asz_ren f, asz_ren g]
+  | .split t k, ξ => by simp only [ren, asz, asz_ren t, asz_ren k]
 
 theorem upr_inj {ξ : Nat → Nat} (h : ∀ a b, ξ a = ξ b → a = b) :
     ∀ a b, upr ξ a = upr ξ b → a = b
@@ -139,6 +144,9 @@ theorem acnt_ren_inj : ∀ (t : Tm γ) (ξ : Nat → Nat), (∀ a b, ξ a = ξ b
   | .case s f g, ξ, h, k => by
     show acnt _ (ren ξ s) + max (acnt _ (ren ξ f)) (acnt _ (ren ξ g)) = _
     rw [acnt_ren_inj s ξ h k, acnt_ren_inj f ξ h k, acnt_ren_inj g ξ h k]; rfl
+  | .split t c, ξ, h, k => by
+    show acnt _ (ren ξ t) + acnt _ (ren ξ c) = _
+    rw [acnt_ren_inj t ξ h k, acnt_ren_inj c ξ h k]; rfl
 
 theorem succ_inj : ∀ a b : Nat, Nat.succ a = Nat.succ b → a = b := fun _ _ e => Nat.succ.inj e
 
@@ -167,6 +175,9 @@ theorem acnt_shift : ∀ (t : Tm γ) (ξ : Nat → Nat) (k : Nat), (∀ i, ξ i 
   | .case s f g, ξ, k, h => by
     show acnt k (ren ξ s) + max (acnt k (ren ξ f)) (acnt k (ren ξ g)) = 0
     rw [acnt_shift s ξ k h, acnt_shift f ξ k h, acnt_shift g ξ k h]; rfl
+  | .split t c, ξ, k, h => by
+    show acnt k (ren ξ t) + acnt k (ren ξ c) = 0
+    rw [acnt_shift t ξ k h, acnt_shift c ξ k h]
 
 /-- A substitution that keeps `k` and puts nothing at `k` elsewhere keeps
     `k`'s occurrences. -/
@@ -201,6 +212,9 @@ theorem acnt_sub_self : ∀ (t : Tm γ) (σ : Nat → Tm γ) (k : Nat), σ k = .
   | .case s f g, σ, k, h1, h2 => by
     show acnt k (sub σ s) + max (acnt k (sub σ f)) (acnt k (sub σ g)) = _
     rw [acnt_sub_self s σ k h1 h2, acnt_sub_self f σ k h1 h2, acnt_sub_self g σ k h1 h2]; rfl
+  | .split t c, σ, k, h1, h2 => by
+    show acnt k (sub σ t) + acnt k (sub σ c) = _
+    rw [acnt_sub_self t σ k h1 h2, acnt_sub_self c σ k h1 h2]; rfl
 
 -- ---------------------------------------------------------------------------
 -- Additive affinity survives renaming and substitution
@@ -222,6 +236,7 @@ theorem affA_ren : ∀ (t : Tm γ) (ξ : Nat → Nat), (∀ a b, ξ a = ξ b →
   | .inl a, ξ, h, ht => affA_ren a ξ h ht
   | .inr b, ξ, h, ht => affA_ren b ξ h ht
   | .case s f g, ξ, h, ht => ⟨affA_ren s ξ h ht.1, affA_ren f ξ h ht.2.1, affA_ren g ξ h ht.2.2⟩
+  | .split t k, ξ, h, ht => ⟨affA_ren t ξ h ht.1, affA_ren k ξ h ht.2⟩
 
 /-- **Additive affinity survives any substitution of additively affine terms.** -/
 theorem affA_sub : ∀ (t : Tm γ) (σ : Nat → Tm γ), (∀ i, AffA (σ i)) → AffA t → AffA (sub σ t)
@@ -248,6 +263,7 @@ theorem affA_sub : ∀ (t : Tm γ) (σ : Nat → Tm γ), (∀ i, AffA (σ i)) �
   | .inl a, σ, hσ, ht => affA_sub a σ hσ ht
   | .inr b, σ, hσ, ht => affA_sub b σ hσ ht
   | .case s f g, σ, hσ, ht => ⟨affA_sub s σ hσ ht.1, affA_sub f σ hσ ht.2.1, affA_sub g σ hσ ht.2.2⟩
+  | .split t k, σ, hσ, ht => ⟨affA_sub t σ hσ ht.1, affA_sub k σ hσ ht.2⟩
 
 -- ---------------------------------------------------------------------------
 -- Substitution and additive size
@@ -298,6 +314,10 @@ theorem asz_sub_zero : ∀ (t : Tm γ) (σ : Nat → Tm γ) (k : Nat), VarsBut �
     have hg : acnt k g = 0 := by omega
     show asz (sub σ s) + max (asz (sub σ f)) (asz (sub σ g)) + 1 = _
     rw [asz_sub_zero s σ k hσ hs, asz_sub_zero f σ k hσ hf, asz_sub_zero g σ k hσ hg]; rfl
+  | .split t c, σ, k, hσ, h => by
+    have h' : acnt k t + acnt k c = 0 := h
+    show asz (sub σ t) + asz (sub σ c) + 2 = _
+    rw [asz_sub_zero t σ k hσ (by omega), asz_sub_zero c σ k hσ (by omega)]; rfl
 
 /-- **Substitution at an affine index grows the size by at most the
     argument's size**, counting a case's branches additively. -/
@@ -354,6 +374,14 @@ theorem asz_sub_le : ∀ (t : Tm γ) (σ : Nat → Tm γ) (k : Nat), VarsBut σ 
       omega
     · rw [asz_sub_zero f σ k hσ (by omega), asz_sub_zero g σ k hσ (by omega)]
       have := asz_sub_le s σ k hσ (by omega); omega
+  | .split t c, σ, k, hσ, h => by
+    have h' : acnt k t + acnt k c ≤ 1 := h
+    show asz (sub σ t) + asz (sub σ c) + 2 + 1 ≤ asz t + asz c + 2 + asz (σ k)
+    by_cases ht : acnt k t = 0
+    · rw [asz_sub_zero t σ k hσ ht]
+      have := asz_sub_le c σ k hσ (by omega); omega
+    · rw [asz_sub_zero c σ k hσ (by omega)]
+      have := asz_sub_le t σ k hσ (by omega); omega
 
 -- ---------------------------------------------------------------------------
 -- Call-by-name reduction to weak head normal form
@@ -372,6 +400,8 @@ inductive WH : Tm γ → Tm γ → Prop
   | fst {t t' : Tm γ} : WH t t' → WH (.fst t) (.fst t')
   | snd {t t' : Tm γ} : WH t t' → WH (.snd t) (.snd t')
   | caseS {s s' : Tm γ} (f g : Tm γ) : WH s s' → WH (.case s f g) (.case s' f g)
+  | splitβ (a b k : Tm γ) : WH (.split (.pair a b) k) (.app (.app k a) b)
+  | splitT {t t' : Tm γ} (k : Tm γ) : WH t t' → WH (.split t k) (.split t' k)
 
 theorem beta1_varsBut (a : Tm γ) : VarsBut (beta1 a) 0 := by
   intro i hi
@@ -395,6 +425,8 @@ theorem WH.affA {t t' : Tm γ} (h : WH t t') (ht : AffA t) : AffA t' := by
   | fst _ ih => exact ih ht
   | snd _ ih => exact ih ht
   | caseS f g _ ih => exact ⟨ih ht.1, ht.2.1, ht.2.2⟩
+  | splitβ a b k => exact ⟨⟨ht.2, ht.1.1⟩, ht.1.2⟩
+  | splitT k _ ih => exact ⟨ih ht.1, ht.2⟩
 
 /-- **Each step strictly decreases the additive size.** -/
 theorem WH.asz_lt {t t' : Tm γ} (h : WH t t') (ht : AffA t) : asz t' < asz t := by
@@ -419,6 +451,10 @@ theorem WH.asz_lt {t t' : Tm γ} (h : WH t t') (ht : AffA t) : asz t' < asz t :=
   | snd _ ih => show asz _ + 1 < asz _ + 1; have := ih ht; omega
   | caseS f g _ ih =>
     show asz _ + max (asz f) (asz g) + 1 < asz _ + max (asz f) (asz g) + 1
+    have := ih ht.1; omega
+  | splitβ a b k => show asz k + asz a + 1 + asz b + 1 < asz a + asz b + 1 + asz k + 2; omega
+  | splitT k _ ih =>
+    show asz _ + asz k + 2 < asz _ + asz k + 2
     have := ih ht.1; omega
 
 /-- Exactly `n` call-by-name steps. -/

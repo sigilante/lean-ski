@@ -73,6 +73,7 @@ def trA (d : Nat) : Tm γ → Src
   | .case s f g =>
     appS (trA d s ⬝ₛ brS d (sharedS d (trA d f) (trA d g)) (trA d f)
       ⬝ₛ brS d (sharedS d (trA d f) (trA d g)) (trA d g)) (sharedS d (trA d f) (trA d g))
+  | .split t k => trA d t ⬝ₛ trA d k
 
 /-- The compiled term, threaded. -/
 def compiledA (t : Tm γ) : Term := toTerm (comp [] (trA ι 0 t))
@@ -276,6 +277,13 @@ theorem Src.cnt_trA : ∀ (t : Tm γ) (d n : Nat), closedAt d t →
       have e2 : (if d = n ∨ n ∈ ys then 0 else (trA ι d g).cnt n) = 0 := by split <;> omega
       rw [e1, e2]
       omega
+  | .split t k, d, n, h => by
+    have ht := Src.cnt_trA t d n h.1
+    have hk := Src.cnt_trA k d n h.2
+    show (trA ι d t).cnt n + (trA ι d k).cnt n ≤ _
+    by_cases hn : n < d
+    · rw [if_pos hn] at ht hk ⊢; show _ ≤ acnt _ t + acnt _ k; omega
+    · rw [if_neg hn] at ht hk ⊢; omega
 
 -- ---------------------------------------------------------------------------
 -- Compiling the threaded forms
@@ -360,6 +368,7 @@ theorem trA_peel : ∀ (t : Tm γ) (d : Nat),
   | .snd _, _ => ⟨trivial, fun _ h => by cases h⟩
   | .inl _, _ => ⟨trivial, fun _ h => by cases h⟩
   | .inr _, _ => ⟨trivial, fun _ h => by cases h⟩
+  | .split _ _, _ => ⟨trivial, fun _ h => by cases h⟩
 
 /-- Additively, the free variables below `d` occur at most once. -/
 def AffAtA (d : Nat) (t : Tm γ) : Prop := ∀ i, i < d → acnt i t ≤ 1
@@ -418,6 +427,7 @@ theorem og_usualA {Γ : Nat → Ty β} {t : Tm γ} {A : Ty β} (hs : SemOGA ι �
   | snd _ => exact hs d Γc sc hΓ hd ha haff hsc
   | inl _ => exact hs d Γc sc hΓ hd ha haff hsc
   | inr _ => exact hs d Γc sc hΓ hd ha haff hsc
+  | split _ _ => exact hs d Γc sc hΓ hd ha haff hsc
   | case s f g =>
     have := hs d Γc sc hΓ hd ha haff hsc
     cases appS_app (sharedS d (trA ι d f) (trA ι d g))
@@ -585,6 +595,12 @@ theorem ogsemA {sig : γ → Ty β} (hq : ∀ c, Q (gty (sig c)) (ι c) (ι c).l
         simp only [acnt] at this; omega)
       (fun n hn hny => (not_sharedS hn (by rw [hys]; exact hny)).2)
     exact .appL (.appL (.sub (og_usualA ι ihs d Γc sc hΓ hd.1 has haff.1 hsc) (.sumE _ _ _)) hF) hG
+  | @split Γ A B C t k _ _ iht ihk =>
+    intro d Γc sc hΓ hd ha haff hsc
+    have hat : AffAtA d t := fun i hi => by have := ha i hi; simp only [acnt] at this; omega
+    have hak : AffAtA d k := fun i hi => by have := ha i hi; simp only [acnt] at this; omega
+    exact .appL (.sub (og_usualA ι iht d Γc sc hΓ hd.1 hat haff.1 hsc) (.prodE _ _ _))
+      (og_usualA ι ihk d Γc sc hΓ hd.2 hak haff.2 hsc)
 
 /-- **A compiled additively affine realizer behaves at its type within its
     leaf count.** -/

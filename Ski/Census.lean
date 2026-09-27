@@ -26,8 +26,9 @@ point (`WHF`):
 - Strata 1 and 2, typed, closed and at a sum type, evaluate to an injection
   (`census_le_two_evaluates`), without fuel.  A term without `fix` reduces
   under `WHF` exactly as under `WH` (`WHF.of_fixFree`).
-- Stratum 2 has no elementary bound (`no_elementary_bound`,
-  `Ski/Stratum2.lean`).
+- Stratum 2 has no elementary bound, at the source (`no_elementary_bound`,
+  `Ski/Stratum2.lean`) and on the compiled trace
+  (`compiled_no_elementary_bound`, `Ski/Stratum2C.lean`).
 - Stratum 3 contains a typed term that diverges (`census_three_diverges`).
 
 **The additive rule is needed** (`additive_rule_needed`).  `sharedT` shares
@@ -37,7 +38,8 @@ contraction, but it is additively affine, so the census puts it in stratum
 
 **The census, computed** (`census_table`): the glue of the Σ-algebra is in
 stratum 1, and so is the prover's composition of a 2-of-3 threshold plan.
-Swapping a pair's halves and the tower of twos are in stratum 2.
+AND-commutation by split is in stratum 1.  Swapping a pair's halves by
+projections and the tower of twos are in stratum 2.
 `fix (λ x. x)` is in stratum 3.
 -/
 
@@ -63,6 +65,7 @@ def hasFix (isFix : γ → Bool) : Tm γ → Bool
   | .inl a => hasFix isFix a
   | .inr b => hasFix isFix b
   | .case s f g => hasFix isFix s || hasFix isFix f || hasFix isFix g
+  | .split t k => hasFix isFix t || hasFix isFix k
 
 /-- The decision procedure for additive affinity. -/
 def affB : Tm γ → Bool
@@ -76,6 +79,7 @@ def affB : Tm γ → Bool
   | .inl a => affB a
   | .inr b => affB b
   | .case s f g => affB s && affB f && affB g
+  | .split t k => affB t && affB k
 
 /-- **`affB` decides additive affinity.** -/
 theorem affB_iff : ∀ t : Tm γ, affB t = true ↔ AffA t
@@ -97,6 +101,9 @@ theorem affB_iff : ∀ t : Tm γ, affB t = true ↔ AffA t
   | .case s f g => by
     show (affB s && affB f && affB g) = true ↔ AffA s ∧ AffA f ∧ AffA g
     rw [Bool.and_eq_true, Bool.and_eq_true, affB_iff s, affB_iff f, affB_iff g, and_assoc]
+  | .split t k => by
+    show (affB t && affB k) = true ↔ AffA t ∧ AffA k
+    rw [Bool.and_eq_true, affB_iff t, affB_iff k]
 
 /-- **The census**: stratum 3 if a fixed point occurs, 1 if additively
     affine, 2 otherwise. -/
@@ -173,6 +180,7 @@ theorem hasFix_ren (isFix : γ → Bool) : ∀ (t : Tm γ) (ξ : Nat → Nat),
   | .inr b, ξ => by simp only [ren, hasFix, hasFix_ren isFix b]
   | .case s f g, ξ => by
     simp only [ren, hasFix, hasFix_ren isFix s, hasFix_ren isFix f, hasFix_ren isFix g]
+  | .split t k, ξ => by simp only [ren, hasFix, hasFix_ren isFix t, hasFix_ren isFix k]
 
 theorem hasFix_sub (isFix : γ → Bool) : ∀ (t : Tm γ) (σ : Nat → Tm γ),
     hasFix isFix t = false → (∀ i, hasFix isFix (σ i) = false) → hasFix isFix (Tm.sub σ t) = false
@@ -201,6 +209,10 @@ theorem hasFix_sub (isFix : γ → Bool) : ∀ (t : Tm γ) (σ : Nat → Tm γ),
     show (hasFix isFix (Tm.sub σ s) || hasFix isFix (Tm.sub σ f) || hasFix isFix (Tm.sub σ g)) = false
     rw [hasFix_sub isFix s σ h''.1 hσ, hasFix_sub isFix f σ h''.2 hσ, hasFix_sub isFix g σ h'.2 hσ]
     rfl
+  | .split t k, σ, h, hσ => by
+    have h' := Bool.or_eq_false_iff.1 h
+    show (hasFix isFix (Tm.sub σ t) || hasFix isFix (Tm.sub σ k)) = false
+    rw [hasFix_sub isFix t σ h'.1 hσ, hasFix_sub isFix k σ h'.2 hσ]; rfl
 
 /-- **Without a fixed point, the fixed point's reduction is plain call-by-name.** -/
 theorem WHF.of_fixFree {t u : Tm (FixLab β γ)} (h : WHF t u) (ht : hasFix isFixF t = false) :
@@ -242,6 +254,18 @@ theorem WHF.of_fixFree {t u : Tm (FixLab β γ)} (h : WHF t u) (ht : hasFix isFi
     refine ⟨.caseS f g r.1, ?_⟩
     show (hasFix isFixF _ || hasFix isFixF f || hasFix isFixF g) = false
     rw [r.2, h''.2, h'.2]; rfl
+  | splitβ a b k =>
+    have h' := Bool.or_eq_false_iff.1 ht
+    have h'' := Bool.or_eq_false_iff.1 h'.1
+    refine ⟨.splitβ a b k, ?_⟩
+    show (hasFix isFixF k || hasFix isFixF a || hasFix isFixF b) = false
+    rw [h'.2, h''.1, h''.2]; rfl
+  | splitT k _ ih =>
+    have h' := Bool.or_eq_false_iff.1 ht
+    have r := ih h'.1
+    refine ⟨.splitT k r.1, ?_⟩
+    show (hasFix isFixF _ || hasFix isFixF k) = false
+    rw [r.2, h'.2]; rfl
 
 theorem WHFN.of_fixFree {n : Nat} {t u : Tm (FixLab β γ)} (h : WHFN n t u)
     (ht : hasFix isFixF t = false) : WHN n t u := by
@@ -262,6 +286,8 @@ theorem WH.toWHF {t u : Tm (FixLab β γ)} (h : WH t u) : WHF t u := by
   | fst _ ih => exact .fst ih
   | snd _ ih => exact .snd ih
   | caseS f g _ ih => exact .caseS f g ih
+  | splitβ a b k => exact .splitβ a b k
+  | splitT k _ ih => exact .splitT k ih
 
 theorem WHN.toWHFN {n : Nat} {t u : Tm (FixLab β γ)} (h : WHN n t u) : WHFN n t u := by
   induction h with
@@ -310,6 +336,9 @@ theorem Typed.unfix {sig : γ → Ty β} (b0 : β) {Γ : Nat → Ty β} {t : Tm 
     have h' := Bool.or_eq_false_iff.1 ht
     have h'' := Bool.or_eq_false_iff.1 h'.1
     exact .case (ihs h''.1) (ihf h''.2) (ihg h'.2)
+  | split _ _ iht ihk =>
+    have h' := Bool.or_eq_false_iff.1 ht
+    exact .split (iht h'.1) (ihk h'.2)
 
 /-- **Strata 1 and 2 need no fuel**: a closed, typed realizer of census at
     most 2, at a sum type, whose atoms have base types, evaluates to an
@@ -403,6 +432,7 @@ theorem census_table :
     census (fun e : Empty => e.elim) andI = 1 ∧
     census (fun e : Empty => e.elim) fstE = 1 ∧
     census (fun e : Empty => e.elim) caseE = 1 ∧
+    census (fun e : Empty => e.elim) andComm = 1 ∧
     census (fun e : Empty => e.elim) orComm = 1 ∧
     census (fun e : Empty => e.elim) orDist = 1 ∧
     census (fun e : Empty => e.elim) thrTake = 1 ∧
@@ -412,6 +442,6 @@ theorem census_table :
     census (fun e : Empty => e.elim) swapT = 2 ∧
     census (fun _ : Unit => false) (evalT 3 trueT) = 2 ∧
     census isFixF (omegaF (.base ()) : Tm (FixLab Unit Unit)) = 3 := by
-  refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, census_evalT 3, rfl⟩ <;> decide
+  refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, census_evalT 3, rfl⟩ <;> decide
 
 end Rz

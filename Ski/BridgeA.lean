@@ -230,6 +230,13 @@ theorem semA {sig : γ → Ty β} {Γ : Nat → Ty β} {t : Tm γ} {A : Ty β}
         exact RS.back C ((WSteps.appT (hb.1 _ _) _).trans
           (brS_beta sc d ys (trA ι d g) γ b hcG hdy))
           (hg (updC γ d b) (hγ.upd_depth b) (d :: ys) b hb.2)
+  | @split Γ A B C t k _ _ iht ihk =>
+    intro d hd γ hγ sc
+    have hk := usual ihk d hd.2 γ hγ sc
+    cases (usual iht d hd.1 γ hγ sc).2 with
+    | intro a hp =>
+      cases hp with
+      | intro b hp => exact RS.back C (hp.1 _) (hk a hp.2.1 b hp.2.2)
 
 /-- **A typed closed realizer's threaded compiled term is related to its
     type.** -/

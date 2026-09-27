@@ -90,6 +90,14 @@ theorem WH.det {t u v : Tm γ} (h₁ : WH t u) (h₂ : WH t v) : u = v := by
     | inlβ => exact (h.no_inl).elim
     | inrβ => exact (h.no_inr).elim
     | caseS _ _ h' => rw [ih h']
+  | splitβ a b k =>
+    cases h₂ with
+    | splitβ => rfl
+    | splitT _ h => exact (h.no_pair).elim
+  | splitT k h ih =>
+    cases h₂ with
+    | splitβ => exact (h.no_pair).elim
+    | splitT _ h' => rw [ih h']
 
 /-- An injection. -/
 def IsInj (v : Tm γ) : Prop := ∃ a, v = .inl a ∨ v = .inr a
@@ -348,6 +356,7 @@ theorem Typed.ren {Γ : Nat → Ty β} {t : Tm γ} {A : Ty β} (h : Typed sig Γ
   | inl _ ih => intro Δ ξ hξ; exact .inl (ih hξ)
   | inr _ ih => intro Δ ξ hξ; exact .inr (ih hξ)
   | case _ _ _ ihs ihf ihg => intro Δ ξ hξ; exact .case (ihs hξ) (ihf hξ) (ihg hξ)
+  | split _ _ iht ihk => intro Δ ξ hξ; exact .split (iht hξ) (ihk hξ)
 
 theorem Typed.sub {Γ : Nat → Ty β} {t : Tm γ} {A : Ty β} (h : Typed sig Γ t A) :
     ∀ {Δ : Nat → Ty β} {σ : Nat → Tm γ}, (∀ i, Typed sig Δ (σ i) (Γ i)) →
@@ -368,6 +377,7 @@ theorem Typed.sub {Γ : Nat → Ty β} {t : Tm γ} {A : Ty β} (h : Typed sig Γ
   | inl _ ih => intro Δ σ hσ; exact .inl (ih hσ)
   | inr _ ih => intro Δ σ hσ; exact .inr (ih hσ)
   | case _ _ _ ihs ihf ihg => intro Δ σ hσ; exact .case (ihs hσ) (ihf hσ) (ihg hσ)
+  | split _ _ iht ihk => intro Δ σ hσ; exact .split (iht hσ) (ihk hσ)
 
 /-- **Subject reduction.** -/
 theorem WH.typed {t t' : Tm γ} (s : WH t t') :
@@ -397,6 +407,11 @@ theorem WH.typed {t t' : Tm γ} (s : WH t t') :
   | fst _ ih => intro Γ A h; cases h with | fst ht => exact .fst (ih ht)
   | snd _ ih => intro Γ A h; cases h with | snd ht => exact .snd (ih ht)
   | caseS f g _ ih => intro Γ A h; cases h with | case hs hf hg => exact .case (ih hs) hf hg
+  | splitβ a b k =>
+    intro Γ A h
+    cases h with
+    | split ht hk => cases ht with | pair ha hb => exact .app (.app hk ha) hb
+  | splitT k _ ih => intro Γ A h; cases h with | split ht hk => exact .split (ih ht) hk
 
 theorem closedAt_ren : ∀ (t : Tm γ) (d e : Nat) (ξ : Nat → Nat), closedAt d t →
     (∀ i, i < d → ξ i < e) → closedAt e (ren ξ t)
@@ -415,6 +430,7 @@ theorem closedAt_ren : ∀ (t : Tm γ) (d e : Nat) (ξ : Nat → Nat), closedAt 
   | .inr b, d, e, ξ, h, hξ => closedAt_ren b d e ξ h hξ
   | .case s f g, d, e, ξ, h, hξ =>
     ⟨closedAt_ren s d e ξ h.1 hξ, closedAt_ren f d e ξ h.2.1 hξ, closedAt_ren g d e ξ h.2.2 hξ⟩
+  | .split t k, d, e, ξ, h, hξ => ⟨closedAt_ren t d e ξ h.1 hξ, closedAt_ren k d e ξ h.2 hξ⟩
 
 theorem closedAt_sub : ∀ (t : Tm γ) (d e : Nat) (σ : Nat → Tm γ), closedAt d t →
     (∀ i, i < d → closedAt e (σ i)) → closedAt e (Tm.sub σ t)
@@ -434,6 +450,7 @@ theorem closedAt_sub : ∀ (t : Tm γ) (d e : Nat) (σ : Nat → Tm γ), closedA
   | .inr b, d, e, σ, h, hσ => closedAt_sub b d e σ h hσ
   | .case s f g, d, e, σ, h, hσ =>
     ⟨closedAt_sub s d e σ h.1 hσ, closedAt_sub f d e σ h.2.1 hσ, closedAt_sub g d e σ h.2.2 hσ⟩
+  | .split t k, d, e, σ, h, hσ => ⟨closedAt_sub t d e σ h.1 hσ, closedAt_sub k d e σ h.2 hσ⟩
 
 /-- Reduction keeps a term closed. -/
 theorem WH.closed {t t' : Tm γ} (s : WH t t') (h : closedAt 0 t) : closedAt 0 t' := by
@@ -451,6 +468,8 @@ theorem WH.closed {t t' : Tm γ} (s : WH t t') (h : closedAt 0 t) : closedAt 0 t
   | fst _ ih => exact ih h
   | snd _ ih => exact ih h
   | caseS f g _ ih => exact ⟨ih h.1, h.2.1, h.2.2⟩
+  | splitβ a b k => exact ⟨⟨h.2, h.1.1⟩, h.1.2⟩
+  | splitT k _ ih => exact ⟨ih h.1, h.2⟩
 
 /-- A call-by-name step is a step. -/
 theorem WH.step {t t' : Tm γ} (s : WH t t') : Step t t' := by
@@ -464,6 +483,8 @@ theorem WH.step {t t' : Tm γ} (s : WH t t') : Step t t' := by
   | fst _ ih => exact .fst ih
   | snd _ ih => exact .snd ih
   | caseS f g _ ih => exact .caseS f g ih
+  | splitβ a b k => exact .splitβ a b k
+  | splitT k _ ih => exact .splitT k ih
 
 /-- The computable call-by-name step. -/
 def wh? : Tm γ → Option (Tm γ)
@@ -476,6 +497,8 @@ def wh? : Tm γ → Option (Tm γ)
   | .case (.inl a) f _ => some (.app f a)
   | .case (.inr b) _ g => some (.app g b)
   | .case s f g => (wh? s).map fun s' => .case s' f g
+  | .split (.pair a b) k => some (.app (.app k a) b)
+  | .split t k => (wh? t).map fun t' => .split t' k
   | _ => none
 
 /-- Every call-by-name step is the one `wh?` computes. -/
@@ -522,6 +545,16 @@ theorem WH.wh? {t u : Tm γ} (s : WH t u) : wh? t = some u := by
     | lam _ => cases h
     | pair _ _ => cases h
     | _ => simp only [Rz.wh?, ih, Option.map_some]
+  | splitβ a b k => rfl
+  | @splitT t t' k h ih =>
+    cases t with
+    | pair a b => exact (h.no_pair).elim
+    | var _ => cases h
+    | const _ => cases h
+    | lam _ => cases h
+    | inl _ => cases h
+    | inr _ => cases h
+    | _ => simp only [Rz.wh?, ih, Option.map_some]
 
 /-- What `wh?` computes is a call-by-name step. -/
 theorem wh?_sound : ∀ {t u : Tm γ}, wh? t = some u → WH t u
@@ -554,6 +587,13 @@ theorem wh?_sound : ∀ {t u : Tm γ}, wh? t = some u → WH t u
       simp only [Rz.wh?, Option.map_eq_some_iff] at h
       cases h with
       | intro s' h => rw [← h.2]; exact .caseS f g (wh?_sound h.1)
+  | .split t k, u, h => by
+    cases t with
+    | pair a b => cases h; exact .splitβ _ _ _
+    | _ =>
+      simp only [Rz.wh?, Option.map_eq_some_iff] at h
+      cases h with
+      | intro t' h => rw [← h.2]; exact .splitT k (wh?_sound h.1)
   | .var _, _, h => by cases h
   | .const _, _, h => by cases h
   | .lam _, _, h => by cases h
@@ -609,6 +649,7 @@ theorem canonical (hsig : ∀ c, ∃ b, sig c = .base b) {Γ : Nat → Ty β} {t
     | fst _ => exact hi.elim
     | snd _ => exact hi.elim
     | case _ _ _ => exact hi.elim
+    | split _ _ => exact hi.elim
     | pair _ _ => cases hf
     | inl _ => cases hf
     | inr _ => cases hf
@@ -625,6 +666,7 @@ theorem canonical (hsig : ∀ c, ∃ b, sig c = .base b) {Γ : Nat → Ty β} {t
     | fst _ => exact hi.elim
     | snd _ => exact hi.elim
     | case _ _ _ => exact hi.elim
+    | split _ _ => exact hi.elim
   | @snd Γ A B t ht ih =>
     have hi := ih hc fun u s => hn _ (.snd s)
     cases t with
@@ -638,6 +680,7 @@ theorem canonical (hsig : ∀ c, ∃ b, sig c = .base b) {Γ : Nat → Ty β} {t
     | fst _ => exact hi.elim
     | snd _ => exact hi.elim
     | case _ _ _ => exact hi.elim
+    | split _ _ => exact hi.elim
   | @case Γ A B C s f g hs _ _ ihs _ _ =>
     have hi := ihs hc.1 fun u st => hn _ (.caseS f g st)
     cases s with
@@ -651,6 +694,21 @@ theorem canonical (hsig : ∀ c, ∃ b, sig c = .base b) {Γ : Nat → Ty β} {t
     | fst _ => exact hi.elim
     | snd _ => exact hi.elim
     | case _ _ _ => exact hi.elim
+    | split _ _ => exact hi.elim
+  | @split Γ A B C t k ht _ iht _ =>
+    have hi := iht hc.1 fun u s => hn _ (.splitT k s)
+    cases t with
+    | pair a b => exact (hn _ (.splitβ a b k)).elim
+    | const c => cases hsig c with | intro b hb => have e := ht.const_inv.trans hb; cases e
+    | lam _ => cases ht
+    | inl _ => cases ht
+    | inr _ => cases ht
+    | var _ => exact hi.elim
+    | app _ _ => exact hi.elim
+    | fst _ => exact hi.elim
+    | snd _ => exact hi.elim
+    | case _ _ _ => exact hi.elim
+    | split _ _ => exact hi.elim
 
 theorem WHN.typed {n : Nat} {t u : Tm γ} (s : WHN n t u) {Γ : Nat → Ty β} {A : Ty β}
     (h : Typed sig Γ t A) : Typed sig Γ u A := by
@@ -685,6 +743,7 @@ theorem evaluates_inj (hsig : ∀ c, ∃ b, sig c = .base b) {Γ : Nat → Ty β
       | fst _ => exact hi.elim
       | snd _ => exact hi.elim
       | case _ _ _ => exact hi.elim
+      | split _ _ => exact hi.elim
 
 end Termination
 
