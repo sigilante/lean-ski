@@ -15,6 +15,7 @@ import Ski.Stratum2C
 import Ski.Stratum3
 import Ski.Sigma
 import Ski.Census
+import Ski.Outcome
 import Ski.Compile
 import Ski.Quote
 import Ski.Front

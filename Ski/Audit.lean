@@ -18,6 +18,7 @@ import Ski.BridgeA
 import Ski.Stratum3
 import Ski.Sigma
 import Ski.Census
+import Ski.Outcome
 import Ski.Bridge
 import Ski.Cost
 import Ski.CostAdd
@@ -418,6 +419,9 @@ open Ski.Audit
   Rz.Plan.build_typed Rz.Plan.build_closed Rz.Plan.build_acnt Rz.Plan.build_affA
   Rz.acnt_lams Rz.closedAt_lams Rz.lams_typed Rz.lams_affA Rz.Plan.compose_s1
   Rz.thr_compose_s1 Rz.glue_stratum1 Rz.glue_bounds Rz.swapT_not_affA Rz.orDist_s1 Rz.orDist_needs_additive Rz.intros_raw_affine Rz.thrPlan_extract
+
+-- The three-valued outcome: structured formulas demand a normal form, an atom need not
+#audit_clean Real.and_converges Real.or_converges Real.ex_converges atom_divergent_realizer
 
 -- The census: the strata decided by the additive count, each with its theorem
 #audit_clean Rz.affB_iff Rz.census_one_iff Rz.census_two_iff Rz.census_three_iff Rz.hasFix_ren
