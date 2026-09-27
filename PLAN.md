@@ -95,8 +95,9 @@ witness maps. An atom's realizer is a witness on which the verifier
 evaluates to `K` (`real_atom_iff`). The combinator system (Hilbert
 axioms for `S K I`, modus ponens, Scott constants) is sound (`soundness`).
 Natural deduction compiles to it by bracket abstraction (`completeness`),
-which is Curry's theorem. Existential elimination is left out: in
-combinator form it needs `∀` over witnesses. Of the two transfer lemmas,
+which is Curry's theorem. Existential elimination needs `∀` over witnesses; with
+it, natural deduction with witness abstraction is sound for the compiled
+terms (`ndx_realizes`, `NDX.exElim`). Of the two transfer lemmas,
 standardization holds in its qualitative form (`eval_of_wsteps`). Its
 counted form is false: `S I I (I F)` takes 10 head steps, and its weak
 reduct `S I I F` takes 8 (`counted_standardization_false`), because weak
@@ -108,8 +109,9 @@ language (`Ski/Tait.lean`) is simply typed λ with products and sums over
 opaque base types (witness types) and constants (verifiers). Every typed
 term is strongly normalizing under full reduction
 (`strong_normalization`), by Tait's reducibility. A typed closed realizer,
-written as SKIjack source and compiled by `comp`, converges
-(`compiled_converges`, `Ski/Bridge.lean`); the proof is Tait's argument
+written as SKIjack source and compiled by `comp`, converges when its atom
+verifiers realize their types (`compiled_converges`, `Ski/Bridge.lean`);
+constant-free glue converges outright (`glue_converges`); the proof is Tait's argument
 on the compiled `SKI` terms, and needs no simulation. Existential
 elimination is in: `∀` over witnesses types the eliminator's argument,
 and natural deduction with witness abstraction is sound for the compiled
@@ -137,8 +139,11 @@ uniform treatment. Without `fix`, typed closed realizers evaluate. The Σ-protoc
 Introduction, projection, case, OR commutation, threshold weakening, and
 the prover's composition of every plan are closed, typed and additively
 affine, so the stratum-1 bounds apply at the source and on the compiled
-term. With projections as the product's eliminator, using both halves of
-one pair variable (`λp. (snd p, fst p)`) is contraction, and not glue.
+term. OR distributed over a context shares the context across a
+case's branches, so only the additive count puts it in stratum 1
+(`additive_rule_needed_glue`). With projections as the product's eliminator,
+using both halves of one pair variable (`λp. (snd p, fst p)`) is
+contraction; the theorem covers the glue listed in `glue_stratum1`.
 The census is computable and exact
 (`Ski/Census.lean`): stratum 3 if a fixed point occurs, 1 if additively
 affine, 2 otherwise. Each stratum carries its theorem in the language with

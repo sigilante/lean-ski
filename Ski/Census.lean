@@ -328,6 +328,27 @@ theorem census_le_two_evaluates {sig : γ → Ty β} (hsig : ∀ c, ∃ b, sig c
   | intro n h' => cases h' with
     | intro v h' => exact ⟨n, v, h'.1.toWHFN, h'.2⟩
 
+/-- **Without a fixed point, evaluation reaches a normal form**, for any
+    signature and any context: a typed realizer of census at most 2 reaches,
+    by the fixed point's call-by-name reduction, a term with no further step.
+    Verifier constants of arrow type are allowed; applied, they are stuck. -/
+theorem census_le_two_normalizes {sig : γ → Ty β} {Γ : Nat → Ty β} {t : Tm (FixLab β γ)}
+    {A : Ty β} (hcen : census isFixF t ≤ 2) (h : Typed (sigF sig) Γ t A) :
+    ∃ n u, WHFN n t u ∧ ∀ u', ¬ WHF u u' := by
+  have hf := census_hasFix hcen
+  cases (strong_normalization h).wh_normal with
+  | intro n h' => cases h' with
+    | intro u h' =>
+      have hu : hasFix isFixF u = false := by
+        have gen : ∀ {m : Nat} {s w : Tm (FixLab β γ)}, WHN m s w → hasFix isFixF s = false →
+            hasFix isFixF w = false := by
+          intro m s w hw hs
+          induction hw with
+          | refl => exact hs
+          | step st _ ih => exact ih ((WH.toWHF st).of_fixFree hs).2
+        exact gen h'.1 hf
+      exact ⟨n, u, h'.1.toWHFN, fun u' s => h'.2 u' (s.of_fixFree hu).1⟩
+
 /-- **Stratum 3 contains divergence**: `fix (λ x. x)` is in stratum 3, typed,
     and every reduct takes another step. -/
 theorem census_three_diverges (A : Ty β) :
@@ -345,6 +366,14 @@ theorem census_three_diverges (A : Ty β) :
 theorem additive_rule_needed :
     ¬ Tm.Aff sharedT ∧ AffA sharedT ∧ census (fun e : Empty => e.elim) sharedT = 1 :=
   ⟨sharedT_not_aff, sharedT_affA, (census_one_iff _ _).2 ⟨rfl, sharedT_affA⟩⟩
+
+/-- **The additive rule is needed for the glue**: OR distributed over a
+    context is contraction under the raw count and stratum 1 under the
+    additive one. -/
+theorem additive_rule_needed_glue :
+    ¬ Tm.Aff orDist ∧ AffA orDist ∧ census (fun e : Empty => e.elim) orDist = 1 :=
+  ⟨orDist_needs_additive, (orDist_s1 .top .top .top).2.2,
+    (census_one_iff _ _).2 ⟨rfl, (orDist_s1 .top .top .top).2.2⟩⟩
 
 /-- The tower of twos is in stratum 2 at every height: `two` uses its
     function twice. -/
@@ -375,6 +404,7 @@ theorem census_table :
     census (fun e : Empty => e.elim) fstE = 1 ∧
     census (fun e : Empty => e.elim) caseE = 1 ∧
     census (fun e : Empty => e.elim) orComm = 1 ∧
+    census (fun e : Empty => e.elim) orDist = 1 ∧
     census (fun e : Empty => e.elim) thrTake = 1 ∧
     census (fun e : Empty => e.elim) thrSkip = 1 ∧
     census (fun e : Empty => e.elim) (thrWeaken 2 [.atom 0, .atom 1, .atom 2]) = 1 ∧
@@ -382,6 +412,6 @@ theorem census_table :
     census (fun e : Empty => e.elim) swapT = 2 ∧
     census (fun _ : Unit => false) (evalT 3 trueT) = 2 ∧
     census isFixF (omegaF (.base ()) : Tm (FixLab Unit Unit)) = 3 := by
-  refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, census_evalT 3, rfl⟩ <;> decide
+  refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, census_evalT 3, rfl⟩ <;> decide
 
 end Rz

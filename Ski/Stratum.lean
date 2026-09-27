@@ -10,8 +10,8 @@ additive size.  Affinity and size both use the additive rule.
 branches of a case count as the larger of the two, not the sum, since only
 one branch runs.  A realizer is **additively affine** (`AffA`) when every
 λ's variable occurs at most once under this count.  So a variable may
-appear in both branches of a case, which is exactly what the glue of `∨`
-and of threshold needs.
+appear in both branches of a case, which is what glue that carries a
+context through a case needs (`orDist`, `Ski/Sigma.lean`).
 
 **The additive size** (`asz`) of a case is one, plus its scrutinee, plus
 the larger branch.

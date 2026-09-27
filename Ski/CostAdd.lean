@@ -6,13 +6,14 @@ open Term
 # Normal-order cost of additively affine realizers
 
 `Ski/Cost.lean` bounds the compiled term of a multiplicatively affine
-realizer.  The glue of `∨` and of threshold shares variables across the
-two branches of a case.  An additively affine realizer (`AffA`,
+realizer.  Glue that carries a context through a case shares variables
+across the case's two branches: OR distributed over a context (`orDist`,
+`Ski/Sigma.lean`) does.  An additively affine realizer (`AffA`,
 `Ski/Stratum.lean`) may do so, and there `S` copies the shared argument into
 both continuations.
 
-**The translation** (`trA`) is `trS` except at a case.  The variables
-the two branches share are threaded through the case: the case selects a
+**The translation** (`trA`) is `trS` except at a case.  Every variable that
+occurs in either branch is threaded through the case: the case selects a
 continuation, and the continuation receives them.
 
   `case s f g`  ↦  `s (λ a ȳ. f a) (λ a ȳ. g a) ȳ`

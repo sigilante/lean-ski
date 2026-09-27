@@ -28,7 +28,8 @@ glue needs no constants.
 **The glue** is the realizer transformations the algebra uses:
 - composition: pairing, injections, threshold's take and skip, and the whole
   prover composition `compose p` of a plan, as a function of its witnesses;
-- elimination: projections, case, commutation of `∨`, and threshold
+- elimination: projections, case, commutation of `∨`, `∨` distributed over
+  a context, and threshold
   weakening `thr (k + 1) φs ⇒ thr k φs`, a fold of cases.
 
 **The theorem** (`glue_stratum1`): every glue term is in stratum 1, that is
@@ -38,11 +39,17 @@ there.  A stratum-1 term's call-by-name reductions are shorter than its
 additive size (`Stratum1.source_bound`), and its compiled term behaves at
 its type within its combinator count (`Stratum1.compiled_bound`).
 
+**The additive rule.**  Most of this glue is affine even under the raw
+count.  OR distributed over a context (`orDist`) is not: the context appears
+in both branches of a case, and only the additive count puts it in stratum 1
+(`orDist_needs_additive`).
+
 **What is not glue.**  Products here are eliminated by projections.  A term
 that uses both halves of one pair variable, `λp. (snd p, fst p)`, mentions
-`p` twice.  Under call-by-name it evaluates the pair twice, so it is
-contraction, in stratum 2.  The algebra's composition never needs it.  Its
-elimination glue projects one component or cases on an injection.
+`p` twice, so the census puts it in stratum 2 (`swapT_not_affA`).  The glue
+proved here is the list in `glue_stratum1`.  AND-commutation and any other
+use of both conjuncts would need an affine pair eliminator (a split), which
+the realizer language does not have.
 -/
 
 namespace Rz
@@ -320,6 +327,27 @@ theorem thrWeaken_s1 : ∀ (k : Nat) (φs : List SF),
         rw [acnt_closed ih.1 (by omega)]
         decide
 
+/-- **OR distributes over a context**, `D ⇒ A ∨ B ⇒ (A ∧ D) ∨ (B ∧ D)`:
+    `λ d s. case s (λ a. inl (a, d)) (λ b. inr (b, d))`.  The context `d` is
+    shared by both branches, and only one runs. -/
+def orDist : Tm Empty :=
+  .lam (.lam (.case (.var 0) (.lam (.inl (.pair (.var 0) (.var 2))))
+    (.lam (.inr (.pair (.var 0) (.var 2))))))
+
+theorem orDist_s1 (δ φ ψ : SF) :
+    Stratum1 orDist (.arr (den δ) (.arr (den (.or φ ψ)) (den (.or (.and φ δ) (.and ψ δ))))) :=
+  ⟨⟨show 0 < 0 + 1 + 1 by omega,
+    ⟨show 0 < 0 + 1 + 1 + 1 by omega, show 2 < 0 + 1 + 1 + 1 by omega⟩,
+    ⟨show 0 < 0 + 1 + 1 + 1 by omega, show 2 < 0 + 1 + 1 + 1 by omega⟩⟩,
+   fun _ => .lam (.lam (.case (.var _ 0) (.lam (.inl (.pair (.var _ 0) (.var _ 2))))
+     (.lam (.inr (.pair (.var _ 0) (.var _ 2)))))),
+   ⟨by decide, by decide, trivial, ⟨by decide, trivial, trivial⟩, ⟨by decide, trivial, trivial⟩⟩⟩
+
+/-- **The additive rule is needed for glue**: distributing OR over a context
+    mentions the context in both branches, so the raw count scores it as
+    contraction, while it is in stratum 1. -/
+theorem orDist_needs_additive : ¬ Tm.Aff orDist := fun h => absurd h.1 (by decide)
+
 -- ---------------------------------------------------------------------------
 -- The prover's composition
 -- ---------------------------------------------------------------------------
@@ -491,8 +519,9 @@ theorem thr_compose_s1 (k : Nat) {φs : List SF} (os : OPlans φs) (h : k ≤ os
 -- ---------------------------------------------------------------------------
 
 /-- **The glue of the Σ-protocol algebra lies in stratum 1**: AND, OR and
-    threshold introduction, projection, case, commutation of OR, threshold
-    weakening, and the prover's composition of every plan, each at its type. -/
+    threshold introduction, projection, case, commutation of OR, OR
+    distributed over a context, threshold weakening, and the prover's
+    composition of every plan, each at its type. -/
 theorem glue_stratum1 :
     Stratum1 idT (den .top) ∧
     (∀ φ ψ, Stratum1 andI (.arr (den φ) (.arr (den ψ) (den (.and φ ψ))))) ∧
@@ -503,18 +532,22 @@ theorem glue_stratum1 :
     (∀ φ ψ C, Stratum1 caseE
       (.arr (den (.or φ ψ)) (.arr (.arr (den φ) C) (.arr (.arr (den ψ) C) C)))) ∧
     (∀ φ ψ, Stratum1 orComm (.arr (den (.or φ ψ)) (den (.or ψ φ)))) ∧
+    (∀ δ φ ψ, Stratum1 orDist
+      (.arr (den δ) (.arr (den (.or φ ψ)) (den (.or (.and φ δ) (.and ψ δ)))))) ∧
     (∀ φ k φs, Stratum1 thrTake
       (.arr (den φ) (.arr (den (thrF k φs)) (den (thrF (k + 1) (φ :: φs)))))) ∧
     (∀ φ k φs, Stratum1 thrSkip (.arr (den (thrF (k + 1) φs)) (den (thrF (k + 1) (φ :: φs))))) ∧
     (∀ k φs, Stratum1 (thrWeaken k φs) (.arr (den (thrF (k + 1) φs)) (den (thrF k φs)))) ∧
     (∀ φ (p : Plan φ), Stratum1 p.compose (arrowsDesc p.nA p.slotTy (den φ))) :=
-  ⟨idT_s1, andI_s1, fstE_s1, sndE_s1, inlI_s1, inrI_s1, caseE_s1, orComm_s1, thrTake_s1,
+  ⟨idT_s1, andI_s1, fstE_s1, sndE_s1, inlI_s1, inrI_s1, caseE_s1, orComm_s1, orDist_s1, thrTake_s1,
     thrSkip_s1, thrWeaken_s1, fun _ p => p.compose_s1⟩
 
 /-- **The stratum-1 bounds, for the glue**: a glue term, alone or applied to
-    other stratum-1 terms, takes fewer call-by-name steps than its additive
-    size, and its compiled term behaves at its type within its combinator
-    count. -/
+    other glue, takes fewer call-by-name steps than its additive size, and its
+    compiled term (the threaded compilation `compiledA`) behaves at its type
+    within its combinator count.  No closed constant-free term has a base type,
+    so witnesses enter as the arguments of the compiled term, where `Q`
+    charges their own costs. -/
 theorem glue_bounds {t : Tm Empty} {A : Ty SBase} (h : Stratum1 t A) :
     (∀ n u, WHN n t u → n < asz t) ∧
     Q (gty A) (compiledA Empty.elim t) (compiledA Empty.elim t).leaves :=
