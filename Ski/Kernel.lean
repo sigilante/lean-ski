@@ -322,7 +322,7 @@ def applySrc : Src :=
 def applyU : Term := toTerm (compRec 0 [1, 2] tb.applySrc)
 
 /-- **The table's kit, compiled from source.** -/
-def kit : Kit where
+@[reducible] def kit : Kit where
   n := tb.n
   Qs := tb.Qs
   QCons := tb.QCons

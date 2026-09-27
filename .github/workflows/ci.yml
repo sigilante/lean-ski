@@ -4,7 +4,7 @@ on:
     branches: [master]
   pull_request:
 jobs:
-  build:
+  core:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,3 +19,38 @@ jobs:
         run: ./scripts/gates.sh
       - name: Conformance against the reference reducer's counts
         run: lake exe main
+  # The front end's coverage of SKIjack, checked in the kernel: its own
+  # project, built one module at a time.  The largest module, the checker's
+  # verdict on scripts/coverage.ski (a unification skijack never finishes,
+  # refused at its recursion limit), peaks at about 12.6 GB; the standard
+  # runner for a public repository has 16 GB.
+  coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install elan
+        run: |
+          curl -sSfL https://github.com/leanprover/elan/releases/latest/download/elan-x86_64-unknown-linux-gnu.tar.gz | tar xz
+          ./elan-init -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Build the coverage project (elaborates its audit manifest)
+        run: ./scripts/build-coverage.sh
+  # The zero-knowledge layer: traversability and fingerprints, over Pure
+  # Nock and Mathlib.  Mathlib comes from its cache.
+  zk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install elan
+        run: |
+          curl -sSfL https://github.com/leanprover/elan/releases/latest/download/elan-x86_64-unknown-linux-gnu.tar.gz | tar xz
+          ./elan-init -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Fetch Mathlib's cache
+        working-directory: zk
+        run: lake exe cache get
+      - name: Build the zk project (elaborates its audit manifest)
+        working-directory: zk
+        run: lake build

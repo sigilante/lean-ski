@@ -1,7 +1,8 @@
 # lean-ski: the plan
 
-> **Status (2026-09-25).** L0 and L1 built and audited: the calculus, the
-> fuel interpreter, trace certificates, the compiled Scott constructors,
+> **Status (2026-09-27).** L0, L1 and L2 built and audited: the calculus, the
+> fuel interpreter, budget-exact trace certificates, the write-once heap
+> machine, the compiled Scott constructors,
 > and conformance against `skijack` on six SKIlark programs. §2 items 1–6
 > are built over any quotation table, with the divergence biconditional,
 > and checked for two tables: the kernel with no static quotations and the
@@ -55,8 +56,37 @@ proves, at a fraction of the length.
 `step?` on consecutive pairs; `certified_sound` is what a verifier relies on,
 `certified_complete` says every reduction has a certificate, and
 `traceF_certified` says the interpreter's own trace is one. A row per
-contraction, each checked by the same three rules: this is the witness
-shape of §4.
+contraction, each checked by the same three rules. A proof system hides a
+trace's contents and not its length, and the contraction count depends on
+the witness, so the certificate a prover commits to is budget-exact:
+`certifiedPad` has exactly `k` rows for a public budget `k`, one per
+contraction and then one per repeated no-redex check. `certified_pad_iff`:
+such a certificate exists exactly when `evalF k` returns the value;
+`certifiedPad_unique`: it is unique; `certified_pad_budgets`: a run of `s`
+contractions is certified at exactly the budgets `k ≥ s + 1`.
+
+**L2, the prover's representation** (`Ski/Heap.lean`). A Krivine-style
+machine over a write-once heap: cells are the combinators, applications and
+argument-stack cells, each written at the allocation counter and never
+rewritten (`mstep_append`). An application at the head unwinds, pushing one
+stack cell; `I` and `K` pop their arguments; `S` allocates exactly three
+cells. Every transition is an unwind, which keeps the decoded term and
+shrinks the head, or a contraction, which is `step?` (`mstep_some`); the
+machine stops only at a weak head normal form (`mstep_none`). Loaded with a
+term it halts on `v` exactly when the term evaluates to `v`
+(`machine_eval`), after as many contractions as `runF` counts
+(`machine_count`). Nothing is overwritten, so no work is shared and the
+contraction counts are L1's; graph reduction with update is left open.
+
+**No combinator quotes live terms** (`Ski/Lambda.lean`, `Ski/Quote.lean`).
+The untyped λ-calculus with de Bruijn indices, parallel substitution with
+its fusion lemmas, Church–Rosser by complete development and a sound
+normalizer; combinators translate into it with weak reduction becoming
+β-reduction, and `S K X` reduces to the identity for every `X`. So `Q (S K
+S)` and `Q (S K K)` share a reduct, and `no_quote` follows: no closed term
+reduces `Q M` to the encoding of `M` over `S | K | I | App` for every `M`,
+since the encodings of `S K S` and `S K K` have different normal forms,
+computed by the kernel. This is Proposition 3.1 of the metacircular paper.
 
 **The compiled constructors** (`Ski/Scott.lean`, generated). `Zero` is
 `K`; `Suc` is eight atoms; `Push` twenty-two. Each elimination lemma is the
@@ -369,7 +399,7 @@ bound source runs, and a general proof needs a measure on source terms
 that η-steps decrease.
 
 **The front end's coverage of SKIjack** (`Ski/Front.lean`,
-`Ski/Coverage.lean`). The front end reads all of SKIjack that `skijack`
+`coverage/`). The front end reads all of SKIjack that `skijack`
 compiles, in both lexicons:
 
 - level 0: types, signatures, equations, definitions, cores (with
@@ -390,7 +420,9 @@ compiles, in both lexicons:
   `EQ5`. Data join the program in declaration order, so level 0 may name
   them and later data may inline what names them.
 
-`Ski/Coverage.lean` (generated) checks in the kernel that the front end
+The coverage project `coverage/` (generated; its own Lake project, built one
+module at a time by `scripts/build-coverage.sh`, with a generated audit)
+checks in the kernel that the front end
 compiles, in both lexicons, a coverage file, a macro file, a generation
 file, a level-1 file and all seventeen corpus files `skijack` accepts to
 exactly the terms `skijack` emits (`agrees_termOf`,
@@ -425,7 +457,7 @@ Python allocates, so sharing and every flag update are the Python's.
 Each walk is bounded by the Python's recursion limit, 1000; the Python's
 Stage B recurses without end on `scripts/coverage.ski` (even at a limit
 of a million), and the bound refuses it as the Python's `RecursionError`
-does, in the same group (`arith.plus`). `Ski/Coverage.lean` checks, for
+does, in the same group (`arith.plus`). The coverage project checks, for
 every file and lexicon, that the front end's checker passes exactly where
 `skijack`'s does (`*_checks`, `*_check_refuses`), and thirty programs,
 twenty-two the checker refuses (`refuses_checked_*`, sixteen at Stage A
@@ -495,8 +527,10 @@ Three statements, in rising strength, all about the same three rules.
    and new languages are data.
 
 The concrete route: (a) L2 here, the term representation a prover
-consumes — content-addressed nodes with a fingerprint, as Zorp's
-`NockPure.Fingerprint` does for nouns; (b) the traversability theorem;
+consumes — the write-once heap machine is built (§1); its content addresses
+are Pure Nock's noun fingerprints, in the `zk/` project, which depends on
+Pure Nock and so on Mathlib, keeping the core free of both; (b) the
+traversability theorem, in `zk/`;
 (c) a first proof of execution on an existing stack (RISC Zero / SP1
 running `runF`'s C extraction), which measures cost per contraction;
 (d) the custom AIR, with the K-free `lean-ski` definition as its

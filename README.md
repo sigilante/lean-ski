@@ -19,13 +19,15 @@ appears, or if a cited name is renamed. There is no `native_decide` and no
 ## Reproducing
 
 Requires [`elan`](https://github.com/leanprover/elan); the toolchain is pinned
-by `lean-toolchain` (Lean 4.28.0). No Mathlib, no dependencies.
+by `lean-toolchain` (Lean 4.31.0, as Pure Nock's). The core has no Mathlib and no
+dependencies; the coverage project depends on the core only.
 
 ```sh
 rm -rf .lake/build && lake build     # elaborates the audit manifest
 ./scripts/gates.sh                   # no sorry, no axioms, no native_decide, no panic!
 lake exe main                        # the Lean interpreter's contraction counts
                                      # against the reference reducer's, per program
+./scripts/build-coverage.sh          # the coverage project: every file checked against skijack
 ```
 
 `lake exe main` prints one line per corpus program, e.g.
@@ -45,7 +47,10 @@ three corpus programs in both forms, and `3 sumto` compiled.
 |---|---|
 | `Ski/Basic.lean` | `Term`, `Whnf`, `Step` (one congruence rule, `left`), `Step.det`, `progress`, `Steps`, `Eval`, `Eval.deterministic`, `Diverges` |
 | `Ski/Fuel.lean` | `step?`, `iter`, `evalF`, `runF`; `step?_iff`, `evalF_sound`, `evalF_complete`, `evalF_mono`, `diverges_iff_fuel` |
-| `Ski/Trace.lean` | `certified` (a verifier's check of a trace), `certified_sound`, `certified_complete`, `traceF` and `traceF_certified` |
+| `Ski/Trace.lean` | `certified` (a verifier's check of a trace), `certified_sound`, `certified_complete`, `traceF` and `traceF_certified`; the budget-exact certificate a prover commits to, `certifiedPad`, with `certified_pad_iff`, `certifiedPad_unique` and `certified_pad_budgets` |
+| `Ski/Heap.lean` | L2: a write-once heap machine (unwind, and `S` allocating three cells); `mstep_some`, `mstep_none`, `mstep_append`, `machine_eval` (it computes exactly `Eval`) and `machine_count` (with `runF`'s contraction count) |
+| `Ski/Lambda.lean` | the untyped λ-calculus with de Bruijn indices: substitution fusion, Church–Rosser by complete development (`lsteps_confluent`), a sound normalizer |
+| `Ski/Quote.lean` | Proposition 3.1 of the metacircular paper: no combinator quotes every live term (`no_quote`), through the λ-translation in which `S K X` is the identity |
 | `Ski/Weak.lean` | weak reduction (a contraction anywhere); `standardization`, `eval_back`, `church_rosser`; `par_step_le` (a head step costs a parallel reduct at most one) |
 | `Ski/Abs.lean` | bracket abstraction as `skijack` does it (`abs`, `absN`), `abs_beta`, `absN_beta`, `abs_subst`; β for all formals under any substitution, `absN_beta_subst` and `absN_beta_close` |
 | `Ski/Compile.lean` | the compilation scheme: `Src`, λ-lifting (`comp`), `compDef`, `compRec` with `Y`, Scott constructors (`ctorO`) |
@@ -70,7 +75,7 @@ three corpus programs in both forms, and `3 sumto` compiled.
 | `Ski/SourceRun.lean` | every `Run` derivation is a run of the source program (`run_source`) |
 | `Ski/Adequacy.lean` | the compiled program, the source program and `Run` agree: `exact_iff`, `diverges_iff_source` |
 | `Ski/SourceTables.lean` | the four compiled sources meet adequacy's hypotheses; `3 sumto` reaches `[6]` at the source, `[dup i] dup i` nothing |
-| `Ski/Coverage.lean` | generated: SKIjack files (level 0, macros, generation, level 1, the corpus) in both lexicons compiled to `skijack`'s terms, the simulation applying to each, and programs `skijack` refuses refused |
+| `coverage/` | a separate Lake project, generated: SKIjack files (level 0, macros, generation, level 1, the corpus) in both lexicons compiled to `skijack`'s terms, the simulation applying to each, the checker passing exactly where `skijack`'s does, and programs `skijack` refuses refused; built one module at a time by `scripts/build-coverage.sh` |
 | `Ski/Total.lean` | over a table with no static quotations nothing diverges: `apply_total`, `program_converges` |
 | `Ski/Table.lean` | generated: the tables `NoQuot`, `CorpusTable`, `LoopTable` and `SumTable` (`3 sumto`) as data, checked by `rfl` against `skijack`'s terms (`table_*`) and valid (`table_valid`), their laws from `Ski/Laws.lean`; each program's term pinned to the kernel's compilation of its words (`c*_eq`), the corpus rows as those programs run, and `3 sumto`'s derivation (`cs_run`) |
 | `Ski/Examples.lean` | `1 2 + dup +`, `3 [dup +] i`, `1 2 over` end to end from `skijack`'s terms; `cloop_diverges`: the compiled `[dup i] dup i` diverges; `us_six`: `3 sumto`, through Joy's `y`, decodes to `[6]` |

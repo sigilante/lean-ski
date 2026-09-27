@@ -1,10 +1,13 @@
 import Ski.Basic
 import Ski.Fuel
 import Ski.Trace
+import Ski.Heap
 import Ski.Weak
+import Ski.Lambda
 import Ski.Open
 import Ski.Abs
 import Ski.Compile
+import Ski.Quote
 import Ski.Front
 import Ski.Check
 import Ski.TypeCheck
@@ -26,7 +29,6 @@ import Ski.SourceJoy
 import Ski.SourceRun
 import Ski.Adequacy
 import Ski.SourceTables
-import Ski.Coverage
 import Ski.Corpus
 import Ski.Table
 import Ski.Examples

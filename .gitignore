@@ -1,3 +1,5 @@
 .lake/
 *.olean
 .DS_Store
+coverage/.lake/
+zk/.lake/

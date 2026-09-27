@@ -2,11 +2,16 @@ import Lean
 import Ski.Basic
 import Ski.Fuel
 import Ski.Trace
+import Ski.Heap
 import Ski.Weak
+import Ski.Lambda
+import Ski.Quote
 import Ski.Open
 import Ski.Abs
 import Ski.Compile
 import Ski.Front
+import Ski.Check
+import Ski.TypeCheck
 import Ski.Source
 import Ski.Kernel
 import Ski.Laws
@@ -17,7 +22,6 @@ import Ski.SourceJoy
 import Ski.SourceRun
 import Ski.Adequacy
 import Ski.SourceTables
-import Ski.Coverage
 import Ski.Scott
 import Ski.Words
 import Ski.Decode
@@ -50,17 +54,17 @@ def allowed : List Name := [``propext, ``Quot.sound]
 
 private def auditAgainst (allowed : List Name) (ids : Array Ident) : CommandElabM Unit := do
   for id in ids do
-    let n ← liftCoreM <| realizeGlobalConstNoOverload id
-    let axs ← liftCoreM <| collectAxioms n
-    let bad := axs.filter (fun a => !allowed.contains a)
-    unless bad.isEmpty do
-      throwError
-        "AUDIT FAILURE for {n}\n  \
-         disallowed axioms: {bad.toList}\n  \
-         full footprint:    {axs.toList}\n  \
-         allowed here:      {allowed}\n\
-         If this is an intended change, update Ski/Audit.lean deliberately — \
-         do not widen the allow-list to make a build pass."
+  let n ← liftCoreM <| realizeGlobalConstNoOverload id
+  let axs ← liftCoreM <| collectAxioms n
+  let bad := axs.filter (fun a => !allowed.contains a)
+  unless bad.isEmpty do
+  throwError
+  "AUDIT FAILURE for {n}\n \
+  disallowed axioms: {bad.toList}\n \
+  full footprint: {axs.toList}\n \
+  allowed here: {allowed}\n\
+  If this is an intended change, update Ski/Audit.lean deliberately — \
+  do not widen the allow-list to make a build pass."
 
 /-- Fails the build unless every named constant's axiom footprint is contained
     in `{propext, Quot.sound}`.  Also catches `sorryAx`. -/
@@ -80,6 +84,8 @@ open Ski.Audit
 
 -- L1: trace certificates
 #audit_clean certified_sound certified_complete traceF_certified
+  padStep_of_some padStep_of_none certifiedPad_stutter evalF_pad pad_of_evalF
+  certified_pad_iff certifiedPad_sound certifiedPad_unique evalF_of_runF certified_pad_budgets
 
 -- Weak reduction: standardization, normalization transfer, confluence
 #audit_clean WSteps.single WSteps.trans WSteps.left WSteps.right WSteps.app Step.weak Steps.weak
@@ -230,66 +236,32 @@ open Ski.Audit
   kernel_fixed corpus_fixed loop_fixed sum_fixed prog_wPop prog_Push prog_RVal genv_kernel
   wPop_source wPop_push
 
--- The front end's coverage of SKIjack (level 0, macros, generated forms, level 1): files in
--- both lexicons agree with skijack term for term and the simulation applies to them;
--- programs skijack refuses are refused
-#audit_clean coverage_agrees coverage_unicode_agrees coverage_fixed sec1Nat_agrees
-  sec1Nat_unicode_agrees sec1Nat_fixed kernelEvents_agrees kernelEvents_unicode_agrees
-  kernelEvents_fixed refuses_bare_number refuses_qualified_name refuses_unresolved_name
-  refuses_mutual_recursion refuses_defined_twice refuses_one_item_cell refuses_incomplete_case
-  refuses_unicode_in_ascii refuses_ascii_in_unicode asciiDigits_agrees
-  asciiDigits_unicode_agrees asciiDigits_fixed Front.FEqn.compileF_eq Front.takeEntry_lookup
+-- The front end's agreement check: what `agrees` establishes (the coverage itself, every
+-- file checked against skijack, is the separate project coverage/)
+#audit_clean Front.FEqn.compileF_eq Front.takeEntry_lookup
   Front.agreeEnv_lookup Front.agreeEnv_lookup_rev Front.agrees_termOf Front.agrees_termOf_rev
   Front.lookup_cons_self Front.lookup_cons_ne Front.agreeEnv_cons
-  macros_agrees macros_unicode_agrees macros_fixed refuses_macro_unapplied refuses_macro_too_few
-  refuses_macro_capturing refuses_macro_no_fixpoint refuses_too_deep
-  generate_agrees generate_unicode_agrees generate_fixed sec2C_agrees sec2C_unicode_agrees
-  sec2C_fixed sec3Swap_agrees sec3Swap_unicode_agrees sec3Swap_fixed interpT3_agrees
-  interpT3_unicode_agrees interpT3_fixed interpWhnff_agrees interpWhnff_unicode_agrees
-  interpWhnff_fixed interpWhnffWritten_agrees interpWhnffWritten_unicode_agrees
-  interpWhnffWritten_fixed interpWhnffWrittenLoop_agrees interpWhnffWrittenLoop_unicode_agrees
-  interpWhnffWrittenLoop_fixed scryWfn_agrees scryWfn_unicode_agrees scryWfn_fixed
-  refuses_gen_two_apps refuses_gen_non_leaf refuses_gen_two_objects refuses_gen_no_outcome
-  refuses_gen_ctor_count refuses_gen_loop1_only refuses_gen_no_leaf_result refuses_gen_no_spare
-  refuses_corpus_miscForms_ascii refuses_corpus_miscForms_unicode refuses_corpus_sec4Interp_ascii
-  refuses_corpus_sec4Interp_unicode refuses_corpus_sec5Lookup_ascii
-  refuses_corpus_sec5Lookup_unicode refuses_corpus_syntax3Resolver_ascii
-  refuses_corpus_syntax3Resolver_unicode
-  level1_agrees level1_unicode_agrees level1_fixed level1Flipa_agrees level1Flipa_unicode_agrees
-  level1Flipa_fixed parseChars_agrees parseChars_unicode_agrees parseChars_fixed scryBlock_agrees
-  scryBlock_unicode_agrees scryBlock_fixed scryNs_agrees scryNs_unicode_agrees scryNs_fixed
-  scryWfq_agrees scryWfq_unicode_agrees scryWfq_fixed tower_agrees tower_unicode_agrees
-  tower_fixed wordsToNumbers_agrees wordsToNumbers_unicode_agrees wordsToNumbers_fixed
-  refuses_l1_no_object refuses_l1_nested_fuel refuses_l1_not_core refuses_l1_no_default
-  refuses_l1_param_count refuses_l1_no_loop refuses_l1_no_scry_leaf refuses_l1_bad_segment
-  refuses_l1_payload refuses_l1_no_answer refuses_l1_no_eq5 refuses_l1_fact_not_quote
-  refuses_l1_no_leaf refuses_l1_forward_datum refuses_l1_quote_in_equation
-  refuses_l1_bad_path_type refuses_type_twice refuses_core_twice refuses_core_equation_twice
 
 -- skijack's checker: Stage A and Stage B, ported; where it passes the checked compilation
--- is the unchecked one, and it passes exactly where skijack's does
+-- is the unchecked one (that it passes exactly where skijack's does is coverage/)
 #audit_clean Front.checkedWith_of_pass Front.checkedWith_of_fail
-  coverage_check_refuses coverage_unicode_check_refuses macros_check_refuses
-  macros_unicode_check_refuses level1_checks level1_unicode_checks generate_check_refuses
-  generate_unicode_check_refuses sec1Nat_checks sec1Nat_unicode_checks kernelEvents_checks
-  kernelEvents_unicode_checks asciiDigits_checks asciiDigits_unicode_checks sec2C_checks
-  sec2C_unicode_checks sec3Swap_checks sec3Swap_unicode_checks interpT3_checks
-  interpT3_unicode_checks interpWhnff_checks interpWhnff_unicode_checks interpWhnffWritten_checks
-  interpWhnffWritten_unicode_checks interpWhnffWrittenLoop_checks
-  interpWhnffWrittenLoop_unicode_checks scryWfn_checks scryWfn_unicode_checks level1Flipa_checks
-  level1Flipa_unicode_checks parseChars_checks parseChars_unicode_checks scryBlock_checks
-  scryBlock_unicode_checks scryNs_checks scryNs_unicode_checks scryWfq_checks
-  scryWfq_unicode_checks tower_checks tower_unicode_checks wordsToNumbers_checks
-  wordsToNumbers_unicode_checks refuses_checked_a_type_equation_twice
-  refuses_checked_a_macro_twice refuses_checked_a_case_in_macro refuses_checked_a_eq_lambda
-  refuses_checked_a_eq_partial_ctor refuses_checked_a_eq_combinator refuses_checked_a_eq_equation
-  refuses_checked_a_eq_core refuses_checked_a_eq_macro refuses_checked_a_quote_binder
-  refuses_checked_a_quote_arity refuses_checked_a_step_app refuses_checked_a_step_binders
-  refuses_checked_a_step_order refuses_checked_a_loop_binders refuses_checked_a_segment_arity
-  refuses_checked_b_function_as_datum refuses_checked_b_signature refuses_checked_b_eq_data
-  refuses_checked_b_nominal refuses_checked_b_pick_function refuses_checked_b_undeclared_field
-  checks_omega checks_signature_ok checks_datum_applied checks_cells_and_picks checks_lists
-  checks_case_typed checks_eq_on_data checks_cell_applied
+
+-- L2: the write-once heap machine refines L1 contraction for contraction
+#audit_clean Mach.get_append Mach.termAt_append Mach.termAt_mono Mach.stackAt_append
+  Mach.stackAt_mono Mach.getElem?_concat Mach.termAt_cell Mach.stackAt_cell Mach.apps_cons
+  Mach.step?_apps Mach.decode_eq Mach.decode_of Mach.length_concat Mach.mstep_none
+  Mach.termAt_grow Mach.stackAt_grow Mach.mstep_some Mach.mrunC_sound Mach.mrunC_of_reach
+  Mach.reach_of_evalF Mach.build_spec Mach.decode_load Mach.machine_eval Mach.machine_count
+  Mach.mstep_append
+
+-- The λ-calculus: substitution fusion, Church–Rosser by complete development, a sound
+-- normalizer; and Proposition 3.1 of the metacircular paper: no combinator quotes live terms
+#audit_clean Lam.ren_ren Lam.sub_ren Lam.ren_sub Lam.sub_sub Lam.sub_var Lam.sub_beta1
+  Lam.ren_beta1 Lam.LPar.refl Lam.LStep.par Lam.LPar.steps Lam.LPar.sub Lam.LPar.dev
+  Lam.lpar_diamond Lam.lpars_confluent Lam.lsteps_confluent Lam.LNormal.steps_eq
+  Lam.normal_unique Lam.lstep?_sound Lam.lstep?_none Lam.lnf_sound
+  tr_sub tr_ren tr_S tr_K tr_I tr_wstep tr_wsteps tr_SK no_quote_of_separated
+  quote_separated no_quote
 
 -- The source semantics, run: normal-order proof search, the words' meaning from their
 -- source, every Run derivation a source run, and adequacy for the four compiled sources
