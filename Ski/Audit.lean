@@ -13,6 +13,8 @@ import Ski.Realize
 import Ski.Tait
 import Ski.Stratum
 import Ski.Stratum2
+import Ski.Stratum2C
+import Ski.BridgeA
 import Ski.Stratum3
 import Ski.Sigma
 import Ski.Census
@@ -387,6 +389,19 @@ open Ski.Audit
   Rz.WHN.typed Rz.WHN.closed Rz.evaluates_inj Rz.closedAt_twoT Rz.closedAt_togT
   Rz.closedAt_towerT Rz.closedAt_evalT Rz.evalT_terminates Rz.two_pow_pos' Rz.lt_two_pow'
   Rz.two_pow_lt Rz.expT_lt Rz.tw_add Rz.pow_le_tw Rz.tw_beats_linear Rz.no_elementary_bound
+
+-- The threaded compilation converges: convergence and cost speak of the same compiled term
+#audit_clean Rz.lamsS_occurs_out Rz.lamsS_occurs_in Rz.brS_closed Rz.brS_trA_closed
+  Rz.overrideC_brS Rz.EnvOK.upd_depth Rz.brS_beta Rz.semA Rz.compiledA_RS Rz.compiledA_converges
+  Rz.compiledA_apply_converges Rz.glueA_converges
+
+-- Stratum 2 on the compiled trace: the tower's lower bound, under both compilations
+#audit_clean Rz.LBS.back Rz.LBS.back_succ Whnf.app_fun Rz.head_first Rz.LBS_case
+  Rz.compiled_togT Rz.compiledA_togT Rz.compiled_twoT Rz.compiledA_twoT Rz.LBS_togC Rz.LBS_twoC
+  Rz.compiled_towerT Rz.compiledA_towerT Rz.compiled_trueT Rz.compiledA_trueT Rz.compiled_evalT
+  Rz.compiledA_evalT Rz.LBS_towerC Rz.evalC_lower Rz.compiled_evalT_lower
+  Rz.compiledA_evalT_lower Rz.evalC_converges Rz.leaves_towerC Rz.leaves_evalC
+  Rz.compiled_no_elementary_bound
 
 -- Stratum 3: the fixed point breaks strong normalization; Y ⬝ I diverges, compiled
 #audit_clean Ycomb_eq iI_steps Bterm_steps chainT_step Y_I_chain chainT_no_whnf Y_I_diverges
