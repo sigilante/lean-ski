@@ -417,7 +417,7 @@ open Ski.Audit
   Rz.inrI_s1 Rz.caseE_s1 Rz.splitE_s1 Rz.andComm_s1 Rz.orComm_s1 Rz.thrTake_s1 Rz.thrSkip_s1 Rz.thrWeaken_s1
   Rz.Plan.build_typed Rz.Plan.build_closed Rz.Plan.build_acnt Rz.Plan.build_affA
   Rz.acnt_lams Rz.closedAt_lams Rz.lams_typed Rz.lams_affA Rz.Plan.compose_s1
-  Rz.thr_compose_s1 Rz.glue_stratum1 Rz.glue_bounds Rz.swapT_not_affA Rz.orDist_s1 Rz.orDist_needs_additive Rz.thrPlan_extract
+  Rz.thr_compose_s1 Rz.glue_stratum1 Rz.glue_bounds Rz.swapT_not_affA Rz.orDist_s1 Rz.orDist_needs_additive Rz.intros_raw_affine Rz.thrPlan_extract
 
 -- The census: the strata decided by the additive count, each with its theorem
 #audit_clean Rz.affB_iff Rz.census_one_iff Rz.census_two_iff Rz.census_three_iff Rz.hasFix_ren

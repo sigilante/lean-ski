@@ -192,7 +192,8 @@ theorem unpackT_beta (p f : Term) : WSteps (unpackT ⬝ p ⬝ f) (p ⬝ f) := la
 -- ---------------------------------------------------------------------------
 
 /-- Typing of closed proofs: the Hilbert axioms for `S`, `K`, `I`, modus
-    ponens, the Scott constants, and an atom's accepted witness. -/
+    ponens, the Scott constants (split is `unpackT` at a product), and an
+    atom's accepted witness. -/
 inductive Types : Term → Form → Prop
   | S {A B C : Form} :
       Types S (.imp (.imp A (.imp B C)) (.imp (.imp A B) (.imp A C)))
@@ -206,6 +207,8 @@ inductive Types : Term → Form → Prop
   | inr {A B : Form} : Types inrT (.imp B (.or A B))
   | case {A B C : Form} :
       Types caseT (.imp (.or A B) (.imp (.imp A C) (.imp (.imp B C) C)))
+  | split {A B C : Form} :
+      Types unpackT (.imp (.and A B) (.imp (.imp A (.imp B C)) C))
   | pack {φ : Term → Form} (w : Term) : Types (pairT ⬝ w) (.imp (φ w) (.ex φ))
   | witness {V x w : Term} : WSteps (V ⬝ x ⬝ w) K → Types w (.atom V x)
   | unpack {φ : Term → Form} {C : Form} :
@@ -254,6 +257,13 @@ theorem soundness {t : Term} {A : Form} (h : Types t A) : Real A t := by
       cases hr with
       | intro b hb =>
         exact Real.back C ((caseT_beta s f g).trans (hb.1 f g)) (hg b hb.2)
+  | @split A B C =>
+    intro p hp f hf
+    cases hp with
+    | intro a hp =>
+      cases hp with
+      | intro b hp =>
+        exact Real.back C ((unpackT_beta p f).trans (hp.1 f)) (hf a hp.2.1 b hp.2.2)
   | pack w => intro b hb; exact ⟨w, b, fun k => pairT_beta w b k, hb⟩
   | witness h => exact h
   | @unpack φ C =>

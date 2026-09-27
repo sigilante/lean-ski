@@ -365,6 +365,13 @@ theorem orDist_s1 (δ φ ψ : SF) :
      (.lam (.inr (.pair (.var _ 0) (.var _ 2)))))),
    ⟨by decide, by decide, trivial, ⟨by decide, trivial, trivial⟩, ⟨by decide, trivial, trivial⟩⟩⟩
 
+/-- **The introductions are affine under the raw count**: AND, OR and
+    threshold introduction need no additive rule. -/
+theorem intros_raw_affine :
+    Tm.Aff andI ∧ Tm.Aff inlI ∧ Tm.Aff inrI ∧ Tm.Aff thrTake ∧ Tm.Aff thrSkip :=
+  ⟨⟨by decide, by decide, trivial, trivial⟩, ⟨by decide, trivial⟩, ⟨by decide, trivial⟩,
+   ⟨by decide, by decide, trivial, trivial⟩, ⟨by decide, trivial⟩⟩
+
 /-- **The additive rule is needed for glue**: distributing OR over a context
     mentions the context in both branches, so the raw count scores it as
     contraction, while it is in stratum 1. -/
