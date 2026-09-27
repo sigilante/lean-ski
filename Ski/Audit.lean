@@ -13,6 +13,7 @@ import Ski.Realize
 import Ski.Tait
 import Ski.Stratum
 import Ski.Stratum2
+import Ski.Stratum3
 import Ski.Bridge
 import Ski.Cost
 import Ski.CostAdd
@@ -384,3 +385,9 @@ open Ski.Audit
   Rz.WHN.typed Rz.WHN.closed Rz.evaluates_inj Rz.closedAt_twoT Rz.closedAt_togT
   Rz.closedAt_towerT Rz.closedAt_evalT Rz.evalT_terminates Rz.two_pow_pos' Rz.lt_two_pow'
   Rz.two_pow_lt Rz.expT_lt Rz.tw_add Rz.pow_le_tw Rz.tw_beats_linear Rz.no_elementary_bound
+
+-- Stratum 3: the fixed point breaks strong normalization; Y ⬝ I diverges, compiled
+#audit_clean Ycomb_eq iI_steps Bterm_steps chainT_step Y_I_chain chainT_no_whnf Y_I_diverges
+  Rz.omegaF_typed Rz.WHF.no_lam Rz.WHF.no_const Rz.omegaF_reducts Rz.omegaF_diverges
+  Rz.fixConst_evaluates Rz.compiled_omegaF Rz.compiled_omegaF_diverges
+  Rz.compiled_omegaF_timeout Rz.compiled_fixConst_converges Rz.fixfree_evaluates

@@ -127,8 +127,13 @@ compilation threads them through the continuations (`trA`,
 realizers with contraction normalize (`strong_normalization`,
 `compiled_converges`) but admit no elementary bound. The tower `two two ⋯
 two` applied to a Boolean toggle has additive size `8k + 17` and takes at
-least `2↑↑(k+1)` call-by-name steps (`no_elementary_bound`). Still open:
-stratum 3 (`fix`) and the census.
+least `2↑↑(k+1)` call-by-name steps (`no_elementary_bound`). Stratum 3 is proved
+(`Ski/Stratum3.lean`): a typed fixed point, compiled to SKIjack's `Y`,
+breaks strong normalization. `fix (λx. x)` is typed and has no
+call-by-name normal form, and its compiled term `Y ⬝ I` diverges, timing out
+at every fuel. `fix (λx. inl c)` still evaluates, so fuel is the only
+uniform treatment. Without `fix`, typed closed realizers evaluate. Still
+open: the census.
 
 **The compiled constructors** (`Ski/Scott.lean`, generated). `Zero` is
 `K`; `Suc` is eight atoms; `Push` twenty-two. Each elimination lemma is the
