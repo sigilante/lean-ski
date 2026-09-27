@@ -139,7 +139,12 @@ the prover's composition of every plan are closed, typed and additively
 affine, so the stratum-1 bounds apply at the source and on the compiled
 term. With projections as the product's eliminator, using both halves of
 one pair variable (`λp. (snd p, fst p)`) is contraction, and not glue.
-Still open: the census.
+The census is computable and exact
+(`Ski/Census.lean`): stratum 3 if a fixed point occurs, 1 if additively
+affine, 2 otherwise. Each stratum carries its theorem in the language with
+`fix`. The additive rule is needed: `sharedT` is contraction under the raw
+count but stratum 1 under the additive one. The census of the Σ-algebra's
+glue, the tower of twos and `fix (λx. x)` is computed in the kernel.
 
 **The compiled constructors** (`Ski/Scott.lean`, generated). `Zero` is
 `K`; `Suc` is eight atoms; `Push` twenty-two. Each elimination lemma is the
