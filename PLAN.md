@@ -529,10 +529,17 @@ Three statements, in rising strength, all about the same three rules.
 The concrete route: (a) L2 here, the term representation a prover
 consumes — the write-once heap machine is built (§1); its content addresses
 are Pure Nock's noun fingerprints, in the `zk/` project, which depends on
-Pure Nock and so on Mathlib, keeping the core free of both; (b) the
-traversability theorem, in `zk/`;
-(c) a first proof of execution on an existing stack (RISC Zero / SP1
-running `runF`'s C extraction), which measures cost per contraction;
+Pure Nock and so on Mathlib, keeping the core free of both — done: distinct
+terms collide for at most `2Λ − 1` elements of any field where `2 ≠ 0`,
+BabyBear's degree-4 extension included; (b) the traversability theorem,
+in `zk/` — done: `execution_traversable` (states `S K I halt`, fanout 1)
+and `memory_traversable` (terms as nouns, fanout 2), with state–data
+separation for both;
+(c) a first proof of execution on an existing stack — done on RISC Zero
+(`bench/`), with hand ports of `runF` and the heap machine checked against
+the corpus counts in place of a C extraction. The heap machine costs 308
+cycles per contraction on `3 sumto`, and tree rewriting costs 1,469. A
+2^20-cycle segment proves in about 55 s on a CPU;
 (d) the custom AIR, with the K-free `lean-ski` definition as its
 specification and the corpus counts as its tests.
 

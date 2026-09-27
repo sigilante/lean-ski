@@ -28,6 +28,7 @@ rm -rf .lake/build && lake build     # elaborates the audit manifest
 lake exe main                        # the Lean interpreter's contraction counts
                                      # against the reference reducer's, per program
 ./scripts/build-coverage.sh          # the coverage project: every file checked against skijack
+(cd zk && lake exe cache get && lake build)   # the zero-knowledge layer, over Mathlib
 ```
 
 `lake exe main` prints one line per corpus program, e.g.
@@ -76,6 +77,8 @@ three corpus programs in both forms, and `3 sumto` compiled.
 | `Ski/Adequacy.lean` | the compiled program, the source program and `Run` agree: `exact_iff`, `diverges_iff_source` |
 | `Ski/SourceTables.lean` | the four compiled sources meet adequacy's hypotheses; `3 sumto` reaches `[6]` at the source, `[dup i] dup i` nothing |
 | `coverage/` | a separate Lake project, generated: SKIjack files (level 0, macros, generation, level 1, the corpus) in both lexicons compiled to `skijack`'s terms, the simulation applying to each, the checker passing exactly where `skijack`'s does, and programs `skijack` refuses refused; built one module at a time by `scripts/build-coverage.sh` |
+| `zk/` | a separate Lake project over the core and Pure Nock: recursively verifiable trees and traversability as Pure Nock's paper defines them; SKI execution (`execution_traversable`, states `S K I halt`) and memory (`memory_traversable`, terms as nouns) are traversable; term fingerprints collide for at most `2Λ − 1` field elements, over BabyBear and its degree-4 extension (`babyBear4_collision_card_le`); its own audit, with Pure Nock's allow-list |
+| `bench/` | the cost of proving reduction on RISC Zero: Rust ports of `runF` and the heap machine, checked against the corpus counts, measured in cycles and proving time (`bench/README.md`) |
 | `Ski/Total.lean` | over a table with no static quotations nothing diverges: `apply_total`, `program_converges` |
 | `Ski/Table.lean` | generated: the tables `NoQuot`, `CorpusTable`, `LoopTable` and `SumTable` (`3 sumto`) as data, checked by `rfl` against `skijack`'s terms (`table_*`) and valid (`table_valid`), their laws from `Ski/Laws.lean`; each program's term pinned to the kernel's compilation of its words (`c*_eq`), the corpus rows as those programs run, and `3 sumto`'s derivation (`cs_run`) |
 | `Ski/Examples.lean` | `1 2 + dup +`, `3 [dup +] i`, `1 2 over` end to end from `skijack`'s terms; `cloop_diverges`: the compiled `[dup i] dup i` diverges; `us_six`: `3 sumto`, through Joy's `y`, decodes to `[6]` |
