@@ -113,8 +113,17 @@ written as SKIjack source and compiled by `comp`, converges
 on the compiled `SKI` terms, and needs no simulation. Existential
 elimination is in: `∀` over witnesses types the eliminator's argument,
 and natural deduction with witness abstraction is sound for the compiled
-terms (`ndx_realizes`). Still open: the additive census and the step
-bound on compiled affine realizers.
+terms (`ndx_realizes`). Stratum 1 is proved at the source
+(`Ski/Stratum.lean`): under the additive count, every call-by-name step of
+an additively affine realizer shrinks its additive size. The compiled
+term's own normal-order steps are bounded too (`Ski/Cost.lean`,
+`Ski/CostAdd.lean`). A graded typing charges each combinator once, since
+bracket abstraction never duplicates a variable and a copy made by `S` goes
+where `K` discards it. So a compiled affine glue realizer applied to
+witnesses head-normalizes within its combinator count plus the witnesses'
+costs (`glue_head_bound`). For variables shared across a case's branches,
+compilation threads them through the continuations (`trA`,
+`glue_head_bound_add`). Still open: strata 2 and 3, and the census.
 
 **The compiled constructors** (`Ski/Scott.lean`, generated). `Zero` is
 `K`; `Suc` is eight atoms; `Push` twenty-two. Each elimination lemma is the

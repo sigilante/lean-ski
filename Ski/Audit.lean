@@ -11,7 +11,10 @@ import Ski.Abs
 import Ski.Transfer
 import Ski.Realize
 import Ski.Tait
+import Ski.Stratum
 import Ski.Bridge
+import Ski.Cost
+import Ski.CostAdd
 import Ski.Compile
 import Ski.Front
 import Ski.Check
@@ -296,11 +299,30 @@ open Ski.Audit
   Rz.Red.fst_pair Rz.Red.snd_pair Rz.Red.inl Rz.Red.inr Rz.Red.case Rz.fundamental
   Rz.strong_normalization Rz.omega_not_sn Rz.omega_untyped
 
+-- Stratum 1 at the source: call-by-name steps of an additively affine realizer shrink its
+-- additive size
+#audit_clean Rz.asz_pos Rz.asz_ren Rz.upr_inj Rz.acnt_ren_inj Rz.succ_inj Rz.acnt_shift
+  Rz.acnt_sub_self Rz.affA_ren Rz.affA_sub Rz.VarsBut.up Rz.asz_sub_zero Rz.asz_sub_le
+  Rz.beta1_varsBut Rz.beta1_affA Rz.WH.affA Rz.WH.asz_lt Rz.wh_bound Rz.wh_steps_lt
+
 -- The bridge: a typed realizer, written as SKIjack source and compiled by `comp`, converges
 #audit_clean Rz.Converges.back Rz.RS.back Rz.converges_whnf Rz.pairG_beta Rz.inlG_beta
   Rz.inrG_beta Rz.RS.inh_conv Rz.RS.conv Rz.RS.pair Rz.RS.inl Rz.RS.inr Rz.absN_append
   Rz.wrapLift_close Rz.comp_lam_close Rz.projS_beta Rz.EnvOK.cons Rz.sem Rz.compiled_RS
   Rz.compiled_converges Rz.compiled_apply_converges Rz.glue_converges
+
+-- The normal-order cost of compiled affine realizers: graded types, each combinator firing once
+#audit_clean StepsN.left' StepsN.trans' Rz.Q.mono Rz.Q.backN Rz.Q.back Rz.Q_prodE Rz.Q_sumE
+  Rz.Sub.sound Rz.Q.garr_app Rz.Q_K Rz.Q_I Rz.Q_S1 Rz.Q_S2 leaves_toO envsum_toO count_eq_zero
+  mem_of_count count_pos mem_false_of_count Rz.OG.sound Rz.OG.congr Rz.toO_ne_var' Rz.OG.var_inv
+  Rz.OG.app_inv Rz.Sub.garr_lin Rz.abs_OG Rz.count_abs_ne Rz.count_absN Rz.absN_OG
+  Rz.oiter_stepsN Rz.Q_pairG Rz.Q_inlG Rz.Q_inrG Src.cnt_peel Src.cnt_pos_of_occurs
+  Src.sizeOf_peel count_toO count_absN_mem count_appL count_comp_aux count_comp Src.occurs_peel
+  Rz.Src.cnt_projS Rz.Src.cnt_trS Rz.trS_peel Rz.distinct_of_nodup Rz.nodup_of_distinct
+  Rz.CtxOK.cons Rz.overrideG_self Rz.OG.var' Rz.OG.appL_vars Rz.filter_false_nil Rz.projS_occurs
+  Rz.projS_OG Rz.og_usual Rz.ogsem
+  Rz.envsum_zero Rz.leaves_close Rz.compiled_Q Rz.glue_head_bound Rz.fstPairT_typed
+  Rz.fstPairT_leaves Rz.fstPairT_bound
 
 -- The source semantics, run: normal-order proof search, the words' meaning from their
 -- source, every Run derivation a source run, and adequacy for the four compiled sources
@@ -341,3 +363,12 @@ open Ski.Audit
   CorpusTable.stat1_run CorpusTable.omega_loop CorpusTable.omega_no_run CorpusTable.omega_diverges
   LoopTable.loop_run LoopTable.loop_no_run LoopTable.cloop_diverges
   SumTable.us_six SumTable.us_exact
+
+-- The normal-order cost of additively affine realizers: shared variables threaded through
+-- each case's continuations
+#audit_clean Rz.Src.cnt_zero_of_not_occurs Rz.Src.cnt_appS Rz.Src.cnt_lamsS Rz.Src.cnt_brS
+  Rz.mem_downFrom Rz.nodup_downFrom Rz.sharedS_lt Rz.sharedS_nodup Rz.sharedS_occurs
+  Rz.not_sharedS Rz.Src.cnt_trA Rz.appS_app Rz.comp_appS Rz.lamsS_peel Rz.comp_brS
+  Rz.overrideG_ext Rz.brS_OG Rz.trA_peel Rz.og_usualA Rz.ogsemA Rz.compiledA_Q
+  Rz.glue_head_bound_add Rz.sharedT_not_aff Rz.sharedT_affA Rz.sharedT_typed
+  Rz.sharedT_leaves Rz.sharedT_bound

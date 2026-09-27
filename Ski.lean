@@ -9,6 +9,7 @@ import Ski.Abs
 import Ski.Transfer
 import Ski.Realize
 import Ski.Tait
+import Ski.Stratum
 import Ski.Compile
 import Ski.Quote
 import Ski.Front
@@ -28,6 +29,8 @@ import Ski.Total
 import Ski.Programs
 import Ski.Simulation
 import Ski.Bridge
+import Ski.Cost
+import Ski.CostAdd
 import Ski.SourceEval
 import Ski.SourceJoy
 import Ski.SourceRun
