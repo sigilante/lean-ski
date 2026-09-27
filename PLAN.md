@@ -134,9 +134,10 @@ realizers with contraction normalize (`strong_normalization`,
 two` applied to a Boolean toggle has additive size `8k + 17` and takes at
 least `2↑↑(k+1)` call-by-name steps (`no_elementary_bound`). The bound holds
 on the compiled trace too (`Ski/Stratum2C.lean`): under either compilation,
-every normal-order reduction of the compiled tower to a weak head normal
-form takes at least `2↑↑(k+1)` steps, and the compiled term has `6k + 39`
-combinators plus the witness's (`compiled_no_elementary_bound`). Stratum 3 is proved
+every normal-order reduction of the compiled tower, applied to the toggle
+and `true`, to a weak head normal form takes at least `2↑↑(k+1)` steps,
+and the compiled term has `6k + 39` combinators plus the witness's
+(`compiledA_no_elementary_bound`). Stratum 3 is proved
 (`Ski/Stratum3.lean`): a typed fixed point, compiled to SKIjack's `Y`,
 breaks strong normalization. `fix (λx. x)` is typed and has no
 call-by-name normal form, and its compiled term `Y ⬝ I` diverges, timing out

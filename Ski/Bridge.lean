@@ -7,7 +7,8 @@ open Term
 # Typed realizers compile to converging SKI terms
 
 This is the bridge from Part II's realizer language (`Ski/Tait.lean`) to the
-`SKI` term the prover runs.
+plain compiled `SKI` term.  `Ski/BridgeA.lean` covers the threaded
+compilation the prover runs.
 
 **The source.**  `trS` writes a realizer as SKIjack source (`Src`), the
 language `comp` compiles:

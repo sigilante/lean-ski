@@ -402,7 +402,8 @@ open Ski.Audit
   Rz.compiled_towerT Rz.compiledA_towerT Rz.compiled_trueT Rz.compiledA_trueT Rz.compiled_evalT
   Rz.compiledA_evalT Rz.LBS_towerC Rz.evalC_lower Rz.compiled_evalT_lower
   Rz.compiledA_evalT_lower Rz.evalC_converges Rz.leaves_towerC Rz.leaves_evalC
-  Rz.compiled_no_elementary_bound
+  Rz.compiled_no_elementary_bound Rz.compiled_evalT_converges Rz.compiledA_evalT_converges
+  Rz.compiledA_no_elementary_bound
 
 -- Stratum 3: the fixed point breaks strong normalization; Y ⬝ I diverges, compiled
 #audit_clean Ycomb_eq iI_steps Bterm_steps chainT_step Y_I_chain chainT_no_whnf Y_I_diverges

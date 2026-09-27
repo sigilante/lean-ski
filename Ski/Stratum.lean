@@ -14,7 +14,8 @@ appear in both branches of a case, which is what glue that carries a
 context through a case needs (`orDist`, `Ski/Sigma.lean`).
 
 **The additive size** (`asz`) of a case is one, plus its scrutinee, plus
-the larger branch.
+the larger branch.  A split is two plus its parts, one for each
+application its step builds, so the step still shrinks the size.
 
 **Reduction** (`WH`) is call-by-name to weak head normal form:
 - β, projection of a pair, split of a pair, and case of an injection, at

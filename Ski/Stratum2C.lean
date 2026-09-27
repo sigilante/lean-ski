@@ -7,10 +7,12 @@ open Term
 
 `Ski/Stratum2.lean` proves that call-by-name evaluation of the family
 `evalT k` takes at least `2↑↑(k+1)` steps.  This file proves the same bound
-for the `SKI` term the prover runs, under both compilations.
+for the compiled term, under both compilations, the threaded one being the
+term the prover runs.
 
 **The lower bound** (`compiled_evalT_lower`, `compiledA_evalT_lower`):
-every normal-order reduction of the compiled `evalT k` to a weak head
+every normal-order (head) reduction of the compiled `evalT k`, the tower
+applied to the toggle and `true`, to a weak head
 normal form takes at least `2↑↑(k+1)` steps.  The proof transfers the
 source relation `LB` to `SKI` terms (`LBS`).  At `Bool`, `LBS u m` says
 that every reduction of `u` to a weak head normal form takes at least `m`
@@ -20,16 +22,19 @@ deterministic (`Step.det`).  Two facts about head reduction carry the rest:
   (`head_first`), so a case costs at least its scrutinee (`LBS_case`);
 - the compiled toggle takes a step before its case (`LBS_togC`).
 
-The compiled `two` reduces `two h u` to `h (h u)` in six steps (`LBS_twoC`).
-So the compiled tower's descriptor is the source's (`LBS_towerC`).
+The compiled `two` reduces `two h u` to `h (I h u)` in five head steps, and
+`I h u` to `h u` in one (`LBS_twoC`).  So the compiled tower's descriptor is
+the source's (`LBS_towerC`).
 
-**The bound is not vacuous** (`compiled_evalT_converges`): the compiled
-term converges, by `compiled_converges`.
+**The bound is not vacuous** (`compiled_evalT_converges`,
+`compiledA_evalT_converges`): the compiled term converges when the Boolean
+witness does, by `compiled_converges`.
 
-**No elementary bound** (`compiled_no_elementary_bound`): the compiled
-term has `6k + 39` combinators plus the Boolean witness's.  For every
-height `j` of exponentials and every constant `c`, some member's compiled
-term takes more than `exp_j (c · leaves)` steps.
+**No elementary bound** (`compiled_no_elementary_bound`, and
+`compiledA_no_elementary_bound` stated on the threaded compilation): the
+compiled term has `6k + 39` combinators plus the Boolean witness's.  For
+every height `j` of exponentials and every constant `c`, some member's
+compiled term takes more than `exp_j (c · leaves)` steps.
 -/
 
 theorem Whnf.app_fun {u a : Term} (h : Whnf (u ⬝ a)) : Whnf u := by
@@ -120,6 +125,8 @@ def togC : Term := S ⬝ (S ⬝ I ⬝ (K ⬝ togF)) ⬝ (K ⬝ togG)
 def twoC : Term := S ⬝ (S ⬝ (K ⬝ S) ⬝ K) ⬝ I
 
 theorem compiled_togT (ι : Unit → Term) : compiled ι (togT : Tm Unit) = togC := rfl
+-- The threaded case computes `sharedS` by filtering `downFrom`; the elaborator's
+-- `rfl` check unfolds it slowly, so the default heartbeat budget is too small.
 set_option maxHeartbeats 2000000 in
 theorem compiledA_togT (ι : Unit → Term) : compiledA ι (togT : Tm Unit) = togC := rfl
 theorem compiled_twoT (ι : Unit → Term) : compiled ι (twoT : Tm Unit) = twoC := rfl
@@ -284,5 +291,31 @@ theorem compiled_no_elementary_bound (ι : Unit → Term) (hι : Converges (ι (
         rw [Nat.mul_add, Nat.mul_assoc]
       exact Nat.le_trans h2 (Nat.le_of_eq h3)
     exact Nat.lt_of_lt_of_le (expT_lt j (Nat.lt_of_le_of_lt hsz hm.2)) hlow
+
+theorem compiled_evalT_converges (ι : Unit → Term) (hι : Converges (ι ())) (k : Nat) :
+    Converges (compiled ι (evalT k trueT)) := by
+  rw [compiled_evalT]
+  cases evalC_converges ι hι k with
+  | intro n h => cases h with
+    | intro v h => exact ⟨v, h.1.steps, h.2⟩
+
+theorem compiledA_evalT_converges (ι : Unit → Term) (hι : Converges (ι ())) (k : Nat) :
+    Converges (compiledA ι (evalT k trueT)) := by
+  rw [compiledA_evalT]
+  cases evalC_converges ι hι k with
+  | intro n h => cases h with
+    | intro v h => exact ⟨v, h.1.steps, h.2⟩
+
+/-- **No elementary bound on the trace the prover runs**: the same, stated on
+    the threaded compilation of `evalT k trueT`. -/
+theorem compiledA_no_elementary_bound (ι : Unit → Term) (hι : Converges (ι ())) (j c : Nat) :
+    ∃ k, Converges (compiledA ι (evalT k trueT)) ∧
+      ∀ n v, StepsN n (compiledA ι (evalT k trueT)) v → Whnf v →
+        expT j (c * (compiledA ι (evalT k trueT)).leaves) < n := by
+  cases compiled_no_elementary_bound ι hι j c with
+  | intro k h =>
+    refine ⟨k, compiledA_evalT_converges ι hι k, fun n v hn hv => ?_⟩
+    rw [compiledA_evalT] at hn ⊢
+    exact h.2 n v hn hv
 
 end Rz
