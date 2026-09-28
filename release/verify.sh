@@ -136,7 +136,7 @@ echo "--- 4. Lean's check of Avon's witness table"
 term_is_sumto "$R/sumto_us.table" \
     && ok "the witness table's term is the corpus row's" \
     || no "the witness table's term is not the corpus row's"
-lake exe jets check "$R/sumto_us.table" | grep -q '^ACCEPT' \
+lake exe jets check --row sumto_us "$R/sumto_us.table" | grep -q '^ACCEPT' \
     && ok "lake exe jets check accepts the witness table" \
     || no "lake exe jets check rejects the witness table"
 
@@ -172,15 +172,24 @@ fi
 term_is_sumto "$R/sumto_us.probe.table" \
     && ok "the probe table's term is the corpus row's" \
     || no "the probe table's term is not the corpus row's"
-lake exe jets check-probe "$R/sumto_us.probe.table" val 6 | grep -q '^ACCEPT' \
+lake exe jets check-probe --row sumto_us "$R/sumto_us.probe.table" val 6 | grep -q '^ACCEPT' \
     && ok "lake exe jets check-probe accepts the probe table for [6]" \
     || no "lake exe jets check-probe rejects the probe table for [6]"
-if lake exe jets check-probe "$R/sumto_us.probe.table" val 5 > "$tmp/c5.log"; then
+if lake exe jets check-probe --row sumto_us "$R/sumto_us.probe.table" val 5 > "$tmp/c5.log"; then
     no "lake exe jets check-probe accepts the probe table for [5]"
 else
     grep -q '^REJECT' "$tmp/c5.log" \
         && ok "lake exe jets check-probe rejects the probe table for [5]" \
         || no "lake exe jets check-probe fails on the probe table for [5] without rejecting it"
+fi
+# A true table for another term: compiled_up also decodes to [6].  Bound to
+# the row, Lean refuses it; the term check above refuses it too.
+if lake exe jets check-probe --row compiled_up "$R/sumto_us.probe.table" val 6 > "$tmp/row.log"; then
+    no "lake exe jets check-probe accepted the table as another row's"
+else
+    grep -q '^NOT THE TERM OF compiled_up' "$tmp/row.log" \
+        && ok "lake exe jets check-probe refuses the table as another row's" \
+        || no "lake exe jets check-probe fails on the table as another row's without refusing it"
 fi
 
 [ "$failed" = 0 ] || { echo "NOT VERIFIED: release/sumto"; exit 1; }

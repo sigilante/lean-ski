@@ -63,9 +63,10 @@ that it runs in about 15 seconds. It prints one `ok` line per check, then
    gained the probe kinds, and the Ω proof was remade for it: the old
    builds now reject it for its layout, so they no longer show the holes.
 5. **Lean's own check of the witness.** `lake exe jets check` accepts
-   Avon's table, `sumto/sumto_us.table` (`Air.checkJA_sound`). Lean's
-   checks read a table's term from its first line, so `verify.sh` first
-   compares that line with the corpus row's term.
+   Avon's table, `sumto/sumto_us.table` (`Air.checkJA_sound`). A table
+   certifies its own term, on its first line. `verify.sh` binds it to the
+   corpus row twice: it compares that line with the row's term, and runs
+   Lean's checks with `--row sumto_us`, which refuse any other term.
 6. **The output proof.** `sumto/sumto_us.probe.proof`, 434,238 bytes, is
    over the same eight tables and two more, PLAN and PW
    (`bench/plonky3/src/probe.rs`). `ski-air probe-verify … val 6` checks
@@ -76,8 +77,9 @@ that it runs in about 15 seconds. It prints one `ok` line per check, then
    halting proof, it is refused (an outcome has one spelling: plain
    decimal). A number `n` takes `n + 1` probes, so Lean gives no plan
    past 65,536 segments. `lake exe jets check-probe` accepts its table,
-   `sumto/sumto_us.probe.table`, for `[6]` (`Air.checkPA_decodes`) and
-   rejects it for `[5]`.
+   `sumto/sumto_us.probe.table`, for `[6]` (`Air.checkPA_decodes`),
+   rejects it for `[5]`, and refuses it as row `compiled_up`, which also
+   decodes to `[6]`.
 
 ## What the proofs mean, and what they do not
 

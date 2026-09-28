@@ -28,7 +28,15 @@ jetted tables.
   the format above, then `starts N` and `N` lines, the segments' start
   rows and the last row, then `fields n` and `n` lines `a p1 … pa`, each
   segment's fields.  It runs `Air.checkPA` for the outcome's plan.
-  `ACCEPT` means the term decodes to the outcome (`Air.checkPA_decodes`).
+  `ACCEPT` means the table's term decodes to the outcome
+  (`Air.checkPA_decodes`).
+
+**A table certifies its own term**, the one on its first line.  `check`
+and `check-probe` name it in `ACCEPT`: the Lean corpus row it equals, or
+a term outside the corpus.  A caller who claims something of a given row
+binds the table to it: with `--row NAME` first (`jets check --row NAME
+TABLE…`, `jets check-probe --row NAME TABLE OUTCOME`), a table whose term
+is not that row's is refused before it is checked.
 
 **`<row>.jets`**: `roots R`, then `R` lines `address jet`; `jets G`, then
 per jet a line `k n root` (arity, cells written, root operand) and `n`
@@ -181,7 +189,22 @@ def statementStdin : IO UInt32 := do
     IO.println "NO TERMS"
     return 1
 
-def check (paths : List String) : IO UInt32 := do
+/-- How `ACCEPT` names a table's term: the corpus row it equals, or none. -/
+def termName (t : Term) : String :=
+  match corpus.find? (fun r => decide (r.term = t)) with
+  | some r => s!"corpus row {r.name}"
+  | none => "a term outside the corpus"
+
+/-- With `--row NAME`, the table's term must be that corpus row's. -/
+def rowBinds (row : Option String) (t : Term) : Except String Unit :=
+  match row with
+  | none => .ok ()
+  | some name =>
+    match corpus.find? (fun r => r.name == name) with
+    | none => .error s!"NO CORPUS ROW {name}"
+    | some r => if decide (r.term = t) then .ok () else .error s!"NOT THE TERM OF {name}"
+
+def check (row : Option String) (paths : List String) : IO UInt32 := do
   let tmpls := allTemplates
   let mut bad := 0
   for path in paths do
@@ -194,10 +217,14 @@ def check (paths : List String) : IO UInt32 := do
       IO.println s!"MALFORMED {path}"
       bad := bad + 1
     | some (t, A, rows) =>
+      if let .error why := rowBinds row t then
+        IO.println s!"{why} {path}"
+        bad := bad + 1
+        continue
       let m := load t
       let (roots, jets) := jetTable m.heap tmpls
       if checkJA A m roots jets rows then
-        IO.println s!"ACCEPT {path} ({rows.length} rows, {A.size} cells, {roots.length} roots)"
+        IO.println s!"ACCEPT {path}: {termName t} ({rows.length} rows, {A.size} cells, {roots.length} roots)"
       else
         IO.println s!"REJECT {path}"
         bad := bad + 1
@@ -262,7 +289,7 @@ def parseProbe (ls : List String) : Option (Array Nat × Array (List Nat)) := do
     | [] => none
   | [] => none
 
-def checkProbe (path : String) (ws : List String) : IO UInt32 := do
+def checkProbe (row : Option String) (path : String) (ws : List String) : IO UInt32 := do
   let tmpls := allTemplates
   let some o := parseOutcome ws | do IO.println "MALFORMED OUTCOME"; return 1
   let some pl := planOfOutcome o | do IO.println "NO PLAN FOR THE OUTCOME"; return 1
@@ -274,10 +301,13 @@ def checkProbe (path : String) (ws : List String) : IO UInt32 := do
   let i := ls.findIdx (fun l => (words l).headD "" == "starts")
   match parseTable (ls.take i), parseProbe (ls.drop i) with
   | some (t, A, rows), some (starts, flds) =>
+    if let .error why := rowBinds row t then
+      IO.println s!"{why} {path}"
+      return 1
     let m := load t
     let (roots, jets) := jetTable m.heap tmpls
     if checkPA A t roots jets pl starts flds rows.toArray then
-      IO.println s!"ACCEPT {path}: the term decodes to {" ".intercalate ws} ({rows.length} rows, {A.size} cells, {pl.length} segments)"
+      IO.println s!"ACCEPT {path}: {termName t} decodes to {" ".intercalate ws} ({rows.length} rows, {A.size} cells, {pl.length} segments)"
       return 0
     else
       IO.println s!"REJECT {path}"
@@ -291,9 +321,11 @@ def main (args : List String) : IO UInt32 := do
   | ["emit", dir] => emit dir
   | ["statement", corpus, dir] => statement corpus dir
   | ["statement-stdin"] => statementStdin
-  | "check" :: paths => check paths
+  | "check" :: "--row" :: name :: paths => check (some name) paths
+  | "check" :: paths => check none paths
   | "plan" :: ws => plan ws
-  | "check-probe" :: path :: ws => checkProbe path ws
+  | "check-probe" :: "--row" :: name :: path :: ws => checkProbe (some name) path ws
+  | "check-probe" :: path :: ws => checkProbe none path ws
   | _ =>
-    IO.eprintln "usage: jets emit DIR | jets statement CORPUS DIR | jets statement-stdin | jets check TABLE...\n       jets plan OUTCOME | jets check-probe TABLE OUTCOME"
+    IO.eprintln "usage: jets emit DIR | jets statement CORPUS DIR | jets statement-stdin | jets check [--row NAME] TABLE...\n       jets plan OUTCOME | jets check-probe [--row NAME] TABLE OUTCOME"
     return 2

@@ -41,7 +41,7 @@ make -C "$AVON_DIR" > /dev/null
 cat "$tmp/avon.err"
 
 echo "--- Lean: Avon's table against the AIR with instantiation rows"
-lake exe jets check "$R/sumto_us.table"
+lake exe jets check --row sumto_us "$R/sumto_us.table"
 
 echo "--- ski-air: prove Avon's table; verify the proof alone"
 (cd bench/plonky3 && cargo build --release --quiet)
@@ -54,7 +54,7 @@ bench/plonky3/target/release/ski-air probe-prove "$R/sumto_us.term" "$R/jets/sum
     "$R/sumto_us.probe.table" "$R/sumto_us.probe.proof" val 6
 bench/plonky3/target/release/ski-air probe-verify "$R/corpus.txt" "$R/jets" sumto_us \
     "$R/sumto_us.probe.proof" val 6
-lake exe jets check-probe "$R/sumto_us.probe.table" val 6
+lake exe jets check-probe --row sumto_us "$R/sumto_us.probe.table" val 6
 
 echo "--- the Omega forgery: a halting proof over a forged jet table"
 F=release/forgeries/omega

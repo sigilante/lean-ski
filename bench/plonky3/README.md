@@ -208,8 +208,10 @@ exactly its fields by the POP chain, and reads a nil. The next segment's
 term is a field of its parent, looked up by the parent's end row. The
 last row ends the last segment. `lake exe jets check-probe` checks each
 table against `Air.AcceptsP` (`Air.checkPA_decodes`), so an accepted
-table proves that the term decodes to the outcome. `DESIGN.md` §3 gives
-the argument.
+table proves that its term decodes to the outcome. A table certifies its
+own term, the one on its first line: `ACCEPT` names it (the corpus row it
+equals), and `--row NAME` refuses a table whose term is not that row's.
+`DESIGN.md` §3 gives the argument.
 
 `3 sumto` decodes to `[6]` in 11 segments and 4,144 CPU rows, proved in
 0.24 s and verified in 0.02 s. The prover refuses the plans of `[5]` and
@@ -228,8 +230,8 @@ lake build jets
 lake env lean --run bench/Dump.lean > corpus.txt
 cd bench/plonky3 && cargo build --release
 ./target/release/ski-air probes ../../corpus.txt jets tables  # prove [6], verify, forgeries
-cd ../.. && lake exe jets check-probe bench/plonky3/tables/probe_sumto_us.txt val 6   # ACCEPT
-lake exe jets check-probe bench/plonky3/tables/probe_sumto_us.txt val 5               # REJECT
+cd ../.. && lake exe jets check-probe --row sumto_us bench/plonky3/tables/probe_sumto_us.txt val 6   # ACCEPT
+lake exe jets check-probe --row sumto_us bench/plonky3/tables/probe_sumto_us.txt val 5               # REJECT
 ```
 
 `ski-air probe-prove-table TERM JETS TABLE PROOF OUTCOME…` proves a
