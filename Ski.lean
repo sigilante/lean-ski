@@ -8,6 +8,8 @@ import Ski.HeapOpen
 import Ski.AirOpen
 import Ski.Inst
 import Ski.SmallLemma
+import Ski.AirJet
+import Ski.JetTable
 import Ski.BoolProbe
 import Ski.Statement
 import Ski.Sudoku

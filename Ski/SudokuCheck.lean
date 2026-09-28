@@ -34,9 +34,6 @@ def checkFromA (A : Array Cell) (m0 : Mach) : List Row → Bool
       chainG (fun a => A[a]?) (r0 :: rest) &&
       haltRowG (fun a => A[a]?) ((r0 :: rest).getLast (List.cons_ne_nil _ _))
 
-theorem getElem?_fun (A : Array Cell) : (fun a : Nat => A[a]?) = (fun a : Nat => A.toList[a]?) := by
-  funext a; rw [Array.getElem?_toList]
-
 /-- **`checkFromA` is sound.** -/
 theorem checkFromA_sound {A : Array Cell} {m0 : Mach} {rows : List Row}
     (h : checkFromA A m0 rows = true) : AcceptsFrom A.toList m0 rows.length (rowFn rows) := by

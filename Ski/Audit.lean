@@ -9,6 +9,7 @@ import Ski.HeapOpen
 import Ski.AirOpen
 import Ski.Inst
 import Ski.SmallLemma
+import Ski.AirJet
 import Ski.BoolProbe
 import Ski.Statement
 import Ski.Sudoku
@@ -452,12 +453,17 @@ open Ski.Audit
 
 -- Supercombinator jets: instantiation is weak reduction, and a jetted run proves evaluation
 #audit_clean Mach.overrideN_notin Mach.overrideC_notin Mach.override_ptr Mach.PtrsOK.mono
-  Mach.popN_spec Mach.ibuild_spec Mach.apps_eq_appT Mach.inst_sound Mach.jsteps_wsteps
+  Mach.popN_spec Mach.ibuild_spec Mach.apps_eq_appT Mach.inst_sound_g Mach.inst_sound
+  Mach.JStep.ofTemplate Mach.jsteps_wsteps
   Mach.jet_run_eval
 
 -- The small lemma: weak reduction keeps a stuck spine's head and arity
 #audit_clean nhead_step nhead_steps nhead_appL appL_snoc nhead_inv small_lemma whnf_wstep
   small_lemma_whnf jet_run_shape
+
+-- The AIR with instantiation rows: licensed roots, a row that is a jetted step, soundness, the checker
+#audit_clean Air.termAt_G Air.rootsOKB_sound Air.popR_popN Air.ibuild_icells Air.termAt_take Air.instRow_jstep
+  Mach.JSteps.snoc Air.AcceptsJ.reach Air.air_sound_jet Air.chainJ_trans Air.checkJA_sound
 
 -- Boolean statements: a formula compiled to Scott Booleans, read by a probe, and proved by the AIR
 #audit_clean BExpr.sbool_sel BExpr.fill_tt BExpr.fill_ff BExpr.bool_reduce BExpr.probe_true

@@ -1,0 +1,120 @@
+import Ski.JetTable
+open Term
+
+/-!
+The jet tables of the corpus, for the Plonky3 prover, and the check of its
+jetted tables.
+
+- `jets emit DIR` writes, for each corpus row, `DIR/<row>.jets`: the
+  licensed roots and the jets of its loaded term (`JetTable.jetTable`),
+  which the prover's preprocessed ROOTS, HEADER and TEMPLATE tables hold.
+- `jets check TABLE...` checks jetted tables the prover wrote, in the
+  format of `Ski/AirCheck.lean`: it recomputes the roots and jets from the
+  table's term and runs `Air.checkJA`.  `ACCEPT` means the table satisfies
+  `Air.AcceptsJ` with licensed roots, so it proves the evaluation it ends
+  on, up to weak reduction of the value, with the value's head and arity
+  (`Air.checkJA_sound`, `Air.air_sound_jet`).
+
+**`<row>.jets`**: `roots R`, then `R` lines `address jet`; `jets G`, then
+per jet a line `k n root` (arity, cells written, root operand) and `n`
+lines, one per cell in `ibuild` order: a tag (`0 1 2` for `S K I`), or
+`3 a b` for an application, whose operands are `L j` (the cell this
+instantiation wrote at offset `j`), `A i` (the `i`-th argument) or `G a`
+(the public cell at `a`).
+-/
+
+open Mach JetTable Air
+
+partial def parseTerm (s : List Char) : Option (Term × List Char) :=
+  match s with
+  | 'S' :: r => some (.S, r)
+  | 'K' :: r => some (.K, r)
+  | 'I' :: r => some (.I, r)
+  | '`' :: r =>
+    match parseTerm r with
+    | some (f, r1) =>
+      match parseTerm r1 with
+      | some (a, r2) => some (.app f a, r2)
+      | none => none
+    | none => none
+  | _ => none
+
+def words (l : String) : List String := (l.splitOn " ").filter (· ≠ "")
+
+def parseCell (ws : List String) : Option Cell :=
+  match ws with
+  | ["S"] => some .S
+  | ["K"] => some .K
+  | ["I"] => some .I
+  | ["N"] => some .nil
+  | ["A", f, x] => do some (.app (← f.toNat?) (← x.toNat?))
+  | ["C", x, r] => do some (.cons (← x.toNat?) (← r.toNat?))
+  | _ => none
+
+def parseRow (ws : List String) : Option Air.Row :=
+  match ws with
+  | [h, s, c] => do some ⟨← h.toNat?, ← s.toNat?, ← c.toNat?⟩
+  | _ => none
+
+def parseTable (ls : List String) : Option (Term × Array Cell × List Air.Row) := do
+  match ls with
+  | tl :: nl :: rest =>
+    let (t, r) ← parseTerm tl.trimAscii.toString.toList
+    if !r.isEmpty then none
+    let n ← nl.trimAscii.toString.toNat?
+    let cells ← (rest.take n).mapM (fun l => parseCell (words l))
+    if cells.length != n then none
+    match rest.drop n with
+    | kl :: rest2 =>
+      let k ← kl.trimAscii.toString.toNat?
+      let rows ← (rest2.take k).mapM (fun l => parseRow (words l))
+      if rows.length != k then none
+      if !(rest2.drop k).isEmpty then none
+      some (t, cells.toArray, rows)
+    | [] => none
+  | _ => none
+
+def emit (dir : String) : IO UInt32 := do
+  IO.FS.createDirAll dir
+  let tmpls := allTemplates
+  for row in corpus do
+    let t0 ← IO.monoMsNow
+    let m := load row.term
+    let (roots, jets) := jetTable m.heap tmpls
+    let mut s := s!"roots {roots.length}\n"
+    for (a, g) in roots do
+      s := s ++ s!"{a} {g}\n"
+    s := s ++ s!"jets {jets.length}\n"
+    for J in jets do
+      s := s ++ jetText J
+    IO.FS.writeFile s!"{dir}/{row.name}.jets" s
+    IO.println s!"{row.name}: {roots.length} roots, {jets.length} jets, {(← IO.monoMsNow) - t0} ms"
+  return 0
+
+def check (paths : List String) : IO UInt32 := do
+  let tmpls := allTemplates
+  let mut bad := 0
+  for path in paths do
+    let text ← IO.FS.readFile path
+    let ls := (text.splitOn "\n").filter (fun l => !l.trimAscii.toString.isEmpty)
+    match parseTable ls with
+    | none =>
+      IO.println s!"MALFORMED {path}"
+      bad := bad + 1
+    | some (t, A, rows) =>
+      let m := load t
+      let (roots, jets) := jetTable m.heap tmpls
+      if checkJA A m roots jets rows then
+        IO.println s!"ACCEPT {path} ({rows.length} rows, {A.size} cells, {roots.length} roots)"
+      else
+        IO.println s!"REJECT {path}"
+        bad := bad + 1
+  return (if bad == 0 then 0 else 1)
+
+def main (args : List String) : IO UInt32 := do
+  match args with
+  | ["emit", dir] => emit dir
+  | "check" :: paths => check paths
+  | _ =>
+    IO.eprintln "usage: jets emit DIR | jets check TABLE..."
+    return 2

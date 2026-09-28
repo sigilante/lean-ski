@@ -1,0 +1,264 @@
+import Ski.AirJet
+import Ski.Table
+
+open Term
+
+/-!
+# Which jets to license: the jet table of a loaded term
+
+`Air.AcceptsJ` takes its roots and jets as public data, and
+`Air.checkJA` checks them (`Air.rootsOKB`).  This module computes them for
+a loaded term; nothing here is trusted, because every root it returns has
+passed `Air.rootOKB`.
+
+**The templates** are every combinator the front end's compiler makes by
+bracket abstraction, read off the compiler: each equation's `compDef` or
+`compRec`, each λ chain `compLam` lifts inside it (`wrapLift`), and each
+constructor's `ctorO`, over the sources of `Ski/Source.lean`.
+
+**The jets.**  A template's body names its closed subterms (its maximal
+subterms with no formal, leaves included) as globals, each pointing to a
+cell of the loaded heap that holds it, so an instantiation writes only
+the cells that depend on its arguments and a nested template's root stays
+a root.  Two kinds of template are left out: an open one (a variable
+outside the formals), and an η-template, `λ xs. G xs` with `G` closed,
+which compiles to `G` itself, so that instantiating it rewrites `G xs` to
+`G xs` and a jetted run could repeat it forever.
+
+**The roots** are found by hash-consing the loaded heap against the
+templates' compiled forms, and kept only when `Air.rootOKB` licenses
+them.
+-/
+
+namespace JetTable
+
+open Mach Front Air
+
+-- ---------------------------------------------------------------------------
+-- Templates, from the compiler
+-- ---------------------------------------------------------------------------
+
+mutual
+  /-- The templates `comp scope` makes, innermost first. -/
+  partial def tmplComp (scope : List Nat) : Src → List (List Nat × OTerm)
+    | .glob _ => []
+    | .var _ => []
+    | .app f a => tmplComp scope f ++ tmplComp scope a
+    | .lam x b => tmplLam (scope.filter fun s => (Src.lam x b).occurs s) [x] b
+  /-- The templates `compLam caps ps` makes: those of the body, then its own. -/
+  partial def tmplLam (caps ps : List Nat) : Src → List (List Nat × OTerm)
+    | .lam y b => tmplLam caps (ps ++ [y]) b
+    | .glob t => [(caps ++ ps, t.toO)]
+    | .var x => [(caps ++ ps, .var x)]
+    | .app f a =>
+      tmplComp (caps ++ ps) f ++ tmplComp (caps ++ ps) a ++
+        [(caps ++ ps, compF (caps ++ ps) f ⬝ₒ compF (caps ++ ps) a)]
+end
+
+/-- The templates of a source file: equations, the λ chains they lift, and
+    constructors, each with at least one formal. -/
+def fileTemplates (src : List Nat) : List (List Nat × OTerm) :=
+  match readFile src with
+  | none => []
+  | some ds =>
+    match fileFEqns ds, compileDecls ds with
+    | some fes, some (_, done) =>
+      let env := fun g => (resolveIn done g).getD K
+      let eqs := fes.flatMap fun (_, e) =>
+        let b := e.body.resolve env
+        let xs := match e.self with
+          | some s => s :: e.params
+          | none => e.params
+        tmplComp xs b ++ [(xs, compF xs b)]
+      let ctors := (types ds).flatMap fun d =>
+        (List.range d.ctors.length).zip d.ctors |>.map fun (j, (_, a)) =>
+          (List.range (a + d.ctors.length), appL (.var (a + j)) ((List.range a).map .var))
+      (eqs ++ ctors).filter fun (xs, _) => !xs.isEmpty
+    | _, _ => []
+
+/-- The templates of every source the corpus compiles from. -/
+def allTemplates : List (List Nat × OTerm) :=
+  fileTemplates kernelText ++ fileTemplates corpusText ++ fileTemplates sumText ++
+    fileTemplates loopText
+
+-- ---------------------------------------------------------------------------
+-- Hash-consing
+-- ---------------------------------------------------------------------------
+
+/-- Canonical ids: 0, 1, 2 for `S`, `K`, `I`, then one per distinct
+    application of ids. -/
+structure HC where
+  apps : Std.HashMap (Nat × Nat) Nat := {}
+  next : Nat := 3
+
+def HC.app (h : HC) (f x : Nat) : HC × Nat :=
+  match h.apps[(f, x)]? with
+  | some i => (h, i)
+  | none => ({ apps := h.apps.insert (f, x) h.next, next := h.next + 1 }, h.next)
+
+def HC.term (h : HC) : Term → HC × Nat
+  | .S => (h, 0)
+  | .K => (h, 1)
+  | .I => (h, 2)
+  | .app f x =>
+    let (h, i) := h.term f
+    let (h, j) := h.term x
+    h.app i j
+
+/-- The ids of a heap's cells; `none` for a cell that is no term.  An
+    application points to older cells, so one pass names every cell. -/
+def heapIds (h : HC) (heap : Array Cell) : HC × Array (Option Nat) := Id.run do
+  let mut h := h
+  let mut ids : Array (Option Nat) := #[]
+  for c in heap do
+    match c with
+    | .S => ids := ids.push (some 0)
+    | .K => ids := ids.push (some 1)
+    | .I => ids := ids.push (some 2)
+    | .app f x =>
+      match ids[f]?.join, ids[x]?.join with
+      | some i, some j =>
+        let (h', k) := h.app i j
+        h := h'
+        ids := ids.push (some k)
+      | _, _ => ids := ids.push none
+    | _ => ids := ids.push none
+  return (h, ids)
+
+-- ---------------------------------------------------------------------------
+-- Globals
+-- ---------------------------------------------------------------------------
+
+def OTerm.closedT : OTerm → Bool
+  | .var _ => false
+  | .app f x => closedT f && closedT x
+  | _ => true
+
+/-- A closed open term as a term. -/
+def OTerm.toT : OTerm → Term
+  | .S => .S
+  | .K => .K
+  | .I => .I
+  | .var _ => .K
+  | .app f x => .app (toT f) (toT x)
+
+/-- Name each maximal closed subterm of a body, leaves included, by a fresh
+    variable from `next` on; returns the body and the globals, in order. -/
+def globalize : OTerm → Nat → OTerm × List (Nat × Term) × Nat
+  | .var x, n => (.var x, [], n)
+  | t@(.app f x), n =>
+    if OTerm.closedT t then (.var n, [(n, OTerm.toT t)], n + 1)
+    else
+      let (f', gf, n1) := globalize f n
+      let (x', gx, n2) := globalize x n1
+      (.app f' x', gf ++ gx, n2)
+  | t, n => (.var n, [(n, OTerm.toT t)], n + 1)
+
+-- ---------------------------------------------------------------------------
+-- The jet table
+-- ---------------------------------------------------------------------------
+
+/-- **The jet table of a loaded heap**: the licensed roots and the jets they
+    name.  Every returned root passes `Air.rootOKB`.  With `globals` off, a
+    body keeps its closed subterms, and an instantiation writes them. -/
+def jetTable (h0 : List Cell) (tmpls : List (List Nat × OTerm)) (globals : Bool := true) :
+    List (Nat × Nat) × List Jet :=
+  Id.run do
+    let A := h0.toArray
+    let (hc0, ids) := heapIds {} A
+    let mut hc := hc0
+    let mut firstAt : Std.HashMap Nat Nat := {}
+    for i in [0:ids.size] do
+      match ids[i]! with
+      | some k => if !firstAt.contains k then firstAt := firstAt.insert k i
+      | none => pure ()
+    -- candidate jets, by the id of their compiled root
+    let mut jetOf : Std.HashMap Nat Jet := {}
+    for (xs, body) in tmpls do
+      let root := toTerm (absNF xs body)
+      let isEta := body == appL root.toO (xs.map .var)
+      let closedIn := body.vars.all fun v => xs.contains v
+      if isEta || !closedIn then continue
+      let (hc1, rk) := hc.term root
+      hc := hc1
+      if jetOf.contains rk || !firstAt.contains rk then continue
+      let base := (xs ++ body.vars).foldl max 0 + 1
+      let (body', gs, _) := if globals then globalize body base else (body, [], base)
+      let mut glob : List (Nat × Nat) := []
+      let mut ok := true
+      for (v, u) in gs do
+        let (hc2, uk) := hc.term u
+        hc := hc2
+        match firstAt[uk]? with
+        | some a => glob := glob ++ [(v, a)]
+        | none => ok := false
+      if ok then jetOf := jetOf.insert rk ⟨xs, body', glob⟩
+    -- roots, licensed one by one; jets numbered as first used
+    let mut jets : Array Jet := #[]
+    let mut jetIx : Std.HashMap Nat Nat := {}
+    let mut roots : Array (Nat × Nat) := #[]
+    for i in [0:ids.size] do
+      match ids[i]! with
+      | some k =>
+        match jetOf[k]? with
+        | some J =>
+          let j := (jetIx[k]?).getD jets.size
+          let jets' := if jetIx.contains k then jets else jets.push J
+          if rootOKB (fun a => A[a]?) (h0.length + 1) jets'.toList i j then
+            jets := jets'
+            jetIx := jetIx.insert k j
+            roots := roots.push (i, j)
+        | none => pure ()
+      | none => pure ()
+    return (roots.toList, jets.toList)
+
+-- ---------------------------------------------------------------------------
+-- A jet as the template table reads it
+-- ---------------------------------------------------------------------------
+
+/-- An operand: a cell this instantiation wrote (by offset), an argument
+    (by index), or a public address. -/
+inductive Op
+  | local_ (j : Nat)
+  | arg (i : Nat)
+  | glob (a : Nat)
+
+def Op.text : Op → String
+  | .local_ j => s!"L {j}"
+  | .arg i => s!"A {i}"
+  | .glob a => s!"G {a}"
+
+/-- The argument index a formal takes: its last occurrence, as `overrideN`
+    binds a repeated formal. -/
+def argIx (xs : List Nat) (x : Nat) : Option Nat :=
+  (xs.zipIdx.filter (·.1 == x)).getLast?.map (·.2)
+
+/-- The operand a variable is. -/
+def varOp (J : Jet) (x : Nat) : Op :=
+  match argIx J.xs x with
+  | some i => .arg i
+  | none => .glob (J.genv x)
+
+/-- The cells `icells` writes, symbolically, from offset `off`: each cell's
+    tag (0, 1, 2, 3 for `S`, `K`, `I`, an application) and operands, and
+    the root. -/
+def symCells (J : Jet) : OTerm → Nat → List (Nat × Option (Op × Op)) × Op
+  | .S, off => ([(0, none)], .local_ off)
+  | .K, off => ([(1, none)], .local_ off)
+  | .I, off => ([(2, none)], .local_ off)
+  | .var x, _ => ([], varOp J x)
+  | .app f a, off =>
+    let (cf, rf) := symCells J f off
+    let (ca, ra) := symCells J a (off + cf.length)
+    (cf ++ ca ++ [(3, some (rf, ra))], .local_ (off + cf.length + ca.length))
+
+/-- A jet in the prover's format: `k n root`, then one line per cell. -/
+def jetText (J : Jet) : String :=
+  let (cs, root) := symCells J J.body 0
+  let head := s!"{J.xs.length} {cs.length} {root.text}\n"
+  cs.foldl (fun s (tag, ops) =>
+    s ++ (match ops with
+      | some (a, b) => s!"{tag} {a.text} {b.text}"
+      | none => s!"{tag}") ++ "\n") head
+
+end JetTable

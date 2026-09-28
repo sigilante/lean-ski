@@ -217,6 +217,9 @@ theorem chainB_G (M : List Cell) : ∀ rows : List Row, chainB M rows = chainG (
     unfold chainB chainG
     rw [stepRow_G, haltRow_G, chainB_G M (r' :: rest)]
 
+theorem getElem?_fun (A : Array Cell) : (fun a : Nat => A[a]?) = (fun a : Nat => A.toList[a]?) := by
+  funext a; rw [Array.getElem?_toList]
+
 /-- **The array checker is the list checker.** -/
 theorem checkA_eq (A : Array Cell) (t : Term) (rows : List Row) :
     checkA A t rows = checkB A.toList t rows := by

@@ -215,19 +215,66 @@ theorem ibuild_spec (env : Nat → Nat) (σ : Nat → Term) : ∀ (t : OTerm) (h
 -- The instantiation step
 -- ---------------------------------------------------------------------------
 
-/-- **An instantiation**: pop `|xs|` arguments' pointers and write `body`
-    with each formal replaced by its argument's pointer.  The head becomes
-    the body's root; the stack, the rest. -/
-def instStep (xs : List Nat) (body : OTerm) (m : Mach) : Option Mach :=
+/-- **An instantiation with globals**: pop `|xs|` arguments' pointers and
+    write `body` with each formal replaced by its argument's pointer and
+    every other variable by the pointer `genv` gives it, a public cell.  The
+    head becomes the body's root; the stack, the rest. -/
+def instStepG (xs : List Nat) (body : OTerm) (genv : Nat → Nat) (m : Mach) : Option Mach :=
   match popN m.heap xs.length m.stk with
   | some (ps, r) =>
-    let (h', root) := ibuild (overrideN (fun _ => 0) xs ps) m.heap body
+    let (h', root) := ibuild (overrideN genv xs ps) m.heap body
     some ⟨h', root, r⟩
   | none => none
+
+/-- **An instantiation**: `instStepG` with no globals, every variable of
+    the body a formal. -/
+def instStep (xs : List Nat) (body : OTerm) (m : Mach) : Option Mach :=
+  instStepG xs body (fun _ => 0) m
 
 theorem apps_eq_appT : ∀ (t : Term) (as : List Term), apps t as = appT t as
   | _, [] => rfl
   | t, a :: as => apps_eq_appT (t ⬝ a) as
+
+/-- **Instantiation with globals is weak reduction.**  When every variable
+    of the body outside `xs` points (by `genv`) to a cell holding its
+    meaning under `γ`, and the head is the compiled supercombinator
+    `absN xs body` with those meanings, an instantiation leaves a state
+    that reads back as a weak reduct of the state before. -/
+theorem inst_sound_g {xs : List Nat} {body : OTerm} {genv : Nat → Nat} {γ : Nat → Term}
+    {m m' : Mach} {t : Term}
+    (hglob : ∀ x, Occ x body → x ∉ xs → termAt m.heap (m.heap.length + 1) (genv x) = some (γ x))
+    (hhd : termAt m.heap (m.heap.length + 1) m.hd = some ((absN xs body).close γ))
+    (hdec : decode m = some t) (hstep : instStepG xs body genv m = some m') :
+    ∃ t', decode m' = some t' ∧ WSteps t t' := by
+  obtain ⟨hdT, args, h1, h2, ht⟩ := decode_eq hdec
+  rw [hhd] at h1
+  cases h1
+  unfold instStepG at hstep
+  cases hp : popN m.heap xs.length m.stk with
+  | none => rw [hp] at hstep; cases hstep
+  | some q =>
+    obtain ⟨ps, r⟩ := q
+    rw [hp] at hstep
+    dsimp only at hstep
+    cases hstep
+    obtain ⟨Ns, rest, G, hG, hargs, hlN, hlp, hok, hrest⟩ := popN_spec xs.length hp h2
+    let σ := overrideC γ xs Ns
+    let env := overrideN genv xs ps
+    have henv : ∀ x, Occ x body → termAt m.heap (m.heap.length + 1) (env x) = some (σ x) := by
+      intro x hx
+      by_cases hin : x ∈ xs
+      · exact override_ptr xs _ _ ps Ns x hin hok hlp
+      · show termAt _ _ (overrideN genv xs ps x) = some (overrideC γ xs Ns x)
+        rw [overrideN_notin _ xs ps x hin, overrideC_notin _ xs Ns x hin]
+        exact hglob x hx hin
+    obtain ⟨cs, e, hroot⟩ := ibuild_spec env σ body m.heap henv
+    refine ⟨apps (body.close σ) rest, ?_, ?_⟩
+    · apply decode_of hroot
+      show stackAt (ibuild env m.heap body).1 ((ibuild env m.heap body).1.length + 1) r = some rest
+      rw [e]
+      exact stackAt_grow hrest (by simp; omega)
+    · rw [ht, hargs, apps_eq_appT, apps_eq_appT, appT_append]
+      exact WSteps.appT (absN_beta_close xs body γ Ns (by rw [hlN])) rest
 
 /-- **Instantiation is weak reduction.**  When the head is the compiled
     supercombinator `absN xs body`, whose body's variables are among `xs`,
@@ -237,31 +284,8 @@ theorem inst_sound {xs : List Nat} {body : OTerm} {m m' : Mach} {t : Term}
     (hclosed : ∀ x, Occ x body → x ∈ xs)
     (hhd : termAt m.heap (m.heap.length + 1) m.hd = some (toTerm (absN xs body)))
     (hdec : decode m = some t) (hstep : instStep xs body m = some m') :
-    ∃ t', decode m' = some t' ∧ WSteps t t' := by
-  obtain ⟨hdT, args, h1, h2, ht⟩ := decode_eq hdec
-  rw [hhd] at h1
-  cases h1
-  unfold instStep at hstep
-  cases hp : popN m.heap xs.length m.stk with
-  | none => rw [hp] at hstep; cases hstep
-  | some q =>
-    obtain ⟨ps, r⟩ := q
-    rw [hp] at hstep
-    dsimp only at hstep
-    cases hstep
-    obtain ⟨Ns, rest, G, hG, hargs, hlN, hlp, hok, hrest⟩ := popN_spec xs.length hp h2
-    let σ := overrideC (fun _ => K) xs Ns
-    let env := overrideN (fun _ => 0) xs ps
-    have henv : ∀ x, Occ x body → termAt m.heap (m.heap.length + 1) (env x) = some (σ x) :=
-      fun x hx => override_ptr xs _ _ ps Ns x (hclosed x hx) hok hlp
-    obtain ⟨cs, e, hroot⟩ := ibuild_spec env σ body m.heap henv
-    refine ⟨apps (body.close σ) rest, ?_, ?_⟩
-    · apply decode_of hroot
-      show stackAt (ibuild env m.heap body).1 ((ibuild env m.heap body).1.length + 1) r = some rest
-      rw [e]
-      exact stackAt_grow hrest (by simp; omega)
-    · rw [ht, hargs, apps_eq_appT, apps_eq_appT, appT_append]
-      exact WSteps.appT (absN_beta_close xs body (fun _ => K) Ns (by rw [hlN])) rest
+    ∃ t', decode m' = some t' ∧ WSteps t t' :=
+  inst_sound_g (γ := fun _ => K) (fun x hx hn => absurd (hclosed x hx) hn) hhd hdec hstep
 
 -- ---------------------------------------------------------------------------
 -- Jetted runs
@@ -274,12 +298,21 @@ structure Template where
   closed : ∀ x, Occ x body → x ∈ xs
 
 /-- One step of a jetted run: a machine transition, or an instantiation of
-    a licensed template whose compiled form is at the head. -/
+    a template `absN xs body` whose compiled form, with its globals' meanings
+    `γ`, is at the head, each global pointing (by `genv`) to a cell that
+    holds its meaning. -/
 inductive JStep : Mach → Mach → Prop
   | mach {m m' : Mach} : mstep m = some m' → JStep m m'
-  | inst {m m' : Mach} (g : Template) :
-      termAt m.heap (m.heap.length + 1) m.hd = some (toTerm (absN g.xs g.body)) →
-      instStep g.xs g.body m = some m' → JStep m m'
+  | inst {m m' : Mach} (xs : List Nat) (body : OTerm) (genv : Nat → Nat) (γ : Nat → Term) :
+      (∀ x, Occ x body → x ∉ xs → termAt m.heap (m.heap.length + 1) (genv x) = some (γ x)) →
+      termAt m.heap (m.heap.length + 1) m.hd = some ((absN xs body).close γ) →
+      instStepG xs body genv m = some m' → JStep m m'
+
+/-- A licensed closed template instantiates as a jetted step. -/
+theorem JStep.ofTemplate {m m' : Mach} (g : Template)
+    (hhd : termAt m.heap (m.heap.length + 1) m.hd = some (toTerm (absN g.xs g.body)))
+    (hi : instStep g.xs g.body m = some m') : JStep m m' :=
+  .inst g.xs g.body (fun _ => 0) (fun _ => K) (fun x hx hn => absurd (g.closed x hx) hn) hhd hi
 
 inductive JSteps : Mach → Mach → Prop
   | refl (m : Mach) : JSteps m m
@@ -300,8 +333,8 @@ theorem jsteps_wsteps {m m' : Mach} {t : Term} (hdec : decode m = some t) (h : J
       | .inr ⟨_, u1, hu1, hd1⟩ =>
         obtain ⟨u, hu, hw⟩ := ih hd1
         exact ⟨u, hu, .step (Step.weak (step?_sound hu1)) hw⟩
-    | inst g hhd hi =>
-      obtain ⟨u1, hd1, hw1⟩ := inst_sound g.closed hhd hdec hi
+    | inst xs body genv γ hglob hhd hi =>
+      obtain ⟨u1, hd1, hw1⟩ := inst_sound_g hglob hhd hdec hi
       obtain ⟨u, hu, hw⟩ := ih hd1
       exact ⟨u, hu, hw1.trans hw⟩
 
