@@ -5,6 +5,9 @@ import Ski.Trace
 import Ski.Heap
 import Ski.Air
 import Ski.AirCheck
+import Ski.HeapOpen
+import Ski.AirOpen
+import Ski.Inst
 import Ski.Weak
 import Ski.Lambda
 import Ski.Quote
@@ -434,6 +437,18 @@ open Ski.Audit
 #audit_clean Air.chainB_trans Air.getLast_eq_getD Air.checkB_sound Air.checkB_eval Air.rd_G
   Air.wrs_G Air.stepRow_G Air.short_G Air.haltRow_G Air.chainB_G Air.checkA_eq Air.checkA_sound
   Air.rowFn_cons Air.chainB_of_trans Air.checkB_complete Air.checkA_iff
+
+-- Atoms as probe markers: the heap machine and the AIR on open terms, and the probe binding
+#audit_clean Mach.otermAt_append Mach.otermAt_mono Mach.ostackAt_append Mach.ostackAt_mono
+  Mach.otermAt_grow Mach.ostackAt_grow Mach.otermAt_cell Mach.ostackAt_cell Mach.odecode_eq
+  Mach.odecode_of Mach.OStep.appL Mach.ONeutral.appL Mach.omstep_some Mach.atom_head
+  Mach.obuild_spec Mach.odecode_oload Mach.MSteps.snoc Mach.omachine_run Air.accepts_iff
+  Air.AcceptsFrom.st0 Air.AcceptsFrom.reach Air.air_sound_open Air.air_probe
+
+-- Supercombinator jets: instantiation is weak reduction, and a jetted run proves evaluation
+#audit_clean Mach.overrideN_notin Mach.overrideC_notin Mach.override_ptr Mach.PtrsOK.mono
+  Mach.popN_spec Mach.ibuild_spec Mach.apps_eq_appT Mach.inst_sound Mach.jsteps_wsteps
+  Mach.jet_run_eval
 
 -- The three-valued outcome: structured formulas demand a normal form, an atom need not
 #audit_clean Real.and_converges Real.or_converges Real.ex_converges atom_divergent_realizer

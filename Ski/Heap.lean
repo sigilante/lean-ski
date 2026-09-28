@@ -29,12 +29,15 @@ exactly when the term evaluates to `v` (`machine_eval`), after as many
 contractions as `runF` counts (`machine_count`).
 -/
 
-/-- A heap cell.  Pointers are addresses of earlier cells. -/
+/-- A heap cell.  Pointers are addresses of earlier cells.  An `atom` is an
+    inert leaf with no rule: a probe marker, which a closed term never
+    contains (`Ski/HeapOpen.lean` reads states with atoms as open terms). -/
 inductive Cell where
   | S | K | I
   | app (f a : Nat)
   | nil
   | cons (arg rest : Nat)
+  | atom (n : Nat)
   deriving DecidableEq, Repr
 
 /-- A machine state: the heap, the head pointer, the stack pointer. -/
@@ -163,6 +166,7 @@ theorem termAt_append : ∀ {f : Nat} {heap cs : List Cell} {a : Nat} {t : Term}
             exact h
       | nil => cases h
       | cons _ _ => cases h
+      | atom _ => cases h
 
 theorem termAt_mono : ∀ {f k : Nat} {heap : List Cell} {a : Nat} {t : Term},
     termAt heap f a = some t → f ≤ k → termAt heap k a = some t
@@ -191,6 +195,7 @@ theorem termAt_mono : ∀ {f k : Nat} {heap : List Cell} {a : Nat} {t : Term},
             exact h
       | nil => cases h
       | cons _ _ => cases h
+      | atom _ => cases h
 
 theorem stackAt_append : ∀ {f : Nat} {heap cs : List Cell} {a : Nat} {ts : List Term},
     stackAt heap f a = some ts → stackAt (heap ++ cs) f a = some ts
@@ -271,6 +276,7 @@ theorem termAt_cell {heap : List Cell} {f a : Nat} {t : Term} (h : termAt heap (
           exact .inr (.inr (.inr ⟨g, x, tg, tx, rfl, hg, hx, rfl⟩))
     | nil => cases h
     | cons _ _ => cases h
+    | atom _ => cases h
 
 theorem stackAt_cell {heap : List Cell} {f a : Nat} {ts : List Term}
     (h : stackAt heap (f + 1) a = some ts) :
@@ -788,5 +794,6 @@ theorem mstep_append {m m' : Mach} (h : mstep m = some m') : ∃ cs, m'.heap = m
       · cases h
     | nil => cases h
     | cons _ _ => cases h
+    | atom _ => cases h
 
 end Mach

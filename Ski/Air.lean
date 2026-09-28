@@ -47,8 +47,11 @@ the run early.
 
 **What the constraints do not fix.**
 - The output.  `Accepts` fixes the run, not the value it ends on: the value
-  lives in the committed memory table.  Binding a public value is the
-  read-back relation, and is open.
+  lives in the committed memory table.  Binding a public value in general
+  is the read-back relation, and is open.  Probing binds it: started from
+  a term applied to atom markers, a last row with an atom at the head
+  proves which marker the term selects (`Air.air_probe`,
+  `Ski/AirOpen.lean`).
 - The witness's secrecy.  The first row loads all of `t`, so a term
   `V x w` is loaded in the clear.  Hiding `w` needs the loaded heap
   committed rather than public.
@@ -155,6 +158,7 @@ theorem mstep_eq (m : Mach) :
         | _ => rfl
     | nil => rfl
     | cons _ _ => rfl
+    | atom _ => rfl
 
 -- ---------------------------------------------------------------------------
 -- Lookups and the constraints
@@ -186,12 +190,14 @@ def short (M : List Cell) (c : Nat) : Nat → Nat → Bool
     | _ => false
 
 /-- **The halting constraint**, from reads alone: the head is a combinator
-    with fewer arguments than its rule takes. -/
+    with fewer arguments than its rule takes, or an atom, which has no
+    rule. -/
 def haltRow (M : List Cell) (r : Row) : Bool :=
   match rd M r.ctr r.hd with
   | some .I => short M r.ctr 1 r.stk
   | some .K => short M r.ctr 2 r.stk
   | some .S => short M r.ctr 3 r.stk
+  | some (.atom _) => true
   | _ => false
 
 /-- The machine state a row denotes: the memory table up to the counter. -/
@@ -394,6 +400,7 @@ theorem haltRow_mstep {M : List Cell} {r : Row} (h : haltRow M r = true) : mstep
               | some c3 => rw [h3] at h; cases c3 <;> first | rfl | cases h
             | _ => cases h
         | _ => cases h
+    | atom _ => rfl
     | _ => cases h
 
 /-- A term's stack cell exists only with fuel left. -/

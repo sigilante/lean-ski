@@ -633,7 +633,16 @@ Every corpus row proves and verifies (`3 sumto`, 32,768 rows, in about 0.5 s),
 and `lake exe aircheck` (`Ski/AirCheck.lean`) accepts every table it
 proves with a checker that decides the AIR's constraints, while four tampered
 tables fail both. Not yet zero knowledge (the PCS is not hiding and the
-term is loaded in the clear), and not yet bound to an output.
+term is loaded in the clear). Outputs bind by probing: the machine has
+an inert `atom` cell, read back as an open term's variable, and a table
+of `t X₁ … Xₙ` whose last row has the atom `i` at the head proves
+`t X₁ … Xₙ ⟶* Xᵢ a₁ … aₖ` (`Ski/HeapOpen.lean`, `Ski/AirOpen.lean`,
+`air_probe`); the Plonky3 tables do not yet carry atoms. Supercombinator
+jets are licensed once for every template: an instantiation is weak
+reduction when the head is `absN xs body` (`inst_sound`), and a jetted run
+that halts proves normal-order evaluation up to weak reduction of the
+value (`jet_run_eval`, `Ski/Inst.lean`); the circuit's instantiation rows
+are still to build.
 
 ## 6. Acceptance
 

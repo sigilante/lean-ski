@@ -154,6 +154,7 @@ def haltRowG (g : Nat → Option Cell) (r : Row) : Bool :=
   | some .I => shortG g r.ctr 1 r.stk
   | some .K => shortG g r.ctr 2 r.stk
   | some .S => shortG g r.ctr 3 r.stk
+  | some (.atom _) => true
   | _ => false
 
 /-- `chainB`, over a reader. -/
