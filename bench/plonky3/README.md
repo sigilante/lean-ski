@@ -73,13 +73,115 @@ public term, so the proof's transcript no longer matches. Timings vary by
 a few percent between runs. The `rows` column equals `lake exe aircost`'s on
 every corpus row; `prove s` includes the setup.
 
+## A Sudoku solution in zero knowledge
+
+`src/sudoku.rs` proves that the prover knows a solution of Wikipedia's
+Sudoku puzzle, with hiding commitments and blinded lookup sums. The
+statement is the machine `Stmt.stmtMachine` of `Ski/Statement.lean` for
+the puzzle's formula (`Sudoku.sudokuExpr`): the slot cells `K`, `I`, `K I`
+at addresses 0 to 2, 729 input cells at 3 to 731, then the compiled
+formula applied to the atoms labelled `ACC` = 731 and `REJ` = 732 (labels,
+not addresses). Input `81r + 9c + d` says that row `r`, column `c` holds
+`d + 1`. `lake exe sudoku emit` writes the statement with the input cells
+blank (`public.txt`) and the solution's inputs (`witness.txt`). The
+blank-input heap states the machine for every input
+(`Stmt.stmtMachine_public`).
+
+**The statement must be checked.** The Rust verifier reads `public.txt` as
+given. A file with the two markers exchanged, or cells for another
+puzzle, would let a wrong grid verify. So the verifier first runs `lake
+exe sudoku statement public.txt`, which accepts exactly the statement of
+the puzzle on its first line (`publicText` in `bench/Sudoku.lean`).
+
+The AIR adds three things to the corpus's:
+
+- **Atoms.** A memory cell may be the atom `n` (tag 6). A seventh halting
+  kind reads an atom at the head, as `Air.haltRow` accepts.
+- **The output.** The last row must read the atom `ACC` at the head.
+- **A private witness table.** Each row commits one bit and looks up the
+  memory cell at a preprocessed input address: `K` when the bit is 1,
+  `A 0 1` (`K I`) when it is 0. So every input is a Scott Boolean. The
+  program table holds the public cells with their addresses. Together the
+  two tables name every address below the first counter, so the memory
+  table's prefix is `stmtMachine ρ` for the inputs `ρ` the bits give.
+
+A table the verifier accepts satisfies `Air.AcceptsFrom` from that machine
+and reads `ACC` at the head of its last row. By `Sudoku.sudoku_sound`,
+the inputs solve the puzzle. The prover writes each table it proves in
+the format of `bench/Sudoku.lean`. `lake exe sudoku check public.txt`
+decides `Sudoku.sudokuCheck` on it, for the statement's puzzle and markers,
+reading the inputs off the table's memory (`Sudoku.sudokuCheck_sound`).
+
+**Hiding.** The PCS is Plonky3's `HidingFriPcs`, with salted Merkle leaves
+and four random codewords drawn from the operating system's generator.
+The verifier rebuilds the preprocessed commitment, so both sides commit
+the public preprocessed tables under a fixed public seed; only the traces
+are committed under fresh randomness. The CPU and memory heights are
+constants of prover and verifier (`2^16` each), not the run's, so they say
+nothing about the witness: the run's length depends on where each digit's
+bit falls.
+
+**Blinding.** Plonky3 publishes each table's LogUp terminal, its whole
+lookup sum, in the clear; the hiding PCS does not mask it. Unblinded, the
+witness table's terminal is a function of the inputs under challenges any
+verifier replays, which lets anyone check a guessed grid. Two buses of
+their own carry one message each, a fresh uniform 4-tuple: from the witness
+table to the CPU, and from the CPU to memory. Each adds a term uniform over
+the extension field to one terminal and takes it from another, so the
+three private terminals are uniform subject to their sum, which the
+program table's public terminal fixes anyway. The guess test replays the
+transcript as a verifier would and recomputes the witness terminal for the
+true inputs: it must not match the published one. With the blinding flags
+set to zero, it matches.
+
+```
+lake build sudoku && lake exe sudoku emit bench/plonky3/sudoku
+lake exe sudoku statement bench/plonky3/sudoku/public.txt   # the verifier's statement check
+cd bench/plonky3 && cargo build --release
+./target/release/ski-air sudoku sudoku tables               # prove, verify, guess test, tamper
+cd ../.. && P=bench/plonky3/sudoku/public.txt
+lake exe sudoku check $P bench/plonky3/tables/sudoku.txt
+lake exe sudoku check $P bench/plonky3/tables/tampered_sudoku_*.txt   # each must be REJECT
+```
+
+Measured, 2026-09-27, Apple M4 Max, release build, three runs:
+
+```
+statement   23,394 public cells, 729 inputs; heights 2^16 rows, 2^16 memory, 2^10 inputs
+honest      45,667 rows, 52,299 memory cells; prove 3.0-3.3 s, verify 0.07-0.09 s,
+            proof about 600 KiB (postcard)  verified
+guess test    the true inputs against the published witness terminal: no match
+swapped       ends at the atom 732 (REJ); rejected by the verifier (OodEvaluationMismatch)
+forged_input  ends at the atom 731 (ACC); rejected by the verifier (Lookup(TerminalSumNonZero))
+```
+
+`lake exe sudoku check` accepts the honest table (in about 2 s) and
+rejects both tampered ones, and a table whose puzzle line differs from
+the statement's. `lake exe sudoku statement` rejects `public.txt` with
+the markers exchanged or with a clue blanked. `swapped` is Wikipedia's solution with two
+cells of row 0 exchanged, run honestly: the formula is false, and the run
+ends at `REJ`. `forged_input` puts `I` in the first input cell, which is
+no Boolean. That run reaches `ACC`, so without the witness table's
+constraint the verifier would accept a table that proves nothing about a
+grid. The lookup of the input cell fails instead. `prove` includes the
+setup; the proof size varies with the random salts.
+
+`DESIGN.md` records the tables: atoms and the witness table as built, and
+the plan for supercombinator instantiation rows and the template table.
+
 ## What this is not
 
-- **Not zero knowledge.** The PCS is not hiding, and the first row loads the
-  whole term in the clear. Hiding the witness needs a hiding PCS and the
-  loaded heap committed rather than public.
-- **Not bound to an output.** As in `Ski/Air.lean`, the constraints fix the
-  run, not the value it ends on.
+- **The corpus proofs are not zero knowledge.** Their PCS is not hiding,
+  and the first row loads the whole term in the clear; nor do they bind an
+  output. The Sudoku proof does both.
+- **Plonky3's zero knowledge is statistical and unaudited.** Plonky3 marks
+  its randomization of the trace as statistically hiding only, and
+  `HidingFriPcs` enforces a masking budget (trace height at least
+  `2 · (queries + 4 · opening points)`) that every Sudoku table meets.
+- **The zero-knowledge argument is informal.** It rests on Plonky3's
+  hiding PCS for everything committed and opened, and on the blinding for
+  the published terminals. No simulator is written down, and the guess
+  test checks one attack, not all.
 - **Security is Plonky3's benchmark setting**: blowup 2, 100 queries and 16
   bits of query grinding. Plonky3's `conjectured_soundness_bits` gives 116,
   but that counts the query phase only and Plonky3 marks it as not a
@@ -90,7 +192,7 @@ every corpus row; `prove s` includes the setup.
   memory heights only up to `2^21`: addresses stay below `2^21` and
   counters below `2^23`, so a read at or above the counter wraps to at
   least `p − 2^21`, which no 24-bit decomposition represents.
-- **The link to Lean is per table.** The Lean checker decides `Accepts` on
-  each table the prover proves; that every table the verifier accepts
-  satisfies `Accepts` is argued in the header of `src/main.rs`, not proved
-  in Lean.
+- **The link to Lean is per table.** The Lean checkers decide `Accepts`
+  and `sudokuCheck` on each table the prover proves; that every table the
+  verifier accepts satisfies them is argued in the headers of
+  `src/main.rs` and `src/sudoku.rs`, not proved in Lean.

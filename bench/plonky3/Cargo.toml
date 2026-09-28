@@ -18,6 +18,9 @@ p3-challenger = "0.8.0"
 p3-dft = "0.8.0"
 p3-symmetric = "0.8.0"
 p3-util = "0.8.0"
+rand = "0.10"
+serde = "1"
+postcard = { version = "1", features = ["alloc"] }
 
 [profile.release]
 debug = false

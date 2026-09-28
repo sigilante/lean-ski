@@ -632,17 +632,36 @@ joined by a LogUp bus, with one value per address and 24-bit range checks.
 Every corpus row proves and verifies (`3 sumto`, 32,768 rows, in about 0.5 s),
 and `lake exe aircheck` (`Ski/AirCheck.lean`) accepts every table it
 proves with a checker that decides the AIR's constraints, while four tampered
-tables fail both. Not yet zero knowledge (the PCS is not hiding and the
-term is loaded in the clear). Outputs bind by probing: the machine has
-an inert `atom` cell, read back as an open term's variable, and a table
-of `t X₁ … Xₙ` whose last row has the atom `i` at the head proves
+tables fail both. Outputs bind by probing: the machine has an inert
+`atom` cell, read back as an open term's variable, and a table of
+`t X₁ … Xₙ` whose last row has the atom `i` at the head proves
 `t X₁ … Xₙ ⟶* Xᵢ a₁ … aₖ` (`Ski/HeapOpen.lean`, `Ski/AirOpen.lean`,
-`air_probe`); the Plonky3 tables do not yet carry atoms. Supercombinator
-jets are licensed once for every template: an instantiation is weak
-reduction when the head is `absN xs body` (`inst_sound`), and a jetted run
-that halts proves normal-order evaluation up to weak reduction of the
-value (`jet_run_eval`, `Ski/Inst.lean`); the circuit's instantiation rows
-are still to build.
+`air_probe`). The first zero-knowledge proof is a Sudoku solution
+(`Ski/BoolProbe.lean`, `Ski/Statement.lean`, `Ski/Sudoku.lean`,
+`Ski/SudokuCheck.lean`, `bench/plonky3/src/sudoku.rs`). The witness is 729
+Scott Booleans; the formula (every cell one digit, every row, column and
+box every digit, the clues) compiles to a selector over shared slot
+cells, applied to the atoms `ACC` and `REJ`; a table that reads `ACC` at
+the head proves that the inputs solve the puzzle (`sudoku_sound`). In
+Plonky3, with a hiding PCS, a private witness table constrains each input
+cell to `K` or `K I`, the CPU and memory heights are fixed constants, the
+last row must read `ACC`, and two blinding messages mask the lookup sums
+Plonky3 publishes per table, which otherwise let a verifier check a
+guessed grid. 45,667 rows, proved in about 3 s and verified in 0.08 s;
+the statement file checked by `lake exe sudoku statement`, the table
+accepted by `lake exe sudoku check` (`sudokuCheck_sound`), and a wrong
+grid and a non-Boolean input rejected by both. The zero-knowledge
+argument is informal and rests on Plonky3's unaudited hiding PCS. The non-Boolean input (`I` in an input cell) reaches `ACC`, so
+the witness table's Boolean constraint carries weight. The corpus
+proofs stay non-hiding and load the whole term in the clear.
+Supercombinator jets are licensed once for every template: an
+instantiation is weak reduction when the head is `absN xs body`
+(`inst_sound`), a jetted run that halts proves normal-order evaluation up
+to weak reduction of the value (`jet_run_eval`, `Ski/Inst.lean`), and
+weak reduction keeps a value's head and arity, so a jetted run reads back
+what an unjetted one does (`jet_run_shape`, the small lemma,
+`Ski/SmallLemma.lean`); the circuit's instantiation rows are still to
+build.
 
 ## 6. Acceptance
 

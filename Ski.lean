@@ -8,6 +8,10 @@ import Ski.HeapOpen
 import Ski.AirOpen
 import Ski.Inst
 import Ski.SmallLemma
+import Ski.BoolProbe
+import Ski.Statement
+import Ski.Sudoku
+import Ski.SudokuCheck
 import Ski.Weak
 import Ski.Lambda
 import Ski.Open

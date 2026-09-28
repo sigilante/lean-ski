@@ -16,3 +16,7 @@ root = "bench.AirCost"
 [[lean_exe]]
 name = "aircheck"
 root = "bench.AirCheck"
+
+[[lean_exe]]
+name = "sudoku"
+root = "bench.Sudoku"

@@ -9,6 +9,10 @@ import Ski.HeapOpen
 import Ski.AirOpen
 import Ski.Inst
 import Ski.SmallLemma
+import Ski.BoolProbe
+import Ski.Statement
+import Ski.Sudoku
+import Ski.SudokuCheck
 import Ski.Weak
 import Ski.Lambda
 import Ski.Quote
@@ -454,6 +458,25 @@ open Ski.Audit
 -- The small lemma: weak reduction keeps a stuck spine's head and arity
 #audit_clean nhead_step nhead_steps nhead_appL appL_snoc nhead_inv small_lemma whnf_wstep
   small_lemma_whnf jet_run_shape
+
+-- Boolean statements: a formula compiled to Scott Booleans, read by a probe, and proved by the AIR
+#audit_clean BExpr.sbool_sel BExpr.fill_tt BExpr.fill_ff BExpr.bool_reduce BExpr.probe_true
+  BExpr.eval_all BExpr.eval_any Stmt.pbuild_spec Stmt.slotHeap_length Stmt.slotHeap_get
+  Stmt.slot_reads Stmt.compile_occ Stmt.subst_probe Stmt.odecode_stmt Stmt.stmt_sound
+  Stmt.pbuild_shape Stmt.stmtMachine_public
+
+-- Sudoku: the formula is the checker, a passing grid solves the puzzle, and the AIR proves it
+#audit_clean Sudoku.eval_sudoku Sudoku.bounded_all Sudoku.bounded_any Sudoku.idx_lt
+  Sudoku.mem_nine Sudoku.mem_cells Sudoku.mem_pairs Sudoku.boxCell_lt Sudoku.mem_groups
+  Sudoku.bounded_sudoku Sudoku.gridOf_eq Sudoku.mem_pairs_iff Sudoku.mem_cells_iff
+  Sudoku.valid_cell Sudoku.valid_grid Sudoku.valid_group Sudoku.valid_digits
+  Sudoku.valid_values Sudoku.row_mem Sudoku.col_mem Sudoku.box_mem Sudoku.valid_clues
+  Sudoku.solves_of_valid
+  Sudoku.sudoku_sound Sudoku.cluesOK_of Sudoku.wiki_clues_ok Sudoku.wiki_valid Sudoku.wiki_swapped Sudoku.wiki_solves
+
+-- The Sudoku table check: a table produced outside Lean, decided from the statement machine
+#audit_clean Air.getElem?_fun Air.checkFromA_sound Stmt.pbuildA_eq Stmt.stmtMachineA_eq
+  Sudoku.sudokuCheck_sound
 
 -- The three-valued outcome: structured formulas demand a normal form, an atom need not
 #audit_clean Real.and_converges Real.or_converges Real.ex_converges atom_divergent_realizer

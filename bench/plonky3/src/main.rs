@@ -7,9 +7,10 @@
 //!   halted rows.  A row holds the registers `hd`, `stk`, `ctr`, a one-hot
 //!   selector for the rule kind, the fields of the cells it reads, and the
 //!   bits that range-check each read address below `ctr`.  The kinds are the
-//!   cases of `Air.stepG` and `Air.haltRow`: an unwind, `I`, `K`, `S`, and the
-//!   six ways a combinator can lack arguments.  A read's tag is fixed by the
-//!   kind, so the lookups check the cells the kind needs.
+//!   cases of `Air.stepG` and `Air.haltRow`: an unwind, `I`, `K`, `S`, the
+//!   six ways a combinator can lack arguments, and an atom at the head.  A
+//!   read's tag is fixed by the kind, so the lookups check the cells the kind
+//!   needs.
 //! - **Memory**: the committed memory table, one entry per address in order
 //!   (`addr` starts at 0 and increases by 1), with the number of times each
 //!   entry is looked up.  One value per address, as `rd` needs.
@@ -22,13 +23,17 @@
 //! decides the AIR's constraints on it (`Air.checkA_iff`).  Tampered tables
 //! must fail both: the verifier must reject a proof of each.
 //!
+//! `src/sudoku.rs` adds a fourth table, the private inputs, and proves a
+//! Sudoku solution in zero knowledge; its header gives the argument.
+//!
 //! **Why the constraints are `Accepts`.**  Read a table off an accepted
 //! proof: the rows are the CPU's registers, and `M[a]` is the memory entry at
-//! address `a` (one per address), decoded by its tag: 0..5 to `S`, `K`, `I`,
-//! `A a b`, `N`, `C a b`, ignoring the fields of `S`, `K`, `I`, `N`, and any
-//! other tag to `N`.  Such entries and fields are never used: every read's
-//! tag lies in 0..5, and a nullary cell's fields feed only expressions its
-//! kind gates to zero.  A lookup that balances names an entry, so a read of
+//! address `a` (one per address), decoded by its tag: 0..6 to `S`, `K`, `I`,
+//! `A a b`, `N`, `C a b`, `X a` (the atom `a`), ignoring the fields of `S`,
+//! `K`, `I`, `N` and the second field of `X`, and any other tag to `N`.
+//! Such entries and fields are never used: every read's tag lies in 0..6,
+//! and a nullary cell's fields feed only expressions its kind gates to
+//! zero.  A lookup that balances names an entry, so a read of
 //! `(a, tag, x, y)` means `M[a]` has that tag and those fields.
 //! - The verifier accepts only CPU and memory heights up to `2^MAX_LOG_HEIGHT`.
 //!   Then addresses stay below `2^21` and counters below `2^23` (a counter
@@ -43,12 +48,14 @@
 //!   `C x s1`, `C y s2`, `C z s3`; `S` writes `A y z`, `C ctr s3`,
 //!   `C z (ctr + 1)`.  The next registers are `stepG`'s.
 //! - The six halting kinds read the head combinator and the stack down to an
-//!   empty stack before the rule's arity: `haltRow`'s `short`.  A halted row's
-//!   next row repeats it.
+//!   empty stack before the rule's arity: `haltRow`'s `short`.  The seventh
+//!   reads an atom at the head, which `haltRow` accepts outright.  A halted
+//!   row's next row repeats it.
 //! - The first row is the loaded term.  Each program lookup names an existing
 //!   address, so the memory table has at least `ctr0` entries, and its
 //!   prefix is the loaded heap: `M.take ctr0 = (load t).heap`.  The last row
-//!   has halted.
+//!   has halted, and, when the AIR names an accepting marker, reads it at
+//!   the head: an atom read's first field is the atom.
 //! So an accepted table satisfies `Air.Accepts`, which `lake exe aircheck`
 //! decides for every table this program proves.
 //!
@@ -72,6 +79,8 @@ use p3_matrix::dense::RowMajorMatrix;
 use p3_merkle_tree::MerkleTreeMmcs;
 use p3_symmetric::{PaddingFreeSponge, TruncatedPermutation};
 use p3_uni_stark::StarkConfig;
+
+mod sudoku;
 
 // ---------------------------------------------------------------------------
 // The STARK configuration
@@ -115,6 +124,8 @@ enum Cell {
     App(u32, u32),
     Nil,
     Cons(u32, u32),
+    /// A marker: `Mach.Cell.atom`.
+    Atom(u32),
 }
 
 impl Cell {
@@ -127,12 +138,14 @@ impl Cell {
             Cell::App(..) => 3,
             Cell::Nil => 4,
             Cell::Cons(..) => 5,
+            Cell::Atom(_) => 6,
         }
     }
     fn fields(self) -> (u32, u32) {
         match self {
             Cell::App(f, x) => (f, x),
             Cell::Cons(x, r) => (x, r),
+            Cell::Atom(n) => (n, 0),
             _ => (0, 0),
         }
     }
@@ -145,6 +158,7 @@ impl Cell {
             Cell::App(f, x) => format!("A {f} {x}"),
             Cell::Nil => "N".into(),
             Cell::Cons(x, r) => format!("C {x} {r}"),
+            Cell::Atom(n) => format!("X {n}"),
         }
     }
 }
@@ -283,9 +297,13 @@ enum Kind {
     HS1,
     HS2,
     HS3,
+    /// An atom at the head: a marker, which no rule applies to.
+    HA,
 }
 
-const KINDS: [Kind; 10] = [
+const NKINDS: usize = 11;
+
+const KINDS: [Kind; NKINDS] = [
     Kind::App,
     Kind::I,
     Kind::K,
@@ -296,6 +314,7 @@ const KINDS: [Kind; 10] = [
     Kind::HS1,
     Kind::HS2,
     Kind::HS3,
+    Kind::HA,
 ];
 
 /// A state's kind and the cells it reads (`R0` at `hd`, `R1` at `stk`, `R2`
@@ -356,6 +375,7 @@ fn classify(m: &[Cell], hd: u32, stk: u32) -> (Kind, [Option<(u32, Cell)>; 4]) {
                 _ => panic!("not a machine state"),
             }
         }
+        Cell::Atom(_) => (Kind::HA, [r0, None, None, None]),
         _ => panic!("not a machine state"),
     }
 }
@@ -375,9 +395,20 @@ const HD: usize = 0;
 const STK: usize = 1;
 const CTR: usize = 2;
 const SEL: usize = 3;
-const FLD: usize = SEL + 10;
+const FLD: usize = SEL + NKINDS;
 const BITS: usize = FLD + 8;
 const CPU_WIDTH: usize = BITS + 4 * RANGE_BITS;
+
+/// A blinding message: a random tuple of `BLIND_LEN` field elements and a
+/// flag, on a bus of its own.  See `src/sudoku.rs`.
+const BLIND_LEN: usize = 4;
+const BLIND_WIDTH: usize = BLIND_LEN + 1;
+/// The CPU's blinding columns, when it has them: it receives on `BLIND_A`
+/// and sends on `BLIND_B`.
+const CPU_BLA: usize = CPU_WIDTH;
+const CPU_BLB: usize = CPU_WIDTH + BLIND_WIDTH;
+const BLIND_A: &str = "blind_a";
+const BLIND_B: &str = "blind_b";
 
 const BUS: &str = "mem";
 
@@ -386,10 +417,17 @@ struct CpuAir {
     hd0: u32,
     stk0: u32,
     ctr0: u32,
+    /// The accepting marker, when the last row must read it at the head.
+    accept: Option<u32>,
+    /// Whether the table carries blinding columns.
+    blind: bool,
 }
 
 #[derive(Clone, Debug)]
-struct MemAir;
+struct MemAir {
+    /// Whether the table carries blinding columns: it receives on `BLIND_B`.
+    blind: bool,
+}
 
 /// The loaded heap: rows `(addr, tag, a, b, active)`.
 #[derive(Clone, Debug)]
@@ -397,19 +435,28 @@ struct ProgAir {
     pre: Vec<[u32; 5]>,
 }
 
+/// The private inputs: a preprocessed `(addr, active)` per row, and one
+/// committed column, the input's bit.
+#[derive(Clone, Debug)]
+struct WitAir {
+    pre: Vec<[u32; 2]>,
+}
+
 #[derive(Clone, Debug)]
 enum SkiAir {
     Cpu(CpuAir),
     Mem(MemAir),
     Prog(ProgAir),
+    Wit(WitAir),
 }
 
 impl<F: Field> BaseAir<F> for SkiAir {
     fn width(&self) -> usize {
         match self {
-            SkiAir::Cpu(_) => CPU_WIDTH,
-            SkiAir::Mem(_) => 5,
+            SkiAir::Cpu(c) => CPU_WIDTH + if c.blind { 2 * BLIND_WIDTH } else { 0 },
+            SkiAir::Mem(m) => 5 + if m.blind { BLIND_WIDTH } else { 0 },
             SkiAir::Prog(_) => 1,
+            SkiAir::Wit(_) => 1 + BLIND_WIDTH,
         }
     }
 
@@ -422,6 +469,13 @@ impl<F: Field> BaseAir<F> for SkiAir {
                     .collect(),
                 5,
             )),
+            SkiAir::Wit(w) => Some(RowMajorMatrix::new(
+                w.pre
+                    .iter()
+                    .flat_map(|r| r.iter().map(|&v| F::from_u32(v)))
+                    .collect(),
+                2,
+            )),
             _ => None,
         }
     }
@@ -429,6 +483,7 @@ impl<F: Field> BaseAir<F> for SkiAir {
     fn preprocessed_width(&self) -> usize {
         match self {
             SkiAir::Prog(_) => 5,
+            SkiAir::Wit(_) => 2,
             _ => 0,
         }
     }
@@ -441,8 +496,9 @@ where
     fn eval(&self, b: &mut AB) {
         match self {
             SkiAir::Cpu(a) => a.eval(b),
-            SkiAir::Mem(_) => eval_mem(b),
+            SkiAir::Mem(m) => eval_mem(b, m.blind),
             SkiAir::Prog(_) => eval_prog(b),
+            SkiAir::Wit(_) => eval_wit(b),
         }
     }
 }
@@ -465,29 +521,39 @@ impl CpuAir {
         let s = |i: usize| loc[SEL + i].clone();
         let (app, ki, kk, ks) = (s(0), s(1), s(2), s(3));
         let (hi1, hk1, hk2, hs1, hs2, hs3) = (s(4), s(5), s(6), s(7), s(8), s(9));
+        let ha = s(10);
         let f = |i: usize| loc[FLD + i].clone();
         let (a0, b0, a1, b1, a2, b2, a3, b3) = (f(0), f(1), f(2), f(3), f(4), f(5), f(6), f(7));
 
         // Exactly one kind per row.
-        for i in 0..10 {
+        for i in 0..NKINDS {
             b.assert_bool(s(i));
         }
-        let sels: Vec<AB::Expr> = (0..10).map(s).collect();
+        let sels: Vec<AB::Expr> = (0..NKINDS).map(s).collect();
         b.assert_eq(sum::<AB>(&sels), one.clone());
 
-        let halt = sum::<AB>(&[hi1.clone(), hk1.clone(), hk2.clone(), hs1.clone(), hs2.clone(), hs3.clone()]);
+        let halt = sum::<AB>(&[
+            hi1.clone(),
+            hk1.clone(),
+            hk2.clone(),
+            hs1.clone(),
+            hs2.clone(),
+            hs3.clone(),
+            ha.clone(),
+        ]);
 
         // The reads each kind makes, and the tags the kind requires of them.
         let acts = [
             one.clone(),
-            one.clone() - app.clone(),
+            one.clone() - app.clone() - ha.clone(),
             sum::<AB>(&[kk.clone(), ks.clone(), hk2.clone(), hs2.clone(), hs3.clone()]),
             ks.clone() + hs3.clone(),
         ];
         let tags = [
             (kk.clone() + hk1.clone() + hk2.clone()) * c(1)
                 + (ki.clone() + hi1.clone()) * c(2)
-                + app.clone() * c(3),
+                + app.clone() * c(3)
+                + ha.clone() * c(6),
             sum::<AB>(&[ki.clone(), kk.clone(), ks.clone(), hk2.clone(), hs2.clone(), hs3.clone()]) * c(5)
                 + sum::<AB>(&[hi1.clone(), hk1.clone(), hs1.clone()]) * c(4),
             sum::<AB>(&[kk.clone(), ks.clone(), hs3.clone()]) * c(5)
@@ -560,11 +626,30 @@ impl CpuAir {
             t.assert_eq(stk, c(self.stk0));
             t.assert_eq(ctr, c(self.ctr0));
         }
-        b.when_last_row().assert_eq(halt, one);
+        b.when_last_row().assert_eq(halt, one.clone());
+        if self.blind {
+            blind_msg(b, &loc, CPU_BLA, BLIND_A, false);
+            blind_msg(b, &loc, CPU_BLB, BLIND_B, true);
+        }
+        // The output: the last row reads the accepting marker at the head.
+        if let Some(acc) = self.accept {
+            let mut t = b.when_last_row();
+            t.assert_eq(ha, one);
+            t.assert_eq(a0, c(acc));
+        }
     }
 }
 
-fn eval_mem<AB: PermutationAirBuilder + InteractionBuilder>(b: &mut AB) {
+/// A blinding message at column `col`: the tuple, then a Boolean flag, sent
+/// with count `sign · flag` on `bus`.
+fn blind_msg<AB: PermutationAirBuilder + InteractionBuilder>(b: &mut AB, loc: &[AB::Expr], col: usize, bus: &str, send: bool) {
+    let flag = loc[col + BLIND_LEN].clone();
+    b.assert_bool(flag.clone());
+    let count = Count::bounded(flag, 1);
+    b.push_interaction(bus, loc[col..col + BLIND_LEN].to_vec(), if send { count } else { -count });
+}
+
+fn eval_mem<AB: PermutationAirBuilder + InteractionBuilder>(b: &mut AB, blind: bool) {
     let main = b.main();
     let loc: Vec<AB::Expr> = main.current_slice().iter().map(|&v| v.into()).collect();
     let nxt: Vec<AB::Expr> = main.next_slice().iter().map(|&v| v.into()).collect();
@@ -576,6 +661,9 @@ fn eval_mem<AB: PermutationAirBuilder + InteractionBuilder>(b: &mut AB) {
         [loc[0].clone(), loc[1].clone(), loc[2].clone(), loc[3].clone()],
         Count::provided(-loc[4].clone()),
     );
+    if blind {
+        blind_msg(b, &loc, 5, BLIND_B, false);
+    }
 }
 
 fn eval_prog<AB: PermutationAirBuilder + InteractionBuilder>(b: &mut AB) {
@@ -587,6 +675,29 @@ fn eval_prog<AB: PermutationAirBuilder + InteractionBuilder>(b: &mut AB) {
         BUS,
         [pre[0].clone(), pre[1].clone(), pre[2].clone(), pre[3].clone()],
         Count::bounded(pre[4].clone(), 1),
+    );
+}
+
+/// Each active row is the input cell at `addr`: `K` when its bit is 1 and
+/// `A 0 1` (`K I`, the slot cells at 0 and 1) when it is 0.  So an input
+/// cell is a Scott Boolean, and nothing else.
+fn eval_wit<AB: PermutationAirBuilder + InteractionBuilder>(b: &mut AB) {
+    let pre: Vec<AB::Expr> = b.preprocessed().current_slice().iter().map(|&v| v.into()).collect();
+    let main = b.main();
+    let loc: Vec<AB::Expr> = main.current_slice().iter().map(|&v| v.into()).collect();
+    let bit = loc[0].clone();
+    blind_msg(b, &loc, 1, BLIND_A, true);
+    b.assert_bool(bit.clone());
+    let one = AB::Expr::ONE;
+    b.push_interaction(
+        BUS,
+        [
+            pre[0].clone(),
+            AB::Expr::from_u32(3) - bit.clone() * AB::Expr::from_u32(2),
+            AB::Expr::ZERO,
+            one - bit,
+        ],
+        Count::bounded(pre[1].clone(), 1),
     );
 }
 
@@ -630,12 +741,12 @@ fn f(n: u32) -> Val {
     Val::from_u32(n)
 }
 
-/// The three traces, with the memory multiplicities counted from the rows.
-fn traces(tb: &Table, min_log: usize) -> (RowMajorMatrix<Val>, RowMajorMatrix<Val>, RowMajorMatrix<Val>, Vec<[u32; 5]>) {
-    let mut mult = vec![0u32; tb.mem.len()];
-    let mut cpu = Vec::with_capacity(tb.rows.len() * CPU_WIDTH);
-    for &[hd, stk, ctr] in &tb.rows {
-        let (kind, reads) = classify(&tb.mem, hd, stk);
+/// The CPU trace of the rows over the memory table, counting each read and
+/// write into `mult`.
+fn cpu_trace(rows: &[[u32; 3]], memory: &[Cell], mult: &mut [u32]) -> RowMajorMatrix<Val> {
+    let mut cpu = Vec::with_capacity(rows.len() * CPU_WIDTH);
+    for &[hd, stk, ctr] in rows {
+        let (kind, reads) = classify(memory, hd, stk);
         let mut row = vec![Val::ZERO; CPU_WIDTH];
         row[HD] = f(hd);
         row[STK] = f(stk);
@@ -667,6 +778,13 @@ fn traces(tb: &Table, min_log: usize) -> (RowMajorMatrix<Val>, RowMajorMatrix<Va
         }
         cpu.extend(row);
     }
+    RowMajorMatrix::new(cpu, CPU_WIDTH)
+}
+
+/// The three traces, with the memory multiplicities counted from the rows.
+fn traces(tb: &Table, min_log: usize) -> (RowMajorMatrix<Val>, RowMajorMatrix<Val>, RowMajorMatrix<Val>, Vec<[u32; 5]>) {
+    let mut mult = vec![0u32; tb.mem.len()];
+    let cpu = cpu_trace(&tb.rows, &tb.mem, &mut mult);
     let psize = pow2_at_least(tb.loaded.len(), min_log);
     let mut pre = Vec::with_capacity(psize);
     for (i, cell) in tb.loaded.iter().enumerate() {
@@ -682,7 +800,7 @@ fn traces(tb: &Table, min_log: usize) -> (RowMajorMatrix<Val>, RowMajorMatrix<Va
     }
     let prog = vec![Val::ZERO; psize];
     (
-        RowMajorMatrix::new(cpu, CPU_WIDTH),
+        cpu,
         RowMajorMatrix::new(mem, 5),
         RowMajorMatrix::new(prog, 1),
         pre,
@@ -713,8 +831,8 @@ fn lean_table(term: &str, tb: &Table) -> String {
 /// The AIRs, with the constants and the program table given.
 fn airs_of(hd0: u32, stk0: u32, ctr0: u32, pre: Vec<[u32; 5]>) -> Vec<SkiAir> {
     vec![
-        SkiAir::Cpu(CpuAir { hd0, stk0, ctr0 }),
-        SkiAir::Mem(MemAir),
+        SkiAir::Cpu(CpuAir { hd0, stk0, ctr0, accept: None, blind: false }),
+        SkiAir::Mem(MemAir { blind: false }),
         SkiAir::Prog(ProgAir { pre }),
     ]
 }
@@ -823,8 +941,19 @@ const MIN_LOG: usize = 4;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
+    if args.len() == 4 && args[1] == "sudoku" {
+        let out = std::path::Path::new(&args[3]);
+        std::fs::create_dir_all(out).unwrap();
+        std::panic::set_hook(Box::new(|_| {}));
+        let failures = sudoku::main(std::path::Path::new(&args[2]), out);
+        if failures > 0 {
+            println!("\n{failures} FAILURES");
+            std::process::exit(1);
+        }
+        return;
+    }
     if args.len() != 3 {
-        eprintln!("usage: ski-air CORPUS OUTDIR");
+        eprintln!("usage: ski-air CORPUS OUTDIR | ski-air sudoku DIR OUTDIR");
         std::process::exit(2);
     }
     let corpus = std::fs::read_to_string(&args[1]).expect("corpus");
@@ -928,7 +1057,7 @@ fn main() {
                 for i in 1..k {
                     let row = &mut cpu.values[i * CPU_WIDTH..(i + 1) * CPU_WIDTH];
                     row.copy_from_slice(&base);
-                    for sel in 0..10 {
+                    for sel in 0..NKINDS {
                         row[SEL + sel] = Val::ZERO;
                     }
                     row[SEL + 7] = Val::ONE; // HS1
