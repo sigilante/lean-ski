@@ -679,8 +679,14 @@ head and arity (`air_sound_jet`). Every corpus row proves jetted, and
 `lake exe jets check` accepts each table. The verifier runs `lake exe jets
 statement` on its own terms first, which checks each jet file against its
 term and licenses its roots (`rootsOKB`): `3 sumto` takes 3,678 CPU rows
-instead of 25,074. Jets do not yet combine with probes (instantiation over open
-terms) or with zero knowledge.
+instead of 25,074. Jets combine with probes: a jetted run from a state
+with atoms is open weak reduction (`ojsteps_owsteps`, `Ski/InstOpen.lean`),
+which reaches a marker's spine by head reduction (`owsteps_spine`,
+`Ski/ProbeTree.lean`). A table of probe segments, one per constructor of
+an outcome's probe tree, proves that the term decodes to the outcome
+(`air_probe_decodes`, `Ski/AirProbe.lean`; `bench/plonky3/src/probe.rs`):
+`3 sumto` decodes to `[6]` in 11 segments and 4,144 CPU rows. Jets do not
+yet combine with zero knowledge.
 
 ## 6. Acceptance
 
@@ -702,7 +708,13 @@ proof bytes were ignored, and that a checked copy in a shared temporary
 directory could be swapped. The verifier now reads each public file once
 and pipes those bytes to Lean's statement check, which reads no file. Names are identifiers,
 and a proof is one byte string. Each attack is kept as a standing forgery
-in `release/verify.sh` that fails on the vulnerable builds. The
-proof shows halting, with the value's head and arity, not the decoded
-output; and the verifier's constraints are argued, not proved, to be
-`AcceptsJ` (`release/README.md`).
+in `release/verify.sh` that failed on the vulnerable builds (with the Ω
+proof made for their CPU layout; it was remade when the CPU gained the
+probe kinds). That proof
+shows halting, with the value's head and arity. A second proof binds the
+output: probe segments over jets show that `3 sumto` decodes to `[6]`
+(`Decodes`, 434,238 bytes), refused for `[5]`, for the error outcome and
+with one byte changed; Lean's `jets check-probe` accepts its table. Its
+witness comes from `ski-air`'s run, not Avon's. The verifier's
+constraints are argued, not proved, to be `AcceptsJ` and `AcceptsP`
+(`release/README.md`).

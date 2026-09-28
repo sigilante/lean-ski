@@ -1,4 +1,5 @@
 import Ski.JetTable
+import Ski.AirProbe
 open Term
 
 /-!
@@ -18,6 +19,14 @@ jetted tables.
   `Air.AcceptsJ` with licensed roots, so it proves the evaluation it ends
   on, up to weak reduction of the value, with the value's head and arity
   (`Air.checkJA_sound`, `Air.air_sound_jet`).
+- `jets plan OUTCOME` prints the probe plan of an outcome
+  (`Air.planOf (Probe.toV o) 0`): what the prover's preprocessed PLAN table
+  holds.  An outcome is `err`, or `val` and the stack's numbers, top first.
+- `jets check-probe TABLE OUTCOME` checks a table with probe segments:
+  the format above, then `starts N` and `N` lines, the segments' start
+  rows and the last row, then `fields n` and `n` lines `a p1 … pa`, each
+  segment's fields.  It runs `Air.checkPA` for the outcome's plan.
+  `ACCEPT` means the term decodes to the outcome (`Air.checkPA_decodes`).
 
 **`<row>.jets`**: `roots R`, then `R` lines `address jet`; `jets G`, then
 per jet a line `k n root` (arity, cells written, root operand) and `n`
@@ -53,6 +62,7 @@ def parseCell (ws : List String) : Option Cell :=
   | ["N"] => some .nil
   | ["A", f, x] => do some (.app (← f.toNat?) (← x.toNat?))
   | ["C", x, r] => do some (.cons (← x.toNat?) (← r.toNat?))
+  | ["X", n] => do some (.atom (← n.toNat?))
   | _ => none
 
 def parseRow (ws : List String) : Option Air.Row :=
@@ -189,12 +199,88 @@ def check (paths : List String) : IO UInt32 := do
         bad := bad + 1
   return (if bad == 0 then 0 else 1)
 
+/-- An outcome from words: `err`, or `val` and the stack's numbers, top
+    first, each in plain decimal, so one outcome has one spelling. -/
+def parseOutcome : List String → Option Outcome
+  | ["err"] => some .err
+  | "val" :: ns => do some (.val ((← ns.mapM decimal).map Item.num))
+  | _ => none
+where
+  /-- A number in plain decimal: digits only, no leading zero. -/
+  decimal (w : String) : Option Nat :=
+    if !w.isEmpty && w.all Char.isDigit && (w == "0" || w.front != '0') then w.toNat? else none
+
+/-- A plan, as the prover reads it: `plan n`, then per segment
+    `base k ctor arity parent field`. -/
+def planText (plan : List Seg) : String :=
+  plan.foldl (fun s g => s ++ s!"{g.base} {g.k} {g.ctor} {g.arity} {g.parent} {g.field}\n")
+    s!"plan {plan.length}\n"
+
+def planOfOutcome (o : Outcome) : Option (List Seg) := (Probe.toV o).map (planOf · 0)
+
+def plan (ws : List String) : IO UInt32 := do
+  match parseOutcome ws >>= planOfOutcome with
+  | some p =>
+    IO.print (planText p)
+    return 0
+  | none =>
+    IO.println s!"NO PLAN FOR {" ".intercalate ws}"
+    return 1
+
+/-- The probe part of a table: the start rows, then the fields. -/
+def parseProbe (ls : List String) : Option (Array Nat × Array (List Nat)) := do
+  match ls with
+  | sl :: rest =>
+    let n ← match words sl with
+      | ["starts", n] => n.toNat?
+      | _ => none
+    let starts ← (rest.take n).mapM (fun l => l.trimAscii.toString.toNat?)
+    if starts.length != n then none
+    match rest.drop n with
+    | fl :: rest2 =>
+      let m ← match words fl with
+        | ["fields", m] => m.toNat?
+        | _ => none
+      let flds ← (rest2.take m).mapM fun l => do
+        match (words l).mapM String.toNat? with
+        | some (a :: ps) => if ps.length == a then some ps else none
+        | _ => none
+      if flds.length != m then none
+      if !(rest2.drop m).isEmpty then none
+      some (starts.toArray, flds.toArray)
+    | [] => none
+  | [] => none
+
+def checkProbe (path : String) (ws : List String) : IO UInt32 := do
+  let tmpls := allTemplates
+  let some o := parseOutcome ws | do IO.println "MALFORMED OUTCOME"; return 1
+  let some pl := planOfOutcome o | do IO.println "NO PLAN FOR THE OUTCOME"; return 1
+  let text ← IO.FS.readFile path
+  let ls := (text.splitOn "\n").filter (fun l => !l.trimAscii.toString.isEmpty)
+  -- The table proper ends where `starts` begins.
+  let i := ls.findIdx (fun l => (words l).headD "" == "starts")
+  match parseTable (ls.take i), parseProbe (ls.drop i) with
+  | some (t, A, rows), some (starts, flds) =>
+    let m := load t
+    let (roots, jets) := jetTable m.heap tmpls
+    if checkPA A t roots jets pl starts flds rows.toArray then
+      IO.println s!"ACCEPT {path}: the term decodes to {" ".intercalate ws} ({rows.length} rows, {A.size} cells, {pl.length} segments)"
+      return 0
+    else
+      IO.println s!"REJECT {path}"
+      return 1
+  | _, _ =>
+    IO.println s!"MALFORMED {path}"
+    return 1
+
 def main (args : List String) : IO UInt32 := do
   match args with
   | ["emit", dir] => emit dir
   | ["statement", corpus, dir] => statement corpus dir
   | ["statement-stdin"] => statementStdin
   | "check" :: paths => check paths
+  | "plan" :: ws => plan ws
+  | "check-probe" :: path :: ws => checkProbe path ws
   | _ =>
-    IO.eprintln "usage: jets emit DIR | jets statement CORPUS DIR | jets statement-stdin | jets check TABLE..."
+    IO.eprintln "usage: jets emit DIR | jets statement CORPUS DIR | jets statement-stdin | jets check TABLE...\n       jets plan OUTCOME | jets check-probe TABLE OUTCOME"
     return 2

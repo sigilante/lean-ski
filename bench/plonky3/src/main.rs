@@ -8,9 +8,10 @@
 //!   selector for the rule kind, the fields of the cells it reads, and the
 //!   bits that range-check each read address below `ctr`.  The kinds are the
 //!   cases of `Air.stepG` and `Air.haltRow`: an unwind, `I`, `K`, `S`, the
-//!   six ways a combinator can lack arguments, and an atom at the head.  A
-//!   read's tag is fixed by the kind, so the lookups check the cells the kind
-//!   needs.
+//!   six ways a combinator can lack arguments, and an atom at the head
+//!   (`src/jets.rs` adds an instantiation, and `src/probe.rs` two probe
+//!   rows, each zero when its columns are absent).  A read's tag is fixed
+//!   by the kind, so the lookups check the cells the kind needs.
 //! - **Memory**: the committed memory table, one entry per address in order
 //!   (`addr` starts at 0 and increases by 1), with the number of times each
 //!   entry is looked up.  One value per address, as `rd` needs.
@@ -81,6 +82,7 @@ use p3_symmetric::{PaddingFreeSponge, TruncatedPermutation};
 use p3_uni_stark::StarkConfig;
 
 mod jets;
+mod probe;
 mod sudoku;
 
 // ---------------------------------------------------------------------------
@@ -302,9 +304,13 @@ enum Kind {
     HA,
     /// An instantiation at a jet's root (`src/jets.rs`).
     Inst,
+    /// A probe row (`src/probe.rs`): the first, which starts the first
+    /// segment, and a later one, which also ends the segment before.
+    PFirst,
+    PLater,
 }
 
-const NKINDS: usize = 12;
+const NKINDS: usize = 14;
 
 const KINDS: [Kind; NKINDS] = [
     Kind::App,
@@ -319,6 +325,8 @@ const KINDS: [Kind; NKINDS] = [
     Kind::HS3,
     Kind::HA,
     Kind::Inst,
+    Kind::PFirst,
+    Kind::PLater,
 ];
 
 /// A state's kind and the cells it reads (`R0` at `hd`, `R1` at `stk`, `R2`
@@ -443,6 +451,9 @@ struct CpuAir {
     blind: bool,
     /// Whether the table carries jet columns and may instantiate.
     jets: bool,
+    /// The public probe plan, when the table carries probe columns (after
+    /// the jet columns; only with jets) and runs probe segments.
+    probe: Option<probe::ProbePub>,
 }
 
 #[derive(Clone, Debug)]
@@ -471,18 +482,23 @@ enum SkiAir {
     Prog(ProgAir),
     Wit(WitAir),
     Jet(jets::JetAir),
+    Probe(probe::ProbeAir),
 }
 
 impl<F: Field> BaseAir<F> for SkiAir {
     fn width(&self) -> usize {
         match self {
             SkiAir::Cpu(c) => {
-                CPU_WIDTH + if c.blind { 2 * BLIND_WIDTH } else { 0 } + if c.jets { JET_WIDTH } else { 0 }
+                CPU_WIDTH
+                    + if c.blind { 2 * BLIND_WIDTH } else { 0 }
+                    + if c.jets { JET_WIDTH } else { 0 }
+                    + if c.probe.is_some() { probe::PROBE_WIDTH } else { 0 }
             }
             SkiAir::Mem(m) => 5 + if m.blind { BLIND_WIDTH } else { 0 },
             SkiAir::Prog(_) => 1,
             SkiAir::Wit(_) => 1 + BLIND_WIDTH,
             SkiAir::Jet(j) => j.width(),
+            SkiAir::Probe(p) => p.width(),
         }
     }
 
@@ -503,6 +519,7 @@ impl<F: Field> BaseAir<F> for SkiAir {
                 2,
             )),
             SkiAir::Jet(j) => j.preprocessed(),
+            SkiAir::Probe(p) => p.preprocessed(),
             _ => None,
         }
     }
@@ -512,6 +529,7 @@ impl<F: Field> BaseAir<F> for SkiAir {
             SkiAir::Prog(_) => 5,
             SkiAir::Wit(_) => 2,
             SkiAir::Jet(j) => j.preprocessed_width(),
+            SkiAir::Probe(p) => p.preprocessed_width(),
             _ => 0,
         }
     }
@@ -528,6 +546,7 @@ where
             SkiAir::Prog(_) => eval_prog(b),
             SkiAir::Wit(_) => eval_wit(b),
             SkiAir::Jet(j) => j.eval(b),
+            SkiAir::Probe(p) => p.eval(b),
         }
     }
 }
@@ -552,6 +571,8 @@ impl CpuAir {
         let (hi1, hk1, hk2, hs1, hs2, hs3) = (s(4), s(5), s(6), s(7), s(8), s(9));
         let ha = s(10);
         let inst = s(11);
+        let (p_first, p_later) = (s(12), s(13));
+        let probe = p_first.clone() + p_later.clone();
         let f = |i: usize| loc[FLD + i].clone();
         let (a0, b0, a1, b1, a2, b2, a3, b3) = (f(0), f(1), f(2), f(3), f(4), f(5), f(6), f(7));
 
@@ -573,9 +594,11 @@ impl CpuAir {
         ]);
 
         // The reads each kind makes, and the tags the kind requires of them.
+        // A first probe row reads nothing; a later one reads the atom at the
+        // head (the end of the segment before), and no stack cell here.
         let acts = [
-            one.clone() - inst.clone(),
-            one.clone() - app.clone() - ha.clone() - inst.clone(),
+            one.clone() - inst.clone() - p_first.clone(),
+            one.clone() - app.clone() - ha.clone() - inst.clone() - probe.clone(),
             sum::<AB>(&[kk.clone(), ks.clone(), hk2.clone(), hs2.clone(), hs3.clone()]),
             ks.clone() + hs3.clone(),
         ];
@@ -583,7 +606,7 @@ impl CpuAir {
             (kk.clone() + hk1.clone() + hk2.clone()) * c(1)
                 + (ki.clone() + hi1.clone()) * c(2)
                 + app.clone() * c(3)
-                + ha.clone() * c(6),
+                + (ha.clone() + p_later.clone()) * c(6),
             sum::<AB>(&[ki.clone(), kk.clone(), ks.clone(), hk2.clone(), hs2.clone(), hs3.clone()]) * c(5)
                 + sum::<AB>(&[hi1.clone(), hk1.clone(), hs1.clone()]) * c(4),
             sum::<AB>(&[kk.clone(), ks.clone(), hs3.clone()]) * c(5)
@@ -649,6 +672,19 @@ impl CpuAir {
             next_ctr = next_ctr + next_ctr_i;
         } else {
             b.assert_zero(inst.clone());
+        }
+        match &self.probe {
+            Some(pp) => {
+                assert!(self.jets, "probe segments run with jets");
+                let (h, s, c) = probe::eval_cpu_probe(b, &loc, &nxt, p_first.clone(), p_later.clone(), ha.clone(), pp);
+                next_hd = next_hd + h;
+                next_stk = next_stk + s;
+                next_ctr = next_ctr + c;
+            }
+            None => {
+                b.assert_zero(p_first.clone());
+                b.assert_zero(p_later.clone());
+            }
         }
         {
             let mut t = b.when_transition();
@@ -869,7 +905,7 @@ fn lean_table(term: &str, tb: &Table) -> String {
 /// The AIRs, with the constants and the program table given.
 fn airs_of(hd0: u32, stk0: u32, ctr0: u32, pre: Vec<[u32; 5]>) -> Vec<SkiAir> {
     vec![
-        SkiAir::Cpu(CpuAir { hd0, stk0, ctr0, accept: None, blind: false, jets: false }),
+        SkiAir::Cpu(CpuAir { hd0, stk0, ctr0, accept: None, blind: false, jets: false, probe: None }),
         SkiAir::Mem(MemAir { blind: false }),
         SkiAir::Prog(ProgAir { pre }),
     ]
@@ -1056,6 +1092,33 @@ fn main() {
         }
         return;
     }
+    if args.len() >= 7 && (args[1] == "probe-prove" || args[1] == "probe-verify") {
+        std::panic::set_hook(Box::new(|_| {}));
+        let p = |i: usize| std::path::Path::new(&args[i]);
+        let outcome: Vec<&str> = args[6..].iter().map(|x| x.as_str()).collect();
+        let r = if args[1] == "probe-prove" {
+            jets::probe_prove(p(2), p(3), p(4), p(5), &outcome)
+        } else {
+            jets::probe_verify(p(2), p(3), &args[4], p(5), &outcome)
+        };
+        if let Err(e) = r {
+            println!("REJECTED: {e}");
+            std::process::exit(1);
+        }
+        return;
+    }
+    if args.len() == 5 && args[1] == "probes" {
+        let corpus = std::fs::read_to_string(&args[2]).expect("corpus");
+        let out = std::path::Path::new(&args[4]);
+        std::fs::create_dir_all(out).unwrap();
+        std::panic::set_hook(Box::new(|_| {}));
+        let failures = jets::probe_main(&corpus, std::path::Path::new(&args[3]), out);
+        if failures > 0 {
+            println!("\n{failures} FAILURES");
+            std::process::exit(1);
+        }
+        return;
+    }
     if args.len() == 5 && args[1] == "jets" {
         let corpus = std::fs::read_to_string(&args[2]).expect("corpus");
         let out = std::path::Path::new(&args[4]);
@@ -1071,7 +1134,9 @@ fn main() {
     if args.len() != 3 {
         eprintln!(
             "usage: ski-air CORPUS OUTDIR | ski-air sudoku DIR OUTDIR | ski-air jets CORPUS JETSDIR OUTDIR\n       \
-             ski-air jet-prove TERM JETS TABLE PROOF | ski-air jet-verify CORPUS JETSDIR NAME PROOF"
+             ski-air jet-prove TERM JETS TABLE PROOF | ski-air jet-verify CORPUS JETSDIR NAME PROOF\n       \
+             ski-air probes CORPUS JETSDIR OUTDIR | ski-air probe-prove TERM JETS TABLE PROOF OUTCOME...\n       \
+             ski-air probe-verify CORPUS JETSDIR NAME PROOF OUTCOME..."
         );
         std::process::exit(2);
     }

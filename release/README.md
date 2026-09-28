@@ -1,9 +1,15 @@
-# Release: `3 sumto`, proved
+# Release: `3 sumto`, proved, and its output `[6]`
 
-This directory holds a proof that the SKIlark program `3 sumto`, compiled
-to SKI, evaluates to weak head normal form. The proof covers the run
-Avon produced, with supercombinator jets. Anyone with a lean-ski checkout
-can check it:
+This directory holds two proofs about the SKIlark program `3 sumto`,
+compiled to SKI:
+
+- **It halts.** A proof of the jetted run Avon produced: the term
+  evaluates to weak head normal form.
+- **It decodes to `[6]`.** A proof of its probe segments: applied to
+  marker atoms, the term reads, constructor by constructor, as the result
+  `RVal [6]` (`Decodes sumto_us (.val [.num 6])`).
+
+Anyone with a lean-ski checkout can check both:
 
 ```
 release/verify.sh
@@ -11,7 +17,7 @@ release/verify.sh
 
 It needs elan (Lean) and cargo (Rust), and nothing from Avon. The first
 run builds Lean's checkers and the verifier, which takes minutes; after
-that it runs in seconds. It prints one `ok` line per check, then
+that it runs in about 15 seconds. It prints one `ok` line per check, then
 `VERIFIED: release/sumto`, and exits nonzero if any check fails.
 
 ## What is verified
@@ -31,8 +37,8 @@ that it runs in seconds. It prints one `ok` line per check, then
    term's loaded heap. That gives `Air.RootsOK` (`Air.rootsOKB_sound`).
    The verifier then uses those same bytes, so what Lean checked is what
    it proves over. Corpus lines are split as Lean splits them, on spaces.
-3. **The proof.** `sumto/sumto_us.proof` is a Plonky3 batch STARK over
-   BabyBear, 375,160 bytes, over the eight tables of
+3. **The halting proof.** `sumto/sumto_us.proof` is a Plonky3 batch STARK
+   over BabyBear, 378,776 bytes, over the eight tables of
    `bench/plonky3/src/jets.rs`. `ski-air jet-verify` checks it against the
    term and the jet table alone.
 4. **Forgeries are refused:**
@@ -52,31 +58,61 @@ that it runs in seconds. It prints one `ok` line per check, then
    bytes in a temporary directory, which a process able to rename entries
    in a shared `$TMPDIR` replaced before Lean read it. Reading once and
    piping the bytes to Lean closes all three. The standing forgeries fail
-   on the vulnerable builds (`a8ec55f`, `0b2fbcf`) and pass on this one.
+   on the vulnerable builds (`a8ec55f`, `0b2fbcf`) and pass on this one,
+   checked with the Ω proof made for their CPU layout. The CPU has since
+   gained the probe kinds, and the Ω proof was remade for it: the old
+   builds now reject it for its layout, so they no longer show the holes.
 5. **Lean's own check of the witness.** `lake exe jets check` accepts
-   Avon's table, `sumto/sumto_us.table` (`Air.checkJA_sound`).
+   Avon's table, `sumto/sumto_us.table` (`Air.checkJA_sound`). Lean's
+   checks read a table's term from its first line, so `verify.sh` first
+   compares that line with the corpus row's term.
+6. **The output proof.** `sumto/sumto_us.probe.proof`, 434,238 bytes, is
+   over the same eight tables and two more, PLAN and PW
+   (`bench/plonky3/src/probe.rs`). `ski-air probe-verify … val 6` checks
+   the jet file as in item 2, takes the plan of `[6]` from Lean (`lake exe
+   jets plan val 6`, `Air.planOf`), and checks the proof against the term,
+   the jet table and the plan. Offered for `[5]`, for the error outcome or
+   for `[6, 0]`, spelled `06`, with one byte changed, or in place of the
+   halting proof, it is refused (an outcome has one spelling: plain
+   decimal). `lake exe jets check-probe` accepts its table,
+   `sumto/sumto_us.probe.table`, for `[6]` (`Air.checkPA_decodes`) and
+   rejects it for `[5]`.
 
-## What the proof means, and what it does not
+## What the proofs mean, and what they do not
 
-An accepted table satisfies `Air.AcceptsJ` from the loaded term with
-licensed roots. By `Air.air_sound_jet`, the term then evaluates in
-normal order to a value that weakly reduces to the table's final value,
-with the same head combinator and arity. So the proof shows that
-`3 sumto` **halts**, and fixes the head and arity of its value.
+**The halting proof.** An accepted table satisfies `Air.AcceptsJ` from
+the loaded term with licensed roots. By `Air.air_sound_jet`, the term
+then evaluates in normal order to a value that weakly reduces to the
+table's final value, with the same head combinator and arity. So
+`3 sumto` **halts**, and the proof fixes the head and arity of its value.
+
+**The output proof.** A result is read by probing: the term, applied to
+three fresh marker atoms, must head-reduce to the marker of `RVal`
+applied to one field; that field, applied to two fresh markers, to the
+marker of a stack cell applied to its two fields; and so on down the
+value, one probe per constructor. That is `Decodes` (`Ski/Decode.lean`),
+the reading the compiler's contracts use. `[6]` takes 11 probes, the
+plan's segments. An accepted table runs them in one table: each segment
+starts with a probe row that writes its markers and applies its term to
+them, runs by machine transitions and jet instantiations, and ends where
+the head is the expected marker with exactly the expected fields on the
+stack. By `Air.air_probe_decodes`, an accepted table proves that the
+term decodes to the outcome. Lean proves the same outcome about the term
+by its derivation (`SumTable.us_six`); this proof reaches it from the
+run.
 
 The limits:
 
-- **The output is not bound.** The proof does not show that the value
-  decodes to `[6]`. Lean proves that separately about the term
-  (`Ski/Examples.lean`, `SumTable.us_six`), not about this run. Binding an output
-  in the circuit takes an atom probe (`Air.air_probe`), and jets do not
-  yet combine with probes.
 - **The link from Plonky3 to Lean is argued, not proved.** That every
-  table the verifier accepts satisfies `Air.AcceptsJ` is argued in the
-  headers of `bench/plonky3/src/main.rs` and `src/jets.rs`. Lean checks
-  the one table this proof covers (item 5 above), but nothing links that
-  table to the proof's bytes. The table does regenerate, byte for byte,
-  as does the proof.
+  table the verifier accepts satisfies `Air.AcceptsJ`, or with probe
+  segments `Air.AcceptsP`, is argued in the headers of
+  `bench/plonky3/src/main.rs`, `src/jets.rs` and `src/probe.rs`. Lean
+  checks the tables these proofs cover (items 5 and 6), but nothing links
+  a table to a proof's bytes. The tables and proofs do regenerate, byte
+  for byte.
+- **Avon runs the halting witness only.** The output proof's table comes
+  from `ski-air`'s own jetted run (`run_probe`), which instantiates at the
+  same roots Avon does; Avon does not yet run probe segments.
 - **The verifier trusts its build.** The statement check runs the Lean
   project of the checkout the verifier binary was built in, with `lake`
   from `PATH`; `$LEAN_SKI` is consulted only when that is absent.
@@ -100,7 +136,14 @@ Avon's, the one proved here.
 | padded heights (CPU / memory) | 32,768 / 65,536 | 4,096 / 16,384 |
 | prove, setup included (Apple M4 Max) | about 0.5 s | about 0.16 s |
 | verify | about 0.015 s | about 0.02 s |
-| proof | — | 375,160 bytes |
+| proof | — | 378,776 bytes |
+
+The output proof runs 11 probe segments in 4,144 CPU rows: 1,045
+instantiations, 11 probe rows, and the machine's transitions. It writes
+5,876 cells past the loaded heap, and one PW row per marker, 23 in all.
+The first segment, the term applied to its three markers, takes 3,674
+rows; the other ten, which read the value, take 470. It proves in about
+0.24 s and verifies in about 0.02 s; the proof is 434,238 bytes.
 
 **The jet table** has 78 jets with 235 body cells in all, averaging 3.3
 formals, and 2,768 roots in a 7,062-cell loaded heap. A jet is one
@@ -120,6 +163,12 @@ instantiation writes only the cells that depend on its arguments
 3. Lean checks that table.
 4. `ski-air jet-prove` proves it, and `ski-air jet-verify` checks the
    proof.
+5. `ski-air probe-prove … val 6` runs the probe segments of `[6]`'s plan,
+   writes their table and proves it; `ski-air probe-verify` checks the
+   proof, and `lake exe jets check-probe` the table.
+6. The Ω forgery's hand-written table (`forgeries/omega/omega.table`,
+   which `lake exe jets check` rejects) is proved over the forged jet
+   table.
 
 Avon's witness is byte-identical to the table lean-ski's own prover
 writes for the same term and jet table (Avon's `make jet-witness-check`,

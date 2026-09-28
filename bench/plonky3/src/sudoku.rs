@@ -234,7 +234,7 @@ fn wit_pre(p: &Public) -> Vec<[u32; 2]> {
 /// The verifier's AIRs, from the public statement alone.
 fn airs(p: &Public) -> Vec<SkiAir> {
     vec![
-        SkiAir::Cpu(CpuAir { hd0: p.hd0, stk0: p.stk0, ctr0: p.ctr0, accept: Some(p.acc), blind: true, jets: false }),
+        SkiAir::Cpu(CpuAir { hd0: p.hd0, stk0: p.stk0, ctr0: p.ctr0, accept: Some(p.acc), blind: true, jets: false, probe: None }),
         SkiAir::Mem(MemAir { blind: true }),
         SkiAir::Prog(ProgAir { pre: program_of(p) }),
         SkiAir::Wit(WitAir { pre: wit_pre(p) }),

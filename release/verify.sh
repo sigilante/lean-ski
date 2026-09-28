@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Verify the release: a proof that `3 sumto` evaluates, from a clean
-# lean-ski checkout.  Needs elan (Lean) and cargo (Rust); nothing else, and
+# Verify the release: proofs that `3 sumto` evaluates and decodes to `[6]`,
+# from a clean lean-ski checkout.  Needs elan (Lean) and cargo (Rust); nothing else, and
 # no part of Avon.  See release/README.md for what is verified.
 #
 #   1. the term in release/sumto/corpus.txt is lean-ski's corpus row
@@ -13,7 +13,13 @@
 #      name that is a path, and a proof that Omega halts, made over a forged
 #      jet table, offered directly and through a FIFO that answers Lean's
 #      read and the verifier's differently;
-#   4. Lean's own check of Avon's witness table (Air.checkJA_sound).
+#   4. Lean's own check of Avon's witness table (Air.checkJA_sound);
+#   5. the output: ski-air probe-verify checks the probe proof against the
+#      term, the jet file and Lean's plan of `[6]`; offered for `[5]` or for
+#      the error outcome, or with one byte changed, it is refused; the
+#      halting proof offered as a probe proof is refused; Lean's
+#      `jets check-probe` accepts the probe table for `[6]` alone
+#      (Air.checkPA_decodes).
 #
 # Exits nonzero on any failure.
 
@@ -120,10 +126,62 @@ else
     ok "the Omega forgery through a FIFO is refused ($(head -c 60 "$tmp/fifo.log"))"
 fi
 
+# A table's first line is the term Lean's checks read; it must be the
+# corpus row's, byte for byte, or they speak of another term.
+term_is_sumto() {
+    head -n 1 "$1" | cmp -s - <(awk '{print $3}' "$R/corpus.txt")
+}
+
 echo "--- 4. Lean's check of Avon's witness table"
+term_is_sumto "$R/sumto_us.table" \
+    && ok "the witness table's term is the corpus row's" \
+    || no "the witness table's term is not the corpus row's"
 lake exe jets check "$R/sumto_us.table" | grep -q '^ACCEPT' \
     && ok "lake exe jets check accepts the witness table" \
     || no "lake exe jets check rejects the witness table"
+
+echo "--- 5. the output, bound: 3 sumto decodes to [6]"
+P="$R/sumto_us.probe.proof"
+"$SKI_AIR" probe-verify "$R/corpus.txt" "$R/jets" sumto_us "$P" val 6 \
+    && ok "the probe proof verifies: the term decodes to [6]" || no "the probe proof does not verify"
+for claim in "val 5" "err" "val 6 0" "val 06"; do
+    # shellcheck disable=SC2086
+    if "$SKI_AIR" probe-verify "$R/corpus.txt" "$R/jets" sumto_us "$P" $claim > "$tmp/claim.log"; then
+        no "the probe proof verified for the outcome $claim"
+    else
+        ok "the probe proof offered for $claim is refused ($(head -c 60 "$tmp/claim.log"))"
+    fi
+done
+/bin/cp "$P" "$tmp/pflip.proof"
+size=$(wc -c < "$tmp/pflip.proof")
+off=$((size / 3))
+byte=$(dd if="$tmp/pflip.proof" bs=1 skip=$off count=1 2>/dev/null | od -An -tu1 | tr -d ' ')
+printf '%b' "$(printf '\\0%03o' $(( (byte + 1) % 256 )))" \
+    | dd of="$tmp/pflip.proof" bs=1 seek=$off count=1 conv=notrunc 2>/dev/null
+cmp -s "$tmp/pflip.proof" "$P" && no "the byte flip changed nothing"
+if "$SKI_AIR" probe-verify "$R/corpus.txt" "$R/jets" sumto_us "$tmp/pflip.proof" val 6 > "$tmp/pflip.log"; then
+    no "a probe proof with one byte changed verified"
+else
+    ok "a probe proof with one byte changed is refused ($(head -c 60 "$tmp/pflip.log"))"
+fi
+if "$SKI_AIR" probe-verify "$R/corpus.txt" "$R/jets" sumto_us "$R/sumto_us.proof" val 6 > "$tmp/halt.log"; then
+    no "the halting proof verified as a probe proof"
+else
+    ok "the halting proof offered as a probe proof is refused ($(head -c 60 "$tmp/halt.log"))"
+fi
+term_is_sumto "$R/sumto_us.probe.table" \
+    && ok "the probe table's term is the corpus row's" \
+    || no "the probe table's term is not the corpus row's"
+lake exe jets check-probe "$R/sumto_us.probe.table" val 6 | grep -q '^ACCEPT' \
+    && ok "lake exe jets check-probe accepts the probe table for [6]" \
+    || no "lake exe jets check-probe rejects the probe table for [6]"
+if lake exe jets check-probe "$R/sumto_us.probe.table" val 5 > "$tmp/c5.log"; then
+    no "lake exe jets check-probe accepts the probe table for [5]"
+else
+    grep -q '^REJECT' "$tmp/c5.log" \
+        && ok "lake exe jets check-probe rejects the probe table for [5]" \
+        || no "lake exe jets check-probe fails on the probe table for [5] without rejecting it"
+fi
 
 [ "$failed" = 0 ] || { echo "NOT VERIFIED: release/sumto"; exit 1; }
 echo "VERIFIED: release/sumto"

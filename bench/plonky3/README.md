@@ -194,14 +194,53 @@ cd ../.. && lake exe jets check bench/plonky3/tables/jet_*.txt
 lake exe jets check bench/plonky3/tables/tampered_jet_*.txt  # each must be REJECT
 ```
 
-`DESIGN.md` records the tables: atoms and the witness table, and the
-instantiation rows and template table.
+## Probe segments: the output, bound
+
+`src/probe.rs` proves what a jetted run halts to. The public plan, from
+`lake exe jets plan OUTCOME` (`Air.planOf`), has one segment per
+constructor of the outcome's probe tree, depth first: its markers, its
+expected constructor and field count, and the earlier segment's field it
+probes. The CPU gains two kinds, the first probe row and a later one, and
+two tables join the jetted ten: PLAN, preprocessed from the plan, and PW,
+which writes each segment's markers and their stack. A later probe row
+ends the segment before: it reads that segment's marker at the head, pops
+exactly its fields by the POP chain, and reads a nil. The next segment's
+term is a field of its parent, looked up by the parent's end row. The
+last row ends the last segment. `lake exe jets check-probe` checks each
+table against `Air.AcceptsP` (`Air.checkPA_decodes`), so an accepted
+table proves that the term decodes to the outcome. `DESIGN.md` §3 gives
+the argument.
+
+`3 sumto` decodes to `[6]` in 11 segments and 4,144 CPU rows, proved in
+0.24 s and verified in 0.02 s. The prover refuses the plans of `[5]` and
+of the error outcome (a segment ends at the wrong marker), and the
+verifier rejects the proof of `[6]` offered for either. Nine tampered
+traces are rejected. Four break a local constraint: a child probing
+another pointer than its parent's field, a segment ending without the nil
+below its fields, a forged end marker, and a skipped probe count. Five
+change only a count or a chain flag, so only a bus balance refuses them:
+a surplus SEGEND, PLAN row or field, a dropped marker, and a child whose
+parent row is redirected to an instantiation that popped the same pointer
+at the same index, with every count rebalanced.
+
+```
+lake build jets
+lake env lean --run bench/Dump.lean > corpus.txt
+cd bench/plonky3 && cargo build --release
+./target/release/ski-air probes ../../corpus.txt jets tables  # prove [6], verify, forgeries
+cd ../.. && lake exe jets check-probe bench/plonky3/tables/probe_sumto_us.txt val 6   # ACCEPT
+lake exe jets check-probe bench/plonky3/tables/probe_sumto_us.txt val 5               # REJECT
+```
+
+`DESIGN.md` records the tables: atoms and the witness table, the
+instantiation rows and template table, and the probe segments.
 
 ## What this is not
 
-- **The corpus proofs, plain and jetted, are not zero knowledge.** Their
-  PCS is not hiding, and the first row loads the whole term in the clear;
-  nor do they bind an output. The Sudoku proof does both.
+- **The corpus proofs, plain, jetted and probed, are not zero
+  knowledge.** Their PCS is not hiding, and the first row loads the whole
+  term in the clear. Only the probe proof binds an output. The Sudoku
+  proof is hiding and binds its accepting marker.
 - **Plonky3's zero knowledge is statistical and unaudited.** Plonky3 marks
   its randomization of the trace as statistically hiding only, and
   `HidingFriPcs` enforces a masking budget (trace height at least

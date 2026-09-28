@@ -11,6 +11,9 @@ import Ski.Inst
 import Ski.SmallLemma
 import Ski.AirJet
 import Ski.JetTable
+import Ski.InstOpen
+import Ski.ProbeTree
+import Ski.AirProbe
 import Ski.BoolProbe
 import Ski.Statement
 import Ski.Sudoku
@@ -466,6 +469,23 @@ open Ski.Audit
 #audit_clean Air.termAt_G Air.rootsOKB_sound Air.popR_popN Air.ibuild_icells Air.termAt_take Air.instRow_jstep
   Mach.JSteps.snoc Air.AcceptsJ.reach Air.air_sound_jet Air.chainJ_trans Air.checkJA_sound
   JetTable.overrideN_argIx JetTable.symCells_icells
+
+-- Probe segments: jets on open terms, probe trees, and the output bound by the AIR
+#audit_clean Probe.AllW.refl Probe.AllW.trans Probe.AllW.snoc Probe.AllW.length OParI.spineN
+  OParI.spine OParIs.spine Probe.owsteps_spine Probe.subst_appL Probe.DecV.subst Probe.DecVs.subst
+  Probe.DecV.of_owsteps Probe.DecVs.of_allw Probe.DecV.of_probe Probe.decNat_of_decV
+  Probe.decStack_of_decV Probe.mapM_num Probe.decodes_of_decV Mach.override_notin Mach.override_optr
+  Mach.OPtrsOK.mono Mach.popN_ospec Mach.ibuild_ospec Mach.appL_app Mach.oinst_sound_g
+  Mach.otermAt_of_termAt Mach.ojsteps_owsteps Air.kSum_append Air.Consec.append Air.planGo_consec
+  Air.planKids_consec Air.Consec.head Air.Consec.next Air.planGo_parent Air.planKids_parent
+  Air.planOf_consec Air.planOf_parent Air.Slice.cons Air.Slice.append Air.decV_go Air.decV_kids
+  Air.AB.append Air.AB.mono Air.AB.take Air.fresh_of_AB Air.stkCells_AB Air.pcells_AB Air.stepG_AB
+  Air.icells_AB Air.load_AB Air.wrs_len Air.probeRow_spec Air.normRow_spec Air.stkCells_ostack
+  Air.appL_range Air.markers_ok Air.probeRow_decode Air.endRow_decode Mach.JSteps.snoc_all
+  Air.otermAt_take Mach.OPtrsOK.get Mach.OPtrsOK.map_getD Mach.OPtrsOK.length Air.load_otermAt
+  Air.pmono_le Air.not_start Air.AcceptsP.c0 Air.AcceptsP.ctrs Air.AcceptsP.ctr_mono
+  Air.AcceptsP.run Air.AcceptsP.readF Air.AcceptsP.segs Air.AcceptsP.segsOK Air.air_probe_sound
+  Air.air_probe_decodes Air.normB_sound Air.checkPA_sound Air.checkPA_decodes
 
 -- Boolean statements: a formula compiled to Scott Booleans, read by a probe, and proved by the AIR
 #audit_clean BExpr.sbool_sel BExpr.fill_tt BExpr.fill_ff BExpr.bool_reduce BExpr.probe_true

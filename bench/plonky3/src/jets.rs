@@ -363,6 +363,8 @@ struct JRun {
     heap: Vec<Cell>,
     loaded: Vec<Cell>,
     insts: usize,
+    /// The probe rows and segments, when the run reads an output.
+    probe: Option<probe::ProbeRun>,
 }
 
 fn resolve(op: Op, c: u32, ps: &[u32]) -> u32 {
@@ -388,29 +390,35 @@ fn pop(heap: &[Cell], k: u32, mut s: u32) -> Option<(Vec<(u32, u32, u32)>, u32)>
     Some((out, s))
 }
 
-/// Run to a halt, instantiating at every root with enough arguments, for
-/// at most `MAX_STATES` states.  `extra_root` is an unlicensed root, used
+const MAX_STATES: usize = 1 << 20;
+
+/// Run from a state to a halt, instantiating at every root with enough
+/// arguments, pushing every row but the halted one; `false` if the run
+/// passes `MAX_STATES` rows first.  `extra` is an unlicensed root, used
 /// once (the tamper test).
-fn run_jets(t: &Term, jt: &JetTable, extra_root: Option<(u32, u32)>) -> JRun {
-    const MAX_STATES: usize = 1 << 20;
-    let (mut heap, mut hd, mut stk) = load(t);
-    let loaded = heap.clone();
-    let roots: std::collections::HashMap<u32, u32> = jt.roots.iter().copied().collect();
-    let mut extra = extra_root;
-    let mut rows = Vec::new();
-    let mut insts = 0;
+#[allow(clippy::too_many_arguments)]
+fn run_seg(
+    heap: &mut Vec<Cell>,
+    hd: &mut u32,
+    stk: &mut u32,
+    roots: &std::collections::HashMap<u32, u32>,
+    jt: &JetTable,
+    extra: &mut Option<(u32, u32)>,
+    rows: &mut Vec<([u32; 3], Option<InstInfo>)>,
+    insts: &mut usize,
+) -> bool {
     while rows.len() < MAX_STATES {
         let c = heap.len() as u32;
-        let chosen = match extra {
-            Some((a, g)) if a == hd => {
-                extra = None;
+        let chosen = match *extra {
+            Some((a, g)) if a == *hd => {
+                *extra = None;
                 Some(g)
             }
-            _ => roots.get(&hd).copied(),
+            _ => roots.get(hd).copied(),
         };
         let inst = chosen.and_then(|g| {
             let j = &jt.jets[g as usize];
-            pop(&heap, j.k, stk).map(|(pops, rest)| (g, j, pops, rest))
+            pop(heap, j.k, *stk).map(|(pops, rest)| (g, j, pops, rest))
         });
         if let Some((g, j, pops, rest)) = inst {
             let ps: Vec<u32> = pops.iter().map(|p| p.1).collect();
@@ -436,24 +444,101 @@ fn run_jets(t: &Term, jt: &JetTable, extra_root: Option<(u32, u32)>) -> JRun {
                 .collect();
             let root = resolve(j.root, c, &ps);
             let xroot = if let Op::Arg(i) = j.root { ps[i as usize] } else { 0 };
-            rows.push(([hd, stk, c], Some(InstInfo { g, pops, rest, xroot, cells: cells.clone() })));
+            rows.push(([*hd, *stk, c], Some(InstInfo { g, pops, rest, xroot, cells: cells.clone() })));
             heap.extend(cells.iter().map(|x| x.0));
-            hd = root;
-            stk = rest;
-            insts += 1;
+            *hd = root;
+            *stk = rest;
+            *insts += 1;
             continue;
         }
-        rows.push(([hd, stk, c], None));
-        match step(&heap, hd, stk) {
-            None => break,
+        match step(heap, *hd, *stk) {
+            None => return true,
             Some((h, s, ws)) => {
+                rows.push(([*hd, *stk, c], None));
                 heap.extend(ws);
-                hd = h;
-                stk = s;
+                *hd = h;
+                *stk = s;
             }
         }
     }
-    JRun { rows, heap, loaded, insts }
+    false
+}
+
+/// Run to a halt, instantiating at every root with enough arguments, for
+/// at most `MAX_STATES` states.  `extra_root` is an unlicensed root, used
+/// once (the tamper test).
+fn run_jets(t: &Term, jt: &JetTable, extra_root: Option<(u32, u32)>) -> JRun {
+    let (mut heap, mut hd, mut stk) = load(t);
+    let loaded = heap.clone();
+    let roots: std::collections::HashMap<u32, u32> = jt.roots.iter().copied().collect();
+    let mut extra = extra_root;
+    let mut rows = Vec::new();
+    let mut insts = 0;
+    if run_seg(&mut heap, &mut hd, &mut stk, &roots, jt, &mut extra, &mut rows, &mut insts) {
+        rows.push(([hd, stk, heap.len() as u32], None));
+    }
+    JRun { rows, heap, loaded, insts, probe: None }
+}
+
+/// **The probe run** of a plan: from the loaded term, each segment's probe
+/// row, then its jetted run to the marker it must end at.  An error names
+/// the segment that ends elsewhere: the term does not decode to the
+/// plan's outcome.
+fn run_probe(t: &Term, jt: &JetTable, plan: &[probe::Seg]) -> Result<JRun, String> {
+    let (mut heap, mut hd, mut stk) = load(t);
+    let loaded = heap.clone();
+    let roots: std::collections::HashMap<u32, u32> = jt.roots.iter().copied().collect();
+    let mut rows = Vec::new();
+    let mut insts = 0;
+    let n = plan.len();
+    let mut prow = std::collections::HashMap::new();
+    let mut starts = Vec::with_capacity(n + 1);
+    let mut flds: Vec<Vec<u32>> = vec![Vec::new(); n];
+    let mut end_clk = vec![0u32; n];
+    let mut end: Option<(Vec<(u32, u32, u32)>, u32)> = None;
+    for (j, s) in plan.iter().enumerate() {
+        let clk = rows.len();
+        let c = heap.len() as u32;
+        let (f, clkp) = if j == 0 {
+            (hd, 0)
+        } else {
+            let p = s.parent as usize;
+            if p >= j {
+                return Err(format!("segment {j}'s parent is not before it"));
+            }
+            let x = *flds[p].get(s.field as usize).ok_or(format!("segment {j} reads a missing field"))?;
+            (x, end_clk[p])
+        };
+        prow.insert(clk, probe::ProbeRow { seg: j as u32, f, end: end.take(), clkp });
+        starts.push(clk as u32);
+        rows.push(([hd, stk, c], None));
+        heap.extend(probe::pcells(s.base, s.k, c));
+        hd = f;
+        stk = c + s.k;
+        if !run_seg(&mut heap, &mut hd, &mut stk, &roots, jt, &mut None, &mut rows, &mut insts) {
+            return Err(format!("segment {j} runs past {MAX_STATES} rows"));
+        }
+        // The end: the segment's marker at the head, exactly its fields on
+        // the stack.
+        if heap[hd as usize] != Cell::Atom(s.ctor + s.base) {
+            return Err(format!("segment {j} ends at {:?}, not its marker {}", heap[hd as usize], s.ctor + s.base));
+        }
+        let (pops, rest) = pop(&heap, s.arity, stk).ok_or(format!("segment {j} has too few fields"))?;
+        if heap[rest as usize] != Cell::Nil {
+            return Err(format!("segment {j} has too many fields"));
+        }
+        flds[j] = pops.iter().map(|p| p.1).collect();
+        end_clk[j] = rows.len() as u32;
+        end = Some((pops, rest));
+    }
+    rows.push(([hd, stk, heap.len() as u32], None));
+    Ok(JRun {
+        rows,
+        heap,
+        loaded,
+        insts,
+        probe: Some(probe::ProbeRun { plan: plan.to_vec(), rows: prow, starts, flds }),
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -469,6 +554,9 @@ struct JTraces {
     tmpl: RowMajorMatrix<Val>,
     pop: RowMajorMatrix<Val>,
     instw: RowMajorMatrix<Val>,
+    /// PLAN's multiplicities and the PW table, with probe segments.
+    plan: Option<RowMajorMatrix<Val>>,
+    pw: Option<RowMajorMatrix<Val>>,
     /// The memory table and the rows, for the Lean table.
     mem_cells: Vec<Cell>,
     regs: Vec<[u32; 3]>,
@@ -492,8 +580,13 @@ fn build_traces(t: &Term, jt: &JetTable, run: &JRun) -> JTraces {
     mem_cells.resize(msize, Cell::Nil);
     let mut mult = vec![0u32; msize];
 
-    // The CPU: the ordinary rows by `cpu_trace`, the INST rows by hand.
-    let w = CPU_WIDTH + JET_WIDTH;
+    // The CPU: the ordinary rows by `cpu_trace`, the INST and probe rows by
+    // hand.
+    let pr = run.probe.as_ref();
+    let w = CPU_WIDTH + JET_WIDTH + if pr.is_some() { probe::PROBE_WIDTH } else { 0 };
+    let mut plan_used: HashMap<[u32; 7], u32> = HashMap::new();
+    let mut pw: Vec<Val> = Vec::new();
+    let mut cnt = 0u32;
     let mut cpu = Vec::with_capacity(k * w);
     let mut roots_used: HashMap<[u32; 2], u32> = HashMap::new();
     let mut hdr_used: HashMap<[u32; 7], u32> = HashMap::new();
@@ -506,7 +599,15 @@ fn build_traces(t: &Term, jt: &JetTable, run: &JRun) -> JTraces {
     for clk in 0..k {
         let (regs, info) = if clk < run.rows.len() { run.rows[clk].clone() } else { (last, None) };
         let [hd, stk, ctr] = regs;
+        let is_probe = pr.is_some_and(|p| p.rows.contains_key(&clk));
         let mut row = match &info {
+            None if is_probe => {
+                let mut r = vec![Val::ZERO; CPU_WIDTH];
+                r[HD] = f(hd);
+                r[STK] = f(stk);
+                r[CTR] = f(ctr);
+                r
+            }
             None => {
                 let m = cpu_trace(&[regs], &mem_cells, &mut mult);
                 m.values
@@ -589,6 +690,14 @@ fn build_traces(t: &Term, jt: &JetTable, run: &JRun) -> JTraces {
             }
         }
         row.extend(jc);
+        if let Some(p) = pr {
+            let mut pc = vec![Val::ZERO; probe::PROBE_WIDTH];
+            probe::fill_row(p, clk, cnt, regs, clk + 1 == k, &mut row, &mut pc, &mut mult, &mut plan_used, &mut pop, &mut pw, POP_W);
+            if is_probe {
+                cnt += 1;
+            }
+            row.extend(pc);
+        }
         cpu.extend(row);
     }
     let pad = |mut v: Vec<Val>, w: usize| {
@@ -598,6 +707,8 @@ fn build_traces(t: &Term, jt: &JetTable, run: &JRun) -> JTraces {
     };
     let pop = pad(pop, POP_W);
     let instw = pad(instw, INSTW_W);
+    let plan = pr.map(|p| counts(&probe::plan_pre(&p.plan), &plan_used));
+    let pw = pr.map(|_| pad(pw, probe::PW_W));
 
     // The program table, and memory with its multiplicities.
     let (loaded, _, _) = load(t);
@@ -620,6 +731,8 @@ fn build_traces(t: &Term, jt: &JetTable, run: &JRun) -> JTraces {
         tmpl: counts(&tmpls, &tmpl_used),
         pop,
         instw,
+        plan,
+        pw,
         mem_cells,
         regs: (0..k).map(|i| if i < run.rows.len() { run.rows[i].0 } else { last }).collect(),
     }
@@ -629,10 +742,11 @@ fn build_traces(t: &Term, jt: &JetTable, run: &JRun) -> JTraces {
 // Proving and verifying
 // ---------------------------------------------------------------------------
 
-fn airs(t: &Term, jt: &JetTable) -> Vec<SkiAir> {
+fn airs(t: &Term, jt: &JetTable, plan: Option<&[probe::Seg]>) -> Result<Vec<SkiAir>, String> {
     let (loaded, hd0, stk0) = load(t);
-    vec![
-        SkiAir::Cpu(CpuAir { hd0, stk0, ctr0: loaded.len() as u32, accept: None, blind: false, jets: true }),
+    let pp = plan.map(probe::ProbePub::of).transpose()?;
+    let mut a = vec![
+        SkiAir::Cpu(CpuAir { hd0, stk0, ctr0: loaded.len() as u32, accept: None, blind: false, jets: true, probe: pp }),
         SkiAir::Mem(MemAir { blind: false }),
         SkiAir::Prog(ProgAir { pre: program(t, MIN_LOG) }),
         SkiAir::Jet(JetAir::Roots(roots_pre(jt))),
@@ -640,7 +754,12 @@ fn airs(t: &Term, jt: &JetTable) -> Vec<SkiAir> {
         SkiAir::Jet(JetAir::Tmpl(tmpl_pre(jt))),
         SkiAir::Jet(JetAir::Pop),
         SkiAir::Jet(JetAir::Instw),
-    ]
+    ];
+    if let Some(p) = plan {
+        a.push(SkiAir::Probe(probe::ProbeAir::Plan(probe::plan_pre(p))));
+        a.push(SkiAir::Probe(probe::ProbeAir::Pw));
+    }
+    Ok(a)
 }
 
 /// Prove the traces, then verify against the public term and jet table.
@@ -649,17 +768,21 @@ fn airs(t: &Term, jt: &JetTable) -> Vec<SkiAir> {
 type JProof = p3_batch_stark::BatchProof<Config>;
 
 /// Prove the traces: the proof and the seconds it took, setup included.
-fn prove_j(t: &Term, jt: &JetTable, tr: &JTraces) -> Result<(JProof, f64), String> {
-    let traces = [&tr.cpu, &tr.mem, &tr.prog, &tr.roots, &tr.hdr, &tr.tmpl, &tr.pop, &tr.instw];
+fn prove_j(t: &Term, jt: &JetTable, tr: &JTraces, plan: Option<&[probe::Seg]>) -> Result<(JProof, f64), String> {
+    let mut traces = vec![&tr.cpu, &tr.mem, &tr.prog, &tr.roots, &tr.hdr, &tr.tmpl, &tr.pop, &tr.instw];
+    if plan.is_some() {
+        traces.push(tr.plan.as_ref().ok_or("a probe plan without probe traces")?);
+        traces.push(tr.pw.as_ref().ok_or("a probe plan without probe traces")?);
+    }
     let log = |m: &RowMajorMatrix<Val>| p3_util::log2_strict_usize(m.values.len() / m.width);
     let proved = catch_unwind(AssertUnwindSafe(|| {
         let config = make_config();
-        let a = airs(t, jt);
+        let a = airs(t, jt, plan)?;
         let degrees: Vec<usize> = traces.iter().map(|m| log(m)).collect();
         let t0 = Instant::now();
         let pd = ProverData::<Config>::from_airs_and_degrees(&config, &a, &degrees)
             .map_err(|e| format!("setup: {e:?}"))?;
-        let pvs = vec![vec![]; 8];
+        let pvs = vec![vec![]; traces.len()];
         let instances = StarkInstance::new_multiple(&a, &traces, &pvs);
         let proof = prove_batch(&config, &instances, &pd).map_err(|e| format!("prove: {e:?}"))?;
         Ok::<_, String>((proof, t0.elapsed().as_secs_f64()))
@@ -674,27 +797,32 @@ fn prove_j(t: &Term, jt: &JetTable, tr: &JTraces) -> Result<(JProof, f64), Strin
 /// else.  It rebuilds its AIRs and preprocessed tables, pins the
 /// preprocessed heights, and bounds the others by `MAX_LOG_HEIGHT`.  (The
 /// jet table must first pass `lake exe jets statement`: `jet_verify`.)
-fn verify_j(t: &Term, jt: &JetTable, proof: &JProof) -> Result<(), String> {
+fn verify_j(t: &Term, jt: &JetTable, proof: &JProof, plan: Option<&[probe::Seg]>) -> Result<(), String> {
     let verified = catch_unwind(AssertUnwindSafe(|| {
         let config = make_config();
-        let a = airs(t, jt);
+        let a = airs(t, jt, plan)?;
         let d = &proof.degree_bits;
         let lg = |n: usize| p3_util::log2_strict_usize(n);
-        let fixed = [
+        let mut fixed = vec![
             (2, lg(program(t, MIN_LOG).len())),
             (3, lg(roots_pre(jt).len())),
             (4, lg(hdr_pre(jt).len())),
             (5, lg(tmpl_pre(jt).len())),
         ];
-        if d.len() != 8
+        let mut free = vec![0, 1, 6, 7];
+        if let Some(p) = plan {
+            fixed.push((8, lg(probe::plan_pre(p).len())));
+            free.push(9);
+        }
+        if d.len() != a.len()
             || fixed.iter().any(|&(i, h)| d[i] != h)
-            || [0, 1, 6, 7].iter().any(|&i| d[i] > MAX_LOG_HEIGHT)
+            || free.iter().any(|&i| d[i] > MAX_LOG_HEIGHT)
         {
             return Err(format!("heights {d:?} out of bounds"));
         }
         let vd = ProverData::<Config>::from_airs_and_degrees(&config, &a, d)
             .map_err(|e| format!("verifier setup: {e:?}"))?;
-        let pvs = vec![vec![]; 8];
+        let pvs = vec![vec![]; a.len()];
         verify_batch(&config, &a, proof, &pvs, &vd.common).map_err(|e| format!("verify: {e:?}"))
     }));
     match verified {
@@ -703,13 +831,13 @@ fn verify_j(t: &Term, jt: &JetTable, proof: &JProof) -> Result<(), String> {
     }
 }
 
-fn prove_and_verify_j(t: &Term, jt: &JetTable, tr: &JTraces) -> Outcome {
-    let (proof, prove_s) = match prove_j(t, jt, tr) {
+fn prove_and_verify_j(t: &Term, jt: &JetTable, tr: &JTraces, plan: Option<&[probe::Seg]>) -> Outcome {
+    let (proof, prove_s) = match prove_j(t, jt, tr, plan) {
         Ok(p) => p,
         Err(e) => return Outcome::Refused(e),
     };
     let t1 = Instant::now();
-    match verify_j(t, jt, &proof) {
+    match verify_j(t, jt, &proof, plan) {
         Ok(()) => Outcome::Verified(prove_s, t1.elapsed().as_secs_f64()),
         Err(e) => Outcome::Rejected(e),
     }
@@ -800,7 +928,7 @@ fn run_of_table(t: &Term, jt: &JetTable, mem: Vec<Cell>, rows: Vec<[u32; 3]>) ->
         }
         out.push(([hd, stk, ctr], info));
     }
-    Ok(JRun { rows: out, heap: mem, loaded, insts })
+    Ok(JRun { rows: out, heap: mem, loaded, insts, probe: None })
 }
 
 /// `ski-air jet-prove TERM JETS TABLE PROOF`: prove the table another
@@ -818,10 +946,10 @@ pub fn jet_prove(term: &std::path::Path, jets: &std::path::Path, table: &std::pa
     let run = run_of_table(&t, &jt, mem, rows)?;
     let tr = catch_unwind(AssertUnwindSafe(|| build_traces(&t, &jt, &run)))
         .map_err(|e| format!("the table is no run: {}", panic_text(&e)))?;
-    let (proof, prove_s) = prove_j(&t, &jt, &tr)?;
+    let (proof, prove_s) = prove_j(&t, &jt, &tr, None)?;
     let bytes = postcard::to_allocvec(&proof).map_err(|e| format!("serialize: {e}"))?;
     std::fs::write(proof_out, &bytes).map_err(|e| format!("{}: {e}", proof_out.display()))?;
-    verify_j(&t, &jt, &proof)?;
+    verify_j(&t, &jt, &proof, None)?;
     println!(
         "proved {} rows ({} instantiations), {} memory cells, in {prove_s:.2} s; proof {} bytes -> {}",
         run.rows.len(),
@@ -870,9 +998,290 @@ pub fn jet_verify(corpus: &std::path::Path, dir: &std::path::Path, name: &str, p
         return Err(format!("{} bytes after the proof", rest.len()));
     }
     let t0 = Instant::now();
-    verify_j(&t, &jt, &proof)?;
+    verify_j(&t, &jt, &proof, None)?;
     println!("VERIFIED {name}: the proof checks against its term and Lean's jet table ({:.3} s)", t0.elapsed().as_secs_f64());
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Probe segments: the output bound
+// ---------------------------------------------------------------------------
+
+/// `ski-air probe-prove TERM JETS TABLE PROOF OUTCOME…`: run the term's
+/// probe segments for the outcome's plan (Lean's), write the Lean table and
+/// the proof, and check the proof verifies.
+pub fn probe_prove(term: &std::path::Path, jets: &std::path::Path, table_out: &std::path::Path, proof_out: &std::path::Path, outcome: &[&str]) -> Result<(), String> {
+    let term_text = std::fs::read_to_string(term).map_err(|e| format!("{}: {e}", term.display()))?;
+    let term_text = term_text.trim();
+    let t = parse(term_text.as_bytes(), &mut 0);
+    let jt = read_jets(jets);
+    let (plan, _) = probe::lean_plan(outcome)?;
+    let run = run_probe(&t, &jt, &plan)?;
+    let tr = catch_unwind(AssertUnwindSafe(|| build_traces(&t, &jt, &run)))
+        .map_err(|e| format!("the run is no table: {}", panic_text(&e)))?;
+    std::fs::write(table_out, lean_of(term_text, &run, &tr)).map_err(|e| format!("{}: {e}", table_out.display()))?;
+    let (proof, prove_s) = prove_j(&t, &jt, &tr, Some(&plan))?;
+    let bytes = postcard::to_allocvec(&proof).map_err(|e| format!("serialize: {e}"))?;
+    std::fs::write(proof_out, &bytes).map_err(|e| format!("{}: {e}", proof_out.display()))?;
+    verify_j(&t, &jt, &proof, Some(&plan))?;
+    println!(
+        "proved {} rows ({} instantiations, {} segments), {} memory cells, in {prove_s:.2} s; proof {} bytes -> {}",
+        run.rows.len(),
+        run.insts,
+        plan.len(),
+        run.heap.len(),
+        bytes.len(),
+        proof_out.display()
+    );
+    Ok(())
+}
+
+/// `ski-air probe-verify CORPUS JETSDIR NAME PROOF OUTCOME…`: the verifier
+/// of an output.  Lean checks the jet file for the term (as `jet-verify`)
+/// and gives the outcome's plan; the proof is checked against the term,
+/// the jet table and the plan, and nothing else.
+pub fn probe_verify(corpus: &std::path::Path, dir: &std::path::Path, name: &str, proof_in: &std::path::Path, outcome: &[&str]) -> Result<(), String> {
+    if name.is_empty() || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+        return Err(format!("a name must be an identifier, not {name:?}"));
+    }
+    let text = std::fs::read_to_string(corpus).map_err(|e| format!("{}: {e}", corpus.display()))?;
+    let line = text
+        .lines()
+        .find(|l| lean_words(l).first() == Some(&name))
+        .ok_or_else(|| format!("no term named {name} in {}", corpus.display()))?
+        .to_string();
+    let w: Vec<&str> = lean_words(&line);
+    if w.len() != 3 {
+        return Err(format!("a malformed corpus line for {name}"));
+    }
+    let jets_path = dir.join(format!("{name}.jets"));
+    let jets_text = std::fs::read_to_string(&jets_path).map_err(|e| format!("{}: {e}", jets_path.display()))?;
+    lean_statement("jets", &["statement-stdin"], format!("{line}\n{jets_text}").as_bytes())
+        .map_err(|e| format!("statement: {e}"))?;
+    let (plan, _) = probe::lean_plan(outcome).map_err(|e| format!("plan: {e}"))?;
+    let t = parse(w[2].as_bytes(), &mut 0);
+    let jt = parse_jets(&jets_text);
+    let bytes = std::fs::read(proof_in).map_err(|e| format!("{}: {e}", proof_in.display()))?;
+    let (proof, rest): (JProof, &[u8]) =
+        postcard::take_from_bytes(&bytes).map_err(|e| format!("deserialize: {e}"))?;
+    if !rest.is_empty() {
+        return Err(format!("{} bytes after the proof", rest.len()));
+    }
+    let t0 = Instant::now();
+    verify_j(&t, &jt, &proof, Some(&plan))?;
+    println!(
+        "VERIFIED {name}: the term decodes to {} ({} segments; {:.3} s)",
+        outcome.join(" "),
+        plan.len(),
+        t0.elapsed().as_secs_f64()
+    );
+    Ok(())
+}
+
+/// `ski-air probes CORPUS JETSDIR OUTDIR`: `3 sumto`'s output proved, then
+/// forgeries, each of which the verifier must reject.
+pub fn probe_main(corpus: &str, dir: &std::path::Path, out: &std::path::Path) -> usize {
+    let mut failures = 0;
+    let line = match corpus.lines().find(|l| lean_words(l).first() == Some(&"sumto_us")) {
+        Some(l) => l,
+        None => {
+            println!("the corpus has no sumto_us");
+            return 1;
+        }
+    };
+    let jets_text = std::fs::read_to_string(dir.join("sumto_us.jets")).unwrap_or_default();
+    if let Err(e) = lean_statement("jets", &["statement-stdin"], format!("{line}\n{jets_text}").as_bytes()) {
+        println!("the jet file is not Lean's: {e}");
+        return 1;
+    }
+    let term = lean_words(line)[2].to_string();
+    let t = parse(term.as_bytes(), &mut 0);
+    let jt = parse_jets(&jets_text);
+    let plan_of = |o: &[&str]| probe::lean_plan(o).map(|p| p.0);
+    let (six, five, err) = match (plan_of(&["val", "6"]), plan_of(&["val", "5"]), plan_of(&["err"])) {
+        (Ok(a), Ok(b), Ok(c)) => (a, b, c),
+        _ => {
+            println!("no plans from Lean");
+            return 1;
+        }
+    };
+    let run = match run_probe(&t, &jt, &six) {
+        Ok(r) => r,
+        Err(e) => {
+            println!("sumto_us: FAILED its honest probe run: {e}");
+            return 1;
+        }
+    };
+    let tr = build_traces(&t, &jt, &run);
+    std::fs::write(out.join("probe_sumto_us.txt"), lean_of(&term, &run, &tr)).unwrap();
+    let (pw_h, pop_h) = (tr.pw.as_ref().unwrap().values.len() / probe::PW_W, tr.pop.values.len() / POP_W);
+    println!("{:<18} {:>6} {:>6} {:>6} {:>6} {:>8} {:>8}  verdict", "row", "rows", "insts", "segs", "pw", "prove s", "verify s");
+    let proof = match prove_j(&t, &jt, &tr, Some(&six)) {
+        Ok((p, s)) => {
+            let t1 = Instant::now();
+            match verify_j(&t, &jt, &p, Some(&six)) {
+                Ok(()) => println!(
+                    "{:<18} {:>6} {:>6} {:>6} {:>6} {:>8.2} {:>8.3}  verified: decodes to [6] (pop {pop_h})",
+                    "sumto_us",
+                    run.rows.len(),
+                    run.insts,
+                    six.len(),
+                    pw_h,
+                    s,
+                    t1.elapsed().as_secs_f64()
+                ),
+                Err(e) => {
+                    println!("sumto_us: FAILED its honest proof: {e}");
+                    failures += 1;
+                }
+            }
+            Some(p)
+        }
+        Err(e) => {
+            println!("sumto_us: FAILED to prove: {e}");
+            failures += 1;
+            None
+        }
+    };
+
+    println!("\nforgeries (each must be refused or rejected):");
+    // Another output: the prover's run refuses it, and the honest proof,
+    // offered for it, is rejected.
+    for (name, plan) in [("claims_5", &five), ("claims_err", &err)] {
+        match run_probe(&t, &jt, plan) {
+            Ok(_) => {
+                println!("{name:<18} the probe run ACCEPTED a false output");
+                failures += 1;
+            }
+            Err(e) => println!("{name:<18} the probe run refuses it ({e})"),
+        }
+        if let Some(p) = &proof {
+            match verify_j(&t, &jt, p, Some(plan)) {
+                Ok(()) => {
+                    println!("{name:<18} the proof of [6] VERIFIED for it");
+                    failures += 1;
+                }
+                Err(e) => println!("{name:<18} the proof of [6] is rejected for it ({})", e.chars().take(50).collect::<String>()),
+            }
+        }
+    }
+    // One cell of the honest trace changed, per new constraint.
+    let later = (0..tr.cpu.values.len() / tr.cpu.width)
+        .filter(|&r| tr.cpu.values[r * tr.cpu.width + SEL + 13] == Val::ONE)
+        .nth(2)
+        .expect("a later probe row");
+    let w = tr.cpu.width;
+    let tampers: [(&str, usize, usize); 4] = [
+        // A child probes another pointer than its parent's field.
+        ("forged_field", later, probe::P_F),
+        // A segment ends without the nil below its fields.
+        ("skipped_nil", later, probe::P_NILACT),
+        // The ending segment's marker, claimed one more.
+        ("forged_marker", later, FLD),
+        // A probe row's count, skipped ahead.
+        ("skipped_count", later, probe::P_CNT),
+    ];
+    let clone = |tr: &JTraces| JTraces {
+        cpu: tr.cpu.clone(),
+        mem: tr.mem.clone(),
+        prog: tr.prog.clone(),
+        roots: tr.roots.clone(),
+        hdr: tr.hdr.clone(),
+        tmpl: tr.tmpl.clone(),
+        pop: tr.pop.clone(),
+        instw: tr.instw.clone(),
+        plan: tr.plan.clone(),
+        pw: tr.pw.clone(),
+        mem_cells: tr.mem_cells.clone(),
+        regs: tr.regs.clone(),
+    };
+    for (name, r, col) in tampers {
+        let mut bad = clone(&tr);
+        let v = &mut bad.cpu.values[r * w + col];
+        *v = if col == probe::P_NILACT { Val::ZERO } else { *v + Val::ONE };
+        failures += report(name, prove_and_verify_j(&t, &jt, &bad, Some(&six)));
+    }
+
+    // Tampers no local constraint sees: each changes a provided count or a
+    // chain flag, so only a bus balance can refuse it.
+    // A surplus SEGEND: a later row offers its fields once more.
+    {
+        let mut bad = clone(&tr);
+        bad.cpu.values[later * w + probe::P_NKIDS] += Val::ONE;
+        failures += report("segend_surplus", prove_and_verify_j(&t, &jt, &bad, Some(&six)));
+    }
+    // A surplus PLAN row.
+    {
+        let mut bad = clone(&tr);
+        bad.plan.as_mut().unwrap().values[0] += Val::ONE;
+        failures += report("plan_surplus", prove_and_verify_j(&t, &jt, &bad, Some(&six)));
+    }
+    // A surplus field: a later row's POP chain offers a field once more.
+    {
+        let mut bad = clone(&tr);
+        let np = bad.pop.values.len() / POP_W;
+        match (0..np).find(|&q| bad.pop.values[q * POP_W] == f(later as u32) && bad.pop.values[q * POP_W + 7] == Val::ONE) {
+            Some(q) => {
+                bad.pop.values[q * POP_W + 6] += Val::ONE;
+                failures += report("arg_surplus", prove_and_verify_j(&t, &jt, &bad, Some(&six)));
+            }
+            None => {
+                println!("{:<16} NOT TESTED: no field popped at the later row", "arg_surplus");
+                failures += 1;
+            }
+        }
+    }
+    // A dropped marker: one PW row switched off.
+    {
+        let mut bad = clone(&tr);
+        let pw = bad.pw.as_mut().unwrap();
+        let q = (0..pw.values.len() / probe::PW_W).find(|&q| pw.values[q * probe::PW_W + 5] == Val::ONE).unwrap();
+        pw.values[q * probe::PW_W + 5] = Val::ZERO;
+        failures += report("pw_dropped", prove_and_verify_j(&t, &jt, &bad, Some(&six)));
+    }
+    // A child's parent row redirected to an instantiation whose POP chain
+    // holds the same pointer at the same index, the ARG and SEGEND counts
+    // rebalanced: only SEGEND's key, the parent's segment, refuses it.
+    {
+        let rows = tr.cpu.values.len() / w;
+        let np = tr.pop.values.len() / POP_W;
+        let mut tested = false;
+        'outer: for r in 0..rows {
+            if tr.cpu.values[r * w + SEL + 13] != Val::ONE {
+                continue;
+            }
+            let clkp = tr.cpu.values[r * w + probe::P_CLKP];
+            let fld = tr.cpu.values[r * w + probe::S_BASE + 5];
+            let pf = tr.cpu.values[r * w + probe::P_F];
+            let Some(parent_pop) = (0..np).find(|&q| {
+                tr.pop.values[q * POP_W] == clkp && tr.pop.values[q * POP_W + 2] == fld && tr.pop.values[q * POP_W + 7] == Val::ONE
+            }) else {
+                continue;
+            };
+            for q in 0..np {
+                let c = tr.pop.values[q * POP_W];
+                if c == clkp || tr.pop.values[q * POP_W + 7] != Val::ONE {
+                    continue;
+                }
+                if tr.pop.values[q * POP_W + 2] == fld && tr.pop.values[q * POP_W + 4] == pf {
+                    let mut bad = clone(&tr);
+                    bad.cpu.values[r * w + probe::P_CLKP] = c;
+                    bad.pop.values[q * POP_W + 6] += Val::ONE;
+                    bad.pop.values[parent_pop * POP_W + 6] -= Val::ONE;
+                    let pr = (0..rows).find(|&x| tr.cpu.values[x * w + J_CLK] == clkp).unwrap();
+                    bad.cpu.values[pr * w + probe::P_NKIDS] -= Val::ONE;
+                    failures += report("parent_redirected", prove_and_verify_j(&t, &jt, &bad, Some(&six)));
+                    tested = true;
+                    break 'outer;
+                }
+            }
+        }
+        if !tested {
+            println!("{:<16} NOT TESTED: no instantiation shares a child's pointer", "parent_redirected");
+            failures += 1;
+        }
+    }
+    failures
 }
 
 fn lean_of(term: &str, run: &JRun, tr: &JTraces) -> String {
@@ -883,7 +1292,14 @@ fn lean_of(term: &str, run: &JRun, tr: &JTraces) -> String {
         rows: tr.regs.clone(),
         mem: tr.mem_cells.clone(),
     };
-    lean_table(term, &tb)
+    let mut s = lean_table(term, &tb);
+    // With probe segments: the start rows, the last row, the fields.
+    if let Some(p) = &run.probe {
+        let mut p = p.clone();
+        p.starts.push(tr.regs.len() as u32 - 1);
+        s.push_str(&probe::lean_probe(&p));
+    }
+    s
 }
 
 // ---------------------------------------------------------------------------
@@ -932,7 +1348,7 @@ pub fn main(corpus: &str, corpus_path: &std::path::Path, dir: &std::path::Path, 
         let tr = build_traces(&t, &jt, &jr);
         std::fs::write(out.join(format!("jet_{name}.txt")), lean_of(&term, &jr, &tr)).unwrap();
         let (pop_h, instw_h) = (tr.pop.values.len() / POP_W, tr.instw.values.len() / INSTW_W);
-        match prove_and_verify_j(&t, &jt, &tr) {
+        match prove_and_verify_j(&t, &jt, &tr, None) {
             Outcome::Verified(p, v) => println!(
                 "{:<16} {:>6} {:>7} {:>6} {:>7} {:>6} {:>6} {:>8.2} {:>8.3}  verified",
                 name,
@@ -975,7 +1391,7 @@ pub fn main(corpus: &str, corpus_path: &std::path::Path, dir: &std::path::Path, 
             tr.mem_cells[addr] = Cell::App(a + 1, b);
         }
         std::fs::write(out.join("tampered_jet_forged_write.txt"), lean_of(&term, &jr, &tr)).unwrap();
-        failures += report("forged_write", prove_and_verify_j(&t, &jt, &tr));
+        failures += report("forged_write", prove_and_verify_j(&t, &jt, &tr, None));
     }
     // An unlicensed root: the run instantiates jet 0 at an address that is
     // not its root.
@@ -997,7 +1413,7 @@ pub fn main(corpus: &str, corpus_path: &std::path::Path, dir: &std::path::Path, 
         let jr = run_jets(&t, &jt, Some((hd, 0)));
         let tr = build_traces(&t, &jt, &jr);
         std::fs::write(out.join("tampered_jet_unlicensed_root.txt"), lean_of(&term, &jr, &tr)).unwrap();
-        failures += report("unlicensed_root", prove_and_verify_j(&t, &jt, &tr));
+        failures += report("unlicensed_root", prove_and_verify_j(&t, &jt, &tr, None));
     }
     // A doctored jet file: an extra root, at an address that is not a
     // root.  The statement check refuses it before any proof.

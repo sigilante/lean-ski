@@ -1,7 +1,7 @@
-# Tables: atoms, instantiation rows, the template table
+# Tables: atoms, instantiation rows, the template table, probe segments
 
 This note records the Plonky3 tables beyond the corpus's three: atoms,
-and supercombinator instantiation. Both are built. Instantiation follows
+supercombinator instantiation, and probe segments. All three are built. Instantiation follows
 `avon/DESIGN.md` §18.1 (in the `skijack` repository), with a public
 roots table in place of a jet cell, and globals.
 
@@ -204,9 +204,9 @@ refuses two made-up jet files before any proof:
 
 ### Not yet built
 
-- **Jets with probes.** `inst_sound` over open terms, so a jetted run from
-  a statement machine binds its output as `air_probe` does. Until then
-  jets and the Sudoku statement do not combine.
+- **Jets in a statement machine.** Instantiation over open terms is
+  built (§3), but the Sudoku statement machine is not jetted: its tables
+  are hiding and fixed-height, and POP, INSTW and PW are neither.
 - **Zero knowledge for jets.** ROOTS, HDR and TMPL are public and would
   go under the public-seed commitment of `src/sudoku.rs`. POP and INSTW
   would need fixed heights and blinding messages, since each has its own
@@ -215,3 +215,79 @@ refuses two made-up jet files before any proof:
   the interpreted rows that saves CPU rows, but adds more POP rows than it
   saves.
 - **Data jets and the interpreter jet** (Avon §18.2, §18.3).
+
+## 3. Probe segments: the output, bound (built)
+
+A jetted proof shows that a term halts, with its value's head and arity.
+Probe segments show what it halts to. A result is read by probing
+(`Ski/Decode.lean`): the term, applied to `k` fresh marker atoms, must
+head-reduce to the marker of its constructor applied to the constructor's
+fields, and each field is probed the same way. One probe reads one
+constructor, so `[6]` (`RVal`, a stack cell, an item, seven numerals and
+the empty stack) takes 11.
+
+### What the circuit proves
+
+`Air.AcceptsP` (`Ski/AirProbe.lean`) cuts the table into segments, one
+per node of the outcome's probe tree in depth-first order (`Air.planOf`,
+the markers of consecutive segments in consecutive blocks). Segment `j`
+starts at row `p j` with a probe row: it writes the markers `base … base
++ k - 1` and a stack of them at the counter, and moves the head to the
+term it probes, the loaded term for the first segment and a field of its
+parent for the others. It runs by transitions and instantiations at
+licensed roots, and ends at row `p (j + 1)` (the next probe row, or the
+last row), where the head is the atom `ctor + base` and the stack is
+exactly `arity` cells, the segment's fields, over a nil.
+
+`Air.air_probe_decodes`: a table the AIR accepts for the plan of an
+outcome `o`, from a loaded term with licensed roots, proves `Decodes t
+o`. The proof carries each segment over to open terms: a jetted run is
+open weak reduction (`Mach.ojsteps_owsteps`, from `Mach.oinst_sound_g`),
+which reaches the marker's spine by head reduction with fields that
+weakly reduce to the ones on the stack (`Probe.owsteps_spine`). Every
+atom in the heap is a marker of an earlier segment, since transitions
+and instantiations write none, so each segment's term is fresh for its
+markers. The segments then assemble into the probe tree (`Air.decV_go`),
+and the tree into `Decodes` (`Probe.decodes_of_decV`). `Air.checkPA`
+decides the constraints on a concrete table (`Air.checkPA_sound`).
+
+### The tables (`src/probe.rs`)
+
+- **CPU `PFIRST`**, the first row, and **`PLATER`**: both look up the
+  starting segment's PLAN row at the probe count, which starts at 0,
+  grows by one on each probe row and must be `n` on the last row. They
+  start the PW chain from 0 to `k`, write the nil at `ctr + 2k`, and set
+  `hd' = F`, `stk' = ctr + k`, `ctr' = ctr + 2k + 1`. `PFIRST` takes
+  `F = hd`. `PLATER` also ends the segment before: it looks up that
+  segment's PLAN row, reads its marker at the head (tag 6), runs the POP
+  chain from `(0, stk)` to `(arity, rest)`, reads a nil at `rest` below
+  the counter, and provides `SEGEND(segment, clk)`. Its `F` is the
+  parent's field: `SEGEND(parent, clkp)` and `ARG(clkp, field, F)`.
+- **PLAN** `(j, base, k, ctor, arity, parent, field)`, preprocessed from
+  the plan with a committed multiplicity, padded with copies of row 0.
+- **PW**, one row per marker: the atom `base + i` at `c + i` and
+  `C (c + i) (c + k + i + 1)` at `c + k + i`, one step of the chain.
+- **The last row** reads the last segment's marker at the head (a
+  public constant) and a nil at the stack: the last segment in
+  depth-first order has no fields.
+
+`SEGEND` is provided only by `PLATER` rows, under their own `clk`, which
+is unique; `ARG(clkp, …)` is provided only by the POP chain that `clkp`'s
+row started. So a child's pointer is its parent's field, at a position
+below the parent's arity. The header of `src/probe.rs` gives the
+argument that an accepted table satisfies `Air.AcceptsP`. `lake exe jets
+check-probe` checks the tables proved here.
+
+### Measured, 2026-09-28, Apple M4 Max, release build
+
+`3 sumto` decodes to `[6]` in 4,144 CPU rows: the first segment, the
+term applied to three markers, takes 3,674; the other ten take 470. The
+run instantiates 1,045 times; PW has 23 rows and POP 4,096 (padded). The
+proof is 434,238 bytes, proved in 0.24 s and verified in 0.02 s. The
+prover's run refuses the plans of `[5]` and of the error outcome, and the
+verifier rejects the proof of `[6]` for either. Nine tampered traces are
+rejected: four break a local constraint (`forged_field`, `skipped_nil`,
+`forged_marker`, `skipped_count`), and five only a bus balance
+(`segend_surplus`, `plan_surplus`, `arg_surplus`, `pw_dropped`, and
+`parent_redirected`, a child's parent row moved to an instantiation that
+popped the same pointer at the same index).
