@@ -843,25 +843,22 @@ pub fn jet_verify(corpus: &std::path::Path, dir: &std::path::Path, name: &str, p
     if name.is_empty() || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
         return Err(format!("a name must be an identifier, not {name:?}"));
     }
-    // Read each public file once.  Lean checks a private copy of exactly
+    // Read each public file once.  Lean checks exactly
     // these bytes, and they are what is parsed below.
     let text = std::fs::read_to_string(corpus).map_err(|e| format!("{}: {e}", corpus.display()))?;
     let line = text
         .lines()
-        .find(|l| l.split_whitespace().next() == Some(name))
+        .find(|l| lean_words(l).first() == Some(&name))
         .ok_or_else(|| format!("no term named {name} in {}", corpus.display()))?
         .to_string();
-    let w: Vec<&str> = line.split_whitespace().collect();
+    let w: Vec<&str> = lean_words(&line);
     if w.len() != 3 {
         return Err(format!("a malformed corpus line for {name}"));
     }
     let jets_path = dir.join(format!("{name}.jets"));
     let jets_text = std::fs::read_to_string(&jets_path).map_err(|e| format!("{}: {e}", jets_path.display()))?;
-    let corpus_bytes = format!("{line}\n");
-    let jets_rel = format!("jets/{name}.jets");
-    let snap = Snapshot::new(&[("corpus.txt", corpus_bytes.as_bytes()), (&jets_rel, jets_text.as_bytes())])?;
-    lean_statement("jets", &[&snap.path("corpus.txt"), &snap.path("jets")]).map_err(|e| format!("statement: {e}"))?;
-    drop(snap);
+    lean_statement("jets", &["statement-stdin"], format!("{line}\n{jets_text}").as_bytes())
+        .map_err(|e| format!("statement: {e}"))?;
     let t = parse(w[2].as_bytes(), &mut 0);
     let jt = parse_jets(&jets_text);
     let bytes = std::fs::read(proof_in).map_err(|e| format!("{}: {e}", proof_in.display()))?;
@@ -897,31 +894,26 @@ fn lean_of(term: &str, run: &JRun, tr: &JTraces) -> String {
 pub fn main(corpus: &str, corpus_path: &std::path::Path, dir: &std::path::Path, out: &std::path::Path) -> usize {
     let mut failures = 0;
     // The verifier's precondition: for each term it will prove, the jet file
-    // is Lean's for that term, with licensed roots.  Each file is read once;
-    // Lean checks a private copy of those bytes, which are the ones used.
+    // is Lean's for that term, with licensed roots.  Each file is read once,
+    // and Lean checks those bytes, piped: they are the ones used.
     let mut jet_texts = std::collections::HashMap::new();
-    let mut files: Vec<(String, Vec<u8>)> = vec![("corpus.txt".into(), corpus.as_bytes().to_vec())];
     for line in corpus.lines().filter(|l| !l.trim().is_empty()) {
-        let name = line.split_whitespace().next().unwrap_or("").to_string();
-        match std::fs::read_to_string(dir.join(format!("{name}.jets"))) {
-            Ok(t) => {
-                files.push((format!("jets/{name}.jets"), t.as_bytes().to_vec()));
-                jet_texts.insert(name, t);
-            }
+        let name = lean_words(line).first().copied().unwrap_or("").to_string();
+        let text = match std::fs::read_to_string(dir.join(format!("{name}.jets"))) {
+            Ok(t) => t,
             Err(e) => {
                 println!("the jet file for {name}: {e}");
                 return 1;
             }
+        };
+        if let Err(e) = lean_statement("jets", &["statement-stdin"], format!("{line}\n{text}").as_bytes()) {
+            println!("the jet files are not Lean's for these terms: {e}");
+            return 1;
         }
-    }
-    let refs: Vec<(&str, &[u8])> = files.iter().map(|(p, b)| (p.as_str(), b.as_slice())).collect();
-    let checked = Snapshot::new(&refs)
-        .and_then(|snap| lean_statement("jets", &[&snap.path("corpus.txt"), &snap.path("jets")]));
-    if let Err(e) = checked {
-        println!("the jet files are not Lean's for these terms: {e}");
-        return 1;
+        jet_texts.insert(name, text);
     }
     let _ = corpus_path;
+    let _ = dir;
     println!("jet files: checked by lake exe jets statement, term by term");
     println!(
         "{:<16} {:>6} {:>7} {:>6} {:>7} {:>6} {:>6} {:>8} {:>8}  verdict",
@@ -1025,7 +1017,9 @@ pub fn main(corpus: &str, corpus_path: &std::path::Path, dir: &std::path::Path, 
         ls[0] = format!("roots {}", r + 1);
         ls.insert(1, format!("{a} 0"));
         std::fs::write(&path, ls.join("\n") + "\n").unwrap();
-        match lean_statement("jets", &[corpus_path, &bad]) {
+        let line = corpus.lines().find(|l| lean_words(l).first() == Some(&"sumto_us")).unwrap_or("");
+        let text = std::fs::read_to_string(&path).unwrap_or_default();
+        match lean_statement("jets", &["statement-stdin"], format!("{line}\n{text}").as_bytes()) {
             Err(e) => println!("{:<16} refused by the statement check ({})", "doctored_jets", e.chars().take(60).collect::<String>()),
             Ok(_) => {
                 println!("{:<16} ACCEPTED by the statement check", "doctored_jets");
@@ -1042,7 +1036,8 @@ pub fn main(corpus: &str, corpus_path: &std::path::Path, dir: &std::path::Path, 
         std::fs::write(bad.join("ksk.jets"), "roots 1\n0 0\njets 1\n1 1 L 0\n2\n").unwrap();
         let cp = out.join("made_up_corpus.txt");
         std::fs::write(&cp, "ksk 1 ``KSK\n").unwrap();
-        match lean_statement("jets", &[&cp, &bad]) {
+        let text = std::fs::read_to_string(bad.join("ksk.jets")).unwrap_or_default();
+        match lean_statement("jets", &["statement-stdin"], format!("ksk 1 ``KSK\n{text}").as_bytes()) {
             Err(e) => println!("{:<16} refused by the statement check ({})", "made_up_jets", e.chars().take(60).collect::<String>()),
             Ok(_) => {
                 println!("{:<16} ACCEPTED by the statement check", "made_up_jets");

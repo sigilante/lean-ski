@@ -964,37 +964,45 @@ fn prove_and_verify(
     }
 }
 
-/// The verifier's statement check, run in Lean: `lake exe EXE statement
-/// PATHS…` in the lean-ski checkout (see below for how it is found).  The statement files are
+/// The verifier's statement check, run in Lean: `lake exe EXE ARGS…` in the
+/// lean-ski checkout, with `input` on stdin.  The statement files are
 /// public, but only Lean knows what they must be, so the verifier refuses
-/// any file Lean does not confirm.
-fn lean_statement(exe: &str, paths: &[&std::path::Path]) -> Result<String, String> {
-    let abs: Vec<std::path::PathBuf> = paths
-        .iter()
-        .map(|p| std::fs::canonicalize(p).map_err(|e| format!("{}: {e}", p.display())))
-        .collect::<Result<_, _>>()?;
-    let path = &abs[abs.len() - 1];
+/// anything Lean does not confirm.  The bytes are piped, never written to a
+/// file: what Lean checks is exactly what the verifier holds and then
+/// parses, with no file between a read and a check that a writer, a FIFO or
+/// a hostile temporary directory could change.
+fn lean_statement(exe: &str, args: &[&str], input: &[u8]) -> Result<String, String> {
+    use std::io::Write;
     // The Lean project: the lean-ski checkout this binary was built in (it
     // lives at bench/plonky3/target/…), so the statement check is the one
-    // shipped with the verifier; else $LEAN_SKI; else one above the files
-    // or the working directory.
+    // shipped with the verifier; else $LEAN_SKI; else one above the working
+    // directory.
     let me = std::env::current_exe().map_err(|e| format!("{e}"))?;
     let cwd = std::env::current_dir().map_err(|e| format!("{e}"))?;
     let env = std::env::var_os("LEAN_SKI").map(std::path::PathBuf::from);
     let root = me
         .ancestors()
         .chain(env.iter().map(|p| p.as_path()))
-        .chain(path.ancestors())
         .chain(cwd.ancestors())
         .find(|d| d.join("lakefile.toml").exists() && d.join("bench/Jets.lean").exists())
         .ok_or_else(|| "no lean-ski checkout found (set LEAN_SKI)".to_string())?
         .to_path_buf();
-    let out = std::process::Command::new("lake")
-        .args(["exe", exe, "statement"])
-        .args(&abs)
+    let mut child = std::process::Command::new("lake")
+        .args(["exe", exe])
+        .args(args)
         .current_dir(root)
-        .output()
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
         .map_err(|e| format!("lake: {e}"))?;
+    child
+        .stdin
+        .take()
+        .ok_or_else(|| "lake: no stdin".to_string())?
+        .write_all(input)
+        .map_err(|e| format!("lake stdin: {e}"))?;
+    let out = child.wait_with_output().map_err(|e| format!("lake: {e}"))?;
     if out.status.success() {
         Ok(String::from_utf8_lossy(&out.stdout).into_owned())
     } else {
@@ -1002,47 +1010,10 @@ fn lean_statement(exe: &str, paths: &[&std::path::Path]) -> Result<String, Strin
     }
 }
 
-/// **A snapshot of public files**, for the statement check: the bytes the
-/// verifier holds, written to a fresh private directory, so Lean checks
-/// exactly the bytes the verifier then parses.  Read once, checked and
-/// used: no second read that a writer, a FIFO or a filesystem could answer
-/// differently.  Removed when dropped.
-struct Snapshot {
-    dir: std::path::PathBuf,
-}
-
-impl Snapshot {
-    fn new(files: &[(&str, &[u8])]) -> Result<Snapshot, String> {
-        use std::os::unix::fs::DirBuilderExt;
-        let nanos = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or(0);
-        let dir = std::env::temp_dir().join(format!("ski-air-{}-{nanos}", std::process::id()));
-        std::fs::DirBuilder::new()
-            .mode(0o700)
-            .create(&dir)
-            .map_err(|e| format!("{}: {e}", dir.display()))?;
-        let snap = Snapshot { dir };
-        for (rel, bytes) in files {
-            let path = snap.dir.join(rel);
-            if let Some(parent) = path.parent() {
-                std::fs::create_dir_all(parent).map_err(|e| format!("{}: {e}", parent.display()))?;
-            }
-            std::fs::write(&path, bytes).map_err(|e| format!("{}: {e}", path.display()))?;
-        }
-        Ok(snap)
-    }
-
-    fn path(&self, rel: &str) -> std::path::PathBuf {
-        self.dir.join(rel)
-    }
-}
-
-impl Drop for Snapshot {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.dir);
-    }
+/// A corpus line's fields, split as Lean's `words` splits them: on the
+/// space character only, empty fields dropped.
+fn lean_words(l: &str) -> Vec<&str> {
+    l.split(' ').filter(|w| !w.is_empty()).collect()
 }
 
 fn panic_text(e: &Box<dyn std::any::Any + Send>) -> String {
@@ -1115,7 +1086,7 @@ fn main() {
         ("skks".into(), 2, "```SKKS".into()),
     ];
     for line in corpus.lines().filter(|l| !l.trim().is_empty()) {
-        let mut it = line.split_whitespace();
+        let mut it = lean_words(line).into_iter();
         let name = it.next().unwrap().to_string();
         let steps: u64 = it.next().unwrap().parse().unwrap();
         let term = it.next().unwrap().to_string();

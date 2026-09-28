@@ -25,12 +25,12 @@ that it runs in seconds. It prints one `ok` line per check, then
    `bench/Dump.lean` prints.
 2. **The jet table.** `sumto/jets/sumto_us.jets` lists 2,768 licensed
    roots and 78 jets. The verifier reads the corpus line and the jet file
-   once and writes those bytes to a private directory. Lean's `lake exe
-   jets statement` then confirms, on that copy, that the file is exactly
-   the jet table of the term, and that every root passes `Air.rootsOKB`
-   over the term's loaded heap. That gives `Air.RootsOK`
-   (`Air.rootsOKB_sound`). The verifier then uses those same bytes, so
-   what Lean checked is what it proves over.
+   once and pipes those bytes to Lean's `lake exe jets statement-stdin`,
+   which reads no file. It confirms that the jet file is exactly the jet
+   table of the term, and that every root passes `Air.rootsOKB` over the
+   term's loaded heap. That gives `Air.RootsOK` (`Air.rootsOKB_sound`).
+   The verifier then uses those same bytes, so what Lean checked is what
+   it proves over. Corpus lines are split as Lean splits them, on spaces.
 3. **The proof.** `sumto/sumto_us.proof` is a Plonky3 batch STARK over
    BabyBear, 375,160 bytes, over the eight tables of
    `bench/plonky3/src/jets.rs`. `ski-air jet-verify` checks it against the
@@ -48,9 +48,11 @@ that it runs in seconds. It prints one `ok` line per check, then
    An independent check from a clean clone found these holes. First, an
    absolute name let Lean check one file while the verifier read another.
    After names became identifiers, the FIFO let them read different
-   bytes. Each let the Ω forgery verify. Reading once and checking a
-   private copy closes both. The standing forgeries fail on the vulnerable
-   builds (`a8ec55f`, `0b2fbcf`) and pass on this one.
+   bytes. Each let the Ω forgery verify. So did one more: a copy of the
+   bytes in a temporary directory, which a process able to rename entries
+   in a shared `$TMPDIR` replaced before Lean read it. Reading once and
+   piping the bytes to Lean closes all three. The standing forgeries fail
+   on the vulnerable builds (`a8ec55f`, `0b2fbcf`) and pass on this one.
 5. **Lean's own check of the witness.** `lake exe jets check` accepts
    Avon's table, `sumto/sumto_us.table` (`Air.checkJA_sound`).
 

@@ -98,60 +98,76 @@ def emit (dir : String) : IO UInt32 := do
     IO.println s!"{row.name}: {r} roots, {g} jets"
   return 0
 
-/-- **The verifier's check of the jet files**, for the terms it proves.
-    Each line of `corpus` (`name steps term`, `bench/Dump.lean`'s format)
-    names a term (the name an identifier: letters, digits, `_`; the steps
-    field is not checked, and nothing is claimed about it) and the file
-    `DIR/<name>.jets` the verifier will build its
-    preprocessed tables from; that file must be exactly the jet file of that
-    term, and its roots must pass `Air.rootsOKB` over the term's loaded
-    heap, which gives `Air.RootsOK` (`Air.rootsOKB_sound`), the hypothesis
-    of `Air.air_sound_jet`.  Keyed by the verifier's own terms, not by
-    Lean's corpus names: a file for any other name or term is checked the
-    same way or refused. -/
+/-- One corpus line (`name steps term`, split on spaces as `words` does)
+    and the jet file given for it: `none` when they are the statement (the
+    file is exactly the term's jet file, and its roots pass `Air.rootsOKB`
+    over the term's loaded heap, which gives `Air.RootsOK` by
+    `Air.rootsOKB_sound`, the hypothesis of `Air.air_sound_jet`), and
+    otherwise the reason they are not.  A name is an identifier: letters,
+    digits, `_`.  The steps field is not checked, and nothing is claimed
+    about it. -/
+def checkLine (tmpls : List (List Nat × OTerm)) (line : String) (given : Option String) :
+    Option String :=
+  match words line with
+  | [name, _, termText] =>
+    if name.isEmpty || !name.all (fun c => c.isAlphanum || c == '_') then
+      some s!"MALFORMED NAME {name}"
+    else
+      match parseTerm termText.toList with
+      | some (t, []) =>
+        match given with
+        | none => some s!"MISSING {name}"
+        | some text =>
+          let (roots, jets) := jetTable (load t).heap tmpls
+          if text == (jetFile t tmpls).1 && rootsOKB (load t).heap roots jets then none
+          else some s!"NOT THE JET FILE {name}"
+      | _ => some s!"MALFORMED TERM {name}"
+  | _ => some s!"MALFORMED LINE {line}"
+
+/-- **The verifier's check of the jet files**, for the terms it proves:
+    each line of `corpus` names a term and the file `DIR/<name>.jets`,
+    checked by `checkLine`.  Keyed by the verifier's own terms, not by
+    Lean's corpus names. -/
 def statement (corpusPath dir : String) : IO UInt32 := do
   let tmpls := allTemplates
   let text ← IO.FS.readFile corpusPath
   let mut bad := 0
   let mut n := 0
   for line in (text.splitOn "\n").filter (fun l => !l.trimAscii.toString.isEmpty) do
-    match words line with
-    | [name, _, termText] =>
-      match parseTerm termText.toList with
-      | some (t, []) =>
-        -- A name is an identifier, so this path and the verifier's name
-        -- the same file: no `/`, no `.`, nothing a path could resolve.
-        if name.isEmpty || !name.all (fun c => c.isAlphanum || c == '_') then
-          IO.println s!"MALFORMED NAME {name}"
-          bad := bad + 1
-          continue
-        n := n + 1
-        let path := s!"{dir}/{name}.jets"
-        let (expected, roots, jets) := jetTable' t tmpls
-        let licensed := rootsOKB (load t).heap roots jets
-        match ← (IO.FS.readFile path).toBaseIO with
-        | .ok given =>
-          if given == expected && licensed then IO.println s!"STATEMENT {path}"
-          else
-            IO.println s!"NOT THE JET FILE {path}"
-            bad := bad + 1
-        | .error _ =>
-          IO.println s!"MISSING {path}"
-          bad := bad + 1
-      | _ =>
-        IO.println s!"MALFORMED TERM {name}"
-        bad := bad + 1
-    | _ =>
-      IO.println s!"MALFORMED LINE {line}"
+    let name := (words line).headD ""
+    let given ← if name.isEmpty || !name.all (fun c => c.isAlphanum || c == '_') then pure none
+      else do
+        match ← (IO.FS.readFile s!"{dir}/{name}.jets").toBaseIO with
+        | .ok t => pure (some t)
+        | .error _ => pure none
+    n := n + 1
+    match checkLine tmpls line given with
+    | none => IO.println s!"STATEMENT {dir}/{name}.jets"
+    | some why =>
+      IO.println why
       bad := bad + 1
   if n == 0 then
     IO.println "NO TERMS"
     bad := bad + 1
   return (if bad == 0 then 0 else 1)
-where
-  jetTable' (t : Term) (tmpls : List (List Nat × OTerm)) : String × List (Nat × Nat) × List Jet :=
-    let (roots, jets) := jetTable (load t).heap tmpls
-    ((jetFile t tmpls).1, roots, jets)
+
+/-- The same check, on bytes the verifier sends on stdin: one corpus line,
+    a newline, then the jet file.  No file is read, so what is checked is
+    exactly what the verifier holds. -/
+def statementStdin : IO UInt32 := do
+  let text ← (← IO.getStdin).readToEnd
+  match text.splitOn "\n" with
+  | line :: rest =>
+    match checkLine allTemplates line (some ("\n".intercalate rest)) with
+    | none =>
+      IO.println s!"STATEMENT {(words line).headD ""}"
+      return 0
+    | some why =>
+      IO.println why
+      return 1
+  | [] =>
+    IO.println "NO TERMS"
+    return 1
 
 def check (paths : List String) : IO UInt32 := do
   let tmpls := allTemplates
@@ -177,7 +193,8 @@ def main (args : List String) : IO UInt32 := do
   match args with
   | ["emit", dir] => emit dir
   | ["statement", corpus, dir] => statement corpus dir
+  | ["statement-stdin"] => statementStdin
   | "check" :: paths => check paths
   | _ =>
-    IO.eprintln "usage: jets emit DIR | jets statement CORPUS DIR | jets check TABLE..."
+    IO.eprintln "usage: jets emit DIR | jets statement CORPUS DIR | jets statement-stdin | jets check TABLE..."
     return 2

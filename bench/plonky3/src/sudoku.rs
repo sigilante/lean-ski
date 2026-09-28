@@ -506,8 +506,7 @@ fn guess_matches(p: &Public, bits: &[bool]) -> bool {
 /// `ski-air sudoku DIR OUTDIR`: DIR holds `lake exe sudoku emit`'s files.
 pub fn main(dir: &std::path::Path, out: &std::path::Path) -> usize {
     // The verifier's precondition: the statement is Lean's.
-    // Read once; Lean checks a private copy of these bytes, which are the
-    // ones parsed.
+    // Read once; Lean checks these bytes, piped, which are the ones parsed.
     let text = match std::fs::read_to_string(dir.join("public.txt")) {
         Ok(t) => t,
         Err(e) => {
@@ -515,8 +514,7 @@ pub fn main(dir: &std::path::Path, out: &std::path::Path) -> usize {
             return 1;
         }
     };
-    let checked = Snapshot::new(&[("public.txt", text.as_bytes())])
-        .and_then(|snap| lean_statement("sudoku", &[&snap.path("public.txt")]));
+    let checked = lean_statement("sudoku", &["statement", "-"], text.as_bytes());
     match checked {
         Err(e) => {
             println!("public.txt is not a statement: {e}");

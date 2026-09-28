@@ -123,15 +123,20 @@ where
 
 /-- The puzzle a statement file names, if the file is exactly that puzzle's
     statement and its clues are well formed. -/
-def statementOf (path : String) : IO (Option (List Nat)) := do
-  let text ← IO.FS.readFile path
+def statementOfText (text : String) : Option (List Nat) :=
   match (text.splitOn "\n").head? >>= fun l => parseDigits l.trimAscii.toString with
   | some puzzle =>
-    return (if cluesOKB (cluesOf puzzle) && text == publicText puzzle then some puzzle else none)
-  | none => return none
+    if cluesOKB (cluesOf puzzle) && text == publicText puzzle then some puzzle else none
+  | none => none
 
+def statementOf (path : String) : IO (Option (List Nat)) := do
+  return statementOfText (← IO.FS.readFile path)
+
+/-- `-` reads the statement from stdin: the bytes the verifier holds, so no
+    file is read between its read and this check. -/
 def statement (path : String) : IO UInt32 := do
-  match ← statementOf path with
+  let text ← if path == "-" then (← IO.getStdin).readToEnd else IO.FS.readFile path
+  match statementOfText text with
   | some puzzle =>
     IO.println s!"STATEMENT {path}: the statement machine of {String.ofList (puzzle.map fun d => Char.ofNat (d + '0'.toNat))}, markers {ACC} {REJ}"
     return 0

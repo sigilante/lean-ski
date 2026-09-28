@@ -698,8 +698,9 @@ reproduced the proof byte for byte. Its attacks found that the
 verifier's Lean check and its own reads could disagree, first through a
 jet-file name that was a path and then through a FIFO, so that a forged
 jet table verified a proof that Ω halts. They also found that trailing
-proof bytes were ignored. The verifier now reads each public file once
-and has Lean check a private copy of those bytes. Names are identifiers,
+proof bytes were ignored, and that a checked copy in a shared temporary
+directory could be swapped. The verifier now reads each public file once
+and pipes those bytes to Lean's statement check, which reads no file. Names are identifiers,
 and a proof is one byte string. Each attack is kept as a standing forgery
 in `release/verify.sh` that fails on the vulnerable builds. The
 proof shows halting, with the value's head and arity, not the decoded
