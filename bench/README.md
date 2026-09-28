@@ -62,10 +62,11 @@ mode would take about 25 minutes.
 Reading it:
 
 - **Per step, the heap machine is flat and the tree rewriter grows.**
-  - Heap mode costs 308 cycles per contraction on the longest run. The
+  - Reduction in heap mode costs 309 cycles per contraction on the
+    longest run (the table's `red/step` truncates). The
     figure falls as `load` is amortized, because each transition does
     constant work.
-  - Tree mode rises to 1,469 cycles per contraction. `step?` rebuilds the
+  - Tree mode rises to 1,470 cycles per contraction. `step?` rebuilds the
     spine above each redex, so a step costs time in proportion to the spine.
 - **Reduction is the smaller part of the bill.**
   - On `sumto_us` in heap mode, reduction is 3.2M of 22M cycles.
@@ -75,9 +76,8 @@ Reading it:
     table does, and would pay neither cost.
 - **This is a general-purpose zkVM, not the traversal prover.**
   - It gives a baseline in cycles per contraction and seconds per segment.
-  - The target is the RAP over the compute and memory tables of
-    `zk/SkiZk`. There, one contraction is one row, not about 300 RISC-V
-    cycles.
+  - The target is the AIR of `Ski/Air.lean`, at about 2.44 rows per
+    contraction (below).
 
 ## The AIR's size
 
@@ -107,5 +107,10 @@ sumto_us         3531  10297  14776  25074  7062  30244  37306  2.435078
 - `memory` is the committed memory table: the loaded heap (two cells per
   leaf, the term's nodes and the empty stack) and the cells the run
   writes (one per unwind, three per `S`).
-- About 2.44 rows per contraction, since an unwind is a row. A contraction
-  costs 308 RISC-V cycles in heap mode above and about 2.4 rows here.
+- About 2.44 rows per contraction, since an unwind is a row.
+- Rows and the memory table pad separately to public sizes (`air_budgets`,
+  `Accepts.pad`). For `3 sumto` the next powers of two are 2^15 = 32,768
+  rows, a tail of 7,694, and 2^16 = 65,536 memory cells, a tail of 28,230.
+- The units differ from the RISC Zero figures above: `3 sumto` takes 25,074
+  rows of three registers plus a 37,306-entry memory table here, against
+  22.0M RISC-V cycles for the whole guest there, 3.18M of them reduction.

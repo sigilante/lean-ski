@@ -426,7 +426,8 @@ open Ski.Audit
   Air.wrs_of_take Air.get_st Air.stepRow_mstep Air.mstep_stepRow Air.haltRow_mstep
   Air.stackAt_pos Air.haltRow_of Air.Reach.snoc Air.st_row0 Air.air_sound Air.air_sound_eval
   Air.iterM_succ' Air.adv_prefix Air.iterM_prefix Air.iterM_of_reach Air.take_of_prefix
-  Air.st_regs Air.air_complete Air.air_budgets
+  Air.st_regs Air.air_complete Air.air_budgets Air.Accepts.ctr_le Air.rd_pad Air.wrs_pad
+  Air.stepRow_pad Air.short_pad Air.haltRow_pad Air.Accepts.pad
 
 -- The three-valued outcome: structured formulas demand a normal form, an atom need not
 #audit_clean Real.and_converges Real.or_converges Real.ex_converges atom_divergent_realizer

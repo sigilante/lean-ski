@@ -4,7 +4,7 @@ open Term
 
 /-!
 The AIR's size on the conformance corpus.  Run with
-`lake env lean --run bench/AirCost.lean`.
+`lake build aircost && lake exe aircost`.
 
 The machine here is the proved rule table `Air.stepG` with the heap held in
 an `Array` rather than a `List`; the loaded heap is `Mach.load`'s.  Before

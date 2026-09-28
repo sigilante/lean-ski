@@ -13,20 +13,22 @@ allocation counter.  The heap is not in the rows.  It is one committed
 - a **read** of address `a` at a row with counter `c` is `M[a]`, and is
   valid only when `a < c`, so a row reads only what was written before it
   (`rd`);
-- a **write** at the counter is a check that `M[c]` holds the cell the rule
-  builds (`wr`).
+- a **write** at the counter is a check that `M` holds, from `c` on, the
+  cells the rule builds (`wrs`).
 
 **The constraints** (`Accepts`):
 - the first row is the loaded term: `M` begins with the loaded heap, and the
   registers point at the term and the empty stack;
-- each row either steps to the next by the local rule `stepRow`, which
-  reads at most four cells and writes at most three, or has halted and
-  repeats;
+- each row either steps to the next by the rule table (`stepRow`) or has
+  halted and repeats;
 - the last row has halted.
 
-`haltRow` decides halting from reads alone: the head is a combinator and
-the stack holds fewer arguments than its rule takes.  A write cannot make
-a row halt, so a prover who corrupts a write cannot stop the run early.
+By inspection of `stepG`, a row reads at most four cells (the head and
+three stack cells) and writes at most three, so a row makes at most seven
+lookups.  `haltRow` decides halting from reads alone: the head is a
+combinator and the stack holds fewer arguments than its rule takes.  A
+write cannot make a row halt, so a prover who corrupts a write cannot stop
+the run early.
 
 **The theorems.**
 - `stepRow_mstep`, `mstep_stepRow`: a row step is a machine transition, in
@@ -37,13 +39,24 @@ a row halt, so a prover who corrupts a write cannot stop the run early.
 - `air_complete`: when `t` evaluates to `v`, the machine halts after some
   `n` transitions, and at every budget `k > n` there is a memory table and
   a table of `k` rows that the constraints accept, ending on `v`.
-- `air_budgets`: and the constraints accept a table of `k` rows exactly
-  when `k > n`.  As at L1 (`certified_pad_budgets`), the table's length
-  reveals only the public budget.
+- `air_budgets`: the machine halts after exactly `n` transitions, and the
+  constraints accept a table of `k` rows exactly when `k > n`.
+- `Accepts.pad`: cells past the last counter are never read, so the memory
+  table pads too.  With both padded to public sizes, the table's
+  dimensions reveal only the two budgets.
 
-The memory table is committed data and the lookups are a claim about it.
-That a cryptographic lookup argument enforces them is the proof system's
-job (§5 of `PLAN.md`); this file fixes what they must enforce.
+**What the constraints do not fix.**
+- The output.  `Accepts` fixes the run, not the value it ends on: the value
+  lives in the committed memory table.  Binding a public value is the
+  read-back relation, and is open.
+- The witness's secrecy.  The first row loads all of `t`, so a term
+  `V x w` is loaded in the clear.  Hiding `w` needs the loaded heap
+  committed rather than public.
+- The lookups.  The memory table is committed data and the lookups are a
+  claim about it.  A lookup argument must enforce one value per address
+  (the address column is the position) and `a < c` by a range check within
+  the field.  That is the proof system's obligation; this file fixes what
+  it must enforce.
 -/
 
 namespace Air
@@ -643,15 +656,22 @@ theorem air_complete {t v : Term} (he : Eval t v) :
     exact hv
 
 /-- **The budgets at which the AIR accepts.**  When `t` evaluates, the
-    machine halts after some `n` transitions, and the constraints accept a
-    table of `k` rows exactly when `k > n`: one row per transition and at
-    least the final halt.  The table's length reveals only the budget. -/
+    machine halts after exactly `n` transitions, and the constraints accept
+    a table of `k` rows exactly when `k > n`: one row per transition and at
+    least the final halt. -/
 theorem air_budgets {t v : Term} (he : Eval t v) :
-    ∃ n, ∀ k, (∃ (M : List Cell) (row : Nat → Row), Accepts M t k row) ↔ n < k := by
+    ∃ n, (∀ i, i < n → mstep (iterM i (load t)) ≠ none) ∧ mstep (iterM n (load t)) = none ∧
+      ∀ k, (∃ (M : List Cell) (row : Nat → Row), Accepts M t k row) ↔ n < k := by
   obtain ⟨N, hN⟩ := evalF_complete he
   obtain ⟨m', c, hr, hstop, hv⟩ := reach_of_evalF hN (hsize (load t)) (Nat.le_refl _) (decode_load t)
   obtain ⟨n, hstep, hfin⟩ := iterM_of_reach hr hstop
-  refine ⟨n, fun k => ⟨?_, ?_⟩⟩
+  refine ⟨n, ?_, ?_, fun k => ⟨?_, ?_⟩⟩
+  · intro i hi
+    rw [hstep i hi]
+    intro h
+    cases h
+  · rw [hfin n (Nat.le_refl n)]
+    exact hstop
   · -- every accepted row is a state on the run, no further along than its index
     intro ⟨M, row, h⟩
     have inv : ∀ i, i < k → (row i).ctr ≤ M.length ∧ ∃ j, j ≤ i ∧ st M (row i) = iterM j (load t) := by
@@ -706,5 +726,96 @@ theorem air_budgets {t v : Term} (he : Eval t v) :
     · show haltRow m'.heap (regs (iterM (k - 1) (load t))) = true
       rw [hfin (k - 1) (by omega)]
       exact haltRow_of (by simp) hv hstop
+
+-- ---------------------------------------------------------------------------
+-- Padding the memory table
+-- ---------------------------------------------------------------------------
+
+/-- Every accepted row's counter lies within the memory table. -/
+theorem Accepts.ctr_le {M : List Cell} {t : Term} {k : Nat} {row : Nat → Row}
+    (h : Accepts M t k row) : ∀ i, i < k → (row i).ctr ≤ M.length := by
+  intro i
+  induction i with
+  | zero =>
+    intro _
+    have := congrArg List.length h.heap0
+    rw [List.length_take, ← h.ctr0] at this
+    omega
+  | succ i ih =>
+    intro hi
+    have hc := ih (by omega)
+    cases h.trans i hi with
+    | inl hs => exact (stepRow_mstep hc hs).2
+    | inr hh => rw [hh.2]; exact hc
+
+theorem rd_pad {M J : List Cell} {c : Nat} (hc : c ≤ M.length) : rd (M ++ J) c = rd M c := by
+  funext a
+  unfold rd
+  by_cases ha : a < c
+  · rw [if_pos ha, if_pos ha, List.getElem?_append_left (by omega)]
+  · rw [if_neg ha, if_neg ha]
+
+theorem wrs_pad {M J : List Cell} : ∀ {c : Nat} {ws : List Cell}, wrs M c ws = true →
+    wrs (M ++ J) c ws = true
+  | _, [], _ => rfl
+  | c, w :: ws, h => by
+    unfold wrs at h ⊢
+    rw [Bool.and_eq_true] at h ⊢
+    have h1 : M[c]? = some w := beq_iff_eq.1 h.1
+    have hlt : c < M.length := by
+      cases Nat.lt_or_ge c M.length with
+      | inl hl => exact hl
+      | inr hg => rw [List.getElem?_eq_none hg] at h1; cases h1
+    refine ⟨?_, wrs_pad h.2⟩
+    rw [List.getElem?_append_left hlt, h1]
+    exact beq_self_eq_true _
+
+theorem stepRow_pad {M J : List Cell} {r r' : Row} (hc : r.ctr ≤ M.length)
+    (h : stepRow M r = some r') : stepRow (M ++ J) r = some r' := by
+  unfold stepRow at h ⊢
+  rw [rd_pad hc]
+  cases hg : stepG (rd M r.ctr) r.ctr r.hd r.stk with
+  | none => rw [hg] at h; cases h
+  | some p =>
+    obtain ⟨h1, s1, ws⟩ := p
+    rw [hg] at h
+    dsimp only at h ⊢
+    cases hw : wrs M r.ctr ws with
+    | false => rw [hw] at h; cases h
+    | true => rw [hw, if_pos rfl] at h; rw [wrs_pad hw, if_pos rfl]; exact h
+
+theorem short_pad {M J : List Cell} {c : Nat} (hc : c ≤ M.length) :
+    ∀ n s, short (M ++ J) c n s = short M c n s
+  | 0, _ => rfl
+  | n + 1, s => by
+    unfold short
+    rw [rd_pad hc]
+    cases rd M c s with
+    | none => rfl
+    | some x =>
+      cases x with
+      | cons _ s' => exact short_pad hc n s'
+      | _ => rfl
+
+theorem haltRow_pad {M J : List Cell} {r : Row} (hc : r.ctr ≤ M.length) :
+    haltRow (M ++ J) r = haltRow M r := by
+  unfold haltRow
+  rw [rd_pad hc, short_pad hc, short_pad hc, short_pad hc]
+
+/-- **The memory table pads.**  Cells past the last counter are never read,
+    so appending any cells keeps a table accepted: the memory table, like
+    the rows, can be padded to a public size. -/
+theorem Accepts.pad {M : List Cell} {t : Term} {k : Nat} {row : Nat → Row}
+    (h : Accepts M t k row) (J : List Cell) : Accepts (M ++ J) t k row := by
+  have hc := h.ctr_le
+  refine ⟨h.pos, ?_, h.hd0, h.stk0, h.ctr0, ?_, ?_⟩
+  · rw [List.take_append_of_le_length (hc 0 h.pos)]
+    exact h.heap0
+  · intro i hi
+    cases h.trans i hi with
+    | inl hs => exact .inl (stepRow_pad (hc i (by omega)) hs)
+    | inr hh => exact .inr ⟨by rw [haltRow_pad (hc i (by omega))]; exact hh.1, hh.2⟩
+  · rw [haltRow_pad (hc (k - 1) (by have := h.pos; omega))]
+    exact h.final
 
 end Air
