@@ -688,6 +688,37 @@ an outcome's probe tree, proves that the term decodes to the outcome
 `3 sumto` decodes to `[6]` in 11 segments and 4,144 CPU rows. Jets do not
 yet combine with zero knowledge.
 
+### Slated: the verifier checks exactly the spec
+
+Today the step from the Plonky3 verifier to the Lean spec is argued, not
+proved: the headers of `bench/plonky3/src/main.rs`, `jets.rs` and
+`probe.rs` argue that every table the verifier accepts satisfies
+`Accepts`, `AcceptsJ` or `AcceptsP`, and Lean checks each table proved
+here, but no theorem covers a table nobody showed Lean. The slated work
+closes that step, at a later stage:
+
+- **The circuit as data in Lean.** Each table's columns, its polynomial
+  constraints (first-row, transition, last-row) and its bus interactions
+  (tuple, count, provided or bounded), as one Lean value per AIR, with
+  the LogUp buses read as multiset equalities over the active tuples.
+- **Soundness of the circuit.** Any assignment that satisfies every
+  constraint and balances every bus, at heights up to `2^21` over
+  BabyBear, reads as a table satisfying the spec: `Accepts` for the three
+  corpus tables, `AcceptsJ` with the jet tables, `AcceptsP` with PLAN and
+  PW. The informal arguments to formalize: one value per address, range
+  checks as `a < c` below the modulus, chains of Boolean counts with no
+  cycle shorter than the field, and `clk` unique per row.
+- **Completeness,** the converse for honest runs, so the circuit refuses
+  nothing the spec accepts.
+- **The Rust bound to the Lean value.** Either the Rust constraints are
+  generated from the Lean value, or the Rust AIR's symbolic constraints
+  are exported and compared with it; without one or the other, the
+  theorem is about a circuit the verifier may not run.
+- **Assumed, not proved:** Plonky3's STARK and LogUp soundness (the
+  batch proof shows a satisfying assignment exists), as in §5's
+  interface. ArkLib's FRI and sum-check formalizations are the route to
+  discharging part of it.
+
 ## 6. Acceptance
 
 L0/L1: `lake build` elaborates the manifest, `gates.sh` passes, `lake exe
