@@ -694,9 +694,14 @@ done for `3 sumto` (`release/`). Avon's jetted witness is proved by
 `ski-air`, 3,678 CPU rows where the plain run takes 25,074 (0.36 per
 contraction, against 2.44), with 78 jets and 2,768 roots. A reviewer that
 had not seen the work cloned the repository, ran `release/verify.sh`, and
-reproduced the proof byte for byte. Its attacks found one hole, now
-closed and kept as a standing forgery: a jet-file name that was a path
-let Lean's statement check and the verifier read different files. The
+reproduced the proof byte for byte. Its attacks found that the
+verifier's Lean check and its own reads could disagree, first through a
+jet-file name that was a path and then through a FIFO, so that a forged
+jet table verified a proof that Ω halts. They also found that trailing
+proof bytes were ignored. The verifier now reads each public file once
+and has Lean check a private copy of those bytes. Names are identifiers,
+and a proof is one byte string. Each attack is kept as a standing forgery
+in `release/verify.sh` that fails on the vulnerable builds. The
 proof shows halting, with the value's head and arity, not the decoded
 output; and the verifier's constraints are argued, not proved, to be
 `AcceptsJ` (`release/README.md`).

@@ -24,10 +24,13 @@ that it runs in seconds. It prints one `ok` line per check, then
    proof claims nothing about it, and only step 1's comparison checks it. `verify.sh` checks the file against what
    `bench/Dump.lean` prints.
 2. **The jet table.** `sumto/jets/sumto_us.jets` lists 2,768 licensed
-   roots and 78 jets. Before the verifier reads it, Lean's `lake exe jets
-   statement` confirms that it is exactly the jet table of that term, and
-   that every root passes `Air.rootsOKB` over the term's loaded heap. That
-   gives `Air.RootsOK` (`Air.rootsOKB_sound`).
+   roots and 78 jets. The verifier reads the corpus line and the jet file
+   once and writes those bytes to a private directory. Lean's `lake exe
+   jets statement` then confirms, on that copy, that the file is exactly
+   the jet table of the term, and that every root passes `Air.rootsOKB`
+   over the term's loaded heap. That gives `Air.RootsOK`
+   (`Air.rootsOKB_sound`). The verifier then uses those same bytes, so
+   what Lean checked is what it proves over.
 3. **The proof.** `sumto/sumto_us.proof` is a Plonky3 batch STARK over
    BabyBear, 375,160 bytes, over the eight tables of
    `bench/plonky3/src/jets.rs`. `ski-air jet-verify` checks it against the
@@ -36,10 +39,18 @@ that it runs in seconds. It prints one `ok` line per check, then
    - the proof with one byte changed;
    - the proof offered for another term (`compiled_up`);
    - the proof with a byte appended (a proof is one byte string);
-   - a name that is a path. A name must be an identifier on both sides,
-     so Lean's statement check and the verifier open the same jet file.
-     An independent check from a clean clone found this hole: an absolute
-     name let a forged jet table verify a halting proof for Ω.
+   - a name that is a path (names are identifiers, on both sides);
+   - a proof that Ω, which diverges, halts, made over a forged jet table
+     (`forgeries/omega`). It is offered once with the forged table, and
+     once through a FIFO that answers the first read with the honest table
+     and the second with the forged one.
+
+   An independent check from a clean clone found these holes. First, an
+   absolute name let Lean check one file while the verifier read another.
+   After names became identifiers, the FIFO let them read different
+   bytes. Each let the Ω forgery verify. Reading once and checking a
+   private copy closes both. The standing forgeries fail on the vulnerable
+   builds (`a8ec55f`, `0b2fbcf`) and pass on this one.
 5. **Lean's own check of the witness.** `lake exe jets check` accepts
    Avon's table, `sumto/sumto_us.table` (`Air.checkJA_sound`).
 

@@ -9,9 +9,10 @@
 #      file against that term and licenses its roots (Air.rootsOKB), then
 #      the proof is verified against the term and the jet file;
 #   3. forgeries must be refused: the proof with one byte changed, the
-#      proof offered for another term, the proof with a byte appended, and a
-#      name that is a path (which could make Lean check one jet file and the
-#      verifier read another);
+#      proof offered for another term, the proof with a byte appended, a
+#      name that is a path, and a proof that Omega halts, made over a forged
+#      jet table, offered directly and through a FIFO that answers Lean's
+#      read and the verifier's differently;
 #   4. Lean's own check of Avon's witness table (Air.checkJA_sound).
 #
 # Exits nonzero on any failure.
@@ -21,13 +22,15 @@ cd "$(dirname "$0")/.."
 R=release/sumto
 tmp=$(mktemp -d)
 trap '/bin/rm -rf "$tmp"' EXIT
+failed=0
 ok() { printf 'ok   %s\n' "$*"; }
-no() { printf 'FAIL %s\n' "$*"; exit 1; }
+# With VERIFY_ALL=1 every check runs and the exit comes at the end.
+no() { printf 'FAIL %s\n' "$*"; failed=1; [ -n "${VERIFY_ALL:-}" ] || exit 1; }
 
 echo "--- building the Lean checkers and the verifier (first run: minutes)"
 lake build jets > /dev/null
 (cd bench/plonky3 && cargo build --release --locked --quiet)
-SKI_AIR=bench/plonky3/target/release/ski-air
+SKI_AIR=${SKI_AIR:-bench/plonky3/target/release/ski-air}
 
 echo "--- 1. the term is lean-ski's 3 sumto"
 lake env lean --run bench/Dump.lean > "$tmp/corpus.txt"
@@ -68,14 +71,53 @@ else
     ok "the proof with a byte appended is refused ($(head -c 70 "$tmp/longer.log"))"
 fi
 # A name that is a path would let Lean's check and the verifier's reader
-# open different files; names are identifiers, on both sides.
-mkdir -p "$tmp/abs"
-/bin/cp "$R/jets/sumto_us.jets" "$tmp/abs/sumto_us.jets"
-sed "s#^sumto_us #$tmp/abs/sumto_us #" "$R/corpus.txt" > "$tmp/abs.txt"
-if "$SKI_AIR" jet-verify "$tmp/abs.txt" "$R/jets" "$tmp/abs/sumto_us" "$R/sumto_us.proof" > "$tmp/abs.log"; then
+# open different files; names are identifiers, on both sides.  The honest
+# jet file sits where each side would look (DIR/<path>.jets for Lean,
+# <path>.jets for the reader), so only the name check can refuse this.
+abs="$tmp/abs/sumto_us"
+mkdir -p "$(dirname "$abs")" "$tmp/jd$(dirname "$abs")"
+/bin/cp "$R/jets/sumto_us.jets" "$abs.jets"
+/bin/cp "$R/jets/sumto_us.jets" "$tmp/jd$abs.jets"
+sed "s#^sumto_us #$abs #" "$R/corpus.txt" > "$tmp/abs.txt"
+if "$SKI_AIR" jet-verify "$tmp/abs.txt" "$tmp/jd" "$abs" "$R/sumto_us.proof" > "$tmp/abs.log"; then
     no "a name that is a path was accepted"
 else
     ok "a name that is a path is refused ($(head -c 70 "$tmp/abs.log"))"
+fi
+
+# The Omega forgery (release/forgeries/omega): a proof that SII(SII), which
+# diverges, halts, made over a forged jet table.  Offered with the forged
+# table it is refused by Lean's statement check; offered through a FIFO
+# that gives the honest table first and the forged one second, it must be
+# refused too: the verifier reads each file once, and Lean checks a copy of
+# those bytes.
+F=release/forgeries/omega
+mkdir -p "$tmp/fj"
+/bin/cp "$F/forged.jets" "$tmp/fj/omega.jets"
+if "$SKI_AIR" jet-verify "$F/corpus.txt" "$tmp/fj" omega "$F/omega.proof" > "$tmp/fj.log"; then
+    no "the Omega forgery verified with its forged jet table"
+else
+    ok "the Omega forgery with its forged jet table is refused ($(head -c 60 "$tmp/fj.log"))"
+fi
+mkdir -p "$tmp/fifo"
+mkfifo "$tmp/fifo/omega.jets"
+# The writer holds no output of this script, and is stopped, with the cat it
+# may be blocked in (a verifier that reads once never opens the FIFO again).
+( exec > /dev/null 2>&1
+  cat "$F/honest.jets" > "$tmp/fifo/omega.jets"
+  cat "$F/forged.jets" > "$tmp/fifo/omega.jets" ) &
+writer=$!
+stop_writer() {
+    pkill -P "$writer" 2>/dev/null || true
+    kill "$writer" 2>/dev/null || true
+    wait "$writer" 2>/dev/null || true
+}
+if "$SKI_AIR" jet-verify "$F/corpus.txt" "$tmp/fifo" omega "$F/omega.proof" > "$tmp/fifo.log"; then
+    stop_writer
+    no "the Omega forgery verified through a FIFO (honest table, then forged)"
+else
+    stop_writer
+    ok "the Omega forgery through a FIFO is refused ($(head -c 60 "$tmp/fifo.log"))"
 fi
 
 echo "--- 4. Lean's check of Avon's witness table"
@@ -83,4 +125,5 @@ lake exe jets check "$R/sumto_us.table" | grep -q '^ACCEPT' \
     && ok "lake exe jets check accepts the witness table" \
     || no "lake exe jets check rejects the witness table"
 
+[ "$failed" = 0 ] || { echo "NOT VERIFIED: release/sumto"; exit 1; }
 echo "VERIFIED: release/sumto"

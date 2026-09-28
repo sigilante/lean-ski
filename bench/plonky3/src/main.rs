@@ -1002,6 +1002,49 @@ fn lean_statement(exe: &str, paths: &[&std::path::Path]) -> Result<String, Strin
     }
 }
 
+/// **A snapshot of public files**, for the statement check: the bytes the
+/// verifier holds, written to a fresh private directory, so Lean checks
+/// exactly the bytes the verifier then parses.  Read once, checked and
+/// used: no second read that a writer, a FIFO or a filesystem could answer
+/// differently.  Removed when dropped.
+struct Snapshot {
+    dir: std::path::PathBuf,
+}
+
+impl Snapshot {
+    fn new(files: &[(&str, &[u8])]) -> Result<Snapshot, String> {
+        use std::os::unix::fs::DirBuilderExt;
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        let dir = std::env::temp_dir().join(format!("ski-air-{}-{nanos}", std::process::id()));
+        std::fs::DirBuilder::new()
+            .mode(0o700)
+            .create(&dir)
+            .map_err(|e| format!("{}: {e}", dir.display()))?;
+        let snap = Snapshot { dir };
+        for (rel, bytes) in files {
+            let path = snap.dir.join(rel);
+            if let Some(parent) = path.parent() {
+                std::fs::create_dir_all(parent).map_err(|e| format!("{}: {e}", parent.display()))?;
+            }
+            std::fs::write(&path, bytes).map_err(|e| format!("{}: {e}", path.display()))?;
+        }
+        Ok(snap)
+    }
+
+    fn path(&self, rel: &str) -> std::path::PathBuf {
+        self.dir.join(rel)
+    }
+}
+
+impl Drop for Snapshot {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.dir);
+    }
+}
+
 fn panic_text(e: &Box<dyn std::any::Any + Send>) -> String {
     e.downcast_ref::<String>()
         .cloned()

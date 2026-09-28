@@ -148,8 +148,8 @@ fn parse_cell(l: &str) -> Cell {
     }
 }
 
-pub fn read_public(path: &std::path::Path) -> Public {
-    let text = std::fs::read_to_string(path).expect("public.txt");
+/// A statement file's text, parsed.
+pub fn parse_public(text: &str) -> Public {
     let mut ls = text.lines();
     let puzzle = ls.next().unwrap().trim().to_string();
     let h: Vec<u32> = ls.next().unwrap().split_whitespace().map(|x| x.parse().unwrap()).collect();
@@ -506,7 +506,18 @@ fn guess_matches(p: &Public, bits: &[bool]) -> bool {
 /// `ski-air sudoku DIR OUTDIR`: DIR holds `lake exe sudoku emit`'s files.
 pub fn main(dir: &std::path::Path, out: &std::path::Path) -> usize {
     // The verifier's precondition: the statement is Lean's.
-    match lean_statement("sudoku", &[&dir.join("public.txt")]) {
+    // Read once; Lean checks a private copy of these bytes, which are the
+    // ones parsed.
+    let text = match std::fs::read_to_string(dir.join("public.txt")) {
+        Ok(t) => t,
+        Err(e) => {
+            println!("public.txt: {e}");
+            return 1;
+        }
+    };
+    let checked = Snapshot::new(&[("public.txt", text.as_bytes())])
+        .and_then(|snap| lean_statement("sudoku", &[&snap.path("public.txt")]));
+    match checked {
         Err(e) => {
             println!("public.txt is not a statement: {e}");
             return 1;
@@ -514,7 +525,7 @@ pub fn main(dir: &std::path::Path, out: &std::path::Path) -> usize {
         // The statement is the puzzle it names: say which.
         Ok(msg) => println!("public.txt: {}", msg.trim().rsplit(": ").next().unwrap_or("")),
     }
-    let p = read_public(&dir.join("public.txt"));
+    let p = parse_public(&text);
     let mut failures = 0;
     println!(
         "sudoku: {} public cells, {} inputs, markers {} and {}; heights 2^{LOG_ROWS} rows, 2^{LOG_MEM} memory, 2^{LOG_WIT} inputs",

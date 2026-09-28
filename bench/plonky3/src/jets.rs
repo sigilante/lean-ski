@@ -106,7 +106,11 @@ fn parse_op(w: &[&str]) -> Op {
 }
 
 pub fn read_jets(path: &std::path::Path) -> JetTable {
-    let text = std::fs::read_to_string(path).expect("a jets file");
+    parse_jets(&std::fs::read_to_string(path).expect("a jets file"))
+}
+
+/// A jet file's text, parsed.
+pub fn parse_jets(text: &str) -> JetTable {
     let mut ls = text.lines();
     let mut next = || ls.next().expect("a line").split_whitespace().collect::<Vec<_>>();
     let h = next();
@@ -834,23 +838,32 @@ pub fn jet_prove(term: &std::path::Path, jets: &std::path::Path, table: &std::pa
 /// then the proof is checked against the term named NAME and its jet file,
 /// and nothing else.
 pub fn jet_verify(corpus: &std::path::Path, dir: &std::path::Path, name: &str, proof_in: &std::path::Path) -> Result<(), String> {
-    // A name is an identifier, as Lean's statement check requires, so both
-    // sides open the same `DIR/<name>.jets`: an absolute or relative path
-    // here would let Lean check one file and this code read another.
+    // A name is an identifier, as Lean's statement check requires, so the
+    // file named is `DIR/<name>.jets` and no other.
     if name.is_empty() || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
         return Err(format!("a name must be an identifier, not {name:?}"));
     }
-    lean_statement("jets", &[corpus, dir]).map_err(|e| format!("statement: {e}"))?;
+    // Read each public file once.  Lean checks a private copy of exactly
+    // these bytes, and they are what is parsed below.
     let text = std::fs::read_to_string(corpus).map_err(|e| format!("{}: {e}", corpus.display()))?;
-    let term = text
+    let line = text
         .lines()
-        .find_map(|l| {
-            let w: Vec<&str> = l.split_whitespace().collect();
-            (w.len() == 3 && w[0] == name).then(|| w[2].to_string())
-        })
-        .ok_or_else(|| format!("no term named {name} in {}", corpus.display()))?;
-    let t = parse(term.as_bytes(), &mut 0);
-    let jt = read_jets(&dir.join(format!("{name}.jets")));
+        .find(|l| l.split_whitespace().next() == Some(name))
+        .ok_or_else(|| format!("no term named {name} in {}", corpus.display()))?
+        .to_string();
+    let w: Vec<&str> = line.split_whitespace().collect();
+    if w.len() != 3 {
+        return Err(format!("a malformed corpus line for {name}"));
+    }
+    let jets_path = dir.join(format!("{name}.jets"));
+    let jets_text = std::fs::read_to_string(&jets_path).map_err(|e| format!("{}: {e}", jets_path.display()))?;
+    let corpus_bytes = format!("{line}\n");
+    let jets_rel = format!("jets/{name}.jets");
+    let snap = Snapshot::new(&[("corpus.txt", corpus_bytes.as_bytes()), (&jets_rel, jets_text.as_bytes())])?;
+    lean_statement("jets", &[&snap.path("corpus.txt"), &snap.path("jets")]).map_err(|e| format!("statement: {e}"))?;
+    drop(snap);
+    let t = parse(w[2].as_bytes(), &mut 0);
+    let jt = parse_jets(&jets_text);
     let bytes = std::fs::read(proof_in).map_err(|e| format!("{}: {e}", proof_in.display()))?;
     // The whole file is the proof: trailing bytes are refused, so a proof
     // is one byte string.
@@ -884,11 +897,31 @@ fn lean_of(term: &str, run: &JRun, tr: &JTraces) -> String {
 pub fn main(corpus: &str, corpus_path: &std::path::Path, dir: &std::path::Path, out: &std::path::Path) -> usize {
     let mut failures = 0;
     // The verifier's precondition: for each term it will prove, the jet file
-    // is Lean's for that term, with licensed roots.
-    if let Err(e) = lean_statement("jets", &[corpus_path, dir]) {
+    // is Lean's for that term, with licensed roots.  Each file is read once;
+    // Lean checks a private copy of those bytes, which are the ones used.
+    let mut jet_texts = std::collections::HashMap::new();
+    let mut files: Vec<(String, Vec<u8>)> = vec![("corpus.txt".into(), corpus.as_bytes().to_vec())];
+    for line in corpus.lines().filter(|l| !l.trim().is_empty()) {
+        let name = line.split_whitespace().next().unwrap_or("").to_string();
+        match std::fs::read_to_string(dir.join(format!("{name}.jets"))) {
+            Ok(t) => {
+                files.push((format!("jets/{name}.jets"), t.as_bytes().to_vec()));
+                jet_texts.insert(name, t);
+            }
+            Err(e) => {
+                println!("the jet file for {name}: {e}");
+                return 1;
+            }
+        }
+    }
+    let refs: Vec<(&str, &[u8])> = files.iter().map(|(p, b)| (p.as_str(), b.as_slice())).collect();
+    let checked = Snapshot::new(&refs)
+        .and_then(|snap| lean_statement("jets", &[&snap.path("corpus.txt"), &snap.path("jets")]));
+    if let Err(e) = checked {
         println!("the jet files are not Lean's for these terms: {e}");
         return 1;
     }
+    let _ = corpus_path;
     println!("jet files: checked by lake exe jets statement, term by term");
     println!(
         "{:<16} {:>6} {:>7} {:>6} {:>7} {:>6} {:>6} {:>8} {:>8}  verdict",
@@ -901,7 +934,7 @@ pub fn main(corpus: &str, corpus_path: &std::path::Path, dir: &std::path::Path, 
         let _steps = it.next();
         let term = it.next().unwrap().to_string();
         let t = parse(term.as_bytes(), &mut 0);
-        let jt = read_jets(&dir.join(format!("{name}.jets")));
+        let jt = parse_jets(&jet_texts[&name]);
         let plain = run(&t).rows.len();
         let jr = run_jets(&t, &jt, None);
         let tr = build_traces(&t, &jt, &jr);
