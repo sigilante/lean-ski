@@ -433,6 +433,7 @@ open Ski.Audit
 -- The AIR's constraints decided on a table, over a list and over an array
 #audit_clean Air.chainB_trans Air.getLast_eq_getD Air.checkB_sound Air.checkB_eval Air.rd_G
   Air.wrs_G Air.stepRow_G Air.short_G Air.haltRow_G Air.chainB_G Air.checkA_eq Air.checkA_sound
+  Air.rowFn_cons Air.chainB_of_trans Air.checkB_complete Air.checkA_iff
 
 -- The three-valued outcome: structured formulas demand a normal form, an atom need not
 #audit_clean Real.and_converges Real.or_converges Real.ex_converges atom_divergent_realizer

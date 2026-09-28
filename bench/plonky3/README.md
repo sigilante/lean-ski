@@ -18,19 +18,23 @@ entries are `(address, tag, a, b)`.
   verifier rebuilds from the term. Every loaded cell is looked up in memory,
   which pins the memory table's prefix.
 
-The verifier rebuilds its AIRs and the preprocessed commitment from the
-public term and the three heights; it never sees the traces.
+The verifier builds its AIRs and the program table's preprocessed
+commitment from the public term alone, reads the CPU and memory heights
+from the proof, and rejects heights above `2^21` or a program height other
+than the term's. It never sees the traces.
 
 ## Checked against Lean
 
 For every table it proves, the prover writes the same table (the memory
 table and the rows) in the format of `Ski/AirCheck.lean`. `lake exe aircheck`
-decides the AIR's constraints on it with `Air.checkA`, which is proved equal
-to `Air.checkB` and sound for the AIR (`Air.checkA_sound`); by
-`Air.air_sound_eval`, a table it accepts proves the evaluation it ends on.
-Three tampered tables, changed identically in the trace and in the Lean
-table, must be rejected by both: a forged memory cell, a wrong transition,
-and an early halt.
+decides the AIR's constraints on it with `Air.checkA`: it accepts exactly
+the tables that satisfy `Air.Accepts` (`Air.checkA_iff`), and by
+`Air.air_sound_eval` an accepted table proves the evaluation it ends on.
+Four tampered tables, changed identically in the trace and in the Lean
+table, must fail both: the prover must produce a proof and the verifier
+must reject it, and `aircheck` must reject the table. They are a forged
+memory cell, a wrong transition, an early halt, and a forged program (the
+honest run of `I S` offered for the public term `I K`).
 
 ```
 lake env lean --run bench/Dump.lean > corpus.txt        # from the repository root
@@ -41,28 +45,32 @@ lake exe aircheck bench/plonky3/tables/{ik,skks,compiled_*,interpreted_*,sumto_u
 lake exe aircheck bench/plonky3/tables/tampered_*.txt    # each must be REJECT
 ```
 
-## Measured, 2026-09-28, Apple M4 Max, release build
+## Measured, 2026-09-27, Apple M4 Max, release build
 
 ```
 row               contr   rows budget  memory  prove s verify s  verdict
-ik                    1      3     16      16     0.00    0.001  verified
-skks                  2      6     16      16     0.04    0.001  verified
-compiled_up         493   1207   2048    8192     0.06    0.010  verified
+ik                    1      3     16      16     0.01    0.005  verified
+skks                  2      6     16      16     0.06    0.001  verified
+compiled_up         493   1207   2048    8192     0.05    0.009  verified
 compiled_uq         440   1078   2048    4096     0.04    0.007  verified
 compiled_ur         530   1297   2048    8192     0.05    0.009  verified
-interpreted_up     2014   4909   8192   16384     0.14    0.013  verified
-interpreted_uq     2029   4949   8192   16384     0.14    0.013  verified
-interpreted_ur     2589   6308   8192   16384     0.14    0.013  verified
-sumto_us          10297  25074  32768   65536     0.51    0.015  verified
+interpreted_up     2014   4909   8192   16384     0.13    0.012  verified
+interpreted_uq     2029   4949   8192   16384     0.13    0.012  verified
+interpreted_ur     2589   6308   8192   16384     0.13    0.012  verified
+sumto_us          10297  25074  32768   65536     0.48    0.014  verified
 
-tampered tables (each must be rejected):
-forged_cell      rejected (verify: Lookup(TerminalSumNonZero))
-wrong_step       rejected (verify: Verification(OodEvaluationMismatch { index: Some(0) }))
-early_halt       rejected (verify: Lookup(TerminalSumNonZero))
+tampered tables (each proof must be rejected by the verifier):
+forged_cell      rejected by the verifier (verify: Lookup(TerminalSumNonZero))
+wrong_step       rejected by the verifier (verify: Verification(OodEvaluationMismatch ...))
+early_halt       rejected by the verifier (verify: Lookup(TerminalSumNonZero))
+forged_loaded    rejected by the verifier (verify: Verification(InvalidOpeningArgument(...)))
 ```
 
-`lake exe aircheck` accepts all nine honest tables (in 1.4 s) and rejects
-the three tampered ones. The `rows` column equals `lake exe aircost`'s on
+`lake exe aircheck` accepts all nine honest tables (in about 1.4 s) and
+rejects the four tampered ones. The forged program fails at the opening
+check: the verifier computes the program table's commitment from the
+public term, so the proof's transcript no longer matches. Timings vary by
+a few percent between runs. The `rows` column equals `lake exe aircost`'s on
 every corpus row; `prove s` includes the setup.
 
 ## What this is not
@@ -73,11 +81,16 @@ every corpus row; `prove s` includes the setup.
 - **Not bound to an output.** As in `Ski/Air.lean`, the constraints fix the
   run, not the value it ends on.
 - **Security is Plonky3's benchmark setting**: blowup 2, 100 queries and 16
-  bits of query grinding, conjectured about 116 bits. The range checks are
-  sound while every table has at most `2^21` rows, which the prover asserts:
-  then addresses and counters stay below `2^23`, and a read at or above the
-  counter wraps to at least `p − 2^21`, which no 24-bit decomposition
-  represents.
-- **The link to Lean is per table.** The Lean checker verifies each table the
-  prover proves, and the correspondence of the constraints to `Accepts` is
-  argued in the header of `src/main.rs`, not proved in Lean.
+  bits of query grinding. Plonky3's `conjectured_soundness_bits` gives 116,
+  but that counts the query phase only and Plonky3 marks it as not a
+  soundness bound; the composite conjectured bound (opening batching, the
+  LogUp argument, DEEP, folding) is lower and was not computed here. Batch
+  grinding would raise it.
+- **The range checks** are sound because the verifier accepts CPU and
+  memory heights only up to `2^21`: addresses stay below `2^21` and
+  counters below `2^23`, so a read at or above the counter wraps to at
+  least `p − 2^21`, which no 24-bit decomposition represents.
+- **The link to Lean is per table.** The Lean checker decides `Accepts` on
+  each table the prover proves; that every table the verifier accepts
+  satisfies `Accepts` is argued in the header of `src/main.rs`, not proved
+  in Lean.

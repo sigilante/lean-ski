@@ -4,10 +4,10 @@ open Term
 /-!
 Check tables produced outside Lean against the AIR.  Each argument is a
 table file in the format of `Ski/AirCheck.lean`; for each, print `ACCEPT`
-or `REJECT` and the file name.  The verdict is `Air.checkA`, the checker
-over an array, which is `Air.checkB` (`Air.checkA_eq`) and so sound for the
-AIR (`Air.checkA_sound`): an accepted table proves the evaluation it ends
-on (`Air.checkB_eval`).
+or `REJECT` and the file name.  The verdict is `Air.checkA`, which decides
+the AIR's constraints (`Air.checkA_iff`): `ACCEPT` means the table
+satisfies `Air.Accepts`, so it proves the evaluation it ends on
+(`Air.checkB_eval`), and `REJECT` means it does not.
 
 Run with `lake build aircheck && lake exe aircheck TABLE...`.
 -/
@@ -56,6 +56,7 @@ def parseTable (ls : List String) : Option (Term × Array Cell × List Air.Row) 
       let k ← kl.trimAscii.toString.toNat?
       let rows ← (rest2.take k).mapM (fun l => parseRow (words l))
       if rows.length != k then none
+      if !(rest2.drop k).isEmpty then none
       some (t, cells.toArray, rows)
     | [] => none
   | _ => none

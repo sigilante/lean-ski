@@ -19,16 +19,23 @@
 //!
 //! The check against Lean: for every table proved here, the same table is
 //! written in the format of `Ski/AirCheck.lean`, and `lake exe aircheck`
-//! decides the AIR's constraints on it with a checker proved sound for the
-//! AIR (`Air.checkA_sound`).  Tampered tables must fail both.
+//! decides the AIR's constraints on it (`Air.checkA_iff`).  Tampered tables
+//! must fail both: the verifier must reject a proof of each.
 //!
 //! **Why the constraints are `Accepts`.**  Read a table off an accepted
 //! proof: the rows are the CPU's registers, and `M[a]` is the memory entry at
-//! address `a` (one per address).  A lookup that balances names an entry, so
-//! a read of `(a, tag, x, y)` means `M[a]` has that tag and those fields.
-//! - Every read address lies below the row's counter: its 24 bits represent
-//!   `ctr - a - 1` only when `a < ctr`, since addresses and counters stay
-//!   below `2^23`.  So each read is `rd M ctr a`.
+//! address `a` (one per address), decoded by its tag: 0..5 to `S`, `K`, `I`,
+//! `A a b`, `N`, `C a b`, ignoring the fields of `S`, `K`, `I`, `N`, and any
+//! other tag to `N`.  Such entries and fields are never used: every read's
+//! tag lies in 0..5, and a nullary cell's fields feed only expressions its
+//! kind gates to zero.  A lookup that balances names an entry, so a read of
+//! `(a, tag, x, y)` means `M[a]` has that tag and those fields.
+//! - The verifier accepts only CPU and memory heights up to `2^MAX_LOG_HEIGHT`.
+//!   Then addresses stay below `2^21` and counters below `2^23` (a counter
+//!   grows by at most 3 a row), so `ctr - a - 1` has a 24-bit decomposition
+//!   only when `a < ctr`: otherwise it wraps to at least `p - 2^21`.  So each
+//!   read is `rd M ctr a`.  (Even at Plonky3's own cap of `2^27` rows the
+//!   wrap would be at least `p - 2^27 > 2^24`.)
 //! - An unwind reads an application `(f, x)` at `hd` and writes `C x stk` at
 //!   `ctr`; the next registers are `f, ctr, ctr + 1`.  That is `stepG`'s
 //!   application case with its write checked (`wrs`).
@@ -38,8 +45,10 @@
 //! - The six halting kinds read the head combinator and the stack down to an
 //!   empty stack before the rule's arity: `haltRow`'s `short`.  A halted row's
 //!   next row repeats it.
-//! - The first row is the loaded term, the program table pins `M`'s prefix to
-//!   the loaded heap, and the last row has halted.
+//! - The first row is the loaded term.  Each program lookup names an existing
+//!   address, so the memory table has at least `ctr0` entries, and its
+//!   prefix is the loaded heap: `M.take ctr0 = (load t).heap`.  The last row
+//!   has halted.
 //! So an accepted table satisfies `Air.Accepts`, which `lake exe aircheck`
 //! decides for every table this program proves.
 //!
@@ -82,7 +91,7 @@ type Pcs = TwoAdicFriPcs<Val, Dft, ValMmcs, ChallengeMmcs>;
 type Config = StarkConfig<Pcs, Challenge, Challenger>;
 
 /// Plonky3's benchmark FRI parameters: blowup 2, 100 queries, 16 bits of
-/// query grinding.
+/// query grinding, no batch grinding.
 fn make_config() -> Config {
     let perm = default_babybear_poseidon2_16();
     let hash = MyHash::new(perm.clone());
@@ -701,69 +710,109 @@ fn lean_table(term: &str, tb: &Table) -> String {
 // Proving and verifying
 // ---------------------------------------------------------------------------
 
-/// The verifier's AIRs, rebuilt from the public term.
-fn airs_for(tb: &Table, pre: Vec<[u32; 5]>) -> Vec<SkiAir> {
+/// The AIRs, with the constants and the program table given.
+fn airs_of(hd0: u32, stk0: u32, ctr0: u32, pre: Vec<[u32; 5]>) -> Vec<SkiAir> {
     vec![
-        SkiAir::Cpu(CpuAir { hd0: tb.hd0, stk0: tb.stk0, ctr0: tb.loaded.len() as u32 }),
+        SkiAir::Cpu(CpuAir { hd0, stk0, ctr0 }),
         SkiAir::Mem(MemAir),
         SkiAir::Prog(ProgAir { pre }),
     ]
 }
 
-/// Prove a table and verify the proof with verifier-side data rebuilt from
-/// the public term and heights.  `Ok` only when the proof verifies.
-fn prove_and_verify(
-    tb: &Table,
-    cpu: &RowMajorMatrix<Val>,
-    mem: &RowMajorMatrix<Val>,
-    prog: &RowMajorMatrix<Val>,
-    pre: Vec<[u32; 5]>,
-) -> Result<(f64, f64), String> {
-    let config = make_config();
-    let airs = airs_for(tb, pre.clone());
-    let log = |m: &RowMajorMatrix<Val>| p3_util::log2_strict_usize(m.values.len() / m.width);
-    let degrees = [log(cpu), log(mem), log(prog)];
-    for &d in &degrees {
-        assert!(d <= MAX_LOG_HEIGHT, "a table above the range-check bound");
-    }
-    let t0 = Instant::now();
-    let prover_data = ProverData::<Config>::from_airs_and_degrees(&config, &airs, &degrees)
-        .map_err(|e| format!("setup: {e:?}"))?;
-    let traces = [cpu, mem, prog];
-    let pvs = vec![vec![], vec![], vec![]];
-    let instances = StarkInstance::new_multiple(&airs, &traces, &pvs);
-    let proof = prove_batch(&config, &instances, &prover_data).map_err(|e| format!("prove: {e:?}"))?;
-    let prove_s = t0.elapsed().as_secs_f64();
-
-    // The verifier rebuilds its AIRs and common data from the public term.
-    let t1 = Instant::now();
-    let v_config = make_config();
-    let v_airs = airs_for(tb, pre);
-    let v_data = ProverData::<Config>::from_airs_and_degrees(&v_config, &v_airs, &degrees)
-        .map_err(|e| format!("verifier setup: {e:?}"))?;
-    verify_batch(&v_config, &v_airs, &proof, &pvs, &v_data.common)
-        .map_err(|e| format!("verify: {e:?}"))?;
-    Ok((prove_s, t1.elapsed().as_secs_f64()))
+/// The program table of a term: its loaded heap, padded with inactive rows.
+fn program(t: &Term, min_log: usize) -> Vec<[u32; 5]> {
+    let (loaded, _, _) = load(t);
+    let psize = pow2_at_least(loaded.len(), min_log);
+    let mut pre: Vec<[u32; 5]> = loaded
+        .iter()
+        .enumerate()
+        .map(|(i, cell)| {
+            let (a, b) = cell.fields();
+            [i as u32, cell.tag(), a, b, 1]
+        })
+        .collect();
+    pre.resize(psize, [0, 0, 0, 0, 0]);
+    pre
 }
 
-/// `prove_and_verify`, with a panic in the prover counted as a rejection.
-fn attempt(
+/// The verifier's AIRs, built from the public term alone.
+fn verifier_airs(t: &Term) -> Vec<SkiAir> {
+    let (loaded, hd0, stk0) = load(t);
+    airs_of(hd0, stk0, loaded.len() as u32, program(t, MIN_LOG))
+}
+
+/// What happened to a table.
+enum Outcome {
+    /// Proved, and the proof verified: prove and verify seconds.
+    Verified(f64, f64),
+    /// The prover could not produce a proof (it failed or panicked).
+    Refused(String),
+    /// A proof was produced and the verifier rejected it.
+    Rejected(String),
+}
+
+/// Prove a table with the prover's AIRs, then verify the proof against the
+/// public term alone.  The verifier rebuilds its AIRs and the program
+/// table's preprocessed commitment from the term, takes the CPU and memory
+/// heights from the proof, and rejects heights above `MAX_LOG_HEIGHT` (the
+/// range checks' bound) or a program height other than the term's.
+fn prove_and_verify(
+    public: &Term,
     tb: &Table,
     cpu: &RowMajorMatrix<Val>,
     mem: &RowMajorMatrix<Val>,
     prog: &RowMajorMatrix<Val>,
     pre: Vec<[u32; 5]>,
-) -> Result<(f64, f64), String> {
-    match catch_unwind(AssertUnwindSafe(|| prove_and_verify(tb, cpu, mem, prog, pre))) {
-        Ok(r) => r,
-        Err(e) => Err(format!(
-            "panic: {}",
-            e.downcast_ref::<String>()
-                .cloned()
-                .or_else(|| e.downcast_ref::<&str>().map(|s| s.to_string()))
-                .unwrap_or_default()
-        )),
+) -> Outcome {
+    let proved = catch_unwind(AssertUnwindSafe(|| {
+        let config = make_config();
+        let airs = airs_of(tb.hd0, tb.stk0, tb.loaded.len() as u32, pre);
+        let log = |m: &RowMajorMatrix<Val>| p3_util::log2_strict_usize(m.values.len() / m.width);
+        let degrees = [log(cpu), log(mem), log(prog)];
+        let t0 = Instant::now();
+        let prover_data = ProverData::<Config>::from_airs_and_degrees(&config, &airs, &degrees)
+            .map_err(|e| format!("setup: {e:?}"))?;
+        let traces = [cpu, mem, prog];
+        let pvs = vec![vec![], vec![], vec![]];
+        let instances = StarkInstance::new_multiple(&airs, &traces, &pvs);
+        let proof =
+            prove_batch(&config, &instances, &prover_data).map_err(|e| format!("prove: {e:?}"))?;
+        Ok::<_, String>((proof, t0.elapsed().as_secs_f64()))
+    }));
+    let (proof, prove_s) = match proved {
+        Ok(Ok(p)) => p,
+        Ok(Err(e)) => return Outcome::Refused(e),
+        Err(e) => return Outcome::Refused(format!("panic: {}", panic_text(&e))),
+    };
+
+    // The verifier: the public term, the proof, nothing else.
+    let t1 = Instant::now();
+    let verified = catch_unwind(AssertUnwindSafe(|| {
+        let v_config = make_config();
+        let v_airs = verifier_airs(public);
+        let d = &proof.degree_bits;
+        let prog_log = p3_util::log2_strict_usize(program(public, MIN_LOG).len());
+        if d.len() != 3 || d[0] > MAX_LOG_HEIGHT || d[1] > MAX_LOG_HEIGHT || d[2] != prog_log {
+            return Err(format!("heights {d:?} out of bounds"));
+        }
+        let v_data = ProverData::<Config>::from_airs_and_degrees(&v_config, &v_airs, d)
+            .map_err(|e| format!("verifier setup: {e:?}"))?;
+        let pvs = vec![vec![], vec![], vec![]];
+        verify_batch(&v_config, &v_airs, &proof, &pvs, &v_data.common)
+            .map_err(|e| format!("verify: {e:?}"))
+    }));
+    match verified {
+        Ok(Ok(())) => Outcome::Verified(prove_s, t1.elapsed().as_secs_f64()),
+        Ok(Err(e)) => Outcome::Rejected(e),
+        Err(e) => Outcome::Rejected(format!("verifier panic: {}", panic_text(&e))),
     }
+}
+
+fn panic_text(e: &Box<dyn std::any::Any + Send>) -> String {
+    e.downcast_ref::<String>()
+        .cloned()
+        .or_else(|| e.downcast_ref::<&str>().map(|s| s.to_string()))
+        .unwrap_or_default()
 }
 
 // ---------------------------------------------------------------------------
@@ -784,7 +833,7 @@ fn main() {
     std::panic::set_hook(Box::new(|_| {}));
 
     let mut rows: Vec<(String, u64, String)> = vec![
-        // Small terms first: `I K`, `S K K S`, `K I (S I I)`-free forms.
+        // Small terms first: `I K` and `S K K S`.
         ("ik".into(), 1, "`IK".into()),
         ("skks".into(), 2, "```SKKS".into()),
     ];
@@ -811,8 +860,8 @@ fn main() {
         }
         std::fs::write(out.join(format!("{name}.txt")), lean_table(term, &tb)).unwrap();
         let (cpu, mem, prog, pre) = traces(&tb, MIN_LOG);
-        match attempt(&tb, &cpu, &mem, &prog, pre) {
-            Ok((p, v)) => println!(
+        match prove_and_verify(&t, &tb, &cpu, &mem, &prog, pre) {
+            Outcome::Verified(p, v) => println!(
                 "{:<16} {:>6} {:>6} {:>6} {:>7} {:>8.2} {:>8.3}  verified",
                 name,
                 r.contractions,
@@ -822,23 +871,24 @@ fn main() {
                 p,
                 v
             ),
-            Err(e) => {
-                println!("{name}: REJECTED an honest table: {e}");
+            Outcome::Refused(e) | Outcome::Rejected(e) => {
+                println!("{name}: FAILED an honest table: {e}");
                 failures += 1;
             }
         }
     }
 
-    // Tampered tables: each must be rejected by the STARK and by Lean.  The
-    // honest traces are built first, then one value is changed in the trace
-    // and the same change is made in the Lean table.
-    println!("\ntampered tables (each must be rejected):");
+    // Tampered tables.  The honest traces are built first; one change is
+    // made in the trace and the same change in the Lean table.  A tamper
+    // passes only when the prover produces a proof and the verifier rejects
+    // it; a prover that refuses proves nothing about the verifier.
+    println!("\ntampered tables (each proof must be rejected by the verifier):");
     let term = "```SKKS";
     let t = parse(term.as_bytes(), &mut 0);
     let (tb, r) = table_of(&t, MIN_LOG);
     let n = r.rows.len();
     let a = tb.loaded.len();
-    for tname in ["forged_cell", "wrong_step", "early_halt"] {
+    for tname in ["forged_cell", "wrong_step", "early_halt", "forged_loaded"] {
         let (mut cpu, mut mem, prog, pre) = traces(&tb, MIN_LOG);
         let mut bad = Table {
             loaded: tb.loaded.clone(),
@@ -847,6 +897,8 @@ fn main() {
             rows: tb.rows.clone(),
             mem: tb.mem.clone(),
         };
+        let mut public_term = term.to_string();
+        let (mut cpu_b, mut mem_b, mut prog_b, mut pre_b) = (None, None, None, None);
         match tname {
             // A forged cell: the first cell the run writes, a stack cell,
             // names a different argument.
@@ -882,15 +934,45 @@ fn main() {
                     row[SEL + 7] = Val::ONE; // HS1
                 }
             }
+            // A forged program: the honest run of `I S` offered for the
+            // public term `I K`, which loads to a heap of the same shape.
+            "forged_loaded" => {
+                public_term = "`IK".to_string();
+                let other = parse(b"`IS", &mut 0);
+                let (tb2, _) = table_of(&other, MIN_LOG);
+                let (c2, m2, p2, pr2) = traces(&tb2, MIN_LOG);
+                bad = tb2;
+                cpu_b = Some(c2);
+                mem_b = Some(m2);
+                prog_b = Some(p2);
+                pre_b = Some(pr2);
+            }
             _ => unreachable!(),
         }
-        std::fs::write(out.join(format!("tampered_{tname}.txt")), lean_table(term, &bad)).unwrap();
-        let verdict = match attempt(&bad, &cpu, &mem, &prog, pre) {
-            Ok(_) => {
+        std::fs::write(
+            out.join(format!("tampered_{tname}.txt")),
+            lean_table(&public_term, &bad),
+        )
+        .unwrap();
+        let public = parse(public_term.as_bytes(), &mut 0);
+        let outcome = prove_and_verify(
+            &public,
+            &bad,
+            cpu_b.as_ref().unwrap_or(&cpu),
+            mem_b.as_ref().unwrap_or(&mem),
+            prog_b.as_ref().unwrap_or(&prog),
+            pre_b.unwrap_or(pre),
+        );
+        let verdict = match outcome {
+            Outcome::Rejected(e) => format!("rejected by the verifier ({})", e.chars().take(60).collect::<String>()),
+            Outcome::Verified(..) => {
                 failures += 1;
                 "ACCEPTED".to_string()
             }
-            Err(e) => format!("rejected ({})", e.chars().take(70).collect::<String>()),
+            Outcome::Refused(e) => {
+                failures += 1;
+                format!("NOT TESTED: the prover refused ({})", e.chars().take(50).collect::<String>())
+            }
         };
         println!("{:<16} {}", tname, verdict);
     }

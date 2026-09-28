@@ -629,9 +629,9 @@ needs the loaded heap committed; and they assume a lookup argument with
 one value per address and range-checked reads. The prover is built in
 Plonky3 (`bench/plonky3/`): CPU, memory and program tables over BabyBear
 joined by a LogUp bus, with one value per address and 24-bit range checks.
-Every corpus row proves and verifies (`3 sumto`, 32,768 rows, in 0.51 s),
+Every corpus row proves and verifies (`3 sumto`, 32,768 rows, in about 0.5 s),
 and `lake exe aircheck` (`Ski/AirCheck.lean`) accepts every table it
-proves with a checker proved sound for the AIR, while three tampered
+proves with a checker that decides the AIR's constraints, while four tampered
 tables fail both. Not yet zero knowledge (the PCS is not hiding and the
 term is loaded in the clear), and not yet bound to an output.
 

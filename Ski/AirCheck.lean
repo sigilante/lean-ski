@@ -10,11 +10,14 @@ a memory table, a term and a list of rows.  It is what a table produced
 outside Lean — by the Plonky3 prover in `bench/plonky3` — is checked
 against.
 
-**The theorem** (`checkB_sound`): a table `checkB` accepts is accepted by
-the AIR, with the rows read off the list.  So by `air_sound_eval` the term
-evaluates to the value the table ends on.
+**The theorems.**  `checkB` decides the AIR's constraints: a table it
+accepts is accepted by the AIR, with the rows read off the list
+(`checkB_sound`), and conversely (`checkB_complete`).  So by
+`air_sound_eval` the term evaluates to the value an accepted table ends on.
+`checkA` is the same checker over an array (`checkA_eq`, `checkA_iff`).
 
-**The format** read by `bench/AirCheck.lean`: one token per line.
+**The format** read by `bench/AirCheck.lean`: one item per line, and
+nothing after the rows.
 - the term, in prefix form (`` ` `` for application);
 - the number of memory cells, then each cell: `S`, `K`, `I`, `N` (the
   empty stack), `A f x` (an application) or `C x r` (a stack cell);
@@ -80,6 +83,38 @@ theorem checkB_sound {M : List Cell} {t : Term} {rows : List Row} (h : checkB M 
     refine ⟨by simp, h0, h1, h2, h3, chainB_trans h4, ?_⟩
     rw [← getLast_eq_getD]
     exact h5
+
+theorem rowFn_cons (r : Row) (rows : List Row) (i : Nat) :
+    rowFn (r :: rows) (i + 1) = rowFn rows i := rfl
+
+theorem chainB_of_trans {M : List Cell} : ∀ {rows : List Row},
+    (∀ i, i + 1 < rows.length →
+      stepRow M (rowFn rows i) = some (rowFn rows (i + 1)) ∨
+        (haltRow M (rowFn rows i) = true ∧ rowFn rows (i + 1) = rowFn rows i)) →
+    chainB M rows = true
+  | [], _ => rfl
+  | [_], _ => rfl
+  | r :: r' :: rest, h => by
+    unfold chainB
+    rw [Bool.and_eq_true, Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_iff,
+      decide_eq_true_iff]
+    refine ⟨h 0 (by simp), chainB_of_trans fun i hi => ?_⟩
+    have := h (i + 1) (by simp at hi ⊢; omega)
+    rw [rowFn_cons, rowFn_cons] at this
+    exact this
+
+/-- **`checkB` is complete**: a table the AIR accepts, `checkB` accepts.
+    With `checkB_sound`, `checkB` decides the AIR's constraints. -/
+theorem checkB_complete {M : List Cell} {t : Term} {rows : List Row}
+    (h : Accepts M t rows.length (rowFn rows)) : checkB M t rows = true := by
+  cases rows with
+  | nil => exact absurd h.pos (Nat.lt_irrefl 0)
+  | cons r0 rest =>
+    unfold checkB
+    simp only [Bool.and_eq_true, decide_eq_true_iff]
+    refine ⟨⟨⟨⟨⟨h.heap0, h.hd0⟩, h.stk0⟩, h.ctr0⟩, chainB_of_trans h.trans⟩, ?_⟩
+    rw [getLast_eq_getD]
+    exact h.final
 
 /-- A table `checkB` accepts proves the evaluation it ends on. -/
 theorem checkB_eval {M : List Cell} {t : Term} {rows : List Row} (h : checkB M t rows = true) :
@@ -190,6 +225,12 @@ theorem checkA_eq (A : Array Cell) (t : Term) (rows : List Row) :
   | nil => rfl
   | cons r0 rest =>
     simp only [checkA, checkB, chainB_G, haltRow_G, hg]
+
+/-- The array checker decides the AIR's constraints. -/
+theorem checkA_iff {A : Array Cell} {t : Term} {rows : List Row} :
+    checkA A t rows = true ↔ Accepts A.toList t rows.length (rowFn rows) := by
+  rw [checkA_eq]
+  exact ⟨checkB_sound, checkB_complete⟩
 
 /-- A table the array checker accepts, the AIR accepts. -/
 theorem checkA_sound {A : Array Cell} {t : Term} {rows : List Row} (h : checkA A t rows = true) :
