@@ -12,3 +12,7 @@ root = "Main"
 [[lean_exe]]
 name = "aircost"
 root = "bench.AirCost"
+
+[[lean_exe]]
+name = "aircheck"
+root = "bench.AirCheck"

@@ -4,6 +4,7 @@ import Ski.Fuel
 import Ski.Trace
 import Ski.Heap
 import Ski.Air
+import Ski.AirCheck
 import Ski.Weak
 import Ski.Lambda
 import Ski.Quote
@@ -428,6 +429,10 @@ open Ski.Audit
   Air.iterM_succ' Air.adv_prefix Air.iterM_prefix Air.iterM_of_reach Air.take_of_prefix
   Air.st_regs Air.air_complete Air.air_budgets Air.Accepts.ctr_le Air.rd_pad Air.wrs_pad
   Air.stepRow_pad Air.short_pad Air.haltRow_pad Air.Accepts.pad
+
+-- The AIR's constraints decided on a table, over a list and over an array
+#audit_clean Air.chainB_trans Air.getLast_eq_getD Air.checkB_sound Air.checkB_eval Air.rd_G
+  Air.wrs_G Air.stepRow_G Air.short_G Air.haltRow_G Air.chainB_G Air.checkA_eq Air.checkA_sound
 
 -- The three-valued outcome: structured formulas demand a normal form, an atom need not
 #audit_clean Real.and_converges Real.or_converges Real.ex_converges atom_divergent_realizer

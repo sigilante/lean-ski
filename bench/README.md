@@ -78,7 +78,7 @@ Reading it:
 - **This is a general-purpose zkVM, not the custom AIR's prover.**
   - It gives a baseline in cycles per contraction and seconds per segment.
   - The target is the AIR of `Ski/Air.lean`, at about 2.44 rows per
-    contraction (below).
+    contraction (below), now built in Plonky3 (`plonky3/`).
 
 ## The AIR's size
 

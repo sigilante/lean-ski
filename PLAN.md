@@ -626,9 +626,14 @@ contraction, 25,074 rows and a 37,306-cell memory table for `3 sumto`.
 The constraints fix the run, not its output, which is the read-back
 problem; they load the whole term in the clear, so hiding a witness
 needs the loaded heap committed; and they assume a lookup argument with
-one value per address and range-checked reads. What remains is a prover
-for it, with this AIR as its specification and the corpus counts as its
-tests.
+one value per address and range-checked reads. The prover is built in
+Plonky3 (`bench/plonky3/`): CPU, memory and program tables over BabyBear
+joined by a LogUp bus, with one value per address and 24-bit range checks.
+Every corpus row proves and verifies (`3 sumto`, 32,768 rows, in 0.51 s),
+and `lake exe aircheck` (`Ski/AirCheck.lean`) accepts every table it
+proves with a checker proved sound for the AIR, while three tampered
+tables fail both. Not yet zero knowledge (the PCS is not hiding and the
+term is loaded in the clear), and not yet bound to an output.
 
 ## 6. Acceptance
 
