@@ -42,8 +42,8 @@ the run early.
 - `air_budgets`: the machine halts after exactly `n` transitions, and the
   constraints accept a table of `k` rows exactly when `k > n`.
 - `Accepts.pad`: cells past the last counter are never read, so the memory
-  table pads too.  With both padded to public sizes, the table's
-  dimensions reveal only the two budgets.
+  table pads too.  The rows reveal only their budget, and the memory
+  table pads to any size above the run's.
 
 **What the constraints do not fix.**
 - The output.  `Accepts` fixes the run, not the value it ends on: the value

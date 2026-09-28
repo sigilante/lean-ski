@@ -61,9 +61,10 @@ mode would take about 25 minutes.
 
 Reading it:
 
-- **Per step, the heap machine is flat and the tree rewriter grows.**
+- **Per step, the heap machine is flat and the tree rewriter grows.** (The
+  table's `red/step` truncates; the figures here round.)
   - Reduction in heap mode costs 309 cycles per contraction on the
-    longest run (the table's `red/step` truncates). The
+    longest run. The
     figure falls as `load` is amortized, because each transition does
     constant work.
   - Tree mode rises to 1,470 cycles per contraction. `step?` rebuilds the
@@ -74,7 +75,7 @@ Reading it:
     form, which uses a `HashMap` for sharing.
   - A prover for L2 itself would commit the heap as the zk layer's memory
     table does, and would pay neither cost.
-- **This is a general-purpose zkVM, not the traversal prover.**
+- **This is a general-purpose zkVM, not the custom AIR's prover.**
   - It gives a baseline in cycles per contraction and seconds per segment.
   - The target is the AIR of `Ski/Air.lean`, at about 2.44 rows per
     contraction (below).

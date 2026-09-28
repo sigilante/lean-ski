@@ -248,7 +248,7 @@ The jet paper's pipeline, module for module (see `lean-nock`'s
    on). Class C (`add`, `eqNat`, every jet worth having) needs induction
    on the numeral, as `dec` did.
 5. **`seq` is opcode 7.** One lemma: `seq f g S` follows `f`'s outcome
-   strictly. `composition_term` and `composition_diverges` then go through
+   strictly. `composition` and `composition_diverges` then go through
    over the Class D term algebra as stated in `lean-nock`.
 6. **`apply` is one more fixpoint schema.** SKIlark defunctionalizes
    quotations into a closed sum, so Joy's `i` is a case over a finite
@@ -577,20 +577,22 @@ table or program are still checked one by one:
 Three statements, in rising strength, all about the same three rules.
 
 1. **A proof of execution.** "`t` reduces to `u` in `n` contractions." The
-   witness is the L1 certificate; the circuit is `step?` as an AIR: a row
-   per contraction with a state column (head combinator, argument count),
-   pointer columns, and a memory argument for the heap of nodes. This is
-   Zorp's framework instantiated for SKI, and the first task is to show
-   SKI's reduction relation is `(F, F*)`-traversable in their sense —
-   plausibly the shortest such proof there will ever be. Outputs must be
+   circuit is an AIR over the heap machine (`Ski/Air.lean`): a row per
+   machine transition, about 2.44 per contraction, holding the three
+   registers, and a committed memory table for the heap reached by
+   lookups. Zorp's framework frames it: SKI execution and memory each
+   satisfy their component of traversability (`zk/`), but the execution
+   labels are whole terms and the components are unlinked, so Zorp's
+   compilation to a RAP does not apply as is. Outputs must be
    canonical: a whnf term carries unreduced closures, so the statement is
    about the decode relation (§2.3) or about a term of atoms, exactly the
    read-back problem SKIlark hit at level 1.
 2. **Jets as precompiles.** A jet fires once per supercombinator
    application and does its body's work natively; that is precisely a
    zkVM precompile, whose soundness is the recurring weak point of every
-   zkVM and is argued in prose. Here it is `composition_term` for the
-   jetted word, and the three-valued contract is what the prover needs,
+   zkVM and is argued in prose. Here it is `composition` for the jetted
+   word, under the table's `ApSound`; the three-valued contract, proved
+   for the kit's eliminator and owed per table, is what the prover needs,
    since a precompile that bails where the term diverges is the same
    observable divergence `+mock` exposes.
 3. **Semantics without touching the circuit.** The object language, the
@@ -599,14 +601,15 @@ Three statements, in rising strength, all about the same three rules.
    and new languages are data.
 
 The concrete route: (a) L2 here, the term representation a prover
-consumes — the write-once heap machine is built (§1); its content addresses
-are Pure Nock's noun fingerprints, in the `zk/` project, which depends on
-Pure Nock and so on Mathlib, keeping the core free of both — done: distinct
-terms collide for at most `2Λ − 1` elements of any field where `2 ≠ 0`,
+consumes — the write-once heap machine is built (§1); terms have Pure
+Nock noun fingerprints in the `zk/` project, which depends on Pure Nock
+and so on Mathlib, keeping the core free of both (the machine's cells are
+not yet fingerprinted) — done: distinct terms collide for at most `2Λ − 1` elements of any field where `2 ≠ 0`,
 BabyBear's degree-4 extension included; (b) the traversability theorem,
 in `zk/` — done: `execution_traversable` (states `S K I halt`, fanout 1)
 and `memory_traversable` (terms as nouns, fanout 2), with state–data
-separation for both;
+separation for both; each is one component, the two are not linked, and
+the execution labels are whole terms, so no RAP follows as is;
 (c) a first proof of execution on an existing stack — done on RISC Zero
 (`bench/`), with hand ports of `runF` and the heap machine checked against
 the corpus counts in place of a C extraction. Reduction in heap mode costs 309
