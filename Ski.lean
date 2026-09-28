@@ -2,6 +2,7 @@ import Ski.Basic
 import Ski.Fuel
 import Ski.Trace
 import Ski.Heap
+import Ski.Air
 import Ski.Weak
 import Ski.Lambda
 import Ski.Open

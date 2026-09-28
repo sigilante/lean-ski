@@ -2,7 +2,7 @@
 
 > **Status (2026-09-27).** L0, L1 and L2 built and audited: the calculus, the
 > fuel interpreter, budget-exact trace certificates, the write-once heap
-> machine, the compiled Scott constructors,
+> machine and its AIR, the compiled Scott constructors,
 > and conformance against `skijack` on six SKIlark programs. §2 items 1–6
 > are built over any quotation table, with the divergence biconditional,
 > and checked for two tables: the kernel with no static quotations and the
@@ -612,8 +612,15 @@ separation for both;
 the corpus counts in place of a C extraction. The heap machine costs 308
 cycles per contraction on `3 sumto`, and tree rewriting costs 1,469. A
 2^20-cycle segment proves in about 55 s on a CPU;
-(d) the custom AIR, with the K-free `lean-ski` definition as its
-specification and the corpus counts as its tests.
+(d) the custom AIR — specified and proved (`Ski/Air.lean`): rows are the
+machine's registers, the heap is a committed memory table reached by
+lookups, and the constraints accept a table of `k` rows exactly when `k`
+exceeds the run's transitions, ending on `runF`'s value (`air_sound`,
+`air_complete`, `air_budgets`). Its size on the corpus
+(`bench/AirCost.lean`, `lake exe aircost`): about 2.44 rows per
+contraction, 25,074 rows and a 37,306-cell memory table for `3 sumto`.
+What remains is a prover for it, with this AIR as its specification
+and the corpus counts as its tests.
 
 ## 6. Acceptance
 

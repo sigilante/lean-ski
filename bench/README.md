@@ -78,3 +78,34 @@ Reading it:
   - The target is the RAP over the compute and memory tables of
     `zk/SkiZk`. There, one contraction is one row, not about 300 RISC-V
     cycles.
+
+## The AIR's size
+
+`AirCost.lean` runs the proved rule table `Air.stepG` (`Ski/Air.lean`) over
+the corpus, with the heap in an `Array`. Before printing a row it checks the
+contraction count against the reference reducer, and the final state's
+spine (head combinator and argument count) against `runF`'s value.
+
+```
+lake build aircost && lake exe aircost
+```
+
+```
+row              leaves  contr  unwind    rows  loaded  written  memory  rows/contr
+compiled_up      1397  493  713  1207  2794  1472  4266  2.448276
+compiled_uq      915  440  637  1078  1830  1315  3145  2.450000
+compiled_ur      1267  530  766  1297  2534  1588  4122  2.447170
+interpreted_up   2769  2014  2894  4909  5538  6170  11708  2.437438
+interpreted_uq   2772  2029  2919  4949  5544  6195  11739  2.439133
+interpreted_ur   2856  2589  3718  6308  5712  7909  13621  2.436462
+sumto_us         3531  10297  14776  25074  7062  30244  37306  2.435078
+```
+
+- `rows` is the least budget: one row per transition (a contraction or an
+  unwind) plus the final halt. The AIR accepts a table of `k` rows exactly
+  when `k` is at least this (`air_budgets`).
+- `memory` is the committed memory table: the loaded heap (two cells per
+  leaf, the term's nodes and the empty stack) and the cells the run
+  writes (one per unwind, three per `S`).
+- About 2.44 rows per contraction, since an unwind is a row. A contraction
+  costs 308 RISC-V cycles in heap mode above and about 2.4 rows here.

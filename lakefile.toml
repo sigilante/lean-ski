@@ -8,3 +8,7 @@ name = "Ski"
 [[lean_exe]]
 name = "main"
 root = "Main"
+
+[[lean_exe]]
+name = "aircost"
+root = "bench.AirCost"
