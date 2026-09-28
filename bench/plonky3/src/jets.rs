@@ -851,6 +851,11 @@ fn prove_and_verify_j(t: &Term, jt: &JetTable, tr: &JTraces, plan: Option<&[prob
 /// memory table and the rows.
 fn read_table(path: &std::path::Path) -> Result<(String, Vec<Cell>, Vec<[u32; 3]>), String> {
     let text = std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    parse_table(&text)
+}
+
+/// A table's text, the table proper: the term, the memory, the rows.
+fn parse_table(text: &str) -> Result<(String, Vec<Cell>, Vec<[u32; 3]>), String> {
     let mut ls = text.lines();
     let mut next = || ls.next().ok_or_else(|| "a truncated table".to_string());
     let term = next()?.trim().to_string();
@@ -867,6 +872,7 @@ fn read_table(path: &std::path::Path) -> Result<(String, Vec<Cell>, Vec<[u32; 3]
             Some("N") => Cell::Nil,
             Some("A") => Cell::App(num(1)?, num(2)?),
             Some("C") => Cell::Cons(num(1)?, num(2)?),
+            Some("X") => Cell::Atom(num(1)?),
             _ => return Err(format!("a bad cell: {l}")),
         });
     }
@@ -1020,6 +1026,128 @@ pub fn probe_prove(term: &std::path::Path, jets: &std::path::Path, table_out: &s
     let tr = catch_unwind(AssertUnwindSafe(|| build_traces(&t, &jt, &run)))
         .map_err(|e| format!("the run is no table: {}", panic_text(&e)))?;
     std::fs::write(table_out, lean_of(term_text, &run, &tr)).map_err(|e| format!("{}: {e}", table_out.display()))?;
+    let (proof, prove_s) = prove_j(&t, &jt, &tr, Some(&plan))?;
+    let bytes = postcard::to_allocvec(&proof).map_err(|e| format!("serialize: {e}"))?;
+    std::fs::write(proof_out, &bytes).map_err(|e| format!("{}: {e}", proof_out.display()))?;
+    verify_j(&t, &jt, &proof, Some(&plan))?;
+    println!(
+        "proved {} rows ({} instantiations, {} segments), {} memory cells, in {prove_s:.2} s; proof {} bytes -> {}",
+        run.rows.len(),
+        run.insts,
+        plan.len(),
+        run.heap.len(),
+        bytes.len(),
+        proof_out.display()
+    );
+    Ok(())
+}
+
+/// A probe table's text: the table proper, then `starts N` and `N` row
+/// indices, then `fields n` and `n` lines `a p1 … pa`
+/// (`lake exe jets check-probe`'s format).
+#[allow(clippy::type_complexity)]
+fn parse_probe_table(text: &str) -> Result<(String, Vec<Cell>, Vec<[u32; 3]>, Vec<u32>, Vec<Vec<u32>>), String> {
+    let at = text.find("\nstarts ").ok_or("a table with no starts section")?;
+    let (term, mem, rows) = parse_table(&text[..at + 1])?;
+    let mut ls = text[at + 1..].lines();
+    let mut count = |head: &str| -> Result<usize, String> {
+        let l = ls.next().ok_or("a truncated probe section")?;
+        let w: Vec<&str> = l.split(' ').collect();
+        if w.len() != 2 || w[0] != head {
+            return Err(format!("expected `{head} N`, found {l:?}"));
+        }
+        w[1].parse().map_err(|_| format!("a bad count: {l}"))
+    };
+    let ns = count("starts")?;
+    let mut starts = Vec::with_capacity(ns);
+    let mut lines = Vec::new();
+    for _ in 0..ns {
+        lines.push(ls.next().ok_or("a truncated starts section")?.to_string());
+    }
+    for l in &lines {
+        starts.push(l.trim().parse().map_err(|_| format!("a bad start: {l}"))?);
+    }
+    let mut ls2 = ls;
+    let l = ls2.next().ok_or("no fields section")?;
+    let w: Vec<&str> = l.split(' ').collect();
+    if w.len() != 2 || w[0] != "fields" {
+        return Err(format!("expected `fields n`, found {l:?}"));
+    }
+    let nf: usize = w[1].parse().map_err(|_| format!("a bad count: {l}"))?;
+    let mut flds = Vec::with_capacity(nf);
+    for _ in 0..nf {
+        let l = ls2.next().ok_or("a truncated fields section")?;
+        let v: Vec<u32> = l.split(' ').map(|x| x.parse::<u32>()).collect::<Result<_, _>>().map_err(|_| format!("a bad fields line: {l}"))?;
+        if v.is_empty() || v.len() != v[0] as usize + 1 {
+            return Err(format!("a bad fields line: {l}"));
+        }
+        flds.push(v[1..].to_vec());
+    }
+    if ls2.any(|l| !l.trim().is_empty()) {
+        return Err("lines after the fields".into());
+    }
+    Ok((term, mem, rows, starts, flds))
+}
+
+/// The run a probe table records, for the plan: the probe rows at the
+/// given starts (each segment's pointer read off the next row, its end's
+/// pops read off the memory below the counter), and every other row
+/// classified as `run_of_table` does.  The traces check the rest.
+fn run_of_probe_table(t: &Term, jt: &JetTable, plan: &[probe::Seg], mem: Vec<Cell>, rows: Vec<[u32; 3]>, starts: Vec<u32>, flds: Vec<Vec<u32>>) -> Result<JRun, String> {
+    let n = plan.len();
+    if starts.len() != n + 1 || flds.len() != n {
+        return Err(format!("{} starts and {} field lines for a plan of {n} segments", starts.len(), flds.len()));
+    }
+    if starts.last().map(|&l| l as usize + 1) != Some(rows.len()) {
+        return Err("the last start is not the last row".into());
+    }
+    let mut run = run_of_table(t, jt, mem, rows)?;
+    let mut prow = std::collections::HashMap::new();
+    for (j, s) in plan.iter().enumerate() {
+        let clk = starts[j] as usize;
+        let next = run.rows.get(clk + 1).ok_or(format!("segment {j} starts at the last row"))?.0;
+        let end = if j == 0 {
+            None
+        } else {
+            let [_, stk, ctr] = run.rows[clk].0;
+            let below = &run.heap[..(ctr as usize).min(run.heap.len())];
+            let e = plan[j - 1];
+            let (pops, rest) = pop(below, e.arity, stk).ok_or(format!("segment {} ends with too few fields", j - 1))?;
+            if pops.iter().map(|p| p.1).collect::<Vec<_>>() != flds[j - 1] {
+                return Err(format!("segment {}'s fields are not the ones on its stack", j - 1));
+            }
+            Some((pops, rest))
+        };
+        let clkp = if j == 0 { 0 } else { starts[s.parent as usize + 1] };
+        // A probe row is no instantiation.
+        run.rows[clk].1 = None;
+        prow.insert(clk, probe::ProbeRow { seg: j as u32, f: next[0], end, clkp });
+    }
+    let mut ps = starts.clone();
+    ps.pop();
+    run.insts = run.rows.iter().filter(|r| r.1.is_some()).count();
+    run.probe = Some(probe::ProbeRun { plan: plan.to_vec(), rows: prow, starts: ps, flds });
+    Ok(run)
+}
+
+/// `ski-air probe-prove-table TERM JETS TABLE PROOF OUTCOME…`: prove the
+/// probe table another producer wrote (Avon's) for the term, its jet table
+/// and the outcome's plan (Lean's); write the proof, and check it
+/// verifies.
+pub fn probe_prove_table(term: &std::path::Path, jets: &std::path::Path, table: &std::path::Path, proof_out: &std::path::Path, outcome: &[&str]) -> Result<(), String> {
+    let term_text = std::fs::read_to_string(term).map_err(|e| format!("{}: {e}", term.display()))?;
+    let term_text = term_text.trim();
+    let t = parse(term_text.as_bytes(), &mut 0);
+    let jt = read_jets(jets);
+    let (plan, _) = probe::lean_plan(outcome)?;
+    let text = std::fs::read_to_string(table).map_err(|e| format!("{}: {e}", table.display()))?;
+    let (tterm, mem, rows, starts, flds) = parse_probe_table(&text)?;
+    if tterm != term_text {
+        return Err("the table is for another term".into());
+    }
+    let run = run_of_probe_table(&t, &jt, &plan, mem, rows, starts, flds)?;
+    let tr = catch_unwind(AssertUnwindSafe(|| build_traces(&t, &jt, &run)))
+        .map_err(|e| format!("the table is no run: {}", panic_text(&e)))?;
     let (proof, prove_s) = prove_j(&t, &jt, &tr, Some(&plan))?;
     let bytes = postcard::to_allocvec(&proof).map_err(|e| format!("serialize: {e}"))?;
     std::fs::write(proof_out, &bytes).map_err(|e| format!("{}: {e}", proof_out.display()))?;

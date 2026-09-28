@@ -232,6 +232,11 @@ cd ../.. && lake exe jets check-probe bench/plonky3/tables/probe_sumto_us.txt va
 lake exe jets check-probe bench/plonky3/tables/probe_sumto_us.txt val 5               # REJECT
 ```
 
+`ski-air probe-prove-table TERM JETS TABLE PROOF OUTCOME…` proves a
+probe table another producer wrote, in `check-probe`'s format, as
+`jet-prove` does a jetted one. On lean-ski's own table for `[6]` it
+reproduces `probe-prove`'s proof byte for byte.
+
 `DESIGN.md` records the tables: atoms and the witness table, the
 instantiation rows and template table, and the probe segments.
 

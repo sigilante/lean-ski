@@ -1092,12 +1092,14 @@ fn main() {
         }
         return;
     }
-    if args.len() >= 7 && (args[1] == "probe-prove" || args[1] == "probe-verify") {
+    if args.len() >= 7 && (args[1] == "probe-prove" || args[1] == "probe-prove-table" || args[1] == "probe-verify") {
         std::panic::set_hook(Box::new(|_| {}));
         let p = |i: usize| std::path::Path::new(&args[i]);
         let outcome: Vec<&str> = args[6..].iter().map(|x| x.as_str()).collect();
         let r = if args[1] == "probe-prove" {
             jets::probe_prove(p(2), p(3), p(4), p(5), &outcome)
+        } else if args[1] == "probe-prove-table" {
+            jets::probe_prove_table(p(2), p(3), p(4), p(5), &outcome)
         } else {
             jets::probe_verify(p(2), p(3), &args[4], p(5), &outcome)
         };
@@ -1136,6 +1138,7 @@ fn main() {
             "usage: ski-air CORPUS OUTDIR | ski-air sudoku DIR OUTDIR | ski-air jets CORPUS JETSDIR OUTDIR\n       \
              ski-air jet-prove TERM JETS TABLE PROOF | ski-air jet-verify CORPUS JETSDIR NAME PROOF\n       \
              ski-air probes CORPUS JETSDIR OUTDIR | ski-air probe-prove TERM JETS TABLE PROOF OUTCOME...\n       \
+             ski-air probe-prove-table TERM JETS TABLE PROOF OUTCOME...\n       \
              ski-air probe-verify CORPUS JETSDIR NAME PROOF OUTCOME..."
         );
         std::process::exit(2);
