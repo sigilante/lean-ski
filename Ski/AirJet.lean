@@ -20,7 +20,7 @@ listed root, popping its arguments and writing its body's cells, as
   template's root stays a root.
 - *Roots*: pairs `(a, g)`, an address in the loaded heap and a jet.
   `RootsOK` asks that the term at `a` be jet `g`'s compiled form, with each
-  global read at its address; `rootsOKB` decides it (`rootsOKB_sound`).
+  global read at its address; `rootsOKB` checks it (`rootsOKB_sound`).
 
 **The row.**  `instRow` reads the head's argument cells below the counter
 (`popR`, which is `popN` over reads), computes the body's cells from the
@@ -34,7 +34,7 @@ counter on (`icells`, which is what `ibuild` writes), and checks the writes
   evaluates to in normal order, up to weak reduction of the value, with the
   same head combinator and arity (`jet_run_eval`, `jet_run_shape`).
 - `checkJA_sound`: `checkJA` decides these constraints' soundness side on
-  a concrete table, over an array: what `lake exe jetcheck` runs on the
+  a concrete table, over an array: what `lake exe jets check` runs on the
   Plonky3 prover's jetted tables.
 
 Instantiation is not tied to a halt: at a root the prover may unwind as

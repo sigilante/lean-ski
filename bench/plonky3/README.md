@@ -87,11 +87,12 @@ blank (`public.txt`) and the solution's inputs (`witness.txt`). The
 blank-input heap states the machine for every input
 (`Stmt.stmtMachine_public`).
 
-**The statement must be checked.** The Rust verifier reads `public.txt` as
-given. A file with the two markers exchanged, or cells for another
-puzzle, would let a wrong grid verify. So the verifier first runs `lake
-exe sudoku statement public.txt`, which accepts exactly the statement of
-the puzzle on its first line (`publicText` in `bench/Sudoku.lean`).
+**The statement is checked on the verifier's path.** A `public.txt` with
+the two markers exchanged, or cells for another puzzle, would let a
+wrong grid verify. So the verifier first runs `lake exe sudoku statement
+public.txt` itself, which accepts exactly the statement of the puzzle on
+its first line (`publicText` in `bench/Sudoku.lean`), and refuses to go
+on otherwise.
 
 The AIR adds three things to the corpus's:
 
@@ -166,8 +167,29 @@ constraint the verifier would accept a table that proves nothing about a
 grid. The lookup of the input cell fails instead. `prove` includes the
 setup; the proof size varies with the random salts.
 
-`DESIGN.md` records the tables: atoms and the witness table as built, and
-the plan for supercombinator instantiation rows and the template table.
+## Jets: instantiation rows
+
+`src/jets.rs` proves every corpus row with supercombinator instantiation
+rows. Five tables join the corpus's three: ROOTS, HDR and TMPL, public
+and preprocessed from `lake exe jets emit`; and POP and INSTW, witness
+tables chained to a CPU row of kind `INST`. `lake exe jets check` checks
+each table it proves against `Air.AcceptsJ` (`Air.checkJA_sound`), with
+the roots recomputed and licensed in Lean. The verifier runs `lake exe jets statement` on the jet files before it
+builds anything from them. `DESIGN.md` §2 gives the
+tables, the argument and the measurements: `3 sumto` takes 3,678 CPU rows
+instead of 25,074, and proves in 0.15 s.
+
+```
+lake build jets && lake exe jets emit bench/plonky3/jets
+lake env lean --run bench/Dump.lean > corpus.txt           # ski-air runs `lake exe jets statement` itself
+cd bench/plonky3 && cargo build --release
+./target/release/ski-air jets ../../corpus.txt jets tables   # prove, verify, tamper
+cd ../.. && lake exe jets check bench/plonky3/tables/jet_*.txt
+lake exe jets check bench/plonky3/tables/tampered_jet_*.txt  # each must be REJECT
+```
+
+`DESIGN.md` records the tables: atoms and the witness table, and the
+instantiation rows and template table.
 
 ## What this is not
 

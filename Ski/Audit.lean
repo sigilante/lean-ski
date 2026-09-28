@@ -10,6 +10,7 @@ import Ski.AirOpen
 import Ski.Inst
 import Ski.SmallLemma
 import Ski.AirJet
+import Ski.JetTable
 import Ski.BoolProbe
 import Ski.Statement
 import Ski.Sudoku
@@ -464,6 +465,7 @@ open Ski.Audit
 -- The AIR with instantiation rows: licensed roots, a row that is a jetted step, soundness, the checker
 #audit_clean Air.termAt_G Air.rootsOKB_sound Air.popR_popN Air.ibuild_icells Air.termAt_take Air.instRow_jstep
   Mach.JSteps.snoc Air.AcceptsJ.reach Air.air_sound_jet Air.chainJ_trans Air.checkJA_sound
+  JetTable.overrideN_argIx JetTable.symCells_icells
 
 -- Boolean statements: a formula compiled to Scott Booleans, read by a probe, and proved by the AIR
 #audit_clean BExpr.sbool_sel BExpr.fill_tt BExpr.fill_ff BExpr.bool_reduce BExpr.probe_true

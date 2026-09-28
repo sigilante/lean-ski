@@ -1,10 +1,9 @@
 # Tables: atoms, instantiation rows, the template table
 
-This note records the plan for the Plonky3 tables beyond the corpus's
-three. The first part, atoms, is built. The second part, supercombinator
-instantiation, is planned and not yet built. It follows
-`avon/DESIGN.md` §18.1 (in the `skijack` repository), with one change
-explained under *The head*.
+This note records the Plonky3 tables beyond the corpus's three: atoms,
+and supercombinator instantiation. Both are built. Instantiation follows
+`avon/DESIGN.md` §18.1 (in the `skijack` repository), with a public
+roots table in place of a jet cell, and globals.
 
 ## 1. Atoms (built)
 
@@ -37,122 +36,170 @@ private cell, with the cell's allowed shapes as constraints), its own
 soundness theorem in the style of `Sudoku.sudoku_sound`, a statement check
 like `lake exe sudoku statement`, and the same blinding.
 
-## 2. Supercombinator instantiation (planned)
+## 2. Supercombinator instantiation (built)
+
+Instantiation rows are built and checked against Lean. `src/jets.rs`
+proves every corpus row jetted, and `lake exe jets check` accepts each
+table (`Air.checkJA_sound`). This section records what was built, and
+where it departs from the plan.
+
+### What was measured first
+
+`lake exe jetcost` runs each corpus term plain, and then jetted at every
+licensed root. It counts the rows of these tables: one CPU row per
+transition or instantiation, one POP row per argument, and one INSTW row
+per written cell.
+
+| row | plain | whole bodies | globals | memory (globals) |
+|---|---|---|---|---|
+| compiled_up | 1,206 | 2,699 (224%) | 340 (28%) | 14% |
+| compiled_uq | 1,077 | 2,665 (247%) | 342 (32%) | 17% |
+| compiled_ur | 1,296 | 3,561 (275%) | 389 (30%) | 16% |
+| interpreted_up | 4,908 | 5,778 (118%) | 5,517 (112%) | 85% |
+| sumto_us | 25,073 | 149,611 (597%) | 8,477 (34%) | 17% |
+
+Two findings changed the plan:
+
+- **Instantiation must name closed subterms as globals.** A compiled
+  body inlines whole closed words. `instStep` as first proved writes
+  every cell of the body, so on the compiled rows and `3 sumto` it costs
+  2.2–6.0× the plain run. It also writes
+  fresh copies of nested templates, whose roots are then never roots.
+- **η-templates must never be roots.** `λ xs. G xs`, with `G` closed,
+  compiles to `G` itself. Instantiating it rewrites `G xs` to `G xs`,
+  and a jetted run loops. That is sound, as zero steps of weak
+  reduction, but useless.
+
+On the interpreted rows jets do not pay. They have about 2,000
+licensed roots and instantiate 671 to 836 times, but each instantiation
+there is short, and the POP rows it adds outnumber the CPU rows it
+saves: 110–112% of the plain rows with globals, 114–118% with whole
+bodies. The savings above are for the compiled rows and `3 sumto`.
 
 ### What the circuit proves
 
-`Mach.JStep` has two kinds of step: a machine transition, and
-`inst g`, an instantiation of a licensed template `g = (xs, body)` whose
-compiled form `absN xs body` is at the head:
+- **Instantiation with globals** (`Mach.instStepG`). Pop `|xs|` argument
+  pointers, then write the body's cells at the counter in `ibuild` order.
+  A formal becomes its argument's pointer. Any other variable becomes a
+  public address, `genv x`.
+- **Its licence** (`Mach.inst_sound_g`). If each global's address holds
+  its meaning `γ x`, and the head holds `(absN xs body).close γ`, the
+  state after reads back as a weak reduct of the state before. This is
+  `absN_beta_close` with that `γ`.
+- **The jetted step** (`Mach.JStep.inst`) takes such a template. The
+  closed case, all variables formals, is `JStep.ofTemplate`.
+
+### The public jet table
+
+`JetTable.jetTable` computes the jet table from the compiler's own
+templates, and `lake exe jets emit` writes it:
+
+- **The templates:** each equation's `compDef` or `compRec`, each lifted λ
+  chain (`wrapLift`), and each constructor (`ctorO`).
+- **The globals:** each maximal closed subterm of a body, leaves
+  included, becomes a variable pointing to a loaded cell that holds it.
+- **The roots:** hash-consing the loaded heap finds each root. Each is
+  kept only if `Air.rootOKB` licenses it: `termAtG` must read the jet's
+  compiled form, with its globals read at their addresses.
+
+Nothing in `JetTable` is trusted. The Lean checker recomputes the table
+from the term and runs `rootsOKB`, and the template rows are `icells`
+resolved (`JetTable.symCells_icells`). The Plonky3 verifier builds its
+preprocessed tables from the jet files, so it first runs `lake exe jets
+statement` itself and refuses any file that is not exactly what Lean
+emits. Unchecked, a file listing an extra root lets a forged proof
+verify; the `doctored_jets` test shows the check refusing one.
+
+This needs no jet cell, unlike Avon's `J g`. A root is an address, and
+`termAt` below the first counter never changes (`Air.termAt_take`), so
+`JStep.inst`'s head hypothesis holds at a root on every row. `S` copies
+pointers, not cells, so a copy of a root is the root.
+
+### The AIR, in Lean (`Ski/AirJet.lean`)
+
+- **`instRow M J r`:**
+  - pop the arguments through reads below the counter (`popR`, which is
+    `popN`: `popR_popN`);
+  - compute the body's cells from the counter (`icells`, which is what
+    `ibuild` writes: `ibuild_icells`);
+  - check the writes (`wrs`);
+  - the next row is the root, the rest, and the counter past the
+    writes.
+- **`instRow_jstep`:** a passing row at a licensed root is a jetted
+  step.
+- **`AcceptsJ`:** the AIR where a row steps, instantiates at a listed
+  root, or halts and repeats.
+- **`air_sound_jet`:** from a loaded term with licensed roots, an
+  accepted table ends on a value `v`. The term evaluates in normal order
+  to a value that weakly reduces to `v` and has `v`'s head and arity.
+- **`checkJA`:** decides these constraints on a table over an array, and
+  checks the roots. `checkJA_sound` is proved; completeness is not.
+
+### The tables (`src/jets.rs`)
+
+- **ROOTS** `(addr, g)`, **HDR** `(g, k, n, root)`, **TMPL** `(g, j, tag,
+  operand a, operand b)`: preprocessed from the jet file, each providing
+  its rows with a committed multiplicity.
+  - An operand is three flags (local, argument, global) and a value.
+  - Padding rows copy a real row, so a multiplicity on padding provides
+    only a genuine tuple.
+- **POP** `(clk, c, i, s, x, s', uses)`. It reads `C x s'` at `s`,
+  range-checked below `c`. It receives chain step `POPCH(clk, c, i, s)`
+  and sends `POPCH(clk, c, i + 1, s')`. It provides `ARG(clk, i, x)` as
+  often as the body and root use it; an inactive row's use count is
+  forced to zero.
+- **INSTW** `(clk, c, g, j, template row, a, b, argument pointers)`. It
+  looks up `TMPL(g, j, …)` and resolves each operand: `c + j'` for a
+  local, an `ARG` lookup for an argument, the value for a global. It
+  writes `(c + j, tag, a, b)` to memory. It receives `WCH(clk, c, g, j)`
+  and sends `WCH(…, j + 1)`. Flags are zero on inactive rows.
+- **CPU, kind `INST`:**
+  - looks up `ROOTS(hd, g)` and `HDR(g, k, n, root)`;
+  - sends `POPCH(clk, ctr, 0, stk)` and receives `POPCH(clk, ctr, k, rest)`;
+  - sends `WCH(clk, ctr, g, 0)` and receives `WCH(clk, ctr, g, n)`;
+  - sets `hd' = root`, `stk' = rest` and `ctr' = ctr + n`;
+  - reads no cell itself.
+
+`clk` is a row counter: 0 on the first row, one more each row. The plan
+keyed the chains by the counter `c`. Two instantiations that write no
+cells share a counter, so the chains now carry `clk`, which is unique per
+row.
+
+### Measured, 2026-09-27, Apple M4 Max, release build
 
 ```
-JStep.inst : termAt m.heap _ m.hd = some (toTerm (absN g.xs g.body))
-           → instStep g.xs g.body m = some m' → JStep m m'
+row             plain  jetted  insts  budget   pop  instw  prove s  verify s
+compiled_up      1207     144     37     256   128    128     0.05     0.015
+compiled_uq      1078     151     37     256   128    128     0.02     0.012
+compiled_ur      1297     168     41     256   128    128     0.04     0.014
+interpreted_up   4909    3995    676    4096  2048     64     0.14     0.019
+interpreted_uq   4949    3976    671    4096  2048    128     0.16     0.019
+interpreted_ur   6308    5004    836    8192  2048    128     0.18     0.021
+sumto_us        25074    3678    939    4096  4096   4096     0.15     0.021
 ```
 
-`instStep` pops `|xs|` argument pointers off the stack (`popN`), then
-writes the body's cells at the counter in `ibuild` order (children first,
-function before argument, one cell per `S`, `K`, `I` leaf and per
-application, no cell for a variable). Each variable becomes its argument's
-pointer. A jetted run that halts on a weak head normal form proves
-normal-order evaluation up to weak reduction of the value
-(`Mach.jet_run_eval`). The value's head and arity are those of the
-unjetted run's value (`jet_run_shape`). The circuit must enforce exactly
-`instStep`, at a head that satisfies the first hypothesis.
+`plain` and `jetted` count states, one CPU row each; `budget` is the CPU
+table's height. `3 sumto` proves in about 0.15 s jetted, against about
+0.5 s plain.
+`lake exe jets check` accepts all seven tables. It rejects the two
+tampered ones, which the verifier also rejects; a third, a doctored jet
+file, the statement check refuses:
 
-### The head: a public roots table, not a jet cell
+- `forged_write`: one instantiated cell's argument operand is changed,
+  in the trace and in memory.
+- `unlicensed_root`: jet 0 is instantiated once at an address that is
+  not its root.
 
-`avon/DESIGN.md` §18.1 places a jet cell `J g` at the head. That needs a
-new cell kind and a change to `decode`. The plan here needs neither. It
-uses the first hypothesis of `JStep.inst` as it stands:
+### Not yet built
 
-- **ROOTS** (preprocessed, public): rows `(root, g)`. Each `root` is an
-  address in the loaded heap where `termAt` reads `toTerm (absN xs_g
-  body_g)`. The loader lists every occurrence. It need not share them. For
-  a statement machine the check runs over its public cells, and a root's
-  `termAt` must not reach an input cell, or the check would depend on the
-  witness.
-- The loaded heap is public, and `termAt` below the first counter never
-  changes as the heap grows (`termAt_grow`). So the hypothesis holds at
-  every row whose head is a listed root. Lean checks this statically: a
-  checker `rootsOK (load t).heap roots templates : Bool`, with a soundness
-  theorem, run when the statement is made. The verifier trusts no hash.
-- The machine reaches a root by unwinding, since the loaded term applies
-  `absN …` to its captures. `S` copies pointers, not cells, so a copy of a
-  root is the root. At a root the prover may also unwind as usual:
-  `JStep` allows either step, and both are sound.
-
-### The tables
-
-- **TEMPLATE** (preprocessed, public). One row per body cell,
-  `(g, j, tag, a_op, a_val, b_op, b_val)`, in `ibuild` order. `tag` is
-  `S`, `K`, `I` or `A`. An operand is `LOCAL j′` (the cell this
-  instantiation wrote at offset `j′ < j`) or `ARG i` (the `i`-th popped
-  argument). A header per template, `(g, k_g, n_g, root_op)`, gives the
-  arity, the cell count and the root: `LOCAL (n_g − 1)` for an
-  application body, `LOCAL 0` for a leaf, `ARG i` for a bare variable.
-  Lean generates it from `ibuild` and `overrideN` themselves, so the order
-  is the proved one, and `ARG i` names the argument `overrideN` gives a
-  repeated formal.
-- **POP** (witness). One row per popped argument, `(c, i, s, x, s′)`. It
-  reads `C x s′` at `s` from memory, range-checked below `c`. Row `i + 1`
-  starts where row `i` ended (`s = s′` of row `i`), row 0 starts at the
-  `INST` row's stack, and the last `s′` is the rest. It sends
-  `ARG(c, i, x)`. This is `popN`.
-- **INSTW** (witness). One row per written cell, `(c, g, j, tag, a, b)`.
-  It looks up `TEMPLATE(g, j, tag, ops)`. It resolves each operand:
-  `LOCAL j′` to `c + j′`, `ARG i` to the `x` of `ARG(c, i, x)`. It writes
-  `(c + j, tag, a, b)` to memory, a lookup at an address the counter
-  covers, as the corpus's writes are. Rows for one `c` run `j = 0 … n_g −
-  1`, chained like POP. This is `ibuild` with `overrideN`. The chains must
-  define their empty cases: arity 0 (no POP rows, `rest = stk`) and a
-  bare-variable body (no INSTW rows, `n_g = 0`).
-- **CPU, kind `INST`.** It reads `ROOTS(hd, g)` and the header of `g`. It
-  sends `POP-START(c = ctr, stk, k_g)` and receives `POP-END(c, rest)`.
-  It sends `INSTW-START(c, g)` and receives `INSTW-END(c, g, n_g)`. The
-  next registers are `hd′ = resolve(root_op)`, `stk′ = rest`,
-  `ctr′ = ctr + n_g`.
-
-The chains replace wide rows: any arity and any body size costs
-`1 + k_g + n_g` table rows. The unjetted reduction it replaces costs up to
-`3^k · vsize body` weak contractions (`absN_beta_count`), about 2.44 rows
-each.
-
-### The Lean side, before the circuit
-
-1. `Air.instRow M roots templates r r′ : Bool`, the `INST` constraint over
-   reads (`rd`) and write checks (`wrs`), in the style of `Air.stepRow`.
-2. `instRow_jstep`: an `INST` row that passes is `JStep.inst` between
-   `st M r` and `st M r′`, given `rootsOK`. The proof is `popN` against
-   `rd`, and `ibuild` against `wrs` at the counter, as `stepRow_mstep`
-   handles the corpus's writes.
-3. `AcceptsJ`, the AIR with `INST` rows, and `air_sound_jet`: an accepted
-   table is a `JSteps` run, so by `jet_run_eval` and `jet_run_shape` it
-   proves the evaluation, up to weak reduction of the value, with the
-   value's head and arity.
-4. `checkJ`, deciding `AcceptsJ` on a concrete table, with soundness, for
-   `lake exe aircheck` on the prover's jetted tables.
-5. For probes, instantiation over open terms: `inst_sound` for `odecode`,
-   so that a jetted run from a statement machine binds its output as
-   `air_probe` does.
-
-### Extensions, in order
-
-- **Globals.** A body may name another template's root, for nested jets,
-  through a third operand, `GLOBAL a`, a public address. In Lean, the
-  default environment of `instStep` becomes a public map, and
-  `inst_sound` takes a `γ` in place of `fun _ => K`. `absN_beta_close`
-  already takes any `γ`.
-- **Chained arities in one row.** This is a cost change only, with no
-  soundness content.
-- **Zero knowledge.** ROOTS and TEMPLATE are public and go under the
-  public-seed commitment of `src/sudoku.rs`. POP and INSTW are witness
-  tables with fixed heights, like the CPU's, and each needs a blinding
-  message, since each has its own published terminal.
-
-### What this does not cover
-
-- **Data jets** (§18.2): native words and per-jet theorems.
-- **The interpreter jet** (§18.3).
-- **A DAG loader.** Sharing each root once would shrink ROOTS. `Stmt.pbuild`
-  already builds a DAG for slots, and the same pattern applies.
+- **Jets with probes.** `inst_sound` over open terms, so a jetted run from
+  a statement machine binds its output as `air_probe` does. Until then
+  jets and the Sudoku statement do not combine.
+- **Zero knowledge for jets.** ROOTS, HDR and TMPL are public and would
+  go under the public-seed commitment of `src/sudoku.rs`. POP and INSTW
+  would need fixed heights and blinding messages, since each has its own
+  published terminal. The jetted corpus proofs are not hiding.
+- **A choice of when to jet.** The runs instantiate at every root. On
+  the interpreted rows that saves CPU rows, but adds more POP rows than it
+  saves.
+- **Data jets and the interpreter jet** (Avon §18.2, §18.3).

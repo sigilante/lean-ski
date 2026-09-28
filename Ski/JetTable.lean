@@ -28,6 +28,12 @@ which compiles to `G` itself, so that instantiating it rewrites `G xs` to
 **The roots** are found by hash-consing the loaded heap against the
 templates' compiled forms, and kept only when `Air.rootOKB` licenses
 them.
+
+**The template rows** the prover reads (`symCells`, written by
+`jetText`) are, resolved at a counter and the argument pointers, exactly
+the cells and root `Air.instRow` computes with `icells`
+(`symCells_icells`), a repeated formal taking its last occurrence as
+`overrideN` binds it (`overrideN_argIx`).
 -/
 
 namespace JetTable
@@ -229,9 +235,13 @@ def Op.text : Op → String
   | .glob a => s!"G {a}"
 
 /-- The argument index a formal takes: its last occurrence, as `overrideN`
-    binds a repeated formal. -/
-def argIx (xs : List Nat) (x : Nat) : Option Nat :=
-  (xs.zipIdx.filter (·.1 == x)).getLast?.map (·.2)
+    binds a repeated formal (`overrideN_argIx`). -/
+def argIx : List Nat → Nat → Option Nat
+  | [], _ => none
+  | x :: xs, y =>
+    match argIx xs y with
+    | some i => some (i + 1)
+    | none => if x == y then some 0 else none
 
 /-- The operand a variable is. -/
 def varOp (J : Jet) (x : Nat) : Op :=
@@ -260,5 +270,81 @@ def jetText (J : Jet) : String :=
     s ++ (match ops with
       | some (a, b) => s!"{tag} {a.text} {b.text}"
       | none => s!"{tag}") ++ "\n") head
+
+-- ---------------------------------------------------------------------------
+-- The template rows are `icells`
+-- ---------------------------------------------------------------------------
+
+/-- An operand's value, for an instantiation at counter `c` with argument
+    pointers `ps`: what the prover's INSTW and CPU rows compute. -/
+def Op.res (c : Nat) (ps : List Nat) : Op → Nat
+  | .local_ j => c + j
+  | .arg i => ps.getD i 0
+  | .glob a => a
+
+/-- A template row's cell, for an instantiation at `c` with `ps`. -/
+def cellOf (c : Nat) (ps : List Nat) : Nat × Option (Op × Op) → Cell
+  | (_, some (a, b)) => .app (a.res c ps) (b.res c ps)
+  | (0, none) => .S
+  | (1, none) => .K
+  | (_, none) => .I
+
+/-- `overrideN` binds each formal to the pointer at its last occurrence,
+    and every other variable as the default does. -/
+theorem overrideN_argIx (e : Nat → Nat) : ∀ (xs ps : List Nat) (y : Nat), ps.length = xs.length →
+    overrideN e xs ps y = (argIx xs y).elim (e y) (fun i => ps.getD i 0)
+  | [], _, _, _ => rfl
+  | _ :: _, [], _, h => absurd h.symm (Nat.succ_ne_zero _)
+  | x :: xs, p :: ps, y, h => by
+    show overrideN (updN e x p) xs ps y = _
+    rw [overrideN_argIx (updN e x p) xs ps y (Nat.succ.inj h)]
+    have hc : argIx (x :: xs) y =
+        (match argIx xs y with
+         | some i => some (i + 1)
+         | none => if x == y then some 0 else none) := rfl
+    rw [hc]
+    cases argIx xs y with
+    | some i => rfl
+    | none =>
+      show updN e x p y = (if x == y then some 0 else none).elim (e y) fun i => (p :: ps).getD i 0
+      unfold updN
+      cases Nat.decEq y x with
+      | isTrue hy =>
+        subst hy
+        rw [if_pos rfl, show (y == y) = true from decide_eq_true rfl]
+        rfl
+      | isFalse hy =>
+        rw [if_neg hy, beq_false_of_ne (Ne.symm hy)]
+        rfl
+
+/-- **The template rows are `icells`.**  Resolved at counter `c` with the
+    arguments `ps`, the cells and root `symCells` gives a jet (and `jetText`
+    writes, one row per cell) are the cells and root `Air.instRow` computes
+    with `icells` from `c + off`. -/
+theorem symCells_icells (J : Jet) (c : Nat) (ps : List Nat) (hl : ps.length = J.xs.length) :
+    ∀ (body : OTerm) (off : Nat),
+      ((symCells J body off).1.map (cellOf c ps), (symCells J body off).2.res c ps) =
+        icells (overrideN J.genv J.xs ps) (c + off) body
+  | .S, off => rfl
+  | .K, off => rfl
+  | .I, off => rfl
+  | .var x, off => by
+    show ([], (varOp J x).res c ps) = ([], overrideN J.genv J.xs ps x)
+    rw [overrideN_argIx J.genv J.xs ps x hl]
+    unfold varOp
+    cases argIx J.xs x <;> rfl
+  | .app f a, off => by
+    have hf := symCells_icells J c ps hl f off
+    have ha := symCells_icells J c ps hl a (off + (symCells J f off).1.length)
+    unfold symCells icells
+    dsimp only
+    rw [← hf]
+    dsimp only
+    rw [List.length_map,
+      show c + off + (symCells J f off).1.length = c + (off + (symCells J f off).1.length) by omega, ← ha]
+    simp only [List.map_append, List.map_cons, List.map_nil, List.length_map, cellOf, Op.res]
+    refine Prod.ext rfl ?_
+    show c + (off + (symCells J f off).1.length + (symCells J a (off + (symCells J f off).1.length)).1.length) = _
+    omega
 
 end JetTable

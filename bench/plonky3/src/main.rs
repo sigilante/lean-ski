@@ -80,6 +80,7 @@ use p3_merkle_tree::MerkleTreeMmcs;
 use p3_symmetric::{PaddingFreeSponge, TruncatedPermutation};
 use p3_uni_stark::StarkConfig;
 
+mod jets;
 mod sudoku;
 
 // ---------------------------------------------------------------------------
@@ -299,9 +300,11 @@ enum Kind {
     HS3,
     /// An atom at the head: a marker, which no rule applies to.
     HA,
+    /// An instantiation at a jet's root (`src/jets.rs`).
+    Inst,
 }
 
-const NKINDS: usize = 11;
+const NKINDS: usize = 12;
 
 const KINDS: [Kind; NKINDS] = [
     Kind::App,
@@ -315,6 +318,7 @@ const KINDS: [Kind; NKINDS] = [
     Kind::HS2,
     Kind::HS3,
     Kind::HA,
+    Kind::Inst,
 ];
 
 /// A state's kind and the cells it reads (`R0` at `hd`, `R1` at `stk`, `R2`
@@ -410,6 +414,22 @@ const CPU_BLB: usize = CPU_WIDTH + BLIND_WIDTH;
 const BLIND_A: &str = "blind_a";
 const BLIND_B: &str = "blind_b";
 
+/// The CPU's jet columns, when it has them (never with blinding): the row
+/// counter, then an instantiation's jet, arity, cell count, root operand
+/// (one-hot local, argument, global, and its value), the root's argument
+/// pointer, and the rest of the stack.
+const J_CLK: usize = CPU_WIDTH;
+const J_G: usize = CPU_WIDTH + 1;
+const J_K: usize = CPU_WIDTH + 2;
+const J_N: usize = CPU_WIDTH + 3;
+const J_RL: usize = CPU_WIDTH + 4;
+const J_RA: usize = CPU_WIDTH + 5;
+const J_RG: usize = CPU_WIDTH + 6;
+const J_RV: usize = CPU_WIDTH + 7;
+const J_XROOT: usize = CPU_WIDTH + 8;
+const J_REST: usize = CPU_WIDTH + 9;
+const JET_WIDTH: usize = 10;
+
 const BUS: &str = "mem";
 
 #[derive(Clone, Debug)]
@@ -421,6 +441,8 @@ struct CpuAir {
     accept: Option<u32>,
     /// Whether the table carries blinding columns.
     blind: bool,
+    /// Whether the table carries jet columns and may instantiate.
+    jets: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -448,15 +470,19 @@ enum SkiAir {
     Mem(MemAir),
     Prog(ProgAir),
     Wit(WitAir),
+    Jet(jets::JetAir),
 }
 
 impl<F: Field> BaseAir<F> for SkiAir {
     fn width(&self) -> usize {
         match self {
-            SkiAir::Cpu(c) => CPU_WIDTH + if c.blind { 2 * BLIND_WIDTH } else { 0 },
+            SkiAir::Cpu(c) => {
+                CPU_WIDTH + if c.blind { 2 * BLIND_WIDTH } else { 0 } + if c.jets { JET_WIDTH } else { 0 }
+            }
             SkiAir::Mem(m) => 5 + if m.blind { BLIND_WIDTH } else { 0 },
             SkiAir::Prog(_) => 1,
             SkiAir::Wit(_) => 1 + BLIND_WIDTH,
+            SkiAir::Jet(j) => j.width(),
         }
     }
 
@@ -476,6 +502,7 @@ impl<F: Field> BaseAir<F> for SkiAir {
                     .collect(),
                 2,
             )),
+            SkiAir::Jet(j) => j.preprocessed(),
             _ => None,
         }
     }
@@ -484,6 +511,7 @@ impl<F: Field> BaseAir<F> for SkiAir {
         match self {
             SkiAir::Prog(_) => 5,
             SkiAir::Wit(_) => 2,
+            SkiAir::Jet(j) => j.preprocessed_width(),
             _ => 0,
         }
     }
@@ -499,6 +527,7 @@ where
             SkiAir::Mem(m) => eval_mem(b, m.blind),
             SkiAir::Prog(_) => eval_prog(b),
             SkiAir::Wit(_) => eval_wit(b),
+            SkiAir::Jet(j) => j.eval(b),
         }
     }
 }
@@ -522,6 +551,7 @@ impl CpuAir {
         let (app, ki, kk, ks) = (s(0), s(1), s(2), s(3));
         let (hi1, hk1, hk2, hs1, hs2, hs3) = (s(4), s(5), s(6), s(7), s(8), s(9));
         let ha = s(10);
+        let inst = s(11);
         let f = |i: usize| loc[FLD + i].clone();
         let (a0, b0, a1, b1, a2, b2, a3, b3) = (f(0), f(1), f(2), f(3), f(4), f(5), f(6), f(7));
 
@@ -544,8 +574,8 @@ impl CpuAir {
 
         // The reads each kind makes, and the tags the kind requires of them.
         let acts = [
-            one.clone(),
-            one.clone() - app.clone() - ha.clone(),
+            one.clone() - inst.clone(),
+            one.clone() - app.clone() - ha.clone() - inst.clone(),
             sum::<AB>(&[kk.clone(), ks.clone(), hk2.clone(), hs2.clone(), hs3.clone()]),
             ks.clone() + hs3.clone(),
         ];
@@ -603,15 +633,23 @@ impl CpuAir {
         );
 
         // The next registers.
-        let next_hd = app.clone() * a0.clone()
+        let mut next_hd = app.clone() * a0.clone()
             + (ki.clone() + kk.clone() + ks.clone()) * a1.clone()
             + halt.clone() * hd.clone();
-        let next_stk = app.clone() * ctr.clone()
+        let mut next_stk = app.clone() * ctr.clone()
             + ki.clone() * b1.clone()
             + kk.clone() * b2.clone()
             + ks.clone() * (ctr.clone() + c(2))
             + halt.clone() * stk.clone();
-        let next_ctr = ctr.clone() + app.clone() + ks.clone() * c(3);
+        let mut next_ctr = ctr.clone() + app.clone() + ks.clone() * c(3);
+        if self.jets {
+            let (next_hd_i, next_stk_i, next_ctr_i) = jets::eval_cpu_inst(b, &loc, &nxt, inst.clone());
+            next_hd = next_hd + next_hd_i;
+            next_stk = next_stk + next_stk_i;
+            next_ctr = next_ctr + next_ctr_i;
+        } else {
+            b.assert_zero(inst.clone());
+        }
         {
             let mut t = b.when_transition();
             t.assert_eq(nxt[HD].clone(), next_hd);
@@ -831,7 +869,7 @@ fn lean_table(term: &str, tb: &Table) -> String {
 /// The AIRs, with the constants and the program table given.
 fn airs_of(hd0: u32, stk0: u32, ctr0: u32, pre: Vec<[u32; 5]>) -> Vec<SkiAir> {
     vec![
-        SkiAir::Cpu(CpuAir { hd0, stk0, ctr0, accept: None, blind: false }),
+        SkiAir::Cpu(CpuAir { hd0, stk0, ctr0, accept: None, blind: false, jets: false }),
         SkiAir::Mem(MemAir { blind: false }),
         SkiAir::Prog(ProgAir { pre }),
     ]
@@ -926,6 +964,32 @@ fn prove_and_verify(
     }
 }
 
+/// The verifier's statement check, run in Lean: `lake exe EXE statement
+/// PATH` from the Lean project that holds `path` (or else the working
+/// directory).  The statement files are
+/// public, but only Lean knows what they must be, so the verifier refuses
+/// any file Lean does not confirm.
+fn lean_statement(exe: &str, path: &std::path::Path) -> Result<(), String> {
+    let abs = std::fs::canonicalize(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let cwd = std::env::current_dir().map_err(|e| format!("{e}"))?;
+    let root = abs
+        .ancestors()
+        .chain(cwd.ancestors())
+        .find(|d| d.join("lakefile.toml").exists())
+        .ok_or_else(|| format!("no Lean project above {} or the working directory", abs.display()))?;
+    let out = std::process::Command::new("lake")
+        .args(["exe", exe, "statement"])
+        .arg(&abs)
+        .current_dir(root)
+        .output()
+        .map_err(|e| format!("lake: {e}"))?;
+    if out.status.success() {
+        Ok(())
+    } else {
+        Err(String::from_utf8_lossy(&out.stdout).lines().filter(|l| !l.starts_with("STATEMENT")).collect::<Vec<_>>().join("; "))
+    }
+}
+
 fn panic_text(e: &Box<dyn std::any::Any + Send>) -> String {
     e.downcast_ref::<String>()
         .cloned()
@@ -952,8 +1016,20 @@ fn main() {
         }
         return;
     }
+    if args.len() == 5 && args[1] == "jets" {
+        let corpus = std::fs::read_to_string(&args[2]).expect("corpus");
+        let out = std::path::Path::new(&args[4]);
+        std::fs::create_dir_all(out).unwrap();
+        std::panic::set_hook(Box::new(|_| {}));
+        let failures = jets::main(&corpus, std::path::Path::new(&args[3]), out);
+        if failures > 0 {
+            println!("\n{failures} FAILURES");
+            std::process::exit(1);
+        }
+        return;
+    }
     if args.len() != 3 {
-        eprintln!("usage: ski-air CORPUS OUTDIR | ski-air sudoku DIR OUTDIR");
+        eprintln!("usage: ski-air CORPUS OUTDIR | ski-air sudoku DIR OUTDIR | ski-air jets CORPUS JETSDIR OUTDIR");
         std::process::exit(2);
     }
     let corpus = std::fs::read_to_string(&args[1]).expect("corpus");

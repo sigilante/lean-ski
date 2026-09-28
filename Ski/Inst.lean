@@ -16,15 +16,20 @@ writes the body's cells, each variable replaced by its argument's pointer
 (`instStep`).  That is template instantiation, and it is §18.1 of
 `avon/DESIGN.md`.
 
-**The theorem** (`inst_sound`): when the head is `absN xs body`, the body's
-variables are among `xs`, and the stack holds `|xs|` arguments, the state
-after an instantiation reads back as a weak reduct of the state before.
+**The theorem** (`inst_sound_g`): when the head is `absN xs body`, the
+stack holds `|xs|` arguments, and every other variable of the body, a
+*global*, points to a cell holding its meaning `γ`, the state after an
+instantiation reads back as a weak reduct of the state before; the head
+must read `(absN xs body).close γ`.  Globals let a body name its closed
+subterms instead of writing them (`instStepG`).  `inst_sound` is the case
+with no globals.
 
 **The corollary** (`jet_run_eval`): a run that mixes machine transitions
 with licensed instantiations, and halts on a weak head normal form, proves
 normal-order evaluation, up to weak reduction of the value:
 standardization (`eval_of_wsteps`) carries the weak reduction to normal
-order.  A jetted run has fewer steps and the same observable value.
+order.  The value's head and arity are the unjetted value's
+(`jet_run_shape`).
 
 An instantiation moves argument pointers and never reads the cells they
 point to, so it cannot quote a running term.

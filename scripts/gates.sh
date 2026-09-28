@@ -59,5 +59,15 @@ else
   note "skipped — skijack not available here; generated modules taken as committed"
 fi
 
+echo "== gate 4: every jetted corpus table passes the jet checker =="
+# lake exe jetcost runs each corpus term jetted at the licensed roots and
+# checks the table with Air.checkJA; it exits nonzero on any rejection or
+# a value whose head and arity differ from the plain run's.
+if lake exe jetcost >/dev/null 2>&1; then
+  note "ok — Air.checkJA accepts every jetted corpus table"
+else
+  bad "lake exe jetcost failed"
+fi
+
 if [ $fail -ne 0 ]; then echo; echo "GATES FAILED"; exit 1; fi
 echo "ALL GATES PASSED"

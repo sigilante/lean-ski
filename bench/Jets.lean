@@ -8,6 +8,9 @@ jetted tables.
 - `jets emit DIR` writes, for each corpus row, `DIR/<row>.jets`: the
   licensed roots and the jets of its loaded term (`JetTable.jetTable`),
   which the prover's preprocessed ROOTS, HEADER and TEMPLATE tables hold.
+- `jets statement DIR` checks that each jet file in `DIR` is exactly the
+  one `emit` writes: what the Plonky3 verifier must check before it builds
+  its preprocessed tables from them.
 - `jets check TABLE...` checks jetted tables the prover wrote, in the
   format of `Ski/AirCheck.lean`: it recomputes the roots and jets from the
   table's term and runs `Air.checkJA`.  `ACCEPT` means the table satisfies
@@ -74,22 +77,44 @@ def parseTable (ls : List String) : Option (Term × Array Cell × List Air.Row) 
     | [] => none
   | _ => none
 
+/-- **The jet file** of a term: what the prover's preprocessed tables hold. -/
+def jetFile (t : Term) (tmpls : List (List Nat × OTerm)) : String × Nat × Nat := Id.run do
+  let (roots, jets) := jetTable (load t).heap tmpls
+  let mut s := s!"roots {roots.length}\n"
+  for (a, g) in roots do
+    s := s ++ s!"{a} {g}\n"
+  s := s ++ s!"jets {jets.length}\n"
+  for J in jets do
+    s := s ++ jetText J
+  return (s, roots.length, jets.length)
+
 def emit (dir : String) : IO UInt32 := do
   IO.FS.createDirAll dir
   let tmpls := allTemplates
   for row in corpus do
-    let t0 ← IO.monoMsNow
-    let m := load row.term
-    let (roots, jets) := jetTable m.heap tmpls
-    let mut s := s!"roots {roots.length}\n"
-    for (a, g) in roots do
-      s := s ++ s!"{a} {g}\n"
-    s := s ++ s!"jets {jets.length}\n"
-    for J in jets do
-      s := s ++ jetText J
+    let (s, r, g) := jetFile row.term tmpls
     IO.FS.writeFile s!"{dir}/{row.name}.jets" s
-    IO.println s!"{row.name}: {roots.length} roots, {jets.length} jets, {(← IO.monoMsNow) - t0} ms"
+    IO.println s!"{row.name}: {r} roots, {g} jets"
   return 0
+
+/-- The verifier's check of the jet files it is given: each must be exactly
+    the jet file of its corpus row. -/
+def statement (dir : String) : IO UInt32 := do
+  let tmpls := allTemplates
+  let mut bad := 0
+  for row in corpus do
+    let path := s!"{dir}/{row.name}.jets"
+    let given ← (IO.FS.readFile path).toBaseIO
+    match given with
+    | .ok text =>
+      if text == (jetFile row.term tmpls).1 then IO.println s!"STATEMENT {path}"
+      else
+        IO.println s!"NOT THE JET FILE {path}"
+        bad := bad + 1
+    | .error _ =>
+      IO.println s!"MISSING {path}"
+      bad := bad + 1
+  return (if bad == 0 then 0 else 1)
 
 def check (paths : List String) : IO UInt32 := do
   let tmpls := allTemplates
@@ -114,7 +139,8 @@ def check (paths : List String) : IO UInt32 := do
 def main (args : List String) : IO UInt32 := do
   match args with
   | ["emit", dir] => emit dir
+  | ["statement", dir] => statement dir
   | "check" :: paths => check paths
   | _ =>
-    IO.eprintln "usage: jets emit DIR | jets check TABLE..."
+    IO.eprintln "usage: jets emit DIR | jets statement DIR | jets check TABLE..."
     return 2

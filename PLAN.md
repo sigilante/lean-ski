@@ -660,8 +660,17 @@ instantiation is weak reduction when the head is `absN xs body`
 to weak reduction of the value (`jet_run_eval`, `Ski/Inst.lean`), and
 weak reduction keeps a value's head and arity, so a jetted run reads back
 what an unjetted one does (`jet_run_shape`, the small lemma,
-`Ski/SmallLemma.lean`); the circuit's instantiation rows are still to
-build.
+`Ski/SmallLemma.lean`). The instantiation rows are built
+(`Ski/AirJet.lean`, `bench/plonky3/src/jets.rs`). A body names its closed
+subterms as globals, public cells (`inst_sound_g`); instantiation without
+them costs 2.2–6.0× the plain run on the compiled rows and `3 sumto`, and
+with them those rows take 28–34%; the interpreted rows gain nothing. An instantiation row at a licensed root is
+a jetted step (`instRow_jstep`), and an accepted table proves the
+evaluation (`air_sound_jet`). Every corpus row proves jetted, and `lake exe
+jets check` accepts each table, and the verifier runs `lake exe jets
+statement` on the jet files first: `3 sumto` takes 3,678 CPU rows instead
+of 25,074. Jets do not yet combine with probes (instantiation over open
+terms) or with zero knowledge.
 
 ## 6. Acceptance
 

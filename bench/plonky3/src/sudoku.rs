@@ -7,10 +7,10 @@
 //! markers, the atoms labelled `ACC` = 731 and `REJ` = 732 (labels, not
 //! addresses).  The verifier sees every cell but the inputs.
 //!
-//! **The verifier trusts `public.txt` only after `lake exe sudoku statement`
-//! accepts it**: the file must be exactly the statement of the puzzle on its
-//! first line.  This program reads the file as given; a file with the
-//! markers exchanged would let a wrong grid verify.  By
+//! **The verifier runs `lake exe sudoku statement` on `public.txt` first**
+//! (`lean_statement`), and refuses it unless it is exactly the statement
+//! of the puzzle on its first line.  Unchecked, a file with the markers
+//! exchanged would let a wrong grid verify.  By
 //! `Stmt.stmtMachine_public`, the blank-input heap states `stmtMachine ρ`
 //! for every `ρ`.
 //!
@@ -234,7 +234,7 @@ fn wit_pre(p: &Public) -> Vec<[u32; 2]> {
 /// The verifier's AIRs, from the public statement alone.
 fn airs(p: &Public) -> Vec<SkiAir> {
     vec![
-        SkiAir::Cpu(CpuAir { hd0: p.hd0, stk0: p.stk0, ctr0: p.ctr0, accept: Some(p.acc), blind: true }),
+        SkiAir::Cpu(CpuAir { hd0: p.hd0, stk0: p.stk0, ctr0: p.ctr0, accept: Some(p.acc), blind: true, jets: false }),
         SkiAir::Mem(MemAir { blind: true }),
         SkiAir::Prog(ProgAir { pre: program_of(p) }),
         SkiAir::Wit(WitAir { pre: wit_pre(p) }),
@@ -505,6 +505,12 @@ fn guess_matches(p: &Public, bits: &[bool]) -> bool {
 
 /// `ski-air sudoku DIR OUTDIR`: DIR holds `lake exe sudoku emit`'s files.
 pub fn main(dir: &std::path::Path, out: &std::path::Path) -> usize {
+    // The verifier's precondition: the statement is Lean's.
+    if let Err(e) = lean_statement("sudoku", &dir.join("public.txt")) {
+        println!("public.txt is not a statement: {e}");
+        return 1;
+    }
+    println!("public.txt: checked by lake exe sudoku statement");
     let p = read_public(&dir.join("public.txt"));
     let mut failures = 0;
     println!(
