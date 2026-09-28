@@ -714,7 +714,8 @@ probe kinds). That proof
 shows halting, with the value's head and arity. A second proof binds the
 output: probe segments over jets show that `3 sumto` decodes to `[6]`
 (`Decodes`, 434,238 bytes), refused for `[5]`, for the error outcome and
-with one byte changed; Lean's `jets check-probe` accepts its table. Its
-witness comes from `ski-air`'s run, not Avon's. The verifier's
+with one byte changed; Lean's `jets check-probe` accepts its table. Avon
+runs its probe segments too (`avon witness --plan`), and its table is
+byte-identical to `ski-air`'s own. The verifier's
 constraints are argued, not proved, to be `AcceptsJ` and `AcceptsP`
 (`release/README.md`).

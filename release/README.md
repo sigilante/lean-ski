@@ -5,9 +5,9 @@ compiled to SKI:
 
 - **It halts.** A proof of the jetted run Avon produced: the term
   evaluates to weak head normal form.
-- **It decodes to `[6]`.** A proof of its probe segments: applied to
-  marker atoms, the term reads, constructor by constructor, as the result
-  `RVal [6]` (`Decodes sumto_us (.val [.num 6])`).
+- **It decodes to `[6]`.** A proof of the probe segments Avon ran:
+  applied to marker atoms, the term reads, constructor by constructor, as
+  the result `RVal [6]` (`Decodes sumto_us (.val [.num 6])`).
 
 Anyone with a lean-ski checkout can check both:
 
@@ -113,9 +113,6 @@ The limits:
   checks the tables these proofs cover (items 5 and 6), but nothing links
   a table to a proof's bytes. The tables and proofs do regenerate, byte
   for byte.
-- **Avon runs the halting witness only.** The output proof's table comes
-  from `ski-air`'s own jetted run (`run_probe`), which instantiates at the
-  same roots Avon does; Avon does not yet run probe segments.
 - **The verifier trusts its build.** The statement check runs the Lean
   project of the checkout the verifier binary was built in, with `lake`
   from `PATH`; `$LEAN_SKI` is consulted only when that is absent.
@@ -166,14 +163,17 @@ instantiation writes only the cells that depend on its arguments
 3. Lean checks that table.
 4. `ski-air jet-prove` proves it, and `ski-air jet-verify` checks the
    proof.
-5. `ski-air probe-prove … val 6` runs the probe segments of `[6]`'s plan,
-   writes their table and proves it; `ski-air probe-verify` checks the
-   proof, and `lake exe jets check-probe` the table.
+5. Lean writes the plan of `[6]` (`lake exe jets plan val 6`). Avon
+   (`avon witness --jet-table --plan`) runs the term's probe segments for
+   it and writes their table, which `lake exe jets check-probe --row
+   sumto_us` checks. `ski-air probe-prove-table` proves it, and `ski-air
+   probe-verify` checks the proof.
 6. The Ω forgery's hand-written table (`forgeries/omega/omega.table`,
    which `lake exe jets check` rejects) is proved over the forged jet
    table.
 
-Avon's witness is byte-identical to the table lean-ski's own prover
-writes for the same term and jet table (Avon's `make jet-witness-check`,
-over the whole corpus). The verifier does not depend on Avon: it checks
+Avon's witnesses are byte-identical to the tables lean-ski's own prover
+writes for the same term, jet table and plan (Avon's `make
+jet-witness-check` and `make probe-witness-check`, over the corpus), and
+`produce.sh` compares the probe table and its proof with ski-air's own. The verifier does not depend on Avon: it checks
 the proof, not the producer.
