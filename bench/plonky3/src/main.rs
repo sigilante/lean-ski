@@ -965,8 +965,7 @@ fn prove_and_verify(
 }
 
 /// The verifier's statement check, run in Lean: `lake exe EXE statement
-/// PATH` from the Lean project that holds `path` (or else the working
-/// directory).  The statement files are
+/// PATHS…` in the lean-ski checkout (see below for how it is found).  The statement files are
 /// public, but only Lean knows what they must be, so the verifier refuses
 /// any file Lean does not confirm.
 fn lean_statement(exe: &str, paths: &[&std::path::Path]) -> Result<String, String> {
@@ -975,12 +974,21 @@ fn lean_statement(exe: &str, paths: &[&std::path::Path]) -> Result<String, Strin
         .map(|p| std::fs::canonicalize(p).map_err(|e| format!("{}: {e}", p.display())))
         .collect::<Result<_, _>>()?;
     let path = &abs[abs.len() - 1];
+    // The Lean project: $LEAN_SKI if set, else the lean-ski checkout this
+    // binary was built in (it lives at bench/plonky3/target/…), else one
+    // above the files or the working directory.
+    let me = std::env::current_exe().map_err(|e| format!("{e}"))?;
     let cwd = std::env::current_dir().map_err(|e| format!("{e}"))?;
-    let root = path
-        .ancestors()
+    let env = std::env::var_os("LEAN_SKI").map(std::path::PathBuf::from);
+    let root = env
+        .iter()
+        .map(|p| p.as_path())
+        .chain(me.ancestors())
+        .chain(path.ancestors())
         .chain(cwd.ancestors())
-        .find(|d| d.join("lakefile.toml").exists())
-        .ok_or_else(|| format!("no Lean project above {} or the working directory", path.display()))?;
+        .find(|d| d.join("lakefile.toml").exists() && d.join("bench/Jets.lean").exists())
+        .ok_or_else(|| "no lean-ski checkout found (set LEAN_SKI)".to_string())?
+        .to_path_buf();
     let out = std::process::Command::new("lake")
         .args(["exe", exe, "statement"])
         .args(&abs)
@@ -1020,6 +1028,20 @@ fn main() {
         }
         return;
     }
+    if args.len() == 6 && (args[1] == "jet-prove" || args[1] == "jet-verify") {
+        std::panic::set_hook(Box::new(|_| {}));
+        let p = |i: usize| std::path::Path::new(&args[i]);
+        let r = if args[1] == "jet-prove" {
+            jets::jet_prove(p(2), p(3), p(4), p(5))
+        } else {
+            jets::jet_verify(p(2), p(3), &args[4], p(5))
+        };
+        if let Err(e) = r {
+            println!("REJECTED: {e}");
+            std::process::exit(1);
+        }
+        return;
+    }
     if args.len() == 5 && args[1] == "jets" {
         let corpus = std::fs::read_to_string(&args[2]).expect("corpus");
         let out = std::path::Path::new(&args[4]);
@@ -1033,7 +1055,10 @@ fn main() {
         return;
     }
     if args.len() != 3 {
-        eprintln!("usage: ski-air CORPUS OUTDIR | ski-air sudoku DIR OUTDIR | ski-air jets CORPUS JETSDIR OUTDIR");
+        eprintln!(
+            "usage: ski-air CORPUS OUTDIR | ski-air sudoku DIR OUTDIR | ski-air jets CORPUS JETSDIR OUTDIR\n       \
+             ski-air jet-prove TERM JETS TABLE PROOF | ski-air jet-verify CORPUS JETSDIR NAME PROOF"
+        );
         std::process::exit(2);
     }
     let corpus = std::fs::read_to_string(&args[1]).expect("corpus");

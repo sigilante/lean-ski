@@ -642,7 +642,10 @@ fn airs(t: &Term, jt: &JetTable) -> Vec<SkiAir> {
 /// Prove the traces, then verify against the public term and jet table.
 /// The verifier rebuilds its AIRs and preprocessed tables, pins the
 /// preprocessed heights, and bounds the others by `MAX_LOG_HEIGHT`.
-fn prove_and_verify_j(t: &Term, jt: &JetTable, tr: &JTraces) -> Outcome {
+type JProof = p3_batch_stark::BatchProof<Config>;
+
+/// Prove the traces: the proof and the seconds it took, setup included.
+fn prove_j(t: &Term, jt: &JetTable, tr: &JTraces) -> Result<(JProof, f64), String> {
     let traces = [&tr.cpu, &tr.mem, &tr.prog, &tr.roots, &tr.hdr, &tr.tmpl, &tr.pop, &tr.instw];
     let log = |m: &RowMajorMatrix<Val>| p3_util::log2_strict_usize(m.values.len() / m.width);
     let proved = catch_unwind(AssertUnwindSafe(|| {
@@ -657,12 +660,17 @@ fn prove_and_verify_j(t: &Term, jt: &JetTable, tr: &JTraces) -> Outcome {
         let proof = prove_batch(&config, &instances, &pd).map_err(|e| format!("prove: {e:?}"))?;
         Ok::<_, String>((proof, t0.elapsed().as_secs_f64()))
     }));
-    let (proof, prove_s) = match proved {
-        Ok(Ok(p)) => p,
-        Ok(Err(e)) => return Outcome::Refused(e),
-        Err(e) => return Outcome::Refused(format!("panic: {}", panic_text(&e))),
-    };
-    let t1 = Instant::now();
+    match proved {
+        Ok(r) => r,
+        Err(e) => Err(format!("panic: {}", panic_text(&e))),
+    }
+}
+
+/// **The verifier**: the public term, its jet table and the proof, nothing
+/// else.  It rebuilds its AIRs and preprocessed tables, pins the
+/// preprocessed heights, and bounds the others by `MAX_LOG_HEIGHT`.  (The
+/// jet table must first pass `lake exe jets statement`: `jet_verify`.)
+fn verify_j(t: &Term, jt: &JetTable, proof: &JProof) -> Result<(), String> {
     let verified = catch_unwind(AssertUnwindSafe(|| {
         let config = make_config();
         let a = airs(t, jt);
@@ -683,13 +691,166 @@ fn prove_and_verify_j(t: &Term, jt: &JetTable, tr: &JTraces) -> Outcome {
         let vd = ProverData::<Config>::from_airs_and_degrees(&config, &a, d)
             .map_err(|e| format!("verifier setup: {e:?}"))?;
         let pvs = vec![vec![]; 8];
-        verify_batch(&config, &a, &proof, &pvs, &vd.common).map_err(|e| format!("verify: {e:?}"))
+        verify_batch(&config, &a, proof, &pvs, &vd.common).map_err(|e| format!("verify: {e:?}"))
     }));
     match verified {
-        Ok(Ok(())) => Outcome::Verified(prove_s, t1.elapsed().as_secs_f64()),
-        Ok(Err(e)) => Outcome::Rejected(e),
-        Err(e) => Outcome::Rejected(format!("verifier panic: {}", panic_text(&e))),
+        Ok(r) => r,
+        Err(e) => Err(format!("verifier panic: {}", panic_text(&e))),
     }
+}
+
+fn prove_and_verify_j(t: &Term, jt: &JetTable, tr: &JTraces) -> Outcome {
+    let (proof, prove_s) = match prove_j(t, jt, tr) {
+        Ok(p) => p,
+        Err(e) => return Outcome::Refused(e),
+    };
+    let t1 = Instant::now();
+    match verify_j(t, jt, &proof) {
+        Ok(()) => Outcome::Verified(prove_s, t1.elapsed().as_secs_f64()),
+        Err(e) => Outcome::Rejected(e),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// A table from elsewhere (Avon's witness), proved; a proof, verified alone
+// ---------------------------------------------------------------------------
+
+/// A table in `Ski/AirCheck.lean`'s format: the term's prefix form, the
+/// memory table and the rows.
+fn read_table(path: &std::path::Path) -> Result<(String, Vec<Cell>, Vec<[u32; 3]>), String> {
+    let text = std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let mut ls = text.lines();
+    let mut next = || ls.next().ok_or_else(|| "a truncated table".to_string());
+    let term = next()?.trim().to_string();
+    let n: usize = next()?.trim().parse().map_err(|_| "a memory count".to_string())?;
+    let mut mem = Vec::with_capacity(n);
+    for _ in 0..n {
+        let l = next()?;
+        let w: Vec<&str> = l.split_whitespace().collect();
+        let num = |i: usize| w.get(i).and_then(|x| x.parse::<u32>().ok()).ok_or_else(|| format!("a bad cell: {l}"));
+        mem.push(match w.first().copied() {
+            Some("S") => Cell::S,
+            Some("K") => Cell::K,
+            Some("I") => Cell::I,
+            Some("N") => Cell::Nil,
+            Some("A") => Cell::App(num(1)?, num(2)?),
+            Some("C") => Cell::Cons(num(1)?, num(2)?),
+            _ => return Err(format!("a bad cell: {l}")),
+        });
+    }
+    let k: usize = next()?.trim().parse().map_err(|_| "a row count".to_string())?;
+    let mut rows = Vec::with_capacity(k);
+    for _ in 0..k {
+        let l = next()?;
+        let v: Vec<u32> = l.split_whitespace().filter_map(|x| x.parse().ok()).collect();
+        if v.len() != 3 {
+            return Err(format!("a bad row: {l}"));
+        }
+        rows.push([v[0], v[1], v[2]]);
+    }
+    Ok((term, mem, rows))
+}
+
+/// The run a table records: each row an instantiation when its head is a
+/// licensed root and the next row and the memory at the counter are that
+/// instantiation's (as `Air.instRow` would find them), and otherwise a
+/// machine transition or a halt, which the traces classify.
+fn run_of_table(t: &Term, jt: &JetTable, mem: Vec<Cell>, rows: Vec<[u32; 3]>) -> Result<JRun, String> {
+    let (loaded, _, _) = load(t);
+    if mem.len() < loaded.len() || mem[..loaded.len()] != loaded[..] {
+        return Err("the memory table does not begin with the loaded term".into());
+    }
+    let roots: std::collections::HashMap<u32, u32> = jt.roots.iter().copied().collect();
+    let mut out = Vec::with_capacity(rows.len());
+    let mut insts = 0;
+    for (i, &[hd, stk, ctr]) in rows.iter().enumerate() {
+        let info = roots.get(&hd).and_then(|&g| {
+            let j = &jt.jets[g as usize];
+            let below = &mem[..(ctr as usize).min(mem.len())];
+            let (pops, rest) = pop(below, j.k, stk)?;
+            let ps: Vec<u32> = pops.iter().map(|p| p.1).collect();
+            let cells: Vec<(Cell, u32, u32)> = j
+                .cells
+                .iter()
+                .map(|&(tag, ops)| match ops {
+                    Some((a, b)) => {
+                        let xa = if let Op::Arg(q) = a { ps[q as usize] } else { 0 };
+                        let xb = if let Op::Arg(q) = b { ps[q as usize] } else { 0 };
+                        (Cell::App(resolve(a, ctr, &ps), resolve(b, ctr, &ps)), xa, xb)
+                    }
+                    None => (match tag { 0 => Cell::S, 1 => Cell::K, _ => Cell::I }, 0, 0),
+                })
+                .collect();
+            let n = cells.len() as u32;
+            let written = mem.get(ctr as usize..(ctr + n) as usize)?;
+            if written.iter().zip(&cells).any(|(m, c)| *m != c.0) {
+                return None;
+            }
+            let root = resolve(j.root, ctr, &ps);
+            let xroot = if let Op::Arg(q) = j.root { ps[q as usize] } else { 0 };
+            (rows.get(i + 1) == Some(&[root, rest, ctr + n]))
+                .then_some(InstInfo { g, pops, rest, xroot, cells })
+        });
+        if info.is_some() {
+            insts += 1;
+        }
+        out.push(([hd, stk, ctr], info));
+    }
+    Ok(JRun { rows: out, heap: mem, loaded, insts })
+}
+
+/// `ski-air jet-prove TERM JETS TABLE PROOF`: prove the table another
+/// producer wrote (Avon's jetted witness) for the term and its jet table;
+/// write the proof, and check it verifies.
+pub fn jet_prove(term: &std::path::Path, jets: &std::path::Path, table: &std::path::Path, proof_out: &std::path::Path) -> Result<(), String> {
+    let term_text = std::fs::read_to_string(term).map_err(|e| format!("{}: {e}", term.display()))?;
+    let term_text = term_text.trim();
+    let t = parse(term_text.as_bytes(), &mut 0);
+    let jt = read_jets(jets);
+    let (tterm, mem, rows) = read_table(table)?;
+    if tterm != term_text {
+        return Err("the table is for another term".into());
+    }
+    let run = run_of_table(&t, &jt, mem, rows)?;
+    let tr = catch_unwind(AssertUnwindSafe(|| build_traces(&t, &jt, &run)))
+        .map_err(|e| format!("the table is no run: {}", panic_text(&e)))?;
+    let (proof, prove_s) = prove_j(&t, &jt, &tr)?;
+    let bytes = postcard::to_allocvec(&proof).map_err(|e| format!("serialize: {e}"))?;
+    std::fs::write(proof_out, &bytes).map_err(|e| format!("{}: {e}", proof_out.display()))?;
+    verify_j(&t, &jt, &proof)?;
+    println!(
+        "proved {} rows ({} instantiations), {} memory cells, in {prove_s:.2} s; proof {} bytes -> {}",
+        run.rows.len(),
+        run.insts,
+        run.heap.len(),
+        bytes.len(),
+        proof_out.display()
+    );
+    Ok(())
+}
+
+/// `ski-air jet-verify CORPUS JETSDIR NAME PROOF`: the verifier.  Lean
+/// checks the jet files for the corpus's terms (`lake exe jets statement`),
+/// then the proof is checked against the term named NAME and its jet file,
+/// and nothing else.
+pub fn jet_verify(corpus: &std::path::Path, dir: &std::path::Path, name: &str, proof_in: &std::path::Path) -> Result<(), String> {
+    lean_statement("jets", &[corpus, dir]).map_err(|e| format!("statement: {e}"))?;
+    let text = std::fs::read_to_string(corpus).map_err(|e| format!("{}: {e}", corpus.display()))?;
+    let term = text
+        .lines()
+        .find_map(|l| {
+            let w: Vec<&str> = l.split_whitespace().collect();
+            (w.len() == 3 && w[0] == name).then(|| w[2].to_string())
+        })
+        .ok_or_else(|| format!("no term named {name} in {}", corpus.display()))?;
+    let t = parse(term.as_bytes(), &mut 0);
+    let jt = read_jets(&dir.join(format!("{name}.jets")));
+    let bytes = std::fs::read(proof_in).map_err(|e| format!("{}: {e}", proof_in.display()))?;
+    let proof: JProof = postcard::from_bytes(&bytes).map_err(|e| format!("deserialize: {e}"))?;
+    let t0 = Instant::now();
+    verify_j(&t, &jt, &proof)?;
+    println!("VERIFIED {name}: the proof checks against its term and Lean's jet table ({:.3} s)", t0.elapsed().as_secs_f64());
+    Ok(())
 }
 
 fn lean_of(term: &str, run: &JRun, tr: &JTraces) -> String {
