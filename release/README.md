@@ -74,7 +74,8 @@ that it runs in about 15 seconds. It prints one `ok` line per check, then
    the jet table and the plan. Offered for `[5]`, for the error outcome or
    for `[6, 0]`, spelled `06`, with one byte changed, or in place of the
    halting proof, it is refused (an outcome has one spelling: plain
-   decimal). `lake exe jets check-probe` accepts its table,
+   decimal). A number `n` takes `n + 1` probes, so Lean gives no plan
+   past 65,536 segments. `lake exe jets check-probe` accepts its table,
    `sumto/sumto_us.probe.table`, for `[6]` (`Air.checkPA_decodes`) and
    rejects it for `[5]`.
 

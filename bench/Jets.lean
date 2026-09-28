@@ -21,7 +21,9 @@ jetted tables.
   (`Air.checkJA_sound`, `Air.air_sound_jet`).
 - `jets plan OUTCOME` prints the probe plan of an outcome
   (`Air.planOf (Probe.toV o) 0`): what the prover's preprocessed PLAN table
-  holds.  An outcome is `err`, or `val` and the stack's numbers, top first.
+  holds.  An outcome is `err`, or `val` and the stack's numbers, top first,
+  in plain decimal.  A number's probe tree is unary, so plans are capped
+  at 65,536 segments: a larger outcome gets no plan, not a hung Lean.
 - `jets check-probe TABLE OUTCOME` checks a table with probe segments:
   the format above, then `starts N` and `N` lines, the segments' start
   rows and the last row, then `fields n` and `n` lines `a p1 … pa`, each
@@ -183,7 +185,9 @@ def check (paths : List String) : IO UInt32 := do
   let tmpls := allTemplates
   let mut bad := 0
   for path in paths do
-    let text ← IO.FS.readFile path
+    let text ← match ← (IO.FS.readFile path).toBaseIO with
+      | .ok t => pure t
+      | .error _ => pure ""
     let ls := (text.splitOn "\n").filter (fun l => !l.trimAscii.toString.isEmpty)
     match parseTable ls with
     | none =>
@@ -203,9 +207,16 @@ def check (paths : List String) : IO UInt32 := do
     first, each in plain decimal, so one outcome has one spelling. -/
 def parseOutcome : List String → Option Outcome
   | ["err"] => some .err
-  | "val" :: ns => do some (.val ((← ns.mapM decimal).map Item.num))
+  | "val" :: ns => do
+    let ns ← ns.mapM decimal
+    -- A number `n` takes `n + 1` segments (its probe tree is unary), each
+    -- item two more: refuse plans past `maxSegs` before building them.
+    if ns.foldl (· + ·) 0 + 3 * ns.length + 2 > maxSegs then none
+    some (.val (ns.map Item.num))
   | _ => none
 where
+  /-- The most segments a plan may have; a table has at most `2^21` rows. -/
+  maxSegs : Nat := 65536
   /-- A number in plain decimal: digits only, no leading zero. -/
   decimal (w : String) : Option Nat :=
     if !w.isEmpty && w.all Char.isDigit && (w == "0" || w.front != '0') then w.toNat? else none
@@ -255,7 +266,9 @@ def checkProbe (path : String) (ws : List String) : IO UInt32 := do
   let tmpls := allTemplates
   let some o := parseOutcome ws | do IO.println "MALFORMED OUTCOME"; return 1
   let some pl := planOfOutcome o | do IO.println "NO PLAN FOR THE OUTCOME"; return 1
-  let text ← IO.FS.readFile path
+  let text ← match ← (IO.FS.readFile path).toBaseIO with
+    | .ok t => pure t
+    | .error _ => do IO.println s!"MALFORMED {path}"; return 1
   let ls := (text.splitOn "\n").filter (fun l => !l.trimAscii.toString.isEmpty)
   -- The table proper ends where `starts` begins.
   let i := ls.findIdx (fun l => (words l).headD "" == "starts")
