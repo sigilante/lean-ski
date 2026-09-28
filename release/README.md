@@ -19,7 +19,9 @@ that it runs in seconds. It prints one `ok` line per check, then
 1. **The term.** `sumto/corpus.txt` holds lean-ski's corpus row `sumto_us`:
    `3 sumto`, compiled with its own quotation table (`Ski/Corpus.lean`;
    `Ski/Table.lean` pins the term to the kernel's compilation of the
-   program, `sumto_us_eq`). `verify.sh` checks the file against what
+   program, `SumTable.sumto_us_eq`). The line's middle field, the
+   contraction count skijack's reducer reports, is informational: the
+   proof claims nothing about it, and only step 1's comparison checks it. `verify.sh` checks the file against what
    `bench/Dump.lean` prints.
 2. **The jet table.** `sumto/jets/sumto_us.jets` lists 2,768 licensed
    roots and 78 jets. Before the verifier reads it, Lean's `lake exe jets
@@ -30,9 +32,14 @@ that it runs in seconds. It prints one `ok` line per check, then
    BabyBear, 375,160 bytes, over the eight tables of
    `bench/plonky3/src/jets.rs`. `ski-air jet-verify` checks it against the
    term and the jet table alone.
-4. **Two forgeries are refused.** One is the proof with one byte
-   changed. The other is the proof offered for another term
-   (`compiled_up`).
+4. **Forgeries are refused:**
+   - the proof with one byte changed;
+   - the proof offered for another term (`compiled_up`);
+   - the proof with a byte appended (a proof is one byte string);
+   - a name that is a path. A name must be an identifier on both sides,
+     so Lean's statement check and the verifier open the same jet file.
+     An independent check from a clean clone found this hole: an absolute
+     name let a forged jet table verify a halting proof for Ω.
 5. **Lean's own check of the witness.** `lake exe jets check` accepts
    Avon's table, `sumto/sumto_us.table` (`Air.checkJA_sound`).
 
@@ -48,13 +55,18 @@ The limits:
 
 - **The output is not bound.** The proof does not show that the value
   decodes to `[6]`. Lean proves that separately about the term
-  (`Ski/Examples.lean`, `us_six`), not about this run. Binding an output
+  (`Ski/Examples.lean`, `SumTable.us_six`), not about this run. Binding an output
   in the circuit takes an atom probe (`Air.air_probe`), and jets do not
   yet combine with probes.
 - **The link from Plonky3 to Lean is argued, not proved.** That every
   table the verifier accepts satisfies `Air.AcceptsJ` is argued in the
   headers of `bench/plonky3/src/main.rs` and `src/jets.rs`. Lean checks
-  the one table this proof covers (item 5 above).
+  the one table this proof covers (item 5 above), but nothing links that
+  table to the proof's bytes. The table does regenerate, byte for byte,
+  as does the proof.
+- **The verifier trusts its build.** The statement check runs the Lean
+  project of the checkout the verifier binary was built in, with `lake`
+  from `PATH`; `$LEAN_SKI` is consulted only when that is absent.
 - **The proof is not zero knowledge**, and has nothing to hide: the term
   is public.
 - **Security is Plonky3's benchmark setting** (`bench/plonky3/README.md`).

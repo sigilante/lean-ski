@@ -100,7 +100,9 @@ def emit (dir : String) : IO UInt32 := do
 
 /-- **The verifier's check of the jet files**, for the terms it proves.
     Each line of `corpus` (`name steps term`, `bench/Dump.lean`'s format)
-    names a term and the file `DIR/<name>.jets` the verifier will build its
+    names a term (the name an identifier: letters, digits, `_`; the steps
+    field is not checked, and nothing is claimed about it) and the file
+    `DIR/<name>.jets` the verifier will build its
     preprocessed tables from; that file must be exactly the jet file of that
     term, and its roots must pass `Air.rootsOKB` over the term's loaded
     heap, which gives `Air.RootsOK` (`Air.rootsOKB_sound`), the hypothesis
@@ -117,6 +119,12 @@ def statement (corpusPath dir : String) : IO UInt32 := do
     | [name, _, termText] =>
       match parseTerm termText.toList with
       | some (t, []) =>
+        -- A name is an identifier, so this path and the verifier's name
+        -- the same file: no `/`, no `.`, nothing a path could resolve.
+        if name.isEmpty || !name.all (fun c => c.isAlphanum || c == '_') then
+          IO.println s!"MALFORMED NAME {name}"
+          bad := bad + 1
+          continue
         n := n + 1
         let path := s!"{dir}/{name}.jets"
         let (expected, roots, jets) := jetTable' t tmpls

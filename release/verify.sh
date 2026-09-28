@@ -8,8 +8,10 @@
 #   2. ski-air jet-verify: Lean's `lake exe jets statement` checks the jet
 #      file against that term and licenses its roots (Air.rootsOKB), then
 #      the proof is verified against the term and the jet file;
-#   3. two forgeries must be refused: the proof with one byte changed, and
-#      the proof offered for another term;
+#   3. forgeries must be refused: the proof with one byte changed, the
+#      proof offered for another term, the proof with a byte appended, and a
+#      name that is a path (which could make Lean check one jet file and the
+#      verifier read another);
 #   4. Lean's own check of Avon's witness table (Air.checkJA_sound).
 #
 # Exits nonzero on any failure.
@@ -24,7 +26,7 @@ no() { printf 'FAIL %s\n' "$*"; exit 1; }
 
 echo "--- building the Lean checkers and the verifier (first run: minutes)"
 lake build jets > /dev/null
-(cd bench/plonky3 && cargo build --release --quiet)
+(cd bench/plonky3 && cargo build --release --locked --quiet)
 SKI_AIR=bench/plonky3/target/release/ski-air
 
 echo "--- 1. the term is lean-ski's 3 sumto"
@@ -56,6 +58,24 @@ if "$SKI_AIR" jet-verify "$tmp/other.txt" "$tmp/jets" compiled_up "$R/sumto_us.p
     no "the proof verified for another term"
 else
     ok "the proof offered for another term is refused ($(head -c 70 "$tmp/other.log"))"
+fi
+
+/bin/cp "$R/sumto_us.proof" "$tmp/longer.proof"
+printf 'x' >> "$tmp/longer.proof"
+if "$SKI_AIR" jet-verify "$R/corpus.txt" "$R/jets" sumto_us "$tmp/longer.proof" > "$tmp/longer.log"; then
+    no "the proof with a byte appended verified"
+else
+    ok "the proof with a byte appended is refused ($(head -c 70 "$tmp/longer.log"))"
+fi
+# A name that is a path would let Lean's check and the verifier's reader
+# open different files; names are identifiers, on both sides.
+mkdir -p "$tmp/abs"
+/bin/cp "$R/jets/sumto_us.jets" "$tmp/abs/sumto_us.jets"
+sed "s#^sumto_us #$tmp/abs/sumto_us #" "$R/corpus.txt" > "$tmp/abs.txt"
+if "$SKI_AIR" jet-verify "$tmp/abs.txt" "$R/jets" "$tmp/abs/sumto_us" "$R/sumto_us.proof" > "$tmp/abs.log"; then
+    no "a name that is a path was accepted"
+else
+    ok "a name that is a path is refused ($(head -c 70 "$tmp/abs.log"))"
 fi
 
 echo "--- 4. Lean's check of Avon's witness table"

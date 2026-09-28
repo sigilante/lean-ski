@@ -834,6 +834,12 @@ pub fn jet_prove(term: &std::path::Path, jets: &std::path::Path, table: &std::pa
 /// then the proof is checked against the term named NAME and its jet file,
 /// and nothing else.
 pub fn jet_verify(corpus: &std::path::Path, dir: &std::path::Path, name: &str, proof_in: &std::path::Path) -> Result<(), String> {
+    // A name is an identifier, as Lean's statement check requires, so both
+    // sides open the same `DIR/<name>.jets`: an absolute or relative path
+    // here would let Lean check one file and this code read another.
+    if name.is_empty() || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+        return Err(format!("a name must be an identifier, not {name:?}"));
+    }
     lean_statement("jets", &[corpus, dir]).map_err(|e| format!("statement: {e}"))?;
     let text = std::fs::read_to_string(corpus).map_err(|e| format!("{}: {e}", corpus.display()))?;
     let term = text
@@ -846,7 +852,13 @@ pub fn jet_verify(corpus: &std::path::Path, dir: &std::path::Path, name: &str, p
     let t = parse(term.as_bytes(), &mut 0);
     let jt = read_jets(&dir.join(format!("{name}.jets")));
     let bytes = std::fs::read(proof_in).map_err(|e| format!("{}: {e}", proof_in.display()))?;
-    let proof: JProof = postcard::from_bytes(&bytes).map_err(|e| format!("deserialize: {e}"))?;
+    // The whole file is the proof: trailing bytes are refused, so a proof
+    // is one byte string.
+    let (proof, rest): (JProof, &[u8]) =
+        postcard::take_from_bytes(&bytes).map_err(|e| format!("deserialize: {e}"))?;
+    if !rest.is_empty() {
+        return Err(format!("{} bytes after the proof", rest.len()));
+    }
     let t0 = Instant::now();
     verify_j(&t, &jt, &proof)?;
     println!("VERIFIED {name}: the proof checks against its term and Lean's jet table ({:.3} s)", t0.elapsed().as_secs_f64());

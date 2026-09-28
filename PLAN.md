@@ -689,4 +689,14 @@ main` matches the reference on every corpus row — done. Language layer:
 composition and the divergence biconditional over SKIlark's compiled form
 with `apply`, every leaf in the manifest — done for every valid table
 (§3), with four tables checked as data. Endgame: a proof of execution for one corpus program verified by
-a third party, with its jet table and per-contraction cost reported.
+a third party, with its jet table and per-contraction cost reported —
+done for `3 sumto` (`release/`). Avon's jetted witness is proved by
+`ski-air`, 3,678 CPU rows where the plain run takes 25,074 (0.36 per
+contraction, against 2.44), with 78 jets and 2,768 roots. A reviewer that
+had not seen the work cloned the repository, ran `release/verify.sh`, and
+reproduced the proof byte for byte. Its attacks found one hole, now
+closed and kept as a standing forgery: a jet-file name that was a path
+let Lean's statement check and the verifier read different files. The
+proof shows halting, with the value's head and arity, not the decoded
+output; and the verifier's constraints are argued, not proved, to be
+`AcceptsJ` (`release/README.md`).

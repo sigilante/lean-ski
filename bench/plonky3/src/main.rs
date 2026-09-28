@@ -974,16 +974,16 @@ fn lean_statement(exe: &str, paths: &[&std::path::Path]) -> Result<String, Strin
         .map(|p| std::fs::canonicalize(p).map_err(|e| format!("{}: {e}", p.display())))
         .collect::<Result<_, _>>()?;
     let path = &abs[abs.len() - 1];
-    // The Lean project: $LEAN_SKI if set, else the lean-ski checkout this
-    // binary was built in (it lives at bench/plonky3/target/…), else one
-    // above the files or the working directory.
+    // The Lean project: the lean-ski checkout this binary was built in (it
+    // lives at bench/plonky3/target/…), so the statement check is the one
+    // shipped with the verifier; else $LEAN_SKI; else one above the files
+    // or the working directory.
     let me = std::env::current_exe().map_err(|e| format!("{e}"))?;
     let cwd = std::env::current_dir().map_err(|e| format!("{e}"))?;
     let env = std::env::var_os("LEAN_SKI").map(std::path::PathBuf::from);
-    let root = env
-        .iter()
-        .map(|p| p.as_path())
-        .chain(me.ancestors())
+    let root = me
+        .ancestors()
+        .chain(env.iter().map(|p| p.as_path()))
         .chain(path.ancestors())
         .chain(cwd.ancestors())
         .find(|d| d.join("lakefile.toml").exists() && d.join("bench/Jets.lean").exists())
