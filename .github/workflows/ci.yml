@@ -22,7 +22,7 @@ jobs:
   # The front end's coverage of SKIjack, checked in the kernel: its own
   # project, built one module at a time.  The largest module, the checker's
   # verdict on scripts/coverage.ski (a unification skijack never finishes,
-  # refused at its recursion limit), peaks at about 12.6 GB; the standard
+  # refused at its recursion limit), peaks at about 13 GB; the standard
   # runner for a public repository has 16 GB.
   coverage:
     runs-on: ubuntu-latest
@@ -34,6 +34,20 @@ jobs:
           curl -sSfL https://github.com/leanprover/elan/releases/latest/download/elan-x86_64-unknown-linux-gnu.tar.gz | tar xz
           ./elan-init -y --default-toolchain none
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      # SkiCoverage.CoverageChecks peaks at about 13 GB (one `decide +kernel`
+      # refusal at the checker's recursion limit), close to the runner's
+      # 16 GB.  From 2026-09-28 it was killed (SIGTERM, exit 143) under
+      # memory pressure; systemd-oomd acts on sustained pressure, so stop it
+      # and give the kernel swap to page to instead.
+      - name: Make room for the largest module
+        run: |
+          sudo systemctl stop systemd-oomd || true
+          sudo fallocate -l 8G /mnt/swapfile
+          sudo chmod 600 /mnt/swapfile
+          sudo mkswap /mnt/swapfile
+          sudo swapon /mnt/swapfile
+          free -h
+          df -h / /mnt
       - name: Build the coverage project (elaborates its audit manifest)
         run: ./scripts/build-coverage.sh
   # The zero-knowledge layer: traversability and fingerprints, over Pure
