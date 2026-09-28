@@ -22,8 +22,9 @@ jobs:
   # The front end's coverage of SKIjack, checked in the kernel: its own
   # project, built one module at a time.  The largest module, the checker's
   # verdict on scripts/coverage.ski (a unification skijack never finishes,
-  # refused at its recursion limit), peaks at about 13 GB; the standard
-  # runner for a public repository has 16 GB.
+  # refused at its recursion limit), peaks at about 13 GiB, and two more
+  # pass 6.5; a private repository's runner has 7.8, so CI skips those
+  # three (--ci).
   coverage:
     runs-on: ubuntu-latest
     timeout-minutes: 120
@@ -34,12 +35,13 @@ jobs:
           curl -sSfL https://github.com/leanprover/elan/releases/latest/download/elan-x86_64-unknown-linux-gnu.tar.gz | tar xz
           ./elan-init -y --default-toolchain none
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
-      # SkiCoverage.CoverageChecks peaks at about 13 GB (one `decide +kernel`
-      # refusal at the checker's recursion limit), close to the runner's
-      # 16 GB.  From 2026-09-28 it was killed (SIGTERM, exit 143) under
-      # memory pressure; systemd-oomd acts on sustained pressure, so stop it
-      # and give the kernel swap to page to instead.
-      - name: Make room for the largest module
+      # A private repository's runner has 7.8 GiB.  The heavy modules
+      # (CoverageChecks at 13 GiB, AsciiDigits and its checks at 6.7 and 7.2)
+      # and their audit (AuditHeavy) are skipped; build-coverage.sh without
+      # --ci builds them locally.  The rest peak under 5.7 GiB; swap is a
+      # margin for those, and systemd-oomd is stopped so pressure pages out
+      # instead of killing the build.
+      - name: Swap, as a margin
         run: |
           sudo systemctl stop systemd-oomd || true
           sudo fallocate -l 8G /mnt/swapfile
@@ -47,9 +49,8 @@ jobs:
           sudo mkswap /mnt/swapfile
           sudo swapon /mnt/swapfile
           free -h
-          df -h / /mnt
-      - name: Build the coverage project (elaborates its audit manifest)
-        run: ./scripts/build-coverage.sh
+      - name: Build the coverage project, but its heavy modules (elaborates its audit manifest)
+        run: ./scripts/build-coverage.sh --ci
   # The zero-knowledge layer: traversability and fingerprints, over Pure
   # Nock and Mathlib.  Mathlib comes from its cache.
   zk:

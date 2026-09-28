@@ -3,11 +3,29 @@
 # kernel check of one suite; built in parallel their memory adds up past a
 # CI runner's, built in sequence each holds only its own.  The audit, which
 # imports them all, comes last.
+#
+# With --ci, skip the heavy modules (those SkiCoverage/AuditHeavy.lean
+# imports, which peak at 6.7 to 13 GiB, over a private repository's 7.8 GiB
+# runner) and their audit, and build the rest and
+# SkiCoverage.Audit.  Without it, build everything; run it locally before
+# pushing a change to the generated coverage files.
 set -euo pipefail
+ci=0
+if [ "${1:-}" = "--ci" ]; then ci=1; fi
 cd "$(dirname "$0")/../coverage"
+heavy=$(grep '^import SkiCoverage\.' SkiCoverage/AuditHeavy.lean | sed 's/^import //')
 lake build Ski
-for m in $(grep '^import SkiCoverage\.' SkiCoverage.lean | sed 's/^import //' | grep -v '^SkiCoverage.Audit$'); do
+for m in $(grep '^import SkiCoverage\.' SkiCoverage.lean | sed 's/^import //' \
+             | grep -v -e '^SkiCoverage.Audit$' -e '^SkiCoverage.AuditHeavy$'); do
+  if [ $ci -eq 1 ] && printf '%s\n' $heavy | grep -qx "$m"; then
+    echo "== $m: skipped (heavy; built locally)"
+    continue
+  fi
   echo "== $m"
   lake build "$m"
 done
-lake build
+if [ $ci -eq 1 ]; then
+  lake build SkiCoverage.Audit
+else
+  lake build
+fi

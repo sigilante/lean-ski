@@ -1,4 +1,5 @@
 import SkiCoverage.Audit
+import SkiCoverage.AuditHeavy
 import SkiCoverage.Coverage
 import SkiCoverage.CoverageChecks
 import SkiCoverage.Macros
