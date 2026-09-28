@@ -33,9 +33,10 @@ counter on (`icells`, which is what `ibuild` writes), and checks the writes
   loaded term whose roots are licensed, ends on a value that the term
   evaluates to in normal order, up to weak reduction of the value, with the
   same head combinator and arity (`jet_run_eval`, `jet_run_shape`).
-- `checkJA_sound`: `checkJA` decides these constraints' soundness side on
-  a concrete table, over an array: what `lake exe jets check` runs on the
-  Plonky3 prover's jetted tables.
+- `checkJA_sound`: a concrete table `checkJA` accepts, over an array,
+  meets these constraints with licensed roots (completeness is not
+  proved): what `lake exe jets check` runs on the Plonky3 prover's jetted
+  tables.
 
 Instantiation is not tied to a halt: at a root the prover may unwind as
 usual or instantiate, and both are sound.

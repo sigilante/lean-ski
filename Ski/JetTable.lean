@@ -46,13 +46,13 @@ open Mach Front Air
 
 mutual
   /-- The templates `comp scope` makes, innermost first. -/
-  partial def tmplComp (scope : List Nat) : Src → List (List Nat × OTerm)
+  def tmplComp (scope : List Nat) : Src → List (List Nat × OTerm)
     | .glob _ => []
     | .var _ => []
     | .app f a => tmplComp scope f ++ tmplComp scope a
     | .lam x b => tmplLam (scope.filter fun s => (Src.lam x b).occurs s) [x] b
   /-- The templates `compLam caps ps` makes: those of the body, then its own. -/
-  partial def tmplLam (caps ps : List Nat) : Src → List (List Nat × OTerm)
+  def tmplLam (caps ps : List Nat) : Src → List (List Nat × OTerm)
     | .lam y b => tmplLam caps (ps ++ [y]) b
     | .glob t => [(caps ++ ps, t.toO)]
     | .var x => [(caps ++ ps, .var x)]

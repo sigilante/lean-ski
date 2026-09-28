@@ -8,13 +8,14 @@ open Term
 # Checking a Sudoku table produced outside Lean
 
 The Plonky3 prover in `bench/plonky3` proves a table started from the
-statement machine of a Sudoku puzzle.  `sudokuCheck` decides, on the same
-table, what `Sudoku.sudoku_sound` needs, reading the inputs off the table's
+statement machine of a Sudoku puzzle.  `sudokuCheck` checks, on the same
+table, what `Sudoku.sudoku_sound` needs (soundly; completeness is not
+proved), reading the inputs off the table's
 own memory: input `n` is set when the cell at `n + 3` is `K`.
 
 **The theorems.**
-- `checkFromA_sound`: `checkFromA` decides the AIR's constraints from a
-  machine state (`Air.AcceptsFrom`), over an array.
+- `checkFromA_sound`: a table `checkFromA` accepts, over an array, meets
+  the AIR's constraints from a machine state (`Air.AcceptsFrom`).
 - `stmtMachineA_eq`: the statement machine built over an array, which is
   fast, is the statement machine.
 - `sudokuCheck_sound`: a table `sudokuCheck` accepts carries a solution of

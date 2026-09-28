@@ -969,22 +969,26 @@ fn prove_and_verify(
 /// directory).  The statement files are
 /// public, but only Lean knows what they must be, so the verifier refuses
 /// any file Lean does not confirm.
-fn lean_statement(exe: &str, path: &std::path::Path) -> Result<(), String> {
-    let abs = std::fs::canonicalize(path).map_err(|e| format!("{}: {e}", path.display()))?;
+fn lean_statement(exe: &str, paths: &[&std::path::Path]) -> Result<String, String> {
+    let abs: Vec<std::path::PathBuf> = paths
+        .iter()
+        .map(|p| std::fs::canonicalize(p).map_err(|e| format!("{}: {e}", p.display())))
+        .collect::<Result<_, _>>()?;
+    let path = &abs[abs.len() - 1];
     let cwd = std::env::current_dir().map_err(|e| format!("{e}"))?;
-    let root = abs
+    let root = path
         .ancestors()
         .chain(cwd.ancestors())
         .find(|d| d.join("lakefile.toml").exists())
-        .ok_or_else(|| format!("no Lean project above {} or the working directory", abs.display()))?;
+        .ok_or_else(|| format!("no Lean project above {} or the working directory", path.display()))?;
     let out = std::process::Command::new("lake")
         .args(["exe", exe, "statement"])
-        .arg(&abs)
+        .args(&abs)
         .current_dir(root)
         .output()
         .map_err(|e| format!("lake: {e}"))?;
     if out.status.success() {
-        Ok(())
+        Ok(String::from_utf8_lossy(&out.stdout).into_owned())
     } else {
         Err(String::from_utf8_lossy(&out.stdout).lines().filter(|l| !l.starts_with("STATEMENT")).collect::<Vec<_>>().join("; "))
     }
@@ -1021,7 +1025,7 @@ fn main() {
         let out = std::path::Path::new(&args[4]);
         std::fs::create_dir_all(out).unwrap();
         std::panic::set_hook(Box::new(|_| {}));
-        let failures = jets::main(&corpus, std::path::Path::new(&args[3]), out);
+        let failures = jets::main(&corpus, std::path::Path::new(&args[2]), std::path::Path::new(&args[3]), out);
         if failures > 0 {
             println!("\n{failures} FAILURES");
             std::process::exit(1);

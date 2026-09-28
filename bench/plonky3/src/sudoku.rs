@@ -506,11 +506,14 @@ fn guess_matches(p: &Public, bits: &[bool]) -> bool {
 /// `ski-air sudoku DIR OUTDIR`: DIR holds `lake exe sudoku emit`'s files.
 pub fn main(dir: &std::path::Path, out: &std::path::Path) -> usize {
     // The verifier's precondition: the statement is Lean's.
-    if let Err(e) = lean_statement("sudoku", &dir.join("public.txt")) {
-        println!("public.txt is not a statement: {e}");
-        return 1;
+    match lean_statement("sudoku", &[&dir.join("public.txt")]) {
+        Err(e) => {
+            println!("public.txt is not a statement: {e}");
+            return 1;
+        }
+        // The statement is the puzzle it names: say which.
+        Ok(msg) => println!("public.txt: {}", msg.trim().rsplit(": ").next().unwrap_or("")),
     }
-    println!("public.txt: checked by lake exe sudoku statement");
     let p = read_public(&dir.join("public.txt"));
     let mut failures = 0;
     println!(

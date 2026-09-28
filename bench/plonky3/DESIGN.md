@@ -48,9 +48,12 @@ where it departs from the plan.
 `lake exe jetcost` runs each corpus term plain, and then jetted at every
 licensed root. It counts the rows of these tables: one CPU row per
 transition or instantiation, one POP row per argument, and one INSTW row
-per written cell.
+per written cell. These are transitions; the Plonky3 table below counts
+states, one more. The last column counts the cells the jetted run writes,
+against the plain run's; the loaded heap is the same in both and is not
+counted.
 
-| row | plain | whole bodies | globals | memory (globals) |
+| row | plain | whole bodies | globals | cells written (globals) |
 |---|---|---|---|---|
 | compiled_up | 1,206 | 2,699 (224%) | 340 (28%) | 14% |
 | compiled_uq | 1,077 | 2,665 (247%) | 342 (32%) | 17% |
@@ -106,9 +109,14 @@ Nothing in `JetTable` is trusted. The Lean checker recomputes the table
 from the term and runs `rootsOKB`, and the template rows are `icells`
 resolved (`JetTable.symCells_icells`). The Plonky3 verifier builds its
 preprocessed tables from the jet files, so it first runs `lake exe jets
-statement` itself and refuses any file that is not exactly what Lean
-emits. Unchecked, a file listing an extra root lets a forged proof
-verify; the `doctored_jets` test shows the check refusing one.
+statement` itself, with its own corpus. For each term it will prove, the
+file it will read must be exactly Lean's jet file for that term, and its
+roots must pass `Air.rootsOKB` over the term's loaded heap, which gives
+`Air.RootsOK`. The check is keyed by the verifier's terms, not by file
+names. Unchecked, a file listing an extra root lets a forged proof
+verify, and so does a made-up file for a term outside Lean's corpus;
+the `doctored_jets` and `made_up_jets` tests show the check refusing
+both.
 
 This needs no jet cell, unlike Avon's `J g`. A root is an address, and
 `termAt` below the first counter never changes (`Air.termAt_take`), so
@@ -182,13 +190,17 @@ sumto_us        25074    3678    939    4096  4096   4096     0.15     0.021
 table's height. `3 sumto` proves in about 0.15 s jetted, against about
 0.5 s plain.
 `lake exe jets check` accepts all seven tables. It rejects the two
-tampered ones, which the verifier also rejects; a third, a doctored jet
-file, the statement check refuses:
+tampered ones, which the verifier also rejects, and the statement check
+refuses two made-up jet files before any proof:
 
 - `forged_write`: one instantiated cell's argument operand is changed,
   in the trace and in memory.
 - `unlicensed_root`: jet 0 is instantiated once at an address that is
   not its root.
+- `doctored_jets`: `3 sumto`'s jet file with an extra root.
+- `made_up_jets`: a jet file for `K S K`, a term outside Lean's corpus,
+  claiming `K x ↦ I` at the address of `K` (the audit's counterexample,
+  which verified before the check was keyed by terms).
 
 ### Not yet built
 

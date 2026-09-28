@@ -19,9 +19,11 @@ The statement is a machine state (`stmtMachine`) whose heap has two parts:
 
 **The theorem** (`stmt_sound`): if the AIR accepts a table started from the
 statement machine, and its last row has the atom `acc` at the head, then
-`e` is true under `ρ`.  So a proof of such a table proves the prover knows
-a satisfying `ρ`: the circuit fixes the formula part in public and
-constrains the input cells to Booleans, and this theorem does the rest.
+`e` is true under `ρ`.  The circuit fixes the formula part in public and
+constrains the input cells to Booleans, and this theorem does the rest:
+an accepted table has a satisfying `ρ` in its input cells.  That a proof
+of such a table shows the prover *knows* one rests on the STARK's
+knowledge soundness, which is not proved here.
 -/
 
 namespace Stmt

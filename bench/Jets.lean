@@ -8,9 +8,10 @@ jetted tables.
 - `jets emit DIR` writes, for each corpus row, `DIR/<row>.jets`: the
   licensed roots and the jets of its loaded term (`JetTable.jetTable`),
   which the prover's preprocessed ROOTS, HEADER and TEMPLATE tables hold.
-- `jets statement DIR` checks that each jet file in `DIR` is exactly the
-  one `emit` writes: what the Plonky3 verifier must check before it builds
-  its preprocessed tables from them.
+- `jets statement CORPUS DIR` checks, for each term the Plonky3 verifier
+  will prove (the lines of `CORPUS`), that `DIR/<name>.jets` is exactly
+  that term's jet file and that its roots are licensed (`Air.rootsOKB`):
+  what the verifier runs before it builds its preprocessed tables.
 - `jets check TABLE...` checks jetted tables the prover wrote, in the
   format of `Ski/AirCheck.lean`: it recomputes the roots and jets from the
   table's term and runs `Air.checkJA`.  `ACCEPT` means the table satisfies
@@ -97,24 +98,52 @@ def emit (dir : String) : IO UInt32 := do
     IO.println s!"{row.name}: {r} roots, {g} jets"
   return 0
 
-/-- The verifier's check of the jet files it is given: each must be exactly
-    the jet file of its corpus row. -/
-def statement (dir : String) : IO UInt32 := do
+/-- **The verifier's check of the jet files**, for the terms it proves.
+    Each line of `corpus` (`name steps term`, `bench/Dump.lean`'s format)
+    names a term and the file `DIR/<name>.jets` the verifier will build its
+    preprocessed tables from; that file must be exactly the jet file of that
+    term, and its roots must pass `Air.rootsOKB` over the term's loaded
+    heap, which gives `Air.RootsOK` (`Air.rootsOKB_sound`), the hypothesis
+    of `Air.air_sound_jet`.  Keyed by the verifier's own terms, not by
+    Lean's corpus names: a file for any other name or term is checked the
+    same way or refused. -/
+def statement (corpusPath dir : String) : IO UInt32 := do
   let tmpls := allTemplates
+  let text ← IO.FS.readFile corpusPath
   let mut bad := 0
-  for row in corpus do
-    let path := s!"{dir}/{row.name}.jets"
-    let given ← (IO.FS.readFile path).toBaseIO
-    match given with
-    | .ok text =>
-      if text == (jetFile row.term tmpls).1 then IO.println s!"STATEMENT {path}"
-      else
-        IO.println s!"NOT THE JET FILE {path}"
+  let mut n := 0
+  for line in (text.splitOn "\n").filter (fun l => !l.trimAscii.toString.isEmpty) do
+    match words line with
+    | [name, _, termText] =>
+      match parseTerm termText.toList with
+      | some (t, []) =>
+        n := n + 1
+        let path := s!"{dir}/{name}.jets"
+        let (expected, roots, jets) := jetTable' t tmpls
+        let licensed := rootsOKB (load t).heap roots jets
+        match ← (IO.FS.readFile path).toBaseIO with
+        | .ok given =>
+          if given == expected && licensed then IO.println s!"STATEMENT {path}"
+          else
+            IO.println s!"NOT THE JET FILE {path}"
+            bad := bad + 1
+        | .error _ =>
+          IO.println s!"MISSING {path}"
+          bad := bad + 1
+      | _ =>
+        IO.println s!"MALFORMED TERM {name}"
         bad := bad + 1
-    | .error _ =>
-      IO.println s!"MISSING {path}"
+    | _ =>
+      IO.println s!"MALFORMED LINE {line}"
       bad := bad + 1
+  if n == 0 then
+    IO.println "NO TERMS"
+    bad := bad + 1
   return (if bad == 0 then 0 else 1)
+where
+  jetTable' (t : Term) (tmpls : List (List Nat × OTerm)) : String × List (Nat × Nat) × List Jet :=
+    let (roots, jets) := jetTable (load t).heap tmpls
+    ((jetFile t tmpls).1, roots, jets)
 
 def check (paths : List String) : IO UInt32 := do
   let tmpls := allTemplates
@@ -139,8 +168,8 @@ def check (paths : List String) : IO UInt32 := do
 def main (args : List String) : IO UInt32 := do
   match args with
   | ["emit", dir] => emit dir
-  | ["statement", dir] => statement dir
+  | ["statement", corpus, dir] => statement corpus dir
   | "check" :: paths => check paths
   | _ =>
-    IO.eprintln "usage: jets emit DIR | jets statement DIR | jets check TABLE..."
+    IO.eprintln "usage: jets emit DIR | jets statement CORPUS DIR | jets check TABLE..."
     return 2

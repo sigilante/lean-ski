@@ -35,12 +35,14 @@
 //! table the verifier accepts satisfies `Air.AcceptsJ`.  `lake exe jets
 //! check` checks that on every table proved here (`Air.checkJA_sound`).
 //!
-//! **The verifier runs `lake exe jets statement` on the jet files first**
-//! (`lean_statement`), and refuses them unless each is exactly the file
-//! Lean emits for its term.  A file it is handed otherwise could list an
-//! unlicensed root, and a proof over it would verify.  With Lean's files,
-//! the template rows are `icells` (`JetTable.symCells_icells`) and every
-//! root is licensed.
+//! **The verifier runs `lake exe jets statement CORPUS DIR` first**
+//! (`lean_statement`), with its own corpus: for each term it will prove,
+//! the jet file it will read must be exactly Lean's for that term, and its
+//! roots must pass `Air.rootsOKB` over the term's loaded heap, so
+//! `Air.RootsOK` holds (`Air.rootsOKB_sound`).  Keyed by the terms, not by
+//! file names: unchecked, a file for another term could list an unlicensed
+//! root, and a proof over it would verify.  With Lean's files, the template
+//! rows are `icells` (`JetTable.symCells_icells`).
 //!
 //! Why a chain has exactly `k` (or `n`) rows: every chain count is a
 //! Boolean, so per level the active rows balance to one more than the
@@ -706,14 +708,15 @@ fn lean_of(term: &str, run: &JRun, tr: &JTraces) -> String {
 // ---------------------------------------------------------------------------
 
 /// `ski-air jets CORPUS JETSDIR OUTDIR`: prove every corpus row jetted.
-pub fn main(corpus: &str, dir: &std::path::Path, out: &std::path::Path) -> usize {
+pub fn main(corpus: &str, corpus_path: &std::path::Path, dir: &std::path::Path, out: &std::path::Path) -> usize {
     let mut failures = 0;
-    // The verifier's precondition: the jet files are Lean's.
-    if let Err(e) = lean_statement("jets", dir) {
-        println!("the jet files are not Lean's: {e}");
+    // The verifier's precondition: for each term it will prove, the jet file
+    // is Lean's for that term, with licensed roots.
+    if let Err(e) = lean_statement("jets", &[corpus_path, dir]) {
+        println!("the jet files are not Lean's for these terms: {e}");
         return 1;
     }
-    println!("jet files: checked by lake exe jets statement");
+    println!("jet files: checked by lake exe jets statement, term by term");
     println!(
         "{:<16} {:>6} {:>7} {:>6} {:>7} {:>6} {:>6} {:>8} {:>8}  verdict",
         "row", "plain", "jetted", "insts", "budget", "pop", "instw", "prove s", "verify s"
@@ -816,10 +819,27 @@ pub fn main(corpus: &str, dir: &std::path::Path, out: &std::path::Path) -> usize
         ls[0] = format!("roots {}", r + 1);
         ls.insert(1, format!("{a} 0"));
         std::fs::write(&path, ls.join("\n") + "\n").unwrap();
-        match lean_statement("jets", &bad) {
+        match lean_statement("jets", &[corpus_path, &bad]) {
             Err(e) => println!("{:<16} refused by the statement check ({})", "doctored_jets", e.chars().take(60).collect::<String>()),
-            Ok(()) => {
+            Ok(_) => {
                 println!("{:<16} ACCEPTED by the statement check", "doctored_jets");
+                failures += 1;
+            }
+        }
+    }
+    // A made-up jet for a term outside Lean's corpus (the audit's
+    // counterexample): `K S K` with a jet "K x ↦ I" at address 0.  The check
+    // is keyed by the verifier's own terms, so it refuses this file.
+    {
+        let bad = out.join("made_up_jets");
+        std::fs::create_dir_all(&bad).unwrap();
+        std::fs::write(bad.join("ksk.jets"), "roots 1\n0 0\njets 1\n1 1 L 0\n2\n").unwrap();
+        let cp = out.join("made_up_corpus.txt");
+        std::fs::write(&cp, "ksk 1 ``KSK\n").unwrap();
+        match lean_statement("jets", &[&cp, &bad]) {
+            Err(e) => println!("{:<16} refused by the statement check ({})", "made_up_jets", e.chars().take(60).collect::<String>()),
+            Ok(_) => {
+                println!("{:<16} ACCEPTED by the statement check", "made_up_jets");
                 failures += 1;
             }
         }

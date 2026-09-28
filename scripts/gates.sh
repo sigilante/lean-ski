@@ -21,8 +21,11 @@ if grep -rn 'native_decide' $SRC 2>/dev/null | grep -v '`' | grep -q .; then
 fi
 [ $fail -eq 0 ] && note "ok"
 
-echo "== gate 2: no panic! anywhere =="
+echo "== gate 2: no panic!, no partial def =="
 if grep -rn 'panic!' $SRC 2>/dev/null | grep -v '`' | grep -q .; then bad "panic! found"; fi
+if grep -rnE '^[[:space:]]*(private |protected )?partial def' $SRC 2>/dev/null | grep -q .; then
+  bad "partial def found"
+fi
 [ $fail -eq 0 ] && note "ok — every function is total"
 
 echo "== gate 3: generated modules match the generator =="

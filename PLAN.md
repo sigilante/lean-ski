@@ -2,13 +2,14 @@
 
 > **Status (2026-09-27).** L0, L1 and L2 built and audited: the calculus, the
 > fuel interpreter, budget-exact trace certificates, the write-once heap
-> machine and its AIR, the compiled Scott constructors,
-> and conformance against `skijack` on six SKIlark programs. §2 items 1–6
-> are built over any quotation table, with the divergence biconditional,
-> and checked for two tables: the kernel with no static quotations and the
-> corpus table. §3, every table at once, is the next project; the rest is a
-> plan. Where this document and the build differ, the build is
-> authoritative.
+> machine and its AIR, the compiled Scott constructors, and conformance
+> against `skijack` on seven corpus rows (three SKIlark programs in both
+> forms, and `3 sumto`). §2 and §3 are built: the language layer over every
+> valid quotation table, with the divergence biconditional, four tables as
+> data, and `3 sumto` end to end. From §5, the AIR is built in Plonky3 and
+> checked against Lean, with a Sudoku solution in zero knowledge and
+> supercombinator jet rows; the endgame of §6 is not reached. Where this
+> document and the build differ, the build is authoritative.
 
 *The end of this program is a zero-knowledge proof of correct SKI execution
 with verified jets as its precompiles — a proof system whose entire
@@ -167,8 +168,8 @@ the kernel: `iter_sound (k := 7) rfl` for `Suc`. The lemmas expose the fact
 every word-level proof must reason through: bracket abstraction passes
 fields as thunks, so `Suc n z s` reduces to `s (K n s)`, not `s n`.
 
-**Conformance** (`Ski/Corpus.lean`, `Main.lean`). Six SKIlark programs in
-both forms; `runF` agrees with `skijack`'s host reducer contraction for
+**Conformance** (`Ski/Corpus.lean`, `Main.lean`). Three SKIlark programs
+in both forms, and `3 sumto`; `runF` agrees with `skijack`'s host reducer contraction for
 contraction (493 for `1 2 + dup +` compiled, 2,014 interpreted). The
 generator (`scripts/emit.py`) is the only place `skijack` is needed, and
 gate 3 checks the committed modules are its output.
@@ -183,10 +184,11 @@ that build or eliminate `quot` (`wQcons`, `wCat`, `wUnit`, `applyU`) and
 each static quotation's body. Everything is proved once over a kit. What
 a table must satisfy is the three law classes `KitElim`, `KitWords` and
 `KitApply`, and `Ski/Laws.lean` proves them for the kit compiled from
-every valid table (G4, §3). `Ski/Table.lean` (generated) gives three
+every valid table (G4, §3). `Ski/Table.lean` (generated) gives four
 tables as data and checks by `rfl` that compiling each gives `skijack`'s
 terms: the kernel with no static quotations (`NoQuot`), the corpus table
-(`[dup +]`, `[dup]`) and the table of `[dup i] dup i` (`LoopTable`).
+(`[dup +]`, `[dup]`), the table of `[dup i] dup i` (`LoopTable`) and the
+table of `3 sumto` (`SumTable`).
 
 `Decodes` reads a value by probing it at fresh variables (`OTerm`), a
 quotation at `n + 3` of them; at any closed continuations the probe then
@@ -219,7 +221,7 @@ a table's real `applyU` the forward theorem is `composition_apply`.
 Every theorem above is in the audit manifest with footprint
 `{propext, Quot.sound}` or narrower.
 
-## 2. Next: the language layer, `lean-nock` ported to SKIlark
+## 2. The language layer, `lean-nock` ported to SKIlark (built)
 
 The jet paper's pipeline, module for module (see `lean-nock`'s
 `Comp`, `Term`, `CEval`, `Composition`):
@@ -261,7 +263,7 @@ Effort: the decode relation and the constructor lemmas are the bulk, weeks;
 the word table is days after that; `apply` is the theorem that decides
 whether item 6 is a result or a conjecture. (Built; see §1.)
 
-## 3. Next: every table at once
+## 3. Every table at once (built)
 
 The three law classes hold for the kit compiled from every valid
 quotation table (G4, `Ski/Laws.lean`), so a program with a new static
@@ -590,11 +592,15 @@ Three statements, in rising strength, all about the same three rules.
 2. **Jets as precompiles.** A jet fires once per supercombinator
    application and does its body's work natively; that is precisely a
    zkVM precompile, whose soundness is the recurring weak point of every
-   zkVM and is argued in prose. Here it is `composition` for the jetted
-   word, under the table's `ApSound`; the three-valued contract, proved
-   for the kit's eliminator and owed per table, is what the prover needs,
-   since a precompile that bails where the term diverges is the same
-   observable divergence `+mock` exposes.
+   zkVM and is argued in prose. Here a supercombinator jet is licensed
+   once for every template (`inst_sound_g`: instantiation is weak
+   reduction), and the circuit's instantiation rows are proved to be
+   jetted steps (`instRow_jstep`, `air_sound_jet`). A data jet over native
+   words would be `composition` for the jetted word, under the table's
+   `ApSound`; its three-valued contract, proved for the kit's eliminator
+   and owed per table, is what the prover needs, since a precompile that
+   bails where the term diverges is the same observable divergence
+   `+mock` exposes.
 3. **Semantics without touching the circuit.** The object language, the
    self-interpreter, scry and the namespace, SKIlark: all terms. The
    circuit is fixed once and audited once. New symbols, new interpreters
@@ -642,7 +648,9 @@ tables fail both. Outputs bind by probing: the machine has an inert
 Scott Booleans; the formula (every cell one digit, every row, column and
 box every digit, the clues) compiles to a selector over shared slot
 cells, applied to the atoms `ACC` and `REJ`; a table that reads `ACC` at
-the head proves that the inputs solve the puzzle (`sudoku_sound`). In
+the head proves that the inputs solve the puzzle (`sudoku_sound`); that
+the prover knows them rests on the STARK's knowledge soundness, not proved
+here. In
 Plonky3, with a hiding PCS, a private witness table constrains each input
 cell to `K` or `K I`, the CPU and memory heights are fixed constants, the
 last row must read `ACC`, and two blinding messages mask the lookup sums
@@ -665,11 +673,13 @@ what an unjetted one does (`jet_run_shape`, the small lemma,
 subterms as globals, public cells (`inst_sound_g`); instantiation without
 them costs 2.2–6.0× the plain run on the compiled rows and `3 sumto`, and
 with them those rows take 28–34%; the interpreted rows gain nothing. An instantiation row at a licensed root is
-a jetted step (`instRow_jstep`), and an accepted table proves the
-evaluation (`air_sound_jet`). Every corpus row proves jetted, and `lake exe
-jets check` accepts each table, and the verifier runs `lake exe jets
-statement` on the jet files first: `3 sumto` takes 3,678 CPU rows instead
-of 25,074. Jets do not yet combine with probes (instantiation over open
+a jetted step (`instRow_jstep`), and an accepted table proves that the
+term evaluates to a value that weakly reduces to the table's, with its
+head and arity (`air_sound_jet`). Every corpus row proves jetted, and
+`lake exe jets check` accepts each table. The verifier runs `lake exe jets
+statement` on its own terms first, which checks each jet file against its
+term and licenses its roots (`rootsOKB`): `3 sumto` takes 3,678 CPU rows
+instead of 25,074. Jets do not yet combine with probes (instantiation over open
 terms) or with zero knowledge.
 
 ## 6. Acceptance
@@ -677,6 +687,6 @@ terms) or with zero knowledge.
 L0/L1: `lake build` elaborates the manifest, `gates.sh` passes, `lake exe
 main` matches the reference on every corpus row — done. Language layer:
 composition and the divergence biconditional over SKIlark's compiled form
-with `apply`, every leaf in the manifest — done for any table whose laws
-are supplied, and checked for two; for every table at once, §3. Endgame: a proof of execution for one corpus program verified by
+with `apply`, every leaf in the manifest — done for every valid table
+(§3), with four tables checked as data. Endgame: a proof of execution for one corpus program verified by
 a third party, with its jet table and per-contraction cost reported.

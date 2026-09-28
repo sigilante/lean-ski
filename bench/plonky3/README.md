@@ -75,8 +75,10 @@ every corpus row; `prove s` includes the setup.
 
 ## A Sudoku solution in zero knowledge
 
-`src/sudoku.rs` proves that the prover knows a solution of Wikipedia's
-Sudoku puzzle, with hiding commitments and blinded lookup sums. The
+`src/sudoku.rs` proves a solution of Wikipedia's Sudoku puzzle, with
+hiding commitments and blinded lookup sums. An accepted table has a
+solution in its input cells; that the proof shows the prover *knows* one
+rests on the STARK's knowledge soundness, which is not proved here. The
 statement is the machine `Stmt.stmtMachine` of `Ski/Statement.lean` for
 the puzzle's formula (`Sudoku.sudokuExpr`): the slot cells `K`, `I`, `K I`
 at addresses 0 to 2, 729 input cells at 3 to 731, then the compiled
@@ -92,7 +94,9 @@ the two markers exchanged, or cells for another puzzle, would let a
 wrong grid verify. So the verifier first runs `lake exe sudoku statement
 public.txt` itself, which accepts exactly the statement of the puzzle on
 its first line (`publicText` in `bench/Sudoku.lean`), and refuses to go
-on otherwise.
+on otherwise. It prints the puzzle it accepted: the check pins the
+statement to that puzzle, not to Wikipedia's, so whoever reads the
+verdict must compare the puzzle with the one they meant.
 
 The AIR adds three things to the corpus's:
 
@@ -110,7 +114,7 @@ A table the verifier accepts satisfies `Air.AcceptsFrom` from that machine
 and reads `ACC` at the head of its last row. By `Sudoku.sudoku_sound`,
 the inputs solve the puzzle. The prover writes each table it proves in
 the format of `bench/Sudoku.lean`. `lake exe sudoku check public.txt`
-decides `Sudoku.sudokuCheck` on it, for the statement's puzzle and markers,
+checks `Sudoku.sudokuCheck` on it (soundly), for the statement's puzzle and markers,
 reading the inputs off the table's memory (`Sudoku.sudokuCheck_sound`).
 
 **Hiding.** The PCS is Plonky3's `HidingFriPcs`, with salted Merkle leaves
@@ -149,14 +153,14 @@ Measured, 2026-09-27, Apple M4 Max, release build, three runs:
 
 ```
 statement   23,394 public cells, 729 inputs; heights 2^16 rows, 2^16 memory, 2^10 inputs
-honest      45,667 rows, 52,299 memory cells; prove 3.0-3.3 s, verify 0.07-0.09 s,
+honest      45,667 rows, 52,299 memory cells; prove 3.0-3.5 s, verify 0.07-0.09 s,
             proof about 600 KiB (postcard)  verified
 guess test    the true inputs against the published witness terminal: no match
 swapped       ends at the atom 732 (REJ); rejected by the verifier (OodEvaluationMismatch)
 forged_input  ends at the atom 731 (ACC); rejected by the verifier (Lookup(TerminalSumNonZero))
 ```
 
-`lake exe sudoku check` accepts the honest table (in about 2 s) and
+`lake exe sudoku check` accepts the honest table (in 1 to 2 s) and
 rejects both tampered ones, and a table whose puzzle line differs from
 the statement's. `lake exe sudoku statement` rejects `public.txt` with
 the markers exchanged or with a clue blanked. `swapped` is Wikipedia's solution with two
@@ -174,16 +178,18 @@ rows. Five tables join the corpus's three: ROOTS, HDR and TMPL, public
 and preprocessed from `lake exe jets emit`; and POP and INSTW, witness
 tables chained to a CPU row of kind `INST`. `lake exe jets check` checks
 each table it proves against `Air.AcceptsJ` (`Air.checkJA_sound`), with
-the roots recomputed and licensed in Lean. The verifier runs `lake exe jets statement` on the jet files before it
-builds anything from them. `DESIGN.md` §2 gives the
+the roots recomputed and licensed in Lean. Before it builds anything from
+the jet files, the verifier runs `lake exe jets statement` with its own
+corpus: each file must be Lean's for the term the verifier will prove,
+with roots that pass `Air.rootsOKB` over that term's heap. `DESIGN.md` §2 gives the
 tables, the argument and the measurements: `3 sumto` takes 3,678 CPU rows
 instead of 25,074, and proves in 0.15 s.
 
 ```
 lake build jets && lake exe jets emit bench/plonky3/jets
-lake env lean --run bench/Dump.lean > corpus.txt           # ski-air runs `lake exe jets statement` itself
+lake env lean --run bench/Dump.lean > corpus.txt
 cd bench/plonky3 && cargo build --release
-./target/release/ski-air jets ../../corpus.txt jets tables   # prove, verify, tamper
+./target/release/ski-air jets ../../corpus.txt jets tables   # statement check, prove, verify, tamper
 cd ../.. && lake exe jets check bench/plonky3/tables/jet_*.txt
 lake exe jets check bench/plonky3/tables/tampered_jet_*.txt  # each must be REJECT
 ```
@@ -193,9 +199,9 @@ instantiation rows and template table.
 
 ## What this is not
 
-- **The corpus proofs are not zero knowledge.** Their PCS is not hiding,
-  and the first row loads the whole term in the clear; nor do they bind an
-  output. The Sudoku proof does both.
+- **The corpus proofs, plain and jetted, are not zero knowledge.** Their
+  PCS is not hiding, and the first row loads the whole term in the clear;
+  nor do they bind an output. The Sudoku proof does both.
 - **Plonky3's zero knowledge is statistical and unaudited.** Plonky3 marks
   its randomization of the trace as statistically hiding only, and
   `HidingFriPcs` enforces a masking budget (trace height at least
@@ -214,7 +220,8 @@ instantiation rows and template table.
   memory heights only up to `2^21`: addresses stay below `2^21` and
   counters below `2^23`, so a read at or above the counter wraps to at
   least `p − 2^21`, which no 24-bit decomposition represents.
-- **The link to Lean is per table.** The Lean checkers decide `Accepts`
-  and `sudokuCheck` on each table the prover proves; that every table the
-  verifier accepts satisfies them is argued in the headers of
-  `src/main.rs` and `src/sudoku.rs`, not proved in Lean.
+- **The link to Lean is per table.** The Lean checkers check `Accepts`,
+  `sudokuCheck` and `AcceptsJ` on each table the prover proves (`checkA`
+  decides; the other two are proved sound); that every table the verifier
+  accepts satisfies them is argued in the headers of `src/main.rs`,
+  `src/sudoku.rs` and `src/jets.rs`, not proved in Lean.
