@@ -7,6 +7,7 @@ import Ski.AirCheck
 import Ski.HeapOpen
 import Ski.AirOpen
 import Ski.Inst
+import Ski.SmallLemma
 import Ski.Weak
 import Ski.Lambda
 import Ski.Open

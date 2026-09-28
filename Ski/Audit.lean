@@ -8,6 +8,7 @@ import Ski.AirCheck
 import Ski.HeapOpen
 import Ski.AirOpen
 import Ski.Inst
+import Ski.SmallLemma
 import Ski.Weak
 import Ski.Lambda
 import Ski.Quote
@@ -449,6 +450,10 @@ open Ski.Audit
 #audit_clean Mach.overrideN_notin Mach.overrideC_notin Mach.override_ptr Mach.PtrsOK.mono
   Mach.popN_spec Mach.ibuild_spec Mach.apps_eq_appT Mach.inst_sound Mach.jsteps_wsteps
   Mach.jet_run_eval
+
+-- The small lemma: weak reduction keeps a stuck spine's head and arity
+#audit_clean nhead_step nhead_steps nhead_appL appL_snoc nhead_inv small_lemma whnf_wstep
+  small_lemma_whnf jet_run_shape
 
 -- The three-valued outcome: structured formulas demand a normal form, an atom need not
 #audit_clean Real.and_converges Real.or_converges Real.ex_converges atom_divergent_realizer
