@@ -98,6 +98,45 @@ theorem probeSends_pwch (ρ : Atom → F) (v : List F) :
     if_neg (show ¬ ("mem" = "pwch" ∧ _) from fun h' => absurd h'.1 (by decide))]
   simp only [zero_add', add_zero']
 
+/-- The probe messages on `PLAN`. -/
+theorem probeSends_plan (ρ : Atom → F) (v : List F) :
+    probeSendsAt ρ "plan" v =
+      (if ρ (.main 0 P_CNT) :: (List.range 6).map (fun i => ρ (.main 0 (S_BASE + i))) = v then
+        ρ (.main 0 (SEL + 12)) + ρ (.main 0 (SEL + 13)) else 0) +
+      (if (ρ (.main 0 P_CNT) - 1) :: (List.range 6).map (fun i => ρ (.main 0 (E_BASE + i))) = v then
+        ρ (.main 0 (SEL + 13)) else 0) := by
+  unfold probeSendsAt
+  simp only [probeInters, List.foldr_cons, List.foldr_nil, List.map_cons, List.map_nil, List.map_map, E.eval, B.col,
+    B.c, sPLater, sProbe, sPFirst, true_and, ofN_zero, B.one, ofN_one]
+  rw [if_neg (show ¬ ("popch" = "plan" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("popch" = "plan" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("mem" = "plan" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("segend" = "plan" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("segend" = "plan" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("arg" = "plan" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("pwch" = "plan" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("pwch" = "plan" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("mem" = "plan" ∧ _) from fun h' => absurd h'.1 (by decide))]
+  simp only [zero_add', add_zero']
+  rfl
+
+theorem ofN_ite (P : Prop) [Decidable P] : ofN (if P then 1 else 0) = if P then 1 else 0 := by
+  split <;> rfl
+
+theorem ite_and_left {P Q : Prop} [Decidable P] [Decidable Q] (hP : P) (a b : Nat) :
+    (if P ∧ Q then a else b) = if Q then a else b := by
+  rcases (inferInstance : Decidable Q) with hq | hq
+  · rw [if_neg (fun h => hq h.2), if_neg hq]
+  · rw [if_pos ⟨hP, hq⟩, if_pos hq]
+
+theorem add_sub_right (a b : F) : a + b - b = a :=
+  E.eval_eq_of_norm (e := .sub (.add (.atom (.main 0 0)) (.atom (.main 0 1))) (.atom (.main 0 1)))
+    (e' := .atom (.main 0 0)) (by decide) (at4 a b 0 0)
+
+theorem planRow_mem {plan : List Air.Seg} {j : Nat} {s : Air.Seg} (hs : plan[j]? = some s) :
+    ofN j :: segCols s ∈ planRows plan :=
+  padCopies_super (List.mem_map.2 ⟨(s, j), List.mem_zipIdx_iff_getElem?.2 hs, rfl⟩)
+
 namespace PRun
 
 variable {R : PRun} {t : Term} (hA : AcceptsP R.A (load t) R.roots R.jets R.plan R.p R.fld R.row)
@@ -307,7 +346,79 @@ theorem bal_pwch {K HW : Nat} (hK : R.last < K) (hHW : (R.pwRows K).length ≤ H
       add_zero', ite_zero _ _ rfl, ite_neg_zero _ _ rfl, zero_add']
     unfold pwRowsAt; rw [hp]; rfl
 
+omit hA hroots in
+theorem segCols_S {K i : Nat} (hi : i < K) (hp : R.isP i = true) :
+    (List.range 6).map (fun m => (R.cpuTableP K).env i (.main 0 (S_BASE + m))) = segCols (R.seg (R.pcnt i)) := by
+  have cv : ∀ c, (R.cpuTableP K).env i (.main 0 c) = R.cpuColP K i c := fun c => by
+    show R.cpuColP K ((i + 0) % K) c = _; rw [Nat.add_zero, Nat.mod_eq_of_lt hi]
+  simp only [range6, List.map_cons, List.map_nil, cv]
+  rw [R.colP_x hp (by decide), R.colP_x hp (by decide), R.colP_x hp (by decide), R.colP_x hp (by decide),
+    R.colP_x hp (by decide), R.colP_x hp (by decide), R.probeX_s i (m := 0) (by decide),
+    R.probeX_s i (m := 1) (by decide), R.probeX_s i (m := 2) (by decide), R.probeX_s i (m := 3) (by decide),
+    R.probeX_s i (m := 4) (by decide), R.probeX_s i (m := 5) (by decide)]
+  rfl
+
+omit hA hroots in
+theorem segCols_E {K i : Nat} (hi : i < K) (hp : R.isP i = true) (h0 : 0 < R.pcnt i) :
+    (List.range 6).map (fun m => (R.cpuTableP K).env i (.main 0 (E_BASE + m))) = segCols (R.seg (R.pcnt i - 1)) := by
+  have cv : ∀ c, (R.cpuTableP K).env i (.main 0 c) = R.cpuColP K i c := fun c => by
+    show R.cpuColP K ((i + 0) % K) c = _; rw [Nat.add_zero, Nat.mod_eq_of_lt hi]
+  simp only [range6, List.map_cons, List.map_nil, cv]
+  rw [R.colP_x hp (by decide), R.colP_x hp (by decide), R.colP_x hp (by decide), R.colP_x hp (by decide),
+    R.colP_x hp (by decide), R.colP_x hp (by decide), R.probeX_E i h0 (m := 0) (by decide),
+    R.probeX_E i h0 (m := 1) (by decide), R.probeX_E i h0 (m := 2) (by decide), R.probeX_E i h0 (m := 3) (by decide),
+    R.probeX_E i h0 (m := 4) (by decide), R.probeX_E i h0 (m := 5) (by decide)]
+  rfl
+
+omit hroots in
+/-- **`PLAN` balances**: the probe rows look up each plan row as often as
+    the provider counts. -/
+theorem bal_plan {K : Nat} (hK : R.last < K) (v : List F) :
+    (List.range K).foldr (fun i acc => probeSendsAt ((R.cpuTableP K).env i) "plan" v + acc) 0 +
+      tableSends (planAir R.plan) (provTable (planRows R.plan) (R.cntPlan K)) "plan" v = 0 := by
+  rw [show planAir R.plan = providerAir "plan" 7 (planRows R.plan) from rfl, prov_sends (planRows_len R.plan)]
+  apply bal_lookup
+  · unfold cntPlan
+    rw [← fold_ofN]
+    apply foldr_range_congr K
+    intro i hi
+    have cv : ∀ c, (R.cpuTableP K).env i (.main 0 c) = R.cpuColP K i c := fun c => by
+      show R.cpuColP K ((i + 0) % K) c = _; rw [Nat.add_zero, Nat.mod_eq_of_lt hi]
+    rw [probeSends_plan]
+    cases hp : R.isP i with
+    | false =>
+      rw [cv, cv, cv, R.colP_low hp (c := SEL + 12) (by decide), R.colP_low hp (c := SEL + 13) (by decide),
+        R.J_sel_probe i (.inl rfl), R.J_sel_probe i (.inr rfl), add_zero', ite_zero _ _ rfl, ite_zero _ _ rfl,
+        add_zero']
+      rfl
+    | true =>
+      rw [if_pos rfl, segCols_S hi hp, cv P_CNT, R.colP_cnt, cv (SEL + 12), cv (SEL + 13),
+        R.colP_sel hp (m := 12) (by decide), R.colP_sel hp (m := 13) (by decide), ofN_add, ofN_ite]
+      rcases Nat.decEq i 0 with h0 | h0
+      · have hj0 : 0 < R.pcnt i := Nat.pos_of_ne_zero (fun e => h0 ((pr_zero hA hp).2 e))
+        rw [if_neg h0, if_neg (show ¬ (12 = 13) by decide), if_pos (show 13 = 13 from rfl), zero_add',
+          segCols_E hi hp hj0, ite_and_left hj0, ofN_ite]
+        obtain ⟨m, hm⟩ : ∃ m, R.pcnt i = m + 1 := ⟨R.pcnt i - 1, by omega⟩
+        rw [hm, Nat.add_sub_cancel, ofN_add, ofN_one, add_sub_right]
+      · have hj0 : R.pcnt i = 0 := (pr_zero hA hp).1 h0
+        rw [if_pos h0, if_pos (show 12 = 12 from rfl), if_neg (show ¬ (13 = 12) by decide), add_zero',
+          ite_zero _ _ rfl, add_zero',
+          if_neg (show ¬ (0 < R.pcnt i ∧ _) from fun h => by rw [hj0] at h; exact absurd h.1 (by decide)),
+          ofN_zero, add_zero']
+  · intro hc
+    obtain ⟨i, hi, hpos⟩ := JRun.sumTo_pos_ex hc
+    cases hp : R.isP i with
+    | false => rw [hp] at hpos; exact absurd hpos (Nat.lt_irrefl 0)
+    | true =>
+      obtain ⟨hjn, _⟩ := isP_pcnt hA hp
+      rw [hp, if_pos rfl] at hpos
+      by_cases h1 : ofN (R.pcnt i) :: segCols (R.seg (R.pcnt i)) = v
+      · rw [← h1]; exact planRow_mem (seg_get hA hjn)
+      · by_cases h2 : 0 < R.pcnt i ∧ ofN (R.pcnt i - 1) :: segCols (R.seg (R.pcnt i - 1)) = v
+        · rw [← h2.2]; exact planRow_mem (seg_get hA (by omega))
+        · rw [if_neg h1, if_neg h2] at hpos; exact absurd hpos (Nat.lt_irrefl 0)
+
 end PRun
 
 end Circuit
-#print axioms Circuit.PRun.bal_pwch
+#print axioms Circuit.PRun.bal_plan
