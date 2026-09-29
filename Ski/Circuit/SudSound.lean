@@ -473,7 +473,9 @@ theorem sudOK_of {puzzle : List Nat} {ts : List Table} (h : Accepted (sudAirs pu
 /-- **Soundness of the Sudoku circuit.**  If Plonky3 accepts a proof
     against AIRs the same as the circuit for `puzzle`, and the puzzle's
     clues are well formed, then the proof's memory holds, at addresses `3`
-    to `731`, a grid that solves the puzzle. -/
+    to `731`, a grid that solves the puzzle.  `compare-sudoku` builds the
+    circuit only for a puzzle that passes `cluesOKB`, and `cluesOK_of`
+    turns that check into `CluesOK`. -/
 theorem sudExport_sound {puzzle : List Nat} (hc : CluesOK (cluesOf puzzle)) {Rs : List AirD}
     {ts : List Table} (hs : sameAirsB Rs (sudAirs puzzle) = true) (h : AcceptedP Rs ts) :
     ∃ C Mm Pg Wt, ts = [C, Mm, Pg, Wt] ∧ Solves (cluesOf puzzle) (gridOf (bitsS Mm)) := by

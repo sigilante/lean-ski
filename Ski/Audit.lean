@@ -29,6 +29,7 @@ import Ski.Circuit.WitAir
 import Ski.Circuit.WitComplete
 import Ski.Circuit.SudAir
 import Ski.Circuit.SudSound
+import Ski.Circuit.SudComplete
 import Ski.BoolProbe
 import Ski.Statement
 import Ski.Sudoku
@@ -589,3 +590,7 @@ open Ski.Audit
 #audit_clean Circuit.stmt_fitsB Circuit.stmt_take Circuit.SudOK.input Circuit.SudOK.pubCell
   Circuit.SudOK.heap0 Circuit.SudOK.accepts Circuit.SudOK.sound Circuit.sud_guarded Circuit.sudOK_of
   Circuit.sudExport_sound
+
+-- The Sudoku circuit: completeness
+#audit_clean Circuit.cpuS_sat Circuit.progS_honest Circuit.witS_sat Circuit.witS_honest Circuit.balanced4
+  Circuit.sud_complete
