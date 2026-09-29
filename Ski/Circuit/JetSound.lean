@@ -1130,6 +1130,195 @@ theorem JetOK.wchPath {r : Nat} (hr : r < C.h) (hi : C.main r (SEL + 11) = 1) {n
   simp only [Bool.and_eq_true, decide_eq_true_eq] at ha
   exact ⟨h1, ha.1.1.1, ha.1.1.2, ha.1.2, ha.2, h3⟩
 
+omit h in
+theorem getD_range_map (f : Nat → Nat) {k i : Nat} (hi : i < k) : ((List.range k).map f).getD i 0 = f i := by
+  rw [List.getD_eq_getElem?_getD, List.getElem?_map, List.getElem?_range hi]; rfl
+
+/-- **An INSTW operand resolves** as `Op.res` does: a written cell at the
+    counter plus its offset, a popped argument, or a public address. -/
+theorem JetOK.resolve {r k : Nat} {e : Nat → Nat}
+    (hp : ∀ i, i < k → e i < Po.h ∧ Po.main (e i) 2 = ofN i)
+    (hu : ∀ q, q < Po.h → Po.main q 7 = 1 → Po.main q 0 = ofN r → ∃ i, i < k ∧ e i = q) (hk : k < 2 ^ 24)
+    {q : Nat} (hq : q < Iw.h) (hclk : Iw.main q 0 = ofN r)
+    {fl fa fg v xc out : Nat} (hcons : eq (col out) (resolveE fl fa fg v xc) ∈ instwCons)
+    (hI : (⟨"arg", 1, col fa, [col 0, col v, col xc]⟩ : Inter) ∈ instwInters)
+    {o : Op} (hops : [Iw.main q fl, Iw.main q fa, Iw.main q fg, Iw.main q v] = opCols o) (hs : opSmall o = true)
+    (hc : (Iw.main q 1).val < 2 ^ 27) :
+    (Iw.main q out).val = o.res (Iw.main q 1).val ((List.range k).map (fun i => (Po.main (e i) 4).val)) := by
+  have cv := col_eval hq
+  have hr := h.iw.2 _ hcons q hq
+  simp only [B.eq, resolveE, E.eval, cv] at hr
+  have e0 := sub_eq_zero hr
+  have hP : 2 ^ 27 + 2 ^ 24 < P := by decide
+  cases o with
+  | local_ j =>
+    simp only [opCols, List.cons.injEq, and_true] at hops
+    obtain ⟨h1, h2, h3, h4⟩ := hops
+    rw [h1, h2, h3, h4, ofN_one, ofN_zero, one_mul', zero_mul', zero_mul', add_zero', add_zero'] at e0
+    have hj : j < 2 ^ 24 := of_decide_eq_true hs
+    rw [e0, val_add_nat (by omega)]; rfl
+  | arg i =>
+    simp only [opCols, List.cons.injEq, and_true] at hops
+    obtain ⟨h1, h2, h3, h4⟩ := hops
+    rw [h1, h2, h3, ofN_one, ofN_zero, zero_mul', one_mul', zero_mul', zero_add', add_zero'] at e0
+    have hi : i < 2 ^ 24 := of_decide_eq_true hs
+    obtain ⟨i', hi', hv, hx⟩ := h.argPath (fun i hi => hp i hi) hu (v := Iw.main q v) (x := Iw.main q xc)
+      ⟨(instwAir, Iw), by simp [jetTables], rfl, q, hq, _, hI, rfl,
+        by simp only [List.map_cons, List.map_nil, cv, hclk], by rw [cv, h2]; rfl⟩
+    rw [h4] at hv
+    have := ofN_inj (Nat.lt_trans hi (by decide)) (Nat.lt_trans (Nat.lt_trans hi' hk) (by decide)) hv
+    subst this
+    rw [e0, hx]
+    show _ = ((List.range k).map (fun i => (Po.main (e i) 4).val)).getD i 0
+    rw [getD_range_map _ hi']
+  | glob a =>
+    simp only [opCols, List.cons.injEq, and_true] at hops
+    obtain ⟨h1, h2, h3, h4⟩ := hops
+    rw [h1, h2, h3, h4, ofN_one, ofN_zero, zero_mul', zero_mul', one_mul', zero_add', zero_add'] at e0
+    have ha : a < 2 ^ 24 := of_decide_eq_true hs
+    rw [e0, val_ofN (Nat.lt_trans ha (by decide))]; rfl
+
+/-- **The instantiation's root resolves** as `Op.res` does. -/
+theorem JetOK.rootRes {r k : Nat} {e : Nat → Nat} (hr : r < C.h)
+    (hp : ∀ i, i < k → e i < Po.h ∧ Po.main (e i) 2 = ofN i)
+    (hu : ∀ q, q < Po.h → Po.main q 7 = 1 → Po.main q 0 = ofN r → ∃ i, i < k ∧ e i = q) (hk : k < 2 ^ 24)
+    {o : Op} (hops : [C.main r J_RL, C.main r J_RA, C.main r J_RG, C.main r J_RV] = opCols o)
+    (hs : opSmall o = true) (hc : ∀ j, o = .local_ j → (C.main r CTR).val < 2 ^ 27) :
+    (jetHd.eval (C.env r)).val = o.res (C.main r CTR).val ((List.range k).map (fun i => (Po.main (e i) 4).val)) := by
+  have cv := col_eval hr
+  simp only [jetHd, E.eval, cv]
+  have hP : 2 ^ 27 + 2 ^ 24 < P := by decide
+  cases o with
+  | local_ j =>
+    simp only [opCols, List.cons.injEq, and_true] at hops
+    obtain ⟨h1, h2, h3, h4⟩ := hops
+    rw [h1, h2, h3, h4, ofN_one, ofN_zero, one_mul', zero_mul', zero_mul', add_zero', add_zero']
+    have hj : j < 2 ^ 24 := of_decide_eq_true hs
+    have hc' := hc j rfl
+    rw [val_add_nat (by omega)]; rfl
+  | arg i =>
+    simp only [opCols, List.cons.injEq, and_true] at hops
+    obtain ⟨h1, h2, h3, h4⟩ := hops
+    rw [h1, h2, h3, ofN_one, ofN_zero, zero_mul', zero_mul', one_mul', zero_add', zero_add']
+    have hi : i < 2 ^ 24 := of_decide_eq_true hs
+    obtain ⟨i', hi', hv, hx⟩ := h.argPath (fun i hi => hp i hi) hu (v := C.main r J_RV) (x := C.main r J_XROOT)
+      ⟨(cpuAirJ hd0 stk0 ctr0, C), by simp [jetTables], rfl, r, hr,
+        ⟨"arg", 1, col J_RA, [col J_CLK, col J_RV, col J_XROOT]⟩,
+        List.mem_append_right _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _
+          (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ List.mem_cons_self)))))), rfl,
+        by simp only [List.map_cons, List.map_nil, cv, clk_eq h.cpu r hr], by rw [cv, h2]; rfl⟩
+    rw [h4] at hv
+    have := ofN_inj (Nat.lt_trans hi (by decide)) (Nat.lt_trans (Nat.lt_trans hi' hk) (by decide)) hv
+    subst this
+    rw [hx]
+    show _ = ((List.range k).map (fun i => (Po.main (e i) 4).val)).getD i 0
+    rw [getD_range_map _ hi']
+  | glob a =>
+    simp only [opCols, List.cons.injEq, and_true] at hops
+    obtain ⟨h1, h2, h3, h4⟩ := hops
+    rw [h1, h2, h3, h4, ofN_one, ofN_zero, zero_mul', zero_mul', one_mul', zero_add', add_zero']
+    have ha : a < 2 ^ 24 := of_decide_eq_true hs
+    rw [val_ofN (Nat.lt_trans ha (by decide))]; rfl
+
+omit h in
+theorem getD_range_mapF (f : Nat → F) {k i : Nat} (hi : i < k) : ((List.range k).map f).getD i 0 = f i := by
+  rw [List.getD_eq_getElem?_getD, List.getElem?_map, List.getElem?_range hi]; rfl
+
+/-- **The instantiation's cells are in memory**: at the counter plus `j`,
+    the template's `j`-th cell, resolved. -/
+theorem JetOK.cellAt {r k g : Nat} {J : Air.Jet} {e w : Nat → Nat} (hjl : jets.length < 2 ^ 27)
+    (hJ : jets[g]? = some J) (hG : C.main r J_G = ofN g)
+    (hn : (symCells J J.body 0).1.length < 2 ^ 24)
+    (hops : ((symCells J J.body 0).1.all fun cl => match cl.2 with
+      | some (a, b) => opSmall a && opSmall b
+      | none => true) = true)
+    (hp : ∀ i, i < k → e i < Po.h ∧ Po.main (e i) 2 = ofN i)
+    (hu : ∀ q, q < Po.h → Po.main q 7 = 1 → Po.main q 0 = ofN r → ∃ i, i < k ∧ e i = q) (hk : k < 2 ^ 24)
+    (hw : ∀ j, j < (symCells J J.body 0).1.length → w j < Iw.h ∧ Iw.main (w j) 17 = 1 ∧
+      Iw.main (w j) 0 = ofN r ∧ Iw.main (w j) 1 = C.main r CTR ∧ Iw.main (w j) 2 = C.main r J_G ∧
+      Iw.main (w j) 3 = ofN j)
+    (hc : (C.main r CTR).val < 2 ^ 27) {j : Nat} (hj : j < (symCells J J.body 0).1.length) :
+    (memOf Mm)[(C.main r CTR).val + j]? =
+      some (JetTable.cellOf (C.main r CTR).val ((List.range k).map (fun i => (Po.main (e i) 4).val))
+        (symCells J J.body 0).1[j]) := by
+  obtain ⟨h1, h2, h3, h4, h5, h6⟩ := hw j hj
+  have cv := col_eval h1
+  have hP : 2 ^ 27 + 2 ^ 24 < P := by decide
+  -- the template row
+  obtain ⟨J', g', j', cl, hJ', hcl, hrow⟩ := h.tmplHit h1 h2
+  have hx : ∀ i, i < 11 → Iw.main (w j) (2 + i) = (tmplRow g' j' cl).getD i 0 := fun i hi => by
+    rw [← hrow, getD_range_mapF _ hi]
+  have hg' : g' < jets.length := (List.getElem?_eq_some_iff.1 hJ').1
+  have hg : g < jets.length := (List.getElem?_eq_some_iff.1 hJ).1
+  obtain ⟨tag, ops⟩ := cl
+  have t0 : (tmplRow g' j' (tag, ops)).getD 0 0 = ofN g' := by cases ops <;> rfl
+  have t1 : (tmplRow g' j' (tag, ops)).getD 1 0 = ofN j' := by cases ops <;> rfl
+  have t2 : (tmplRow g' j' (tag, ops)).getD 2 0 = ofN tag := by cases ops <;> rfl
+  have e0 := hx 0 (by decide); rw [t0, h5, hG] at e0
+  have egg := ofN_inj (Nat.lt_trans hg (Nat.lt_trans hjl (by decide))) (Nat.lt_trans hg' (Nat.lt_trans hjl (by decide))) e0
+  subst egg
+  rw [hJ] at hJ'
+  cases hJ'
+  have hj' : j' < (symCells J J.body 0).1.length := (List.getElem?_eq_some_iff.1 hcl).1
+  have e1 := hx 1 (by decide); rw [t1, h6] at e1
+  have ejj := ofN_inj (Nat.lt_trans (Nat.lt_trans hj hn) (by decide)) (Nat.lt_trans (Nat.lt_trans hj' hn) (by decide)) e1
+  subst ejj
+  have hclj : (symCells J J.body 0).1[j] = (tag, ops) := (List.getElem?_eq_some_iff.1 hcl).2
+  rw [hclj]
+  have e2 := hx 2 (by decide); rw [t2] at e2
+  -- the write
+  obtain ⟨_, hget⟩ := h.cell (h.memHit
+    (v := [Iw.main (w j) 1 + Iw.main (w j) 3, Iw.main (w j) 4, Iw.main (w j) 13, Iw.main (w j) 14])
+    ⟨(instwAir, Iw), by simp [jetTables], rfl, w j, h1,
+    ⟨"mem", 1, col 17, [.add (col 1) (col 3), col 4, col 13, col 14]⟩,
+    List.mem_cons_of_mem _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _
+      (List.mem_cons_of_mem _ List.mem_cons_self)))), rfl,
+    by simp only [List.map_cons, List.map_nil, E.eval, cv], by rw [cv, h2]⟩)
+  rw [h4, h6, val_add_nat (by omega), e2] at hget
+  rw [hget]
+  congr 1
+  have hmem : ((tag, ops) : Nat × Option (Op × Op)) ∈ (symCells J J.body 0).1 := by
+    rw [← hclj]; exact List.getElem_mem hj
+  rcases symCells_cells J J.body 0 _ hmem with ⟨hno, htag⟩ | ⟨htag, oa, ob, hso⟩
+  · -- a leaf: its operand columns are zero
+    simp only at hno htag
+    subst hno
+    have z : ∀ i, 3 ≤ i → i < 11 → Iw.main (w j) (2 + i) = 0 := by
+      intro i h3 h11
+      rw [hx i h11]
+      show ([ofN g, ofN j, ofN tag] ++ List.replicate 8 (ofN 0)).getD i 0 = 0
+      rw [List.getD_eq_getElem?_getD, List.getElem?_append_right (by simp; omega), List.getElem?_replicate]
+      simp only [List.length_cons, List.length_nil]
+      rw [if_pos (by omega)]; rfl
+    have ra := h.iw.2 _ (show eq (col 13) (resolveE 5 6 7 8 15) ∈ instwCons by simp [instwCons]) (w j) h1
+    have rb := h.iw.2 _ (show eq (col 14) (resolveE 9 10 11 12 16) ∈ instwCons by simp [instwCons]) (w j) h1
+    simp only [B.eq, resolveE, E.eval, cv, z 3 (by decide) (by decide), z 4 (by decide) (by decide),
+      z 5 (by decide) (by decide), z 7 (by decide) (by decide), z 8 (by decide) (by decide),
+      z 9 (by decide) (by decide), zero_mul', add_zero'] at ra rb
+    rw [sub_eq_zero ra, sub_eq_zero rb]
+    rcases (show tag = 0 ∨ tag = 1 ∨ tag = 2 by omega) with rfl | rfl | rfl <;> rfl
+  · -- an application: its operands resolve
+    simp only at htag hso
+    subst htag hso
+    have hs := List.all_eq_true.1 hops _ hmem
+    simp only [Bool.and_eq_true] at hs
+    have hA : [Iw.main (w j) 5, Iw.main (w j) 6, Iw.main (w j) 7, Iw.main (w j) 8] = opCols oa := by
+      rw [hx 3 (by decide), hx 4 (by decide), hx 5 (by decide), hx 6 (by decide)]
+      show [([ofN g, ofN j, ofN 3] ++ opCols oa ++ opCols ob).getD 3 0, _, _, _] = _
+      cases oa <;> cases ob <;> rfl
+    have hB : [Iw.main (w j) 9, Iw.main (w j) 10, Iw.main (w j) 11, Iw.main (w j) 12] = opCols ob := by
+      rw [hx 7 (by decide), hx 8 (by decide), hx 9 (by decide), hx 10 (by decide)]
+      show [([ofN g, ofN j, ofN 3] ++ opCols oa ++ opCols ob).getD 7 0, _, _, _] = _
+      cases oa <;> cases ob <;> rfl
+    have ea := h.resolve hp hu hk h1 h3 (show eq (col 13) (resolveE 5 6 7 8 15) ∈ instwCons by simp [instwCons])
+      List.mem_cons_self hA hs.1 (by rw [h4]; exact hc)
+    have eb := h.resolve hp hu hk h1 h3 (show eq (col 14) (resolveE 9 10 11 12 16) ∈ instwCons by simp [instwCons])
+      (List.mem_cons_of_mem _ List.mem_cons_self) hB hs.2 (by rw [h4]; exact hc)
+    rw [h4] at ea eb
+    show Circuit.cellOf (ofN 3) _ _ = _
+    rw [cellOf_app, ea, eb]
+    rfl
+
 end
 
 end Circuit
