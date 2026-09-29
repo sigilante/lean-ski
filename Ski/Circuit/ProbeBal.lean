@@ -137,6 +137,72 @@ theorem planRow_mem {plan : List Air.Seg} {j : Nat} {s : Air.Seg} (hs : plan[j]?
     ofN j :: segCols s ∈ planRows plan :=
   padCopies_super (List.mem_map.2 ⟨(s, j), List.mem_zipIdx_iff_getElem?.2 hs, rfl⟩)
 
+-- ---------------------------------------------------------------------------
+-- Counting two ways
+-- ---------------------------------------------------------------------------
+
+theorem sumTo_comm (f : Nat → Nat → Nat) (n : Nat) : ∀ K,
+    sumTo K (fun i => sumTo n (fun c => f i c)) = sumTo n (fun c => sumTo K (fun i => f i c))
+  | 0 => (sumTo_eq_zero n (fun _ _ => rfl)).symm
+  | K + 1 => by
+    show sumTo K (fun i => sumTo n (fun c => f i c)) + sumTo n (fun c => f K c) = _
+    rw [sumTo_comm f n K, ← sumTo_add]
+    rfl
+
+theorem sumTo_at {f : Nat → Nat} {x : Nat} : ∀ n, x < n → (∀ c, c < n → c ≠ x → f c = 0) → sumTo n f = f x
+  | 0, hx, _ => absurd hx (Nat.not_lt_zero _)
+  | n + 1, hx, h => by
+    show sumTo n f + f n = f x
+    rcases Nat.lt_or_ge x n with h' | h'
+    · rw [sumTo_at n h' (fun c hc hne => h c (by omega) hne), h n (by omega) (by omega), Nat.add_zero]
+    · have : x = n := by omega
+      subst this
+      rw [sumTo_eq_zero x (fun q hq => h q (by omega) (by omega)), Nat.zero_add]
+
+theorem sumTo_mul_left (a : Nat) (f : Nat → Nat) : ∀ n, sumTo n (fun c => a * f c) = a * sumTo n f
+  | 0 => rfl
+  | n + 1 => by
+    show sumTo n (fun c => a * f c) + a * f n = a * (sumTo n f + f n)
+    rw [sumTo_mul_left a f n, Nat.mul_add]
+
+theorem ite_mul_one (P Q : Prop) [Decidable P] [Decidable Q] :
+    (if P then 1 else 0) * (if Q then 1 else 0) = if P ∧ Q then 1 else 0 := by
+  rcases (inferInstance : Decidable P) with hp | hp
+  · rw [if_neg hp, if_neg (show ¬ (P ∧ Q) from fun h => hp h.1), Nat.zero_mul]
+  · rw [if_pos hp, Nat.one_mul]
+    rcases (inferInstance : Decidable Q) with hq | hq
+    · rw [if_neg hq, if_neg (show ¬ (P ∧ Q) from fun h => hq h.2)]
+    · rw [if_pos hq, if_pos (show P ∧ Q from ⟨hp, hq⟩)]
+
+theorem sumTo_mul_right (a : Nat) (f : Nat → Nat) (n : Nat) : sumTo n (fun c => f c * a) = sumTo n f * a := by
+  rw [Nat.mul_comm, ← sumTo_mul_left]
+  exact sumTo_congr n (fun q _ => Nat.mul_comm _ _)
+
+theorem ite_iff {P Q : Prop} [Decidable P] [Decidable Q] (h : P ↔ Q) (a b : Nat) :
+    (if P then a else b) = if Q then a else b := by
+  rcases (inferInstance : Decidable Q) with hq | hq
+  · rw [if_neg (fun hp => hq (h.1 hp)), if_neg hq]
+  · rw [if_pos (h.2 hq), if_pos hq]
+
+/-- The probe messages on `SEGEND`. -/
+theorem probeSends_segend (ρ : Atom → F) (v : List F) :
+    probeSendsAt ρ "segend" v =
+      (if [ρ (.main 0 P_CNT) - 1, ρ (.main 0 J_CLK)] = v then -ρ (.main 0 P_NKIDS) else 0) +
+      (if [ρ (.main 0 (S_BASE + 4)), ρ (.main 0 P_CLKP)] = v then ρ (.main 0 (SEL + 13)) else 0) := by
+  unfold probeSendsAt
+  simp only [probeInters, List.foldr_cons, List.foldr_nil, List.map_cons, List.map_nil, E.eval, B.col,
+    B.c, sPLater, sProbe, sPFirst, true_and, ofN_zero, B.one, ofN_one]
+  rw [if_neg (show ¬ ("plan" = "segend" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("plan" = "segend" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("popch" = "segend" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("popch" = "segend" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("mem" = "segend" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("arg" = "segend" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("pwch" = "segend" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("pwch" = "segend" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("mem" = "segend" ∧ _) from fun h' => absurd h'.1 (by decide))]
+  simp only [zero_add', add_zero']
+
 namespace PRun
 
 variable {R : PRun} {t : Term} (hA : AcceptsP R.A (load t) R.roots R.jets R.plan R.p R.fld R.row)
@@ -418,7 +484,132 @@ theorem bal_plan {K : Nat} (hK : R.last < K) (v : List F) :
         · rw [← h2.2]; exact planRow_mem (seg_get hA (by omega))
         · rw [if_neg h1, if_neg h2] at hpos; exact absurd hpos (Nat.lt_irrefl 0)
 
+omit hroots in
+/-- **Each segment starts at exactly one row.** -/
+theorem count_start {K q : Nat} (hK : R.last < K) (hq : q < R.n) :
+    sumTo K (fun i => if R.isP i = true ∧ R.pcnt i = q then 1 else 0) = 1 := by
+  have hl := p_mono hA hq (Nat.le_refl _)
+  refine sumTo_eq_one K (x := R.p q) (by unfold last at hK; omega)
+    (by rw [if_pos ⟨isP_p hA hq, pcnt_p hA (Nat.le_of_lt hq)⟩]) (fun i _ hne => ?_)
+  rw [if_neg]
+  intro ⟨hp, hc⟩
+  apply hne
+  rw [← (isP_pcnt hA hp).2, hc]
+
+/-- A parent's end row key: its count and clock. -/
+def segKey (R : PRun) (q : Nat) : List F := [ofN q, ofN (R.p (q + 1))]
+
+omit hroots in
+/-- A row's `SEGEND` messages: a later probe row looks up its parent's end
+    row and provides its own, once per child. -/
+theorem segend_row {K i : Nat} (hK : R.last < K) (hi : i < K) (v : List F) :
+    probeSendsAt ((R.cpuTableP K).env i) "segend" v =
+      ofN (if R.isP i = true ∧ 0 < R.pcnt i ∧ R.segKey (R.seg (R.pcnt i)).parent = v then 1 else 0) -
+      ofN (if R.isP i = true ∧ 0 < R.pcnt i then R.nkids (R.pcnt i - 1) * (if R.segKey (R.pcnt i - 1) = v then 1 else 0)
+        else 0) := by
+  have cv : ∀ c, (R.cpuTableP K).env i (.main 0 c) = R.cpuColP K i c := fun c => by
+    show R.cpuColP K ((i + 0) % K) c = _; rw [Nat.add_zero, Nat.mod_eq_of_lt hi]
+  rw [probeSends_segend, cv, cv, cv, cv, cv, cv]
+  cases hp : R.isP i with
+  | false =>
+    rw [R.colP_high hp (c := P_NKIDS) (by decide), R.normX_zero (c := P_NKIDS) (by decide)
+      (.inr ⟨by decide, by decide, by decide⟩), R.colP_low hp (c := SEL + 13) (by decide), R.J_sel_probe i (.inr rfl),
+      ite_neg_zero _ _ rfl, ite_zero _ _ rfl, if_neg (fun h => Bool.false_ne_true h.1),
+      if_neg (fun h => Bool.false_ne_true h.1), ofN_zero, sub_self', add_zero']
+  | true =>
+    rcases Nat.decEq i 0 with h0 | h0
+    · have hj0 : 0 < R.pcnt i := Nat.pos_of_ne_zero (fun e => h0 ((pr_zero hA hp).2 e))
+      obtain ⟨m, hm⟩ : ∃ m, R.pcnt i = m + 1 := ⟨R.pcnt i - 1, by omega⟩
+      have hpi : R.p (m + 1) = i := by rw [← hm]; exact (isP_pcnt hA hp).2
+      rw [R.colP_cnt, R.colP_clk' K i, R.colP_x hp (show P_CNT ≤ P_NKIDS by decide), R.probeX_nkids i hj0,
+        R.colP_x hp (show P_CNT ≤ S_BASE + 4 by decide), R.probeX_s i (m := 4) (by decide),
+        R.colP_x hp (show P_CNT ≤ P_CLKP by decide), R.probeX_clkp i hj0, R.colP_sel hp (by decide), if_neg h0,
+        if_pos (show 13 = 13 from rfl), if_pos (show true = true ∧ 0 < R.pcnt i from ⟨rfl, hj0⟩),
+        ite_iff (show (true = true ∧ 0 < R.pcnt i ∧ R.segKey (R.seg (R.pcnt i)).parent = v) ↔
+          R.segKey (R.seg (R.pcnt i)).parent = v from ⟨fun h => h.2.2, fun h => ⟨rfl, hj0, h⟩⟩)]
+      rw [hm, Nat.add_sub_cancel, ofN_add, ofN_one, add_sub_right]
+      show (if [ofN m, ofN i] = v then -ofN (R.nkids m) else 0) +
+          (if [ofN (R.seg (m + 1)).parent, ofN (R.p ((R.seg (m + 1)).parent + 1))] = v then 1 else 0) =
+        ofN (if [ofN (R.seg (m + 1)).parent, ofN (R.p ((R.seg (m + 1)).parent + 1))] = v then 1 else 0) -
+          ofN (R.nkids m * if [ofN m, ofN (R.p (m + 1))] = v then 1 else 0)
+      rw [hpi, ofN_ite]
+      rcases (inferInstance : Decidable ([ofN m, ofN i] = v)) with h1 | h1
+      · rw [if_neg h1, if_neg h1, Nat.mul_zero, ofN_zero, zero_add', sub_eq_add_neg']
+        show _ = _ + -0; rw [show -(0 : F) = 0 by decide, add_zero']
+      · rw [if_pos h1, if_pos h1, Nat.mul_one, sub_eq_add_neg', add_comm']
+    · have hj0 : R.pcnt i = 0 := (pr_zero hA hp).1 h0
+      rw [R.colP_x hp (show P_CNT ≤ P_NKIDS by decide), R.probeX_first hj0 (by decide) (by decide) (by decide),
+        R.colP_sel hp (by decide), if_pos h0, if_neg (show ¬ (13 = 12) by decide), ite_neg_zero _ _ rfl,
+        ite_zero _ _ rfl, if_neg (fun h => by rw [hj0] at h; exact absurd h.2.1 (by decide)),
+        if_neg (fun h => by rw [hj0] at h; exact absurd h.2 (by decide)), ofN_zero, sub_self', add_zero']
+
+omit hroots in
+theorem look_expand (v : List F) (i : Nat) :
+    (if R.isP i = true ∧ 0 < R.pcnt i ∧ R.segKey (R.seg (R.pcnt i)).parent = v then 1 else 0) =
+      sumTo R.n (fun c => (if R.isP i = true ∧ R.pcnt i = c then 1 else 0) *
+        (if 0 < c ∧ R.segKey (R.seg c).parent = v then 1 else 0)) := by
+  cases hp : R.isP i with
+  | false =>
+    rw [if_neg (fun h => Bool.false_ne_true h.1)]
+    exact (sumTo_eq_zero _ (fun c _ => by rw [if_neg (fun h => Bool.false_ne_true h.1), Nat.zero_mul])).symm
+  | true =>
+    obtain ⟨hjn, _⟩ := isP_pcnt hA hp
+    rw [sumTo_at (x := R.pcnt i) R.n hjn (fun c _ hne => by rw [if_neg (fun h => hne h.2.symm), Nat.zero_mul]),
+      if_pos (show true = true ∧ R.pcnt i = R.pcnt i from ⟨rfl, rfl⟩), Nat.one_mul]
+    exact ite_iff ⟨fun h => h.2, fun h => ⟨rfl, h⟩⟩ 1 0
+
+omit hroots in
+theorem prov_expand (v : List F) (i : Nat) :
+    (if R.isP i = true ∧ 0 < R.pcnt i then R.nkids (R.pcnt i - 1) * (if R.segKey (R.pcnt i - 1) = v then 1 else 0)
+      else 0) =
+      sumTo R.n (fun c => (if R.isP i = true ∧ R.pcnt i = (R.seg c).parent + 1 then 1 else 0) *
+        (if 0 < c ∧ R.segKey (R.seg c).parent = v then 1 else 0)) := by
+  by_cases hc : R.isP i = true ∧ 0 < R.pcnt i
+  · rw [if_pos hc]
+    unfold nkids
+    rw [← sumTo_mul_right]
+    apply sumTo_congr
+    intro c _
+    rw [ite_mul_one, ite_mul_one]
+    apply ite_iff
+    constructor
+    · intro ⟨⟨h1, h2⟩, h3⟩
+      refine ⟨⟨hc.1, by omega⟩, h1, ?_⟩
+      rw [h2]; exact h3
+    · intro ⟨⟨_, h2⟩, h1, h3⟩
+      refine ⟨⟨h1, by omega⟩, ?_⟩
+      rw [show R.pcnt i - 1 = (R.seg c).parent by omega]; exact h3
+  · rw [if_neg hc]
+    refine (sumTo_eq_zero _ (fun c _ => ?_)).symm
+    rw [if_neg (fun h => hc ⟨h.1, by omega⟩), Nat.zero_mul]
+
+variable (hpar : ∀ c, 0 < c → c < R.n → (R.seg c).parent < c)
+include hpar
+
+omit hroots in
+/-- **`SEGEND` balances**: each child looks up its parent's end row, which
+    provides once per child. -/
+theorem bal_segend {K : Nat} (hK : R.last < K) (v : List F) :
+    (List.range K).foldr (fun i acc => probeSendsAt ((R.cpuTableP K).env i) "segend" v + acc) 0 = 0 := by
+  rw [foldr_range_congr K (fun i hi => segend_row hA hK hi v), fold_sub, fold_ofN, fold_ofN]
+  have e1 : sumTo K (fun i => if R.isP i = true ∧ 0 < R.pcnt i ∧ R.segKey (R.seg (R.pcnt i)).parent = v then 1 else 0)
+      = sumTo R.n (fun c => if 0 < c ∧ R.segKey (R.seg c).parent = v then 1 else 0) := by
+    rw [sumTo_congr K (fun i _ => look_expand hA v i), sumTo_comm]
+    apply sumTo_congr
+    intro c hc
+    rw [sumTo_mul_right, count_start hA hK hc, Nat.one_mul]
+  have e2 : sumTo K (fun i => if R.isP i = true ∧ 0 < R.pcnt i then
+        R.nkids (R.pcnt i - 1) * (if R.segKey (R.pcnt i - 1) = v then 1 else 0) else 0)
+      = sumTo R.n (fun c => if 0 < c ∧ R.segKey (R.seg c).parent = v then 1 else 0) := by
+    rw [sumTo_congr K (fun i _ => prov_expand hA v i), sumTo_comm]
+    apply sumTo_congr
+    intro c hc
+    rw [sumTo_mul_right]
+    rcases Nat.eq_zero_or_pos c with h0 | h0
+    · rw [if_neg (fun h => by omega), Nat.mul_zero]
+    · rw [count_start hA hK (by have := hpar c h0 hc; omega), Nat.one_mul]
+  rw [e1, e2, sub_self']
+
 end PRun
 
 end Circuit
-#print axioms Circuit.PRun.bal_plan
