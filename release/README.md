@@ -81,6 +81,18 @@ that it runs in about 15 seconds. It prints one `ok` line per check, then
    rejects it for `[5]`, and refuses it as row `compiled_up`, which also
    decodes to `[6]`.
 
+7. **Composed statements in zero knowledge.** `composed/or` and
+   `composed/and` each hold a statement, `public.txt`, and a proof: that
+   the prover holds bits and a witness realizing the `∨`, or the `∧`, of
+   two atoms of Part II's logic (`Ski/WitnessExamples.lean`), the witness
+   hidden. `verify.sh` first checks that each `public.txt` is Lean's
+   statement of its formula (`lake exe composed emit`). `ski-air
+   composed-verify PUBLIC PROOF` then pipes the statement's bytes to Lean's
+   check (`lake exe composed statement -`) and verifies the proof, read
+   from its file as one byte string, against the statement alone. A proof
+   with one byte changed or a byte appended, a statement with a hidden cell
+   exposed, and the `∨` proof offered for the `∧` statement are refused.
+
 ## What the proofs mean, and what they do not
 
 **The halting proof.** An accepted table satisfies `Air.AcceptsJ` from
@@ -88,6 +100,18 @@ the loaded term with licensed roots. By `Air.air_sound_jet`, the term
 then evaluates in normal order to a value that weakly reduces to the
 table's final value, with the same head combinator and arity. So
 `3 sumto` **halts**, and the proof fixes the head and arity of its value.
+
+**The composed proofs.** A formula of atoms under `∧` and `∨` compiles
+to a list of terms, each of which must evaluate to `K` on literal bits and
+a hidden witness (`Ski/Compose.lean`). An accepted table runs one segment
+per term (`Ski/Composed.lean`), and its bits and witness read back as a
+realizer of the formula (`CompM.checkC_realizes`). The proofs hide the
+bits and the witness: a hiding PCS, fixed heights and blinded lookup
+sums, as in the Sudoku proof; the argument is informal. They are
+randomized, so they do not regenerate byte for byte. That the prover
+*knows* a realizer rests on the STARK's knowledge soundness, assumed. The
+verdict names the formula: whoever reads it compares that formula with the
+one they meant.
 
 **The output proof.** A result is read by probing: the term, applied to
 three fresh marker atoms, must head-reduce to the marker of `RVal`

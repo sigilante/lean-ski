@@ -413,25 +413,32 @@ fn heights(p: &Public, zk: usize) -> [usize; 5] {
     [LOG_ROWS + zk, LOG_MEM + zk, lg(program_of(p).len()) + zk, LOG_WIT + zk, lg(segs_pre(p).len()) + zk]
 }
 
-fn prove_and_verify(p: &Public, tr: &[RowMajorMatrix<Val>; 5]) -> (Outcome, usize) {
+/// A composed proof.
+type CProof = p3_batch_stark::BatchProof<ZkConfig>;
+
+/// Prove the traces: the proof and the seconds it took, setup included.
+fn prove(p: &Public, tr: &[RowMajorMatrix<Val>; 5]) -> Result<(CProof, f64), String> {
     let proved = catch_unwind(AssertUnwindSafe(|| {
         let config = make_zk_config(None);
         let a = airs(p);
+        let t0 = Instant::now();
         let pd = ProverData::<ZkConfig>::from_airs_and_degrees(&make_zk_config(Some(PUBLIC_SEED)), &a, &heights(p, config.is_zk()))
             .map_err(|e| format!("setup: {e:?}"))?;
-        let t0 = Instant::now();
         let trs: Vec<&RowMajorMatrix<Val>> = tr.iter().collect();
         let proof = prove_batch(&config, &StarkInstance::new_multiple(&a, &trs, &vec![vec![]; 5]), &pd)
             .map_err(|e| format!("prove: {e:?}"))?;
         Ok::<_, String>((proof, t0.elapsed().as_secs_f64()))
     }));
-    let (proof, prove_s) = match proved {
-        Ok(Ok(p)) => p,
-        Ok(Err(e)) => return (Outcome::Refused(e), 0),
-        Err(e) => return (Outcome::Refused(format!("panic: {}", panic_text(&e))), 0),
-    };
-    let size = postcard_size(&proof);
-    let t1 = Instant::now();
+    match proved {
+        Ok(r) => r,
+        Err(e) => Err(format!("panic: {}", panic_text(&e))),
+    }
+}
+
+/// **The verifier**: the public statement and the proof, nothing else.  It
+/// rebuilds its AIRs and preprocessed commitments from the statement and
+/// accepts only the statement's heights.
+fn verify(p: &Public, proof: &CProof) -> Result<(), String> {
     let verified = catch_unwind(AssertUnwindSafe(|| {
         let v_config = make_zk_config(Some(PUBLIC_SEED));
         let v_airs = airs(p);
@@ -441,14 +448,83 @@ fn prove_and_verify(p: &Public, tr: &[RowMajorMatrix<Val>; 5]) -> (Outcome, usiz
         }
         let v_data = ProverData::<ZkConfig>::from_airs_and_degrees(&v_config, &v_airs, &want)
             .map_err(|e| format!("verifier setup: {e:?}"))?;
-        verify_batch(&v_config, &v_airs, &proof, &vec![vec![]; 5], &v_data.common).map_err(|e| format!("verify: {e:?}"))
+        verify_batch(&v_config, &v_airs, proof, &vec![vec![]; 5], &v_data.common).map_err(|e| format!("verify: {e:?}"))
     }));
-    let outcome = match verified {
-        Ok(Ok(())) => Outcome::Verified(prove_s, t1.elapsed().as_secs_f64()),
-        Ok(Err(e)) => Outcome::Rejected(e),
-        Err(e) => Outcome::Rejected(format!("verifier panic: {}", panic_text(&e))),
+    match verified {
+        Ok(r) => r,
+        Err(e) => Err(format!("verifier panic: {}", panic_text(&e))),
+    }
+}
+
+fn prove_and_verify(p: &Public, tr: &[RowMajorMatrix<Val>; 5]) -> (Outcome, usize) {
+    let (proof, prove_s) = match prove(p, tr) {
+        Ok(r) => r,
+        Err(e) => return (Outcome::Refused(e), 0),
     };
-    (outcome, size)
+    let size = postcard_size(&proof);
+    let t1 = Instant::now();
+    match verify(p, &proof) {
+        Ok(()) => (Outcome::Verified(prove_s, t1.elapsed().as_secs_f64()), size),
+        Err(e) => (Outcome::Rejected(e), size),
+    }
+}
+
+/// The statement's bytes, read once and checked by Lean over stdin, then
+/// parsed: what Lean checked is what the verifier uses.
+fn checked_public(path: &std::path::Path) -> Result<Public, String> {
+    let text = std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    lean_statement("composed", &["statement", "-"], text.as_bytes()).map_err(|e| format!("statement: {e}"))?;
+    parse_public(&text)
+}
+
+/// `ski-air composed-prove PUBLIC WITNESS PROOF [TABLE]`: prove the composed
+/// statement for the prover's bits and region, write the proof (and the
+/// Lean table), and check the proof verifies.
+pub fn composed_prove(public: &std::path::Path, wit: &std::path::Path, proof_out: &std::path::Path, table_out: Option<&std::path::Path>) -> Result<(), String> {
+    let p = checked_public(public)?;
+    let private = read_witness(&p, wit)?;
+    let tb = table(&p, heap_of(&p, &private)).ok_or("the run does not fit the statement's heights")?;
+    let e = ends(&tb);
+    if let Some(j) = e.iter().position(|&x| x != (Cell::K, Cell::Nil)) {
+        return Err(format!("segment {j} ends at {:?}, not K over a nil: the witness does not satisfy the statement", e[j]));
+    }
+    if let Some(t) = table_out {
+        std::fs::write(t, lean_table(&p, &tb)).map_err(|e| format!("{}: {e}", t.display()))?;
+    }
+    let (proof, prove_s) = prove(&p, &traces(&p, &tb, true))?;
+    let bytes = postcard::to_allocvec(&proof).map_err(|e| format!("serialize: {e}"))?;
+    std::fs::write(proof_out, &bytes).map_err(|e| format!("{}: {e}", proof_out.display()))?;
+    verify(&p, &proof)?;
+    println!(
+        "proved {} rows, {} memory cells, {} segments, in {prove_s:.2} s; proof {} bytes -> {}",
+        tb.run_rows,
+        tb.run_mem,
+        p.roots.len(),
+        bytes.len(),
+        proof_out.display()
+    );
+    Ok(())
+}
+
+/// `ski-air composed-verify PUBLIC PROOF`: **the standalone verifier**.  Lean
+/// checks the statement's bytes; the proof, read from its file, must be one
+/// byte string and verify against the statement alone.
+pub fn composed_verify(public: &std::path::Path, proof_in: &std::path::Path) -> Result<(), String> {
+    let p = checked_public(public)?;
+    let bytes = std::fs::read(proof_in).map_err(|e| format!("{}: {e}", proof_in.display()))?;
+    let (proof, rest): (CProof, &[u8]) = postcard::take_from_bytes(&bytes).map_err(|e| format!("deserialize: {e}"))?;
+    if !rest.is_empty() {
+        return Err(format!("{} bytes after the proof", rest.len()));
+    }
+    let t0 = Instant::now();
+    verify(&p, &proof)?;
+    println!(
+        "VERIFIED: the proof checks against the statement of the formula {} ({} segments; {:.3} s)",
+        p.formula,
+        p.roots.len(),
+        t0.elapsed().as_secs_f64()
+    );
+    Ok(())
 }
 
 /// The guess test: the witness table's published terminal, against a replay

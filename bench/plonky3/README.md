@@ -307,6 +307,14 @@ nonbool  a bit cell I: rejected by the witness table's bit mode
 forged   a region cell pointing forward, never read: rejected by the witness table
 ```
 
+**The standalone verifier.** `ski-air composed-prove PUBLIC WITNESS PROOF
+[TABLE]` writes a proof, and `ski-air composed-verify PUBLIC PROOF` checks
+one from its file: it reads the statement once and pipes those bytes to
+`lake exe composed statement -`, refuses a proof with trailing bytes, pins
+the heights, and verifies against the statement alone. `release/composed`
+ships the two example proofs, and `release/verify.sh` checks them and
+their forgeries.
+
 `lake exe composed check` accepts both honest tables and rejects the
 eight tampered ones and a table offered under the other formula's
 statement; `lake exe composed statement` rejects a `public.txt` with a

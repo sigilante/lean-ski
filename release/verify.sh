@@ -19,7 +19,12 @@
 #      the error outcome, or with one byte changed, it is refused; the
 #      halting proof offered as a probe proof is refused; Lean's
 #      `jets check-probe` accepts the probe table for `[6]` alone
-#      (Air.checkPA_decodes).
+#      (Air.checkPA_decodes);
+#   6. composed statements in zero knowledge (release/composed): for the ∨
+#      and the ∧ of two atoms, the statement is Lean's, and ski-air
+#      composed-verify checks the proof from its file; with one byte
+#      changed, a byte appended, a doctored statement, or offered for the
+#      other formula, it is refused.
 #
 # Exits nonzero on any failure.
 
@@ -192,5 +197,49 @@ else
         || no "lake exe jets check-probe fails on the table as another row's without refusing it"
 fi
 
-[ "$failed" = 0 ] || { echo "NOT VERIFIED: release/sumto"; exit 1; }
-echo "VERIFIED: release/sumto"
+echo "--- 6. composed statements in zero knowledge: the ∨ and the ∧ of two atoms"
+lake build composed > /dev/null
+lake exe composed emit "$tmp/composed" > /dev/null
+for n in or and; do
+    C=release/composed/$n
+    cmp -s "$tmp/composed/$n/public.txt" "$C/public.txt" \
+        && ok "release/composed/$n/public.txt is Lean's statement of its formula" \
+        || no "release/composed/$n/public.txt is not Lean's statement"
+    "$SKI_AIR" composed-verify "$C/public.txt" "$C/$n.proof" > "$tmp/cv.log" \
+        && ok "the $n proof verifies from its file ($(head -c 60 "$tmp/cv.log"))" \
+        || no "the $n proof does not verify ($(head -c 80 "$tmp/cv.log"))"
+    /bin/cp "$C/$n.proof" "$tmp/cflip.proof"
+    size=$(wc -c < "$tmp/cflip.proof")
+    off=$((size / 2))
+    byte=$(dd if="$tmp/cflip.proof" bs=1 skip=$off count=1 2>/dev/null | od -An -tu1 | tr -d ' ')
+    printf '%b' "$(printf '\\0%03o' $(( (byte + 1) % 256 )))" \
+        | dd of="$tmp/cflip.proof" bs=1 seek=$off count=1 conv=notrunc 2>/dev/null
+    cmp -s "$tmp/cflip.proof" "$C/$n.proof" && no "the byte flip changed nothing"
+    if "$SKI_AIR" composed-verify "$C/public.txt" "$tmp/cflip.proof" > "$tmp/cf.log"; then
+        no "the $n proof with one byte changed verified"
+    else
+        ok "the $n proof with one byte changed is refused ($(head -c 60 "$tmp/cf.log"))"
+    fi
+    /bin/cp "$C/$n.proof" "$tmp/clong.proof"
+    printf 'x' >> "$tmp/clong.proof"
+    if "$SKI_AIR" composed-verify "$C/public.txt" "$tmp/clong.proof" > "$tmp/cl.log"; then
+        no "the $n proof with a byte appended verified"
+    else
+        ok "the $n proof with a byte appended is refused ($(head -c 60 "$tmp/cl.log"))"
+    fi
+    # A bit cell exposed as K: the statement check refuses the doctored file.
+    sed '10s/^W$/K/' "$C/public.txt" > "$tmp/cpub.txt"
+    if "$SKI_AIR" composed-verify "$tmp/cpub.txt" "$C/$n.proof" > "$tmp/cp.log"; then
+        no "the $n proof verified against a doctored statement"
+    else
+        ok "the $n proof against a doctored statement is refused ($(head -c 60 "$tmp/cp.log"))"
+    fi
+done
+if "$SKI_AIR" composed-verify release/composed/and/public.txt release/composed/or/or.proof > "$tmp/cx.log"; then
+    no "the ∨ proof verified for the ∧ statement"
+else
+    ok "the ∨ proof offered for the ∧ statement is refused ($(head -c 60 "$tmp/cx.log"))"
+fi
+
+[ "$failed" = 0 ] || { echo "NOT VERIFIED: release"; exit 1; }
+echo "VERIFIED: release/sumto and release/composed"

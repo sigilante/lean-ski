@@ -17,7 +17,12 @@
 #      writes the same table, byte for byte; `probe-prove-table` proves
 #      Avon's table, and `probe-verify` checks the proof;
 #   6. the Omega forgery (release/forgeries/omega): its hand-written table,
-#      proved over the forged jet table, which Lean's check refuses.
+#      proved over the forged jet table, which Lean's check refuses;
+#   7. composed statements (release/composed): Lean emits each example's
+#      statement and witness; ski-air composed-prove proves it in zero
+#      knowledge.  The witness stays in a temporary directory, and the
+#      proofs are randomized (hiding), so they do not regenerate byte for
+#      byte; any proof composed-verify accepts is as good.
 #
 # Run from anywhere; writes release/sumto/.  One job at a time.
 
@@ -75,3 +80,13 @@ if lake exe jets check "$F/omega.table" > /dev/null; then
     exit 1
 fi
 bench/plonky3/target/release/ski-air jet-prove "$F/omega.term" "$F/forged.jets" "$F/omega.table" "$F/omega.proof"
+
+echo "--- composed statements in zero knowledge"
+lake build composed > /dev/null
+lake exe composed emit "$tmp/composed" > /dev/null
+for n in or and; do
+    mkdir -p "release/composed/$n"
+    /bin/cp "$tmp/composed/$n/public.txt" "release/composed/$n/public.txt"
+    bench/plonky3/target/release/ski-air composed-prove "release/composed/$n/public.txt" \
+        "$tmp/composed/$n/witness.txt" "release/composed/$n/$n.proof"
+done

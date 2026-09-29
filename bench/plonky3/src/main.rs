@@ -1113,6 +1113,24 @@ const MIN_LOG: usize = 4;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
+    if (args.len() == 5 || args.len() == 6) && args[1] == "composed-prove" {
+        std::panic::set_hook(Box::new(|_| {}));
+        let p = |i: usize| std::path::Path::new(&args[i]);
+        if let Err(e) = composed::composed_prove(p(2), p(3), p(4), args.get(5).map(std::path::Path::new)) {
+            println!("REFUSED: {e}");
+            std::process::exit(1);
+        }
+        return;
+    }
+    if args.len() == 4 && args[1] == "composed-verify" {
+        std::panic::set_hook(Box::new(|_| {}));
+        let p = |i: usize| std::path::Path::new(&args[i]);
+        if let Err(e) = composed::composed_verify(p(2), p(3)) {
+            println!("REJECTED: {e}");
+            std::process::exit(1);
+        }
+        return;
+    }
     if args.len() == 4 && args[1] == "composed" {
         let out = std::path::Path::new(&args[3]);
         std::fs::create_dir_all(out).unwrap();
@@ -1207,7 +1225,8 @@ fn main() {
     }
     if args.len() != 3 {
         eprintln!(
-            "usage: ski-air CORPUS OUTDIR | ski-air sudoku DIR OUTDIR | ski-air witness DIR OUTDIR | ski-air composed DIR OUTDIR | ski-air jets CORPUS JETSDIR OUTDIR\n       \
+            "usage: ski-air CORPUS OUTDIR | ski-air sudoku DIR OUTDIR | ski-air witness DIR OUTDIR | ski-air composed DIR OUTDIR |\n       \
+             ski-air composed-prove PUBLIC WITNESS PROOF [TABLE] | ski-air composed-verify PUBLIC PROOF | ski-air jets CORPUS JETSDIR OUTDIR\n       \
              ski-air jet-prove TERM JETS TABLE PROOF | ski-air jet-verify CORPUS JETSDIR NAME PROOF\n       \
              ski-air probes CORPUS JETSDIR OUTDIR | ski-air probe-prove TERM JETS TABLE PROOF OUTCOME...\n       \
              ski-air probe-prove-table TERM JETS TABLE PROOF OUTCOME...\n       \
