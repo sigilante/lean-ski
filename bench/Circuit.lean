@@ -1,4 +1,6 @@
 import Ski.Circuit.Base
+import Ski.Circuit.CompAir
+import Ski.ComposedText
 open Term
 
 /-!
@@ -158,16 +160,8 @@ def diffAir (a b : AirD) : Option String :=
         | some i => some s!"interaction {i}"
         | none => if a.pretrace != b.pretrace then some "preprocessed tables" else none
 
-def compare (path : String) : IO UInt32 := do
-  let text ← if path == "-" then (do let h ← IO.getStdin; h.readToEnd) else IO.FS.readFile path
-  let ls := (text.splitOn "\n").filter (fun l => !l.trimAscii.toString.isEmpty)
-  let some t := (match ls with
-      | l :: _ => match words l with
-        | ["term", s] => parseTerm s
-        | _ => none
-      | [] => none) | do IO.println "MALFORMED: no term"; return 1
-  let some rust := parseAirs (ls.length + 1) (ls.drop 1) | do IO.println "MALFORMED AIRS"; return 1
-  let lean := baseAirs t
+/-- The Rust AIRs against the Lean ones, AIR by AIR. -/
+def compareAirs (rust lean : List AirD) : IO UInt32 := do
   if rust.length != lean.length then
     IO.println s!"DIFFER: {rust.length} AIRs, Lean has {lean.length}"
     return 1
@@ -185,9 +179,41 @@ def compare (path : String) : IO UInt32 := do
     IO.println "DIFFER"
     return 1
 
+def readInput (path : String) : IO String :=
+  if path == "-" then do (← IO.getStdin).readToEnd else IO.FS.readFile path
+
+def compare (path : String) : IO UInt32 := do
+  let text ← readInput path
+  let ls := (text.splitOn "\n").filter (fun l => !l.trimAscii.toString.isEmpty)
+  let some t := (match ls with
+      | l :: _ => match words l with
+        | ["term", s] => parseTerm s
+        | _ => none
+      | [] => none) | do IO.println "MALFORMED: no term"; return 1
+  let some rust := parseAirs (ls.length + 1) (ls.drop 1) | do IO.println "MALFORMED AIRS"; return 1
+  compareAirs rust (baseAirs t)
+
+/-- The composed circuit: `public N`, the statement's `N` lines, then the
+    five AIRs.  The statement must be exactly `ComposedText.publicText` of
+    its formula and region size, as `lake exe composed statement` checks. -/
+def compareComposed (path : String) : IO UInt32 := do
+  let text ← readInput path
+  let ls := text.splitOn "\n"
+  let some n := (match ls with
+      | l :: _ => match words l with
+        | ["public", k] => k.toNat?
+        | _ => none
+      | [] => none) | do IO.println "MALFORMED: no statement"; return 1
+  let stmt := "\n".intercalate ((ls.drop 1).take n) ++ "\n"
+  let some (M, W) := ComposedText.statementOfText stmt | do IO.println "NOT A STATEMENT"; return 1
+  let rest := ((ls.drop (n + 1)).filter (fun l => !l.trimAscii.toString.isEmpty))
+  let some rust := parseAirs (rest.length + 1) rest | do IO.println "MALFORMED AIRS"; return 1
+  compareAirs rust (compAirs M W)
+
 def main (args : List String) : IO UInt32 := do
   match args with
   | ["compare", path] => compare path
+  | ["compare-composed", path] => compareComposed path
   | _ =>
-    IO.eprintln "usage: circuit compare FILE|-"
+    IO.eprintln "usage: circuit compare FILE|- | circuit compare-composed FILE|-"
     return 2

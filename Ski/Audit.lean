@@ -22,6 +22,7 @@ import Ski.Composed
 import Ski.Circuit.BaseSound
 import Ski.Circuit.BaseComplete
 import Ski.Circuit.Selectors
+import Ski.Circuit.CompAir
 import Ski.BoolProbe
 import Ski.Statement
 import Ski.Sudoku

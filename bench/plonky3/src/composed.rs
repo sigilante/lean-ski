@@ -135,6 +135,8 @@ pub struct Public {
     stk0: u32,
     ctr0: u32,
     cells: Vec<Option<Cell>>,
+    /// The statement's bytes, as Lean checked them.
+    text: String,
 }
 
 fn parse_cell(l: &str) -> Result<Cell, String> {
@@ -186,7 +188,7 @@ pub fn parse_public(text: &str) -> Result<Public, String> {
     if nbits + w > 1 << LOG_WIT {
         return Err("too many private cells".into());
     }
-    Ok(Public { formula, w, nbits, roots, nil, hd0: regs[0], stk0: regs[1], ctr0: regs[2], cells })
+    Ok(Public { formula, w, nbits, roots, nil, hd0: regs[0], stk0: regs[1], ctr0: regs[2], cells, text: text.to_string() })
 }
 
 /// A witness file: one line per bit (`1`, `0`, or any cell, for the tamper
@@ -442,6 +444,9 @@ fn verify(p: &Public, proof: &CProof) -> Result<(), String> {
     let verified = catch_unwind(AssertUnwindSafe(|| {
         let v_config = make_zk_config(Some(PUBLIC_SEED));
         let v_airs = airs(p);
+        // The AIRs it verifies with are the Lean circuit for the statement:
+        // Lean compares their symbolic export with `Circuit.compAirs`.
+        lean_statement("circuit", &["compare-composed", "-"], export_airs(p, &v_airs).as_bytes())?;
         let want = heights(p, v_config.is_zk());
         if proof.degree_bits != want {
             return Err(format!("heights {:?}, the statement's are {want:?}", proof.degree_bits));
@@ -471,6 +476,25 @@ fn prove_and_verify(p: &Public, tr: &[RowMajorMatrix<Val>; 5]) -> (Outcome, usiz
 
 /// The statement's bytes, read once and checked by Lean over stdin, then
 /// parsed: what Lean checked is what the verifier uses.
+/// The composed verifier's five AIRs for a statement, in the export format
+/// of `src/export.rs`, after the statement's text (`lake exe circuit
+/// compare-composed` reads both).
+pub fn export_composed(text: &str) -> Result<String, String> {
+    let p = parse_public(text)?;
+    Ok(export_airs(&p, &airs(&p)))
+}
+
+fn export_airs(p: &Public, v_airs: &[SkiAir]) -> String {
+    let mut s = format!("public {}\n{}", p.text.lines().count(), p.text);
+    if !p.text.ends_with('\n') {
+        s.push('\n');
+    }
+    for (n, a) in ["cpu", "mem", "prog", "wit", "segs"].iter().zip(v_airs.iter()) {
+        s.push_str(&super::export::export_air(n, a));
+    }
+    s
+}
+
 fn checked_public(path: &std::path::Path) -> Result<Public, String> {
     let text = std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
     lean_statement("composed", &["statement", "-"], text.as_bytes()).map_err(|e| format!("statement: {e}"))?;

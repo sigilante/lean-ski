@@ -91,6 +91,15 @@ if command -v cargo >/dev/null 2>&1 \
       bad "$f: the Rust circuit differs from Circuit.baseAirs"
     fi
   done
+  for f in or and; do
+    if "$ski" export-composed "release/composed/$f/public.txt" > "$exp.c" \
+       && .lake/build/bin/circuit compare-composed "$exp.c" | tail -1 | grep -q '^MATCH'; then
+      note "ok — composed $f: the Rust circuit is Circuit.compAirs"
+    else
+      bad "composed $f: the Rust circuit differs from Circuit.compAirs"
+    fi
+  done
+  /bin/rm -f "$exp.c"
   # doctor one constant in the CPU's constraints: it must differ
   awk '!d && / c1$/ { sub(/ c1$/, " c2"); d = 1 } { print }' "$exp" > "$exp.bad"
   if .lake/build/bin/circuit compare "$exp.bad" | tail -1 | grep -q '^MATCH'; then
