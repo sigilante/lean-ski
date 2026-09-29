@@ -675,6 +675,134 @@ theorem ProbeOK.probeStep {r : Nat} (hr1 : r + 1 < C.h) (hp : isPr C r = true) {
     val_add_nat (Nat.lt_of_lt_of_le (Nat.add_lt_add hc27 (Nat.lt_trans hk (by decide : 2 ^ 24 < 2 ^ 26))) (by decide)),
     val_add_nat (Nat.lt_of_lt_of_le (Nat.add_lt_add hc27 hkk) (by decide))]
 
+-- ---------------------------------------------------------------------------
+-- End rows
+-- ---------------------------------------------------------------------------
+
+/-- **A later probe row's pops are one path of POP rows**, the only active
+    POP rows at its clock. -/
+theorem ProbeOK.popPathL {r : Nat} (hr : r < C.h) (hl : C.main r (SEL + 13) = 1) {k : Nat} (hk : k < 2 ^ 24)
+    (hK : C.main r (E_BASE + 3) = ofN k) :
+    ∃ (e : Nat → Nat) (sF : Nat → F), sF 0 = C.main r STK ∧ sF k = C.main r E_REST ∧
+      (∀ i, i < k → e i < Po.h ∧ Po.main (e i) 7 = 1 ∧ Po.main (e i) 0 = ofN r ∧
+        Po.main (e i) 1 = C.main r CTR ∧ Po.main (e i) 2 = ofN i ∧ Po.main (e i) 3 = sF i ∧
+        Po.main (e i) 5 = sF (i + 1)) ∧
+      ∀ q, q < Po.h → Po.main q 7 = 1 → Po.main q 0 = ofN r → ∃ i, i < k ∧ e i = q := by
+  have hH : Po.h < P := Nat.lt_of_le_of_lt h.pop_h (by decide)
+  have hkP : k < P := Nat.lt_trans hk (by decide)
+  have hc : (popEdges Po (ofN r) (C.main r CTR)).Conserve (some ((0 : F), [C.main r STK]))
+      (some (ofN k, [C.main r E_REST])) := by
+    have := h.popConserveL hr hl (C.main r CTR)
+    unfold popStart popEndG at this
+    rw [if_pos rfl, if_pos rfl, hK] at this
+    exact this
+  obtain ⟨e, st, h0, hkst, hp, hu⟩ := Edges.path _ hH hkP hc
+  refine ⟨e, fun i => (st i).headD 0, by show (st 0).headD 0 = _; rw [h0]; rfl,
+    by show (st k).headD 0 = _; rw [hkst]; rfl, fun i hi => ?_, ?_⟩
+  · obtain ⟨h1, h2, h3, h4, h5⟩ := hp i hi
+    have ha : (decide (Po.main (e i) 7 = 1) && decide (Po.main (e i) 0 = ofN r) &&
+        decide (Po.main (e i) 1 = C.main r CTR)) = true := h2
+    simp only [Bool.and_eq_true, decide_eq_true_eq] at ha
+    refine ⟨h1, ha.1.1, ha.1.2, ha.2, h3, ?_, ?_⟩
+    · show Po.main (e i) 3 = (st i).headD 0
+      have : [Po.main (e i) 3] = st i := h4
+      rw [← this]; rfl
+    · show Po.main (e i) 5 = (st (i + 1)).headD 0
+      have : [Po.main (e i) 5] = st (i + 1) := h5
+      rw [← this]; rfl
+  · intro q hq ha hclk
+    have hact : ∀ c' : F, Po.main q 1 = c' → (popEdges Po (ofN r) c').act q = true := by
+      intro c' hc'
+      show (decide (Po.main q 7 = 1) && decide (Po.main q 0 = ofN r) && decide (Po.main q 1 = c')) = true
+      rw [decide_eq_true ha, decide_eq_true hclk, decide_eq_true hc']; rfl
+    rcases (inferInstance : Decidable (Po.main q 1 = C.main r CTR)) with hc0 | hc0
+    · exfalso
+      have hcn := h.popConserveL hr hl (Po.main q 1)
+      unfold popStart popEndG at hcn
+      rw [if_neg hc0, if_neg hc0] at hcn
+      have hz := Edges.noFlow _ hH hcn q hq
+      rw [hact (Po.main q 1) rfl] at hz
+      cases hz
+    · exact hu q hq (hact _ hc0)
+
+/-- The fields a later probe row pops, from its POP path. -/
+def popsAt (Po : Table) (e : Nat → Nat) (k : Nat) : List Nat := (List.range k).map fun i => (Po.main (e i) 4).val
+
+/-- **A later probe row ends its segment**: the head is the segment's
+    marker, the pops are the POP path's, and a nil lies below them. -/
+theorem ProbeOK.endLater {r : Nat} (hr : r < C.h) (hl : C.main r (SEL + 13) = 1) {s : Air.Seg}
+    (hS : SegAt C r E_BASE s) (ha : s.arity < 2 ^ 24) (hc : s.ctor < 2 ^ 24) (hb : s.base < 2 ^ 24) :
+    ∃ e : Nat → Nat, (∀ i, i < s.arity → e i < Po.h ∧ Po.main (e i) 2 = ofN i) ∧
+      (∀ q, q < Po.h → Po.main q 7 = 1 → Po.main q 0 = ofN r → ∃ i, i < s.arity ∧ e i = q) ∧
+      popR (fun a => (memOf Mm)[a]?) (rowOf C r).ctr s.arity (rowOf C r).stk =
+        some (popsAt Po e s.arity, (C.main r E_REST).val) ∧
+      Air.endRow (memOf Mm) s (popsAt Po e s.arity) (rowOf C r) = true := by
+  have hk := h.kindAt hr hl (by decide)
+  obtain ⟨ha0, _, ht0, _⟩ := probe_facts hr hk (.inr rfl)
+  rw [if_pos rfl] at ha0 ht0
+  rw [ofN_one] at ha0
+  obtain ⟨_, hfld, _, hnil1, hnil2, _⟩ := probe_row h.cpu hr
+  rw [hl, one_mul'] at hfld hnil1 hnil2
+  have hnilact : C.main r P_NILACT = 1 := by
+    have := sub_eq_zero hnil1; exact this.symm
+  have hnaddr : C.main r P_NILADDR = C.main r E_REST := sub_eq_zero hnil2
+  have hF : C.main r FLD = ofN (s.ctor + s.base) := by
+    have e1 := sub_eq_zero hfld
+    rw [ofN_add, ← hS.2.2.1, ← hS.1, ← e1, add_comm', sub_add_cancel']
+  -- the head
+  have hhead := h.readHead hr ha0
+  rw [ht0, hF] at hhead
+  have hhead' : rdG (fun a => (memOf Mm)[a]?) (rowOf C r).ctr (rowOf C r).hd = some (.atom (s.ctor + s.base)) := by
+    show rd (memOf Mm) (C.main r CTR).val (C.main r HD).val = _
+    rw [hhead]
+    show some (cellOf (ofN 6) _ _) = _
+    unfold cellOf
+    rw [val_ofN (by decide), val_ofN (Nat.lt_trans (Nat.add_lt_add hc hb) (by decide))]
+    rfl
+  -- the pops
+  obtain ⟨e, sF, hs0, hsk, hp, hu⟩ := h.popPathL hr hl ha hS.2.2.2.1
+  have hpop := h.core.popR_path hp s.arity (Nat.le_refl _)
+  rw [Nat.sub_self, hs0, hsk] at hpop
+  simp only [Nat.zero_add] at hpop
+  -- the nil
+  have hn := h.nilRead hr hnilact
+  rw [hnaddr] at hn
+  refine ⟨e, fun i hi => ⟨(hp i hi).1, (hp i hi).2.2.2.2.1⟩, hu, hpop, ?_⟩
+  unfold Air.endRow endRowG
+  rw [hhead', show popR (fun a => (memOf Mm)[a]?) (rowOf C r).ctr s.arity (rowOf C r).stk = _ from hpop]
+  show ((some (Cell.atom (s.ctor + s.base)) == some (.atom (s.ctor + s.base))) &&
+    ((popsAt Po e s.arity == popsAt Po e s.arity) && (rd (memOf Mm) (C.main r CTR).val (C.main r E_REST).val == some .nil))) = true
+  rw [hn, show (some (Cell.atom (s.ctor + s.base)) == some (.atom (s.ctor + s.base))) = true from beq_iff_eq.2 rfl,
+    show (popsAt Po e s.arity == popsAt Po e s.arity) = true from beq_iff_eq.2 rfl,
+    show (some Cell.nil == some Cell.nil) = true from beq_iff_eq.2 rfl]
+  rfl
+
+/-- **The last row ends the last segment**, of no fields: the head is its
+    marker and the stack a nil. -/
+theorem ProbeOK.endLast (h0 : 0 < C.h) {s : Air.Seg} (hsa : s.arity = 0) (hla : la = s.ctor + s.base)
+    (hlaP : la < P) : Air.endRow (memOf Mm) s [] (rowOf C (C.h - 1)) = true := by
+  have hl : C.h - 1 < C.h := Nat.sub_lt h0 (by decide)
+  obtain ⟨_, h10, hF, hna, hnad⟩ := probe_last h.cpu hl (Nat.sub_add_cancel h0)
+  have hk : IsKind C (C.h - 1) 10 := by
+    refine ⟨by decide, ?_⟩
+    have hs := h.kindAt hl h10 (by decide)
+    exact hs
+  have hhead := h.row.read hl hk (j := 0) (by decide) rfl
+  rw [show addrCol 0 = HD from rfl, show FLD + 2 * 0 = FLD from rfl, hF] at hhead
+  have hn := h.nilRead hl hna
+  rw [hnad] at hn
+  unfold Air.endRow endRowG
+  rw [hsa]
+  show ((rd (memOf Mm) (C.main (C.h - 1) CTR).val (C.main (C.h - 1) HD).val == some (.atom (s.ctor + s.base))) &&
+    (([] == []) && (rd (memOf Mm) (C.main (C.h - 1) CTR).val (C.main (C.h - 1) STK).val == some .nil))) = true
+  rw [hhead, hn]
+  show ((some (cellOf (ofN 6) (ofN la) _) == some (.atom (s.ctor + s.base))) && _) = true
+  unfold cellOf
+  rw [val_ofN (by decide), val_ofN hlaP, hla]
+  show ((some (Cell.atom (s.ctor + s.base)) == some (.atom (s.ctor + s.base))) && _) = true
+  rw [show (some (Cell.atom (s.ctor + s.base)) == some (.atom (s.ctor + s.base))) = true from beq_iff_eq.2 rfl]
+  rfl
+
 end
 
 end Circuit
