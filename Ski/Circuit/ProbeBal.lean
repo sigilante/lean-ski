@@ -203,6 +203,25 @@ theorem probeSends_segend (ρ : Atom → F) (v : List F) :
     if_neg (show ¬ ("mem" = "segend" ∧ _) from fun h' => absurd h'.1 (by decide))]
   simp only [zero_add', add_zero']
 
+/-- The probe messages on `ARG`. -/
+theorem probeSends_arg (ρ : Atom → F) (v : List F) :
+    probeSendsAt ρ "arg" v =
+      if [ρ (.main 0 P_CLKP), ρ (.main 0 (S_BASE + 5)), ρ (.main 0 P_F)] = v then ρ (.main 0 (SEL + 13)) else 0 := by
+  unfold probeSendsAt
+  simp only [probeInters, List.foldr_cons, List.foldr_nil, List.map_cons, List.map_nil, E.eval, B.col,
+    B.c, sPLater, sProbe, sPFirst, true_and, ofN_zero, B.one, ofN_one]
+  rw [if_neg (show ¬ ("plan" = "arg" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("plan" = "arg" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("popch" = "arg" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("popch" = "arg" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("mem" = "arg" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("segend" = "arg" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("segend" = "arg" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("pwch" = "arg" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("pwch" = "arg" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("mem" = "arg" ∧ _) from fun h' => absurd h'.1 (by decide))]
+  simp only [zero_add', add_zero']
+
 namespace PRun
 
 variable {R : PRun} {t : Term} (hA : AcceptsP R.A (load t) R.roots R.jets R.plan R.p R.fld R.row)
@@ -609,6 +628,161 @@ theorem bal_segend {K : Nat} (hK : R.last < K) (v : List F) :
     · rw [if_neg (fun h => by omega), Nat.mul_zero]
     · rw [count_start hA hK (by have := hpar c h0 hc; omega), Nat.one_mul]
   rw [e1, e2, sub_self']
+
+omit hpar in
+/-- A later probe row's key for a child: the parent's end row, the field,
+    and the pointer popped there. -/
+def argKey (R : PRun) (c : Nat) : List F :=
+  [ofN (R.p ((R.seg c).parent + 1)), ofN (R.seg c).field, ofN (((R.fld (R.seg c).parent)[(R.seg c).field]?).getD 0)]
+
+omit hroots hpar in
+/-- A row's probe `ARG` lookup: a later probe row reads its field. -/
+theorem arg_row {K i : Nat} (hK : R.last < K) (hi : i < K) (v : List F) :
+    probeSendsAt ((R.cpuTableP K).env i) "arg" v =
+      ofN (if R.isP i = true ∧ 0 < R.pcnt i ∧ R.argKey (R.pcnt i) = v then 1 else 0) := by
+  have cv : ∀ c, (R.cpuTableP K).env i (.main 0 c) = R.cpuColP K i c := fun c => by
+    show R.cpuColP K ((i + 0) % K) c = _; rw [Nat.add_zero, Nat.mod_eq_of_lt hi]
+  rw [probeSends_arg, cv, cv, cv, cv]
+  cases hp : R.isP i with
+  | false =>
+    rw [R.colP_low hp (c := SEL + 13) (by decide), R.J_sel_probe i (.inr rfl), ite_zero _ _ rfl,
+      if_neg (fun h => Bool.false_ne_true h.1), ofN_zero]
+  | true =>
+    rcases Nat.decEq i 0 with h0 | h0
+    · have hj0 : 0 < R.pcnt i := Nat.pos_of_ne_zero (fun e => h0 ((pr_zero hA hp).2 e))
+      obtain ⟨hjn, hpj⟩ := isP_pcnt hA hp
+      obtain ⟨_, hnext⟩ := probe_spec hA hjn
+      rw [hpj] at hnext
+      rw [R.colP_x hp (show P_CNT ≤ P_CLKP by decide), R.probeX_clkp i hj0,
+        R.colP_x hp (show P_CNT ≤ S_BASE + 5 by decide), R.probeX_s i (m := 5) (by decide),
+        R.colP_x hp (show P_CNT ≤ P_F by decide), R.probeX_f, hnext, R.colP_sel hp (by decide), if_neg h0,
+        if_pos (show 13 = 13 from rfl), ite_one _ 1 rfl,
+        ite_iff (show (true = true ∧ 0 < R.pcnt i ∧ R.argKey (R.pcnt i) = v) ↔ R.argKey (R.pcnt i) = v from
+          ⟨fun h => h.2.2, fun h => ⟨rfl, hj0, h⟩⟩), ofN_ind]
+      unfold fptr
+      rw [if_neg (Nat.pos_iff_ne_zero.1 hj0), seg_get hA hjn]
+      rfl
+    · have hj0 : R.pcnt i = 0 := (pr_zero hA hp).1 h0
+      rw [R.colP_sel hp (by decide), if_pos h0, if_neg (show ¬ (13 = 12) by decide), ite_zero _ _ rfl,
+        if_neg (fun h => by rw [hj0] at h; exact absurd h.2.1 (by decide)), ofN_zero]
+
+omit hroots hpar in
+/-- The fields a segment's end row pops, one per arity. -/
+theorem fld_length {q : Nat} (hq : q + 1 < R.n) : (R.fld q).length = (R.seg q).arity := by
+  obtain ⟨_, hpops, _⟩ := later_end hA hq (Nat.succ_pos q)
+  rw [Nat.add_sub_cancel] at hpops
+  have hp' : popR (fun a => R.A[a]?) (R.row (R.p (q + 1))).ctr (R.seg q).arity (R.row (R.p (q + 1))).stk =
+      some (R.fld q, R.restE (R.p (q + 1))) := by
+    have := hpops; unfold popsE at this; rw [pcnt_p hA (Nat.le_of_lt hq), Nat.add_sub_cancel] at this; exact this
+  obtain ⟨σ, ξ, _, _, hps, _⟩ := popsOf_spec (A := R.A) _ _ hp'
+  rw [hps, List.length_map, List.length_range]
+
+omit hroots hpar in
+/-- A later probe row's POP rows provide its fields, once per reader. -/
+theorem pop_arg_row {i : Nat} (v : List F) :
+    ((R.probePops i).map (rowSendsV popAir "arg" v)).foldr (· + ·) 0 =
+      -ofN (if R.isP i = true ∧ 0 < R.pcnt i then
+        sumTo (R.seg (R.pcnt i - 1)).arity (fun f => R.uses (R.pcnt i - 1) f *
+          (if [ofN i, ofN f, ofN ((R.fld (R.pcnt i - 1)).getD f 0)] = v then 1 else 0)) else 0) := by
+  by_cases hc : R.isP i = true ∧ 0 < R.pcnt i
+  · obtain ⟨σ, ξ, _, _, hfld, hrows, _⟩ := probePops_eq hA hc.1 hc.2
+    rw [if_pos hc, hrows, foldr_map_range,
+      foldr_range_congr _ (fun f _ => pop_arg i (R.row i).ctr f (σ f) (ξ f) (σ (f + 1)) (R.uses (R.pcnt i - 1) f) v),
+      fold_neg_ofN]
+    congr 2
+    apply sumTo_congr
+    intro f hf
+    rw [hfld, List.getD_eq_getElem?_getD, List.getElem?_map, List.getElem?_range hf]
+    rfl
+  · rw [if_neg hc, ofN_zero]
+    unfold probePops
+    rw [if_neg hc]
+    show (0 : F) = -0; decide
+
+omit hroots hpar in
+theorem lookA_expand (v : List F) (i : Nat) :
+    (if R.isP i = true ∧ 0 < R.pcnt i ∧ R.argKey (R.pcnt i) = v then 1 else 0) =
+      sumTo R.n (fun c => (if R.isP i = true ∧ R.pcnt i = c then 1 else 0) *
+        (if 0 < c ∧ R.argKey c = v then 1 else 0)) := by
+  cases hp : R.isP i with
+  | false =>
+    rw [if_neg (fun h => Bool.false_ne_true h.1)]
+    exact (sumTo_eq_zero _ (fun c _ => by rw [if_neg (fun h => Bool.false_ne_true h.1), Nat.zero_mul])).symm
+  | true =>
+    obtain ⟨hjn, _⟩ := isP_pcnt hA hp
+    rw [sumTo_at (x := R.pcnt i) R.n hjn (fun c _ hne => by rw [if_neg (fun h => hne h.2.symm), Nat.zero_mul]),
+      if_pos (show true = true ∧ R.pcnt i = R.pcnt i from ⟨rfl, rfl⟩), Nat.one_mul]
+    exact ite_iff ⟨fun h => h.2, fun h => ⟨rfl, h⟩⟩ 1 0
+
+omit hroots hpar in
+theorem provA_expand (v : List F) (i : Nat) :
+    (if R.isP i = true ∧ 0 < R.pcnt i then
+        sumTo (R.seg (R.pcnt i - 1)).arity (fun f => R.uses (R.pcnt i - 1) f *
+          (if [ofN i, ofN f, ofN ((R.fld (R.pcnt i - 1)).getD f 0)] = v then 1 else 0)) else 0) =
+      sumTo R.n (fun c => (if R.isP i = true ∧ R.pcnt i = (R.seg c).parent + 1 then 1 else 0) *
+        (if 0 < c ∧ R.argKey c = v then 1 else 0)) := by
+  by_cases hc : R.isP i = true ∧ 0 < R.pcnt i
+  · rw [if_pos hc]
+    obtain ⟨hjn, hpj⟩ := isP_pcnt hA hc.1
+    unfold uses
+    rw [sumTo_congr _ (fun f _ => (sumTo_mul_right _ _ _).symm), sumTo_comm]
+    apply sumTo_congr
+    intro c hcn
+    rcases (inferInstance : Decidable (0 < c ∧ (R.seg c).parent = R.pcnt i - 1)) with hq | hq
+    · rw [sumTo_eq_zero _ (fun f _ => by
+        rw [if_neg (show ¬ (0 < c ∧ (R.seg c).parent = R.pcnt i - 1 ∧ (R.seg c).field = f) from
+          fun h => hq ⟨h.1, h.2.1⟩), Nat.zero_mul]), ite_mul_one,
+        if_neg (show ¬ ((R.isP i = true ∧ R.pcnt i = (R.seg c).parent + 1) ∧ 0 < c ∧ R.argKey c = v) from
+          fun h => hq ⟨h.2.1, by omega⟩)]
+    · obtain ⟨hc0, hpq⟩ := hq
+      have hfl : (R.seg c).field < (R.seg (R.pcnt i - 1)).arity := by
+        have := hA.fields c (R.seg c) hc0 (seg_get hA hcn)
+        rw [hpq, fld_length hA (Nat.lt_of_le_of_lt (Nat.le_of_eq (Nat.sub_add_cancel hc.2)) hjn)] at this
+        exact this
+      rw [sumTo_at (x := (R.seg c).field) _ hfl (fun f _ hne => by
+          rw [if_neg (show ¬ (0 < c ∧ (R.seg c).parent = R.pcnt i - 1 ∧ (R.seg c).field = f) from
+            fun h => hne h.2.2.symm), Nat.zero_mul]),
+        if_pos (show 0 < c ∧ (R.seg c).parent = R.pcnt i - 1 ∧ (R.seg c).field = (R.seg c).field from
+          ⟨hc0, hpq, rfl⟩), Nat.one_mul,
+        if_pos (show R.isP i = true ∧ R.pcnt i = (R.seg c).parent + 1 from ⟨hc.1, by omega⟩), Nat.one_mul]
+      apply ite_iff
+      have hkey : R.argKey c = [ofN i, ofN (R.seg c).field,
+          ofN ((R.fld (R.pcnt i - 1)).getD (R.seg c).field 0)] := by
+        unfold argKey
+        rw [hpq, Nat.sub_add_cancel hc.2, hpj, List.getD_eq_getElem?_getD]
+      rw [hkey]
+      exact ⟨fun h => ⟨hc0, h⟩, fun h => h.2⟩
+  · rw [if_neg hc]
+    refine (sumTo_eq_zero _ (fun c _ => ?_)).symm
+    rw [if_neg (fun h => hc ⟨h.1, by omega⟩), Nat.zero_mul]
+
+omit hroots in
+/-- **The probe `ARG` lookups balance**: each child reads its field where
+    its parent's end row pops it, which provides once per reader. -/
+theorem bal_arg_probe {K : Nat} (hK : R.last < K) (v : List F) :
+    (List.range K).foldr (fun i acc => probeSendsAt ((R.cpuTableP K).env i) "arg" v + acc) 0 +
+      (List.range K).foldr (fun i acc => ((R.probePops i).map (rowSendsV popAir "arg" v)).foldr (· + ·) 0 + acc) 0
+      = 0 := by
+  rw [foldr_range_congr K (fun i hi => arg_row hA hK hi v), foldr_range_congr K (fun i _ => pop_arg_row hA v),
+    fold_ofN, fold_neg_ofN]
+  have e1 : sumTo K (fun i => if R.isP i = true ∧ 0 < R.pcnt i ∧ R.argKey (R.pcnt i) = v then 1 else 0)
+      = sumTo R.n (fun c => if 0 < c ∧ R.argKey c = v then 1 else 0) := by
+    rw [sumTo_congr K (fun i _ => lookA_expand hA v i), sumTo_comm]
+    apply sumTo_congr
+    intro c hc
+    rw [sumTo_mul_right, count_start hA hK hc, Nat.one_mul]
+  have e2 : sumTo K (fun i => if R.isP i = true ∧ 0 < R.pcnt i then
+        sumTo (R.seg (R.pcnt i - 1)).arity (fun f => R.uses (R.pcnt i - 1) f *
+          (if [ofN i, ofN f, ofN ((R.fld (R.pcnt i - 1)).getD f 0)] = v then 1 else 0)) else 0)
+      = sumTo R.n (fun c => if 0 < c ∧ R.argKey c = v then 1 else 0) := by
+    rw [sumTo_congr K (fun i _ => provA_expand hA v i), sumTo_comm]
+    apply sumTo_congr
+    intro c hc
+    rw [sumTo_mul_right]
+    rcases Nat.eq_zero_or_pos c with h0 | h0
+    · rw [if_neg (fun h => by omega), Nat.mul_zero]
+    · rw [count_start hA hK (by have := hpar c h0 hc; omega), Nat.one_mul]
+  rw [e1, e2, ← sub_eq_add_neg', sub_self']
 
 end PRun
 
