@@ -718,36 +718,39 @@ formula's statement has bits and a witness that read back as a realizer
 of the formula (`checkC_realizes`); the `∨` and `∧` of two atoms prove in
 about 0.1 s. Not formalized: implication and `∃`.
 
-### Slated: the verifier checks exactly the spec
+### The verifier checks exactly the spec: done for the corpus circuit
 
-Today the step from the Plonky3 verifier to the Lean spec is argued, not
-proved: the headers of `bench/plonky3/src/main.rs`, `jets.rs` and
-`probe.rs` argue that every table the verifier accepts satisfies
-`Accepts`, `AcceptsJ` or `AcceptsP`, and Lean checks each table proved
-here, but no theorem covers a table nobody showed Lean. The slated work
-closes that step, at a later stage:
+The corpus circuit, the three AIRs the verifier builds for a public term,
+is proved to check exactly `Air.Accepts` (`Ski/Circuit/`):
 
-- **The circuit as data in Lean.** Each table's columns, its polynomial
-  constraints (first-row, transition, last-row) and its bus interactions
-  (tuple, count, provided or bounded), as one Lean value per AIR, with
-  the LogUp buses read as multiset equalities over the active tuples.
-- **Soundness of the circuit.** Any assignment that satisfies every
-  constraint and balances every bus, at heights up to `2^21` over
-  BabyBear, reads as a table satisfying the spec: `Accepts` for the three
-  corpus tables, `AcceptsJ` with the jet tables, `AcceptsP` with PLAN and
-  PW. The informal arguments to formalize: one value per address, range
-  checks as `a < c` below the modulus, chains of Boolean counts with no
-  cycle shorter than the field, and `clk` unique per row.
-- **Completeness,** the converse for honest runs, so the circuit refuses
-  nothing the spec accepts.
-- **The Rust bound to the Lean value.** Either the Rust constraints are
-  generated from the Lean value, or the Rust AIR's symbolic constraints
-  are exported and compared with it; without one or the other, the
-  theorem is about a circuit the verifier may not run.
-- **Assumed, not proved:** Plonky3's STARK and LogUp soundness (the
-  batch proof shows a satisfying assignment exists), as in §5's
-  interface. ArkLib's FRI and sum-check formalizations are the route to
-  discharging part of it.
+- **The circuit as data.** `Circuit.baseAirs t`: 125 CPU constraints and
+  8 bus messages, the memory and program AIRs, as Plonky3's symbolic
+  builder records them.
+- **The Rust bound to the Lean value.** `ski-air export-base` prints the
+  verifier's AIRs through `InteractionSymbolicBuilder`; `lake exe circuit
+  compare` checks they have the normal forms of `baseAirs t`
+  (`sameAirsB`), and normal forms fix meaning (`sameAirB_sound`). Gate 5
+  runs it on three terms and refuses a doctored export.
+- **Soundness** (`export_sound`): tables accepted for AIRs with those
+  normal forms decode to a memory and rows that `Air.Accepts` accepts, so
+  the term evaluates. The informal arguments, now proofs: one value per
+  address (`mem_addr`), sends that are bits and a height check that keeps
+  their count below `P` (`lookup`), range checks as `a < c` below the
+  modulus (`BaseOK.read`).
+- **Completeness** (`export_complete`): every evaluation whose memory
+  fits `2^24` cells and whose run fits `2^27` rows has honest tables the
+  circuit accepts, which decode back to the run.
+- **Assumed, not proved** (`Accepted`): Plonky3's STARK and LogUp
+  soundness (every constraint vanishes on every row; every bus balances,
+  with the heights' check), and heights within BabyBear's two-adic
+  domains, `2^27`. Trusted, not proved: the export's parser and the
+  compiled comparison, and Plonky3's symbolic builder recording what its
+  verifier checks.
+
+Not yet covered: the extended circuits, whose CPU adds columns and whose
+buses add AIRs: jets (`AcceptsJ`), probes (`AcceptsP`), the hidden-term
+witness, composed statements, and the blinding columns of zero knowledge.
+Their headers still argue the step informally.
 
 ## 6. Acceptance
 

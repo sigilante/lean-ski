@@ -19,6 +19,8 @@ import Ski.WitnessExamples
 import Ski.Compose
 import Ski.ComposeExamples
 import Ski.Composed
+import Ski.Circuit.BaseSound
+import Ski.Circuit.BaseComplete
 import Ski.BoolProbe
 import Ski.Statement
 import Ski.Sudoku
@@ -539,3 +541,15 @@ open Ski.Audit
   Rz.hasFix_sub Rz.WHF.of_fixFree Rz.WHFN.of_fixFree Rz.WH.toWHF Rz.WHN.toWHFN
   Rz.census_hasFix Rz.census_one_bound Rz.Typed.unfix Rz.census_le_two_evaluates
   Rz.census_three_diverges Rz.census_le_two_normalizes Rz.additive_rule_needed_glue Rz.additive_rule_needed Rz.census_evalT Rz.census_table
+
+-- The Plonky3 circuit as data: its normal forms, the field, and the corpus circuit's
+-- soundness and completeness against the Lean AIR, with the export comparison's meaning
+#audit_clean Circuit.noDiv_sound Circuit.euclid Circuit.mul_eq_zero Circuit.sub_eq_zero Circuit.bit_of
+  Circuit.E.eval_poly Circuit.E.eval_norm Circuit.E.eval_eq_of_norm
+  Circuit.sameAirB_sound Circuit.sameAirB_symm Circuit.sameAirsB_symm Circuit.accepted_transfer
+  Circuit.kind_of Circuit.kindOK_all Circuit.kind_facts Circuit.mem_addr Circuit.lookup
+  Circuit.BaseOK.read Circuit.BaseOK.step Circuit.BaseOK.halt
+  Circuit.base_sound Circuit.baseAirs_sound Circuit.export_sound
+  Circuit.shape Circuit.cpu_sat Circuit.mem_sat Circuit.prog_sat Circuit.balanced
+  Circuit.cpu_honest Circuit.prog_honest Circuit.mstep_fits
+  Circuit.base_complete Circuit.eval_complete Circuit.export_complete

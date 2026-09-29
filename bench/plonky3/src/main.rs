@@ -83,6 +83,7 @@ use p3_uni_stark::StarkConfig;
 
 mod jets;
 mod composed;
+mod export;
 mod probe;
 mod sudoku;
 mod witness;
@@ -1113,6 +1114,10 @@ const MIN_LOG: usize = 4;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
+    if args.len() == 3 && args[1] == "export-base" {
+        print!("{}", export::export_base(&args[2]));
+        return;
+    }
     if (args.len() == 5 || args.len() == 6) && args[1] == "composed-prove" {
         std::panic::set_hook(Box::new(|_| {}));
         let p = |i: usize| std::path::Path::new(&args[i]);

@@ -72,5 +72,36 @@ else
   bad "lake exe jetcost failed"
 fi
 
+echo "== gate 5: the Rust corpus circuit is the Lean circuit =="
+# ski-air export-base prints the three AIRs the verifier builds for a term,
+# as Plonky3's symbolic builder records them; lake exe circuit compare checks
+# they have the normal forms of Circuit.baseAirs, the hypothesis of
+# Circuit.export_sound and Circuit.export_complete.  A doctored export must
+# be refused.
+ski=bench/plonky3/target/release/ski-air
+if command -v cargo >/dev/null 2>&1 \
+   && (cd bench/plonky3 && cargo build --release >/dev/null 2>&1) \
+   && lake build circuit >/dev/null 2>&1; then
+  exp=$(mktemp)
+  for f in skks ik sumto_us; do
+    t=$(head -1 "bench/plonky3/tables/$f.txt")
+    if "$ski" export-base "$t" > "$exp" && .lake/build/bin/circuit compare "$exp" | tail -1 | grep -q '^MATCH'; then
+      note "ok — $f: the Rust circuit is Circuit.baseAirs"
+    else
+      bad "$f: the Rust circuit differs from Circuit.baseAirs"
+    fi
+  done
+  # doctor one constant in the CPU's constraints: it must differ
+  awk '!d && / c1$/ { sub(/ c1$/, " c2"); d = 1 } { print }' "$exp" > "$exp.bad"
+  if .lake/build/bin/circuit compare "$exp.bad" | tail -1 | grep -q '^MATCH'; then
+    bad "a doctored export was accepted"
+  else
+    note "ok — a doctored export is refused"
+  fi
+  /bin/rm -f "$exp" "$exp.bad"
+else
+  note "skipped — cargo or the circuit exe unavailable"
+fi
+
 if [ $fail -ne 0 ]; then echo; echo "GATES FAILED"; exit 1; fi
 echo "ALL GATES PASSED"
