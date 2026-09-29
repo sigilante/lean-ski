@@ -246,18 +246,13 @@ theorem cpu_fld {M : List Cell} {row : Nat → Row} {k : Nat} {i : Nat} (hi : i 
   · rw [fld, cv, cpuCol_fld M _ (by omega), if_neg (by omega),
       show (2 * j + 1) / 2 = j by omega]
 
-section
-
-variable {M : List Cell} {row : Nat → Row} {k : Nat} (hv : ∀ i, i < k → Valid M (row i))
-include hv
-
-/-- **The CPU's lookups are honest**: a send with nonzero count carries
+/-- **One CPU row's lookups are honest**: a send with nonzero count carries
     a memory cell's tuple. -/
-theorem cpu_honest : ∀ r, r < (cpuTable M row k).h → ∀ I ∈ cpuInters,
-    I.count.eval ((cpuTable M row k).env r) ≠ 0 →
-    ∃ m, m < M.length ∧ I.fields.map (fun e => e.eval ((cpuTable M row k).env r)) = tupleOf M m := by
-  intro i (hi : i < k) I hI hc
-  have hS := shape (hv i hi)
+theorem cpu_honestAt {M : List Cell} {row : Nat → Row} {k i : Nat} (hi : i < k) (hvi : Valid M (row i)) :
+    ∀ I ∈ cpuInters, I.count.eval ((cpuTable M row k).env i) ≠ 0 →
+    ∃ m, m < M.length ∧ I.fields.map (fun e => e.eval ((cpuTable M row k).env i)) = tupleOf M m := by
+  intro I hI hc
+  have hS := shape hvi
   have hK := cpu_kind hi hS
   obtain ⟨hf, _, hApp, hSS, _⟩ := kind_facts hi hK
   have cv := cpu_env (M := M) (row := row) hi
@@ -321,6 +316,18 @@ theorem cpu_honest : ∀ r, r < (cpuTable M row k).h → ∀ I ∈ cpuInters,
     rw [show fld 6 = fld (2 * 3) from rfl, f6]
     rfl
 
+
+section
+
+variable {M : List Cell} {row : Nat → Row} {k : Nat} (hv : ∀ i, i < k → Valid M (row i))
+include hv
+
+/-- **The CPU's lookups are honest**: a send with nonzero count carries
+    a memory cell's tuple. -/
+theorem cpu_honest : ∀ r, r < (cpuTable M row k).h → ∀ I ∈ cpuInters,
+    I.count.eval ((cpuTable M row k).env r) ≠ 0 →
+    ∃ m, m < M.length ∧ I.fields.map (fun e => e.eval ((cpuTable M row k).env r)) = tupleOf M m :=
+  fun i hi => cpu_honestAt hi (hv i hi)
 end
 
 theorem programRows_pad {heap : List Cell} {i : Nat} (h : heap.length ≤ i) :
