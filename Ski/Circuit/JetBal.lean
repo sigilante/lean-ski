@@ -1037,15 +1037,15 @@ namespace JRun
 variable (R : JRun)
 
 /-- **The CPU's memory messages are honest.** -/
-theorem cpu_honestJ (hA : JOK R) (hsk : ∀ i, R.skip i = false) {K : Nat} :
-    ∀ r, r < (R.cpuTable K).h → ∀ I ∈ cpuInters ++ jetInters, I.bus = "mem" →
+theorem cpu_honestRow (hA : JOK R) {K r : Nat} (hr : r < K) (hsk : R.skip r = false) :
+    ∀ I ∈ cpuInters ++ jetInters, I.bus = "mem" →
       I.count.eval ((R.cpuTable K).env r) ≠ 0 →
       ∃ m, m < R.A.length ∧ I.fields.map (fun c => c.eval ((R.cpuTable K).env r)) = tupleOf R.A m := by
-  intro r (hr : r < K) I hI hbus hc
+  intro I hI hbus hc
   rcases List.mem_append.1 hI with hI | hI
   · cases hn : R.instAt r with
     | none =>
-      have hv := base_valid hA hn (hsk r)
+      have hv := base_valid hA hn hsk
       have cong := E.eval_congr (R.env_agree hr hn)
       have ha := List.all_eq_true.1 cpuInters_atomsJ I hI
       rw [Bool.and_eq_true, List.all_eq_true] at ha
@@ -1072,6 +1072,12 @@ theorem cpu_honestJ (hA : JOK R) (hsk : ∀ i, R.skip i = false) {K : Nat} :
       all_goals exact hc hS
   · simp only [jetInters, List.mem_cons, List.not_mem_nil, or_false] at hI
     rcases hI with rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> exact absurd hbus (by decide)
+
+theorem cpu_honestJ (hA : JOK R) (hsk : ∀ i, R.skip i = false) {K : Nat} :
+    ∀ r, r < (R.cpuTable K).h → ∀ I ∈ cpuInters ++ jetInters, I.bus = "mem" →
+      I.count.eval ((R.cpuTable K).env r) ≠ 0 →
+      ∃ m, m < R.A.length ∧ I.fields.map (fun c => c.eval ((R.cpuTable K).env r)) = tupleOf R.A m :=
+  fun _ hr => R.cpu_honestRow hA hr (hsk _)
 
 /-- **POP's memory messages are honest**: each reads a stack cell. -/
 theorem pop_honest {K HP : Nat} :
