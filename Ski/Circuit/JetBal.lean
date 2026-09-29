@@ -772,4 +772,240 @@ theorem prov_sends {name : String} {w : Nat} {rows : List (List F)} {cnt : List 
     rw [hrow m hmL, if_pos em, firstOcc_true (fun j hj => by
       rw [em]; intro e; have := hmin j hj; rw [decide_eq_true e] at this; cases this), em, if_pos rfl]
 
+theorem cpu_roots_gen {hd0 stk0 ctr0 : Nat} (C : Table) (r : Nat) (v : List F) :
+    rowSends (cpuAirJ hd0 stk0 ctr0) C "roots" v r =
+    if [C.env r (.main 0 HD), C.env r (.main 0 J_G)] = v then C.env r (.main 0 (SEL + 11)) else 0 := by
+  rw [cpu_rowSends_jet (by decide)]
+  simp only [jetInters, List.foldr_cons, List.foldr_nil, List.map_cons, List.map_nil, E.eval, B.col, B.c, sInst,
+    true_and, ofN_zero]
+  rw [if_neg (show ¬ ("hdr" = "roots" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("popch" = "roots" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("popch" = "roots" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("wch" = "roots" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("wch" = "roots" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("arg" = "roots" ∧ _) from fun h' => absurd h'.1 (by decide))]
+  simp only [zero_add', add_zero']
+
+theorem cpu_hdr_gen {hd0 stk0 ctr0 : Nat} (C : Table) (r : Nat) (v : List F) :
+    rowSends (cpuAirJ hd0 stk0 ctr0) C "hdr" v r =
+    if [C.env r (.main 0 J_G), C.env r (.main 0 J_K), C.env r (.main 0 J_N), C.env r (.main 0 J_RL),
+      C.env r (.main 0 J_RA), C.env r (.main 0 J_RG), C.env r (.main 0 J_RV)] = v then
+      C.env r (.main 0 (SEL + 11)) else 0 := by
+  rw [cpu_rowSends_jet (by decide)]
+  simp only [jetInters, List.foldr_cons, List.foldr_nil, List.map_cons, List.map_nil, E.eval, B.col, B.c, sInst,
+    true_and, ofN_zero]
+  rw [if_neg (show ¬ ("roots" = "hdr" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("popch" = "hdr" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("popch" = "hdr" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("wch" = "hdr" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("wch" = "hdr" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("arg" = "hdr" ∧ _) from fun h' => absurd h'.1 (by decide))]
+  simp only [zero_add', add_zero']
+
+theorem instw_tmpl (i c g j : Nat) (ps : List Nat) (cl : Nat × Option (Op × Op)) (v : List F) :
+    rowSendsV instwAir "tmpl" v (instwRow i c g j ps cl) = ind (tmplRow g j cl = v) := by
+  have g17 := (instwRow_get i c g j ps cl).2.2.2.2
+  simp only [rowSendsV, instwAir, instwInters, List.foldr_cons, List.foldr_nil, List.map_cons, List.map_nil, E.eval,
+    B.col, B.one, B.c, ofN_one, true_and]
+  rw [if_neg (show ¬ ("arg" = "tmpl" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("arg" = "tmpl" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("wch" = "tmpl" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("wch" = "tmpl" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("mem" = "tmpl" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    zero_add', zero_add', zero_add', zero_add', add_zero', add_zero']
+  have ev : envOf (instwRow i c g j ps cl) (.main 0 17) = 1 := g17
+  rw [ev]
+  have ef : List.map (fun e => E.eval (envOf (instwRow i c g j ps cl)) e)
+      (List.map (fun i => E.atom (Atom.main 0 (2 + i))) (List.range 11)) = tmplRow g j cl := by
+    rw [List.map_map]
+    have hl : (tmplRow g j cl).length = 11 := tmplRow_len g j cl
+    apply List.ext_getElem
+    · rw [List.length_map, List.length_range, hl]
+    · intro q h1 h2
+      rw [List.getElem_map, List.getElem_range]
+      show (instwRow i c g j ps cl).getD (2 + q) 0 = _
+      unfold instwRow
+      rw [List.append_assoc, List.cons_append, List.cons_append, List.nil_append, Nat.add_comm 2 q,
+        List.getD_cons_succ, List.getD_cons_succ, List.getD_eq_getElem?_getD, List.getElem?_append_left h2,
+        List.getElem?_eq_getElem h2]
+      rfl
+  rw [ef]; rfl
+
+/-- Lookup counts meet their provider. -/
+theorem bal_lookup {x : F} {cnt : Nat} {P : Prop} [Decidable P] (hx : x = ofN cnt) (hc : 0 < cnt → P) :
+    x + -(if P then ofN cnt else 0) = 0 := by
+  rw [hx]
+  split
+  · exact E.eval_eq_of_norm (e := .add (.atom (.main 0 0)) (.neg (.atom (.main 0 0)))) (e' := .const 0) (by decide)
+      (at4 _ 0 0 0)
+  · next hP =>
+    have : cnt = 0 := by rcases Nat.eq_zero_or_pos cnt with h | h
+                         · exact h
+                         · exact absurd (hc h) hP
+    rw [this]; decide
+
+theorem padCopies_super {x : List F} : ∀ {rows : List (List F)}, x ∈ rows → x ∈ padCopies rows
+  | [], h => nomatch h
+  | r :: rs, h => List.mem_append_left _ h
+
+namespace JRun
+
+variable (R : JRun)
+
+theorem sumTo_pos_ex {f : Nat → Nat} {n : Nat} (h : 0 < sumTo n f) : ∃ q, q < n ∧ 0 < f q := sumTo_pos n h
+
+/-- **`ROOTS` balances.** -/
+theorem bal_roots {m0 : Mach} (hA : AcceptsJ R.A m0 R.roots R.jets R.k R.row) {K : Nat} (v : List F) :
+    tableSends (cpuAirJ (R.row 0).hd (R.row 0).stk (R.row 0).ctr) (R.cpuTable K) "roots" v +
+      tableSends (rootsAir R.roots) (provTable (rootsRows R.roots) (R.cntRoots K)) "roots" v = 0 := by
+  rw [show rootsAir R.roots = providerAir "roots" 2 (rootsRows R.roots) from rfl,
+    prov_sends (rootsRows_len R.roots)]
+  apply bal_lookup
+  · unfold tableSends cntRoots
+    show (List.range K).foldr _ 0 = _
+    rw [← fold_ofN]
+    apply foldr_range_congr K
+    intro i hi
+    rw [cpu_roots_gen]
+    cases hn : R.instAt i with
+    | none =>
+      have hv := base_valid hA hn
+      rw [ite_zero _ _ (by
+        show R.cpuCol ((i + 0) % K) (SEL + 11) = 0
+        rw [Nat.add_zero, Nat.mod_eq_of_lt hi]
+        unfold cpuCol; rw [hn]; simp only
+        rw [if_pos (by decide), cpuCol_sel _ _ (by decide), if_neg (Nat.ne_of_gt (shape hv).lt)])]
+      simp only [hn]; rfl
+    | some p =>
+      obtain ⟨g, J⟩ := p
+      have cv := R.inst_cols hi hn
+      rw [cv, cv, cv, show R.instCol i g J HD = ofN (R.row i).hd from rfl, show R.instCol i g J J_G = ofN g from rfl,
+        show R.instCol i g J (SEL + 11) = 1 from rfl]
+      simp only [hn]
+      rw [ofN_ind]; rfl
+  · intro hc
+    obtain ⟨i, _, hp⟩ := sumTo_pos_ex hc
+    cases hn : R.instAt i with
+    | none => simp only [hn] at hp; exact absurd hp (Nat.lt_irrefl 0)
+    | some p =>
+      obtain ⟨g, J⟩ := p
+      simp only [hn] at hp
+      split at hp
+      · next e =>
+        rw [← e]
+        exact padCopies_super (List.mem_map.2 ⟨((R.row i).hd, g), (instAt_some hn).2.1, rfl⟩)
+      · exact absurd hp (Nat.lt_irrefl 0)
+
+/-- **`HDR` balances.** -/
+theorem bal_hdr {m0 : Mach} (hA : AcceptsJ R.A m0 R.roots R.jets R.k R.row) {K : Nat} (v : List F) :
+    tableSends (cpuAirJ (R.row 0).hd (R.row 0).stk (R.row 0).ctr) (R.cpuTable K) "hdr" v +
+      tableSends (hdrAir R.jets) (provTable (hdrRows R.jets) (R.cntHdr K)) "hdr" v = 0 := by
+  rw [show hdrAir R.jets = providerAir "hdr" 7 (hdrRows R.jets) from rfl, prov_sends (hdrRows_len R.jets)]
+  apply bal_lookup
+  · unfold tableSends cntHdr
+    show (List.range K).foldr _ 0 = _
+    rw [← fold_ofN]
+    apply foldr_range_congr K
+    intro i hi
+    rw [cpu_hdr_gen]
+    cases hn : R.instAt i with
+    | none =>
+      have hv := base_valid hA hn
+      rw [ite_zero _ _ (by
+        show R.cpuCol ((i + 0) % K) (SEL + 11) = 0
+        rw [Nat.add_zero, Nat.mod_eq_of_lt hi]
+        unfold cpuCol; rw [hn]; simp only
+        rw [if_pos (by decide), cpuCol_sel _ _ (by decide), if_neg (Nat.ne_of_gt (shape hv).lt)])]
+      simp only [hn]; rfl
+    | some p =>
+      obtain ⟨g, J⟩ := p
+      have cv := R.inst_cols hi hn
+      rw [cv, cv, cv, cv, cv, cv, cv, cv, show R.instCol i g J (SEL + 11) = 1 from rfl]
+      simp only [hn]
+      rw [ofN_ind]
+      show ind (_ = v) = ind (hdrRow J g = v)
+      have e : [R.instCol i g J J_G, R.instCol i g J J_K, R.instCol i g J J_N, R.instCol i g J J_RL,
+          R.instCol i g J J_RA, R.instCol i g J J_RG, R.instCol i g J J_RV] = hdrRow J g := by
+        show [ofN g, ofN J.xs.length, ofN (symCells J J.body 0).1.length, (opCols (symCells J J.body 0).2).getD 0 0,
+          (opCols (symCells J J.body 0).2).getD 1 0, (opCols (symCells J J.body 0).2).getD 2 0,
+          (opCols (symCells J J.body 0).2).getD 3 0] = [ofN g, ofN J.xs.length, ofN (symCells J J.body 0).1.length] ++
+          opCols (symCells J J.body 0).2
+        cases (symCells J J.body 0).2 <;> rfl
+      rw [e]
+  · intro hc
+    obtain ⟨i, _, hp⟩ := sumTo_pos_ex hc
+    cases hn : R.instAt i with
+    | none => simp only [hn] at hp; exact absurd hp (Nat.lt_irrefl 0)
+    | some p =>
+      obtain ⟨g, J⟩ := p
+      simp only [hn] at hp
+      split at hp
+      · next e =>
+        rw [← e]
+        have hJ := (instAt_some hn).2.2.1
+        obtain ⟨hg, hJg⟩ := List.getElem?_eq_some_iff.1 hJ
+        exact padCopies_super (List.mem_map.2 ⟨(J, g), List.mem_zipIdx_iff_getElem?.2 (by
+          simp only [Nat.sub_zero]; rw [List.getElem?_eq_getElem hg, hJg]), rfl⟩)
+      · exact absurd hp (Nat.lt_irrefl 0)
+
+end JRun
+
+theorem zipIdx_sum {α : Type} (l : List α) (f : α → Nat → Nat) (d : α) :
+    (l.zipIdx.map fun p => f p.1 p.2).sum = sumTo l.length (fun j => f (l.getD j d) j) := by
+  rw [listSum_sumTo (fun p => f p.1 p.2) (d, 0) l.zipIdx, List.length_zipIdx]
+  apply sumTo_congr
+  intro j hj
+  rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem (by rw [List.length_zipIdx]; exact hj),
+    List.getElem_zipIdx, List.getD_eq_getElem?_getD (l := l), List.getElem?_eq_getElem hj]
+  simp only [Nat.zero_add, Option.getD_some]
+
+namespace JRun
+
+variable (R : JRun)
+
+/-- **`TMPL` balances.** -/
+theorem bal_tmpl {K HW : Nat} (hHW : (R.instwRows K).length ≤ HW) (v : List F) :
+    tableSends instwAir (R.instwTable K HW) "tmpl" v +
+      tableSends (tmplAir R.jets) (provTable (tmplRows R.jets) (R.cntTmpl K)) "tmpl" v = 0 := by
+  rw [show tmplAir R.jets = providerAir "tmpl" 11 (tmplRows R.jets) from rfl, prov_sends (tmplRows_len R.jets)]
+  apply bal_lookup
+  · rw [show R.instwTable K HW = ⟨HW, ofRows (R.instwRows K), fun _ _ => 0⟩ from rfl,
+      sends_rows instw_nowOnly instw_quiet hHW, instwRows, foldr_flatMap]
+    unfold cntTmpl
+    rw [← fold_ofN]
+    apply foldr_range_congr K
+    intro i _
+    cases hn : R.instAt i with
+    | none => unfold instwRowsAt; rw [hn]; rfl
+    | some p =>
+      obtain ⟨g, J⟩ := p
+      rw [R.instwRowsAt_eq hn, foldr_map_range]
+      rw [foldr_range_congr _ (fun j _ => instw_tmpl i (R.row i).ctr g j (R.ps i J) _ v)]
+      simp only [← ofN_ind]
+      rw [fold_ofN]
+      rw [zipIdx_sum (symCells J J.body 0).1 (fun cl j => if tmplRow g j cl = v then 1 else 0) (0, none)]
+  · intro hc
+    obtain ⟨i, _, hp⟩ := sumTo_pos_ex hc
+    cases hn : R.instAt i with
+    | none => simp only [hn] at hp; exact absurd hp (Nat.lt_irrefl 0)
+    | some p =>
+      obtain ⟨g, J⟩ := p
+      simp only [hn] at hp
+      rw [zipIdx_sum (symCells J J.body 0).1 (fun cl j => if tmplRow g j cl = v then 1 else 0) (0, none)] at hp
+      obtain ⟨j, hj, hq⟩ := sumTo_pos_ex hp
+      split at hq
+      · next e =>
+        rw [← e]
+        have hJ := (instAt_some hn).2.2.1
+        obtain ⟨hg, hJg⟩ := List.getElem?_eq_some_iff.1 hJ
+        apply padCopies_super
+        refine List.mem_flatMap.2 ⟨(J, g), List.mem_zipIdx_iff_getElem?.2 (by
+          simp only [Nat.sub_zero]; rw [List.getElem?_eq_getElem hg, hJg]), ?_⟩
+        refine List.mem_map.2 ⟨((symCells J J.body 0).1.getD j (0, none), j), List.mem_zipIdx_iff_getElem?.2 ?_, rfl⟩
+        simp only [Nat.sub_zero]
+        rw [List.getElem?_eq_getElem hj, List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hj]; rfl
+      · exact absurd hq (Nat.lt_irrefl 0)
+
+end JRun
+
 end Circuit
