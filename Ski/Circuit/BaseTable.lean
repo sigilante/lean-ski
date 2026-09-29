@@ -270,11 +270,15 @@ theorem cpu_first {i : Nat} (hi : i < k) {reg v : Nat} (h : i = 0 → cpuCol M (
   · next h0 => rw [h h0, sub_self', mul_zero']
   · exact zero_mul' _
 
-include hv htr hfin hb in
-/-- **The honest CPU table satisfies the CPU AIR.** -/
-theorem cpu_sat (hk0 : 0 < k) : Sat (cpuAir (row 0).hd (row 0).stk (row 0).ctr) (cpuTable M row k) := by
-  refine ⟨hk0, fun e he i (hi : i < k) => ?_⟩
-  have hS := shape (hv i hi)
+/-- **One honest CPU row satisfies the CPU's constraints**, from its own
+    facts: it steps or halts, it moves to the next row or repeats, the last
+    row halts, and its counter is small. -/
+theorem cpu_rowSat {i : Nat} (hi : i < k) (hvi : Valid M (row i))
+    (hti : i + 1 < k → stepRow M (row i) = some (row (i + 1)) ∨ (haltRow M (row i) = true ∧ row (i + 1) = row i))
+    (hfi : i + 1 = k → haltRow M (row i) = true) (hbi : (row i).ctr ≤ 2 ^ 24) :
+    ∀ e ∈ cpuCons (row 0).hd (row 0).stk (row 0).ctr, e.eval ((cpuTable M row k).env i) = 0 := by
+  intro e he
+  have hS := shape hvi
   have hK := cpu_kind hi hS
   obtain ⟨_, hhalt, _⟩ := kind_facts hi hK
   have cv := cpu_env (M := M) (row := row) hi
@@ -288,17 +292,17 @@ theorem cpu_sat (hk0 : 0 < k) : Sat (cpuAir (row 0).hd (row 0).stk (row 0).ctr) 
   · have hsum := kind_eval hi hK (List.all_eq_true.1 kindSum_all _ (List.mem_range.2 hk11))
     simp only [B.eq, E.eval]
     rw [hsum]; exact sub_self' _
-  · exact cpu_read (hv i hi) (hb i hi) hi (by decide) _ he
-  · exact cpu_read (hv i hi) (hb i hi) hi (by decide) _ he
-  · exact cpu_read (hv i hi) (hb i hi) hi (by decide) _ he
-  · exact cpu_read (hv i hi) (hb i hi) hi (by decide) _ he
+  · exact cpu_read hvi hbi hi (by decide) _ he
+  · exact cpu_read hvi hbi hi (by decide) _ he
+  · exact cpu_read hvi hbi hi (by decide) _ he
+  · exact cpu_read hvi hbi hi (by decide) _ he
   · show (col (SEL + 11)).eval _ = 0; rw [cv, cpuCol_sel M _ (by decide), if_neg (by omega)]
   · show (col (SEL + 12)).eval _ = 0; rw [cv, cpuCol_sel M _ (by decide), if_neg (by omega)]
   · show (col (SEL + 13)).eval _ = 0; rw [cv, cpuCol_sel M _ (by decide), if_neg (by omega)]
-  · exact cpu_trans hi (pr := Row.hd) (fun _ => rfl) (fun hi1 => (cpu_next (hv i hi) hi1 (htr i hi1)).1) (kind_facts hi hK).2.2.2.2.1
-  · exact cpu_trans hi (pr := Row.stk) (fun _ => rfl) (fun hi1 => (cpu_next (hv i hi) hi1 (htr i hi1)).2.1)
+  · exact cpu_trans hi (pr := Row.hd) (fun _ => rfl) (fun hi1 => (cpu_next hvi hi1 (hti hi1)).1) (kind_facts hi hK).2.2.2.2.1
+  · exact cpu_trans hi (pr := Row.stk) (fun _ => rfl) (fun hi1 => (cpu_next hvi hi1 (hti hi1)).2.1)
       (kind_facts hi hK).2.2.2.2.2.1
-  · exact cpu_trans hi (pr := Row.ctr) (fun _ => rfl) (fun hi1 => (cpu_next (hv i hi) hi1 (htr i hi1)).2.2)
+  · exact cpu_trans hi (pr := Row.ctr) (fun _ => rfl) (fun hi1 => (cpu_next hvi hi1 (hti hi1)).2.2)
       (kind_facts hi hK).2.2.2.2.2.2
   · exact cpu_first hi (fun h0 => by subst h0; rfl)
   · exact cpu_first hi (fun h0 => by subst h0; rfl)
@@ -310,12 +314,18 @@ theorem cpu_sat (hk0 : 0 < k) : Sat (cpuAir (row 0).hd (row 0).stk (row 0).ctr) 
       have hi' : i = k - 1 := by omega
       have h4 : 4 ≤ kindOf M (row i) := by
         rcases Nat.lt_or_ge (kindOf M (row i)) 4 with h | h
-        · have := hS.step h; rw [hi', hfin] at this; cases this
+        · have := hS.step h; rw [hfi hl'] at this; cases this
         · exact h
       rw [hhalt, if_pos h4]
       show 1 * (ofN 1 - ofN 1) = 0
       rw [sub_self', mul_zero']
     · exact zero_mul' _
+
+include hv htr hfin hb in
+/-- **The honest CPU table satisfies the CPU AIR.** -/
+theorem cpu_sat (hk0 : 0 < k) : Sat (cpuAir (row 0).hd (row 0).stk (row 0).ctr) (cpuTable M row k) :=
+  ⟨hk0, fun e he i hi => cpu_rowSat hi (hv i hi) (htr i) (fun h1 => by
+    rw [Nat.eq_sub_of_add_eq h1]; exact hfin) (hb i hi) e he⟩
 
 end
 
