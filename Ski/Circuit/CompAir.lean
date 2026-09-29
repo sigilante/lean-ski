@@ -130,6 +130,9 @@ def progRowsC (heap : List Cell) (N W : Nat) : List (List F) :=
     fun (c, i) => [ofN i, ofN (cellTag c), ofN (cellFields c).1, ofN (cellFields c).2, ofN 1]
   rows ++ List.replicate (pow2Min 8 rows.length - rows.length) [ofN 0, ofN 0, ofN 0, ofN 0, ofN 0]
 
+def progAirC (heap : List Cell) (N W : Nat) : AirD :=
+  ⟨"prog", 1, 5, [col 0], [⟨"mem", 1, prec 4, [prec 0, prec 1, prec 2, prec 3]⟩], progRowsC heap N W⟩
+
 /-- **The composed circuit for a statement**: what its verifier builds. -/
 def compAirs (M : MF) (W : Nat) : List AirD :=
   let shp := clear M
@@ -138,7 +141,7 @@ def compAirs (M : MF) (W : Nat) : List AirD :=
   let m := cMachine (fun _ => false) shp region (stmtOf M)
   let roots := (cHeap (fun _ => false) shp region (stmtOf M)).2
   [cpuAirC m.hd m.stk m.heap.length roots.length m.stk, memAirC,
-   ⟨"prog", 1, 5, [col 0], [⟨"mem", 1, prec 4, [prec 0, prec 1, prec 2, prec 3]⟩], progRowsC m.heap N W⟩,
+   progAirC m.heap N W,
    witAir N W, segsAir roots]
 
 end Circuit

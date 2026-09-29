@@ -23,6 +23,7 @@ import Ski.Circuit.BaseSound
 import Ski.Circuit.BaseComplete
 import Ski.Circuit.Selectors
 import Ski.Circuit.CompAir
+import Ski.Circuit.CompFinal
 import Ski.BoolProbe
 import Ski.Statement
 import Ski.Sudoku
@@ -559,3 +560,10 @@ open Ski.Audit
 -- Plonky3's selectors as they are: any values of their zero pattern
 #audit_clean Circuit.guarded_iff Circuit.satP_iff Circuit.satP_transfer Circuit.base_guarded
   Circuit.acceptedP_iff Circuit.export_sound_P Circuit.export_complete_P
+
+-- The composed circuit: the bus lemma for any tables, and soundness against the composed statement
+#audit_clean Circuit.bus_hit Circuit.kind_ofC Circuit.kindOKC_all Circuit.kind_factsC
+  Circuit.CompOK.memHit Circuit.CompOK.segHit Circuit.CompOK.read Circuit.CompOK.step Circuit.CompOK.halt
+  Circuit.cMachine_fits Circuit.CompOK.witCell Circuit.CompOK.heap0 Circuit.CompOK.regionWF
+  Circuit.endRow_mono Circuit.endRow_of_one Circuit.CompOK.restart Circuit.CompOK.stepOrHalt
+  Circuit.CompOK.acceptsC Circuit.CompOK.sound Circuit.comp_guarded Circuit.compExport_sound

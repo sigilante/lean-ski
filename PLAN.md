@@ -753,10 +753,16 @@ is proved to check exactly `Air.Accepts` (`Ski/Circuit/`):
   compiled comparison, and Plonky3's symbolic builder recording what its
   verifier checks.
 
-Not yet covered: the extended circuits, whose CPU adds columns and whose
-buses add AIRs: jets (`AcceptsJ`), probes (`AcceptsP`), the hidden-term
-witness, composed statements, and the blinding columns of zero knowledge.
-Their headers still argue the step informally.
+The composed circuit (`release/composed`): its five AIRs as data
+(`compAirs`), checked against the Rust by `composed-verify` itself; its
+soundness, `compExport_sound`: an accepted proof's memory holds bits and a
+region whose witness the formula's statement accepts, and which read back
+as a realizer. Its blinding columns take part in no lookup the proof uses.
+Its completeness is not yet proved.
+
+Not yet covered: jets (`AcceptsJ`), probes (`AcceptsP`), the hidden-term
+witness circuit and the Sudoku circuit, and the composed circuit's
+completeness. Their headers still argue the step informally.
 
 ## 6. Acceptance
 
