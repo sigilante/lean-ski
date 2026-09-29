@@ -209,7 +209,7 @@ include hb in
 /-- **The reads' constraints hold on the honest composed table.** -/
 theorem cpuC_read {i : Nat} (hi : i < K) {j : Nat} (hj : j < 4) :
     ∀ c ∈ readCons j, c.eval ((cpuTableC A row e n roots K).env i) = 0 := by
-  have hbase := cpu_read (M := A) (row := rowP row e n) (k := K) (fun i hi => valid_rowP hA hK hi) hb hi hj
+  have hbase := cpu_read (M := A) (row := rowP row e n) (k := K) (valid_rowP hA hK hi) (hb i hi) hi hj
   have cong := E.eval_congr (cpuC_env_base hA hK hi)
   obtain ⟨hrest, hbits⟩ := readRest_base j hj
   intro c hc
@@ -328,7 +328,7 @@ theorem cpuC_next {i : Nat} (hi1 : i + 1 < K) :
     simp only [Bool.and_eq_true] at hbase
     have cong := E.eval_congr (cpuC_env_base hA hK (roots := roots) hi)
     rw [cong _ hbase.1.1, cong _ hbase.1.2, cong _ hbase.2]
-    exact cpu_next (fun i hi => valid_rowP hA hK hi) hi1 (rowP_step hA hK hi1 hr)
+    exact cpu_next (valid_rowP hA hK (Nat.lt_of_succ_lt hi1)) hi1 (rowP_step hA hK hi1 hr)
   | true =>
     obtain ⟨j, hj, rfl⟩ := isRestart_iff.1 hr
     have hlt := restart_lt hA hK hr

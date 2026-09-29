@@ -146,16 +146,15 @@ theorem cpu_kind {i : Nat} (hi : i < k) (hS : Shape M (row i) (kindOf M (row i))
     show cpuCol M (row i) (SEL + j) = _
     rw [cpuCol_sel M (row i) hj]⟩
 
-include hv in
 /-- The next row's registers are what the kind computes, for a row that
     steps to the next or has halted and repeats. -/
-theorem cpu_next {i : Nat} (hi1 : i + 1 < k)
+theorem cpu_next {i : Nat} (hvi : Valid M (row i)) (hi1 : i + 1 < k)
     (hti : stepRow M (row i) = some (row (i + 1)) ∨ (haltRow M (row i) = true ∧ row (i + 1) = row i)) :
     ofN (row (i + 1)).hd = (nextHdOf (kindOf M (row i))).eval ((cpuTable M row k).env i) ∧
     ofN (row (i + 1)).stk = (nextStkOf (kindOf M (row i))).eval ((cpuTable M row k).env i) ∧
     ofN (row (i + 1)).ctr = (nextCtrOf (kindOf M (row i))).eval ((cpuTable M row k).env i) := by
   have hi : i < k := Nat.lt_of_succ_lt hi1
-  have hS := shape (hv i hi)
+  have hS := shape hvi
   have cv := cpu_env (M := M) (row := row) hi
   generalize hK : kindOf M (row i) = K at hS
   rcases Nat.lt_or_ge K 4 with h4 | h4
@@ -210,11 +209,10 @@ theorem cpu_addr {i : Nat} (hi : i < k) {j : Nat} (hj : j < 4) :
   · show (col (FLD + 3)).eval _ = _; rw [cv, cpuCol_fld M _ (by decide)]; rfl
   · show (col (FLD + 5)).eval _ = _; rw [cv, cpuCol_fld M _ (by decide)]; rfl
 
-include hv hb in
 /-- A read's constraints: its bits are bits, and its range check holds. -/
-theorem cpu_read {i : Nat} (hi : i < k) {j : Nat} (hj : j < 4) :
+theorem cpu_read {i : Nat} (hvi : Valid M (row i)) (hbi : (row i).ctr ≤ 2 ^ 24) (hi : i < k) {j : Nat} (hj : j < 4) :
     ∀ e ∈ readCons j, e.eval ((cpuTable M row k).env i) = 0 := by
-  have hS := shape (hv i hi)
+  have hS := shape hvi
   have hK := cpu_kind hi hS
   obtain ⟨hf, _⟩ := kind_facts hi hK
   have cv := cpu_env (M := M) (row := row) hi
@@ -236,7 +234,7 @@ theorem cpu_read {i : Nat} (hi : i < k) {j : Nat} (hj : j < 4) :
         · cases hrd
       have hrv : rangeValue M (row i) j = (row i).ctr - addrAt M (row i) j - 1 := by
         unfold rangeValue; rw [if_pos ha]
-      have hbound := hb i hi
+      have hbound := hbi
       have hr := rangeVal_bits (T := cpuTable M row k) (r := i) (j := j) (n := rangeValue M (row i) j) hi
         (fun b hb' => cpuCol_bit M (row i) hj hb') (by rw [hrv]; omega)
       rw [hr, hrv, cpu_addr hi hj, cv, cpuCol_ctr, ha, B.one, B.c]
@@ -290,17 +288,17 @@ theorem cpu_sat (hk0 : 0 < k) : Sat (cpuAir (row 0).hd (row 0).stk (row 0).ctr) 
   · have hsum := kind_eval hi hK (List.all_eq_true.1 kindSum_all _ (List.mem_range.2 hk11))
     simp only [B.eq, E.eval]
     rw [hsum]; exact sub_self' _
-  · exact cpu_read hv hb hi (by decide) _ he
-  · exact cpu_read hv hb hi (by decide) _ he
-  · exact cpu_read hv hb hi (by decide) _ he
-  · exact cpu_read hv hb hi (by decide) _ he
+  · exact cpu_read (hv i hi) (hb i hi) hi (by decide) _ he
+  · exact cpu_read (hv i hi) (hb i hi) hi (by decide) _ he
+  · exact cpu_read (hv i hi) (hb i hi) hi (by decide) _ he
+  · exact cpu_read (hv i hi) (hb i hi) hi (by decide) _ he
   · show (col (SEL + 11)).eval _ = 0; rw [cv, cpuCol_sel M _ (by decide), if_neg (by omega)]
   · show (col (SEL + 12)).eval _ = 0; rw [cv, cpuCol_sel M _ (by decide), if_neg (by omega)]
   · show (col (SEL + 13)).eval _ = 0; rw [cv, cpuCol_sel M _ (by decide), if_neg (by omega)]
-  · exact cpu_trans hi (pr := Row.hd) (fun _ => rfl) (fun hi1 => (cpu_next hv hi1 (htr i hi1)).1) (kind_facts hi hK).2.2.2.2.1
-  · exact cpu_trans hi (pr := Row.stk) (fun _ => rfl) (fun hi1 => (cpu_next hv hi1 (htr i hi1)).2.1)
+  · exact cpu_trans hi (pr := Row.hd) (fun _ => rfl) (fun hi1 => (cpu_next (hv i hi) hi1 (htr i hi1)).1) (kind_facts hi hK).2.2.2.2.1
+  · exact cpu_trans hi (pr := Row.stk) (fun _ => rfl) (fun hi1 => (cpu_next (hv i hi) hi1 (htr i hi1)).2.1)
       (kind_facts hi hK).2.2.2.2.2.1
-  · exact cpu_trans hi (pr := Row.ctr) (fun _ => rfl) (fun hi1 => (cpu_next hv hi1 (htr i hi1)).2.2)
+  · exact cpu_trans hi (pr := Row.ctr) (fun _ => rfl) (fun hi1 => (cpu_next (hv i hi) hi1 (htr i hi1)).2.2)
       (kind_facts hi hK).2.2.2.2.2.2
   · exact cpu_first hi (fun h0 => by subst h0; rfl)
   · exact cpu_first hi (fun h0 => by subst h0; rfl)
