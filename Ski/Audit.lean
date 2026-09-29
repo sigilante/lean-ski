@@ -35,6 +35,9 @@ import Ski.Circuit.Flow
 import Ski.Circuit.JetKind
 import Ski.Circuit.JetSound
 import Ski.Circuit.JetComplete
+import Ski.Circuit.JetCore
+import Ski.Circuit.ProbeAir
+import Ski.Circuit.ProbeKind
 import Ski.BoolProbe
 import Ski.Statement
 import Ski.Sudoku
@@ -620,3 +623,7 @@ open Ski.Audit
   Circuit.prov_sends Circuit.JRun.bal_roots Circuit.JRun.bal_hdr Circuit.JRun.bal_tmpl Circuit.JRun.cpu_honestJ
   Circuit.JRun.pop_honest Circuit.JRun.instw_honest Circuit.bal_mem4 Circuit.JRun.balanced Circuit.AcceptsJ.stk_le
   Circuit.jet_complete Circuit.AcceptsJ.pad Circuit.fits_pad_nil
+
+-- An instantiation row from the buses' facts; the probe CPU's rows
+#audit_clean Circuit.JetCore.inst Circuit.JetOK.core Circuit.probe_facts Circuit.kind_ofP Circuit.rowSat_ofP
+  Circuit.next_regsP Circuit.clk_eqP
