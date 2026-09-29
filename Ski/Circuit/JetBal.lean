@@ -323,4 +323,92 @@ theorem bal_popch {m0 : Mach} (hA : AcceptsJ R.A m0 R.roots R.jets R.k R.row) {K
 
 end JRun
 
+theorem instwRow_get (i c g j : Nat) (ps : List Nat) (cl : Nat × Option (Op × Op)) :
+    (instwRow i c g j ps cl).getD 0 0 = ofN i ∧ (instwRow i c g j ps cl).getD 1 0 = ofN c ∧
+    (instwRow i c g j ps cl).getD 2 0 = ofN g ∧ (instwRow i c g j ps cl).getD 3 0 = ofN j ∧
+    (instwRow i c g j ps cl).getD 17 0 = 1 := by
+  obtain ⟨t, ops⟩ := cl
+  cases ops with
+  | none => exact ⟨rfl, rfl, rfl, rfl, rfl⟩
+  | some ab =>
+    obtain ⟨a, b⟩ := ab
+    cases a <;> cases b <;> exact ⟨rfl, rfl, rfl, rfl, rfl⟩
+
+theorem instw_wch (i c g j : Nat) (ps : List Nat) (cl : Nat × Option (Op × Op)) (v : List F) :
+    rowSendsV instwAir "wch" v (instwRow i c g j ps cl) =
+      ind ([ofN i, ofN c, ofN g, ofN (j + 1)] = v) - ind ([ofN i, ofN c, ofN g, ofN j] = v) := by
+  obtain ⟨g0, g1, g2, g3, g17⟩ := instwRow_get i c g j ps cl
+  simp only [rowSendsV, instwAir, instwInters, List.foldr_cons, List.foldr_nil, List.map_cons, List.map_nil, E.eval,
+    B.col, B.one, B.c, ofN_one, true_and]
+  have ev : ∀ n, envOf (instwRow i c g j ps cl) (.main 0 n) = (instwRow i c g j ps cl).getD n 0 := fun _ => rfl
+  rw [ev 0, ev 1, ev 2, ev 3, ev 17, g0, g1, g2, g3, g17,
+    if_neg (show ¬ ("arg" = "wch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("arg" = "wch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("tmpl" = "wch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("mem" = "wch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    zero_add', zero_add', add_zero', add_zero',
+    ite_neg_one _ 1 rfl, ← ofN_one, ← ofN_add, ite_one _ (ofN 1) rfl, sub_eq_add_neg', add_comm']
+  rw [add_zero']
+
+namespace JRun
+
+variable (R : JRun)
+
+theorem instwRowsAt_eq {i g : Nat} {J : Air.Jet} (h : R.instAt i = some (g, J)) :
+    R.instwRowsAt i = (List.range (symCells J J.body 0).1.length).map (fun j =>
+      instwRow i (R.row i).ctr g j (R.ps i J) ((symCells J J.body 0).1.getD j (0, none))) := by
+  unfold instwRowsAt
+  rw [h]
+  simp only
+  apply List.ext_getElem
+  · rw [List.length_map, List.length_zipIdx, List.length_map, List.length_range]
+  · intro j h1 h2
+    rw [List.length_map, List.length_range] at h2
+    rw [List.getElem_map, List.getElem_map, List.getElem_zipIdx, List.getElem_range]
+    simp only [Nat.zero_add]
+    rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem h2]; rfl
+
+/-- **`WCH` balances**: each instantiation's writes telescope. -/
+theorem bal_wch {m0 : Mach} (hA : AcceptsJ R.A m0 R.roots R.jets R.k R.row) {K HW : Nat}
+    (hHW : (R.instwRows K).length ≤ HW) (v : List F) :
+    tableSends (cpuAirJ (R.row 0).hd (R.row 0).stk (R.row 0).ctr) (R.cpuTable K) "wch" v +
+      tableSends instwAir (R.instwTable K HW) "wch" v = 0 := by
+  rw [show R.instwTable K HW = ⟨HW, ofRows (R.instwRows K), fun _ _ => 0⟩ from rfl,
+    sends_rows instw_nowOnly instw_quiet hHW, instwRows, foldr_flatMap]
+  unfold tableSends
+  show (List.range K).foldr _ 0 + _ = 0
+  rw [foldr_range_congr K (fun i hi => cpu_wch_gen (R.cpuTable K) i v)]
+  rw [fold_add2]
+  apply foldr_zero_all
+  intro i hi
+  have hi' := List.mem_range.1 hi
+  cases hn : R.instAt i with
+  | none =>
+    have hv := base_valid hA hn
+    have hs : (R.cpuTable K).env i (.main 0 (SEL + 11)) = 0 := by
+      show R.cpuCol ((i + 0) % K) (SEL + 11) = 0
+      rw [Nat.add_zero, Nat.mod_eq_of_lt hi']
+      unfold cpuCol; rw [hn]; simp only
+      rw [if_pos (by decide), cpuCol_sel _ _ (by decide), if_neg (Nat.ne_of_gt (shape hv).lt)]
+    rw [ite_zero _ _ hs, ite_neg_zero _ _ hs, zero_add']
+    unfold instwRowsAt; rw [hn]; rfl
+  | some p =>
+    obtain ⟨g, J⟩ := p
+    have cv := R.inst_cols hi' hn
+    rw [cv, cv, cv, cv, cv, show R.instCol i g J (SEL + 11) = 1 from rfl,
+      show R.instCol i g J J_CLK = ofN i from rfl, show R.instCol i g J CTR = ofN (R.row i).ctr from rfl,
+      show R.instCol i g J J_G = ofN g from rfl,
+      show R.instCol i g J J_N = ofN (symCells J J.body 0).1.length from rfl, ite_one _ 1 rfl, ite_neg_one _ 1 rfl]
+    rw [R.instwRowsAt_eq hn, foldr_map_range]
+    let T : Nat → List F := fun j => [ofN i, ofN (R.row i).ctr, ofN g, ofN j]
+    rw [foldr_range_congr _ (fun j _ => instw_wch i (R.row i).ctr g j (R.ps i J) _ v)]
+    have tele := telescopeF T v (symCells J J.body 0).1.length
+    simp only [T] at tele
+    rw [tele, ← ofN_zero]
+    exact E.eval_eq_of_norm
+      (e := .add (.add (.atom (.main 0 0)) (.neg (.atom (.main 0 1)))) (.sub (.atom (.main 0 1)) (.atom (.main 0 0))))
+      (e' := .const (ofN 0)) (by decide) (at4 _ _ 0 0)
+
+end JRun
+
 end Circuit
