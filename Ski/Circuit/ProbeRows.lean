@@ -9,6 +9,58 @@ plan's segments in order; the first row is the first probe row and the
 last row ends the last segment.
 -/
 
+namespace Air
+
+open Probe
+
+theorem planGo_ne (v : V) (parent field base idx : Nat) : planGo v parent field base idx ≠ [] := by
+  cases v; unfold planGo; exact List.cons_ne_nil _ _
+
+theorem planKids_nil : ∀ {vs : List V} {parent i base idx : Nat}, planKids vs parent i base idx = [] → vs = []
+  | [], _, _, _, _, _ => rfl
+  | v :: vs, parent, i, base, idx, h => by
+    unfold planKids at h
+    exact absurd (List.append_eq_nil_iff.1 h).1 (planGo_ne _ _ _ _ _)
+
+mutual
+  theorem planGo_last : ∀ (v : V) (parent field base idx : Nat) (s : Seg),
+      (planGo v parent field base idx).getLast? = some s → s.arity = 0
+    | .node c k ch, parent, field, base, idx, s, h => by
+      unfold planGo at h
+      cases hk : planKids ch idx 0 (base + k) (idx + 1) with
+      | nil =>
+        rw [hk] at h
+        have e : s = ⟨base, k, c, ch.length, parent, field⟩ := (Option.some.inj h).symm
+        rw [e, planKids_nil hk]; rfl
+      | cons a l =>
+        rw [hk, List.getLast?_cons_cons] at h
+        rw [← hk] at h
+        exact planKids_last ch idx 0 (base + k) (idx + 1) s h
+  theorem planKids_last : ∀ (vs : List V) (parent i base idx : Nat) (s : Seg),
+      (planKids vs parent i base idx).getLast? = some s → s.arity = 0
+    | [], _, _, _, _, s, h => by unfold planKids at h; cases h
+    | v :: vs, parent, i, base, idx, s, h => by
+      unfold planKids at h
+      rw [List.getLast?_append] at h
+      cases hk : (planKids vs parent (i + 1) (base + kSum (planGo v parent i base idx))
+          (idx + (planGo v parent i base idx).length)).getLast? with
+      | none =>
+        rw [hk] at h
+        exact planGo_last v parent i base idx s h
+      | some s' =>
+        rw [hk] at h
+        have e : s' = s := Option.some.inj h
+        rw [← e]
+        exact planKids_last vs _ _ _ _ s' hk
+end
+
+/-- **An outcome's plan ends with a segment of no fields**: the last
+    segment in depth-first order is a leaf. -/
+theorem planOf_last {v : V} {b0 : Nat} {s : Seg} (h : (planOf v b0).getLast? = some s) : s.arity = 0 :=
+  planGo_last v 0 0 b0 0 s h
+
+end Air
+
 namespace Circuit
 
 open B Air JetTable Mach
@@ -1233,22 +1285,19 @@ theorem probeOK_of {t : Term} {roots : List (Nat × Nat)} {jets : List Air.Jet} 
 /-- **Soundness of the probe circuit.**  If Plonky3 accepts a proof against
     AIRs the same as the probe circuit for `t`, a jet table whose roots are
     licensed (`rootsOKB`) and whose numbers fit (`jetFitB`), and the plan of
-    the outcome `o`'s probe tree, whose numbers fit (`planFitB`) and whose
-    last segment has no fields — all of which `compare-probe` checks — then
-    `t` decodes to `o`. -/
+    the outcome `o`'s probe tree, whose numbers fit (`planFitB`) — all of
+    which `compare-probe` checks — then `t` decodes to `o`.  The plan's last
+    segment has no fields (`planOf_last`). -/
 theorem probeExport_sound [Kit] {t : Term} {roots : List (Nat × Nat)} {jets : List Air.Jet} {o : Outcome}
     {v : Probe.V} (hv : Probe.toV o = some v)
     (hroots : rootsOKB (load t).heap roots jets = true) (hjfit : jets.all jetFitB = true)
-    (hfit : planFitB (planOf v 0) = true) (hlast : (planOf v 0).getLast?.map (·.arity) = some 0)
+    (hfit : planFitB (planOf v 0) = true)
     {Rs : List AirD} {ts : List Table} (hs : sameAirsB Rs (probeAirs t roots jets (planOf v 0)) = true)
     (h : AcceptedP Rs ts) : Decodes t o := by
   have hacc := accepted_transfer hs ((acceptedP_iff_of (probe_guarded t roots jets (planOf v 0)) hs ts).1 h)
   obtain ⟨C, Mm, Pg, Rt, Hd, Tm, Po, Iw, Pl, Pw, rfl, hok⟩ := probeOK_of hacc
   have hR := rootsOKB_sound hroots
-  have hl : ∀ s, (planOf v 0).getLast? = some s → s.arity = 0 := by
-    intro s hs'
-    rw [hs'] at hlast
-    exact Option.some.inj hlast
+  have hl : ∀ s, (planOf v 0).getLast? = some s → s.arity = 0 := fun _ hs' => planOf_last hs'
   exact air_probe_decodes hv (hok.sound hR hjfit hfit hl) hR
 
 end Circuit

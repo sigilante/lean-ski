@@ -449,6 +449,31 @@ theorem probe_complete {t : Term} {roots : List (Nat × Nat)} {jets : List Air.J
     rw [cr HD (by decide), cr STK (by decide), cr CTR (by decide), cpuCol_hd, cpuCol_stk, cpuCol_ctr,
       val_ofN (by omega), val_ofN (by omega), val_ofN (by omega)]
 
+/-- **Completeness of the probe circuit for an outcome's plan**: the plan's
+    parents come first (`planOf_parent`) and its last segment has no
+    fields (`planOf_last`), so only the run and the heights are assumed. -/
+theorem probe_complete_planOf {t : Term} {roots : List (Nat × Nat)} {jets : List Air.Jet} {v : Probe.V}
+    {Rs : List AirD} (hs : sameAirsB Rs (probeAirs t roots jets (planOf v 0)) = true)
+    (hroots : RootsOK (load t).heap roots jets)
+    (hprov : 0 < (rootsRows roots).length ∧ 0 < (hdrRows jets).length ∧ 0 < (tmplRows jets).length)
+    (hprov27 : (rootsRows roots).length ≤ 2 ^ 27 ∧ (hdrRows jets).length ≤ 2 ^ 27 ∧
+      (tmplRows jets).length ≤ 2 ^ 27 ∧ (planRows (planOf v 0)).length ≤ 2 ^ 27)
+    {A : List Cell} {p : Nat → Nat} {fld : Nat → List Nat} {row : Nat → Air.Row}
+    (hA : AcceptsP A (load t) roots jets (planOf v 0) p fld row) (hstk0 : (row 0).stk = (load t).stk)
+    (hfit : Fits A) (hlen : A.length ≤ 2 ^ 21)
+    {K HP HW HX : Nat} (hK : p (planOf v 0).length < K) (hK21 : K ≤ 2 ^ 21)
+    (hHP : (PRun.popRowsP ⟨A, roots, jets, planOf v 0, p, fld, row⟩ K).length ≤ HP) (hHP0 : 0 < HP)
+    (hHP21 : HP ≤ 2 ^ 21)
+    (hHW : (JRun.instwRows (PRun.J ⟨A, roots, jets, planOf v 0, p, fld, row⟩) K).length ≤ HW) (hHW0 : 0 < HW)
+    (hHW21 : HW ≤ 2 ^ 21)
+    (hHX : (PRun.pwRows ⟨A, roots, jets, planOf v 0, p, fld, row⟩ K).length ≤ HX) (hHX0 : 0 < HX)
+    (hHX21 : HX ≤ 2 ^ 21) :
+    ∃ C Mm Pg Rt Hd Tm Po Iw Pl Pw, AcceptedP Rs [C, Mm, Pg, Rt, Hd, Tm, Po, Iw, Pl, Pw] ∧ C.h = K ∧
+      Mm.h = A.length ∧ Po.h = HP ∧ Iw.h = HW ∧ Pw.h = HX ∧ memOf Mm = A ∧
+      ∀ i, i ≤ p (planOf v 0).length → rowOf C i = row i :=
+  probe_complete hs hroots hprov hprov27 (fun _ _ hc hs' => planOf_parent hc hs') (fun _ hs' => planOf_last hs')
+    hA hstk0 hfit hlen hK hK21 hHP hHP0 hHP21 hHW hHW0 hHW21 hHX hHX0 hHX21
+
 /-- **A run with probe segments over a memory is a run over the memory
     padded**: reads stay below the counter, and writes check the same
     cells.  So the prover's memory, padded to a power of two, is covered. -/
