@@ -146,9 +146,11 @@ theorem cpu_kind {i : Nat} (hi : i < k) (hS : Shape M (row i) (kindOf M (row i))
     show cpuCol M (row i) (SEL + j) = _
     rw [cpuCol_sel M (row i) hj]⟩
 
-include hv htr in
-/-- The next row's registers are what the kind computes. -/
-theorem cpu_next {i : Nat} (hi1 : i + 1 < k) :
+include hv in
+/-- The next row's registers are what the kind computes, for a row that
+    steps to the next or has halted and repeats. -/
+theorem cpu_next {i : Nat} (hi1 : i + 1 < k)
+    (hti : stepRow M (row i) = some (row (i + 1)) ∨ (haltRow M (row i) = true ∧ row (i + 1) = row i)) :
     ofN (row (i + 1)).hd = (nextHdOf (kindOf M (row i))).eval ((cpuTable M row k).env i) ∧
     ofN (row (i + 1)).stk = (nextStkOf (kindOf M (row i))).eval ((cpuTable M row k).env i) ∧
     ofN (row (i + 1)).ctr = (nextCtrOf (kindOf M (row i))).eval ((cpuTable M row k).env i) := by
@@ -158,7 +160,7 @@ theorem cpu_next {i : Nat} (hi1 : i + 1 < k) :
   generalize hK : kindOf M (row i) = K at hS
   rcases Nat.lt_or_ge K 4 with h4 | h4
   · have hstep : stepRow M (row i) = some (row (i + 1)) := by
-      rcases htr i hi1 with h | h
+      rcases hti with h | h
       · exact h
       · rw [hS.step h4] at h; cases h.1
     rcases (show K = 0 ∨ K = 1 ∨ K = 2 ∨ K = 3 by omega) with rfl | rfl | rfl | rfl
@@ -190,7 +192,7 @@ theorem cpu_next {i : Nat} (hi1 : i + 1 < k) :
       · show _ = (E.add (col CTR) (c 3)).eval _
         simp only [E.eval, cv, cpuCol_ctr, B.c, ← ofN_add]
   · have hrep : row (i + 1) = row i := by
-      rcases htr i hi1 with h | h
+      rcases hti with h | h
       · rw [hS.none h4] at h; cases h
       · exact h.2
     rw [nextHdOf_halt h4, nextStkOf_halt h4, nextCtrOf_halt h4, cv, cv, cv, hrep]
@@ -295,10 +297,10 @@ theorem cpu_sat (hk0 : 0 < k) : Sat (cpuAir (row 0).hd (row 0).stk (row 0).ctr) 
   · show (col (SEL + 11)).eval _ = 0; rw [cv, cpuCol_sel M _ (by decide), if_neg (by omega)]
   · show (col (SEL + 12)).eval _ = 0; rw [cv, cpuCol_sel M _ (by decide), if_neg (by omega)]
   · show (col (SEL + 13)).eval _ = 0; rw [cv, cpuCol_sel M _ (by decide), if_neg (by omega)]
-  · exact cpu_trans hi (pr := Row.hd) (fun _ => rfl) (fun hi1 => (cpu_next hv htr hi1).1) (kind_facts hi hK).2.2.2.2.1
-  · exact cpu_trans hi (pr := Row.stk) (fun _ => rfl) (fun hi1 => (cpu_next hv htr hi1).2.1)
+  · exact cpu_trans hi (pr := Row.hd) (fun _ => rfl) (fun hi1 => (cpu_next hv hi1 (htr i hi1)).1) (kind_facts hi hK).2.2.2.2.1
+  · exact cpu_trans hi (pr := Row.stk) (fun _ => rfl) (fun hi1 => (cpu_next hv hi1 (htr i hi1)).2.1)
       (kind_facts hi hK).2.2.2.2.2.1
-  · exact cpu_trans hi (pr := Row.ctr) (fun _ => rfl) (fun hi1 => (cpu_next hv htr hi1).2.2)
+  · exact cpu_trans hi (pr := Row.ctr) (fun _ => rfl) (fun hi1 => (cpu_next hv hi1 (htr i hi1)).2.2)
       (kind_facts hi hK).2.2.2.2.2.2
   · exact cpu_first hi (fun h0 => by subst h0; rfl)
   · exact cpu_first hi (fun h0 => by subst h0; rfl)

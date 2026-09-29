@@ -24,6 +24,7 @@ import Ski.Circuit.BaseComplete
 import Ski.Circuit.Selectors
 import Ski.Circuit.CompAir
 import Ski.Circuit.CompFinal
+import Ski.Circuit.CompComplete
 import Ski.BoolProbe
 import Ski.Statement
 import Ski.Sudoku
@@ -567,3 +568,9 @@ open Ski.Audit
   Circuit.cMachine_fits Circuit.CompOK.witCell Circuit.CompOK.heap0 Circuit.CompOK.regionWF
   Circuit.endRow_mono Circuit.endRow_of_one Circuit.CompOK.restart Circuit.CompOK.stepOrHalt
   Circuit.CompOK.acceptsC Circuit.CompOK.sound Circuit.comp_guarded Circuit.compExport_sound
+
+-- The composed circuit's completeness: honest tables for every run of the AIR with segments
+#audit_clean Circuit.cntS_end Circuit.cntS_after Circuit.valid_rowP Circuit.cpuC_kind Circuit.cpuC_read
+  Circuit.cpuC_sat Circuit.cpuC_memSend Circuit.foldBits_val Circuit.wit_sat Circuit.AcceptsC.ctr_le
+  Circuit.AcceptsC.stk_le Circuit.progC_honest Circuit.witT_honest Circuit.cpuC_honest Circuit.cpuC_segsHonest
+  Circuit.balancedC Circuit.memC_sat Circuit.comp_complete

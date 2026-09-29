@@ -103,3 +103,94 @@ theorem endRow_of_one (f : Nat → Nat) (hf : ∀ r, f r ≤ 1) {L n i : Nat} (h
   exact cntS_inj f a2 h1 a3
 
 end Circuit
+
+namespace Circuit
+
+/-- Whether row `i` is a restart: some segment `j < n - 1` ends there. -/
+def isRestart (e : Nat → Nat) (n i : Nat) : Bool := (List.range (n - 1)).any fun j => e j == i
+
+def rsI (e : Nat → Nat) (n : Nat) (i : Nat) : Nat := if isRestart e n i then 1 else 0
+
+theorem rsI_le (e : Nat → Nat) (n i : Nat) : rsI e n i ≤ 1 := by unfold rsI; split <;> decide
+
+theorem isRestart_iff {e : Nat → Nat} {n i : Nat} : isRestart e n i = true ↔ ∃ j, j + 1 < n ∧ e j = i := by
+  unfold isRestart
+  rw [List.any_eq_true]
+  constructor
+  · rintro ⟨j, hj, h⟩
+    exact ⟨j, by have := List.mem_range.1 hj; omega, beq_iff_eq.1 h⟩
+  · rintro ⟨j, hj, h⟩
+    exact ⟨j, List.mem_range.2 (by omega), beq_iff_eq.2 h⟩
+
+theorem emono_lt {e : Nat → Nat} {n : Nat} (hmono : ∀ j, j + 1 < n → e j < e (j + 1)) :
+    ∀ {a b : Nat}, a < b → b < n → e a < e b := by
+  intro a b hab hb
+  induction b with
+  | zero => omega
+  | succ b ih =>
+    have hs := hmono b (by omega)
+    rcases Nat.lt_or_ge a b with h | h
+    · exact Nat.lt_trans (ih h (by omega)) hs
+    · rw [show a = b by omega]; exact hs
+
+/-- No restart strictly between consecutive ends, before the first, or
+    after the last. -/
+theorem rsI_zero {e : Nat → Nat} {n : Nat} {r : Nat} (h : ∀ j, j + 1 < n → e j ≠ r) : rsI e n r = 0 := by
+  unfold rsI
+  cases hr : isRestart e n r with
+  | false => rfl
+  | true =>
+    obtain ⟨j, hj, e'⟩ := isRestart_iff.1 hr
+    exact absurd e' (h j hj)
+
+theorem rsI_one {e : Nat → Nat} {n : Nat} {j : Nat} (hj : j + 1 < n) : rsI e n (e j) = 1 := by
+  unfold rsI; rw [isRestart_iff.2 ⟨j, hj, rfl⟩]; rfl
+
+theorem cntS_const {f : Nat → Nat} {a : Nat} : ∀ b, a ≤ b → (∀ r, a ≤ r → r < b → f r = 0) → cntS f b = cntS f a
+  | 0, h, _ => by rw [Nat.le_zero.1 h]
+  | b + 1, h, hz => by
+    rcases Nat.lt_or_ge a (b + 1) with h' | h'
+    · show cntS f b + f b = _
+      rw [hz b (by omega) (Nat.lt_succ_self b), Nat.add_zero]
+      exact cntS_const b (by omega) (fun r h1 h2 => hz r h1 (by omega))
+    · rw [show a = b + 1 by omega]
+
+section
+
+variable {e : Nat → Nat} {n : Nat} (hmono : ∀ j, j + 1 < n → e j < e (j + 1))
+include hmono
+
+/-- **The restarts before segment `j`'s end are `j`.** -/
+theorem cntS_end : ∀ j, j < n → cntS (rsI e n) (e j) = j
+  | 0, hn => by
+    rw [cntS_const (a := 0) (e 0) (Nat.zero_le _) (fun r _ hr => rsI_zero (fun j hj h' => by
+      have : e 0 ≤ e j := by
+        rcases Nat.eq_zero_or_pos j with h0 | h0
+        · rw [h0]; exact Nat.le_refl _
+        · exact Nat.le_of_lt (emono_lt hmono h0 (by omega))
+      omega))]
+    rfl
+  | j + 1, hn => by
+    have ih := cntS_end j (by omega)
+    have hs := hmono j hn
+    rw [cntS_const (a := e j + 1) (e (j + 1)) hs (fun r h1 h2 => rsI_zero (fun j' hj' h' => by
+      rcases Nat.lt_trichotomy j' j with h | h | h
+      · have := emono_lt hmono h (by omega); omega
+      · rw [h] at h'; omega
+      · rcases Nat.lt_or_ge j' (j + 1) with h'' | h''
+        · omega
+        · rcases Nat.eq_or_lt_of_le h'' with h3 | h3
+          · rw [← h3] at h'; omega
+          · have := emono_lt hmono h3 (by omega); omega))]
+    show cntS (rsI e n) (e j) + rsI e n (e j) = j + 1
+    rw [ih, rsI_one hn]
+
+/-- After the last end, no more restarts. -/
+theorem cntS_after (hn : 0 < n) {r : Nat} (hr : e (n - 1) ≤ r) : cntS (rsI e n) r = n - 1 := by
+  rw [cntS_const (a := e (n - 1)) r hr (fun r' h1 _ => rsI_zero (fun j hj h' => by
+    have := emono_lt hmono (a := j) (b := n - 1) (by omega) (by omega); omega)),
+    cntS_end hmono (n - 1) (by omega)]
+
+end
+
+end Circuit

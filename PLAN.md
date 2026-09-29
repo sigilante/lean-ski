@@ -758,11 +758,14 @@ The composed circuit (`release/composed`): its five AIRs as data
 soundness, `compExport_sound`: an accepted proof's memory holds bits and a
 region whose witness the formula's statement accepts, and which read back
 as a realizer. Its blinding columns take part in no lookup the proof uses.
-Its completeness is not yet proved.
+Its completeness, `comp_complete`: every run the AIR with segments
+accepts, from literal bits and a well-formed region, at the verifier's
+heights, has honest tables the circuit accepts (the blinding flags clear),
+decoding back to the run.
 
 Not yet covered: jets (`AcceptsJ`), probes (`AcceptsP`), the hidden-term
-witness circuit and the Sudoku circuit, and the composed circuit's
-completeness. Their headers still argue the step informally.
+witness circuit and the Sudoku circuit. Their headers still argue the
+step informally.
 
 ## 6. Acceptance
 
