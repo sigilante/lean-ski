@@ -336,6 +336,145 @@ theorem JetOK.lookup {bus : String} (sender : AirD × Table → Bool)
     (by obtain ⟨p, hp, hsp, rest⟩ := hit; exact ⟨p, hp, by rw [hsp]; rfl, rest⟩)
   exact ⟨p, hp, by cases hq : sender p <;> simp_all, r, hr, hne⟩
 
+omit h in
+/-- The tables' names, for picking senders. -/
+theorem jetTables_names {p : AirD × Table}
+    (hp : p ∈ jetTables hd0 stk0 ctr0 heap roots jets C Mm Pg Rt Hd Tm Po Iw) :
+    p = (cpuAirJ hd0 stk0 ctr0, C) ∨ p = (memAir, Mm) ∨ p = (progAir heap, Pg) ∨ p = (rootsAir roots, Rt) ∨
+      p = (hdrAir jets, Hd) ∨ p = (tmplAir jets, Tm) ∨ p = (popAir, Po) ∨ p = (instwAir, Iw) := by
+  simp only [jetTables, List.mem_cons, List.not_mem_nil, or_false] at hp
+  exact hp
+
+omit h in
+theorem notBus {A : AirD} {T : Table} {bus : String} {v : List F} {q : Nat}
+    (hA : A.inters.all (fun I => I.bus != bus) = true) : rowSends A T bus v q = 0 :=
+  rowSends_nobus (fun I hI e => by
+    have := List.all_eq_true.1 hA I hI
+    rw [e] at this; exact absurd this (by simp))
+
+/-- **An instantiation's root is listed.** -/
+theorem JetOK.rootsHit {r : Nat} (hr : r < C.h) (hi : C.main r (SEL + 11) = 1) :
+    ∃ a g, (a, g) ∈ roots ∧ C.main r HD = ofN a ∧ C.main r J_G = ofN g := by
+  obtain ⟨p, hp, hpr, q, hq, hne⟩ := h.lookup (bus := "roots") (fun p => p.1.name == "cpu")
+    (fun p hp hs => by
+      rcases jetTables_names hp with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
+      · exact h.cpu_sender (.inr (.inl rfl))
+      all_goals exact absurd hs (ne_true_of_eq_false rfl))
+    (v := [C.main r HD, C.main r J_G])
+    ⟨_, List.mem_cons_self, rfl, r, hr, ⟨"roots", 1, sInst, [col HD, col J_G]⟩,
+      List.mem_append_right _ List.mem_cons_self, rfl,
+      by simp only [List.map_cons, List.map_nil, col_eval hr],
+      by simp only [sInst, col_eval hr, hi]⟩
+  rcases jetTables_names hp with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
+  · exact absurd hpr (ne_false_of_eq_true rfl)
+  · exact absurd (notBus rfl) hne
+  · exact absurd (notBus rfl) hne
+  · obtain ⟨a, g, hm, e⟩ := rootsRows_mem (provider_row h.rtpre (rootsRows_len roots) hq hne)
+    simp only [List.cons.injEq, and_true] at e
+    exact ⟨a, g, hm, e.1, e.2⟩
+  · exact absurd (notBus rfl) hne
+  · exact absurd (notBus rfl) hne
+  · exact absurd (notBus rfl) hne
+  · exact absurd (notBus rfl) hne
+
+/-- **An instantiation's header is its jet's.** -/
+theorem JetOK.hdrHit {r : Nat} (hr : r < C.h) (hi : C.main r (SEL + 11) = 1) :
+    ∃ J g, jets[g]? = some J ∧ [C.main r J_G, C.main r J_K, C.main r J_N, C.main r J_RL, C.main r J_RA,
+      C.main r J_RG, C.main r J_RV] = hdrRow J g := by
+  obtain ⟨p, hp, hpr, q, hq, hne⟩ := h.lookup (bus := "hdr") (fun p => p.1.name == "cpu")
+    (fun p hp hs => by
+      rcases jetTables_names hp with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
+      · exact h.cpu_sender (.inr (.inr (.inl rfl)))
+      all_goals exact absurd hs (ne_true_of_eq_false rfl))
+    (v := [C.main r J_G, C.main r J_K, C.main r J_N, C.main r J_RL, C.main r J_RA, C.main r J_RG, C.main r J_RV])
+    ⟨_, List.mem_cons_self, rfl, r, hr,
+      ⟨"hdr", 1, sInst, [col J_G, col J_K, col J_N, col J_RL, col J_RA, col J_RG, col J_RV]⟩,
+      List.mem_append_right _ (List.mem_cons_of_mem _ List.mem_cons_self), rfl,
+      by simp only [List.map_cons, List.map_nil, col_eval hr],
+      by simp only [sInst, col_eval hr, hi]⟩
+  rcases jetTables_names hp with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
+  · exact absurd hpr (ne_false_of_eq_true rfl)
+  · exact absurd (notBus rfl) hne
+  · exact absurd (notBus rfl) hne
+  · exact absurd (notBus rfl) hne
+  · obtain ⟨J, g, hJ, e⟩ := hdrRows_mem (provider_row h.hdpre (hdrRows_len jets) hq hne)
+    exact ⟨J, g, hJ, e⟩
+  · exact absurd (notBus rfl) hne
+  · exact absurd (notBus rfl) hne
+  · exact absurd (notBus rfl) hne
+
+/-- **An active INSTW row's template is a row of its jet.** -/
+theorem JetOK.tmplHit {w : Nat} (hw : w < Iw.h) (ha : Iw.main w 17 = 1) :
+    ∃ J g j cl, jets[g]? = some J ∧ (symCells J J.body 0).1[j]? = some cl ∧
+      (List.range 11).map (fun i => Iw.main w (2 + i)) = tmplRow g j cl := by
+  obtain ⟨p, hp, hpr, q, hq, hne⟩ := h.lookup (bus := "tmpl") (fun p => p.1.name == "instw")
+    (fun p hp hs => by
+      rcases jetTables_names hp with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
+      all_goals first | exact h.instw_sender (.inr (.inl rfl)) | exact absurd hs (ne_true_of_eq_false rfl))
+    (v := (List.range 11).map (fun i => Iw.main w (2 + i)))
+    ⟨(instwAir, Iw), by simp [jetTables], rfl, w, hw, ⟨"tmpl", 1, col 17, (List.range 11).map fun i => col (2 + i)⟩,
+      List.mem_cons_of_mem _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _
+        List.mem_cons_self))), rfl,
+      by rw [List.map_map]; exact List.map_congr_left (fun i _ => col_eval hw _),
+      by rw [col_eval hw, ha]⟩
+  rcases jetTables_names hp with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
+  · exact absurd (notBus rfl) hne
+  · exact absurd (notBus rfl) hne
+  · exact absurd (notBus rfl) hne
+  · exact absurd (notBus rfl) hne
+  · exact absurd (notBus rfl) hne
+  · exact tmplRows_mem (provider_row h.tmpre (tmplRows_len jets) hq hne)
+  · exact absurd (notBus rfl) hne
+  · exact absurd hpr (ne_false_of_eq_true rfl)
+
+/-- **An argument lookup finds an active POP row.** -/
+theorem JetOK.argHit {v : List F}
+    (hit : ∃ p ∈ jetTables hd0 stk0 ctr0 heap roots jets C Mm Pg Rt Hd Tm Po Iw,
+      (p.1.name == "cpu" || p.1.name == "instw") = true ∧
+      ∃ r, r < p.2.h ∧ ∃ I ∈ p.1.inters, I.bus = "arg" ∧
+        I.fields.map (fun e => e.eval (p.2.env r)) = v ∧ I.count.eval (p.2.env r) = 1) :
+    ∃ q, q < Po.h ∧ Po.main q 7 = 1 ∧ [Po.main q 0, Po.main q 2, Po.main q 4] = v := by
+  obtain ⟨p, hp, hpr, q, hq, hne⟩ := h.lookup (bus := "arg") (fun p => p.1.name == "cpu" || p.1.name == "instw")
+    (fun p hp hs => by
+      rcases jetTables_names hp with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
+      all_goals first
+        | exact h.cpu_sender (.inr (.inr (.inr rfl)))
+        | exact h.instw_sender (.inr (.inr rfl))
+        | exact absurd hs (ne_true_of_eq_false rfl)) hit
+  rcases jetTables_names hp with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
+  · exact absurd hpr (ne_false_of_eq_true rfl)
+  · exact absurd (notBus rfl) hne
+  · exact absurd (notBus rfl) hne
+  · exact absurd (notBus rfl) hne
+  · exact absurd (notBus rfl) hne
+  · exact absurd (notBus rfl) hne
+  · -- a POP row: its use count is nonzero, so it is active
+    have hq' : q < Po.h := hq
+    have cv := col_eval hq'
+    have hf : [Po.main q 0, Po.main q 2, Po.main q 4] = v := by
+      apply Decidable.byContradiction
+      intro hv
+      apply hne
+      simp only [rowSends, popAir, popInters, List.foldr_cons, List.foldr_nil, List.map_cons, List.map_nil]
+      rw [if_neg (fun h' => absurd h'.1 (by decide)), if_neg (fun h' => absurd h'.1 (by decide)),
+        if_neg (fun h' => absurd h'.1 (by decide)), if_neg (fun h' => hv (by rw [← h'.2, cv, cv, cv])),
+        add_zero', add_zero', add_zero', add_zero']
+    have huse : Po.main q 6 ≠ 0 := by
+      intro h0
+      apply hne
+      simp only [rowSends, popAir, popInters, List.foldr_cons, List.foldr_nil, List.map_cons, List.map_nil]
+      rw [if_neg (fun h' => absurd h'.1 (by decide)), if_neg (fun h' => absurd h'.1 (by decide)),
+        if_neg (fun h' => absurd h'.1 (by decide))]
+      split
+      · simp only [E.eval, cv, h0]; decide
+      · decide
+    have hc := h.po.2 (.mul (col 6) (.sub one (col 7))) (by simp [popAir, popCons]) q hq'
+    simp only [E.eval, cv, B.one, B.c, ofN_one] at hc
+    rcases mul_eq_zero hc with e | e
+    · exact absurd e huse
+    · exact ⟨q, hq', (sub_eq_zero e).symm, hf⟩
+  · exact absurd hpr (ne_false_of_eq_true rfl)
+
 end
 
 end Circuit
