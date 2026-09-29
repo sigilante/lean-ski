@@ -580,6 +580,219 @@ theorem J_sel_probe (i : Nat) {m : Nat} (hm : m = 12 ∨ m = 13) : R.J.cpuCol i 
       simp only
       exact R.J.instCol_low i g J (by decide) (by decide) (by decide)
 
+omit hA in
+theorem normX_zero {K i c : Nat} (h1 : c ≠ P_CNT)
+    (h2 : i + 1 ≠ K ∨ (c ≠ P_NILACT ∧ c ≠ P_NILADDR ∧ c < P_NILBITS)) : R.normX K i c = 0 := by
+  unfold normX
+  rw [if_neg h1]
+  rcases h2 with h2 | ⟨a, b, d⟩
+  · rw [if_neg h2]
+  · split
+    · first
+        | rw [if_neg a, if_neg b, if_neg (by omega)]
+        | rw [if_neg (by omega)]
+    · rfl
+
+omit hA in
+theorem normX_last {K i : Nat} (hl : i + 1 = K) :
+    R.normX K i P_NILACT = 1 ∧ R.normX K i P_NILADDR = ofN (R.J.rowQ i).stk ∧
+    ∀ b, R.normX K i (P_NILBITS + b) = ofN ((((R.J.rowQ i).ctr - (R.J.rowQ i).stk - 1) / 2 ^ b) % 2) := by
+  refine ⟨?_, ?_, fun b => ?_⟩
+  · unfold normX; rw [if_neg (by decide), if_pos hl, if_pos rfl]
+  · unfold normX; rw [if_neg (by decide), if_pos hl, if_neg (by decide), if_pos rfl]
+  · unfold normX
+    rw [if_neg (by unfold P_NILBITS P_CNT; omega), if_pos hl, if_neg (by unfold P_NILBITS P_NILACT; omega),
+      if_neg (by unfold P_NILBITS P_NILADDR; omega), if_pos (Nat.le_add_right _ _), Nat.add_sub_cancel_left]
+
+include hroots in
+/-- The table's last row: a copy of the run's last, which counts every
+    segment, reads the last marker at its head and a nil at its stack. -/
+theorem last_facts {K i : Nat} (hK : R.last < K) (hl : i + 1 = K) (hlast : (R.seg (R.n - 1)).arity = 0) :
+    R.J.rowQ i = R.row R.last ∧ R.pcnt i = R.n ∧ (R.row R.last).stk < (R.row R.last).ctr ∧
+    (R.row R.last).ctr ≤ R.A.length ∧
+    rd R.A (R.row R.last).ctr (R.row R.last).hd =
+      some (.atom ((R.seg (R.n - 1)).ctor + (R.seg (R.n - 1)).base)) := by
+  have hq : R.J.rowQ i = R.row R.last := by
+    rcases Nat.lt_or_ge i (R.last + 1) with h | h
+    · rw [JRun.rowQ_lt h]
+      show R.row i = R.row R.last
+      rw [show i = R.last by omega]
+    · rw [JRun.rowQ_ge h]; rfl
+  obtain ⟨rest, hhead, hpop, hnil⟩ := last_end hA
+  rw [hlast] at hpop
+  have hr : rest = (R.row R.last).stk := by
+    have e : (some ([], (R.row R.last).stk) : Option (List Nat × Nat)) = some (R.fld (R.n - 1), rest) := hpop
+    exact (congrArg Prod.snd (Option.some.inj e)).symm
+  rw [hr] at hnil
+  refine ⟨hq, ?_, ?_, (hA.ctrs hroots R.last (Nat.le_refl _)).2.1, hhead⟩
+  · rcases Nat.lt_or_ge R.last i with h | h
+    · exact pcnt_ge hA h
+    · have : i = R.last := by omega
+      rw [this]; exact pcnt_p hA (Nat.le_refl _)
+  · unfold rd at hnil; split at hnil
+    · assumption
+    · cases hnil
+
+include hroots in
+/-- **A row within a segment satisfies the probe CPU's constraints**, the
+    last segment having no fields and `la` its marker. -/
+theorem norm_rowSat {K : Nat} (hK : R.last < K) (hlen : R.A.length ≤ 2 ^ 24)
+    (hlast : (R.seg (R.n - 1)).arity = 0) {la : Nat} (hla : la = (R.seg (R.n - 1)).ctor + (R.seg (R.n - 1)).base)
+    {i : Nat} (hi : i < K) (hp : R.isP i = false) :
+    ∀ e ∈ cpuConsP (R.row 0).hd (R.row 0).stk (R.row 0).ctr R.n la, e.eval ((R.cpuTableP K).env i) = 0 := by
+  intro e he
+  have hJ := jok hA hroots
+  have cv := R.cvP hi
+  have tr : ∀ e ∈ cpuConsJ (R.row 0).hd (R.row 0).stk (R.row 0).ctr, e.eval ((R.cpuTableP K).env i) = 0 := by
+    intro e he'
+    rw [E.eval_congr (env_agreeP hA hi hp) e (List.all_eq_true.1 (cpuConsJ_atoms _ _ _) e he')]
+    exact R.J.cpu_row hJ (show R.last + 1 ≤ K by omega) hlen hi hp e he'
+  have hs12 : (col (SEL + 12)).eval ((R.cpuTableP K).env i) = 0 := by
+    rw [cv, R.colP_low hp (by decide), R.J_sel_probe i (.inl rfl)]
+  have hs13 : (col (SEL + 13)).eval ((R.cpuTableP K).env i) = 0 := by
+    rw [cv, R.colP_low hp (by decide), R.J_sel_probe i (.inr rfl)]
+  have fF : sPFirst.eval ((R.cpuTableP K).env i) = 0 := hs12
+  have fL : sPLater.eval ((R.cpuTableP K).env i) = 0 := hs13
+  have fP : sProbe.eval ((R.cpuTableP K).env i) = 0 := by
+    show sPFirst.eval _ + sPLater.eval _ = 0; rw [fF, fL, add_zero']
+  have hn0 : 0 < R.n := hA.nonempty
+  have hi0 : i ≠ 0 := fun h0 => by
+    have := isP_p hA hn0
+    rw [hA.p0, ← h0, hp] at this; cases this
+  have f0 : (R.cpuTableP K).env i .first = 0 := by show (if i = 0 then 1 else 0) = 0; rw [if_neg hi0]
+  have hcx : ∀ c, P_CNT ≤ c → (col c).eval ((R.cpuTableP K).env i) = R.normX K i c :=
+    fun c h => by rw [cv, R.colP_high hp h]
+  rw [cpuConsP_split] at he
+  rcases List.mem_append.1 he with he | he
+  · exact tr e (by rw [cpuConsJ_split]; exact List.mem_append_left _ he)
+  · rcases List.mem_append.1 he with he | he
+    · rcases List.mem_append.1 he with he | he
+      · exact tr e (by
+          rw [cpuConsJ_split]; refine List.mem_append_right _ ?_
+          simp only [List.mem_cons, List.not_mem_nil, or_false] at he ⊢
+          rcases he with h | h | h | h | h | h
+          · exact .inl h
+          · exact .inr (.inl h)
+          · exact .inr (.inr (.inl h))
+          · exact .inr (.inr (.inr (.inl h)))
+          · exact .inr (.inr (.inr (.inr (.inl h))))
+          · exact .inr (.inr (.inr (.inr (.inr (.inl h))))))
+      · -- the probe constraints
+        unfold probeCons at he
+        simp only [List.mem_append, List.mem_cons, List.mem_map, List.mem_range, List.not_mem_nil, or_false] at he
+        rcases Nat.decEq (i + 1) K with hl | hl
+        · -- an inner row
+          have hlst : (R.cpuTableP K).env i .last = 0 := by
+            show (if i + 1 = K then 1 else 0) = 0; rw [if_neg hl]
+          have htr : (R.cpuTableP K).env i .trans = 1 := by
+            show (if i + 1 = K then 0 else 1) = 1; rw [if_neg hl]
+          have hK1 : (i + 1) % K = i + 1 := Nat.mod_eq_of_lt (by omega)
+          have xz : ∀ c, P_CNT ≤ c → c ≠ P_CNT → (col c).eval ((R.cpuTableP K).env i) = 0 :=
+            fun c h1 h2 => by rw [hcx c h1, R.normX_zero h2 (.inl hl)]
+          rcases he with ((rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl) | ⟨b, hb, rfl⟩) |
+            (rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl)
+          · simp only [B.whenFirst, B.eq, E.eval, f0, zero_mul']
+          · simp only [B.whenFirst, E.eval, f0, zero_mul']
+          · simp only [E.eval, fF, zero_mul']
+          · simp only [B.whenTrans, B.eq, E.eval, htr, one_mul', R.nxP, hK1, cv, R.colP_cnt K, fP]
+            rw [pcnt_succ hA, hp, if_neg Bool.false_ne_true, Nat.add_zero, add_zero', sub_self']
+          · simp only [E.eval, fL, zero_mul']
+          · simp only [B.bool, E.eval, xz P_NILACT (by decide) (by decide), zero_mul']
+          · simp only [E.eval, fL, zero_mul']
+          · simp only [E.eval, fL, zero_mul']
+          · simp only [B.bool, E.eval]
+            rw [xz (P_NILBITS + b) (by unfold P_NILBITS; omega) (by unfold P_NILBITS P_CNT; omega), zero_mul']
+          · simp only [E.eval, xz P_NILACT (by decide) (by decide), zero_mul']
+          · simp only [E.eval, xz P_NKIDS (by decide) (by decide), zero_mul']
+          · simp only [E.eval, fF, zero_mul']
+          all_goals simp only [B.whenLast, B.eq, E.eval, hlst, zero_mul']
+        · -- the table's last row
+          obtain ⟨hq, hpc, hsc, hctr, hhead⟩ := last_facts hA hroots hK hl hlast
+          obtain ⟨xNA, xNAD, xB⟩ := R.normX_last hl
+          rw [hq] at xNAD xB
+          have hlst : (R.cpuTableP K).env i .last = 1 := by
+            show (if i + 1 = K then 1 else 0) = 1; rw [if_pos hl]
+          have htr : (R.cpuTableP K).env i .trans = 0 := by
+            show (if i + 1 = K then 0 else 1) = 0; rw [if_pos hl]
+          have hn : R.J.instAt i = none := JRun.instAt_none_of (by show R.last + 1 ≤ i + 1; omega)
+          have cq : ∀ c, c < CPU_WIDTH → (col c).eval ((R.cpuTableP K).env i) = Circuit.cpuCol R.A (R.row R.last) c := by
+            intro c hc
+            rw [cv, R.colP_low hp (by unfold P_CNT J_CLK JET_WIDTH; omega)]
+            unfold JRun.cpuCol; rw [hn]; simp only; rw [if_pos hc, hq]; rfl
+          have hkind : kindOf R.A (R.row R.last) = 10 := kindOf_atom hhead
+          rcases he with ((rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl) | ⟨b, hb, rfl⟩) |
+            (rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl)
+          · simp only [B.whenFirst, B.eq, E.eval, f0, zero_mul']
+          · simp only [B.whenFirst, E.eval, f0, zero_mul']
+          · simp only [E.eval, fF, zero_mul']
+          · simp only [B.whenTrans, E.eval, htr, zero_mul']
+          · simp only [E.eval, fL, zero_mul']
+          · simp only [B.bool, E.eval, hcx _ (show P_CNT ≤ P_NILACT by decide), xNA, B.one, B.c, ofN_one]; decide
+          · simp only [E.eval, fL, zero_mul']
+          · simp only [E.eval, fL, zero_mul']
+          · simp only [B.bool, E.eval, B.one, B.c, ofN_one]
+            rw [hcx _ (show P_CNT ≤ P_NILBITS + b by unfold P_NILBITS; omega), xB b]
+            exact JRun.bit_mod _
+          · have hv := bitsVal_eq (T := R.cpuTableP K) (r := i) (b0 := P_NILBITS)
+              (n := (R.row R.last).ctr - (R.row R.last).stk - 1) hi (fun b hb => by
+                show R.cpuColP K i _ = _
+                rw [R.colP_high hp (by unfold P_NILBITS; omega), xB b])
+              (Nat.lt_of_lt_of_le (Nat.sub_lt (Nat.sub_pos_of_lt hsc) Nat.one_pos)
+                (Nat.le_trans (Nat.sub_le _ _) (Nat.le_trans hctr hlen)))
+            simp only [E.eval, hcx _ (show P_CNT ≤ P_NILACT by decide), hcx _ (show P_CNT ≤ P_NILADDR by decide),
+              xNA, xNAD, one_mul', cq CTR (by decide), B.one, B.c, ofN_one]
+            rw [show nilVal.eval ((R.cpuTableP K).env i) = ofN ((R.row R.last).ctr - (R.row R.last).stk - 1) from hv]
+            have e : (R.row R.last).ctr = ((R.row R.last).ctr - (R.row R.last).stk - 1) + (R.row R.last).stk + 1 := by
+              omega
+            rw [show Circuit.cpuCol R.A (R.row R.last) CTR = ofN ((R.row R.last).ctr - (R.row R.last).stk - 1) +
+                ofN (R.row R.last).stk + 1 by
+              show ofN (R.row R.last).ctr = _
+              rw [← ofN_one, ← ofN_add, ← ofN_add]; exact congrArg ofN e]
+            exact range_identity _ _
+          · simp only [E.eval, hcx _ (show P_CNT ≤ P_NKIDS by decide),
+              R.normX_zero (c := P_NKIDS) (by decide) (.inr ⟨by decide, by decide, by decide⟩), zero_mul']
+          · simp only [E.eval, fF, zero_mul']
+          · simp only [B.whenLast, B.eq, B.c, E.eval, hlst, one_mul', hcx _ (show P_CNT ≤ P_CNT by decide)]
+            rw [show R.normX K i P_CNT = ofN (R.pcnt i) from rfl, hpc, sub_self']
+          · simp only [B.whenLast, B.eq, B.one, B.c, ofN_one, sHA, E.eval, hlst, one_mul', cq _ (show SEL + 10 < CPU_WIDTH by decide)]
+            rw [cpuCol_sel _ _ (by decide), hkind, if_pos rfl, sub_self']
+          · simp only [B.whenLast, B.eq, B.c, Circuit.fld, E.eval, hlst, one_mul', cq _ (show FLD + 0 < CPU_WIDTH by decide)]
+            rw [cpuCol_fld _ _ (by decide), if_pos rfl]
+            show ofN (cellFields ((rd R.A (R.row R.last).ctr (R.row R.last).hd).getD .nil)).1 - ofN la = 0
+            rw [hhead, hla]; exact sub_self' _
+          · simp only [B.whenLast, B.eq, B.one, B.c, ofN_one, E.eval, hlst, one_mul', hcx _ (show P_CNT ≤ P_NILACT by decide), xNA]
+            exact sub_self' _
+          · simp only [B.whenLast, B.eq, E.eval, hlst, one_mul', hcx _ (show P_CNT ≤ P_NILADDR by decide), xNAD,
+              cq STK (by decide)]
+            exact sub_self' _
+    · -- the registers, first and last
+      simp only [List.mem_cons, List.not_mem_nil, or_false] at he
+      rcases he with rfl | rfl | rfl | rfl | rfl | rfl | rfl
+      · have := tr (whenTrans (eq (nxt HD) (.add nextHd jetHd))) (by simp [cpuConsJ])
+        simp only [B.whenTrans, B.eq, E.eval] at this ⊢
+        rw [fP, zero_mul', add_zero']; exact this
+      · have := tr (whenTrans (eq (nxt STK) (.add nextStk (.mul sInst (col J_REST))))) (by simp [cpuConsJ])
+        simp only [B.whenTrans, B.eq, E.eval] at this ⊢
+        rw [fP, zero_mul', add_zero']; exact this
+      · have := tr (whenTrans (eq (nxt CTR) (.add nextCtr (.mul sInst (col J_N))))) (by simp [cpuConsJ])
+        simp only [B.whenTrans, B.eq, E.eval] at this ⊢
+        rw [fP, zero_mul', add_zero']; exact this
+      · exact tr _ (by simp [cpuConsJ])
+      · exact tr _ (by simp [cpuConsJ])
+      · exact tr _ (by simp [cpuConsJ])
+      · exact tr _ (by simp [cpuConsJ])
+
+include hroots in
+/-- **The honest probe CPU satisfies the probe CPU's AIR**, for a run whose
+    last segment has no fields and `la` its marker. -/
+theorem cpu_satP {K : Nat} (hK : R.last < K) (hlen : R.A.length ≤ 2 ^ 24)
+    (hlast : (R.seg (R.n - 1)).arity = 0) {la : Nat} (hla : la = (R.seg (R.n - 1)).ctor + (R.seg (R.n - 1)).base) :
+    Sat (cpuAirP (R.row 0).hd (R.row 0).stk (R.row 0).ctr R.n la) (R.cpuTableP K) := by
+  refine ⟨by show 0 < K; omega, fun e he i (hi : i < K) => ?_⟩
+  cases hp : R.isP i with
+  | true => exact probe_rowSat hA hroots hK hlen la hi hp e he
+  | false => exact norm_rowSat hA hroots hK hlen hlast hla hi hp e he
+
 end PRun
 
 end Circuit
