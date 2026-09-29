@@ -1151,4 +1151,66 @@ theorem instw_honest {K HW : Nat} :
 
 end JRun
 
+/-- A table's `mem` messages are memory cells' tuples. -/
+def HonestMem (A : List Cell) (X : AirD) (T : Table) : Prop :=
+  ∀ r, r < T.h → ∀ I ∈ X.inters, I.bus = "mem" → I.count.eval (T.env r) ≠ 0 →
+    ∃ m, m < A.length ∧ I.fields.map (fun c => c.eval (T.env r)) = tupleOf A m
+
+/-- `a + (-(a + (b + (c + d))) + (b + (c + d))) = 0`, by normal forms. -/
+theorem bal4_identity (a b c d : F) : a + (-(a + (b + (c + d))) + (b + (c + d))) = 0 :=
+  E.eval_eq_of_norm
+    (e := .add (.atom (.main 0 0)) (.add (.neg (.add (.atom (.main 0 0)) (.add (.atom (.main 0 1))
+      (.add (.atom (.main 0 2)) (.atom (.main 0 3)))))) (.add (.atom (.main 0 1))
+      (.add (.atom (.main 0 2)) (.atom (.main 0 3))))))
+    (e' := .const 0) (by decide) (at4 a b c d)
+
+/-- **`mem` balances**: the memory table receives each cell's tuple as often
+    as the CPU, the program, POP and INSTW send it. -/
+theorem bal_mem4 {A : List Cell} {cpu prog pop instw : AirD} {C Pg Po Iw : Table} (hML : A.length < P)
+    (hc : HonestMem A cpu C) (hp : HonestMem A prog Pg) (ho : HonestMem A pop Po) (hw : HonestMem A instw Iw)
+    (v : List F) :
+    tableSends cpu C "mem" v + (tableSends memAir (memTableJ A cpu prog pop instw C Pg Po Iw) "mem" v +
+      (tableSends prog Pg "mem" v + (tableSends pop Po "mem" v + tableSends instw Iw "mem" v))) = 0 := by
+  let Mm := memTableJ A cpu prog pop instw C Pg Po Iw
+  have hrow : ∀ m, m < A.length → rowSends memAir Mm "mem" v m =
+      if tupleOf A m = v then -(tableSends cpu C "mem" (tupleOf A m) + (tableSends prog Pg "mem" (tupleOf A m) +
+        (tableSends pop Po "mem" (tupleOf A m) + tableSends instw Iw "mem" (tupleOf A m)))) else 0 := by
+    intro m hm
+    have hm' : m < Mm.h := hm
+    simp only [rowSends, memAir, List.foldr_cons, List.foldr_nil, List.map_cons, List.map_nil, B.col, E.eval,
+      env_main0 hm', true_and, add_zero']
+    rfl
+  cases hany : (List.range A.length).any (fun m => decide (tupleOf A m = v)) with
+  | true =>
+    obtain ⟨m0, hm0, e0⟩ := List.any_eq_true.1 hany
+    have hm0 := List.mem_range.1 hm0
+    have e0 := of_decide_eq_true e0
+    have hmem : tableSends memAir Mm "mem" v = -(tableSends cpu C "mem" v + (tableSends prog Pg "mem" v +
+        (tableSends pop Po "mem" v + tableSends instw Iw "mem" v))) := by
+      show List.foldr (fun r acc => rowSends memAir Mm "mem" v r + acc) 0 (List.range A.length) = _
+      rw [fold_single _ A.length m0 hm0, hrow m0 hm0, if_pos e0, e0]
+      intro b hb hne
+      rw [hrow b hb, if_neg]
+      intro e
+      rw [← e0] at e
+      have := congrArg List.head? e
+      simp only [tupleOf, List.head?_cons, Option.some.injEq] at this
+      exact hne (ofN_inj (Nat.lt_trans hb hML) (Nat.lt_trans hm0 hML) this)
+    rw [hmem]
+    exact bal4_identity _ _ _ _
+  | false =>
+    have hno : ¬ ∃ m, m < A.length ∧ v = tupleOf A m := by
+      rintro ⟨m, hm, e⟩
+      have := List.any_eq_false.1 hany m (List.mem_range.2 hm)
+      exact this (decide_eq_true e.symm)
+    have z : ∀ {X : AirD} {T : Table}, HonestMem A X T → tableSends X T "mem" v = 0 := fun hX =>
+      sends_zero_of (Q := fun w => ∃ m, m < A.length ∧ w = tupleOf A m)
+        (fun r hr I hI hb hc => by obtain ⟨m, hm, e⟩ := hX r hr I hI hb hc; exact ⟨m, hm, e⟩) hno
+    have h4 : tableSends memAir Mm "mem" v = 0 := by
+      show List.foldr (fun r acc => rowSends memAir Mm "mem" v r + acc) 0 (List.range A.length) = 0
+      apply fold_zero
+      intro m hm
+      rw [hrow m (List.mem_range.1 hm), if_neg (fun e => hno ⟨m, List.mem_range.1 hm, e.symm⟩)]
+    rw [z hc, z hp, z ho, z hw, h4]; decide
+
 end Circuit
