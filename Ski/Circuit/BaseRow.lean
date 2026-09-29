@@ -34,13 +34,22 @@ theorem env_first {T : Table} {r : Nat} : T.env r .first = if r = 0 then 1 else 
 theorem env_last {T : Table} {r : Nat} : T.env r .last = if r + 1 = T.h then 1 else 0 := rfl
 theorem env_trans {T : Table} {r : Nat} : T.env r .trans = if r + 1 = T.h then 0 else 1 := rfl
 
+/-- **Row `r` satisfies the CPU's constraints**: what the lemmas below use
+    of `Sat`, one row at a time, so a CPU with more kinds can reuse them on
+    its corpus rows. -/
+def RowSat (hd0 stk0 ctr0 : Nat) (T : Table) (r : Nat) : Prop :=
+  ∀ c ∈ cpuCons hd0 stk0 ctr0, c.eval (T.env r) = 0
+
+theorem Sat.row {hd0 stk0 ctr0 : Nat} {T : Table} (hs : Sat (cpuAir hd0 stk0 ctr0) T) {r : Nat} (hr : r < T.h) :
+    RowSat hd0 stk0 ctr0 T r := fun _ hc => hs.2 _ hc r hr
+
 section Row
 
-variable {hd0 stk0 ctr0 : Nat} {T : Table} (hs : Sat (cpuAir hd0 stk0 ctr0) T) {r : Nat} (hr : r < T.h)
+variable {hd0 stk0 ctr0 : Nat} {T : Table} {r : Nat} (hs : RowSat hd0 stk0 ctr0 T r) (hr : r < T.h)
 include hs hr
 
 theorem mem_cpuCons {c : E} (h : c ∈ cpuCons hd0 stk0 ctr0) : c.eval (T.env r) = 0 :=
-  hs.cons h hr
+  hs c h
 
 /-- The kind selectors are bits. -/
 theorem sel_bit {i : Nat} (hi : i < NKINDS) :

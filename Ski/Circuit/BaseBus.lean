@@ -132,7 +132,7 @@ theorem heights {hd0 stk0 ctr0 : Nat} {heap : List Cell} {C Mm Pg : Table}
 /-- A CPU row's messages have counts `0` or `1`. -/
 theorem cpu_count {hd0 stk0 ctr0 : Nat} {C : Table} (hC : Sat (cpuAir hd0 stk0 ctr0) C) {r : Nat}
     (hr : r < C.h) : ∀ I ∈ cpuInters, (I.count.eval (C.env r)).val ≤ 1 := by
-  obtain ⟨k, hk, hsel⟩ := kind_of hC hr
+  obtain ⟨k, hk, hsel⟩ := kind_of (hC.row hr) hr
   obtain ⟨hj, _, ha, hs, _⟩ := kind_facts hr ⟨hk, hsel⟩
   have b01 : ∀ n, n ≤ 1 → (ofN n).val ≤ 1 := fun n hn => by
     rw [val_ofN (Nat.lt_of_le_of_lt hn (by decide))]; exact hn

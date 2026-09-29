@@ -218,7 +218,7 @@ theorem WitOK.mem_h : Mm.h ≤ 2 ^ 27 := h.two (memAirC, Mm) (by simp [witTables
 
 /-- **The CPU and memory are a corpus-CPU circuit's.** -/
 theorem WitOK.row : RowOK hd0 stk0 ctr0 C Mm :=
-  ⟨sat_base_of_W h.cpu, mem_addrC h.mem, h.mem_h, fun r hr I hI hbus hc =>
+  ⟨h.cpu.1, fun _ hr _ => (sat_base_of_W h.cpu).row hr, mem_addrC h.mem, h.mem_h, fun r hr I hI hbus hc =>
     h.memHit ⟨(cpuAirW hd0 stk0 ctr0, C), by simp [witTables], rfl, r, hr, I, List.mem_append_left _ hI, hbus,
       rfl, hc⟩⟩
 
@@ -338,12 +338,12 @@ theorem WitOK.sound : ∃ w, witnessOf ((memOf Mm).take W) = some w ∧ Real (.a
   obtain ⟨hhd, hstk, hlen, _, _⟩ := wMachine_public ((memOf Mm).take W) (List.replicate W .S) (V ⬝ x) hl
   obtain ⟨_, bhd, bstk⟩ := h.blank_fits hW
   have hP := h.heap_lt hW
-  have hA := h.row.acceptsFrom (m0 := wMachine ((memOf Mm).take W) (V ⬝ x)) (h.heap0 hW) hhd hstk hlen
+  have hA := h.row.acceptsFrom (fun r hr => inst_zero ((sat_base_of_W h.cpu).row hr) hr) (m0 := wMachine ((memOf Mm).take W) (V ⬝ x)) (h.heap0 hW) hhd hstk hlen
     ⟨by omega, by omega, hP⟩
   -- the last row is `HK1`: `K` at the head over a nil
   have h0 : 0 < C.h := h.cpu.1
   have hl' : C.h - 1 < C.h := by omega
-  obtain ⟨k, hk, hsel⟩ := kind_of h.row.cpu hl'
+  obtain ⟨k, hk, hsel⟩ := kind_of ((sat_base_of_W h.cpu).row hl') hl'
   have hK : IsKind C (C.h - 1) k := ⟨hk, hsel⟩
   have hla : C.env (C.h - 1) .last = 1 := by simp [env_last]; omega
   have h1 := h.cpu.2 (whenLast (eq sHK1 one)) (by simp [cpuAirW, cpuConsW]) (C.h - 1) hl'

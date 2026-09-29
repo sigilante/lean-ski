@@ -3,14 +3,16 @@ import Ski.Circuit.CompFinal
 /-!
 # One CPU row is one machine transition, for any corpus-CPU circuit
 
-`RowOK`: a table satisfying the corpus CPU's constraints, a memory table
+`RowOK`: a table satisfying the corpus CPU's constraints on every row
+that does not instantiate (`RowSat`), a memory table
 whose address column is its row index, and a lookup property: every
 `mem` message the CPU sends with count `1` is a memory row.  From these
 alone, as `Ski/Circuit/BaseStep.lean` proves for the corpus circuit, each
 row reads the decoded memory as the rule table does (`RowOK.read`), steps
-(`RowOK.step`) or halts (`RowOK.halt`), and the table is a run of the
-Lean AIR from its first row (`RowOK.acceptsFrom`).  The hidden-term and
-Sudoku circuits discharge `RowOK` from their own buses.
+(`RowOK.step`) or halts (`RowOK.halt`), and a table with no
+instantiation is a run of the Lean AIR from its first row
+(`RowOK.acceptsFrom`).  The hidden-term and Sudoku circuits discharge
+`RowOK` from their own buses; the jet circuit uses it on its corpus rows.
 -/
 
 namespace Circuit
@@ -19,7 +21,8 @@ open B Air
 
 /-- **What a corpus-CPU circuit gives of its CPU and memory.** -/
 structure RowOK (hd0 stk0 ctr0 : Nat) (C Mm : Table) : Prop where
-  cpu : Sat (cpuAir hd0 stk0 ctr0) C
+  pos : 0 < C.h
+  cpu : ∀ r, r < C.h → C.main r (SEL + 11) = 0 → RowSat hd0 stk0 ctr0 C r
   addr : ∀ m, m < Mm.h → Mm.main m 0 = ofN m
   memh : Mm.h ≤ 2 ^ 27
   look : ∀ r, r < C.h → ∀ I ∈ cpuInters, I.bus = "mem" → I.count.eval (C.env r) = 1 →
@@ -31,6 +34,10 @@ variable {hd0 stk0 ctr0 : Nat} {C Mm : Table} (h : RowOK hd0 stk0 ctr0 C Mm)
 include h
 
 theorem RowOK.mem_h : Mm.h ≤ 2 ^ 27 := h.memh
+
+/-- A row of one of the machine's kinds satisfies the corpus CPU's constraints. -/
+theorem RowOK.rowSat {r k : Nat} (hr : r < C.h) (hk : IsKind C r k) : RowSat hd0 stk0 ctr0 C r :=
+  h.cpu r hr (by rw [hk.2 11 (by decide), if_neg (Nat.ne_of_gt hk.1)])
 
 theorem RowOK.cell {a t x y : F}
     (hm : ∃ m, m < Mm.h ∧ [Mm.main m 0, Mm.main m 1, Mm.main m 2, Mm.main m 3] = [a, t, x, y]) :
@@ -50,8 +57,9 @@ theorem RowOK.send {r : Nat} (hr : r < C.h) {I : Inter} (hI : I ∈ cpuInters) (
   obtain ⟨m, hm, e⟩ := h.look r hr I hI hbus hc
   exact h.cell ⟨m, hm, by rw [e, hf]⟩
 
+omit h in
 /-- A range check's value is below `2^24`. -/
-theorem RowOK.rangeVal_lt {r : Nat} (hr : r < C.h) {j : Nat} (hj : j < 4) :
+theorem rowRangeVal_lt {r : Nat} (hr : r < C.h) (hs : RowSat hd0 stk0 ctr0 C r) {j : Nat} (hj : j < 4) :
     ((rangeVal j).eval (C.env r)).val < 2 ^ 24 := by
   have step : ∀ n, n ≤ RANGE_BITS →
       (((List.range n).foldl (fun v i => E.add v (E.mul (col (BITS + j * RANGE_BITS + i)) (c (2 ^ i)))) zero).eval
@@ -69,7 +77,7 @@ theorem RowOK.rangeVal_lt {r : Nat} (hr : r < C.h) {j : Nat} (hj : j < 4) :
       generalize X.eval (C.env r) = x at ih ⊢
       have hpow : 2 ^ (n + 1) ≤ 2 ^ 24 := Nat.pow_le_pow_right (by decide) hn
       have hP : 2 ^ 24 < P := by decide
-      rcases bit_of (range_bit h.cpu hr hj (i := n) hn) with hb | hb <;> rw [hb]
+      rcases bit_of (range_bit hs hr hj (i := n) hn) with hb | hb <;> rw [hb]
       · rw [zero_mul', add_zero']
         exact Nat.lt_of_lt_of_le ih (Nat.pow_le_pow_right (by decide) (Nat.le_succ n))
       · rw [one_mul', val_add_nat (by rw [Nat.pow_succ] at hpow; omega), Nat.pow_succ]
@@ -96,12 +104,12 @@ theorem RowOK.read {r k : Nat} (hr : r < C.h) (hk : IsKind C r k) {j : Nat} (hj 
     (by simp only [readInter, List.map_cons, List.map_nil, hadr, ht, fld, B.col, E.eval, env_main0 hr]; rfl)
     ha
   -- the range check: counter = address + 1 + value, with no wrap
-  have hre := range_eq h.cpu hr hj
+  have hre := range_eq (h.rowSat hr hk) hr hj
   rw [ha, one_mul', hadr] at hre
   have e := sub_eq_zero hre
   have hctr : C.main r CTR = (C.main r (addrCol j) + 1) + (rangeVal j).eval (C.env r) := by
     rw [← e, add_sub_cancel3]
-  have hv := h.rangeVal_lt hr hj
+  have hv := rowRangeVal_lt hr (h.rowSat hr hk) hj
   have hm := h.mem_h
   have hb : (C.main r (addrCol j)).val + 1 + ((rangeVal j).eval (C.env r)).val < P := by
     have : 2 ^ 27 + 2 ^ 24 + 8 < P := P_big
@@ -252,13 +260,13 @@ theorem RowOK.halt {r k : Nat} (hr : r < C.h) (hk : IsKind C r k) (hk4 : 4 ≤ k
       h.read hr hk (j := 0) (by decide) rfl
     simp only [haltRow, rowOf, r0]
 
-/-- **The table is a run of the Lean AIR** from the machine its first row
-    and the memory's prefix name. -/
-theorem RowOK.acceptsFrom {m0 : Mach} (hheap : (memOf Mm).take ctr0 = m0.heap) (hhd : m0.hd = hd0)
+/-- **A table with no instantiation is a run of the Lean AIR** from the
+    machine its first row and the memory's prefix name. -/
+theorem RowOK.acceptsFrom (hall : ∀ r, r < C.h → C.main r (SEL + 11) = 0) {m0 : Mach} (hheap : (memOf Mm).take ctr0 = m0.heap) (hhd : m0.hd = hd0)
     (hstk : m0.stk = stk0) (hctr : m0.heap.length = ctr0) (hP : hd0 < P ∧ stk0 < P ∧ ctr0 < P) :
     AcceptsFrom (memOf Mm) m0 C.h (rowOf C) := by
-  have h0 : 0 < C.h := h.cpu.1
-  obtain ⟨e1, e2, e3⟩ := first_regs h.cpu h0 rfl
+  have h0 : 0 < C.h := h.pos
+  obtain ⟨e1, e2, e3⟩ := first_regs (h.cpu 0 h0 (hall 0 h0)) h0 rfl
   have ctr0' : (rowOf C 0).ctr = ctr0 := by show (C.main 0 CTR).val = _; rw [e3, val_ofN hP.2.2]
   refine ⟨h0, ?_, ?_, ?_, ?_, ?_, ?_⟩
   · rw [ctr0']; exact hheap
@@ -267,10 +275,10 @@ theorem RowOK.acceptsFrom {m0 : Mach} (hheap : (memOf Mm).take ctr0 = m0.heap) (
   · rw [ctr0', hctr]
   · intro i hi
     have hi' : i < C.h := Nat.lt_of_succ_lt hi
-    obtain ⟨k, hk, hsel⟩ := kind_of h.cpu hi'
+    obtain ⟨k, hk, hsel⟩ := kind_of (h.cpu i hi' (hall i hi')) hi'
     have hK : IsKind C i k := ⟨hk, hsel⟩
     obtain ⟨_, _, _, _, n1, n2, n3⟩ := kind_facts hi' hK
-    obtain ⟨m1, m2, m3⟩ := next_regs h.cpu hi' hi
+    obtain ⟨m1, m2, m3⟩ := next_regs (h.cpu i hi' (hall i hi')) hi' hi
     have hnext : rowOf C (i + 1) = ⟨((nextHdOf k).eval (C.env i)).val,
         ((nextStkOf k).eval (C.env i)).val, ((nextCtrOf k).eval (C.env i)).val⟩ := by
       simp only [rowOf, m1, m2, m3, n1, n2, n3]
@@ -280,9 +288,9 @@ theorem RowOK.acceptsFrom {m0 : Mach} (hheap : (memOf Mm).take ctr0 = m0.heap) (
       rw [hnext, nextHdOf_halt hk4, nextStkOf_halt hk4, nextCtrOf_halt hk4]
       simp only [rowOf, col_eval hi']
   · have hl : C.h - 1 < C.h := Nat.sub_lt h0 (by decide)
-    obtain ⟨k, hk, hsel⟩ := kind_of h.cpu hl
+    obtain ⟨k, hk, hsel⟩ := kind_of (h.cpu _ hl (hall _ hl)) hl
     have hK : IsKind C (C.h - 1) k := ⟨hk, hsel⟩
-    have hh := last_halt h.cpu hl (Nat.sub_add_cancel h0)
+    have hh := last_halt (h.cpu _ hl (hall _ hl)) hl (Nat.sub_add_cancel h0)
     obtain ⟨_, hhalt, _⟩ := kind_facts hl hK
     rcases Nat.lt_or_ge k 4 with hk4 | hk4
     · rw [hhalt, if_neg (Nat.not_le_of_lt hk4)] at hh

@@ -129,7 +129,7 @@ theorem base_sound : Accepts (memOf Mm) t C.h (rowOf C) := by
   obtain ⟨_, hhd, hstk⟩ := load_fits t
   have hP := h.heap_lt
   have h0 : 0 < C.h := h.cpu.1
-  obtain ⟨e1, e2, e3⟩ := first_regs h.cpu h0 rfl
+  obtain ⟨e1, e2, e3⟩ := first_regs (h.cpu.row h0) h0 rfl
   have ctr0 : (rowOf C 0).ctr = (load t).heap.length := by
     show (C.main 0 CTR).val = _; rw [e3, val_ofN hP]
   refine ⟨h0, ?_, ?_, ?_, ctr0, ?_, ?_⟩
@@ -138,10 +138,10 @@ theorem base_sound : Accepts (memOf Mm) t C.h (rowOf C) := by
   · show (C.main 0 STK).val = _; rw [e2, val_ofN (Nat.lt_trans hstk hP)]
   · intro i hi
     have hi' : i < C.h := Nat.lt_of_succ_lt hi
-    obtain ⟨k, hk, hsel⟩ := kind_of h.cpu hi'
+    obtain ⟨k, hk, hsel⟩ := kind_of (h.cpu.row hi') hi'
     have hK : IsKind C i k := ⟨hk, hsel⟩
     obtain ⟨_, _, _, _, n1, n2, n3⟩ := kind_facts hi' hK
-    obtain ⟨m1, m2, m3⟩ := next_regs h.cpu hi' hi
+    obtain ⟨m1, m2, m3⟩ := next_regs (h.cpu.row hi') hi' hi
     have hnext : rowOf C (i + 1) = ⟨((nextHdOf k).eval (C.env i)).val,
         ((nextStkOf k).eval (C.env i)).val, ((nextCtrOf k).eval (C.env i)).val⟩ := by
       simp only [rowOf, m1, m2, m3, n1, n2, n3]
@@ -151,9 +151,9 @@ theorem base_sound : Accepts (memOf Mm) t C.h (rowOf C) := by
       rw [hnext, nextHdOf_halt hk4, nextStkOf_halt hk4, nextCtrOf_halt hk4]
       simp only [rowOf, col_eval hi']
   · have hl : C.h - 1 < C.h := Nat.sub_lt h0 (by decide)
-    obtain ⟨k, hk, hsel⟩ := kind_of h.cpu hl
+    obtain ⟨k, hk, hsel⟩ := kind_of (h.cpu.row hl) hl
     have hK : IsKind C (C.h - 1) k := ⟨hk, hsel⟩
-    have hh := last_halt h.cpu hl (Nat.sub_add_cancel h0)
+    have hh := last_halt (h.cpu.row hl) hl (Nat.sub_add_cancel h0)
     obtain ⟨_, hhalt, _⟩ := kind_facts hl hK
     rcases Nat.lt_or_ge k 4 with hk4 | hk4
     · rw [hhalt, if_neg (Nat.not_le_of_lt hk4)] at hh

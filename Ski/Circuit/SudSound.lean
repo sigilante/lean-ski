@@ -233,7 +233,7 @@ theorem SudOK.memHit {v : List F}
 theorem SudOK.mem_h : Mm.h ≤ 2 ^ 27 := h.two (memAirC, Mm) (by simp [sudTables])
 
 theorem SudOK.row : RowOK hd0 stk0 ctr0 C Mm :=
-  ⟨sat_base_of_S h.cpu, mem_addrC h.mem, h.mem_h, fun r hr I hI hbus hc =>
+  ⟨h.cpu.1, fun _ hr _ => (sat_base_of_S h.cpu).row hr, mem_addrC h.mem, h.mem_h, fun r hr I hI hbus hc =>
     h.memHit ⟨(cpuAirS hd0 stk0 ctr0 ACC, C), by simp [sudTables], rfl, r, hr, I, List.mem_append_left _ hI, hbus,
       rfl, hc⟩⟩
 
@@ -390,14 +390,14 @@ theorem SudOK.accepts :
   obtain ⟨hhd, hstk, hlen, _⟩ := stmtMachine_public (bitsS Mm) (fun _ => false) 729 e ACC REJ
   obtain ⟨_, bhd, bstk, _⟩ := stmt_fitsB (ρ := fun _ => false) hb
   have hP := h.heap_lt hb
-  have hA := h.row.acceptsFrom (m0 := stmtMachine (bitsS Mm) 729 e ACC REJ)
+  have hA := h.row.acceptsFrom (fun r hr => inst_zero ((sat_base_of_S h.cpu).row hr) hr) (m0 := stmtMachine (bitsS Mm) 729 e ACC REJ)
     (h.heap0 hb) hhd hstk hlen
     ⟨Nat.lt_trans bhd hP, Nat.lt_trans bstk hP, hP⟩
   refine ⟨hA, ?_⟩
   -- the last row is `HA`, its head the atom `ACC`
   have h0 : 0 < C.h := h.cpu.1
   have hl' : C.h - 1 < C.h := Nat.sub_lt h0 (by decide)
-  obtain ⟨k, hk, hsel⟩ := kind_of h.row.cpu hl'
+  obtain ⟨k, hk, hsel⟩ := kind_of ((sat_base_of_S h.cpu).row hl') hl'
   have hK : IsKind C (C.h - 1) k := ⟨hk, hsel⟩
   have hla : C.env (C.h - 1) .last = 1 := by simp [env_last]; omega
   have h1 := h.cpu.2 (whenLast (eq sHA one)) (by simp [cpuAirS, cpuConsS]) (C.h - 1) hl'

@@ -107,7 +107,7 @@ theorem rangeVal_lt {r : Nat} (hr : r < C.h) {j : Nat} (hj : j < 4) :
       generalize X.eval (C.env r) = x at ih ⊢
       have hpow : 2 ^ (n + 1) ≤ 2 ^ 24 := Nat.pow_le_pow_right (by decide) hn
       have hP : 2 ^ 24 < P := by decide
-      rcases bit_of (range_bit h.cpu hr hj (i := n) hn) with hb | hb <;> rw [hb]
+      rcases bit_of (range_bit (h.cpu.row hr) hr hj (i := n) hn) with hb | hb <;> rw [hb]
       · rw [zero_mul', add_zero']
         exact Nat.lt_of_lt_of_le ih (Nat.pow_le_pow_right (by decide) (Nat.le_succ n))
       · rw [one_mul', val_add_nat (by rw [Nat.pow_succ] at hpow; omega), Nat.pow_succ]
@@ -134,7 +134,7 @@ theorem BaseOK.read {r k : Nat} (hr : r < C.h) (hk : IsKind C r k) {j : Nat} (hj
     (by simp only [readInter, List.map_cons, List.map_nil, hadr, ht, fld, B.col, E.eval, env_main0 hr]; rfl)
     ha
   -- the range check: counter = address + 1 + value, with no wrap
-  have hre := range_eq h.cpu hr hj
+  have hre := range_eq (h.cpu.row hr) hr hj
   rw [ha, one_mul', hadr] at hre
   have e := sub_eq_zero hre
   have hctr : C.main r CTR = (C.main r (addrCol j) + 1) + (rangeVal j).eval (C.env r) := by

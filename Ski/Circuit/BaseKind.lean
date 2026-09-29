@@ -72,7 +72,7 @@ theorem onehot : ∀ xs : List Nat, (∀ x ∈ xs, x ≤ 1) → xs.sum = 1 →
 
 section Row
 
-variable {hd0 stk0 ctr0 : Nat} {T : Table} (hs : Sat (cpuAir hd0 stk0 ctr0) T) {r : Nat} (hr : r < T.h)
+variable {hd0 stk0 ctr0 : Nat} {T : Table} {r : Nat} (hs : RowSat hd0 stk0 ctr0 T r) (hr : r < T.h)
 include hs hr
 
 /-- **The row's kind**: one selector is `1`, the others `0`; it is one of
