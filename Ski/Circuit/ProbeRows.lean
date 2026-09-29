@@ -353,6 +353,59 @@ def SegAt (C : Table) (r b : Nat) (s : Air.Seg) : Prop :=
 
 theorem range6 : List.range 6 = [0, 1, 2, 3, 4, 5] := rfl
 
+-- ---------------------------------------------------------------------------
+-- A probe row's cells
+-- ---------------------------------------------------------------------------
+
+theorem stkCells_length : ∀ (ps : List Nat) (c : Nat), (stkCells ps c).length = ps.length + 1
+  | [], _ => rfl
+  | _ :: ps, c => by show (stkCells ps (c + 1)).length + 1 = _; rw [stkCells_length ps]; rfl
+
+theorem stkCells_get : ∀ (ps : List Nat) (c q : Nat), q < ps.length →
+    (stkCells ps c)[q]? = some (.cons (ps.getD q 0) (c + q + 1))
+  | [], _, _, hq => absurd hq (Nat.not_lt_zero _)
+  | p :: ps, c, 0, _ => rfl
+  | p :: ps, c, q + 1, hq => by
+    show (stkCells ps (c + 1))[q]? = _
+    rw [stkCells_get ps (c + 1) q (Nat.lt_of_succ_lt_succ hq)]
+    show some (Cell.cons (ps.getD q 0) (c + 1 + q + 1)) = some (Cell.cons (ps.getD q 0) (c + (q + 1) + 1))
+    rw [Nat.add_assoc c 1 q, Nat.add_comm 1 q]
+
+theorem stkCells_last : ∀ (ps : List Nat) (c : Nat), (stkCells ps c)[ps.length]? = some .nil
+  | [], _ => rfl
+  | _ :: ps, c => stkCells_last ps (c + 1)
+
+theorem pcells_length (b k c : Nat) : (pcells b k c).length = k + k + 1 := by
+  unfold pcells
+  rw [List.length_append, stkCells_length, List.length_map, List.length_map, List.length_range]
+  omega
+
+theorem pcells_atom {b k c i : Nat} (hi : i < k) : (pcells b k c)[i]? = some (.atom (b + i)) := by
+  unfold pcells
+  rw [List.getElem?_append_left (by rw [List.length_map, List.length_range]; exact hi), List.getElem?_map,
+    List.getElem?_range hi]
+  rfl
+
+theorem pcells_cons {b k c i : Nat} (hi : i < k) : (pcells b k c)[k + i]? = some (.cons (c + i) (c + k + i + 1)) := by
+  unfold pcells
+  rw [List.getElem?_append_right (by rw [List.length_map, List.length_range]; exact Nat.le_add_right k i),
+    List.length_map, List.length_range, Nat.add_sub_cancel_left,
+    stkCells_get _ _ _ (by rw [List.length_map, List.length_range]; exact hi), List.getD_eq_getElem?_getD,
+    List.getElem?_map, List.getElem?_range hi]
+  rfl
+
+theorem pcells_nil (b k c : Nat) : (pcells b k c)[k + k]? = some .nil := by
+  unfold pcells
+  rw [List.getElem?_append_right (by rw [List.length_map, List.length_range]; exact Nat.le_add_right k k),
+    List.length_map, List.length_range, Nat.add_sub_cancel_left]
+  have := stkCells_last ((List.range k).map (c + ·)) (c + k)
+  rw [List.length_map, List.length_range] at this
+  exact this
+
+theorem wrsG_of' {g : Nat → Option Cell} (ws : List Cell) (c : Nat)
+    (h : ∀ j, j < ws.length → g (c + j) = ws[j]?) : wrsG g c ws = true :=
+  wrsG_of ws c (fun j hj => by rw [h j hj, List.getElem?_eq_getElem hj])
+
 section
 
 variable {hd0 stk0 ctr0 n la : Nat} {heap : List Cell} {roots : List (Nat × Nat)} {jets : List Air.Jet}
@@ -455,6 +508,172 @@ theorem ProbeOK.eSeg {r : Nat} (hr : r < C.h) (hl : C.main r (SEL + 13) = 1) :
   have e := ofN_inj (Nat.lt_of_le_of_lt (pc_le C r) (Nat.lt_trans hr hH)) hjP e1
   rw [e, Nat.add_sub_cancel]
   exact ⟨Nat.succ_pos _, s, hs, h1, h2, h3, h4, h5, h6⟩
+
+/-- **An active PW row's writes**: the marker and its stack cell. -/
+theorem ProbeOK.pwCells {q : Nat} (hq : q < Pw.h) (ha : Pw.main q 5 = 1) :
+    (Pw.main q 1 + Pw.main q 4).val < Mm.h ∧
+      (memOf Mm)[(Pw.main q 1 + Pw.main q 4).val]? = some (cellOf (ofN 6) (Pw.main q 2 + Pw.main q 4) 0) ∧
+    (Pw.main q 1 + Pw.main q 3 + Pw.main q 4).val < Mm.h ∧
+      (memOf Mm)[(Pw.main q 1 + Pw.main q 3 + Pw.main q 4).val]? =
+        some (cellOf (ofN 5) (Pw.main q 1 + Pw.main q 4) (Pw.main q 1 + Pw.main q 3 + Pw.main q 4 + 1)) := by
+  have cv := col_eval hq
+  have hI1 : (⟨"mem", 1, col 5, [.add (col 1) (col 4), c 6, .add (col 2) (col 4), c 0]⟩ : Inter) ∈ pwAir.inters :=
+    List.mem_cons_of_mem _ (List.mem_cons_of_mem _ List.mem_cons_self)
+  have hI2 : (⟨"mem", 1, col 5, [.add (.add (col 1) (col 3)) (col 4), c 5, .add (col 1) (col 4),
+      .add (.add (.add (col 1) (col 3)) (col 4)) one]⟩ : Inter) ∈ pwAir.inters :=
+    List.mem_cons_of_mem _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ List.mem_cons_self))
+  have hpw : (pwAir, Pw) ∈ probeTables hd0 stk0 ctr0 n la heap roots jets plan C Mm Pg Rt Hd Tm Po Iw Pl Pw := by
+    simp only [probeTables]
+    exact List.mem_cons_of_mem _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _
+      (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _
+        (List.mem_cons_of_mem _ List.mem_cons_self))))))))
+  have m1 := h.memHit ⟨(pwAir, Pw), hpw, rfl, q, hq, _, hI1, rfl, rfl, by show (col 5).eval _ = 1; rw [cv, ha]⟩
+  have m2 := h.memHit ⟨(pwAir, Pw), hpw, rfl, q, hq, _, hI2, rfl, rfl, by show (col 5).eval _ = 1; rw [cv, ha]⟩
+  simp only [List.map_cons, List.map_nil, E.eval, B.c, B.one, ofN_one, cv] at m1 m2
+  obtain ⟨l1, g1⟩ := h.row.cell m1
+  obtain ⟨l2, g2⟩ := h.row.cell m2
+  exact ⟨l1, g1, l2, g2⟩
+
+/-- **A probe row writes its markers, their stack and a nil** at the
+    counter, for a segment whose numbers fit. -/
+theorem ProbeOK.probeWrites {r : Nat} (hr : r < C.h) (hp : isPr C r = true) {s : Air.Seg}
+    (hS : SegAt C r S_BASE s) (hb : s.base < 2 ^ 24) (hk : s.k < 2 ^ 24) :
+    (C.main r CTR).val < Mm.h ∧
+      wrsG (fun a => (memOf Mm)[a]?) (C.main r CTR).val (pcells s.base s.k (C.main r CTR).val) = true := by
+  have cv := col_eval hr
+  have hsum := sprobe_ind h.cpu hr
+  rw [hp, if_pos rfl, ofN_one] at hsum
+  have hc := h.pwConserve hr hsum
+  rw [hS.2.1] at hc
+  have hPw : Pw.h < P := Nat.lt_of_le_of_lt h.pw_h (by decide)
+  obtain ⟨e, _, _, _, hpth, _⟩ := Edges.path _ hPw (Nat.lt_trans hk (by decide)) hc
+  have row : ∀ i, i < s.k → e i < Pw.h ∧ Pw.main (e i) 5 = 1 ∧ Pw.main (e i) 1 = C.main r CTR ∧
+      Pw.main (e i) 2 = ofN s.base ∧ Pw.main (e i) 3 = ofN s.k ∧ Pw.main (e i) 4 = ofN i := by
+    intro i hi
+    obtain ⟨h1, h2, h3, _, _⟩ := hpth i hi
+    have ha : (decide (Pw.main (e i) 5 = 1) && decide (Pw.main (e i) 0 = ofN r) &&
+        decide (Pw.main (e i) 1 = C.main r CTR) && decide (Pw.main (e i) 2 = C.main r S_BASE) &&
+        decide (Pw.main (e i) 3 = ofN s.k)) = true := h2
+    simp only [Bool.and_eq_true, decide_eq_true_eq] at ha
+    exact ⟨h1, ha.1.1.1.1, ha.1.1.2, by rw [ha.1.2, hS.1], ha.2, h3⟩
+  -- the nil, from the CPU
+  have hI : (⟨"mem", 1, sProbe, [.add (col CTR) (.mul (col (S_BASE + 1)) (c 2)), c 4, c 0, c 0]⟩ : Inter) ∈
+      cpuInters ++ jetInters ++ probeInters := by
+    refine List.mem_append_right _ ?_
+    simp only [probeInters]
+    iterate 10 refine List.mem_cons_of_mem _ ?_
+    exact List.mem_cons_self
+  have mn := h.memHit ⟨(cpuAirP hd0 stk0 ctr0 n la, C), List.mem_cons_self, rfl, r, hr, _, hI, rfl, rfl,
+    by show sProbe.eval _ = 1; simp only [sProbe, sPFirst, sPLater, E.eval, cv]; exact hsum⟩
+  simp only [List.map_cons, List.map_nil, E.eval, B.c, cv] at mn
+  obtain ⟨ln, gn⟩ := h.row.cell mn
+  rw [hS.2.1] at ln gn
+  have hM := h.mem_h
+  -- the counter is an address
+  have hc0 : (C.main r CTR).val < Mm.h := by
+    rcases Nat.eq_zero_or_pos s.k with hz | hz
+    · rw [hz, ofN_zero, zero_mul', add_zero'] at ln; exact ln
+    · obtain ⟨q1, q2, q3, _, _, q6⟩ := row 0 hz
+      have := (h.pwCells q1 q2).1
+      rw [q3, q6, ofN_zero, add_zero'] at this; exact this
+  clear ln
+  have hP : 2 ^ 28 < P := by decide
+  have va : ∀ x, x < 2 ^ 26 → (C.main r CTR + ofN x).val = (C.main r CTR).val + x := fun x hx =>
+    val_add_nat (Nat.lt_of_lt_of_le (Nat.add_lt_add (Nat.lt_of_lt_of_le hc0 hM) hx) (by decide))
+  have hc27 : (C.main r CTR).val < 2 ^ 27 := Nat.lt_of_lt_of_le hc0 hM
+  have l26 : ∀ x, x < 2 ^ 24 + 2 ^ 24 → x < 2 ^ 26 := fun x hx => Nat.lt_trans hx (by decide)
+  refine ⟨hc0, wrsG_of' _ _ (fun j hj => ?_)⟩
+  rw [pcells_length] at hj
+  rcases Nat.lt_or_ge j s.k with hj1 | hj1
+  · -- a marker
+    have hjk : j < 2 ^ 24 := Nat.lt_trans hj1 hk
+    obtain ⟨q1, q2, q3, q4, _, q6⟩ := row j hj1
+    have g := (h.pwCells q1 q2).2.1
+    rw [q3, q6, q4, va j (l26 j (Nat.lt_of_lt_of_le hjk (Nat.le_add_right _ _))), ← ofN_add] at g
+    rw [g, pcells_atom hj1]
+    show some (cellOf (ofN 6) _ _) = _
+    unfold cellOf
+    rw [val_ofN (by decide), val_ofN (Nat.lt_trans (Nat.add_lt_add hb hjk) (by decide))]
+    rfl
+  · rcases Nat.lt_or_ge j (s.k + s.k) with hj2 | hj2
+    · -- a stack cell
+      obtain ⟨i, rfl⟩ : ∃ i, j = s.k + i := ⟨j - s.k, (Nat.add_sub_cancel' hj1).symm⟩
+      have hi : i < s.k := Nat.lt_of_add_lt_add_left hj2
+      have hki : s.k + i < 2 ^ 24 + 2 ^ 24 := Nat.add_lt_add hk (Nat.lt_trans hi hk)
+      obtain ⟨q1, q2, q3, _, q5, q6⟩ := row i hi
+      have g := (h.pwCells q1 q2).2.2.2
+      rw [q3, q5, q6, add_assoc', ← ofN_add, va (s.k + i) (l26 _ hki)] at g
+      have e3 : (C.main r CTR + ofN (s.k + i) + 1).val = (C.main r CTR).val + s.k + i + 1 := by
+        rw [val_add_of_lt (by
+          rw [va (s.k + i) (l26 _ hki)]
+          show _ + 1 < P
+          exact Nat.lt_of_lt_of_le (Nat.succ_lt_succ (Nat.add_lt_add hc27 hki)) (by decide)),
+          va (s.k + i) (l26 _ hki)]
+        show _ + 1 = _
+        rw [← Nat.add_assoc]
+      rw [g, pcells_cons hi]
+      show some (cellOf (ofN 5) _ _) = _
+      unfold cellOf
+      rw [val_ofN (by decide), e3, va i (l26 i (Nat.lt_of_lt_of_le (Nat.lt_trans hi hk) (Nat.le_add_right _ _)))]
+      rfl
+    · -- the nil
+      have hj3 : j = s.k + s.k := Nat.le_antisymm (Nat.le_of_lt_succ hj) hj2
+      rw [hj3, pcells_nil]
+      rw [show ofN s.k * ofN 2 = ofN (s.k + s.k) by rw [← ofN_mul, Nat.mul_two],
+        va _ (l26 _ (Nat.add_lt_add hk hk))] at gn
+      rw [gn]
+      rfl
+/-- A probe row is of kind 12 or 13. -/
+theorem ProbeOK.probeKind {r : Nat} (hr : r < C.h) (hp : isPr C r = true) :
+    ∃ k, (k = 12 ∨ k = 13) ∧ SelsAre C r k := by
+  obtain ⟨k, _, hk⟩ := kind_ofP h.cpu hr
+  refine ⟨k, ?_, hk⟩
+  have e := sprobe_ind h.cpu hr
+  rw [hp, if_pos rfl, hk 12 (by decide), hk 13 (by decide)] at e
+  rcases Nat.decEq 12 k with h12 | h12
+  · rcases Nat.decEq 13 k with h13 | h13
+    · rw [if_neg h12, if_neg h13] at e; exact absurd e (by decide)
+    · exact .inr h13.symm
+  · exact .inl h12.symm
+
+/-- **A probe row's registers step to the probed pointer**: the head is
+    the pointer, the stack the markers' stack, the counter past the cells. -/
+theorem ProbeOK.probeNext {r : Nat} (hr1 : r + 1 < C.h) (hp : isPr C r = true) :
+    C.main (r + 1) HD = C.main r P_F ∧ C.main (r + 1) STK = C.main r CTR + C.main r (S_BASE + 1) ∧
+      C.main (r + 1) CTR = C.main r CTR + (C.main r (S_BASE + 1) * ofN 2 + 1) := by
+  have hr : r < C.h := Nat.lt_of_succ_lt hr1
+  obtain ⟨k, hk2, hk⟩ := h.probeKind hr hp
+  obtain ⟨_, _, _, _, _, _, _, hpr, _, _, n1, n2, n3⟩ := probe_facts hr hk hk2
+  have h11 : C.main r (SEL + 11) = 0 := by
+    rw [hk 11 (by decide), if_neg (by rcases hk2 with rfl | rfl <;> decide)]
+  obtain ⟨z1, z2, z3⟩ := flags_zeroP h.cpu hr h11
+  have hjet : jetHd.eval (C.env r) = 0 := by
+    simp only [jetHd, E.eval, B.col, env_main0 hr, z1, z2, z3, zero_mul', add_zero']
+  obtain ⟨m1, m2, m3⟩ := next_regsP h.cpu hr hr1
+  rw [n1, hjet, hpr, zero_add', zero_add', one_mul'] at m1
+  rw [n2, h11, hpr, zero_mul', zero_add', zero_add', one_mul'] at m2
+  rw [n3, h11, hpr, zero_mul', add_zero', one_mul'] at m3
+  exact ⟨m1, m2, m3⟩
+
+/-- **A probe row is `Air.probeRow`** for its segment, on the pointer in
+    `P_F`. -/
+theorem ProbeOK.probeStep {r : Nat} (hr1 : r + 1 < C.h) (hp : isPr C r = true) {s : Air.Seg}
+    (hS : SegAt C r S_BASE s) (hb : s.base < 2 ^ 24) (hk : s.k < 2 ^ 24) :
+    probeRow (memOf Mm) s (C.main r P_F).val (rowOf C r) = some (rowOf C (r + 1)) := by
+  have hr : r < C.h := Nat.lt_of_succ_lt hr1
+  obtain ⟨hc0, hw⟩ := h.probeWrites hr hp hS hb hk
+  obtain ⟨m1, m2, m3⟩ := h.probeNext hr1 hp
+  have hc27 : (C.main r CTR).val < 2 ^ 27 := Nat.lt_of_lt_of_le hc0 h.mem_h
+  have hkk : s.k + s.k + 1 < 2 ^ 26 := Nat.lt_of_lt_of_le (Nat.succ_lt_succ (Nat.add_lt_add hk hk)) (by decide)
+  unfold probeRow probeRowG
+  show (if wrsG (fun a => (memOf Mm)[a]?) (C.main r CTR).val (pcells s.base s.k (C.main r CTR).val) then _ else _) = _
+  rw [if_pos hw, pcells_length]
+  show some (⟨(C.main r P_F).val, (C.main r CTR).val + s.k, (C.main r CTR).val + (s.k + s.k + 1)⟩ : Air.Row) =
+    some ⟨(C.main (r + 1) HD).val, (C.main (r + 1) STK).val, (C.main (r + 1) CTR).val⟩
+  rw [m1, m2, m3, hS.2.1, show ofN s.k * ofN 2 + 1 = ofN (s.k + s.k + 1) by
+      rw [ofN_add, ← ofN_mul, Nat.mul_two, ofN_one],
+    val_add_nat (Nat.lt_of_lt_of_le (Nat.add_lt_add hc27 (Nat.lt_trans hk (by decide : 2 ^ 24 < 2 ^ 26))) (by decide)),
+    val_add_nat (Nat.lt_of_lt_of_le (Nat.add_lt_add hc27 hkk) (by decide))]
 
 end
 
