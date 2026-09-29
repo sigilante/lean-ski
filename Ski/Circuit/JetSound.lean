@@ -623,6 +623,33 @@ theorem msg_ite (t c0 c' a b l s : F) (x : F) :
           fun h' => e (by simp only [List.cons.injEq] at h'; rw [h'.2.2.1, h'.2.2.2.1])),
         if_neg (show ¬ (some (a, [b]) = some (l, [s])) from fun h' => e (Option.some.inj h'))]
 
+/-- The INSTW rows at counter `t`, instantiation counter `c0` and jet `g0`,
+    as edges: from `(j, [])` to `(j + 1, [])`. -/
+def wchEdges (Iw : Table) (t c0 g0 : F) : Edges :=
+  ⟨Iw.h, fun q => decide (Iw.main q 17 = 1) && decide (Iw.main q 0 = t) && decide (Iw.main q 1 = c0) &&
+      decide (Iw.main q 2 = g0),
+    fun q => Iw.main q 3, fun _ => [], fun _ => []⟩
+
+theorem dec_msgW (a b c d t u g l : F) :
+    decide ([a, b, c, d] = [t, u, g, l]) =
+      (decide (a = t) && decide (b = u) && decide (c = g) && decide ((d, ([] : List F)) = (l, []))) := by
+  simp only [List.cons.injEq, Prod.mk.injEq, and_true, Bool.decide_and, Bool.and_assoc]
+
+theorem msg_iteW (t c0 g0 a l : F) (x : F) :
+    (if [t, c0, g0, a] = [t, c0, g0, l] then x else 0) =
+      if (some (a, ([] : List F)) : Option Node) = some (l, []) then x else 0 := by
+  cases hd : decide (a = l) with
+  | true =>
+    have e := of_decide_eq_true hd
+    rw [if_pos (show [t, c0, g0, a] = [t, c0, g0, l] by rw [e]),
+      if_pos (show (some (a, ([] : List F)) : Option Node) = some (l, []) by rw [e])]
+  | false =>
+    have e := of_decide_eq_false hd
+    rw [if_neg (show ¬ ([t, c0, g0, a] = [t, c0, g0, l]) from
+        fun h' => e (by simp only [List.cons.injEq] at h'; exact h'.2.2.2.1)),
+      if_neg (show ¬ ((some (a, ([] : List F)) : Option Node) = some (l, [])) from
+        fun h' => e (congrArg Prod.fst (Option.some.inj h')))]
+
 /-- The POP rows at counter `t` and instantiation counter `c'`, as edges:
     from `(i, [s])` to `(i + 1, [s'])`. -/
 def popEdges (Po : Table) (t c' : F) : Edges :=
@@ -755,6 +782,118 @@ theorem JetOK.popConserve {r0 : Nat} (hr0 : r0 < C.h) (hi : C.main r0 (SEL + 11)
     have e' := ofN_inj (Nat.lt_of_le_of_lt (Nat.add_le_add o1 b1) (by rw [Nat.add_comm]; exact hP))
       (Nat.lt_of_le_of_lt (Nat.add_le_add o2 b2) (by rw [Nat.add_comm]; exact hP)) e
     show sumTo Po.h _ + _ = sumTo Po.h _ + _
+    omega
+
+/-- An INSTW row's chain messages: its outgoing edge less its incoming one. -/
+theorem JetOK.instw_rowSends {q : Nat} (hq : q < Iw.h) (t c0 g0 l : F) :
+    rowSends instwAir Iw "wch" [t, c0, g0, l] q =
+      ofN (if (wchEdges Iw t c0 g0).act q && decide ((wchEdges Iw t c0 g0).outN q = (l, [])) then 1 else 0) -
+      ofN (if (wchEdges Iw t c0 g0).act q && decide ((wchEdges Iw t c0 g0).inN q = (l, [])) then 1 else 0) := by
+  have cv := col_eval hq
+  have hb := h.instw_act hq
+  simp only [rowSends, instwAir, instwInters, List.foldr_cons, List.foldr_nil, List.map_cons, List.map_nil, E.eval,
+    cv, B.one, B.c, ofN_one, true_and, ↓reduceIte, add_zero']
+  rw [if_neg (show ¬ ("arg" = "wch" ∧ [Iw.main q 0, Iw.main q 8, Iw.main q 15] = [t, c0, g0, l]) from
+      fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("arg" = "wch" ∧ [Iw.main q 0, Iw.main q 12, Iw.main q 16] = [t, c0, g0, l]) from
+      fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("tmpl" = "wch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("mem" = "wch" ∧ _) from fun h' => absurd h'.1 (by decide))]
+  simp only [zero_add', add_zero']
+  have eneg : ∀ (P : Prop) [Decidable P] (x : F), (if P then -x else 0) = -(if P then x else 0) := by
+    intro P _ x; split
+    · rfl
+    · decide
+  rw [eneg, bit_ite hb, bit_ite hb, dec_msgW, dec_msgW, sub_eq_add_neg' _ _, add_comm']
+  have ea : (wchEdges Iw t c0 g0).act q = (decide (Iw.main q 17 = 1) && decide (Iw.main q 0 = t) &&
+      decide (Iw.main q 1 = c0) && decide (Iw.main q 2 = g0)) := rfl
+  have ei : (wchEdges Iw t c0 g0).inN q = (Iw.main q 3, []) := rfl
+  have eo : (wchEdges Iw t c0 g0).outN q = (Iw.main q 3 + 1, []) := rfl
+  rw [ea, ei, eo]
+  simp only [Bool.and_assoc]
+
+/-- The CPU's chain-start and chain-end messages on `WCH`. -/
+theorem JetOK.cpu_wch (r : Nat) (v : List F) : rowSends (cpuAirJ hd0 stk0 ctr0) C "wch" v r =
+    (if [C.env r (.main 0 J_CLK), C.env r (.main 0 CTR), C.env r (.main 0 J_G), 0] = v then
+      C.env r (.main 0 (SEL + 11)) else 0) +
+    (if [C.env r (.main 0 J_CLK), C.env r (.main 0 CTR), C.env r (.main 0 J_G), C.env r (.main 0 J_N)] = v then
+      -C.env r (.main 0 (SEL + 11)) else 0) := by
+  rw [cpu_rowSends_jet (by decide)]
+  simp only [jetInters, List.foldr_cons, List.foldr_nil, List.map_cons, List.map_nil, E.eval, B.col, B.c, sInst,
+    true_and, ofN_zero]
+  rw [if_neg (show ¬ ("roots" = "wch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("hdr" = "wch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("popch" = "wch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("popch" = "wch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("arg" = "wch" ∧ _) from fun h' => absurd h'.1 (by decide))]
+  simp only [zero_add', add_zero']
+
+/-- **`WCH` is a flow** at an instantiation row's key, from `0` to its
+    cell count. -/
+theorem JetOK.wchConserve {r0 : Nat} (hr0 : r0 < C.h) (hi : C.main r0 (SEL + 11) = 1) :
+    (wchEdges Iw (ofN r0) (C.main r0 CTR) (C.main r0 J_G)).Conserve (some ((0 : F), []))
+      (some (C.main r0 J_N, [])) := by
+  intro v
+  obtain ⟨l, st⟩ := v
+  have hCP : C.h < P := Nat.lt_of_le_of_lt h.cpu_h (by decide)
+  let E' := wchEdges Iw (ofN r0) (C.main r0 CTR) (C.main r0 J_G)
+  match st with
+  | x :: xs =>
+    have z1 : E'.cntOut (l, x :: xs) = 0 := sumTo_zero (fun q => by
+      rw [show decide (E'.outN q = (l, x :: xs)) = false from decide_eq_false (fun e => by
+        have := congrArg Prod.snd e; cases this), Bool.and_false]; rfl) _
+    have z2 : E'.cntIn (l, x :: xs) = 0 := sumTo_zero (fun q => by
+      rw [show decide (E'.inN q = (l, x :: xs)) = false from decide_eq_false (fun e => by
+        have := congrArg Prod.snd e; cases this), Bool.and_false]; rfl) _
+    have o1 : Edges.oneIf (some ((0 : F), [])) (l, x :: xs) = 0 :=
+      if_neg (fun e => by have := congrArg Prod.snd (Option.some.inj e); cases this)
+    have o2 : Edges.oneIf (some (C.main r0 J_N, [])) (l, x :: xs) = 0 :=
+      if_neg (fun e => by have := congrArg Prod.snd (Option.some.inj e); cases this)
+    show E'.cntOut _ + _ = E'.cntIn _ + _
+    rw [z1, z2, o1, o2]
+  | [] =>
+    have hb := h.bal "wch" [ofN r0, C.main r0 CTR, C.main r0 J_G, l]
+    simp only [jetTables, List.foldr_cons, List.foldr_nil] at hb
+    rw [sends_nobus' (A := memAir) rfl, sends_nobus' (A := progAir heap) rfl, sends_nobus' (A := rootsAir roots) rfl,
+      sends_nobus' (A := hdrAir jets) rfl, sends_nobus' (A := tmplAir jets) rfl, sends_nobus' (A := popAir) rfl,
+      zero_add', zero_add', zero_add', zero_add', zero_add', zero_add', add_zero'] at hb
+    have hiw : tableSends instwAir Iw "wch" [ofN r0, C.main r0 CTR, C.main r0 J_G, l] =
+        ofN (E'.cntOut (l, [])) - ofN (E'.cntIn (l, [])) := by
+      unfold tableSends
+      rw [foldr_range_congr Iw.h (fun q hq => h.instw_rowSends hq _ _ _ _), fold_sub, fold_ofN, fold_ofN]
+      rfl
+    have hcpu : tableSends (cpuAirJ hd0 stk0 ctr0) C "wch" [ofN r0, C.main r0 CTR, C.main r0 J_G, l] =
+        ofN (Edges.oneIf (some ((0 : F), [])) (l, [])) - ofN (Edges.oneIf (some (C.main r0 J_N, [])) (l, [])) := by
+      unfold tableSends
+      rw [fold_single _ C.h r0 hr0 (fun r hr hne => by
+        rw [h.cpu_wch, env_main0 hr, env_main0 hr, clk_eq h.cpu r hr]
+        have hne' : ofN r ≠ ofN r0 := fun e => hne (ofN_inj (Nat.lt_trans hr hCP) (Nat.lt_trans hr0 hCP) e)
+        rw [if_neg (fun e => hne' (by simp only [List.cons.injEq] at e; exact e.1)),
+          if_neg (fun e => hne' (by simp only [List.cons.injEq] at e; exact e.1)), add_zero'])]
+      rw [h.cpu_wch]
+      simp only [env_main0 hr0, clk_eq h.cpu r0 hr0, hi]
+      rw [msg_iteW, msg_iteW]
+      unfold Edges.oneIf
+      have ep : ∀ (o : Option Node), (if o = some (l, []) then (1 : F) else 0) =
+          ofN (if o = some (l, []) then 1 else 0) := by
+        intro o; split <;> rfl
+      have en : ∀ (o : Option Node), (if o = some (l, []) then -(1 : F) else 0) =
+          -ofN (if o = some (l, []) then 1 else 0) := by
+        intro o; split
+        · rfl
+        · decide
+      rw [ep, en, ← sub_eq_add_neg']
+    rw [hcpu, hiw] at hb
+    have e := bal_sub hb
+    rw [← ofN_add, ← ofN_add] at e
+    have b1 : E'.cntOut (l, []) ≤ Iw.h := sumTo_le_one (fun q => by split <;> decide) Iw.h
+    have b2 : E'.cntIn (l, []) ≤ Iw.h := sumTo_le_one (fun q => by split <;> decide) Iw.h
+    have o1 : Edges.oneIf (some ((0 : F), [])) (l, []) ≤ 1 := by unfold Edges.oneIf; split <;> decide
+    have o2 : Edges.oneIf (some (C.main r0 J_N, [])) (l, []) ≤ 1 := by unfold Edges.oneIf; split <;> decide
+    have hP : Iw.h + 1 < P := Nat.lt_of_le_of_lt (Nat.add_le_add_right h.instw_h 1) (by decide)
+    have e' := ofN_inj (Nat.lt_of_le_of_lt (Nat.add_le_add o1 b1) (by rw [Nat.add_comm]; exact hP))
+      (Nat.lt_of_le_of_lt (Nat.add_le_add o2 b2) (by rw [Nat.add_comm]; exact hP)) e
+    show E'.cntOut (l, []) + _ = E'.cntIn (l, []) + _
     omega
 
 end
