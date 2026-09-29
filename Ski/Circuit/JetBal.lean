@@ -280,7 +280,7 @@ theorem inst_cols {K i g : Nat} {J : Air.Jet} (hi : i < K) (h : R.instAt i = som
   unfold cpuCol; rw [h]
 
 /-- **`POPCH` balances**: each instantiation's chain telescopes. -/
-theorem bal_popch {m0 : Mach} (hA : AcceptsJ R.A m0 R.roots R.jets R.k R.row) {K HP : Nat}
+theorem bal_popch {K HP : Nat}
     (hHP : (R.popRows K).length ≤ HP) (v : List F) :
     tableSends (cpuAirJ (R.row 0).hd (R.row 0).stk (R.row 0).ctr) (R.cpuTable K) "popch" v +
       tableSends popAir (R.popTable K HP) "popch" v = 0 := by
@@ -295,12 +295,11 @@ theorem bal_popch {m0 : Mach} (hA : AcceptsJ R.A m0 R.roots R.jets R.k R.row) {K
   have hi' := List.mem_range.1 hi
   cases hn : R.instAt i with
   | none =>
-    have hv := base_valid hA hn
     have hs : (R.cpuTable K).env i (.main 0 (SEL + 11)) = 0 := by
       show R.cpuCol ((i + 0) % K) (SEL + 11) = 0
       rw [Nat.add_zero, Nat.mod_eq_of_lt hi']
       unfold cpuCol; rw [hn]; simp only
-      rw [if_pos (by decide), cpuCol_sel _ _ (by decide), if_neg (Nat.ne_of_gt (shape hv).lt)]
+      rw [if_pos (by decide), cpuCol_sel _ _ (by decide), if_neg (Nat.ne_of_gt (kindOf_lt _ _))]
     rw [ite_zero _ _ hs, ite_neg_zero _ _ hs, zero_add']
     unfold popRowsAt; rw [hn]; rfl
   | some p =>
@@ -369,7 +368,7 @@ theorem instwRowsAt_eq {i g : Nat} {J : Air.Jet} (h : R.instAt i = some (g, J)) 
     rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem h2]; rfl
 
 /-- **`WCH` balances**: each instantiation's writes telescope. -/
-theorem bal_wch {m0 : Mach} (hA : AcceptsJ R.A m0 R.roots R.jets R.k R.row) {K HW : Nat}
+theorem bal_wch {K HW : Nat}
     (hHW : (R.instwRows K).length ≤ HW) (v : List F) :
     tableSends (cpuAirJ (R.row 0).hd (R.row 0).stk (R.row 0).ctr) (R.cpuTable K) "wch" v +
       tableSends instwAir (R.instwTable K HW) "wch" v = 0 := by
@@ -384,12 +383,11 @@ theorem bal_wch {m0 : Mach} (hA : AcceptsJ R.A m0 R.roots R.jets R.k R.row) {K H
   have hi' := List.mem_range.1 hi
   cases hn : R.instAt i with
   | none =>
-    have hv := base_valid hA hn
     have hs : (R.cpuTable K).env i (.main 0 (SEL + 11)) = 0 := by
       show R.cpuCol ((i + 0) % K) (SEL + 11) = 0
       rw [Nat.add_zero, Nat.mod_eq_of_lt hi']
       unfold cpuCol; rw [hn]; simp only
-      rw [if_pos (by decide), cpuCol_sel _ _ (by decide), if_neg (Nat.ne_of_gt (shape hv).lt)]
+      rw [if_pos (by decide), cpuCol_sel _ _ (by decide), if_neg (Nat.ne_of_gt (kindOf_lt _ _))]
     rw [ite_zero _ _ hs, ite_neg_zero _ _ hs, zero_add']
     unfold instwRowsAt; rw [hn]; rfl
   | some p =>
@@ -650,7 +648,7 @@ variable (R : JRun)
 
 /-- **`ARG` balances**: each pop provides its argument as often as the jet
     reads it. -/
-theorem bal_arg {m0 : Mach} (hA : AcceptsJ R.A m0 R.roots R.jets R.k R.row) {K HP HW : Nat}
+theorem bal_arg {K HP HW : Nat}
     (hHP : (R.popRows K).length ≤ HP) (hHW : (R.instwRows K).length ≤ HW) (v : List F) :
     tableSends (cpuAirJ (R.row 0).hd (R.row 0).stk (R.row 0).ctr) (R.cpuTable K) "arg" v +
       (tableSends popAir (R.popTable K HP) "arg" v + tableSends instwAir (R.instwTable K HW) "arg" v) = 0 := by
@@ -855,7 +853,7 @@ variable (R : JRun)
 theorem sumTo_pos_ex {f : Nat → Nat} {n : Nat} (h : 0 < sumTo n f) : ∃ q, q < n ∧ 0 < f q := sumTo_pos n h
 
 /-- **`ROOTS` balances.** -/
-theorem bal_roots {m0 : Mach} (hA : AcceptsJ R.A m0 R.roots R.jets R.k R.row) {K : Nat} (v : List F) :
+theorem bal_roots {K : Nat} (v : List F) :
     tableSends (cpuAirJ (R.row 0).hd (R.row 0).stk (R.row 0).ctr) (R.cpuTable K) "roots" v +
       tableSends (rootsAir R.roots) (provTable (rootsRows R.roots) (R.cntRoots K)) "roots" v = 0 := by
   rw [show rootsAir R.roots = providerAir "roots" 2 (rootsRows R.roots) from rfl,
@@ -869,12 +867,11 @@ theorem bal_roots {m0 : Mach} (hA : AcceptsJ R.A m0 R.roots R.jets R.k R.row) {K
     rw [cpu_roots_gen]
     cases hn : R.instAt i with
     | none =>
-      have hv := base_valid hA hn
       rw [ite_zero _ _ (by
         show R.cpuCol ((i + 0) % K) (SEL + 11) = 0
         rw [Nat.add_zero, Nat.mod_eq_of_lt hi]
         unfold cpuCol; rw [hn]; simp only
-        rw [if_pos (by decide), cpuCol_sel _ _ (by decide), if_neg (Nat.ne_of_gt (shape hv).lt)])]
+        rw [if_pos (by decide), cpuCol_sel _ _ (by decide), if_neg (Nat.ne_of_gt (kindOf_lt _ _))])]
       simp only [hn]; rfl
     | some p =>
       obtain ⟨g, J⟩ := p
@@ -897,7 +894,7 @@ theorem bal_roots {m0 : Mach} (hA : AcceptsJ R.A m0 R.roots R.jets R.k R.row) {K
       · exact absurd hp (Nat.lt_irrefl 0)
 
 /-- **`HDR` balances.** -/
-theorem bal_hdr {m0 : Mach} (hA : AcceptsJ R.A m0 R.roots R.jets R.k R.row) {K : Nat} (v : List F) :
+theorem bal_hdr {K : Nat} (v : List F) :
     tableSends (cpuAirJ (R.row 0).hd (R.row 0).stk (R.row 0).ctr) (R.cpuTable K) "hdr" v +
       tableSends (hdrAir R.jets) (provTable (hdrRows R.jets) (R.cntHdr K)) "hdr" v = 0 := by
   rw [show hdrAir R.jets = providerAir "hdr" 7 (hdrRows R.jets) from rfl, prov_sends (hdrRows_len R.jets)]
@@ -910,12 +907,11 @@ theorem bal_hdr {m0 : Mach} (hA : AcceptsJ R.A m0 R.roots R.jets R.k R.row) {K :
     rw [cpu_hdr_gen]
     cases hn : R.instAt i with
     | none =>
-      have hv := base_valid hA hn
       rw [ite_zero _ _ (by
         show R.cpuCol ((i + 0) % K) (SEL + 11) = 0
         rw [Nat.add_zero, Nat.mod_eq_of_lt hi]
         unfold cpuCol; rw [hn]; simp only
-        rw [if_pos (by decide), cpuCol_sel _ _ (by decide), if_neg (Nat.ne_of_gt (shape hv).lt)])]
+        rw [if_pos (by decide), cpuCol_sel _ _ (by decide), if_neg (Nat.ne_of_gt (kindOf_lt _ _))])]
       simp only [hn]; rfl
     | some p =>
       obtain ⟨g, J⟩ := p
@@ -1041,7 +1037,7 @@ namespace JRun
 variable (R : JRun)
 
 /-- **The CPU's memory messages are honest.** -/
-theorem cpu_honestJ {m0 : Mach} (hA : AcceptsJ R.A m0 R.roots R.jets R.k R.row) {K : Nat} :
+theorem cpu_honestJ (hA : JOK R) (hsk : ∀ i, R.skip i = false) {K : Nat} :
     ∀ r, r < (R.cpuTable K).h → ∀ I ∈ cpuInters ++ jetInters, I.bus = "mem" →
       I.count.eval ((R.cpuTable K).env r) ≠ 0 →
       ∃ m, m < R.A.length ∧ I.fields.map (fun c => c.eval ((R.cpuTable K).env r)) = tupleOf R.A m := by
@@ -1049,7 +1045,7 @@ theorem cpu_honestJ {m0 : Mach} (hA : AcceptsJ R.A m0 R.roots R.jets R.k R.row) 
   rcases List.mem_append.1 hI with hI | hI
   · cases hn : R.instAt r with
     | none =>
-      have hv := base_valid hA hn
+      have hv := base_valid hA hn (hsk r)
       have cong := E.eval_congr (R.env_agree hr hn)
       have ha := List.all_eq_true.1 cpuInters_atomsJ I hI
       rw [Bool.and_eq_true, List.all_eq_true] at ha

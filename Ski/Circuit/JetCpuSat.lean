@@ -125,13 +125,12 @@ theorem env_agree {K i : Nat} (hi : i < K) (hn : R.instAt i = none) :
 theorem mem_cpuCons_of_pre {hd0 stk0 ctr0 : Nat} {e : E} (he : e ∈ cpuPre) : e ∈ cpuCons hd0 stk0 ctr0 := by
   rw [cpuCons_split]; exact List.mem_append_left _ he
 
-/-- **The honest jet CPU satisfies the jet CPU's AIR.** -/
-theorem cpu_sat {m0 : Mach} (hA : AcceptsJ R.A m0 R.roots R.jets R.k R.row) (hroots : RootsOK m0.heap R.roots R.jets)
-    {K : Nat} (hkK : R.k ≤ K) (hlen : R.A.length ≤ 2 ^ 24) :
-    Sat (cpuAirJ (R.row 0).hd (R.row 0).stk (R.row 0).ctr) (R.cpuTable K) := by
+/-- **A row the run does not skip satisfies the jet CPU's constraints.** -/
+theorem cpu_row (hA : JOK R) {K : Nat} (hkK : R.k ≤ K) (hlen : R.A.length ≤ 2 ^ 24) {i : Nat} (hi : i < K)
+    (hsk : R.skip i = false) :
+    ∀ e ∈ cpuConsJ (R.row 0).hd (R.row 0).stk (R.row 0).ctr, e.eval ((R.cpuTable K).env i) = 0 := by
+  intro e he
   have hk := hA.pos
-  have hK0 : 0 < K := Nat.lt_of_lt_of_le hk hkK
-  refine ⟨hK0, fun e he i (hi : i < K) => ?_⟩
   have cvJ : ∀ c, (col c).eval ((R.cpuTable K).env i) = R.cpuCol i c := by
     intro c; show R.cpuCol ((i + 0) % K) c = _; rw [Nat.add_zero, Nat.mod_eq_of_lt hi]
   have nxJ : ∀ c, (nxt c).eval ((R.cpuTable K).env i) = R.cpuCol ((i + 1) % K) c := fun c => rfl
@@ -140,10 +139,10 @@ theorem cpu_sat {m0 : Mach} (hA : AcceptsJ R.A m0 R.roots R.jets R.k R.row) (hro
   rw [cpuConsJ_split] at he
   cases hn : R.instAt i with
   | none =>
-    have hvi := base_valid hA hn
-    have hrs := cpu_rowSat (M := R.A) (row := R.rowQ) (k := K) hi hvi (fun _ => base_trans hA hn)
+    have hvi := base_valid hA hn hsk
+    have hrs := cpu_rowSat (M := R.A) (row := R.rowQ) (k := K) hi hvi (fun _ => base_trans hA hn hsk)
       (fun h1 => by rw [Nat.eq_sub_of_add_eq h1]; exact last_halt hA hkK)
-      (Nat.le_trans (ctr_le hA hroots i) hlen)
+      (Nat.le_trans (ctr_le hA i) hlen)
     rw [e0] at hrs
     have tr : ∀ e ∈ cpuCons (R.row 0).hd (R.row 0).stk (R.row 0).ctr, e.eval ((R.cpuTable K).env i) = 0 := by
       intro e he'
@@ -300,6 +299,12 @@ theorem cpu_sat {m0 : Mach} (hA : AcceptsJ R.A m0 R.roots R.jets R.k R.row) (hro
         · next h0 => subst h0; show 1 * (ofN (R.row 0).ctr - ofN (R.row 0).ctr) = 0; rw [sub_self', mul_zero']
         · exact zero_mul' _
       · simp only [B.whenLast, E.eval, hla, zero_mul']
+
+/-- **The honest jet CPU satisfies the jet CPU's AIR**, for a run that
+    skips no row. -/
+theorem cpu_sat (hA : JOK R) (hsk : ∀ i, R.skip i = false) {K : Nat} (hkK : R.k ≤ K) (hlen : R.A.length ≤ 2 ^ 24) :
+    Sat (cpuAirJ (R.row 0).hd (R.row 0).stk (R.row 0).ctr) (R.cpuTable K) :=
+  ⟨Nat.lt_of_lt_of_le hA.pos hkK, fun e he i hi => R.cpu_row hA hkK hlen hi (hsk i) e he⟩
 
 end JRun
 

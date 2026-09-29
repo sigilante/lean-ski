@@ -118,33 +118,30 @@ theorem popRow_get (i c j s x s' u : Nat) :
 theorem bit_mod (n : Nat) : ofN (n % 2) * (ofN (n % 2) - 1) = 0 := by
   rcases Nat.mod_two_eq_zero_or_one n with h | h <;> rw [h] <;> decide
 
-/-- **The honest POP table satisfies POP's AIR.** -/
-theorem pop_sat {m0 : Mach} (hA : AcceptsJ R.A m0 R.roots R.jets R.k R.row) (hroots : RootsOK m0.heap R.roots R.jets)
-    (hlen : R.A.length ≤ 2 ^ 24) {K HP : Nat} (hHP : 0 < HP) : Sat popAir (R.popTable K HP) := by
+/-- **POP rows satisfy POP's AIR**: each a pop below its counter, or zero. -/
+theorem pop_sat_of {rows : List (List F)}
+    (hrows : ∀ rw ∈ rows, ∃ i c j s x s' u, rw = popRow i c j s x s' u ∧ s < c ∧ c ≤ 2 ^ 24)
+    {HP : Nat} (hHP : 0 < HP) : Sat popAir ⟨HP, ofRows rows, fun _ _ => 0⟩ := by
   refine ⟨hHP, fun e he q (hq : q < HP) => ?_⟩
-  have cv : ∀ c, (col c).eval ((R.popTable K HP).env q) = ofRows (R.popRows K) q c := by
-    intro c; show ofRows (R.popRows K) ((q + 0) % HP) c = _; rw [Nat.add_zero, Nat.mod_eq_of_lt hq]
+  have cv : ∀ c, (col c).eval ((⟨HP, ofRows rows, fun _ _ => 0⟩ : Table).env q) = ofRows rows q c := by
+    intro c; show ofRows rows ((q + 0) % HP) c = _; rw [Nat.add_zero, Nat.mod_eq_of_lt hq]
   simp only [popAir, popCons, List.mem_append, List.mem_cons, List.mem_map, List.mem_range, List.not_mem_nil,
     or_false] at he
-  rcases ofRows_cases (R.popRows K) q with ⟨rw, hmem, hrw⟩ | hz
-  · obtain ⟨i, g, J, j, s, x, s', _, hn, hget, rfl⟩ := R.popRows_mem hmem
-    obtain ⟨hs, _, _⟩ := R.pop_facts hn hget
-    have hi1 := (instAt_some hn).1
-    have hc : (R.row i).ctr ≤ 2 ^ 24 := by
-      have := ctr_le hA hroots i; rw [rowQ_lt (Nat.lt_of_succ_lt hi1)] at this; omega
-    obtain ⟨g0, g1, _, g3, _, _, g6, g7, gb⟩ := popRow_get i (R.row i).ctr j s x s' (usesOf J j)
+  rcases ofRows_cases rows q with ⟨rw, hmem, hrw⟩ | hz
+  · obtain ⟨i, c, j, s, x, s', u, rfl, hs, hc⟩ := hrows rw hmem
+    obtain ⟨g0, g1, _, g3, _, _, g6, g7, gb⟩ := popRow_get i c j s x s' u
     rcases he with ((rfl | rfl) | ⟨b, hb, rfl⟩) | rfl
     · simp only [B.bool, E.eval, cv, hrw, g7, B.one, B.c, ofN_one]; decide
     · simp only [E.eval, cv, hrw, g7, g6, B.one, B.c, ofN_one]
       rw [sub_self', mul_zero']
     · simp only [B.bool, E.eval, cv, hrw, gb b hb, B.one, B.c, ofN_one]
       exact bit_mod _
-    · have hv := bitsVal_eq (T := R.popTable K HP) (r := q) (b0 := 8) (n := (R.row i).ctr - s - 1) hq
+    · have hv := bitsVal_eq (T := ⟨HP, ofRows rows, fun _ _ => 0⟩) (r := q) (b0 := 8) (n := c - s - 1) hq
         (fun b hb => by show ofRows _ q (8 + b) = _; rw [hrw, gb b hb]) (by omega)
       simp only [E.eval, cv, hrw, g7, g1, g3, B.one, B.c, ofN_one, one_mul']
-      rw [show popVal.eval ((R.popTable K HP).env q) = ofN ((R.row i).ctr - s - 1) from hv]
-      have e : (R.row i).ctr = ((R.row i).ctr - s - 1) + s + 1 := by omega
-      rw [show ofN (R.row i).ctr = ofN ((R.row i).ctr - s - 1) + ofN s + 1 by
+      rw [show popVal.eval ((⟨HP, ofRows rows, fun _ _ => 0⟩ : Table).env q) = ofN (c - s - 1) from hv]
+      have e : c = (c - s - 1) + s + 1 := by omega
+      rw [show ofN c = ofN (c - s - 1) + ofN s + 1 by
         rw [← ofN_one, ← ofN_add, ← ofN_add]; exact congrArg ofN e]
       exact range_identity _ _
   · rcases he with ((rfl | rfl) | ⟨b, hb, rfl⟩) | rfl
@@ -152,6 +149,17 @@ theorem pop_sat {m0 : Mach} (hA : AcceptsJ R.A m0 R.roots R.jets R.k R.row) (hro
     · simp only [E.eval, cv, hz, zero_mul']
     · simp only [B.bool, E.eval, cv, hz, zero_mul']
     · simp only [E.eval, cv, hz, zero_mul']
+
+/-- **The honest POP table satisfies POP's AIR.** -/
+theorem pop_sat (hA : JOK R) (hlen : R.A.length ≤ 2 ^ 24) {K HP : Nat} (hHP : 0 < HP) :
+    Sat popAir (R.popTable K HP) :=
+  pop_sat_of (fun rw hmem => by
+    obtain ⟨i, g, J, j, s, x, s', _, hn, hget, rfl⟩ := R.popRows_mem hmem
+    obtain ⟨hs, _, _⟩ := R.pop_facts hn hget
+    have hi1 := (instAt_some hn).1
+    have hc : (R.row i).ctr ≤ 2 ^ 24 := by
+      have := ctr_le hA i; rw [rowQ_lt (Nat.lt_of_succ_lt hi1)] at this; omega
+    exact ⟨i, (R.row i).ctr, j, s, x, s', usesOf J j, rfl, hs, hc⟩) hHP
 
 theorem instwRow_some (i c g j t : Nat) (ps : List Nat) (oa ob : Op) :
     instwRow i c g j ps (t, some (oa, ob)) = [ofN i, ofN c, ofN g, ofN j, ofN t] ++ opCols oa ++ opCols ob ++

@@ -91,7 +91,7 @@ namespace JRun
 variable (R : JRun)
 
 /-- **The honest jet tables balance.** -/
-theorem balanced {m0 : Mach} (hA : AcceptsJ R.A m0 R.roots R.jets R.k R.row) {heap : List Cell}
+theorem balanced (hA : JOK R) (hsk : ∀ i, R.skip i = false) {heap : List Cell}
     (hpre : R.A.take heap.length = heap) (hML : R.A.length < P) {K HP HW : Nat}
     (hHP : (R.popRows K).length ≤ HP) (hHW : (R.instwRows K).length ≤ HW) :
     Balanced (jetTables (R.row 0).hd (R.row 0).stk (R.row 0).ctr heap R.roots R.jets (R.cpuTable K)
@@ -136,17 +136,17 @@ theorem balanced {m0 : Mach} (hA : AcceptsJ R.A m0 R.roots R.jets R.k R.row) {he
               · subst ha
                 rw [zM _ (by decide), zP _ (by decide), zR _ (by decide), zH _ (by decide), zT _ (by decide),
                   zero_add', zero_add', zero_add', zero_add', zero_add']
-                exact R.bal_arg hA hHP hHW v
+                exact R.bal_arg hHP hHW v
             · subst hw
               rw [zM _ (by decide), zP _ (by decide), zR _ (by decide), zH _ (by decide), zT _ (by decide),
                 zO _ (by decide) (by decide) (by decide), zero_add', zero_add', zero_add', zero_add', zero_add',
                 zero_add']
-              exact R.bal_wch hA hHW v
+              exact R.bal_wch hHW v
           · subst hp
             rw [zM _ (by decide), zP _ (by decide), zR _ (by decide), zH _ (by decide), zT _ (by decide),
               zW _ (by decide) (by decide) (by decide) (by decide), zero_add', zero_add', zero_add', zero_add',
               zero_add', add_zero']
-            exact R.bal_popch hA hHP v
+            exact R.bal_popch hHP v
         · subst ht
           rw [zC _ (by decide) (by decide) (by decide) (by decide) (by decide) (by decide), zM _ (by decide),
             zP _ (by decide), zR _ (by decide), zH _ (by decide), zO _ (by decide) (by decide) (by decide),
@@ -156,16 +156,16 @@ theorem balanced {m0 : Mach} (hA : AcceptsJ R.A m0 R.roots R.jets R.k R.row) {he
         rw [zM _ (by decide), zP _ (by decide), zR _ (by decide), zT _ (by decide),
           zO _ (by decide) (by decide) (by decide), zW _ (by decide) (by decide) (by decide) (by decide),
           zero_add', zero_add', zero_add', add_zero', add_zero', add_zero']
-        exact R.bal_hdr hA v
+        exact R.bal_hdr v
     · subst hr
       rw [zM _ (by decide), zP _ (by decide), zH _ (by decide), zT _ (by decide),
         zO _ (by decide) (by decide) (by decide), zW _ (by decide) (by decide) (by decide) (by decide),
         zero_add', zero_add', add_zero', add_zero', add_zero', add_zero']
-      exact R.bal_roots hA v
+      exact R.bal_roots v
   · subst hm
     rw [zR _ (by decide), zH _ (by decide), zT _ (by decide), zero_add', zero_add', zero_add']
     exact bal_mem4 hML (cpu := cpuAirJ (R.row 0).hd (R.row 0).stk (R.row 0).ctr) (C := R.cpuTable K)
-      (fun r hr I hI hb hc => R.cpu_honestJ hA r hr I hI hb hc)
+      (fun r hr I hI hb hc => R.cpu_honestJ hA hsk r hr I hI hb hc)
       (fun r hr I hI _ hc => prog_honest hpre r hr I hI hc)
       (fun r hr I hI hb hc => R.pop_honest r hr I hI hb hc)
       (fun r hr I hI hb hc => R.instw_honest r hr I hI hb hc) v
@@ -255,11 +255,12 @@ theorem jet_complete {t : Term} {roots : List (Nat × Nat)} {jets : List Air.Jet
     {A : List Cell} {k : Nat} {row : Nat → Air.Row} (hA : AcceptsJ A (load t) roots jets k row)
     (hfit : Fits A) (hlen : A.length ≤ 2 ^ 21)
     {K HP HW : Nat} (hkK : k ≤ K) (hK : K ≤ 2 ^ 21)
-    (hHP : (JRun.popRows ⟨A, roots, jets, k, row⟩ K).length ≤ HP) (hHP0 : 0 < HP) (hHP21 : HP ≤ 2 ^ 21)
-    (hHW : (JRun.instwRows ⟨A, roots, jets, k, row⟩ K).length ≤ HW) (hHW0 : 0 < HW) (hHW21 : HW ≤ 2 ^ 21) :
+    (hHP : (JRun.popRows ⟨A, roots, jets, k, row, fun _ => false⟩ K).length ≤ HP) (hHP0 : 0 < HP) (hHP21 : HP ≤ 2 ^ 21)
+    (hHW : (JRun.instwRows ⟨A, roots, jets, k, row, fun _ => false⟩ K).length ≤ HW) (hHW0 : 0 < HW) (hHW21 : HW ≤ 2 ^ 21) :
     ∃ C Mm Pg Rt Hd Tm Po Iw, AcceptedP Rs [C, Mm, Pg, Rt, Hd, Tm, Po, Iw] ∧ C.h = K ∧ Mm.h = A.length ∧
       Po.h = HP ∧ Iw.h = HW ∧ memOf Mm = A ∧ ∀ i, i < k → rowOf C i = row i := by
-  let R : JRun := ⟨A, roots, jets, k, row⟩
+  let R : JRun := ⟨A, roots, jets, k, row, fun _ => false⟩
+  have hJ : JOK R := AcceptsJ.jok hA hroots
   have hk0 := hA.pos
   obtain ⟨_, hhd, hstk⟩ := load_fits t
   have hpre : A.take (load t).heap.length = (load t).heap := by rw [← hA.ctr0]; exact hA.heap0
@@ -281,8 +282,8 @@ theorem jet_complete {t : Term} {roots : List (Nat × Nat)} {jets : List Air.Jet
   let Mm := memTableJ A (cpuAirJ (row 0).hd (row 0).stk (row 0).ctr) (progAir (load t).heap) popAir instwAir C Pg Po Iw
   have hPg : Pg.h ≤ 2 ^ 24 := programRows_length_le (by omega)
   have hl24 : R.A.length ≤ 2 ^ 24 := Nat.le_trans (show A.length ≤ 2 ^ 21 from hlen) (by decide)
-  have hcpu : Sat (cpuAirJ (row 0).hd (row 0).stk (row 0).ctr) C := R.cpu_sat hA hroots hkK hl24
-  have hbal := R.balanced hA hpre (show A.length < P by omega) hHP hHW (heap := (load t).heap)
+  have hcpu : Sat (cpuAirJ (row 0).hd (row 0).stk (row 0).ctr) C := R.cpu_sat hJ (fun _ => rfl) hkK hl24
+  have hbal := R.balanced hJ (fun _ => rfl) hpre (show A.length < P by omega) hHP hHW (heap := (load t).heap)
   have hacc : Accepted (jetAirs t roots jets) [C, Mm, Pg, Rt, Hd, Tm, Po, Iw] := by
     have z : (jetAirs t roots jets).zip [C, Mm, Pg, Rt, Hd, Tm, Po, Iw] =
         jetTables (row 0).hd (row 0).stk (row 0).ctr (load t).heap roots jets C Mm Pg Rt Hd Tm Po Iw := by
@@ -298,7 +299,7 @@ theorem jet_complete {t : Term} {roots : List (Nat × Nat)} {jets : List Air.Jet
       · exact ⟨(prov_sat hprov.1).1, .inr (prov_sat hprov.1).2⟩
       · exact ⟨(prov_sat hprov.2.1).1, .inr (prov_sat hprov.2.1).2⟩
       · exact ⟨(prov_sat hprov.2.2).1, .inr (prov_sat hprov.2.2).2⟩
-      · exact ⟨R.pop_sat hA hroots hl24 hHP0, .inl rfl⟩
+      · exact ⟨R.pop_sat hJ hl24 hHP0, .inl rfl⟩
       · exact ⟨R.instw_sat hHW0, .inl rfl⟩
     · rw [z]; exact hbal
     · rw [z]
@@ -344,7 +345,7 @@ theorem jet_complete {t : Term} {roots : List (Nat × Nat)} {jets : List Air.Jet
     have hh : (row i).hd < A.length := by
       cases hn : R.instAt i with
       | none =>
-        have hv := JRun.base_valid hA hn
+        have hv := JRun.base_valid hJ hn rfl
         rw [hq] at hv
         obtain ⟨cell, hrd, _⟩ := (shape hv).reads 0 (by decide) rfl
         have := (rd_get hrd).1

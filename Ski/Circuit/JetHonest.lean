@@ -5,7 +5,9 @@ import Ski.Circuit.WitComplete
 # The honest jet tables
 
 The tables a prover builds from a run of `Air.AcceptsJ` (as
-`bench/plonky3/src/jets.rs`'s `build_traces` does):
+`bench/plonky3/src/jets.rs`'s `build_traces` does).  The run may skip rows
+(`JRun.skip`) that another part of the circuit accounts for: the probe rows
+of a probe run.  `JOK` is what the tables need of the rows not skipped.
 
 - **CPU**: a corpus row is the corpus CPU's row (`cpuCol`), its jet columns
   zero but the counter; an instantiation row has selector 11, its
@@ -29,6 +31,9 @@ structure JRun where
   jets : List Air.Jet
   k : Nat
   row : Nat → Air.Row
+  /-- Rows another part of the circuit accounts for: none in a jetted run,
+      the probe rows in a probe run. -/
+  skip : Nat → Bool
 
 /-- An argument operand's value. -/
 def argVal (ps : List Nat) : Op → Nat
@@ -73,7 +78,7 @@ variable (R : JRun)
 
 /-- The jet row `i` instantiates, if any. -/
 def instAt (i : Nat) : Option (Nat × Air.Jet) :=
-  if i + 1 < R.k then jetOf R.A R.roots R.jets (R.row i) (R.row (i + 1)) else none
+  if R.skip i then none else if i + 1 < R.k then jetOf R.A R.roots R.jets (R.row i) (R.row (i + 1)) else none
 
 def popsR (i : Nat) (J : Air.Jet) : Option (List Nat × Nat) :=
   popR (fun a => R.A[a]?) (R.row i).ctr J.xs.length (R.row i).stk
@@ -164,13 +169,37 @@ def memTableJ (A : List Cell) (cpu prog pop instw : AirD) (C Pg Po Iw : Table) :
       (tableSends pop Po "mem" (tupleOf A m) + tableSends instw Iw "mem" (tupleOf A m)))
     else 0, fun _ _ => 0⟩
 
+/-- A machine kind is one of the eleven. -/
+theorem kindOf_lt (M : List Cell) (r : Air.Row) : kindOf M r < 11 := by
+  unfold kindOf
+  repeat' split
+  all_goals decide
+
+/-- **What the honest tables need of a jetted run**: every row not skipped
+    before the last steps, instantiates or repeats a halt, the last halts,
+    and the counters stay in memory. -/
+structure JOK (R : JRun) : Prop where
+  pos : 0 < R.k
+  trans : ∀ i, i + 1 < R.k → R.skip i = false →
+    stepRow R.A (R.row i) = some (R.row (i + 1)) ∨
+    (∃ g J, ((R.row i).hd, g) ∈ R.roots ∧ R.jets[g]? = some J ∧ instRow R.A J (R.row i) = some (R.row (i + 1))) ∨
+    (haltRow R.A (R.row i) = true ∧ R.row (i + 1) = R.row i)
+  final : haltRow R.A (R.row (R.k - 1)) = true
+  ctr : ∀ i, i < R.k → (R.row i).ctr ≤ R.A.length
+
+/-- A run of `Air.AcceptsJ` is one, skipping no row. -/
+theorem AcceptsJ.jok {A : List Cell} {m0 : Mach} {roots : List (Nat × Nat)} {jets : List Air.Jet} {k : Nat}
+    {row : Nat → Air.Row} (hA : AcceptsJ A m0 roots jets k row) (hroots : RootsOK m0.heap roots jets) :
+    JOK ⟨A, roots, jets, k, row, fun _ => false⟩ :=
+  ⟨hA.pos, fun i hi _ => hA.trans i hi, hA.final, fun i hi => (hA.reach hroots i hi).2.1⟩
+
 -- ---------------------------------------------------------------------------
 -- The run's facts
 -- ---------------------------------------------------------------------------
 
 namespace JRun
 
-variable {R : JRun} {m0 : Mach} (hA : AcceptsJ R.A m0 R.roots R.jets R.k R.row)
+variable {R : JRun} (hA : JOK R)
 include hA
 
 omit hA in
@@ -179,12 +208,16 @@ theorem instAt_some {i g : Nat} {J : Air.Jet} (h : R.instAt i = some (g, J)) :
       instRow R.A J (R.row i) = some (R.row (i + 1)) := by
   unfold instAt at h
   split at h
-  · next hi => exact ⟨hi, jetOf_some h⟩
   · cases h
+  · split at h
+    · next hi => exact ⟨hi, jetOf_some h⟩
+    · cases h
 
 omit hA in
 theorem instAt_none_of {i : Nat} (hi : R.k ≤ i + 1) : R.instAt i = none := by
-  unfold instAt; rw [if_neg (by omega)]
+  unfold instAt; split
+  · rfl
+  · rw [if_neg (by omega)]
 
 omit hA in
 theorem rowQ_lt {i : Nat} (hi : i < R.k) : R.rowQ i = R.row i := by
@@ -194,16 +227,17 @@ omit hA in
 theorem rowQ_ge {i : Nat} (hi : R.k ≤ i) : R.rowQ i = R.row (R.k - 1) := by
   show Circuit.rowQ R.row R.k i = _; unfold Circuit.rowQ; rw [if_neg (by omega)]
 
-/-- **A row that does not instantiate steps, or has halted and repeats.** -/
-theorem base_trans {i : Nat} (hn : R.instAt i = none) :
+/-- **A row not skipped that does not instantiate steps, or has halted and
+    repeats.** -/
+theorem base_trans {i : Nat} (hn : R.instAt i = none) (hs : R.skip i = false) :
     stepRow R.A (R.rowQ i) = some (R.rowQ (i + 1)) ∨
       (haltRow R.A (R.rowQ i) = true ∧ R.rowQ (i + 1) = R.rowQ i) := by
   have hk := hA.pos
   rcases Nat.lt_or_ge (i + 1) R.k with h1 | h1
   · rw [rowQ_lt (Nat.lt_of_succ_lt h1), rowQ_lt h1]
     have hn' : jetOf R.A R.roots R.jets (R.row i) (R.row (i + 1)) = none := by
-      unfold instAt at hn; rwa [if_pos h1] at hn
-    exact jetOf_none hn' (hA.trans i h1)
+      unfold instAt at hn; rwa [hs, if_neg Bool.false_ne_true, if_pos h1] at hn
+    exact jetOf_none hn' (hA.trans i h1 hs)
   · rcases Nat.lt_or_ge i R.k with h2 | h2
     · have e : i = R.k - 1 := by omega
       rw [rowQ_lt h2, rowQ_ge h1, e]
@@ -211,8 +245,8 @@ theorem base_trans {i : Nat} (hn : R.instAt i = none) :
     · rw [rowQ_ge h2, rowQ_ge (by omega)]
       exact .inr ⟨hA.final, rfl⟩
 
-theorem base_valid {i : Nat} (hn : R.instAt i = none) : Valid R.A (R.rowQ i) := by
-  rcases JRun.base_trans hA hn with h | h
+theorem base_valid {i : Nat} (hn : R.instAt i = none) (hs : R.skip i = false) : Valid R.A (R.rowQ i) := by
+  rcases JRun.base_trans hA hn hs with h | h
   · exact .inl (by rw [h]; rfl)
   · exact .inr h.1
 
@@ -223,12 +257,12 @@ theorem last_halt {K : Nat} (hkK : R.k ≤ K) : haltRow R.A (R.rowQ (K - 1)) = t
   · rw [rowQ_ge h]; exact hA.final
 
 /-- The counters stay in memory. -/
-theorem ctr_le (hroots : RootsOK m0.heap R.roots R.jets) : ∀ i, (R.rowQ i).ctr ≤ R.A.length := by
+theorem ctr_le : ∀ i, (R.rowQ i).ctr ≤ R.A.length := by
   have hk := hA.pos
   intro i
   rcases Nat.lt_or_ge i R.k with h | h
-  · rw [rowQ_lt h]; exact (hA.reach hroots i h).2.1
-  · rw [rowQ_ge h]; exact (hA.reach hroots (R.k - 1) (by omega)).2.1
+  · rw [rowQ_lt h]; exact hA.ctr i h
+  · rw [rowQ_ge h]; exact hA.ctr (R.k - 1) (by omega)
 
 omit hA in
 /-- **An instantiation, unfolded**: its pops, its writes, and the next row. -/
