@@ -113,7 +113,21 @@ if command -v cargo >/dev/null 2>&1 \
   else
     bad "sudoku: the Rust circuit differs from Circuit.sudAirs"
   fi
-  /bin/rm -f "$exp.c"
+  if "$ski" export-jets "$(cat release/sumto/sumto_us.term)" release/sumto/jets/sumto_us.jets > "$exp.c" \
+     && .lake/build/bin/circuit compare-jets "$exp.c" | tail -1 | grep -q '^MATCH'; then
+    note "ok — jets sumto_us: the Rust circuit is Circuit.jetAirs"
+  else
+    bad "jets sumto_us: the Rust circuit differs from Circuit.jetAirs"
+  fi
+  # doctor one template row's tag: the jet table must differ
+  awk '/^air tmpl/ { t = 1 } t && /^pretrace/ { p = 1; print; next } p && !d { $3 = $3 + 1; d = 1 } { print }' \
+    "$exp.c" > "$exp.cbad"
+  if .lake/build/bin/circuit compare-jets "$exp.cbad" | tail -1 | grep -q '^MATCH'; then
+    bad "a doctored jet table was accepted"
+  else
+    note "ok — a doctored jet table is refused"
+  fi
+  /bin/rm -f "$exp.c" "$exp.cbad"
   # doctor one constant in the CPU's constraints: it must differ
   awk '!d && / c1$/ { sub(/ c1$/, " c2"); d = 1 } { print }' "$exp" > "$exp.bad"
   if .lake/build/bin/circuit compare "$exp.bad" | tail -1 | grep -q '^MATCH'; then

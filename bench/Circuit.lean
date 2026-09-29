@@ -2,6 +2,7 @@ import Ski.Circuit.Base
 import Ski.Circuit.CompAir
 import Ski.Circuit.WitAir
 import Ski.Circuit.SudAir
+import Ski.Circuit.JetAir
 import Ski.ComposedText
 open Term
 
@@ -246,12 +247,29 @@ def compareSudoku (path : String) : IO UInt32 := do
   let some rust := parseAirs (rest.length + 1) rest | do IO.println "MALFORMED AIRS"; return 1
   compareAirs rust (sudAirs puzzle)
 
+/-- The jet circuit: `term T`, then the eight AIRs.  The jet table is
+    Lean's for the term (`JetTable.jetTable` over its loaded heap, with
+    `JetTable.allTemplates`): what `lake exe jets statement` requires the
+    verifier's jet file to be. -/
+def compareJets (path : String) : IO UInt32 := do
+  let text ← readInput path
+  let ls := (text.splitOn "\n").filter (fun l => !l.trimAscii.toString.isEmpty)
+  let some t := (match ls with
+      | l :: _ => match words l with
+        | ["term", s] => parseTerm s
+        | _ => none
+      | [] => none) | do IO.println "MALFORMED: no term"; return 1
+  let some rust := parseAirs (ls.length + 1) (ls.drop 1) | do IO.println "MALFORMED AIRS"; return 1
+  let (roots, jets) := JetTable.jetTable (Mach.load t).heap JetTable.allTemplates
+  compareAirs rust (jetAirs t roots jets)
+
 def main (args : List String) : IO UInt32 := do
   match args with
   | ["compare", path] => compare path
   | ["compare-composed", path] => compareComposed path
   | ["compare-witness", path] => compareWitness path
   | ["compare-sudoku", path] => compareSudoku path
+  | ["compare-jets", path] => compareJets path
   | _ =>
-    IO.eprintln "usage: circuit compare|compare-composed|compare-witness|compare-sudoku FILE|-"
+    IO.eprintln "usage: circuit compare|compare-composed|compare-witness|compare-sudoku|compare-jets FILE|-"
     return 2

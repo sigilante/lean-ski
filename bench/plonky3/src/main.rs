@@ -1123,6 +1123,16 @@ fn main() {
         print!("{}", export::export_base(&args[2]));
         return;
     }
+    if args.len() == 4 && args[1] == "export-jets" {
+        match jets::export_jets(&args[2], std::path::Path::new(&args[3])) {
+            Ok(s) => print!("{s}"),
+            Err(e) => {
+                eprintln!("{e}");
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
     if args.len() == 3 && args[1] == "export-sudoku" {
         let text = std::fs::read_to_string(&args[2]).expect("statement");
         print!("{}", sudoku::export_sudoku(&text));

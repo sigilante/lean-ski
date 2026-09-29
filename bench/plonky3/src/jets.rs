@@ -801,6 +801,12 @@ fn verify_j(t: &Term, jt: &JetTable, proof: &JProof, plan: Option<&[probe::Seg]>
     let verified = catch_unwind(AssertUnwindSafe(|| {
         let config = make_config();
         let a = airs(t, jt, plan)?;
+        // The AIRs it verifies with are the Lean circuit for the term and
+        // Lean's jet table: Lean compares their symbolic export with
+        // `Circuit.jetAirs`.
+        if plan.is_none() {
+            lean_statement("circuit", &["compare-jets", "-"], export_airs_j(t, &a).as_bytes())?;
+        }
         let d = &proof.degree_bits;
         let lg = |n: usize| p3_util::log2_strict_usize(n);
         let mut fixed = vec![
@@ -829,6 +835,27 @@ fn verify_j(t: &Term, jt: &JetTable, proof: &JProof, plan: Option<&[probe::Seg]>
         Ok(r) => r,
         Err(e) => Err(format!("verifier panic: {}", panic_text(&e))),
     }
+}
+
+/// The jet verifier's AIRs for a term, in the export format of
+/// `src/export.rs`, after the term (`lake exe circuit compare-jets`).
+pub fn export_airs_j(t: &Term, v_airs: &[SkiAir]) -> String {
+    let mut term = String::new();
+    super::export::unparse(t, &mut term);
+    let names = ["cpu", "mem", "prog", "roots", "hdr", "tmpl", "pop", "instw", "plan", "pw"];
+    let mut s = format!("term {term}\n");
+    for (n, a) in names.iter().zip(v_airs.iter()) {
+        s.push_str(&super::export::export_air(n, a));
+    }
+    s
+}
+
+/// `ski-air export-jets TERM JETS`: the jet verifier's AIRs for a term and
+/// its jet file.
+pub fn export_jets(term: &str, jets: &std::path::Path) -> Result<String, String> {
+    let t = parse(term.trim().as_bytes(), &mut 0);
+    let jt = read_jets(jets);
+    Ok(export_airs_j(&t, &airs(&t, &jt, None)?))
 }
 
 fn prove_and_verify_j(t: &Term, jt: &JetTable, tr: &JTraces, plan: Option<&[probe::Seg]>) -> Outcome {
