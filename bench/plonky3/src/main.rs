@@ -992,7 +992,8 @@ enum Outcome {
 
 /// Prove a table with the prover's AIRs, then verify the proof against the
 /// public term alone.  The verifier rebuilds its AIRs and the program
-/// table's preprocessed commitment from the term, takes the CPU and memory
+/// table's preprocessed commitment from the term, has Lean confirm those
+/// AIRs are `Circuit.baseAirs` for the term, takes the CPU and memory
 /// heights from the proof, and rejects heights above `MAX_LOG_HEIGHT` (the
 /// range checks' bound) or a program height other than the term's.
 fn prove_and_verify(
@@ -1029,6 +1030,10 @@ fn prove_and_verify(
     let verified = catch_unwind(AssertUnwindSafe(|| {
         let v_config = make_config();
         let v_airs = verifier_airs(public);
+        // The AIRs it verifies with are the Lean circuit: Lean compares
+        // their symbolic export with `Circuit.baseAirs` for the term, the
+        // hypothesis of `Circuit.export_sound`.
+        lean_statement("circuit", &["compare", "-"], export::export_airs(public, &v_airs).as_bytes())?;
         let d = &proof.degree_bits;
         let prog_log = p3_util::log2_strict_usize(program(public, MIN_LOG).len());
         if d.len() != 3 || d[0] > MAX_LOG_HEIGHT || d[1] > MAX_LOG_HEIGHT || d[2] != prog_log {

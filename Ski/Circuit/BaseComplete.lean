@@ -607,18 +607,62 @@ theorem iterM_fits : ∀ (i : Nat) {m : Mach}, MFits m → MFits (iterM i m)
     | none => exact h
     | some m' => exact mstep_fits h hs
 
+/-- A height the verifier accepts for the CPU or the memory table: a power
+    of two, at most `2^21` (`MAX_LOG_HEIGHT` in `bench/plonky3/src/main.rs`,
+    which keeps every address and counter within the range checks). -/
+def VHeight (n : Nat) : Prop := ∃ d, d ≤ 21 ∧ n = 2 ^ d
+
+theorem VHeight.le {n : Nat} (h : VHeight n) : n ≤ 2 ^ 21 := by
+  obtain ⟨d, hd, rfl⟩ := h
+  exact Nat.pow_le_pow_right (by decide) hd
+
+theorem fits_pad {M : List Cell} (hf : Fits M) (n : Nat) : Fits (M ++ List.replicate n .nil) := by
+  intro c hc
+  rw [List.length_append]
+  rcases List.mem_append.1 hc with hc' | hc'
+  · have := hf c hc'; exact ⟨by omega, by omega⟩
+  · rw [List.eq_of_mem_replicate hc']
+    have : 0 < n := by
+      rcases n with _ | n
+      · simp at hc'
+      · exact Nat.succ_pos _
+    rw [List.length_replicate]
+    exact ⟨by simp only [cellFields]; omega, by simp only [cellFields]; omega⟩
+
+/-- **Completeness at the verifier's heights**: a run the Lean AIR accepts,
+    on `k` rows and a memory padded with nils to `L` cells, both heights the
+    verifier accepts, gives tables of exactly those heights that the circuit
+    accepts, decoding back to the run and the padded memory; the Rust prover
+    pads so (`table_of`). -/
+theorem base_complete_padded {M : List Cell} {t : Term} {k : Nat} {row : Nat → Row}
+    (hA : Accepts M t k row) (hfit : Fits M) {L : Nat} (hML : M.length ≤ L) (hL : VHeight L)
+    (hk : VHeight k) :
+    ∃ C Mm Pg, Accepted (baseAirs t) [C, Mm, Pg] ∧ C.h = k ∧ Mm.h = L ∧
+      memOf Mm = M ++ List.replicate (L - M.length) .nil ∧ ∀ i, i < k → rowOf C i = row i := by
+  have hA' := hA.pad (List.replicate (L - M.length) .nil)
+  have hlen : (M ++ List.replicate (L - M.length) Cell.nil).length = L := by
+    rw [List.length_append, List.length_replicate]; omega
+  have h21 : (2 : Nat) ^ 21 ≤ 2 ^ 24 := by decide
+  have h27 : (2 : Nat) ^ 21 ≤ 2 ^ 27 := by decide
+  obtain ⟨C, Mm, Pg, hacc, hCh, hmem, hrow⟩ := base_complete hA' (fits_pad hfit _)
+    (by rw [hlen]; exact Nat.le_trans hL.le h21) (Nat.le_trans hk.le h27)
+  refine ⟨C, Mm, Pg, hacc, hCh, ?_, hmem, hrow⟩
+  rw [← memOf_length Mm, hmem, hlen]
+
 /-- **Completeness from evaluation**: when `t` evaluates to `v`, its run
-    halts after `n` transitions on a memory `M`, and at every budget
-    `k > n` within a domain, if `M` fits the range checks, the corpus
-    circuit accepts tables that decode to `M` and end on `v`. -/
+    halts after `n` transitions on a memory `M`, and at every CPU height
+    `k > n` and memory height `L ≥ |M|` the verifier accepts, the corpus
+    circuit accepts tables of exactly those heights that decode to `M`,
+    padded with nils, and end on `v`. -/
 theorem eval_complete {t v : Term} (he : Eval t v) :
-    ∃ (n : Nat) (M : List Cell), ∀ k, n < k → k ≤ 2 ^ 27 → M.length ≤ 2 ^ 24 →
-      ∃ C Mm Pg, Accepted (baseAirs t) [C, Mm, Pg] ∧ C.h = k ∧ memOf Mm = M ∧
+    ∃ (n : Nat) (M : List Cell), ∀ k L, n < k → VHeight k → M.length ≤ L → VHeight L →
+      ∃ C Mm Pg, Accepted (baseAirs t) [C, Mm, Pg] ∧ C.h = k ∧ Mm.h = L ∧
+        memOf Mm = M ++ List.replicate (L - M.length) .nil ∧
         decode (st (memOf Mm) (rowOf C (k - 1))) = some v := by
   obtain ⟨N, hN⟩ := evalF_complete he
   obtain ⟨m', c, hr, hstop, hv⟩ := reach_of_evalF hN (hsize (load t)) (Nat.le_refl _) (decode_load t)
   obtain ⟨n, hstep, hfin⟩ := iterM_of_reach hr hstop
-  refine ⟨n, m'.heap, fun k hk hk27 hL => ?_⟩
+  refine ⟨n, m'.heap, fun k L hk hkV hML hLV => ?_⟩
   -- the run, as `air_complete` builds it
   have pre : ∀ i, m'.heap.take (iterM i (load t)).heap.length = (iterM i (load t)).heap := by
     intro i
@@ -644,23 +688,24 @@ theorem eval_complete {t v : Term} (he : Eval t v) :
     have := iterM_fits n (m := load t) (load_fits t)
     rw [hfin n (Nat.le_refl n)] at this
     exact this.1
-  obtain ⟨C, Mm, Pg, hacc, hCh, hmem, hrow⟩ := base_complete hA hfit hL hk27
-  refine ⟨C, Mm, Pg, hacc, hCh, hmem, ?_⟩
+  obtain ⟨C, Mm, Pg, hacc, hCh, hMh, hmem, hrow⟩ := base_complete_padded hA hfit hML hLV hkV
+  refine ⟨C, Mm, Pg, hacc, hCh, hMh, hmem, ?_⟩
   rw [hmem, hrow (k - 1) (by omega)]
-  show decode (st m'.heap (regs (iterM (k - 1) (load t)))) = some v
+  show decode (st (m'.heap ++ _) (regs (iterM (k - 1) (load t)))) = some v
   rw [hfin (k - 1) (by omega), st_regs (by simp)]
   exact hv
 
 /-- **Completeness of the Rust circuit**: AIRs with the normal forms of
-    the verifier's accept the honest tables of every evaluation within
-    the bounds. -/
+    the verifier's accept the honest tables of every evaluation, at every
+    height the verifier accepts that holds the run. -/
 theorem export_complete {t v : Term} {Rs : List AirD} (hs : sameAirsB Rs (baseAirs t) = true) (he : Eval t v) :
-    ∃ (n : Nat) (M : List Cell), ∀ k, n < k → k ≤ 2 ^ 27 → M.length ≤ 2 ^ 24 →
-      ∃ C Mm Pg, Accepted Rs [C, Mm, Pg] ∧ C.h = k ∧ memOf Mm = M ∧
+    ∃ (n : Nat) (M : List Cell), ∀ k L, n < k → VHeight k → M.length ≤ L → VHeight L →
+      ∃ C Mm Pg, Accepted Rs [C, Mm, Pg] ∧ C.h = k ∧ Mm.h = L ∧
+        memOf Mm = M ++ List.replicate (L - M.length) .nil ∧
         decode (st (memOf Mm) (rowOf C (k - 1))) = some v := by
   obtain ⟨n, M, h⟩ := eval_complete he
-  refine ⟨n, M, fun k hk hk27 hL => ?_⟩
-  obtain ⟨C, Mm, Pg, hacc, rest⟩ := h k hk hk27 hL
+  refine ⟨n, M, fun k L hk hkV hML hLV => ?_⟩
+  obtain ⟨C, Mm, Pg, hacc, rest⟩ := h k L hk hkV hML hLV
   exact ⟨C, Mm, Pg, accepted_transfer (sameAirsB_symm hs) hacc, rest⟩
 
 end Circuit

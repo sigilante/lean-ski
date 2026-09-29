@@ -552,4 +552,5 @@ open Ski.Audit
   Circuit.base_sound Circuit.baseAirs_sound Circuit.export_sound
   Circuit.shape Circuit.cpu_sat Circuit.mem_sat Circuit.prog_sat Circuit.balanced
   Circuit.cpu_honest Circuit.prog_honest Circuit.mstep_fits
-  Circuit.base_complete Circuit.eval_complete Circuit.export_complete
+  Circuit.base_complete Circuit.fits_pad Circuit.base_complete_padded Circuit.eval_complete
+  Circuit.export_complete

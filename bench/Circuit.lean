@@ -2,7 +2,8 @@ import Ski.Circuit.Base
 open Term
 
 /-!
-`lake exe circuit compare FILE`: the Rust circuit against the Lean one.
+`lake exe circuit compare FILE`: the Rust circuit against the Lean one
+(`-` reads standard input; the verifier pipes its AIRs so).
 
 `FILE` is `ski-air export-base TERM`'s output: the three AIRs the verifier
 builds for `TERM`, as Plonky3's symbolic builder records them
@@ -158,7 +159,7 @@ def diffAir (a b : AirD) : Option String :=
         | none => if a.pretrace != b.pretrace then some "preprocessed tables" else none
 
 def compare (path : String) : IO UInt32 := do
-  let text ← IO.FS.readFile path
+  let text ← if path == "-" then (do let h ← IO.getStdin; h.readToEnd) else IO.FS.readFile path
   let ls := (text.splitOn "\n").filter (fun l => !l.trimAscii.toString.isEmpty)
   let some t := (match ls with
       | l :: _ => match words l with
@@ -188,5 +189,5 @@ def main (args : List String) : IO UInt32 := do
   match args with
   | ["compare", path] => compare path
   | _ =>
-    IO.eprintln "usage: circuit compare FILE"
+    IO.eprintln "usage: circuit compare FILE|-"
     return 2

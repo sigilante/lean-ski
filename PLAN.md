@@ -729,21 +729,26 @@ is proved to check exactly `Air.Accepts` (`Ski/Circuit/`):
 - **The Rust bound to the Lean value.** `ski-air export-base` prints the
   verifier's AIRs through `InteractionSymbolicBuilder`; `lake exe circuit
   compare` checks they have the normal forms of `baseAirs t`
-  (`sameAirsB`), and normal forms fix meaning (`sameAirB_sound`). Gate 5
-  runs it on three terms and refuses a doctored export.
+  (`sameAirsB`), and normal forms fix meaning (`sameAirB_sound`). The
+  verifier runs the comparison on the AIRs it verifies with, for every
+  term, and refuses on a difference; gate 5 also runs it on three terms
+  and refuses a doctored export.
 - **Soundness** (`export_sound`): tables accepted for AIRs with those
   normal forms decode to a memory and rows that `Air.Accepts` accepts, so
   the term evaluates. The informal arguments, now proofs: one value per
   address (`mem_addr`), sends that are bits and a height check that keeps
   their count below `P` (`lookup`), range checks as `a < c` below the
   modulus (`BaseOK.read`).
-- **Completeness** (`export_complete`): every evaluation whose memory
-  fits `2^24` cells and whose run fits `2^27` rows has honest tables the
-  circuit accepts, which decode back to the run.
+- **Completeness** (`export_complete`): every evaluation has honest
+  tables the circuit accepts at every CPU and memory height the verifier
+  accepts (powers of two up to `2^21`) that holds the run, the memory
+  padded with nils as the prover pads it; they decode back to the run.
 - **Assumed, not proved** (`Accepted`): Plonky3's STARK and LogUp
   soundness (every constraint vanishes on every row; every bus balances,
   with the heights' check), and heights within BabyBear's two-adic
-  domains, `2^27`. Trusted, not proved: the export's parser and the
+  domains, `2^27`, which the verifier's own cap of `2^21` implies.
+  Plonky3's selectors are nonzero multiples of `0`/`1` selectors, which
+  changes nothing here: each constraint uses one only as a factor. Trusted, not proved: the export's parser and the
   compiled comparison, and Plonky3's symbolic builder recording what its
   verifier checks.
 

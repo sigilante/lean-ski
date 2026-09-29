@@ -103,15 +103,35 @@ pub fn export_air(name: &str, air: &SkiAir) -> String {
     s
 }
 
-/// `ski-air export-base TERM`: the corpus circuit's three AIRs for a term,
-/// as the verifier builds them (`verifier_airs`).
-pub fn export_base(term: &str) -> String {
-    let t = parse(term.as_bytes(), &mut 0);
-    let airs = verifier_airs(&t);
+/// A term in the corpus syntax, as `parse` reads it.
+pub fn unparse(t: &Term, out: &mut String) {
+    match t {
+        Term::S => out.push('S'),
+        Term::K => out.push('K'),
+        Term::I => out.push('I'),
+        Term::App(f, a) => {
+            out.push('`');
+            unparse(f, out);
+            unparse(a, out);
+        }
+    }
+}
+
+/// The corpus circuit's three AIRs for a term, in the export format.
+pub fn export_airs(t: &Term, airs: &[SkiAir]) -> String {
+    let mut term = String::new();
+    unparse(t, &mut term);
     let names = ["cpu", "mem", "prog"];
     let mut s = format!("term {term}\n");
     for (n, a) in names.iter().zip(airs.iter()) {
         s.push_str(&export_air(n, a));
     }
     s
+}
+
+/// `ski-air export-base TERM`: the corpus circuit's three AIRs for a term,
+/// as the verifier builds them (`verifier_airs`).
+pub fn export_base(term: &str) -> String {
+    let t = parse(term.as_bytes(), &mut 0);
+    export_airs(&t, &verifier_airs(&t))
 }
