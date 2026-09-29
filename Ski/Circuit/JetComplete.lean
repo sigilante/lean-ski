@@ -363,4 +363,93 @@ theorem jet_complete {t : Term} {roots : List (Nat × Nat)} {jets : List Air.Jet
     rw [cr HD (by decide), cr STK (by decide), cr CTR (by decide), cpuCol_hd, cpuCol_stk, cpuCol_ctr,
       val_ofN (by omega), val_ofN (by omega), val_ofN (by omega)]
 
+-- ---------------------------------------------------------------------------
+-- Padding the memory
+-- ---------------------------------------------------------------------------
+
+theorem rd_pad {M pad : List Cell} {c : Nat} (hc : c ≤ M.length) : rd (M ++ pad) c = rd M c := by
+  funext a
+  unfold rd
+  split
+  · next h => rw [List.getElem?_append_left (by omega)]
+  · rfl
+
+theorem wrs_pad {M pad : List Cell} : ∀ {c : Nat} {ws : List Cell}, wrs M c ws = true → wrs (M ++ pad) c ws = true
+  | _, [], _ => rfl
+  | c, w :: ws, h => by
+    unfold wrs at h ⊢
+    rw [Bool.and_eq_true] at h ⊢
+    have hc : M[c]? = some w := beq_iff_eq.1 h.1
+    have hlt : c < M.length := (List.getElem?_eq_some_iff.1 hc).1
+    refine ⟨beq_iff_eq.2 (by rw [List.getElem?_append_left hlt, hc]), wrs_pad h.2⟩
+
+theorem short_pad {M pad : List Cell} {c : Nat} (hc : c ≤ M.length) :
+    ∀ n s, short (M ++ pad) c n s = short M c n s
+  | 0, _ => rfl
+  | n + 1, s => by unfold short; rw [rd_pad hc]; split <;> (try rw [short_pad hc n]) <;> rfl
+
+theorem haltRow_pad {M pad : List Cell} {r : Air.Row} (hc : r.ctr ≤ M.length) :
+    haltRow (M ++ pad) r = haltRow M r := by
+  unfold haltRow; rw [rd_pad hc]; split <;> (try rw [short_pad hc]) <;> rfl
+
+theorem stepRow_pad {M pad : List Cell} {r r' : Air.Row} (hc : r.ctr ≤ M.length)
+    (h : stepRow M r = some r') : stepRow (M ++ pad) r = some r' := by
+  unfold stepRow at h ⊢
+  rw [rd_pad hc]
+  cases hs : stepG (rd M r.ctr) r.ctr r.hd r.stk with
+  | none => rw [hs] at h; cases h
+  | some q =>
+    obtain ⟨a, b, ws⟩ := q
+    rw [hs] at h
+    dsimp only at h ⊢
+    split at h
+    · next hw => rw [if_pos (wrs_pad hw)]; exact h
+    · cases h
+
+theorem instRow_pad {M pad : List Cell} {J : Air.Jet} {r r' : Air.Row} (hc : r.ctr ≤ M.length)
+    (h : instRow M J r = some r') : instRow (M ++ pad) J r = some r' := by
+  unfold instRow instRowG at h ⊢
+  have hg : ∀ a, a < r.ctr → (M ++ pad)[a]? = M[a]? := fun a ha => List.getElem?_append_left (by omega)
+  have hp : ∀ k s, popR (fun a => (M ++ pad)[a]?) r.ctr k s = popR (fun a => M[a]?) r.ctr k s := by
+    intro k s; rw [popR_popN, popR_popN, List.take_append_of_le_length hc]
+  rw [hp]
+  cases hq : popR (fun a => M[a]?) r.ctr J.xs.length r.stk with
+  | none => rw [hq] at h; cases h
+  | some q =>
+    obtain ⟨ps, rest⟩ := q
+    rw [hq] at h
+    dsimp only at h ⊢
+    split at h
+    · next hw =>
+      have hw' : wrs M r.ctr (icells (overrideN J.genv J.xs ps) r.ctr J.body).1 = true := by rw [wrs_G]; exact hw
+      have := wrs_pad (pad := pad) hw'
+      rw [wrs_G] at this
+      rw [if_pos this]; exact h
+    · cases h
+
+/-- **A jetted run over a memory is a run over the memory padded**: reads
+    stay below the counter, and writes check the same cells.  So the
+    prover's memory, padded to a power of two, is covered. -/
+theorem AcceptsJ.pad {M : List Cell} {m0 : Mach} {roots : List (Nat × Nat)} {jets : List Air.Jet} {k : Nat}
+    {row : Nat → Air.Row} (hA : AcceptsJ M m0 roots jets k row) (hroots : RootsOK m0.heap roots jets)
+    (pad : List Cell) : AcceptsJ (M ++ pad) m0 roots jets k row := by
+  have hc : ∀ i, i < k → (row i).ctr ≤ M.length := fun i hi => (hA.reach hroots i hi).2.1
+  refine ⟨hA.pos, ?_, hA.hd0, hA.stk0, hA.ctr0, fun i hi => ?_, ?_⟩
+  · rw [List.take_append_of_le_length (hc 0 hA.pos)]; exact hA.heap0
+  · have hci := hc i (by omega)
+    rcases hA.trans i hi with h | ⟨g, J, hm, hJ, hI⟩ | h
+    · exact .inl (stepRow_pad hci h)
+    · exact .inr (.inl ⟨g, J, hm, hJ, instRow_pad hci hI⟩)
+    · exact .inr (.inr ⟨by rw [haltRow_pad hci]; exact h.1, h.2⟩)
+  · rw [haltRow_pad (hc _ (by have := hA.pos; omega))]; exact hA.final
+
+theorem fits_pad_nil {M : List Cell} (hfit : Fits M) (n : Nat) (hM : 0 < M.length) :
+    Fits (M ++ List.replicate n .nil) := by
+  intro c hc
+  rcases List.mem_append.1 hc with hc | hc
+  · have := hfit c hc; rw [List.length_append]; exact ⟨by omega, by omega⟩
+  · rw [List.eq_of_mem_replicate hc]
+    have : 0 < (M ++ List.replicate n Cell.nil).length := by rw [List.length_append]; omega
+    exact ⟨this, this⟩
+
 end Circuit

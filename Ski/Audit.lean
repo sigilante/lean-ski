@@ -619,4 +619,4 @@ open Ski.Audit
   Circuit.JRun.instw_sat Circuit.sends_rows Circuit.JRun.bal_popch Circuit.JRun.bal_wch Circuit.JRun.bal_arg
   Circuit.prov_sends Circuit.JRun.bal_roots Circuit.JRun.bal_hdr Circuit.JRun.bal_tmpl Circuit.JRun.cpu_honestJ
   Circuit.JRun.pop_honest Circuit.JRun.instw_honest Circuit.bal_mem4 Circuit.JRun.balanced Circuit.AcceptsJ.stk_le
-  Circuit.jet_complete
+  Circuit.jet_complete Circuit.AcceptsJ.pad Circuit.fits_pad_nil
