@@ -30,6 +30,8 @@ import Ski.Circuit.WitComplete
 import Ski.Circuit.SudAir
 import Ski.Circuit.SudSound
 import Ski.Circuit.SudComplete
+import Ski.Circuit.JetAir
+import Ski.Circuit.Flow
 import Ski.BoolProbe
 import Ski.Statement
 import Ski.Sudoku
@@ -594,3 +596,6 @@ open Ski.Audit
 -- The Sudoku circuit: completeness
 #audit_clean Circuit.cpuS_sat Circuit.progS_honest Circuit.witS_sat Circuit.witS_honest Circuit.balanced4
   Circuit.sud_complete
+
+-- Chains on a balanced bus: no supply, no flow; one supply, one path
+#audit_clean Circuit.pigeon Circuit.Edges.walk_stops Circuit.Edges.noFlow Circuit.Edges.sumTo_path Circuit.Edges.path
