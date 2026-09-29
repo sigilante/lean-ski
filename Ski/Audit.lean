@@ -28,6 +28,7 @@ import Ski.Circuit.CompComplete
 import Ski.Circuit.WitAir
 import Ski.Circuit.WitComplete
 import Ski.Circuit.SudAir
+import Ski.Circuit.SudSound
 import Ski.BoolProbe
 import Ski.Statement
 import Ski.Sudoku
@@ -583,3 +584,8 @@ open Ski.Audit
   Circuit.witCellG Circuit.WitOK.row Circuit.wMachine_fits Circuit.WitOK.heap0 Circuit.WitOK.sound
   Circuit.wit_guarded Circuit.witExport_sound Circuit.cpuW_sat Circuit.cpuW_honest Circuit.progW_honest
   Circuit.balancedW Circuit.wit_complete
+
+-- The Sudoku circuit: soundness against the puzzle's solution
+#audit_clean Circuit.stmt_fitsB Circuit.stmt_take Circuit.SudOK.input Circuit.SudOK.pubCell
+  Circuit.SudOK.heap0 Circuit.SudOK.accepts Circuit.SudOK.sound Circuit.sud_guarded Circuit.sudOK_of
+  Circuit.sudExport_sound
