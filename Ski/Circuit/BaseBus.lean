@@ -130,9 +130,9 @@ theorem heights {hd0 stk0 ctr0 : Nat} {heap : List Cell} {C Mm Pg : Table}
   rw [Nat.mul_comm]; omega
 
 /-- A CPU row's messages have counts `0` or `1`. -/
-theorem cpu_count {hd0 stk0 ctr0 : Nat} {C : Table} (hC : Sat (cpuAir hd0 stk0 ctr0) C) {r : Nat}
+theorem cpu_countR {hd0 stk0 ctr0 : Nat} {C : Table} {r : Nat} (hs : RowSat hd0 stk0 ctr0 C r)
     (hr : r < C.h) : ∀ I ∈ cpuInters, (I.count.eval (C.env r)).val ≤ 1 := by
-  obtain ⟨k, hk, hsel⟩ := kind_of (hC.row hr) hr
+  obtain ⟨k, hk, hsel⟩ := kind_of hs hr
   obtain ⟨hj, _, ha, hs, _⟩ := kind_facts hr ⟨hk, hsel⟩
   have b01 : ∀ n, n ≤ 1 → (ofN n).val ≤ 1 := fun n hn => by
     rw [val_ofN (Nat.lt_of_le_of_lt hn (by decide))]; exact hn
@@ -214,7 +214,7 @@ theorem lookup {hd0 stk0 ctr0 : Nat} {heap : List Cell} {C Mm Pg : Table}
           else 0)).val ≤ 1 := by
       intro r hr I hI
       split
-      · exact cpu_count hC hr I hI
+      · exact cpu_countR (hC.row hr) hr I hI
       · exact Nat.zero_le _
     have hcpu := fun r (hr : r < C.h) => fold_val (fun I => if I.bus = "mem" ∧
         I.fields.map (fun e => e.eval (C.env r)) = v then I.count.eval (C.env r) else 0) 1 cpuInters

@@ -186,7 +186,7 @@ theorem SudOK.senders : ∀ p ∈ sudTables hd0 stk0 ctr0 heap C Mm Pg Wt,
     · have : cpuIntersW.all (fun I => decide (1 ≤ I.weight)) = true := rfl
       exact of_decide_eq_true (List.all_eq_true.1 this I hI)
     · rcases List.mem_append.1 hI with hI' | hI'
-      · exact cpu_count (sat_base_of_S h.cpu) hr I hI'
+      · exact cpu_countR ((sat_base_of_S h.cpu).row hr) hr I hI'
       · simp only [List.mem_cons, List.not_mem_nil, or_false] at hI'
         rcases hI' with rfl | rfl <;> exact absurd hbus (by decide)
   · exact nomatch hpr

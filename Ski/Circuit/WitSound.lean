@@ -170,7 +170,7 @@ theorem WitOK.senders : ∀ p ∈ witTables hd0 stk0 ctr0 heap W C Mm Pg Wt,
     · have hI' : I ∈ cpuInters ∨ I ∈ [⟨"blind_a", 1, .neg (col (BLA + 4)), blindFields BLA⟩,
           ⟨"blind_b", 1, col (BLB + 4), blindFields BLB⟩] := List.mem_append.1 hI
       rcases hI' with hI' | hI'
-      · exact cpu_count (sat_base_of_W h.cpu) hr I hI'
+      · exact cpu_countR ((sat_base_of_W h.cpu).row hr) hr I hI'
       · simp only [List.mem_cons, List.not_mem_nil, or_false] at hI'
         rcases hI' with rfl | rfl <;> exact absurd hbus (by decide)
   · exact nomatch hpr
