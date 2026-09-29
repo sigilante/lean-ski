@@ -1008,4 +1008,147 @@ theorem bal_tmpl {K HW : Nat} (hHW : (R.instwRows K).length ≤ HW) (v : List F)
 
 end JRun
 
+-- ---------------------------------------------------------------------------
+-- Memory: every message is a cell's tuple
+-- ---------------------------------------------------------------------------
+
+theorem wrs_get {A : List Cell} : ∀ {c : Nat} {ws : List Cell}, wrs A c ws = true →
+    ∀ j (hj : j < ws.length), A[c + j]? = some ws[j]
+  | _, [], _, j, hj => absurd hj (Nat.not_lt_zero _)
+  | c, w :: ws, h, j, hj => by
+    unfold wrs at h
+    rw [Bool.and_eq_true] at h
+    cases j with
+    | zero => rw [Nat.add_zero]; exact beq_iff_eq.1 h.1
+    | succ j =>
+      have := wrs_get h.2 j (by simp only [List.length_cons] at hj; omega)
+      rw [show c + (j + 1) = c + 1 + j by omega]; exact this
+
+theorem cpuInters_atomsJ : cpuInters.all (fun I => I.count.onlyAtoms cpuAtomJ && I.fields.all (·.onlyAtoms cpuAtomJ)) =
+    true := by decide
+
+theorem cellTag_cellOf {c : Nat} {ps : List Nat} {cl : Nat × Option (Op × Op)}
+    (h : (cl.2 = none ∧ cl.1 < 3) ∨ (cl.1 = 3 ∧ ∃ a b, cl.2 = some (a, b))) :
+    cellTag (JetTable.cellOf c ps cl) = cl.1 := by
+  obtain ⟨t, ops⟩ := cl
+  rcases h with ⟨hno, ht⟩ | ⟨ht, a, b, hso⟩
+  · simp only at hno ht; subst hno
+    rcases (show t = 0 ∨ t = 1 ∨ t = 2 by omega) with rfl | rfl | rfl <;> rfl
+  · simp only at ht hso; subst ht hso; rfl
+
+namespace JRun
+
+variable (R : JRun)
+
+/-- **The CPU's memory messages are honest.** -/
+theorem cpu_honestJ {m0 : Mach} (hA : AcceptsJ R.A m0 R.roots R.jets R.k R.row) {K : Nat} :
+    ∀ r, r < (R.cpuTable K).h → ∀ I ∈ cpuInters ++ jetInters, I.bus = "mem" →
+      I.count.eval ((R.cpuTable K).env r) ≠ 0 →
+      ∃ m, m < R.A.length ∧ I.fields.map (fun c => c.eval ((R.cpuTable K).env r)) = tupleOf R.A m := by
+  intro r (hr : r < K) I hI hbus hc
+  rcases List.mem_append.1 hI with hI | hI
+  · cases hn : R.instAt r with
+    | none =>
+      have hv := base_valid hA hn
+      have cong := E.eval_congr (R.env_agree hr hn)
+      have ha := List.all_eq_true.1 cpuInters_atomsJ I hI
+      rw [Bool.and_eq_true, List.all_eq_true] at ha
+      rw [cong _ ha.1] at hc
+      obtain ⟨m, hm, e⟩ := cpu_honestAt (M := R.A) (row := R.rowQ) (k := K) hr hv I hI hc
+      refine ⟨m, hm, ?_⟩
+      rw [← e]
+      exact List.map_congr_left (fun c hc' => cong c (ha.2 c hc'))
+    | some p =>
+      obtain ⟨g, J⟩ := p
+      exfalso
+      have hsel : SelsAre (R.cpuTable K) r 11 := fun j hj => by
+        show R.cpuCol r (SEL + j) = _
+        unfold cpuCol; rw [hn]; exact R.instCol_sel r g J hj
+      obtain ⟨hacts, _, happ, hS, _⟩ := inst_facts hr hsel
+      simp only [cpuInters, writeInters, List.cons_append, List.nil_append, List.mem_cons, List.not_mem_nil,
+        or_false] at hI
+      rcases hI with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
+      · exact hc (hacts 0 (by decide))
+      · exact hc (hacts 1 (by decide))
+      · exact hc (hacts 2 (by decide))
+      · exact hc (hacts 3 (by decide))
+      · exact hc happ
+      all_goals exact hc hS
+  · simp only [jetInters, List.mem_cons, List.not_mem_nil, or_false] at hI
+    rcases hI with rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> exact absurd hbus (by decide)
+
+/-- **POP's memory messages are honest**: each reads a stack cell. -/
+theorem pop_honest {K HP : Nat} :
+    ∀ q, q < (R.popTable K HP).h → ∀ I ∈ popAir.inters, I.bus = "mem" →
+      I.count.eval ((R.popTable K HP).env q) ≠ 0 →
+      ∃ m, m < R.A.length ∧ I.fields.map (fun c => c.eval ((R.popTable K HP).env q)) = tupleOf R.A m := by
+  intro q (hq : q < HP) I hI hbus hc
+  have cv : ∀ c, (col c).eval ((R.popTable K HP).env q) = ofRows (R.popRows K) q c := by
+    intro c; show ofRows (R.popRows K) ((q + 0) % HP) c = _; rw [Nat.add_zero, Nat.mod_eq_of_lt hq]
+  simp only [popAir, popInters, List.mem_cons, List.not_mem_nil, or_false] at hI
+  rcases hI with rfl | rfl | rfl | rfl
+  · exact absurd hbus (by decide)
+  · exact absurd hbus (by decide)
+  · rcases ofRows_cases (R.popRows K) q with ⟨rw, hmem, hrw⟩ | hz
+    · obtain ⟨i, g, J, j, s, x, s', _, hn, hget, rfl⟩ := R.popRows_mem hmem
+      obtain ⟨_, hAs, _⟩ := R.pop_facts hn hget
+      obtain ⟨hm, ht⟩ := tuple_get hAs
+      obtain ⟨_, _, _, g3, g4, g5, _, _, _⟩ := popRow_get i (R.row i).ctr j s x s' (usesOf J j)
+      refine ⟨s, hm, ?_⟩
+      rw [ht]
+      simp only [List.map_cons, List.map_nil, cv, hrw, g3, g4, g5, B.c, E.eval]
+      rfl
+    · exact absurd (by show (col 7).eval _ = 0; rw [cv, hz]) hc
+  · exact absurd hbus (by decide)
+
+/-- **INSTW's memory messages are honest**: each writes its cell. -/
+theorem instw_honest {K HW : Nat} :
+    ∀ q, q < (R.instwTable K HW).h → ∀ I ∈ instwAir.inters, I.bus = "mem" →
+      I.count.eval ((R.instwTable K HW).env q) ≠ 0 →
+      ∃ m, m < R.A.length ∧ I.fields.map (fun c => c.eval ((R.instwTable K HW).env q)) = tupleOf R.A m := by
+  intro q (hq : q < HW) I hI hbus hc
+  have cv : ∀ c, (col c).eval ((R.instwTable K HW).env q) = ofRows (R.instwRows K) q c := by
+    intro c; show ofRows (R.instwRows K) ((q + 0) % HW) c = _; rw [Nat.add_zero, Nat.mod_eq_of_lt hq]
+  simp only [instwAir, instwInters, List.mem_cons, List.not_mem_nil, or_false] at hI
+  rcases hI with rfl | rfl | rfl | rfl | rfl | rfl
+  · exact absurd hbus (by decide)
+  · exact absurd hbus (by decide)
+  · exact absurd hbus (by decide)
+  · exact absurd hbus (by decide)
+  · exact absurd hbus (by decide)
+  rcases ofRows_cases (R.instwRows K) q with ⟨rw, hmem, hrw⟩ | hz
+  · obtain ⟨i, g, J, j, cl, _, hn, hcl, rfl⟩ := R.instwRows_mem hmem
+    obtain ⟨_, _, hw, _⟩ := inst_spec hn
+    have hj : j < (symCells J J.body 0).1.length := (List.getElem?_eq_some_iff.1 hcl).1
+    have hclj : (symCells J J.body 0).1[j] = cl := (List.getElem?_eq_some_iff.1 hcl).2
+    have hA := wrs_get hw j (by rw [List.length_map]; exact hj)
+    rw [List.getElem_map, hclj] at hA
+    obtain ⟨hm, ht⟩ := tuple_get hA
+    have hshape := symCells_cells J J.body 0 cl (List.mem_of_getElem? hcl)
+    refine ⟨(R.row i).ctr + j, hm, ?_⟩
+    rw [ht, cellTag_cellOf hshape]
+    obtain ⟨g0, g1, g2, g3, _⟩ := instwRow_get i (R.row i).ctr g j (R.ps i J) cl
+    have e4 : (instwRow i (R.row i).ctr g j (R.ps i J) cl).getD 4 0 = ofN cl.1 := by
+      obtain ⟨t, ops⟩ := cl
+      cases ops with
+      | none => rfl
+      | some ab => obtain ⟨a, b⟩ := ab; cases a <;> cases b <;> rfl
+    have e13 : (instwRow i (R.row i).ctr g j (R.ps i J) cl).getD 13 0 =
+        ofN (cellFields (JetTable.cellOf (R.row i).ctr (R.ps i J) cl)).1 := by
+      obtain ⟨t, ops⟩ := cl
+      cases ops with
+      | none => rfl
+      | some ab => obtain ⟨a, b⟩ := ab; cases a <;> cases b <;> rfl
+    have e14 : (instwRow i (R.row i).ctr g j (R.ps i J) cl).getD 14 0 =
+        ofN (cellFields (JetTable.cellOf (R.row i).ctr (R.ps i J) cl)).2 := by
+      obtain ⟨t, ops⟩ := cl
+      cases ops with
+      | none => rfl
+      | some ab => obtain ⟨a, b⟩ := ab; cases a <;> cases b <;> rfl
+    simp only [List.map_cons, List.map_nil, E.eval, cv, hrw, g1, g3, e4, e13, e14]
+    rw [ofN_add]
+  · exact absurd (by show (col 17).eval _ = 0; rw [cv, hz]) hc
+
+end JRun
+
 end Circuit
