@@ -477,4 +477,286 @@ theorem JetOK.argHit {v : List F}
 
 end
 
+-- ---------------------------------------------------------------------------
+-- Chains: the flows of POPCH and WCH
+-- ---------------------------------------------------------------------------
+
+/-- Four atoms, for identities by normal forms. -/
+def at4 (a b c d : F) : Atom → F
+  | .main 0 0 => a | .main 0 1 => b | .main 0 2 => c | .main 0 3 => d | _ => 0
+
+/-- `(a - b) + (X - Y) = (a + X) - (b + Y)`. -/
+theorem sub_add_sub' (a b x y : F) : (a - b) + (x - y) = (a + x) - (b + y) :=
+  E.eval_eq_of_norm
+    (e := .add (.sub (.atom (.main 0 0)) (.atom (.main 0 1))) (.sub (.atom (.main 0 2)) (.atom (.main 0 3))))
+    (e' := .sub (.add (.atom (.main 0 0)) (.atom (.main 0 2))) (.add (.atom (.main 0 1)) (.atom (.main 0 3))))
+    (by decide) (at4 a b x y)
+
+/-- `(a - b) + (y - x) = 0` gives `a + y = b + x`. -/
+theorem bal_sub {a b x y : F} (h : (a - b) + (y - x) = 0) : a + y = b + x := by
+  have e : a + y = ((a - b) + (y - x)) + (b + x) :=
+    E.eval_eq_of_norm
+      (e := .add (.atom (.main 0 0)) (.atom (.main 0 3)))
+      (e' := .add (.add (.sub (.atom (.main 0 0)) (.atom (.main 0 1))) (.sub (.atom (.main 0 3)) (.atom (.main 0 2))))
+        (.add (.atom (.main 0 1)) (.atom (.main 0 2))))
+      (by decide) (at4 a b x y)
+  rw [e, h, zero_add']
+
+theorem fold_acc (f : Nat → F) (x : F) : ∀ l : List Nat,
+    l.foldr (fun b acc => f b + acc) x = l.foldr (fun b acc => f b + acc) 0 + x
+  | [] => (zero_add' x).symm
+  | b :: l => by simp only [List.foldr_cons]; rw [fold_acc f x l, add_assoc']
+
+/-- A sum of numbers, in the field. -/
+theorem fold_ofN (a : Nat → Nat) : ∀ H, (List.range H).foldr (fun q acc => ofN (a q) + acc) 0 = ofN (sumTo H a)
+  | 0 => rfl
+  | H + 1 => by
+    rw [List.range_succ, List.foldr_append, List.foldr_cons, List.foldr_nil, fold_acc, fold_ofN a H, add_zero']
+    show _ = ofN (sumTo H a + a H)
+    rw [ofN_add]
+
+theorem fold_sub (x y : Nat → F) : ∀ l : List Nat,
+    l.foldr (fun q acc => (x q - y q) + acc) 0 =
+      l.foldr (fun q acc => x q + acc) 0 - l.foldr (fun q acc => y q + acc) 0
+  | [] => by show (0 : F) = 0 - 0; decide
+  | q :: l => by simp only [List.foldr_cons]; rw [fold_sub x y l, sub_add_sub']
+
+/-- A table sends nothing on a bus it has no message on. -/
+theorem sends_nobus' {A : AirD} {T : Table} {bus : String} {v : List F}
+    (hA : A.inters.all (fun I => I.bus != bus) = true) : tableSends A T bus v = 0 :=
+  fold_zero _ _ (fun _ _ => notBus hA)
+
+/-- A bit, gating a test, is an indicator. -/
+theorem bit_ite {x : F} (hb : x * (x - 1) = 0) (P : Prop) [Decidable P] :
+    (if P then x else 0) = ofN (if decide (x = 1) && decide P then 1 else 0) := by
+  rcases bit_of hb with rfl | rfl
+  · rw [show decide ((0 : F) = 1) = false from rfl, Bool.false_and,
+      if_neg (show ¬ (false = true) from Bool.false_ne_true)]
+    split <;> rfl
+  · rw [show decide ((1 : F) = 1) = true from rfl, Bool.true_and]
+    cases hp : decide P with
+    | true => rw [if_pos (of_decide_eq_true hp), if_pos rfl]; rfl
+    | false => rw [if_neg (of_decide_eq_false hp), if_neg (by decide)]; rfl
+
+/-- A chain message, split into its key and its node. -/
+theorem dec_msg (a b c d t u l s : F) :
+    decide ([a, b, c, d] = [t, u, l, s]) = (decide (a = t) && decide (b = u) && decide ((c, [d]) = (l, [s]))) := by
+  simp only [List.cons.injEq, Prod.mk.injEq, and_true, Bool.decide_and, Bool.and_assoc]
+
+theorem foldr_zero_init {α : Type} (f : α → F) (x : F) : ∀ l : List α, (∀ a ∈ l, f a = 0) →
+    l.foldr (fun a acc => f a + acc) x = x
+  | [], _ => rfl
+  | a :: l, h => by
+    simp only [List.foldr_cons]
+    rw [h a List.mem_cons_self, foldr_zero_init f x l (fun b hb => h b (List.mem_cons_of_mem _ hb)), zero_add']
+
+theorem foldr_range_congr {f g : Nat → F} : ∀ H, (∀ q, q < H → f q = g q) →
+    (List.range H).foldr (fun q acc => f q + acc) 0 = (List.range H).foldr (fun q acc => g q + acc) 0
+  | 0, _ => rfl
+  | H + 1, h => by
+    rw [List.range_succ, List.foldr_append, List.foldr_append, List.foldr_cons, List.foldr_cons, List.foldr_nil,
+      List.foldr_nil, h H (Nat.lt_succ_self H), fold_acc, fold_acc g,
+      foldr_range_congr H (fun q hq => h q (Nat.lt_succ_of_lt hq))]
+
+theorem sumTo_le_one {f : Nat → Nat} (hf : ∀ q, f q ≤ 1) : ∀ H, sumTo H f ≤ H
+  | 0 => Nat.le_refl 0
+  | H + 1 => by
+    show sumTo H f + f H ≤ H + 1
+    have := sumTo_le_one hf H; have := hf H; omega
+
+theorem sumTo_zero {f : Nat → Nat} (hf : ∀ q, f q = 0) : ∀ H, sumTo H f = 0
+  | 0 => rfl
+  | H + 1 => by show sumTo H f + f H = 0; rw [sumTo_zero hf H, hf H]
+
+/-- The CPU's messages on a bus other than `mem` are its jet messages. -/
+theorem cpu_rowSends_jet {hd0 stk0 ctr0 : Nat} {C : Table} {bus : String} (hb : bus ≠ "mem") (v : List F)
+    (r : Nat) : rowSends (cpuAirJ hd0 stk0 ctr0) C bus v r =
+      jetInters.foldr (fun I acc => (if I.bus = bus ∧ I.fields.map (fun e => e.eval (C.env r)) = v then
+        I.count.eval (C.env r) else 0) + acc) 0 := by
+  unfold rowSends
+  show (cpuInters ++ jetInters).foldr _ 0 = _
+  rw [List.foldr_append]
+  apply foldr_zero_init
+  intro I hI
+  have hm : I.bus = "mem" := by
+    have : cpuInters.all (fun I => I.bus == "mem") = true := by decide
+    exact beq_iff_eq.1 (List.all_eq_true.1 this I hI)
+  exact if_neg (fun (h' : I.bus = bus ∧ _) => hb (h'.1 ▸ hm))
+
+theorem fold_single (f : Nat → F) : ∀ L m0, m0 < L → (∀ m, m < L → m ≠ m0 → f m = 0) →
+    (List.range L).foldr (fun b acc => f b + acc) 0 = f m0
+  | 0, _, h, _ => absurd h (Nat.not_lt_zero _)
+  | L + 1, m0, hm0, hz => by
+    rw [List.range_succ, List.foldr_append, List.foldr_cons, List.foldr_nil, fold_acc]
+    rcases Nat.lt_or_ge m0 L with h | h
+    · rw [fold_single f L m0 h (fun m hm hne => hz m (Nat.lt_succ_of_lt hm) hne),
+        hz L (Nat.lt_succ_self L) (Nat.ne_of_gt h), add_zero', add_zero']
+    · have e : m0 = L := Nat.le_antisymm (Nat.le_of_lt_succ hm0) h
+      subst e
+      rw [fold_zero f _ (fun m hm => hz m (Nat.lt_succ_of_lt (List.mem_range.1 hm))
+        (Nat.ne_of_lt (List.mem_range.1 hm))), zero_add', add_zero']
+
+/-- The chain's ends at an instantiation row, for instantiation counter `c'`. -/
+def popStart (C : Table) (r0 : Nat) (c' : F) : Option Node :=
+  if c' = C.main r0 CTR then some ((0 : F), [C.main r0 STK]) else none
+def popEnd (C : Table) (r0 : Nat) (c' : F) : Option Node :=
+  if c' = C.main r0 CTR then some (C.main r0 J_K, [C.main r0 J_REST]) else none
+
+/-- A test on a four-element message, as a test on its node. -/
+theorem msg_ite (t c0 c' a b l s : F) (x : F) :
+    (if [t, c0, a, b] = [t, c', l, s] then x else 0) =
+      if (if c' = c0 then some (a, [b]) else none) = some (l, [s]) then x else 0 := by
+  rcases (inferInstance : Decidable (c' = c0)) with hc | hc
+  · rw [if_neg hc, if_neg (show ¬ ((none : Option Node) = some (l, [s])) from fun e => by cases e),
+      if_neg (show ¬ ([t, c0, a, b] = [t, c', l, s]) from
+        fun e => hc (by simp only [List.cons.injEq] at e; exact e.2.1.symm))]
+  · rw [if_pos hc, hc]
+    cases hd : decide ((a, [b]) = (l, [s])) with
+    | true =>
+      have e := of_decide_eq_true hd
+      simp only [Prod.mk.injEq, List.cons.injEq, and_true] at e
+      rw [if_pos (show [t, c0, a, b] = [t, c0, l, s] by rw [e.1, e.2]),
+        if_pos (show some (a, [b]) = some (l, [s]) by rw [e.1, e.2])]
+    | false =>
+      have e := of_decide_eq_false hd
+      rw [if_neg (show ¬ ([t, c0, a, b] = [t, c0, l, s]) from
+          fun h' => e (by simp only [List.cons.injEq] at h'; rw [h'.2.2.1, h'.2.2.2.1])),
+        if_neg (show ¬ (some (a, [b]) = some (l, [s])) from fun h' => e (Option.some.inj h'))]
+
+/-- The POP rows at counter `t` and instantiation counter `c'`, as edges:
+    from `(i, [s])` to `(i + 1, [s'])`. -/
+def popEdges (Po : Table) (t c' : F) : Edges :=
+  ⟨Po.h, fun q => decide (Po.main q 7 = 1) && decide (Po.main q 0 = t) && decide (Po.main q 1 = c'),
+    fun q => Po.main q 2, fun q => [Po.main q 3], fun q => [Po.main q 5]⟩
+
+section
+
+variable {hd0 stk0 ctr0 : Nat} {heap : List Cell} {roots : List (Nat × Nat)} {jets : List Air.Jet}
+  {C Mm Pg Rt Hd Tm Po Iw : Table} (h : JetOK hd0 stk0 ctr0 heap roots jets C Mm Pg Rt Hd Tm Po Iw)
+include h
+
+/-- A POP row's chain messages: its outgoing edge less its incoming one. -/
+theorem JetOK.pop_rowSends {q : Nat} (hq : q < Po.h) (t c' l s : F) :
+    rowSends popAir Po "popch" [t, c', l, s] q =
+      ofN (if (popEdges Po t c').act q && decide ((popEdges Po t c').outN q = (l, [s])) then 1 else 0) -
+      ofN (if (popEdges Po t c').act q && decide ((popEdges Po t c').inN q = (l, [s])) then 1 else 0) := by
+  have cv := col_eval hq
+  have hb := h.pop_act hq
+  simp only [rowSends, popAir, popInters, List.foldr_cons, List.foldr_nil, List.map_cons, List.map_nil, E.eval, cv,
+    B.one, B.c, ofN_one, true_and, false_and, ↓reduceIte, add_zero']
+  rw [if_neg (show ¬ ("mem" = "popch" ∧ [Po.main q 3, ofN 5, Po.main q 4, Po.main q 5] = [t, c', l, s]) from
+      fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("arg" = "popch" ∧ [Po.main q 0, Po.main q 2, Po.main q 4] = [t, c', l, s]) from
+      fun h' => absurd h'.1 (by decide)), add_zero', add_zero']
+  have eneg : ∀ (P : Prop) [Decidable P] (x : F), (if P then -x else 0) = -(if P then x else 0) := by
+    intro P _ x; split
+    · rfl
+    · decide
+  rw [eneg, bit_ite hb, bit_ite hb, dec_msg, dec_msg, sub_eq_add_neg' _ _, add_comm']
+  have ea : (popEdges Po t c').act q = (decide (Po.main q 7 = 1) && decide (Po.main q 0 = t) &&
+      decide (Po.main q 1 = c')) := rfl
+  have ei : (popEdges Po t c').inN q = (Po.main q 2, [Po.main q 3]) := rfl
+  have eo : (popEdges Po t c').outN q = (Po.main q 2 + 1, [Po.main q 5]) := rfl
+  rw [ea, ei, eo]
+  simp only [Bool.and_assoc]
+
+/-- The CPU's chain-start and chain-end messages on `POPCH`. -/
+theorem JetOK.cpu_popch (r : Nat) (v : List F) : rowSends (cpuAirJ hd0 stk0 ctr0) C "popch" v r =
+    (if [C.env r (.main 0 J_CLK), C.env r (.main 0 CTR), 0, C.env r (.main 0 STK)] = v then
+      C.env r (.main 0 (SEL + 11)) else 0) +
+    (if [C.env r (.main 0 J_CLK), C.env r (.main 0 CTR), C.env r (.main 0 J_K), C.env r (.main 0 J_REST)] = v then
+      -C.env r (.main 0 (SEL + 11)) else 0) := by
+  rw [cpu_rowSends_jet (by decide)]
+  simp only [jetInters, List.foldr_cons, List.foldr_nil, List.map_cons, List.map_nil, E.eval, B.col, B.c, sInst,
+    true_and, ofN_zero]
+  rw [if_neg (show ¬ ("roots" = "popch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("hdr" = "popch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("wch" = "popch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("wch" = "popch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("arg" = "popch" ∧ _) from fun h' => absurd h'.1 (by decide))]
+  simp only [zero_add', add_zero']
+
+/-- **`POPCH` is a flow**: at an instantiation row's counter, with a supply
+    where the row starts its pops and a demand where it ends them, when the
+    instantiation counter is the row's. -/
+theorem JetOK.popConserve {r0 : Nat} (hr0 : r0 < C.h) (hi : C.main r0 (SEL + 11) = 1) (c' : F) :
+    (popEdges Po (ofN r0) c').Conserve (popStart C r0 c') (popEnd C r0 c') := by
+  intro v
+  obtain ⟨l, st⟩ := v
+  have hCP : C.h < P := Nat.lt_of_le_of_lt h.cpu_h (by decide)
+  have hPo : Po.h < P := Nat.lt_of_le_of_lt h.pop_h (by decide)
+  -- a node whose state is not one element carries nothing
+  have zero_case : (∀ x : F, st ≠ [x]) →
+      (popEdges Po (ofN r0) c').cntOut (l, st) + Edges.oneIf (popStart C r0 c') (l, st) =
+        (popEdges Po (ofN r0) c').cntIn (l, st) + Edges.oneIf (popEnd C r0 c') (l, st) := by
+    intro hst
+    have z1 : (popEdges Po (ofN r0) c').cntOut (l, st) = 0 := sumTo_zero (fun q => by
+      rw [show decide ((popEdges Po (ofN r0) c').outN q = (l, st)) = false from
+        decide_eq_false (fun e => hst _ (congrArg Prod.snd e).symm), Bool.and_false]; rfl) _
+    have z2 : (popEdges Po (ofN r0) c').cntIn (l, st) = 0 := sumTo_zero (fun q => by
+      rw [show decide ((popEdges Po (ofN r0) c').inN q = (l, st)) = false from
+        decide_eq_false (fun e => hst _ (congrArg Prod.snd e).symm), Bool.and_false]; rfl) _
+    have o1 : Edges.oneIf (popStart C r0 c') (l, st) = 0 := by
+      unfold Edges.oneIf popStart; split
+      · exact if_neg (fun e => hst _ (congrArg Prod.snd (Option.some.inj e)).symm)
+      · exact if_neg (fun e => by cases e)
+    have o2 : Edges.oneIf (popEnd C r0 c') (l, st) = 0 := by
+      unfold Edges.oneIf popEnd; split
+      · exact if_neg (fun e => hst _ (congrArg Prod.snd (Option.some.inj e)).symm)
+      · exact if_neg (fun e => by cases e)
+    rw [z1, z2, o1, o2]
+  match st with
+  | [] => exact zero_case (fun _ e => by cases e)
+  | _ :: _ :: _ => exact zero_case (fun _ e => by cases e)
+  | [s] =>
+    have hb := h.bal "popch" [ofN r0, c', l, s]
+    simp only [jetTables, List.foldr_cons, List.foldr_nil] at hb
+    rw [sends_nobus' (A := memAir) rfl, sends_nobus' (A := progAir heap) rfl, sends_nobus' (A := rootsAir roots) rfl,
+      sends_nobus' (A := hdrAir jets) rfl, sends_nobus' (A := tmplAir jets) rfl, sends_nobus' (A := instwAir) rfl,
+      zero_add', zero_add', zero_add', zero_add', zero_add', add_zero', add_zero'] at hb
+    -- the POP rows
+    have hpop : tableSends popAir Po "popch" [ofN r0, c', l, s] =
+        ofN ((popEdges Po (ofN r0) c').cntOut (l, [s])) - ofN ((popEdges Po (ofN r0) c').cntIn (l, [s])) := by
+      unfold tableSends
+      rw [foldr_range_congr Po.h (fun q hq => h.pop_rowSends hq _ _ _ _), fold_sub, fold_ofN, fold_ofN]
+      rfl
+    -- the CPU: only the instantiation row sends at its counter
+    have hcpu : tableSends (cpuAirJ hd0 stk0 ctr0) C "popch" [ofN r0, c', l, s] =
+        ofN (Edges.oneIf (popStart C r0 c') (l, [s])) - ofN (Edges.oneIf (popEnd C r0 c') (l, [s])) := by
+      unfold tableSends
+      rw [fold_single _ C.h r0 hr0 (fun r hr hne => by
+        rw [h.cpu_popch, env_main0 hr, env_main0 hr, clk_eq h.cpu r hr]
+        have hne' : ofN r ≠ ofN r0 := fun e => hne (ofN_inj (Nat.lt_trans hr hCP) (Nat.lt_trans hr0 hCP) e)
+        rw [if_neg (fun e => hne' (by simp only [List.cons.injEq] at e; exact e.1)),
+          if_neg (fun e => hne' (by simp only [List.cons.injEq] at e; exact e.1)), add_zero'])]
+      rw [h.cpu_popch]
+      simp only [env_main0 hr0, clk_eq h.cpu r0 hr0, hi]
+      rw [msg_ite, msg_ite]
+      unfold Edges.oneIf popStart popEnd
+      have ep : ∀ (o : Option Node), (if o = some (l, [s]) then (1 : F) else 0) =
+          ofN (if o = some (l, [s]) then 1 else 0) := by
+        intro o; split <;> rfl
+      have en : ∀ (o : Option Node), (if o = some (l, [s]) then -(1 : F) else 0) =
+          -ofN (if o = some (l, [s]) then 1 else 0) := by
+        intro o; split
+        · rfl
+        · decide
+      rw [ep, en, ← sub_eq_add_neg']
+    rw [hcpu, hpop] at hb
+    have e := bal_sub hb
+    rw [← ofN_add, ← ofN_add] at e
+    have b1 := sumTo_le_one (f := fun q => if (popEdges Po (ofN r0) c').act q &&
+      decide ((popEdges Po (ofN r0) c').outN q = (l, [s])) then 1 else 0) (fun q => by split <;> decide) Po.h
+    have b2 := sumTo_le_one (f := fun q => if (popEdges Po (ofN r0) c').act q &&
+      decide ((popEdges Po (ofN r0) c').inN q = (l, [s])) then 1 else 0) (fun q => by split <;> decide) Po.h
+    have o1 : Edges.oneIf (popStart C r0 c') (l, [s]) ≤ 1 := by unfold Edges.oneIf; split <;> decide
+    have o2 : Edges.oneIf (popEnd C r0 c') (l, [s]) ≤ 1 := by unfold Edges.oneIf; split <;> decide
+    have hP : Po.h + 1 < P := Nat.lt_of_le_of_lt (Nat.add_le_add_right h.pop_h 1) (by decide)
+    have e' := ofN_inj (Nat.lt_of_le_of_lt (Nat.add_le_add o1 b1) (by rw [Nat.add_comm]; exact hP))
+      (Nat.lt_of_le_of_lt (Nat.add_le_add o2 b2) (by rw [Nat.add_comm]; exact hP)) e
+    show sumTo Po.h _ + _ = sumTo Po.h _ + _
+    omega
+
+end
+
 end Circuit
