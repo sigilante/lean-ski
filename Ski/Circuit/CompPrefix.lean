@@ -76,9 +76,9 @@ theorem progRowsC_length (heap : List Cell) (N W : Nat) :
     (heap.zipIdx.filter fun x => !(3 ≤ x.2 && x.2 < 3 + N + W)).length ≤ (progRowsC heap N W).length := by
   unfold progRowsC; simp
 
-theorem witRows_get {N W q : Nat} (hq : q < N + W) :
-    (witRows N W).getD q [] = [ofN (3 + q), ofN 1, ofN (if q < N then 1 else 0)] := by
-  unfold witRows
+theorem witRowsG_get {a0 N W q : Nat} (hq : q < N + W) :
+    (witRowsG a0 N W).getD q [] = [ofN (a0 + q), ofN 1, ofN (if q < N then 1 else 0)] := by
+  unfold witRowsG
   rw [List.getD_eq_getElem?_getD, List.getElem?_append_left (by simp; omega)]
   by_cases hN : q < N
   · rw [List.getElem?_append_left (by simp; omega), List.getElem?_map, List.getElem?_range hN]
@@ -86,9 +86,14 @@ theorem witRows_get {N W q : Nat} (hq : q < N + W) :
   · rw [List.getElem?_append_right (by simp; omega), List.getElem?_map,
       List.getElem?_range (by simp; omega)]
     simp only [List.length_map, List.length_range, Option.map_some, Option.getD_some, if_neg hN]
-    rw [show 3 + N + (q - N) = 3 + q by omega]
+    rw [show a0 + N + (q - N) = a0 + q by omega]
 
-theorem witRows_length (N W : Nat) : N + W ≤ (witRows N W).length := by unfold witRows; simp
+theorem witRows_get {N W q : Nat} (hq : q < N + W) :
+    (witRows N W).getD q [] = [ofN (3 + q), ofN 1, ofN (if q < N then 1 else 0)] := witRowsG_get hq
+
+theorem witRowsG_length (a0 N W : Nat) : N + W ≤ (witRowsG a0 N W).length := by unfold witRowsG; simp
+
+theorem witRows_length (N W : Nat) : N + W ≤ (witRows N W).length := witRowsG_length 3 N W
 
 /-- The composed machine with the bits clear and the region blank: what
     the verifier holds. -/

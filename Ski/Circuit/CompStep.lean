@@ -126,7 +126,7 @@ theorem witRows_row (N W i : Nat) :
   · rw [List.getD_eq_getElem?_getD (l := witRows N W), List.getElem?_eq_getElem h, Option.getD_some]
     have hm := List.getElem_mem h
     generalize (witRows N W)[i] = row at hm ⊢
-    unfold witRows at hm
+    unfold witRows witRowsG at hm
     simp only [List.mem_append, List.mem_map, List.mem_range] at hm
     rcases hm with (⟨j, _, e⟩ | ⟨j, _, e⟩) | hm
     · rw [← e]; exact .inl rfl

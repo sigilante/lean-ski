@@ -138,30 +138,30 @@ theorem progC_honest {A heap : List Cell} {N W : Nat}
 
 section
 
-variable {A : List Cell} {N W : Nat}
-  (hbits : ∀ i, i < N → A.getD (3 + i) .nil = .K ∨ A.getD (3 + i) .nil = .app 0 1)
-  (hreg : ∀ i, i < W → cellOK (3 + N + i) (A.getD (3 + N + i) .nil) = true)
-  (hsmall : 3 + N + W ≤ 2 ^ 24) (hlen : 3 + N + W ≤ A.length)
-include hbits hreg hlen
+variable {a0 : Nat} {A : List Cell} {N W : Nat} (ha0 : 0 < N → 2 ≤ a0)
+  (hbits : ∀ i, i < N → A.getD (a0 + i) .nil = .K ∨ A.getD (a0 + i) .nil = .app 0 1)
+  (hreg : ∀ i, i < W → cellOK (a0 + N + i) (A.getD (a0 + N + i) .nil) = true)
+  (hsmall : a0 + N + W ≤ 2 ^ 24) (hlen : a0 + N + W ≤ A.length)
+include ha0 hbits hreg hlen
 
 /-- **The witness table's messages are honest.** -/
-theorem witT_honest : ∀ r, r < (witTable A N W).h → ∀ I ∈ (witAir N W).inters, I.bus = "mem" →
-    I.count.eval ((witTable A N W).env r) ≠ 0 →
-    ∃ m, m < A.length ∧ I.fields.map (fun e => e.eval ((witTable A N W).env r)) = tupleOf A m := by
+theorem witT_honest : ∀ r, r < (witTableG a0 A N W).h → ∀ I ∈ (witAir N W).inters, I.bus = "mem" →
+    I.count.eval ((witTableG a0 A N W).env r) ≠ 0 →
+    ∃ m, m < A.length ∧ I.fields.map (fun e => e.eval ((witTableG a0 A N W).env r)) = tupleOf A m := by
   intro q hq I hI hbus hc
   simp only [witAir, witInters, List.mem_cons, List.not_mem_nil, or_false] at hI
   rcases hI with rfl | rfl
-  · have pv := witT_penv (A := A) hq
-    have ev := witT_env (A := A) hq
+  · have pv := witT_penv (a0 := a0) (A := A) hq
+    have ev := witT_env (a0 := a0) (A := A) hq
     rcases Nat.lt_or_ge q (N + W) with hact | hact
-    · obtain ⟨hok, _⟩ := wit_cell hbits hreg hact
-      obtain ⟨vf, va, vb, _, _⟩ := witCol_active (A := A) hact
-      have hpre := witRows_get (N := N) (W := W) hact
-      refine ⟨3 + q, by omega, ?_⟩
+    · obtain ⟨hok, _⟩ := wit_cell ha0 hbits hreg hact
+      obtain ⟨vf, va, vb, _, _⟩ := witCol_active (a0 := a0) (A := A) hact
+      have hpre := witRowsG_get (a0 := a0) (N := N) (W := W) hact
+      refine ⟨a0 + q, by omega, ?_⟩
       simp only [List.map_cons, List.map_nil, E.eval, pv, hpre, ev, B.c, vf 1 (by decide), vf 2 (by decide),
         vf 3 (by decide), va, vb]
       unfold tupleOf
-      generalize A.getD (3 + q) .nil = cell at hok ⊢
+      generalize A.getD (a0 + q) .nil = cell at hok ⊢
       rcases cellOK_cases hok with rfl | rfl | rfl | ⟨x, y, rfl, _, _⟩
       · rfl
       · rfl
@@ -169,7 +169,7 @@ theorem witT_honest : ∀ r, r < (witTable A N W).h → ∀ I ∈ (witAir N W).i
       · rfl
     · exfalso; apply hc
       show (prec 1).eval _ = 0
-      rw [pv, witRows_pad (by omega) hq]; rfl
+      rw [pv, witRowsG_pad (by omega) hq]; rfl
   · exact absurd hbus (by decide)
 
 end
@@ -464,8 +464,8 @@ theorem memC_sat (A : List Cell) (cpu prog wit : AirD) (C Pg Wt : Table) (hA : 0
     show (0 : F) * (0 - ofN 1) = 0
     exact zero_mul' _
 
-theorem witT_blindZero {A : List Cell} {N W : Nat} : ∀ r, r < (witTable A N W).h → ∀ I ∈ (witAir N W).inters,
-    I.bus ≠ "mem" → I.count.eval ((witTable A N W).env r) = 0 := by
+theorem witT_blindZero {a0 : Nat} {A : List Cell} {N W : Nat} : ∀ r, r < (witTableG a0 A N W).h →
+    ∀ I ∈ (witAir N W).inters, I.bus ≠ "mem" → I.count.eval ((witTableG a0 A N W).env r) = 0 := by
   intro q hq I hI hb
   simp only [witAir, witInters, List.mem_cons, List.not_mem_nil, or_false] at hI
   rcases hI with rfl | rfl
@@ -552,10 +552,12 @@ theorem segRows_le {roots : List Nat} (h : roots.length ≤ 2 ^ 24) : (segRows r
   simp only [List.length_map, List.length_zipIdx] at hp ⊢
   omega
 
-theorem witRows_len {N W : Nat} (h : N + W ≤ 2 ^ 8) : (witRows N W).length = 2 ^ 8 := by
-  unfold witRows
+theorem witRowsG_len {a0 N W : Nat} (h : N + W ≤ 2 ^ 8) : (witRowsG a0 N W).length = 2 ^ 8 := by
+  unfold witRowsG
   simp only [List.length_append, List.length_map, List.length_range, List.length_replicate]
   omega
+
+theorem witRows_len {N W : Nat} (h : N + W ≤ 2 ^ 8) : (witRows N W).length = 2 ^ 8 := witRowsG_len h
 
 /-- **Completeness of the composed circuit**: a run the Lean AIR with
     segments accepts, from the composed machine of literal bits and a
@@ -686,11 +688,11 @@ theorem comp_complete {M : MF} {W : Nat} {Rs : List AirD} (hs : sameAirsB Rs (co
       · exact ⟨hcpu, .inl rfl⟩
       · exact ⟨memC_sat A _ _ _ _ _ _ (by omega), .inl rfl⟩
       · exact ⟨(progC_sat _ _ _).1, .inr (progC_sat _ _ _).2⟩
-      · exact ⟨wit_sat hbits hreg hsmall, .inr ⟨rfl, fun _ _ _ _ => rfl⟩⟩
+      · exact ⟨wit_sat (a0 := 3) (fun _ => by decide) hbits hreg hsmall, .inr ⟨rfl, fun _ _ _ _ => rfl⟩⟩
       · exact ⟨⟨segRows_pos _, fun c hc => nomatch hc⟩, .inr ⟨rfl, fun _ _ _ _ => rfl⟩⟩
     · rw [z]
       exact balancedC hAl hRlt (by omega) (cpuC_honest hA hK) (cpuC_segsHonest hA hK hnR) (cpuC_blindZero hA hK)
-        (progC_honest hpubA) (witT_honest hbits hreg hlenW) witT_blindZero
+        (progC_honest hpubA) (witT_honest (a0 := 3) (fun _ => by decide) hbits hreg hlenW) witT_blindZero
     · rw [z]
       unfold HeightsOK compTables
       simp only [List.foldr_cons, List.foldr_nil]

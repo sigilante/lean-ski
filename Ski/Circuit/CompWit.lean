@@ -55,21 +55,18 @@ theorem wit_env {Wt : Table} {q : Nat} (hq : q < Wt.h) (i : Nat) : (col i).eval 
 theorem wit_pre {Wt : Table} {q : Nat} (hq : q < Wt.h) (i : Nat) : (prec i).eval (Wt.env q) = Wt.pre q i := by
   show Wt.pre ((q + 0) % Wt.h) i = _; rw [Nat.add_zero, Nat.mod_eq_of_lt hq]
 
-section
-
-variable {hd0 stk0 ctr0 n nilA : Nat} {heap : List Cell} {N W : Nat} {roots : List Nat}
-  {C Mm Pg Wt Sg : Table} (h : CompOK hd0 stk0 ctr0 n nilA heap N W roots C Mm Pg Wt Sg)
-include h
-
-theorem CompOK.memW {c : E} (hc : c ∈ witCons) {q : Nat} (hq : q < Wt.h) : c.eval (Wt.env q) = 0 :=
-  h.wit.cons hc hq
-
-/-- **An active witness row's cell**: in memory at its address, well
-    formed, and in bit mode `K` or `A 0 1`. -/
-theorem CompOK.witCell {q : Nat} (hq : q < Wt.h) (hact : Wt.pre q 1 = 1) :
+/-- **An active witness row's cell**, from any tables: in memory at its
+    address, well formed, and in bit mode `K` or `A 0 1`. -/
+theorem witCellG {Wt Mm : Table}
+    (hsat : ∀ c ∈ witCons, ∀ q, q < Wt.h → c.eval (Wt.env q) = 0)
+    (hlook : ∀ q, q < Wt.h → (prec 1).eval (Wt.env q) = 1 → ∃ m, m < Mm.h ∧
+      [Mm.main m 0, Mm.main m 1, Mm.main m 2, Mm.main m 3] =
+        (witInters.headD ⟨"", 0, .const 0, []⟩).fields.map (fun e => e.eval (Wt.env q)))
+    (haddr : ∀ m, m < Mm.h → Mm.main m 0 = ofN m) (hmh : Mm.h ≤ 2 ^ 27)
+    {q : Nat} (hq : q < Wt.h) (hact : Wt.pre q 1 = 1) :
     ∃ cell, (Wt.pre q 0).val < Mm.h ∧ (memOf Mm)[(Wt.pre q 0).val]? = some cell ∧
       cellOK (Wt.pre q 0).val cell = true ∧ (Wt.pre q 2 = 1 → cell = .K ∨ cell = .app 0 1) := by
-  have mem := fun {c : E} (hc : c ∈ witCons) => h.memW hc hq
+  have mem := fun {c : E} (hc : c ∈ witCons) => hsat c hc q hq
   have ev := wit_env hq
   have pv := wit_pre hq
   -- the flags are bits, one of them set
@@ -118,11 +115,17 @@ theorem CompOK.witCell {q : Nat} (hq : q < Wt.h) (hact : Wt.pre q 1 = 1) :
   have nlt : ∀ k, k < 4 → ((wnum k).eval (Wt.env q)).val < 2 ^ 24 := fun k hk =>
     bits_lt hq (WT_BITS + k * RANGE_BITS) (hbits k hk)
   let tag := Wt.main q 1 + Wt.main q 2 * ofN 2 + Wt.main q 3 * ofN 3
-  have hit := h.memHit (v := [Wt.pre q 0, tag, Wt.main q WT_A, Wt.main q WT_B])
-    ⟨(witAir N W, Wt), by simp [compTables], rfl, q, hq, _, List.mem_cons_self, rfl,
-      by simp only [witInters, List.map_cons, List.map_nil, E.eval, ev, pv, B.c]; rfl,
-      by show (prec 1).eval _ = 1; rw [pv, hact]⟩
-  obtain ⟨hlt, hget⟩ := h.cell hit
+  obtain ⟨m, hm, e⟩ := hlook q hq (by rw [pv, hact])
+  have e' : [Mm.main m 0, Mm.main m 1, Mm.main m 2, Mm.main m 3] =
+      [Wt.pre q 0, tag, Wt.main q WT_A, Wt.main q WT_B] := by
+    rw [e]; simp only [witInters, List.headD_cons, List.map_cons, List.map_nil, E.eval, ev, pv, B.c]; rfl
+  simp only [List.cons.injEq, and_true] at e'
+  obtain ⟨e0, e1, e2, e3⟩ := e'
+  have hmP : m < P := Nat.lt_of_lt_of_le hm (Nat.le_trans hmh (by decide))
+  rw [haddr m hm] at e0
+  have hlt : (Wt.pre q 0).val < Mm.h := by rw [← e0, val_ofN hmP]; exact hm
+  have hget : (memOf Mm)[(Wt.pre q 0).val]? = some (cellOf tag (Wt.main q WT_A) (Wt.main q WT_B)) := by
+    rw [← e0, val_ofN hmP, memOf_get hm, e1, e2, e3]
   refine ⟨_, hlt, hget, ?_⟩
   -- the four kinds
   rcases fb 0 (by decide) with f0 | f0 <;> rcases fb 1 (by decide) with f1 | f1 <;>
@@ -153,8 +156,24 @@ theorem CompOK.witCell {q : Nat} (hq : q < Wt.h) (hact : Wt.pre q 1 = 1) :
     rw [hb] at t5
     exact absurd t5 (by decide)
 
+
+section
+
+variable {hd0 stk0 ctr0 n nilA : Nat} {heap : List Cell} {N W : Nat} {roots : List Nat}
+  {C Mm Pg Wt Sg : Table} (h : CompOK hd0 stk0 ctr0 n nilA heap N W roots C Mm Pg Wt Sg)
+include h
+
+theorem CompOK.memW {c : E} (hc : c ∈ witCons) {q : Nat} (hq : q < Wt.h) : c.eval (Wt.env q) = 0 :=
+  h.wit.cons hc hq
+
+/-- **An active witness row's cell**: in memory at its address, well
+    formed, and in bit mode `K` or `A 0 1`. -/
+theorem CompOK.witCell {q : Nat} (hq : q < Wt.h) (hact : Wt.pre q 1 = 1) :
+    ∃ cell, (Wt.pre q 0).val < Mm.h ∧ (memOf Mm)[(Wt.pre q 0).val]? = some cell ∧
+      cellOK (Wt.pre q 0).val cell = true ∧ (Wt.pre q 2 = 1 → cell = .K ∨ cell = .app 0 1) :=
+  witCellG (fun c hc q hq => h.memW hc hq)
+    (fun q hq hc => h.memHit ⟨(witAir N W, Wt), by simp [compTables], rfl, q, hq, _, List.mem_cons_self, rfl, rfl, hc⟩)
+    (mem_addrC h.mem) h.mem_h hq hact
 end
 
 end Circuit
-
-#print axioms Circuit.CompOK.witCell

@@ -106,12 +106,15 @@ def witInters : List Inter :=
 /-- `pow2_at_least n log`: the least power of two at least `n` and `2^log`. -/
 def pow2Min (lg n : Nat) : Nat := pow2From 64 (2 ^ lg) n
 
-/-- The witness table's preprocessed rows: the bit cells in bit mode, then
-    the region's, padded to `2^8`. -/
-def witRows (N W : Nat) : List (List F) :=
-  let rows := (List.range N).map (fun i => [ofN (3 + i), ofN 1, ofN 1]) ++
-    (List.range W).map (fun i => [ofN (3 + N + i), ofN 1, ofN 0])
+/-- The witness table's preprocessed rows, from base address `a0`: the bit
+    cells in bit mode, then the region's, padded to `2^8`. -/
+def witRowsG (a0 N W : Nat) : List (List F) :=
+  let rows := (List.range N).map (fun i => [ofN (a0 + i), ofN 1, ofN 1]) ++
+    (List.range W).map (fun i => [ofN (a0 + N + i), ofN 1, ofN 0])
   rows ++ List.replicate (2 ^ 8 - rows.length) [ofN 0, ofN 0, ofN 0]
+
+/-- The composed circuit's: the bits at `3` on. -/
+def witRows (N W : Nat) : List (List F) := witRowsG 3 N W
 
 def witAir (N W : Nat) : AirD := ⟨"wit", WT_BLIND + 5, 3, witCons, witInters, witRows N W⟩
 

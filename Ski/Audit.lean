@@ -26,6 +26,7 @@ import Ski.Circuit.CompAir
 import Ski.Circuit.CompFinal
 import Ski.Circuit.CompComplete
 import Ski.Circuit.WitAir
+import Ski.Circuit.WitComplete
 import Ski.BoolProbe
 import Ski.Statement
 import Ski.Sudoku
@@ -575,3 +576,9 @@ open Ski.Audit
   Circuit.cpuC_sat Circuit.cpuC_memSend Circuit.foldBits_val Circuit.wit_sat Circuit.AcceptsC.ctr_le
   Circuit.AcceptsC.stk_le Circuit.progC_honest Circuit.witT_honest Circuit.cpuC_honest Circuit.cpuC_segsHonest
   Circuit.balancedC Circuit.memC_sat Circuit.comp_complete
+
+-- The hidden-term circuit: soundness against the atom's realizer, and completeness
+#audit_clean Circuit.RowOK.read Circuit.RowOK.step Circuit.RowOK.halt Circuit.RowOK.acceptsFrom
+  Circuit.witCellG Circuit.WitOK.row Circuit.wMachine_fits Circuit.WitOK.heap0 Circuit.WitOK.sound
+  Circuit.wit_guarded Circuit.witExport_sound Circuit.cpuW_sat Circuit.cpuW_honest Circuit.progW_honest
+  Circuit.balancedW Circuit.wit_complete

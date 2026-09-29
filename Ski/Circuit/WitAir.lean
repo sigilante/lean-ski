@@ -37,10 +37,9 @@ def progRowsW (heap : List Cell) (W : Nat) : List (List F) :=
 def progAirW (heap : List Cell) (W : Nat) : AirD :=
   ⟨"prog", 1, 5, [col 0], [⟨"mem", 1, prec 4, [prec 0, prec 1, prec 2, prec 3]⟩], progRowsW heap W⟩
 
-/-- The witness table's rows: the region's addresses, active, not in bit
-    mode, padded to `2^8`. -/
-def witRowsW (W : Nat) : List (List F) :=
-  (List.range W).map (fun i => [ofN i, ofN 1, ofN 0]) ++ List.replicate (2 ^ 8 - W) [ofN 0, ofN 0, ofN 0]
+/-- The witness table's rows: the region's addresses from `0`, active, not
+    in bit mode, padded to `2^8`. -/
+def witRowsW (W : Nat) : List (List F) := witRowsG 0 0 W
 
 def witAirW (W : Nat) : AirD := ⟨"wit", WT_BLIND + 5, 3, witCons, witInters, witRowsW W⟩
 

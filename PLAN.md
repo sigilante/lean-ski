@@ -763,9 +763,14 @@ accepts, from literal bits and a well-formed region, at the verifier's
 heights, has honest tables the circuit accepts (the blinding flags clear),
 decoding back to the run.
 
-Not yet covered: jets (`AcceptsJ`), probes (`AcceptsP`), the hidden-term
-witness circuit and the Sudoku circuit. Their headers still argue the
-step informally.
+The hidden-term circuit (`bench/plonky3/src/witness.rs`): its four AIRs as
+data (`witAirs`), checked against the Rust by its verifier; soundness,
+`witExport_sound` (an accepted proof's region realizes the atom), and
+completeness, `wit_complete` (every run from the witness machine of a
+well-formed region, ending at `K`, at the verifier's heights).
+
+Not yet covered: jets (`AcceptsJ`), probes (`AcceptsP`) and the Sudoku
+circuit. Their headers still argue the step informally.
 
 ## 6. Acceptance
 
