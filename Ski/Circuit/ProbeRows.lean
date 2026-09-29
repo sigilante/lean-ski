@@ -114,6 +114,15 @@ theorem range_eqP {j : Nat} (hj : j < 4) :
     · exact .inr hm)
   simpa [E.eval, B.col, B.one, B.c, env_main0 hr, ofN_one] using this
 
+/-- The first row's registers. -/
+theorem first_regsP (h0 : r = 0) : T.main r HD = ofN hd0 ∧ T.main r CTR = ofN ctr0 := by
+  subst h0
+  have hf : T.env 0 .first = 1 := rfl
+  have h1 := memP_last hs hr (x := whenFirst (eq (col HD) (c hd0))) (by simp)
+  have h3 := memP_last hs hr (x := whenFirst (eq (col CTR) (c ctr0))) (by simp)
+  simp only [B.whenFirst, B.eq, B.col, B.c, E.eval, hf, one_mul', env_main0 hr] at h1 h3
+  exact ⟨sub_eq_zero h1, sub_eq_zero h3⟩
+
 end Row
 
 /-- **A range check bounds an address**: `c = a + 1 + v`, with no wrap. -/
@@ -993,6 +1002,146 @@ theorem ProbeOK.childPtr (hfit : planFitB plan = true) (hn : n = plan.length)
     (Nat.lt_trans (Nat.lt_trans hi spa') (by decide)) hfi
   rw [hfld, popsAt_length, hfi', popsAt_get Po e hi, hx]
   exact ⟨hi, rfl⟩
+
+-- ---------------------------------------------------------------------------
+-- The table is a run of the AIR with probe segments
+-- ---------------------------------------------------------------------------
+
+/-- A row that is no probe row, before the last, is a row within a
+    segment. -/
+theorem ProbeOK.norm (hroots : RootsOK heap roots jets) (hjfit : jets.all jetFitB = true) {i : Nat}
+    (hi : i + 1 < C.h) (hnp : isPr C i = false) :
+    NormRow (memOf Mm) roots jets (rowOf C i) (rowOf C (i + 1)) := by
+  have hi' : i < C.h := Nat.lt_of_succ_lt hi
+  obtain ⟨k, hk, hsel⟩ := kind_ofP h.cpu hi'
+  have hk12 : k < 12 := by
+    rcases Nat.lt_or_ge k 12 with h' | h'
+    · exact h'
+    · exfalso
+      have hsum := sprobe_ind h.cpu hi'
+      rw [hnp, hsel 12 (by decide), hsel 13 (by decide)] at hsum
+      rcases (show k = 12 ∨ k = 13 by have : k < NKINDS := hk; unfold NKINDS at this; omega) with rfl | rfl
+      · exact absurd hsum (by decide)
+      · exact absurd hsum (by decide)
+  rcases Nat.lt_or_ge k 11 with hk11 | hk11
+  · have hK : IsKind C i k := ⟨hk11, hsel⟩
+    have hs := h.row.rowSat hi' hK
+    obtain ⟨_, _, _, _, n1, n2, n3⟩ := kind_facts hi' hK
+    obtain ⟨m1, m2, m3⟩ := next_regs hs hi' hi
+    have hnext : rowOf C (i + 1) = ⟨((nextHdOf k).eval (C.env i)).val,
+        ((nextStkOf k).eval (C.env i)).val, ((nextCtrOf k).eval (C.env i)).val⟩ := by
+      simp only [rowOf, m1, m2, m3, n1, n2, n3]
+    rcases Nat.lt_or_ge k 4 with hk4 | hk4
+    · exact .inl (by rw [hnext]; exact h.row.step hi' hK hk4)
+    · refine .inr (.inr ⟨h.row.halt hi' hK hk4, ?_⟩)
+      rw [hnext, nextHdOf_halt hk4, nextStkOf_halt hk4, nextCtrOf_halt hk4]
+      simp only [rowOf, col_eval hi']
+  · have hk' : k = 11 := Nat.le_antisymm (Nat.le_of_lt_succ hk12) hk11
+    subst hk'
+    have h11 : C.main i (SEL + 11) = 1 := by rw [hsel 11 (by decide), if_pos rfl]
+    exact .inr (.inl (h.core.inst hi h11 hroots hjfit))
+
+/-- **The probe circuit's tables are a run of the AIR with probe segments**
+    for the plan, from the machine its first row and the memory's prefix
+    name. -/
+theorem ProbeOK.acceptsP (hroots : RootsOK heap roots jets) (hjfit : jets.all jetFitB = true)
+    (hfit : planFitB plan = true) (hn : n = plan.length) (hla : la = lastAtom plan)
+    (hlast : ∀ s, plan.getLast? = some s → s.arity = 0) {m0 : Mach}
+    (hheap : (memOf Mm).take ctr0 = m0.heap) (hhd : m0.hd = hd0) (hctr : m0.heap.length = ctr0)
+    (hP : hd0 < P ∧ ctr0 < P) :
+    AcceptsP (memOf Mm) m0 roots jets plan (pRow C n) (fldP C Mm plan n) (rowOf C) := by
+  have hH : C.h < P := Nat.lt_of_le_of_lt h.cpu_h (by decide)
+  have hnP : n < P := by rw [hn]; exact Nat.lt_of_le_of_lt h.plan_le (by decide)
+  have h0 : 0 < C.h := h.cpu.1
+  obtain ⟨e1, e3⟩ := first_regsP h.cpu h0 (rfl : 0 = 0)
+  have ctr0' : (rowOf C 0).ctr = ctr0 := by show (C.main 0 CTR).val = _; rw [e3, val_ofN hP.2]
+  have hd0' : (rowOf C 0).hd = hd0 := by show (C.main 0 HD).val = _; rw [e1, val_ofN hP.1]
+  have hp0 := pr_first h.cpu hH h0
+  obtain ⟨hn0, hrow0⟩ := pr_eq h.cpu hH hnP h0 h0 hp0
+  have hpc0 : pc C 0 = 0 := rfl
+  rw [hpc0] at hn0 hrow0
+  -- the probe rows' facts, by segment
+  have seg : ∀ j s, plan[j]? = some s → j < n ∧ pRow C n j + 1 < C.h ∧ isPr C (pRow C n j) = true ∧
+      pc C (pRow C n j) = j ∧ SegAt C (pRow C n j) S_BASE s := by
+    intro j s hs
+    have hj : j < n := by rw [hn]; exact (List.getElem?_eq_some_iff.1 hs).1
+    obtain ⟨hl, hp, hc⟩ := pRow_spec h.cpu hH hnP h0 hj
+    obtain ⟨s', hs', hS⟩ := h.sSeg (Nat.lt_of_lt_of_le hl (Nat.sub_le _ _)) hp
+    rw [hc, hs] at hs'
+    cases hs'
+    exact ⟨hj, by omega, hp, hc, hS⟩
+  refine ⟨by rw [← hn]; exact hn0, by rw [ctr0']; exact hheap, by rw [hd0', hhd], by rw [ctr0', hctr], hrow0,
+    fun j hj => pRow_mono h.cpu hH hnP h0 (by rw [hn]; exact hj), ?_, ?_, ?_, ?_⟩
+  · -- the probe rows
+    intro j s hs
+    obtain ⟨_, hr1, hp, hc, hS⟩ := seg j s hs
+    obtain ⟨sb, sk, _, _, _, _⟩ := planFit_get hfit hs
+    have hstep := h.probeStep hr1 hp hS sb sk
+    have hF : fptr plan (fldP C Mm plan n) (rowOf C 0).hd j = (C.main (pRow C n j) P_F).val := by
+      unfold fptr
+      rcases Nat.eq_zero_or_pos j with hj0 | hj0
+      · subst hj0
+        rw [if_pos rfl, hrow0]
+        have := (probe_row h.cpu h0).2.2.2.2.2.2.2
+        rw [(probe_first h.cpu h0 rfl).1, one_mul'] at this
+        rw [sub_eq_zero this]; rfl
+      · rw [if_neg (Nat.pos_iff_ne_zero.1 hj0), hs]
+        have hr0 : 0 < pRow C n j := by
+          rcases Nat.eq_zero_or_pos (pRow C n j) with h' | h'
+          · rw [h'] at hc; rw [hpc0] at hc; omega
+          · exact h'
+        rw [← hc] at hs
+        exact ((h.childPtr hfit hn (Nat.lt_of_succ_lt hr1) hr0 hp hs hS).2).symm
+    rw [hF]
+    exact hstep
+  · -- the fields
+    intro j s hj0 hs
+    obtain ⟨_, hr1, hp, hc, hS⟩ := seg j s hs
+    have hr0 : 0 < pRow C n j := by
+      rcases Nat.eq_zero_or_pos (pRow C n j) with h' | h'
+      · rw [h'] at hc; rw [hpc0] at hc; omega
+      · exact h'
+    rw [← hc] at hs
+    exact (h.childPtr hfit hn (Nat.lt_of_succ_lt hr1) hr0 hp hs hS).1
+  · -- the rows within segments
+    intro i hi hne
+    rw [← hn, pRow_last] at hi
+    have hi1 : i + 1 < C.h := by omega
+    cases hq : isPr C i with
+    | false => exact h.norm hroots hjfit hi1 hq
+    | true =>
+      obtain ⟨hlt, heq⟩ := pr_eq h.cpu hH hnP h0 (Nat.lt_of_succ_lt hi1) hq
+      exact absurd heq.symm (hne _ (by rw [← hn]; exact hlt))
+  · -- the end rows
+    intro j s hs
+    obtain ⟨hj, _, _, _, _⟩ := seg j s hs
+    obtain ⟨_, _, sc, sa, _, _⟩ := planFit_get hfit hs
+    rcases Nat.lt_or_ge (j + 1) n with hj1 | hj1
+    · obtain ⟨hl', hp', hc'⟩ := pRow_spec h.cpu hH hnP h0 hj1
+      have hr' : pRow C n (j + 1) < C.h := Nat.lt_of_lt_of_le hl' (Nat.sub_le _ _)
+      have hr0 : 0 < pRow C n (j + 1) := by
+        rcases Nat.eq_zero_or_pos (pRow C n (j + 1)) with h' | h'
+        · rw [h'] at hc'; rw [hpc0] at hc'; omega
+        · exact h'
+      have hl13 := (pr_later h.cpu hH hr' hr0 hp').2
+      obtain ⟨_, s', hs', hS'⟩ := h.eSeg hr' hl13
+      rw [hc', Nat.add_sub_cancel, hs] at hs'
+      cases hs'
+      obtain ⟨e, _, _, hpop, hend⟩ := h.endLater hr' hl13 hS' sa sc (planFit_get hfit hs).1
+      rw [fldP_eq hs hpop]
+      exact hend
+    · have hj' : j + 1 = n := by omega
+      have hsl : plan.getLast? = some s := by
+        rw [List.getLast?_eq_getElem?, ← hn, ← hj', Nat.add_sub_cancel]; exact hs
+      have ha0 := hlast s hsl
+      have hla' : la = s.ctor + s.base := by
+        rw [hla]; unfold lastAtom; rw [hsl]; rfl
+      rw [hj', pRow_last]
+      have hpop0 : popR (fun a => (memOf Mm)[a]?) (rowOf C (pRow C n (j + 1))).ctr s.arity
+          (rowOf C (pRow C n (j + 1))).stk = some ([], (rowOf C (pRow C n (j + 1))).stk) := by
+        rw [ha0]; rfl
+      rw [fldP_eq hs hpop0]
+      exact h.endLast h0 ha0 hla' (by rw [hla']; exact Nat.lt_trans (Nat.add_lt_add sc (planFit_get hfit hs).1) (by decide))
 
 end
 
