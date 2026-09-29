@@ -40,11 +40,15 @@ def isArg (j : Nat) : Op → Nat
   | .arg i => if i = j then 1 else 0
   | _ => 0
 
+/-- How often a template cell reads argument `j`. -/
+def cellUses (j : Nat) (cl : Nat × Option (Op × Op)) : Nat :=
+  match cl.2 with
+  | some (a, b) => isArg j a + isArg j b
+  | none => 0
+
 /-- How often a jet reads argument `j`: its cells' operands and its root. -/
 def usesOf (J : Air.Jet) (j : Nat) : Nat :=
-  ((symCells J J.body 0).1.map fun cl => match cl.2 with
-    | some (a, b) => isArg j a + isArg j b
-    | none => 0).sum + isArg j (symCells J J.body 0).2
+  ((symCells J J.body 0).1.map (cellUses j)).sum + isArg j (symCells J J.body 0).2
 
 /-- The 24 bits of `n`. -/
 def bitsOf (n : Nat) : List F := (List.range RANGE_BITS).map fun b => ofN ((n / 2 ^ b) % 2)

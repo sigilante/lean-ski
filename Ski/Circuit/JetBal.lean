@@ -411,4 +411,289 @@ theorem bal_wch {m0 : Mach} (hA : AcceptsJ R.A m0 R.roots R.jets R.k R.row) {K H
 
 end JRun
 
+-- ---------------------------------------------------------------------------
+-- Arguments
+-- ---------------------------------------------------------------------------
+
+theorem argIx_lt : ∀ {xs : List Nat} {y i : Nat}, argIx xs y = some i → i < xs.length
+  | [], _, _, h => by cases h
+  | x :: xs, y, i, h => by
+    unfold argIx at h
+    cases hr : argIx xs y with
+    | some i' =>
+      rw [hr] at h
+      cases h
+      have := argIx_lt hr
+      simp only [List.length_cons]; omega
+    | none =>
+      rw [hr] at h
+      simp only at h
+      split at h
+      · cases h; simp
+      · cases h
+
+/-- An operand's argument, if any, is below the arity. -/
+def ArgBelow (k : Nat) (o : Op) : Prop := ∀ i, o = .arg i → i < k
+
+/-- **Every argument a template reads is a formal.** -/
+theorem symCells_args (J : Air.Jet) : ∀ (body : OTerm) (off : Nat),
+    (∀ cl ∈ (symCells J body off).1, ∀ a b, cl.2 = some (a, b) → ArgBelow J.xs.length a ∧ ArgBelow J.xs.length b) ∧
+      ArgBelow J.xs.length (symCells J body off).2
+  | .S, _ => ⟨fun cl h => (by
+        rcases List.mem_singleton.1 (show cl ∈ [(((0 : Nat)), (none : Option (Op × Op)))] from h) with rfl
+        intro a b e; cases e), fun i e => (by cases e)⟩
+  | .K, _ => ⟨fun cl h => (by
+        rcases List.mem_singleton.1 (show cl ∈ [(((1 : Nat)), (none : Option (Op × Op)))] from h) with rfl
+        intro a b e; cases e), fun i e => (by cases e)⟩
+  | .I, _ => ⟨fun cl h => (by
+        rcases List.mem_singleton.1 (show cl ∈ [(((2 : Nat)), (none : Option (Op × Op)))] from h) with rfl
+        intro a b e; cases e), fun i e => (by cases e)⟩
+  | .var x, off => by
+    refine ⟨fun cl h => by simp only [symCells, List.not_mem_nil] at h, fun i e => ?_⟩
+    have e' : (symCells J (.var x) off).2 = varOp J x := rfl
+    rw [e'] at e
+    unfold varOp at e
+    split at e
+    · next i' h => cases e; exact argIx_lt h
+    · cases e
+  | .app f a, off => by
+    obtain ⟨hf, hrf⟩ := symCells_args J f off
+    obtain ⟨ha, hra⟩ := symCells_args J a (off + (symCells J f off).1.length)
+    refine ⟨fun cl h => ?_, fun i e => by unfold symCells at e; cases e⟩
+    unfold symCells at h
+    rcases List.mem_append.1 h with h | h
+    · rcases List.mem_append.1 h with h | h
+      · exact hf cl h
+      · exact ha cl h
+    · rw [List.mem_singleton] at h; subst h
+      intro x y e
+      simp only [Option.some.injEq, Prod.mk.injEq] at e
+      obtain ⟨rfl, rfl⟩ := e
+      exact ⟨hrf, hra⟩
+
+/-- Whether an operand reads the argument a tuple names. -/
+def argCnt (i : Nat) (ps : List Nat) (v : List F) : Op → Nat
+  | .arg a => if [ofN i, ofN a, ofN (ps.getD a 0)] = v then 1 else 0
+  | _ => 0
+
+def cellArgCnt (i : Nat) (ps : List Nat) (v : List F) (cl : Nat × Option (Op × Op)) : Nat :=
+  match cl.2 with
+  | some (a, b) => argCnt i ps v a + argCnt i ps v b
+  | none => 0
+
+theorem sumTo_single_val (x c : Nat) : ∀ n, x < n → sumTo n (fun q => if q = x then (if true then c else 0) else 0) = c
+  | 0, hx => absurd hx (Nat.not_lt_zero _)
+  | n + 1, hx => by
+    show sumTo n _ + (if n = x then (if true then c else 0) else 0) = c
+    rcases Nat.lt_or_ge x n with h | h
+    · rw [sumTo_single_val x c n h, if_neg (Nat.ne_of_gt h), Nat.add_zero]
+    · have e : n = x := Nat.le_antisymm h (Nat.le_of_lt_succ hx)
+      rw [if_pos e, sumTo_congr n (g := fun _ => 0) (fun q hq => if_neg (by omega)), sumTo_zero (fun _ => rfl) n,
+        Nat.zero_add]; rfl
+
+/-- Uses of each argument, summed against the arguments' tuples, are the
+    reads. -/
+theorem sum_isArg {k : Nat} (y : Nat → Nat) (o : Op) (ho : ArgBelow k o) :
+    sumTo k (fun j => isArg j o * y j) = match o with | .arg a => y a | _ => 0 := by
+  cases o with
+  | arg a =>
+    have ha := ho a rfl
+    show sumTo k (fun j => (if a = j then 1 else 0) * y j) = y a
+    have e : ∀ j, (if a = j then 1 else 0) * y j = if j = a then (if true then y a else 0) else 0 := by
+      intro j
+      rcases Nat.decEq j a with h | h
+      · rw [if_neg (Ne.symm h), if_neg h, Nat.zero_mul]
+      · subst h; rw [if_pos rfl, if_pos rfl, Nat.one_mul]; rfl
+    rw [sumTo_congr k (fun j _ => e j)]
+    exact sumTo_single_val a (y a) k ha
+  | local_ j => show sumTo k (fun _ => 0 * _) = 0; exact sumTo_zero (fun _ => Nat.zero_mul _) k
+  | glob g => show sumTo k (fun _ => 0 * _) = 0; exact sumTo_zero (fun _ => Nat.zero_mul _) k
+
+theorem sumTo_listSum {α : Type} (k : Nat) (y : Nat → Nat) (f : α → Nat → Nat) : ∀ l : List α,
+    sumTo k (fun j => (l.map fun c => f c j).sum * y j) = (l.map fun c => sumTo k (fun j => f c j * y j)).sum
+  | [] => sumTo_zero (fun _ => Nat.zero_mul _) k
+  | c :: l => by
+    simp only [List.map_cons, List.sum_cons]
+    rw [sumTo_congr k (fun j _ => Nat.add_mul (f c j) _ (y j)), sumTo_add, sumTo_listSum k y f l]
+
+theorem sumTo_shift (g : Nat → Nat) : ∀ n, sumTo (n + 1) g = g 0 + sumTo n (fun j => g (j + 1))
+  | 0 => by show 0 + g 0 = g 0 + 0; omega
+  | n + 1 => by
+    show sumTo (n + 1) g + g (n + 1) = g 0 + (sumTo n (fun j => g (j + 1)) + g (n + 1))
+    rw [sumTo_shift g n]; omega
+
+theorem listSum_sumTo {α : Type} (f : α → Nat) (d : α) : ∀ l : List α,
+    (l.map f).sum = sumTo l.length (fun j => f (l.getD j d))
+  | [] => rfl
+  | c :: l => by
+    rw [List.map_cons, List.sum_cons, List.length_cons, sumTo_shift, listSum_sumTo f d l]
+    rfl
+
+/-- The CPU's argument message, for any CPU table. -/
+theorem cpu_arg_gen {hd0 stk0 ctr0 : Nat} (C : Table) (r : Nat) (v : List F) :
+    rowSends (cpuAirJ hd0 stk0 ctr0) C "arg" v r =
+    if [C.env r (.main 0 J_CLK), C.env r (.main 0 J_RV), C.env r (.main 0 J_XROOT)] = v then
+      C.env r (.main 0 J_RA) else 0 := by
+  rw [cpu_rowSends_jet (by decide)]
+  simp only [jetInters, List.foldr_cons, List.foldr_nil, List.map_cons, List.map_nil, E.eval, B.col, B.c, sInst,
+    true_and, ofN_zero]
+  rw [if_neg (show ¬ ("roots" = "arg" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("hdr" = "arg" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("popch" = "arg" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("popch" = "arg" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("wch" = "arg" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("wch" = "arg" ∧ _) from fun h' => absurd h'.1 (by decide))]
+  simp only [zero_add', add_zero']
+
+theorem ofN_ind (P : Prop) [Decidable P] : ofN (if P then 1 else 0) = ind P := by
+  unfold ind; split <;> rfl
+
+/-- An operand's argument read, in the field. -/
+theorem argCnt_ofN (i : Nat) (ps : List Nat) (v : List F) (o : Op) :
+    (if [ofN i, (opCols o).getD 3 0, ofN (argVal ps o)] = v then (opCols o).getD 1 0 else 0) =
+      ofN (argCnt i ps v o) := by
+  cases o with
+  | arg a => show (if [ofN i, ofN a, ofN (ps.getD a 0)] = v then ofN 1 else 0) = ofN (if _ then 1 else 0)
+             split <;> rfl
+  | local_ j => show (if _ then ofN 0 else 0) = ofN 0; split <;> rfl
+  | glob a => show (if _ then ofN 0 else 0) = ofN 0; split <;> rfl
+
+theorem instw_arg (i c g j : Nat) (ps : List Nat) (cl : Nat × Option (Op × Op)) (hcl : cl.2 = none ∧ cl.1 < 3 ∨
+    (cl.1 = 3 ∧ ∃ a b, cl.2 = some (a, b))) (v : List F) :
+    rowSendsV instwAir "arg" v (instwRow i c g j ps cl) = ofN (cellArgCnt i ps v cl) := by
+  obtain ⟨t, ops⟩ := cl
+  simp only [rowSendsV, instwAir, instwInters, List.foldr_cons, List.foldr_nil, List.map_cons, List.map_nil, E.eval,
+    B.col, B.one, B.c, ofN_one, true_and]
+  rw [if_neg (show ¬ ("wch" = "arg" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("wch" = "arg" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("tmpl" = "arg" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("mem" = "arg" ∧ _) from fun h' => absurd h'.1 (by decide)), add_zero', add_zero', add_zero',
+    add_zero']
+  have ev : ∀ n, envOf (instwRow i c g j ps (t, ops)) (.main 0 n) = (instwRow i c g j ps (t, ops)).getD n 0 :=
+    fun _ => rfl
+  simp only [ev]
+  rcases hcl with ⟨hno, ht⟩ | ⟨_, a, b, hso⟩
+  · simp only at hno ht; subst hno
+    rw [JRun.instwRow_none i c g j t ps ht]
+    have z6 : ([ofN i, ofN c, ofN g, ofN j, ofN t, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1] : List F).getD 6 0 = 0 := rfl
+    have z10 : ([ofN i, ofN c, ofN g, ofN j, ofN t, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1] : List F).getD 10 0 = 0 := rfl
+    rw [z6, z10, ite_zero _ _ rfl, ite_zero _ _ rfl, zero_add']; rfl
+  · simp only at hso; subst hso
+    obtain ⟨hops, _, _, _, h15, h16, _⟩ := JRun.instwRow_some_get i c g j t ps a b
+    have g0 := (instwRow_get i c g j ps (t, some (a, b))).1
+    rw [g0, (hops 1 (by decide)).1, (hops 3 (by decide)).1, (hops 1 (by decide)).2, (hops 3 (by decide)).2, h15, h16,
+      argCnt_ofN, argCnt_ofN, add_zero', ← ofN_add]
+    rfl
+
+theorem pop_arg (i c j s x s' u : Nat) (v : List F) :
+    rowSendsV popAir "arg" v (popRow i c j s x s' u) = -ofN (u * if [ofN i, ofN j, ofN x] = v then 1 else 0) := by
+  obtain ⟨g0, _, g2, _, g4, _, g6, _, _⟩ := JRun.popRow_get i c j s x s' u
+  simp only [rowSendsV, popAir, popInters, List.foldr_cons, List.foldr_nil, List.map_cons, List.map_nil, E.eval,
+    B.col, B.one, B.c, ofN_one, true_and]
+  have ev : ∀ n, envOf (popRow i c j s x s' u) (.main 0 n) = (popRow i c j s x s' u).getD n 0 := fun _ => rfl
+  rw [if_neg (show ¬ ("popch" = "arg" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("popch" = "arg" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("mem" = "arg" ∧ _) from fun h' => absurd h'.1 (by decide)), zero_add', zero_add', zero_add',
+    add_zero', ev 0, ev 2, ev 4, ev 6, g0, g2, g4, g6]
+  split
+  · rw [Nat.mul_one]
+  · rw [Nat.mul_zero, ofN_zero]; decide
+
+theorem fold_neg_ofN (a : Nat → Nat) : ∀ H,
+    (List.range H).foldr (fun q acc => -ofN (a q) + acc) 0 = -ofN (sumTo H a)
+  | 0 => by show (0 : F) = -ofN 0; decide
+  | H + 1 => by
+    rw [List.range_succ, List.foldr_append, List.foldr_cons, List.foldr_nil, fold_acc, fold_neg_ofN a H, add_zero']
+    show _ = -ofN (sumTo H a + a H)
+    rw [ofN_add]
+    exact E.eval_eq_of_norm (e := .add (.neg (.atom (.main 0 0))) (.neg (.atom (.main 0 1))))
+      (e' := .neg (.add (.atom (.main 0 0)) (.atom (.main 0 1)))) (by decide) (at4 _ _ 0 0)
+
+/-- The argument reads of a jet at an instantiation, counted two ways. -/
+theorem uses_reads (J : Air.Jet) (i : Nat) (ps : List Nat) (ξ : Nat → Nat)
+    (hps : ps = (List.range J.xs.length).map ξ) (v : List F) :
+    sumTo J.xs.length (fun j => usesOf J j * if [ofN i, ofN j, ofN (ξ j)] = v then 1 else 0) =
+      ((symCells J J.body 0).1.map (cellArgCnt i ps v)).sum + argCnt i ps v (symCells J J.body 0).2 := by
+  obtain ⟨hcells, hroot⟩ := symCells_args J J.body 0
+  let y := fun j => if [ofN i, ofN j, ofN (ξ j)] = v then 1 else 0
+  have hy : ∀ a, a < J.xs.length → argCnt i ps v (.arg a) = y a := by
+    intro a ha
+    show (if [ofN i, ofN a, ofN (ps.getD a 0)] = v then 1 else 0) = _
+    rw [hps, List.getD_eq_getElem?_getD, List.getElem?_map, List.getElem?_range ha]; rfl
+  have hop : ∀ o, ArgBelow J.xs.length o → sumTo J.xs.length (fun j => isArg j o * y j) = argCnt i ps v o := by
+    intro o ho
+    rw [sum_isArg y o ho]
+    cases o with
+    | arg a => exact (hy a (ho a rfl)).symm
+    | local_ _ => rfl
+    | glob _ => rfl
+  unfold usesOf
+  have e := sumTo_listSum J.xs.length y (fun cl j => cellUses j cl) (symCells J J.body 0).1
+  rw [sumTo_congr _ (fun j _ => Nat.add_mul _ _ (y j)), sumTo_add, e, hop _ hroot]
+  congr 1
+  apply congrArg List.sum
+  apply List.map_congr_left
+  intro cl hcl
+  obtain ⟨t, ops⟩ := cl
+  cases ops with
+  | none => exact sumTo_zero (fun _ => Nat.zero_mul _) _
+  | some ab =>
+    obtain ⟨a, b⟩ := ab
+    obtain ⟨ha, hb⟩ := hcells _ hcl a b rfl
+    show sumTo _ (fun j => cellUses j (t, some (a, b)) * y j) = argCnt i ps v a + argCnt i ps v b
+    show sumTo _ (fun j => (isArg j a + isArg j b) * y j) = argCnt i ps v a + argCnt i ps v b
+    rw [sumTo_congr _ (fun j _ => Nat.add_mul _ _ (y j)), sumTo_add, hop a ha, hop b hb]
+
+namespace JRun
+
+variable (R : JRun)
+
+/-- **`ARG` balances**: each pop provides its argument as often as the jet
+    reads it. -/
+theorem bal_arg {m0 : Mach} (hA : AcceptsJ R.A m0 R.roots R.jets R.k R.row) {K HP HW : Nat}
+    (hHP : (R.popRows K).length ≤ HP) (hHW : (R.instwRows K).length ≤ HW) (v : List F) :
+    tableSends (cpuAirJ (R.row 0).hd (R.row 0).stk (R.row 0).ctr) (R.cpuTable K) "arg" v +
+      (tableSends popAir (R.popTable K HP) "arg" v + tableSends instwAir (R.instwTable K HW) "arg" v) = 0 := by
+  rw [show R.popTable K HP = ⟨HP, ofRows (R.popRows K), fun _ _ => 0⟩ from rfl,
+    show R.instwTable K HW = ⟨HW, ofRows (R.instwRows K), fun _ _ => 0⟩ from rfl,
+    sends_rows pop_nowOnly pop_quiet hHP, sends_rows instw_nowOnly instw_quiet hHW, popRows, instwRows,
+    foldr_flatMap, foldr_flatMap]
+  unfold tableSends
+  show (List.range K).foldr _ 0 + _ = 0
+  rw [foldr_range_congr K (fun i hi => cpu_arg_gen (R.cpuTable K) i v)]
+  rw [fold_add2, fold_add2]
+  apply foldr_zero_all
+  intro i hi
+  have hi' := List.mem_range.1 hi
+  cases hn : R.instAt i with
+  | none =>
+    have hra : (R.cpuTable K).env i (.main 0 J_RA) = 0 := by
+      show R.cpuCol ((i + 0) % K) J_RA = 0
+      rw [Nat.add_zero, Nat.mod_eq_of_lt hi']
+      unfold cpuCol; rw [hn]; simp only; rw [if_neg (by decide), if_neg (by decide)]
+    rw [ite_zero _ _ hra, zero_add']
+    unfold popRowsAt instwRowsAt; rw [hn]
+    show (0 : F) + 0 = 0; decide
+  | some p =>
+    obtain ⟨g, J⟩ := p
+    obtain ⟨σ, ξ, _, _, hps, hrows, _⟩ := R.popRowsAt_eq hn
+    have cv := R.inst_cols hi' hn
+    rw [cv, cv, cv, cv, show R.instCol i g J J_CLK = ofN i from rfl,
+      show R.instCol i g J J_RV = (opCols (symCells J J.body 0).2).getD 3 0 from rfl,
+      show R.instCol i g J J_XROOT = ofN (argVal (R.ps i J) (symCells J J.body 0).2) from rfl,
+      show R.instCol i g J J_RA = (opCols (symCells J J.body 0).2).getD 1 0 from rfl, argCnt_ofN]
+    rw [hrows, foldr_map_range, R.instwRowsAt_eq hn, foldr_map_range]
+    rw [foldr_range_congr _ (fun j _ => pop_arg i (R.row i).ctr j (σ j) (ξ j) (σ (j + 1)) (usesOf J j) v)]
+    rw [foldr_range_congr _ (fun j hj => instw_arg i (R.row i).ctr g j (R.ps i J) _
+      (symCells_cells J J.body 0 _ (by
+        rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hj]; exact List.getElem_mem hj)) v)]
+    rw [fold_neg_ofN, fold_ofN, uses_reads J i (R.ps i J) ξ hps v,
+      listSum_sumTo (cellArgCnt i (R.ps i J) v) (0, none)]
+    rw [ofN_add]
+    exact E.eval_eq_of_norm
+      (e := .add (.atom (.main 0 0)) (.add (.neg (.add (.atom (.main 0 1)) (.atom (.main 0 0)))) (.atom (.main 0 1))))
+      (e' := .const 0) (by decide) (at4 _ _ 0 0)
+
+end JRun
+
 end Circuit
