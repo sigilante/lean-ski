@@ -1145,4 +1145,110 @@ theorem ProbeOK.acceptsP (hroots : RootsOK heap roots jets) (hjfit : jets.all je
 
 end
 
+section
+
+open Mach Term
+
+variable {t : Term} {roots : List (Nat × Nat)} {jets : List Air.Jet} {plan : List Air.Seg}
+  {C Mm Pg Rt Hd Tm Po Iw Pl Pw : Table}
+  (h : ProbeOK (load t).hd (load t).stk (load t).heap.length plan.length (lastAtom plan) (load t).heap roots jets plan
+    C Mm Pg Rt Hd Tm Po Iw Pl Pw)
+include h
+
+/-- The program table puts the loaded heap in the memory. -/
+theorem ProbeOK.heap0 : (memOf Mm).take (load t).heap.length = (load t).heap := by
+  obtain ⟨hfit, _, _⟩ := load_fits t
+  have hP : (load t).heap.length < P := Nat.lt_of_le_of_lt h.heap_le (by decide)
+  apply List.ext_getElem?
+  intro i
+  rw [List.getElem?_take]
+  split
+  · next hi =>
+    have hPg : i < Pg.h := by
+      have e : Pg.h = (programRows (load t).heap).length := h.pgpre.1
+      have := programRows_length (load t).heap
+      omega
+    have hc := hfit _ (List.getElem_mem hi)
+    have hpre : ∀ j, j < 5 → (prec j).eval (Pg.env i) = ((programRows (load t).heap).getD i []).getD j 0 :=
+      fun j hj => prec_eval h.pgpre hPg hj
+    have hm := h.row.cell (h.memHit (v := [ofN i, ofN (cellTag (load t).heap[i]),
+      ofN (cellFields (load t).heap[i]).1, ofN (cellFields (load t).heap[i]).2])
+      ⟨(progAir (load t).heap, Pg), List.mem_cons_of_mem _ (List.mem_cons_of_mem _ List.mem_cons_self), rfl, i, hPg,
+        ⟨"mem", 1, prec 4, [prec 0, prec 1, prec 2, prec 3]⟩, List.mem_cons_self, rfl,
+        by simp only [List.map_cons, List.map_nil, hpre 0 (by decide), hpre 1 (by decide), hpre 2 (by decide),
+          hpre 3 (by decide), programRows_get hi]; rfl,
+        by rw [hpre 4 (by decide), programRows_get hi]; rfl⟩)
+    rw [val_ofN (Nat.lt_trans hi hP), cellOf_enc _ (Nat.lt_trans hc.1 hP) (Nat.lt_trans hc.2 hP)] at hm
+    rw [hm.2, List.getElem?_eq_getElem hi]
+  · next hi => rw [List.getElem?_eq_none (Nat.le_of_not_lt hi)]
+
+/-- **Soundness of the probe circuit, from its tables**: they are a run of
+    the AIR with probe segments from the loaded term. -/
+theorem ProbeOK.sound (hroots : RootsOK (load t).heap roots jets) (hjfit : jets.all jetFitB = true)
+    (hfit : planFitB plan = true) (hlast : ∀ s, plan.getLast? = some s → s.arity = 0) :
+    AcceptsP (memOf Mm) (load t) roots jets plan (pRow C plan.length) (fldP C Mm plan plan.length) (rowOf C) := by
+  obtain ⟨_, hhd, _⟩ := load_fits t
+  have hP : (load t).heap.length < P := Nat.lt_of_le_of_lt h.heap_le (by decide)
+  exact h.acceptsP hroots hjfit hfit rfl rfl hlast h.heap0 rfl rfl ⟨Nat.lt_trans hhd hP, hP⟩
+
+end
+
+open Mach Term
+
+set_option maxRecDepth 100000 in
+/-- The probe circuit is guarded, for every term, jet table and plan. -/
+theorem probe_guarded (t : Term) (roots : List (Nat × Nat)) (jets : List Air.Jet) (plan : List Air.Seg) :
+    ∀ A ∈ probeAirs t roots jets plan, A.cons.all E.guarded = true := by
+  intro A hA
+  simp only [probeAirs, List.mem_cons, List.not_mem_nil, or_false] at hA
+  rcases hA with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> rfl
+
+/-- Acceptance of the probe circuit's data is `ProbeOK`. -/
+theorem probeOK_of {t : Term} {roots : List (Nat × Nat)} {jets : List Air.Jet} {plan : List Air.Seg}
+    {ts : List Table} (h : Accepted (probeAirs t roots jets plan) ts) :
+    ∃ C Mm Pg Rt Hd Tm Po Iw Pl Pw, ts = [C, Mm, Pg, Rt, Hd, Tm, Po, Iw, Pl, Pw] ∧
+      ProbeOK (load t).hd (load t).stk (load t).heap.length plan.length (lastAtom plan) (load t).heap roots jets plan
+        C Mm Pg Rt Hd Tm Po Iw Pl Pw := by
+  obtain ⟨hl, hsat, hbal, hht, htwo⟩ := h
+  match ts, hl with
+  | [C, Mm, Pg, Rt, Hd, Tm, Po, Iw, Pl, Pw], _ =>
+    have mem : ∀ A T, (A, T) ∈ probeTables (load t).hd (load t).stk (load t).heap.length plan.length (lastAtom plan)
+        (load t).heap roots jets plan C Mm Pg Rt Hd Tm Po Iw Pl Pw → Sat A T ∧ (A.pre = 0 ∨ PreIs A T) :=
+      fun A T hm => hsat (A, T) hm
+    have pre : ∀ A T, (A, T) ∈ probeTables (load t).hd (load t).stk (load t).heap.length plan.length (lastAtom plan)
+        (load t).heap roots jets plan C Mm Pg Rt Hd Tm Po Iw Pl Pw → A.pre ≠ 0 → PreIs A T := by
+      intro A T hm hp
+      rcases (mem A T hm).2 with h0 | h0
+      · exact absurd h0 hp
+      · exact h0
+    exact ⟨C, Mm, Pg, Rt, Hd, Tm, Po, Iw, Pl, Pw, rfl, ⟨(mem _ _ (by simp [probeTables])).1,
+      (mem _ _ (by simp [probeTables])).1, (mem _ _ (by simp [probeTables])).1, (mem _ _ (by simp [probeTables])).1,
+      (mem _ _ (by simp [probeTables])).1,
+      pre _ _ (by simp [probeTables]) (by show (5 : Nat) ≠ 0; decide),
+      pre _ _ (by simp [probeTables]) (by show (2 : Nat) ≠ 0; decide),
+      pre _ _ (by simp [probeTables]) (by show (7 : Nat) ≠ 0; decide),
+      pre _ _ (by simp [probeTables]) (by show (11 : Nat) ≠ 0; decide),
+      pre _ _ (by simp [probeTables]) (by show (7 : Nat) ≠ 0; decide), hbal, hht, htwo⟩⟩
+
+/-- **Soundness of the probe circuit.**  If Plonky3 accepts a proof against
+    AIRs the same as the probe circuit for `t`, a jet table whose roots are
+    licensed (`rootsOKB`) and whose numbers fit (`jetFitB`), and the plan of
+    the outcome `o`'s probe tree, whose numbers fit (`planFitB`) and whose
+    last segment has no fields — all of which `compare-probe` checks — then
+    `t` decodes to `o`. -/
+theorem probeExport_sound [Kit] {t : Term} {roots : List (Nat × Nat)} {jets : List Air.Jet} {o : Outcome}
+    {v : Probe.V} (hv : Probe.toV o = some v)
+    (hroots : rootsOKB (load t).heap roots jets = true) (hjfit : jets.all jetFitB = true)
+    (hfit : planFitB (planOf v 0) = true) (hlast : (planOf v 0).getLast?.map (·.arity) = some 0)
+    {Rs : List AirD} {ts : List Table} (hs : sameAirsB Rs (probeAirs t roots jets (planOf v 0)) = true)
+    (h : AcceptedP Rs ts) : Decodes t o := by
+  have hacc := accepted_transfer hs ((acceptedP_iff_of (probe_guarded t roots jets (planOf v 0)) hs ts).1 h)
+  obtain ⟨C, Mm, Pg, Rt, Hd, Tm, Po, Iw, Pl, Pw, rfl, hok⟩ := probeOK_of hacc
+  have hR := rootsOKB_sound hroots
+  have hl : ∀ s, (planOf v 0).getLast? = some s → s.arity = 0 := by
+    intro s hs'
+    rw [hs'] at hlast
+    exact Option.some.inj hlast
+  exact air_probe_decodes hv (hok.sound hR hjfit hfit hl) hR
+
 end Circuit

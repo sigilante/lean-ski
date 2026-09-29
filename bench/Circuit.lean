@@ -310,6 +310,8 @@ def compareProbe (path : String) : IO UInt32 := do
     IO.println "THE JET TABLE DOES NOT FIT"; return 1
   if (plan.getLast?.map (·.arity)) != some 0 then
     IO.println "THE LAST SEGMENT HAS FIELDS"; return 1
+  if !planFitB plan then
+    IO.println "THE PLAN DOES NOT FIT"; return 1
   compareAirs rust (probeAirs t roots jets plan)
 
 def main (args : List String) : IO UInt32 := do

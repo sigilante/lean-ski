@@ -38,6 +38,8 @@ import Ski.Circuit.JetComplete
 import Ski.Circuit.JetCore
 import Ski.Circuit.ProbeAir
 import Ski.Circuit.ProbeKind
+import Ski.Circuit.ProbeSound
+import Ski.Circuit.ProbeRows
 import Ski.BoolProbe
 import Ski.Statement
 import Ski.Sudoku
@@ -627,3 +629,13 @@ open Ski.Audit
 -- An instantiation row from the buses' facts; the probe CPU's rows
 #audit_clean Circuit.JetCore.inst Circuit.JetOK.core Circuit.probe_facts Circuit.kind_ofP Circuit.rowSat_ofP
   Circuit.next_regsP Circuit.clk_eqP
+
+-- Probe soundness: the buses' facts, the chains, the probe rows, and the output bound
+#audit_clean Circuit.ProbeOK.memHit Circuit.ProbeOK.rootsHit Circuit.ProbeOK.hdrHit Circuit.ProbeOK.tmplHit
+  Circuit.ProbeOK.argHit Circuit.ProbeOK.planHit Circuit.ProbeOK.popConserve Circuit.ProbeOK.popConserveL
+  Circuit.ProbeOK.wchConserve Circuit.ProbeOK.pwConserve Circuit.ProbeOK.core Circuit.cnt_eq Circuit.pr_later
+  Circuit.pRow_spec Circuit.pr_eq Circuit.pRow_mono Circuit.ProbeOK.row Circuit.ProbeOK.readHead
+  Circuit.ProbeOK.nilRead Circuit.ProbeOK.sSeg Circuit.ProbeOK.eSeg Circuit.ProbeOK.probeWrites
+  Circuit.ProbeOK.probeStep Circuit.ProbeOK.popPathL Circuit.ProbeOK.endLater Circuit.ProbeOK.endLast
+  Circuit.ProbeOK.segendHit Circuit.ProbeOK.childPtr Circuit.ProbeOK.norm Circuit.ProbeOK.acceptsP
+  Circuit.ProbeOK.heap0 Circuit.ProbeOK.sound Circuit.probe_guarded Circuit.probeOK_of Circuit.probeExport_sound
