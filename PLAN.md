@@ -791,8 +791,8 @@ terminals of the Sudoku, hidden-term and composed proofs have one
 distribution over the blinding for any two balanced, unblinded table sets
 of a statement (`sud_zk`, `wit_zk`, `comp_zk`; the composed ones sharing
 their segment table), for a fixed challenge whose combiner matrix is
-invertible. That fails for `β` in `F_{P^2}`, about `2^-62`, not bounded in
-Lean. Assumed: Plonky3's hiding PCS for the committed traces and
+invertible. That fails exactly for the `P^2` challenges in `F(x^2)`, about
+`2^-62` (`generic_iff`, `nongeneric_count`). Assumed: Plonky3's hiding PCS for the committed traces and
 openings, and the challenge's independence of the blinding.
 
 ## 6. Acceptance

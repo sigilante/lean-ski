@@ -176,9 +176,9 @@ theorem horner_eq (β : EF) (a : Tup) : horner β a = (combMat β).mulT a := by
            P3.q3 * x 0 + P2.q3 * x 1 + P1.q3 * x 2 + P0.q3 * x 3⟩)
     (by decide) (env3 β ⟨a.t0, a.t1, a.t2, a.t3⟩ EF.zero)
 
-/-- **A generic combiner challenge**: its matrix is invertible.  (Every `β`
-    outside the quadratic subfield is; Plonky3 draws `β` from all `p^4`
-    elements.) -/
+/-- **A generic combiner challenge**: its matrix is invertible.  Exactly
+    the `β` outside the quadratic subfield are (`generic_iff`,
+    `Ski/ZK/Generic.lean`): all but `P^2` of the `P^4`. -/
 def Generic (β : EF) : Prop := (combMat β).det ≠ 0
 
 /-- The combiner's inverse. -/

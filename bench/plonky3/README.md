@@ -411,8 +411,9 @@ instantiation rows and template table, and the probe segments.
   `comp_zk`), counted exactly over all `P^8` pairs, and within `2 P^4` of
   them on the draws where every inverse exists (`*_zk_valid`). Its gaps:
   - `Generic β` (the combiner matrix invertible) fails exactly when `β`
-    lies in the subfield `F_{P^2}`: `P^2` of the `P^4` challenges, about
-    `2^-62`, which dominates the bound. Lean does not discharge it.
+    lies in the subfield `F(x^2)` (`generic_iff`): `P^2` of the `P^4`
+    challenges (`nongeneric_count`), about `2^-62`, which dominates the
+    bound.
   - The challenge is fixed. In Plonky3 it is a Fiat–Shamir output of the
     trace commitments, which contain the blinding columns; independence
     rests on the hiding PCS in the random oracle model, unproved.
