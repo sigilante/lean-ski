@@ -33,6 +33,7 @@ import Ski.Circuit.SudComplete
 import Ski.Circuit.JetAir
 import Ski.Circuit.Flow
 import Ski.Circuit.JetKind
+import Ski.Circuit.JetSound
 import Ski.BoolProbe
 import Ski.Statement
 import Ski.Sudoku
@@ -604,3 +605,10 @@ open Ski.Audit
 -- The jet CPU's rows: the eleven kinds are corpus rows; an instantiation's parts
 #audit_clean Circuit.bus_hit_on Circuit.bus_hit Circuit.inst_facts Circuit.kind_ofJ Circuit.flags_zero
   Circuit.rowSat_ofJ Circuit.next_regsJ Circuit.clk_eq
+
+-- The jet circuit: soundness against the AIR with instantiation rows
+#audit_clean Circuit.provider_row Circuit.JetOK.memHit Circuit.JetOK.row Circuit.JetOK.rootsHit Circuit.JetOK.hdrHit
+  Circuit.JetOK.tmplHit Circuit.JetOK.argHit Circuit.JetOK.popConserve Circuit.JetOK.wchConserve
+  Circuit.JetOK.popPath Circuit.JetOK.popR_path Circuit.JetOK.wchPath Circuit.JetOK.resolve Circuit.JetOK.rootRes
+  Circuit.JetOK.cellAt Circuit.JetOK.inst Circuit.JetOK.acceptsJ Circuit.JetOK.heap0 Circuit.JetOK.sound
+  Circuit.jet_guarded Circuit.jetOK_of Circuit.jetExport_sound

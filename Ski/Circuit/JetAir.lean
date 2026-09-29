@@ -160,6 +160,26 @@ def instwInters : List Inter :=
 
 def instwAir : AirD := ⟨"instw", 18, 0, instwCons, instwInters, []⟩
 
+-- ---------------------------------------------------------------------------
+-- The numbers that must fit
+-- ---------------------------------------------------------------------------
+
+/-- An operand whose value fits in 24 bits. -/
+def opSmall : Op → Bool
+  | .local_ j => decide (j < 2 ^ 24)
+  | .arg i => decide (i < 2 ^ 24)
+  | .glob a => decide (a < 2 ^ 24)
+
+/-- **A jet whose numbers fit**: arity, cell count and operands below
+    `2^24`, so they are the same numbers in the field.  `compare-jets`
+    checks it of the verifier's jet table. -/
+def jetFitB (J : Air.Jet) : Bool :=
+  decide (J.xs.length < 2 ^ 24) && decide ((symCells J J.body 0).1.length < 2 ^ 24) &&
+    opSmall (symCells J J.body 0).2 &&
+    (symCells J J.body 0).1.all fun cl => match cl.2 with
+      | some (a, b) => opSmall a && opSmall b
+      | none => true
+
 /-- **The jet circuit for a term and its jet table**: what the jet
     verifier builds. -/
 def jetAirs (t : Term) (roots : List (Nat × Nat)) (jets : List Air.Jet) : List AirD :=

@@ -514,22 +514,6 @@ theorem symCells_root_local (J : Air.Jet) : ∀ (body : OTerm) (off j : Nat),
     simp only [List.length_append, List.length_singleton]
     omega
 
-/-- An operand whose value fits in 24 bits. -/
-def opSmall : Op → Bool
-  | .local_ j => decide (j < 2 ^ 24)
-  | .arg i => decide (i < 2 ^ 24)
-  | .glob a => decide (a < 2 ^ 24)
-
-/-- **A jet whose numbers fit**: arity, cell count and operands below
-    `2^24`, so they are the same numbers in the field.  `compare-jets`
-    checks it of the verifier's jet table. -/
-def jetFitB (J : Air.Jet) : Bool :=
-  decide (J.xs.length < 2 ^ 24) && decide ((symCells J J.body 0).1.length < 2 ^ 24) &&
-    opSmall (symCells J J.body 0).2 &&
-    (symCells J J.body 0).1.all fun cl => match cl.2 with
-      | some (a, b) => opSmall a && opSmall b
-      | none => true
-
 theorem opSmall_val {o : Op} (h : opSmall o = true) :
     ∀ n, (o = .local_ n ∨ o = .arg n ∨ o = .glob n) → n < 2 ^ 24 := by
   intro n hn
@@ -1443,6 +1427,167 @@ theorem JetOK.inst {r : Nat} (hr1 : r + 1 < C.h) (hi : C.main r (SEL + 11) = 1)
     · rw [hz, ofN_zero, add_zero', Nat.add_zero]
     · rw [val_add_nat (by have := hc hz; omega)]
 
+theorem JetOK.first_regsJ (h0 : 0 < C.h) :
+    C.main 0 HD = ofN hd0 ∧ C.main 0 STK = ofN stk0 ∧ C.main 0 CTR = ofN ctr0 := by
+  have hf : C.env 0 .first = 1 := rfl
+  have h1 := memJ_tail h.cpu h0 (x := whenFirst (eq (col HD) (c hd0))) (by simp)
+  have h2 := memJ_tail h.cpu h0 (x := whenFirst (eq (col STK) (c stk0))) (by simp)
+  have h3 := memJ_tail h.cpu h0 (x := whenFirst (eq (col CTR) (c ctr0))) (by simp)
+  simp only [B.whenFirst, B.eq, B.col, B.c, E.eval, hf, one_mul', env_main0 h0] at h1 h2 h3
+  exact ⟨sub_eq_zero h1, sub_eq_zero h2, sub_eq_zero h3⟩
+
+/-- **The table is a run of the AIR with instantiation rows** from the
+    machine its first row and the memory's prefix name. -/
+theorem JetOK.acceptsJ (hroots : RootsOK heap roots jets) (hfit : jets.all jetFitB = true) {m0 : Mach}
+    (hheap : (memOf Mm).take ctr0 = m0.heap) (hhd : m0.hd = hd0) (hstk : m0.stk = stk0)
+    (hctr : m0.heap.length = ctr0) (hP : hd0 < P ∧ stk0 < P ∧ ctr0 < P) :
+    AcceptsJ (memOf Mm) m0 roots jets C.h (rowOf C) := by
+  have h0 : 0 < C.h := h.cpu.1
+  obtain ⟨e1, e2, e3⟩ := h.first_regsJ h0
+  have ctr0' : (rowOf C 0).ctr = ctr0 := by show (C.main 0 CTR).val = _; rw [e3, val_ofN hP.2.2]
+  refine ⟨h0, ?_, ?_, ?_, ?_, ?_, ?_⟩
+  · rw [ctr0']; exact hheap
+  · show (C.main 0 HD).val = _; rw [e1, val_ofN hP.1, hhd]
+  · show (C.main 0 STK).val = _; rw [e2, val_ofN hP.2.1, hstk]
+  · rw [ctr0', hctr]
+  · intro i hi
+    have hi' : i < C.h := Nat.lt_of_succ_lt hi
+    obtain ⟨k, hk, hsel⟩ := kind_ofJ h.cpu hi'
+    rcases Nat.lt_or_ge k 11 with hk11 | hk11
+    · have h11 : C.main i (SEL + 11) = 0 := by rw [hsel 11 (by decide), if_neg (Nat.ne_of_gt hk11)]
+      have hs := rowSat_ofJ h.cpu hi' h11
+      have hK : IsKind C i k := ⟨hk11, hsel⟩
+      obtain ⟨_, _, _, _, n1, n2, n3⟩ := kind_facts hi' hK
+      obtain ⟨m1, m2, m3⟩ := next_regs hs hi' hi
+      have hnext : rowOf C (i + 1) = ⟨((nextHdOf k).eval (C.env i)).val,
+          ((nextStkOf k).eval (C.env i)).val, ((nextCtrOf k).eval (C.env i)).val⟩ := by
+        simp only [rowOf, m1, m2, m3, n1, n2, n3]
+      rcases Nat.lt_or_ge k 4 with hk4 | hk4
+      · exact .inl (by rw [hnext]; exact h.row.step hi' hK hk4)
+      · refine .inr (.inr ⟨h.row.halt hi' hK hk4, ?_⟩)
+        rw [hnext, nextHdOf_halt hk4, nextStkOf_halt hk4, nextCtrOf_halt hk4]
+        simp only [rowOf, col_eval hi']
+    · have hk' : k = 11 := Nat.le_antisymm (Nat.le_of_lt_succ hk) hk11
+      subst hk'
+      have h11 : C.main i (SEL + 11) = 1 := by rw [hsel 11 (by decide), if_pos rfl]
+      exact .inr (.inl (h.inst hi h11 hroots hfit))
+  · have hl : C.h - 1 < C.h := Nat.sub_lt h0 (by decide)
+    have hla : C.env (C.h - 1) .last = 1 := by
+      show (if C.h - 1 + 1 = C.h then 1 else 0) = 1; rw [if_pos (Nat.sub_add_cancel h0)]
+    have hh := memJ_tail h.cpu hl (x := whenLast (eq halt one)) (by simp)
+    simp only [B.whenLast, B.eq, E.eval, hla, one_mul', B.one, B.c, ofN_one] at hh
+    have hh1 := sub_eq_zero hh
+    obtain ⟨k, hk, hsel⟩ := kind_ofJ h.cpu hl
+    rcases Nat.lt_or_ge k 11 with hk11 | hk11
+    · have hK : IsKind C (C.h - 1) k := ⟨hk11, hsel⟩
+      obtain ⟨_, hhalt, _⟩ := kind_facts hl hK
+      rcases Nat.lt_or_ge k 4 with hk4 | hk4
+      · rw [hhalt, if_neg (Nat.not_le_of_lt hk4)] at hh1
+        exact absurd hh1 (by decide)
+      · exact h.row.halt hl hK hk4
+    · have hk' : k = 11 := Nat.le_antisymm (Nat.le_of_lt_succ hk) hk11
+      subst hk'
+      obtain ⟨_, hhalt, _⟩ := inst_facts hl hsel
+      rw [hhalt] at hh1
+      exact absurd hh1 (by decide)
+
 end
+
+section
+
+open Mach Term
+
+variable {t : Term} {roots : List (Nat × Nat)} {jets : List Air.Jet} {C Mm Pg Rt Hd Tm Po Iw : Table}
+  (h : JetOK (load t).hd (load t).stk (load t).heap.length (load t).heap roots jets C Mm Pg Rt Hd Tm Po Iw)
+include h
+
+/-- The program table puts the loaded heap in the memory. -/
+theorem JetOK.heap0 : (memOf Mm).take (load t).heap.length = (load t).heap := by
+  obtain ⟨hfit, _, _⟩ := load_fits t
+  have hP : (load t).heap.length < P := Nat.lt_of_le_of_lt h.heap_le (by decide)
+  apply List.ext_getElem?
+  intro i
+  rw [List.getElem?_take]
+  split
+  · next hi =>
+    have hPg : i < Pg.h := by
+      have e : Pg.h = (programRows (load t).heap).length := h.pgpre.1
+      have := programRows_length (load t).heap
+      omega
+    have hc := hfit _ (List.getElem_mem hi)
+    have hpre : ∀ j, j < 5 → (prec j).eval (Pg.env i) = ((programRows (load t).heap).getD i []).getD j 0 :=
+      fun j hj => prec_eval h.pgpre hPg hj
+    have hm := h.cell (h.memHit (v := [ofN i, ofN (cellTag (load t).heap[i]),
+      ofN (cellFields (load t).heap[i]).1, ofN (cellFields (load t).heap[i]).2])
+      ⟨(progAir (load t).heap, Pg), by simp [jetTables], rfl, i, hPg,
+        ⟨"mem", 1, prec 4, [prec 0, prec 1, prec 2, prec 3]⟩, List.mem_cons_self, rfl,
+        by simp only [List.map_cons, List.map_nil, hpre 0 (by decide), hpre 1 (by decide), hpre 2 (by decide),
+          hpre 3 (by decide), programRows_get hi]; rfl,
+        by rw [hpre 4 (by decide), programRows_get hi]; rfl⟩)
+    rw [val_ofN (Nat.lt_trans hi hP), cellOf_enc _ (Nat.lt_trans hc.1 hP) (Nat.lt_trans hc.2 hP)] at hm
+    rw [hm.2, List.getElem?_eq_getElem hi]
+  · next hi => rw [List.getElem?_eq_none (Nat.le_of_not_lt hi)]
+
+/-- **Soundness of the jet circuit, from its tables**: they are a run of
+    the AIR with instantiation rows from the loaded term. -/
+theorem JetOK.sound (hroots : RootsOK (load t).heap roots jets) (hfit : jets.all jetFitB = true) :
+    AcceptsJ (memOf Mm) (load t) roots jets C.h (rowOf C) := by
+  obtain ⟨_, hhd, hstk⟩ := load_fits t
+  have hP : (load t).heap.length < P := Nat.lt_of_le_of_lt h.heap_le (by decide)
+  exact h.acceptsJ hroots hfit h.heap0 rfl rfl rfl ⟨Nat.lt_trans hhd hP, Nat.lt_trans hstk hP, hP⟩
+
+end
+
+open Mach Term
+
+/-- The jet circuit is guarded, for every term and jet table. -/
+theorem jet_guarded (t : Term) (roots : List (Nat × Nat)) (jets : List Air.Jet) :
+    ∀ A ∈ jetAirs t roots jets, A.cons.all E.guarded = true := by
+  intro A hA
+  simp only [jetAirs, List.mem_cons, List.not_mem_nil, or_false] at hA
+  rcases hA with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> rfl
+
+/-- Acceptance of the jet circuit's data is `JetOK`. -/
+theorem jetOK_of {t : Term} {roots : List (Nat × Nat)} {jets : List Air.Jet} {ts : List Table}
+    (h : Accepted (jetAirs t roots jets) ts) :
+    ∃ C Mm Pg Rt Hd Tm Po Iw, ts = [C, Mm, Pg, Rt, Hd, Tm, Po, Iw] ∧
+      JetOK (load t).hd (load t).stk (load t).heap.length (load t).heap roots jets C Mm Pg Rt Hd Tm Po Iw := by
+  obtain ⟨hl, hsat, hbal, hht, htwo⟩ := h
+  match ts, hl with
+  | [C, Mm, Pg, Rt, Hd, Tm, Po, Iw], _ =>
+    have mem : ∀ A T, (A, T) ∈ jetTables (load t).hd (load t).stk (load t).heap.length (load t).heap roots jets
+        C Mm Pg Rt Hd Tm Po Iw → Sat A T ∧ (A.pre = 0 ∨ PreIs A T) := fun A T hm => hsat (A, T) hm
+    have pre : ∀ A T, (A, T) ∈ jetTables (load t).hd (load t).stk (load t).heap.length (load t).heap roots jets
+        C Mm Pg Rt Hd Tm Po Iw → A.pre ≠ 0 → PreIs A T := by
+      intro A T hm hp
+      rcases (mem A T hm).2 with h0 | h0
+      · exact absurd h0 hp
+      · exact h0
+    exact ⟨C, Mm, Pg, Rt, Hd, Tm, Po, Iw, rfl, ⟨(mem _ _ (by simp [jetTables])).1, (mem _ _ (by simp [jetTables])).1,
+      (mem _ _ (by simp [jetTables])).1, (mem _ _ (by simp [jetTables])).1,
+      pre _ _ (by simp [jetTables]) (by show (5 : Nat) ≠ 0; decide),
+      pre _ _ (by simp [jetTables]) (by show (2 : Nat) ≠ 0; decide),
+      pre _ _ (by simp [jetTables]) (by show (7 : Nat) ≠ 0; decide),
+      pre _ _ (by simp [jetTables]) (by show (11 : Nat) ≠ 0; decide), hbal, hht, htwo⟩⟩
+
+/-- **Soundness of the jet circuit.**  If Plonky3 accepts a proof against
+    AIRs the same as the jet circuit for `t` and a jet table whose roots
+    are licensed (`rootsOKB`, which the verifier's `jets statement` checks)
+    and whose numbers fit (`jetFitB`, which `compare-jets` checks), then the
+    tables are a run of the AIR with instantiation rows, and they end on a
+    value `v` such that `t` evaluates in normal order to a value that
+    weakly reduces to `v`, with `v`'s head combinator and arity. -/
+theorem jetExport_sound {t : Term} {roots : List (Nat × Nat)} {jets : List Air.Jet}
+    (hroots : rootsOKB (load t).heap roots jets = true) (hfit : jets.all jetFitB = true)
+    {Rs : List AirD} {ts : List Table} (hs : sameAirsB Rs (jetAirs t roots jets) = true) (h : AcceptedP Rs ts) :
+    ∃ C Mm Pg Rt Hd Tm Po Iw, ts = [C, Mm, Pg, Rt, Hd, Tm, Po, Iw] ∧
+      AcceptsJ (memOf Mm) (load t) roots jets C.h (rowOf C) ∧
+      ∃ v, decode (st (memOf Mm) (rowOf C (C.h - 1))) = some v ∧ Whnf v ∧
+        (∃ v', Eval t v' ∧ WSteps v' v) ∧ (∃ v', Eval t v' ∧ chead v' = chead v) := by
+  have hacc := accepted_transfer hs ((acceptedP_iff_of (jet_guarded t roots jets) hs ts).1 h)
+  obtain ⟨C, Mm, Pg, Rt, Hd, Tm, Po, Iw, rfl, hok⟩ := jetOK_of hacc
+  have hR := rootsOKB_sound hroots
+  have hA := hok.sound hR hfit
+  exact ⟨C, Mm, Pg, Rt, Hd, Tm, Po, Iw, rfl, hA, air_sound_jet hA hR⟩
 
 end Circuit

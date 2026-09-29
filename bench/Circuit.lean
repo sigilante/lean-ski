@@ -250,7 +250,9 @@ def compareSudoku (path : String) : IO UInt32 := do
 /-- The jet circuit: `term T`, then the eight AIRs.  The jet table is
     Lean's for the term (`JetTable.jetTable` over its loaded heap, with
     `JetTable.allTemplates`): what `lake exe jets statement` requires the
-    verifier's jet file to be. -/
+    verifier's jet file to be.  `MATCH` also means the table meets the side
+    conditions of `Circuit.jetExport_sound`: `Air.rootsOKB` and
+    `Circuit.jetFitB`. -/
 def compareJets (path : String) : IO UInt32 := do
   let text ← readInput path
   let ls := (text.splitOn "\n").filter (fun l => !l.trimAscii.toString.isEmpty)
@@ -261,6 +263,10 @@ def compareJets (path : String) : IO UInt32 := do
       | [] => none) | do IO.println "MALFORMED: no term"; return 1
   let some rust := parseAirs (ls.length + 1) (ls.drop 1) | do IO.println "MALFORMED AIRS"; return 1
   let (roots, jets) := JetTable.jetTable (Mach.load t).heap JetTable.allTemplates
+  -- the soundness theorem's side conditions: licensed roots (`jets
+  -- statement` checks them too) and numbers that fit
+  if !(Air.rootsOKB (Mach.load t).heap roots jets && jets.all jetFitB) then
+    IO.println "THE JET TABLE DOES NOT FIT"; return 1
   compareAirs rust (jetAirs t roots jets)
 
 def main (args : List String) : IO UInt32 := do
