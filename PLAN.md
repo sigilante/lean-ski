@@ -658,8 +658,8 @@ Plonky3 publishes per table, which otherwise let a verifier check a
 guessed grid. 45,667 rows, proved in about 3 s and verified in 0.08 s;
 the statement file checked by `lake exe sudoku statement`, the table
 accepted by `lake exe sudoku check` (`sudokuCheck_sound`), and a wrong
-grid and a non-Boolean input rejected by both. The zero-knowledge
-argument is informal and rests on Plonky3's unaudited hiding PCS. The non-Boolean input (`I` in an input cell) reaches `ACC`, so
+grid and a non-Boolean input rejected by both. The terminals' hiding is
+proved in Lean (`Ski/ZK/`); the rest rests on Plonky3's unaudited hiding PCS. The non-Boolean input (`I` in an input cell) reaches `ACC`, so
 the witness table's Boolean constraint carries weight. The corpus
 proofs stay non-hiding and load the whole term in the clear.
 Supercombinator jets are licensed once for every template: an
@@ -784,6 +784,16 @@ the Rust by the verifier, which recomputes the plan from the outcome;
 soundness, `probeExport_sound` (an accepted proof decodes the term to the
 outcome), and completeness, `probe_complete` (every run of `AcceptsP`
 from the loaded term within the verifier's heights).
+
+Zero knowledge of the published terminals (`Ski/ZK/`): over BabyBear's
+quartic extension, built in Lean and proved a field, the three private
+terminals of the Sudoku, hidden-term and composed proofs have one
+distribution over the blinding for any two balanced, unblinded table sets
+of a statement (`sud_zk`, `wit_zk`, `comp_zk`; the composed ones sharing
+their segment table), for a fixed challenge whose combiner matrix is
+invertible. That fails for `β` in `F_{P^2}`, about `2^-62`, not bounded in
+Lean. Assumed: Plonky3's hiding PCS for the committed traces and
+openings, and the challenge's independence of the blinding.
 
 ## 6. Acceptance
 

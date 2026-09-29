@@ -134,7 +134,8 @@ their own carry one message each, a fresh uniform 4-tuple: from the witness
 table to the CPU, and from the CPU to memory. Each adds a term uniform over
 the extension field to one terminal and takes it from another, so the
 three private terminals are uniform subject to their sum, which the
-program table's public terminal fixes anyway. The guess test replays the
+program table's public terminal fixes anyway (proved in Lean for every
+challenge whose combiner matrix is invertible: `Circuit.sud_zk`). The guess test replays the
 transcript as a verifier would and recomputes the witness terminal for the
 true inputs: it must not match the published one. With the blinding flags
 set to zero, it matches.
@@ -403,10 +404,26 @@ instantiation rows and template table, and the probe segments.
   its randomization of the trace as statistically hiding only, and
   `HidingFriPcs` enforces a masking budget (trace height at least
   `2 · (queries + 4 · opening points)`) that every Sudoku table meets.
-- **The zero-knowledge argument is informal.** It rests on Plonky3's
-  hiding PCS for everything committed and opened, and on the blinding for
-  the published terminals. No simulator is written down, and the guess
-  test checks one attack, not all.
+- **The zero-knowledge argument is formal for the terminals only.**
+  `Ski/ZK/Circuits.lean` proves that two balanced table sets for one
+  statement publish their witness, CPU and memory terminals with the same
+  distribution over the two blinding tuples (`sud_zk`, `wit_zk`,
+  `comp_zk`), counted exactly over all `P^8` pairs, and within `2 P^4` of
+  them on the draws where every inverse exists (`*_zk_valid`). Its gaps:
+  - `Generic β` (the combiner matrix invertible) fails exactly when `β`
+    lies in the subfield `F_{P^2}`: `P^2` of the `P^4` challenges, about
+    `2^-62`, which dominates the bound. Lean does not discharge it.
+  - The challenge is fixed. In Plonky3 it is a Fiat–Shamir output of the
+    trace commitments, which contain the blinding columns; independence
+    rests on the hiding PCS in the random oracle model, unproved.
+  - The composed proof's segment table is private, but for accepting
+    runs its multiplicities are `1` for segments `1..n-1` and `0`
+    elsewhere (`composed.rs`, `table`); `comp_zk` assumes it shared.
+  - The prover aborts on a zero LogUp denominator. For the blinding
+    messages that event is witness-independent; for the others it is not,
+    and has probability at most about the number of messages over `P^4`.
+  - Everything committed and opened rests on Plonky3's hiding PCS,
+    unproved; no simulator for the whole transcript is written down.
 - **Security is Plonky3's benchmark setting**: blowup 2, 100 queries and 16
   bits of query grinding. Plonky3's `conjectured_soundness_bits` gives 116,
   but that counts the query phase only and Plonky3 marks it as not a

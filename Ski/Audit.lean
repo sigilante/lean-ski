@@ -89,6 +89,7 @@ import Ski.Total
 import Ski.Corpus
 import Ski.Table
 import Ski.Examples
+import Ski.ZK.Circuits
 
 /-!
 # The audit manifest — build-enforced
@@ -648,3 +649,11 @@ open Ski.Audit
   Circuit.PRun.bal_segend Circuit.PRun.bal_arg_probe Circuit.PRun.cpu_honestP Circuit.PRun.pw_honest
   Circuit.PRun.pop_honestP Circuit.PRun.balancedP Circuit.PRun.hd_lt Circuit.PRun.stk_le Circuit.probe_complete
   Circuit.AcceptsP.pad Air.planOf_last Circuit.probe_complete_planOf
+
+-- Zero knowledge: BabyBear's quartic extension, the combiner, the blinding chain, and the terminals
+#audit_clean Circuit.fermat Circuit.euler_11 Circuit.nonsquare_11 Circuit.EF.mul_inv Circuit.EF.inv_inv
+  Circuit.EF.inv_ne_zero Circuit.Mat4.mulT_inv Circuit.Mat4.inv_mulT Circuit.horner_combInv Circuit.combInv_horner
+  Circuit.blindTerm_pre Circuit.blindPre_term Circuit.Tup.dec_enc Circuit.Tup.enc_dec Circuit.sumTo_perm
+  Circuit.count2_bij Circuit.chain_hides Circuit.pole_count Circuit.chain_hides_valid Circuit.logup_sum
+  Circuit.terminal_setBlind Circuit.chain_terminals
+  Circuit.sud_zk Circuit.sud_zk_valid Circuit.wit_zk Circuit.wit_zk_valid Circuit.comp_zk Circuit.comp_zk_valid
