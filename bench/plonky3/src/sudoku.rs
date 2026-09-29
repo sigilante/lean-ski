@@ -75,7 +75,7 @@ type HidingValMmcs = MerkleTreeHidingMmcs<
 >;
 type HidingChallengeMmcs = ExtensionMmcs<Val, Challenge, HidingValMmcs>;
 type HidingPcs = HidingFriPcs<Val, Dft, HidingValMmcs, HidingChallengeMmcs, StdRng>;
-type ZkConfig = StarkConfig<HidingPcs, Challenge, Challenger>;
+pub(crate) type ZkConfig = StarkConfig<HidingPcs, Challenge, Challenger>;
 
 /// Random codewords that mask the committed polynomials: at least the
 /// challenge field's degree, as `HidingFriPcs` requires.
@@ -91,7 +91,7 @@ const RANDOM_CODEWORDS: usize = 4;
 /// (`ProverData::from_airs_and_degrees`), and the prover commits its traces
 /// under a configuration seeded by the operating system.  Opening and
 /// verifying draw no randomness from the MMCS.
-fn make_zk_config(seed: Option<u64>) -> ZkConfig {
+pub(crate) fn make_zk_config(seed: Option<u64>) -> ZkConfig {
     let rng = || match seed {
         Some(s) => StdRng::seed_from_u64(s),
         None => rand::make_rng::<StdRng>(),
@@ -107,7 +107,7 @@ fn make_zk_config(seed: Option<u64>) -> ZkConfig {
 }
 
 /// The seed of the public preprocessed commitment.
-const PUBLIC_SEED: u64 = 0;
+pub(crate) const PUBLIC_SEED: u64 = 0;
 
 // ---------------------------------------------------------------------------
 // The statement
@@ -234,7 +234,7 @@ fn wit_pre(p: &Public) -> Vec<[u32; 2]> {
 /// The verifier's AIRs, from the public statement alone.
 fn airs(p: &Public) -> Vec<SkiAir> {
     vec![
-        SkiAir::Cpu(CpuAir { hd0: p.hd0, stk0: p.stk0, ctr0: p.ctr0, accept: Some(p.acc), blind: true, jets: false, probe: None }),
+        SkiAir::Cpu(CpuAir { hd0: p.hd0, stk0: p.stk0, ctr0: p.ctr0, accept: Some(p.acc), accept_k: false, blind: true, jets: false, probe: None }),
         SkiAir::Mem(MemAir { blind: true }),
         SkiAir::Prog(ProgAir { pre: program_of(p) }),
         SkiAir::Wit(WitAir { pre: wit_pre(p) }),
@@ -246,7 +246,7 @@ fn airs(p: &Public) -> Vec<SkiAir> {
 // ---------------------------------------------------------------------------
 
 /// The machine from the statement's registers over `heap`, to a halt.
-fn run_from(mut heap: Vec<Cell>, mut hd: u32, mut stk: u32) -> (Vec<[u32; 3]>, Vec<Cell>) {
+pub(crate) fn run_from(mut heap: Vec<Cell>, mut hd: u32, mut stk: u32) -> (Vec<[u32; 3]>, Vec<Cell>) {
     let mut rows = Vec::new();
     loop {
         rows.push([hd, stk, heap.len() as u32]);
@@ -293,13 +293,13 @@ fn last_head(tb: &SudokuTable) -> Cell {
 
 /// A fresh blinding tuple, uniform over the field, from the operating
 /// system's generator.
-fn blind_tuple() -> [Val; BLIND_LEN] {
+pub(crate) fn blind_tuple() -> [Val; BLIND_LEN] {
     let mut rng = rand::make_rng::<StdRng>();
     core::array::from_fn(|_| Val::from_u32(rng.random_range(0..Val::ORDER_U32)))
 }
 
 /// `m` with `extra` zero columns appended to every row.
-fn widen(m: RowMajorMatrix<Val>, extra: usize) -> RowMajorMatrix<Val> {
+pub(crate) fn widen(m: RowMajorMatrix<Val>, extra: usize) -> RowMajorMatrix<Val> {
     let w = m.width;
     let mut v = Vec::with_capacity(m.values.len() / w * (w + extra));
     for row in m.values.chunks(w) {
@@ -310,7 +310,7 @@ fn widen(m: RowMajorMatrix<Val>, extra: usize) -> RowMajorMatrix<Val> {
 }
 
 /// Write a blinding message, `tuple` with its flag set, into row 0 at `col`.
-fn set_blind(m: &mut RowMajorMatrix<Val>, col: usize, tuple: [Val; BLIND_LEN]) {
+pub(crate) fn set_blind(m: &mut RowMajorMatrix<Val>, col: usize, tuple: [Val; BLIND_LEN]) {
     m.values[col..col + BLIND_LEN].copy_from_slice(&tuple);
     m.values[col + BLIND_LEN] = Val::ONE;
 }
@@ -427,7 +427,7 @@ fn prove_and_verify_zk(p: &Public, traces: &[RowMajorMatrix<Val>; 4]) -> (Outcom
 }
 
 /// The proof's size in bytes, serialized.
-fn postcard_size<T: serde::Serialize>(proof: &T) -> usize {
+pub(crate) fn postcard_size<T: serde::Serialize>(proof: &T) -> usize {
     postcard::to_allocvec(proof).map(|v| v.len()).unwrap_or(0)
 }
 
@@ -581,7 +581,7 @@ pub fn main(dir: &std::path::Path, out: &std::path::Path) -> usize {
     failures
 }
 
-fn report(name: &str, note: &str, o: Outcome) -> usize {
+pub(crate) fn report(name: &str, note: &str, o: Outcome) -> usize {
     match o {
         Outcome::Rejected(e) => {
             println!("{name:<16} {note}; rejected by the verifier ({})", e.chars().take(60).collect::<String>());

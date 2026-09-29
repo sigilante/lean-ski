@@ -28,3 +28,7 @@ root = "bench.JetCost"
 [[lean_exe]]
 name = "jets"
 root = "bench.Jets"
+
+[[lean_exe]]
+name = "witness"
+root = "bench.Witness"

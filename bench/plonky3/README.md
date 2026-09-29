@@ -171,6 +171,87 @@ constraint the verifier would accept a table that proves nothing about a
 grid. The lookup of the input cell fails instead. `prove` includes the
 setup; the proof size varies with the random salts.
 
+## A hidden term in zero knowledge
+
+`src/witness.rs` proves knowledge of a hidden *term*, not only Boolean
+inputs: a realizer of an NP atom `atom V x` of Part II's logic, a term `w`
+such that `V x w` evaluates to `K` (`real_atom_iff`). The statement is the
+witness machine `Wit.wMachine` of `Ski/Witness.lean`: a private region of
+`W` cells at addresses `0 … W - 1`, then `V x` applied to the region's
+last cell, with an empty stack. `lake exe witness emit` writes each
+example's `public.txt`, the machine with the region blank, and the
+regions: the honest realizer's, a well-formed region holding a term that
+realizes nothing, and the honest region with a cell pointing forward.
+The verifier first runs `lake exe witness statement` on `public.txt`,
+which accepts exactly the witness machine of the atom and region size the
+file names (`Wit.wMachine_public`).
+
+The AIR differs from the Sudoku proof's in two places:
+
+- **The output.** The last row is the halting kind `HK1`: `K` at the head
+  and a nil at the stack. So the run evaluates to `K`, which is what
+  realizing an atom means.
+- **The witness table.** Each row commits the cell at a region address:
+  `S`, `K`, `I`, or `A a b` with both pointers below the address, each
+  range-checked twice (as a 24-bit number and as `i - a - 1`). So the
+  region reads back as a closed term at its last cell (`Wit.wf_termAt`).
+
+A table the verifier accepts has, by `Wit.wit_realizes`, a realizer of the
+atom in its region. `lake exe witness check` decides that
+(`Wit.witCheck_realizes`) on each table proved here. The hiding is the
+Sudoku proof's: a hiding PCS, fixed heights (`2^10` rows and memory,
+`2^8` witness rows, the least the hiding PCS masks), and two blinding
+messages. The guess test replays the transcript and recomputes the
+witness terminal for the true region: it does not match, and with the
+blinding off it does, so the test has the power to catch a leak.
+
+Two examples (`Ski/WitnessExamples.lean`, each checked in the kernel). An
+atom certifies exactly its verifier's evaluation, and nothing more:
+
+- `neg`: `w` passes the two tests a negation of Scott Booleans passes,
+  `(w T) F T (w F) F` evaluating to `K`. The negation `[b] b F T`
+  realizes it (`neg_real`) and the identity does not (`neg_not_I`); so
+  does `K (K (K (K (K K))))`, which is no negation (`neg_fake`).
+- `sat`: `w ([a b c] φ)` evaluates to `K` for `φ = (a ∨ b) ∧ (¬a ∨ c) ∧
+  ¬c`. The triple `F T F` realizes it (`sat_real`) and `T T T` does not
+  (`sat_not_TTT`); so does `K K`, which is no triple (`sat_fake`).
+
+A verifier applies its witness to finitely many arguments, and a term can
+fake any finite behaviour, so a hidden term fits a claim about the term
+itself. An assignment proved as data must come in as cells the circuit
+fixes to Booleans, as the Sudoku proof's inputs do.
+
+**What the caller must do.** The statement names its own atom: whoever
+reads the verdict compares `V` and `x` with the atom they meant. Lean's
+check reads the whole table, region included, so the tables are the
+prover's and are not published.
+
+```
+lake build witness && lake exe witness emit bench/plonky3/witness
+cd bench/plonky3 && cargo build --release
+./target/release/ski-air witness witness tables   # statement check, prove, verify, guess test, tamper
+cd ../.. && lake exe witness check bench/plonky3/witness/neg/public.txt bench/plonky3/tables/witness_neg.txt
+lake exe witness check bench/plonky3/witness/neg/public.txt bench/plonky3/tables/tampered_witness_neg_*.txt  # REJECT
+```
+
+Measured, 2026-09-28, Apple M4 Max, release build:
+
+```
+neg      47 public cells, a region of 32; 63 rows, 145 memory cells
+         prove 0.08 s, verify 0.012 s, proof 405 KiB   verified
+sat      145 public cells, a region of 32; 166 rows, 367 memory cells
+         prove 0.06 s, verify 0.011 s, proof 401 KiB   verified
+guess    no match for either; a match for each with the blinding off
+wrong    ends at K over a stack cell (F = K I): the term fails the atom; rejected
+forged   ends at K over a nil, the forward pointer never read;
+         rejected by the witness table's constraint
+```
+
+`lake exe witness check` accepts both honest tables and rejects the four
+tampered ones and a table offered under the other example's statement;
+`lake exe witness statement` rejects a `public.txt` with a region cell
+exposed, another input or another region size.
+
 ## Jets: instantiation rows
 
 `src/jets.rs` proves every corpus row with supercombinator instantiation
@@ -246,8 +327,8 @@ instantiation rows and template table, and the probe segments.
 
 - **The corpus proofs, plain, jetted and probed, are not zero
   knowledge.** Their PCS is not hiding, and the first row loads the whole
-  term in the clear. Only the probe proof binds an output. The Sudoku
-  proof is hiding and binds its accepting marker.
+  term in the clear. Only the probe proof binds an output. The Sudoku and
+  hidden-term proofs are hiding, and bind their accepting output.
 - **Plonky3's zero knowledge is statistical and unaudited.** Plonky3 marks
   its randomization of the trace as statistically hiding only, and
   `HidingFriPcs` enforces a masking budget (trace height at least

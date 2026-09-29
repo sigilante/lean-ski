@@ -14,6 +14,8 @@ import Ski.JetTable
 import Ski.InstOpen
 import Ski.ProbeTree
 import Ski.AirProbe
+import Ski.Witness
+import Ski.WitnessExamples
 import Ski.BoolProbe
 import Ski.Statement
 import Ski.Sudoku
@@ -486,6 +488,9 @@ open Ski.Audit
   Air.pmono_le Air.not_start Air.AcceptsP.c0 Air.AcceptsP.ctrs Air.AcceptsP.ctr_mono
   Air.AcceptsP.run Air.AcceptsP.readF Air.AcceptsP.segs Air.AcceptsP.segsOK Air.air_probe_sound
   Air.air_probe_decodes Air.normB_sound Air.checkPA_sound Air.checkPA_decodes
+
+-- A hidden term: knowing a realizer of an atom, proved by the AIR from the witness machine
+#audit_clean Wit.wfB_sound Wit.wf_termAt Wit.witnessOf_some Wit.odecode_wMachine Wit.odecode_K Wit.wit_sound Wit.wit_realizes Wit.build_shape Wit.wMachine_public Wit.witCheck_sound Wit.witCheck_realizes WitEx.neg_real WitEx.neg_not_I WitEx.neg_fake WitEx.sat_real WitEx.sat_not_TTT WitEx.sat_fake
 
 -- Boolean statements: a formula compiled to Scott Booleans, read by a probe, and proved by the AIR
 #audit_clean BExpr.sbool_sel BExpr.fill_tt BExpr.fill_ff BExpr.bool_reduce BExpr.probe_true

@@ -688,6 +688,20 @@ an outcome's probe tree, proves that the term decodes to the outcome
 `3 sumto` decodes to `[6]` in 11 segments and 4,144 CPU rows. Jets do not
 yet combine with zero knowledge.
 
+A hidden term, not only Booleans: the witness machine
+(`Ski/Witness.lean`) puts a private region of cells, each `S`, `K`, `I` or
+an application of two cells below it, under the public `V x`, and a table
+ending at `K` over an empty stack has in its region a realizer of `atom V
+x` (`wit_realizes`), the atom Part II's logic composes. In Plonky3
+(`src/witness.rs`), a hidden witness table commits the region's cells and
+range-checks their pointers; hiding, fixed heights and blinding are the
+Sudoku proof's. Two examples prove in about 0.1 s
+(`Ski/WitnessExamples.lean`). The guess test does not match, and matches
+with the blinding off. An atom certifies exactly its verifier's
+evaluation: a verifier applies its witness to finitely many arguments,
+and a term can fake any finite behaviour (`neg_fake`, `sat_fake`), so data
+witnesses belong in cells the circuit fixes, as the Sudoku inputs are.
+
 ### Slated: the verifier checks exactly the spec
 
 Today the step from the Plonky3 verifier to the Lean spec is argued, not

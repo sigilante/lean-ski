@@ -84,6 +84,7 @@ use p3_uni_stark::StarkConfig;
 mod jets;
 mod probe;
 mod sudoku;
+mod witness;
 
 // ---------------------------------------------------------------------------
 // The STARK configuration
@@ -447,6 +448,9 @@ struct CpuAir {
     ctr0: u32,
     /// The accepting marker, when the last row must read it at the head.
     accept: Option<u32>,
+    /// Whether the last row must have `K` at the head and an empty stack:
+    /// the run evaluates to `K` (`src/witness.rs`).
+    accept_k: bool,
     /// Whether the table carries blinding columns.
     blind: bool,
     /// Whether the table carries jet columns and may instantiate.
@@ -483,6 +487,7 @@ enum SkiAir {
     Wit(WitAir),
     Jet(jets::JetAir),
     Probe(probe::ProbeAir),
+    WitT(witness::WitTAir),
 }
 
 impl<F: Field> BaseAir<F> for SkiAir {
@@ -499,6 +504,7 @@ impl<F: Field> BaseAir<F> for SkiAir {
             SkiAir::Wit(_) => 1 + BLIND_WIDTH,
             SkiAir::Jet(j) => j.width(),
             SkiAir::Probe(p) => p.width(),
+            SkiAir::WitT(_) => witness::WT_W,
         }
     }
 
@@ -520,6 +526,10 @@ impl<F: Field> BaseAir<F> for SkiAir {
             )),
             SkiAir::Jet(j) => j.preprocessed(),
             SkiAir::Probe(p) => p.preprocessed(),
+            SkiAir::WitT(w) => Some(RowMajorMatrix::new(
+                w.pre.iter().flat_map(|r| r.iter().map(|&v| F::from_u32(v))).collect(),
+                2,
+            )),
             _ => None,
         }
     }
@@ -530,6 +540,7 @@ impl<F: Field> BaseAir<F> for SkiAir {
             SkiAir::Wit(_) => 2,
             SkiAir::Jet(j) => j.preprocessed_width(),
             SkiAir::Probe(p) => p.preprocessed_width(),
+            SkiAir::WitT(_) => 2,
             _ => 0,
         }
     }
@@ -547,6 +558,7 @@ where
             SkiAir::Wit(_) => eval_wit(b),
             SkiAir::Jet(j) => j.eval(b),
             SkiAir::Probe(p) => p.eval(b),
+            SkiAir::WitT(_) => witness::eval_witt(b),
         }
     }
 }
@@ -704,6 +716,11 @@ impl CpuAir {
         if self.blind {
             blind_msg(b, &loc, CPU_BLA, BLIND_A, false);
             blind_msg(b, &loc, CPU_BLB, BLIND_B, true);
+        }
+        // The output: the last row is `K` with no argument, the halting kind
+        // `HK1`, which reads `K` at the head and a nil at the stack.
+        if self.accept_k {
+            b.when_last_row().assert_one(hk1.clone());
         }
         // The output: the last row reads the accepting marker at the head.
         if let Some(acc) = self.accept {
@@ -905,7 +922,7 @@ fn lean_table(term: &str, tb: &Table) -> String {
 /// The AIRs, with the constants and the program table given.
 fn airs_of(hd0: u32, stk0: u32, ctr0: u32, pre: Vec<[u32; 5]>) -> Vec<SkiAir> {
     vec![
-        SkiAir::Cpu(CpuAir { hd0, stk0, ctr0, accept: None, blind: false, jets: false, probe: None }),
+        SkiAir::Cpu(CpuAir { hd0, stk0, ctr0, accept: None, accept_k: false, blind: false, jets: false, probe: None }),
         SkiAir::Mem(MemAir { blind: false }),
         SkiAir::Prog(ProgAir { pre }),
     ]
@@ -1067,6 +1084,19 @@ const MIN_LOG: usize = 4;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
+    if args.len() == 4 && args[1] == "witness" {
+        let out = std::path::Path::new(&args[3]);
+        std::fs::create_dir_all(out).unwrap();
+        if std::env::var_os("SKI_AIR_PANICS").is_none() {
+            std::panic::set_hook(Box::new(|_| {}));
+        }
+        let failures = witness::main(std::path::Path::new(&args[2]), out);
+        if failures > 0 {
+            println!("\n{failures} FAILURES");
+            std::process::exit(1);
+        }
+        return;
+    }
     if args.len() == 4 && args[1] == "sudoku" {
         let out = std::path::Path::new(&args[3]);
         std::fs::create_dir_all(out).unwrap();
@@ -1135,7 +1165,7 @@ fn main() {
     }
     if args.len() != 3 {
         eprintln!(
-            "usage: ski-air CORPUS OUTDIR | ski-air sudoku DIR OUTDIR | ski-air jets CORPUS JETSDIR OUTDIR\n       \
+            "usage: ski-air CORPUS OUTDIR | ski-air sudoku DIR OUTDIR | ski-air witness DIR OUTDIR | ski-air jets CORPUS JETSDIR OUTDIR\n       \
              ski-air jet-prove TERM JETS TABLE PROOF | ski-air jet-verify CORPUS JETSDIR NAME PROOF\n       \
              ski-air probes CORPUS JETSDIR OUTDIR | ski-air probe-prove TERM JETS TABLE PROOF OUTCOME...\n       \
              ski-air probe-prove-table TERM JETS TABLE PROOF OUTCOME...\n       \
