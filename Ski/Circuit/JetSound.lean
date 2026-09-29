@@ -1226,7 +1226,7 @@ theorem getD_range_mapF (f : Nat → F) {k i : Nat} (hi : i < k) : ((List.range 
 
 /-- **The instantiation's cells are in memory**: at the counter plus `j`,
     the template's `j`-th cell, resolved. -/
-theorem JetOK.cellAt {r k g : Nat} {J : Air.Jet} {e w : Nat → Nat} (hjl : jets.length < 2 ^ 27)
+theorem JetOK.cellAt {r k g : Nat} {J : Air.Jet} {e w : Nat → Nat} (hjl : jets.length ≤ 2 ^ 27)
     (hJ : jets[g]? = some J) (hG : C.main r J_G = ofN g)
     (hn : (symCells J J.body 0).1.length < 2 ^ 24)
     (hops : ((symCells J J.body 0).1.all fun cl => match cl.2 with
@@ -1255,7 +1255,7 @@ theorem JetOK.cellAt {r k g : Nat} {J : Air.Jet} {e w : Nat → Nat} (hjl : jets
   have t1 : (tmplRow g' j' (tag, ops)).getD 1 0 = ofN j' := by cases ops <;> rfl
   have t2 : (tmplRow g' j' (tag, ops)).getD 2 0 = ofN tag := by cases ops <;> rfl
   have e0 := hx 0 (by decide); rw [t0, h5, hG] at e0
-  have egg := ofN_inj (Nat.lt_trans hg (Nat.lt_trans hjl (by decide))) (Nat.lt_trans hg' (Nat.lt_trans hjl (by decide))) e0
+  have egg := ofN_inj (Nat.lt_of_lt_of_le hg (Nat.le_trans hjl (by decide))) (Nat.lt_of_lt_of_le hg' (Nat.le_trans hjl (by decide))) e0
   subst egg
   rw [hJ] at hJ'
   cases hJ'
@@ -1318,6 +1318,130 @@ theorem JetOK.cellAt {r k g : Nat} {J : Air.Jet} {e w : Nat → Nat} (hjl : jets
     show Circuit.cellOf (ofN 3) _ _ = _
     rw [cellOf_app, ea, eb]
     rfl
+
+omit h in
+theorem padCopies_length_ge : ∀ rows : List (List F), rows.length ≤ (padCopies rows).length
+  | [] => Nat.le_refl 0
+  | r :: rs => by show _ ≤ ((r :: rs) ++ _).length; rw [List.length_append]; exact Nat.le_add_right _ _
+
+omit h in
+theorem programRows_length_ge (heap : List Cell) : heap.length ≤ (programRows heap).length := by
+  unfold programRows
+  rw [List.length_append, List.length_map, List.length_zipIdx]
+  exact Nat.le_add_right _ _
+
+theorem JetOK.prog_h : Pg.h ≤ 2 ^ 27 := h.two (progAir heap, Pg) (by simp [jetTables])
+
+theorem JetOK.jets_le : jets.length ≤ 2 ^ 27 := by
+  have e : Hd.h = (hdrRows jets).length := h.hdpre.1
+  have hl : jets.length ≤ (hdrRows jets).length := by
+    have := padCopies_length_ge (jets.zipIdx.map fun (J, g) => hdrRow J g)
+    rw [List.length_map, List.length_zipIdx] at this
+    exact this
+  have := h.hdr_h
+  omega
+
+theorem JetOK.heap_le : heap.length ≤ 2 ^ 27 := by
+  have e : Pg.h = (programRows heap).length := h.pgpre.1
+  have := programRows_length_ge heap
+  have := h.prog_h
+  omega
+
+/-- **An instantiation row is `Air.instRow`** for the jet at a listed root,
+    given licensed roots and a jet table whose numbers fit. -/
+theorem JetOK.inst {r : Nat} (hr1 : r + 1 < C.h) (hi : C.main r (SEL + 11) = 1)
+    (hroots : RootsOK heap roots jets) (hfit : jets.all jetFitB = true) :
+    ∃ g J, ((rowOf C r).hd, g) ∈ roots ∧ jets[g]? = some J ∧
+      instRow (memOf Mm) J (rowOf C r) = some (rowOf C (r + 1)) := by
+  have hr : r < C.h := Nat.lt_of_succ_lt hr1
+  have hP : 2 ^ 27 + 2 ^ 24 < P := by decide
+  -- the kind
+  have hsel : SelsAre C r 11 := by
+    obtain ⟨k, _, hs⟩ := kind_ofJ h.cpu hr
+    have e := hs 11 (by decide); rw [hi] at e
+    rcases Nat.decEq 11 k with hk | hk
+    · rw [if_neg hk] at e; exact absurd e (by decide)
+    · rw [← hk] at hs; exact hs
+  obtain ⟨_, _, _, _, hnHd, hnStk, hnCtr⟩ := inst_facts hr hsel
+  obtain ⟨m1, m2, m3⟩ := next_regsJ h.cpu hr hr1
+  -- the root and the header
+  obtain ⟨a, g1, hmem, hHD, hG1⟩ := h.rootsHit hr hi
+  obtain ⟨J, g, hJ, hhdr⟩ := h.hdrHit hr hi
+  obtain ⟨J1, hJ1, _, htm, _⟩ := hroots a g1 hmem
+  have hjl := h.jets_le
+  have hg1 : g1 < jets.length := (List.getElem?_eq_some_iff.1 hJ1).1
+  have hg : g < jets.length := (List.getElem?_eq_some_iff.1 hJ).1
+  simp only [hdrRow, List.cons_append, List.nil_append, List.cons.injEq] at hhdr
+  obtain ⟨hG, hK, hN, hops⟩ := hhdr
+  have e1 : g1 = g := ofN_inj (Nat.lt_of_lt_of_le hg1 (Nat.le_trans hjl (by decide)))
+    (Nat.lt_of_lt_of_le hg (Nat.le_trans hjl (by decide))) (hG1.symm.trans hG)
+  subst e1
+  rw [hJ] at hJ1
+  cases hJ1
+  -- the jet's numbers fit
+  have hfJ := List.all_eq_true.1 hfit J (List.mem_of_getElem? hJ)
+  unfold jetFitB at hfJ
+  simp only [Bool.and_eq_true, decide_eq_true_eq] at hfJ
+  obtain ⟨⟨⟨hkf, hnf⟩, hrf⟩, hcf⟩ := hfJ
+  -- the head is the root's address
+  have hhp := h.heap_le
+  have ha : a < heap.length := termAt_lt htm
+  have hhd : (rowOf C r).hd = a := by
+    show (C.main r HD).val = a; rw [hHD, val_ofN (by omega)]
+  refine ⟨g1, J, by rw [hhd]; exact hmem, hJ, ?_⟩
+  -- the pops
+  obtain ⟨e, sF, hs0, hsk, hp, hu⟩ := h.popPath hr hi hkf hK
+  have hp' : ∀ i, i < J.xs.length → e i < Po.h ∧ Po.main (e i) 2 = ofN i :=
+    fun i hi => ⟨(hp i hi).1, (hp i hi).2.2.2.2.1⟩
+  have hpop := h.popR_path hp J.xs.length (Nat.le_refl _)
+  rw [Nat.sub_self, hs0, hsk] at hpop
+  simp only [Nat.zero_add] at hpop
+  -- the writes
+  obtain ⟨w, hw⟩ := h.wchPath hr hi hnf hN
+  -- with a cell to write, the counter is an address
+  have hc : 0 < (symCells J J.body 0).1.length → (C.main r CTR).val < 2 ^ 27 := by
+    intro hn0
+    obtain ⟨h1, h2, _, h4, _, h6⟩ := hw 0 hn0
+    have cv := col_eval h1
+    obtain ⟨hlt, _⟩ := h.cell (h.memHit
+      (v := [Iw.main (w 0) 1 + Iw.main (w 0) 3, Iw.main (w 0) 4, Iw.main (w 0) 13, Iw.main (w 0) 14])
+      ⟨(instwAir, Iw), by simp [jetTables], rfl, w 0, h1,
+        ⟨"mem", 1, col 17, [.add (col 1) (col 3), col 4, col 13, col 14]⟩,
+        List.mem_cons_of_mem _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _
+          (List.mem_cons_of_mem _ List.mem_cons_self)))), rfl,
+        by simp only [List.map_cons, List.map_nil, E.eval, cv], by rw [cv, h2]⟩)
+    rw [h4, h6, ofN_zero, add_zero'] at hlt
+    exact Nat.lt_of_lt_of_le hlt h.mem_h
+  -- the instantiation
+  unfold instRow instRowG
+  show (match popR (fun a => (memOf Mm)[a]?) (C.main r CTR).val J.xs.length (C.main r STK).val with
+    | some (ps, rest) =>
+      let (cs, root) := icells (Mach.overrideN J.genv J.xs ps) (C.main r CTR).val J.body
+      if wrsG (fun a => (memOf Mm)[a]?) (C.main r CTR).val cs then
+        some (⟨root, rest, (C.main r CTR).val + cs.length⟩ : Air.Row) else none
+    | none => none) = _
+  rw [hpop]
+  dsimp only
+  have hic := symCells_icells J (C.main r CTR).val ((List.range J.xs.length).map (fun i => (Po.main (e i) 4).val))
+    (by rw [List.length_map, List.length_range]) J.body 0
+  rw [Nat.add_zero] at hic
+  rw [← hic]
+  dsimp only
+  rw [if_pos (wrsG_of _ _ (fun j hj => by
+    rw [List.length_map] at hj
+    rw [List.getElem_map]
+    exact h.cellAt hjl hJ hG hnf hcf hp' hu hkf hw (hc (Nat.lt_of_le_of_lt (Nat.zero_le j) hj)) hj))]
+  -- the next row
+  show some _ = some (⟨(C.main (r + 1) HD).val, (C.main (r + 1) STK).val, (C.main (r + 1) CTR).val⟩ : Air.Row)
+  rw [m1, m2, m3, hnHd, hnStk, hnCtr, hi, zero_add', zero_add', one_mul', one_mul', hN]
+  congr 2
+  · rw [h.rootRes hr hp' hu hkf hops hrf (fun j hj => hc (by
+      have := symCells_root_local J J.body 0 j hj
+      omega))]
+  · rw [List.length_map]
+    rcases Nat.eq_zero_or_pos (symCells J J.body 0).1.length with hz | hz
+    · rw [hz, ofN_zero, add_zero', Nat.add_zero]
+    · rw [val_add_nat (by have := hc hz; omega)]
 
 end
 
