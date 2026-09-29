@@ -406,6 +406,65 @@ theorem wrsG_of' {g : Nat → Option Cell} (ws : List Cell) (c : Nat)
     (h : ∀ j, j < ws.length → g (c + j) = ws[j]?) : wrsG g c ws = true :=
   wrsG_of ws c (fun j hj => by rw [h j hj, List.getElem?_eq_getElem hj])
 
+theorem cpuP_segend {hd0 stk0 ctr0 n la : Nat} (C : Table) (r : Nat) (v : List F) :
+    rowSends (cpuAirP hd0 stk0 ctr0 n la) C "segend" v r =
+    (if [C.env r (.main 0 P_CNT) - 1, C.env r (.main 0 J_CLK)] = v then -C.env r (.main 0 P_NKIDS) else 0) +
+    (if [C.env r (.main 0 (S_BASE + 4)), C.env r (.main 0 P_CLKP)] = v then C.env r (.main 0 (SEL + 13)) else 0) := by
+  rw [cpuP_rowSends_off (by decide), List.foldr_append]
+  simp only [jetInters, probeInters, List.foldr_cons, List.foldr_nil, List.map_cons, List.map_nil, E.eval, B.col,
+    B.c, sInst, sPLater, sProbe, sPFirst, true_and, ofN_zero, B.one, ofN_one]
+  rw [if_neg (show ¬ ("roots" = "segend" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("hdr" = "segend" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("popch" = "segend" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("popch" = "segend" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("wch" = "segend" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("wch" = "segend" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("arg" = "segend" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("plan" = "segend" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("plan" = "segend" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("popch" = "segend" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("popch" = "segend" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("mem" = "segend" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("arg" = "segend" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("pwch" = "segend" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("pwch" = "segend" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("mem" = "segend" ∧ _) from fun h' => absurd h'.1 (by decide))]
+  simp only [zero_add', add_zero']
+
+/-- A segment whose numbers fit. -/
+def SegFits (s : Air.Seg) : Prop :=
+  s.base < 2 ^ 24 ∧ s.k < 2 ^ 24 ∧ s.ctor < 2 ^ 24 ∧ s.arity < 2 ^ 24 ∧ s.parent < 2 ^ 24 ∧ s.field < 2 ^ 24
+
+theorem planFit_get {plan : List Air.Seg} (hf : planFitB plan = true) {j : Nat} {s : Air.Seg}
+    (hs : plan[j]? = some s) : SegFits s := by
+  have := List.all_eq_true.1 hf s (List.mem_of_getElem? hs)
+  simp only [Bool.and_eq_true, decide_eq_true_eq] at this
+  obtain ⟨⟨⟨⟨⟨h1, h2⟩, h3⟩, h4⟩, h5⟩, h6⟩ := this
+  exact ⟨h1, h2, h3, h4, h5, h6⟩
+
+/-- **Segment `j`'s fields**: what its end row pops. -/
+def fldP (C Mm : Table) (plan : List Air.Seg) (n j : Nat) : List Nat :=
+  match plan[j]? with
+  | some s => ((popR (fun a => (memOf Mm)[a]?) (rowOf C (pRow C n (j + 1))).ctr s.arity
+      (rowOf C (pRow C n (j + 1))).stk).map Prod.fst).getD []
+  | none => []
+
+theorem fldP_eq {C Mm : Table} {plan : List Air.Seg} {n j : Nat} {s : Air.Seg} (hs : plan[j]? = some s)
+    {qs : List Nat} {rest : Nat}
+    (hp : popR (fun a => (memOf Mm)[a]?) (rowOf C (pRow C n (j + 1))).ctr s.arity (rowOf C (pRow C n (j + 1))).stk =
+      some (qs, rest)) : fldP C Mm plan n j = qs := by
+  unfold fldP; rw [hs]; dsimp only; rw [hp]; rfl
+
+/-- The fields a later probe row pops, from its POP path. -/
+def popsAt (Po : Table) (e : Nat → Nat) (k : Nat) : List Nat := (List.range k).map fun i => (Po.main (e i) 4).val
+
+theorem popsAt_get (Po : Table) (e : Nat → Nat) {k i : Nat} (hi : i < k) :
+    (popsAt Po e k)[i]? = some (Po.main (e i) 4).val := by
+  unfold popsAt; rw [List.getElem?_map, List.getElem?_range hi]; rfl
+
+theorem popsAt_length (Po : Table) (e : Nat → Nat) (k : Nat) : (popsAt Po e k).length = k := by
+  unfold popsAt; rw [List.length_map, List.length_range]
+
 section
 
 variable {hd0 stk0 ctr0 n la : Nat} {heap : List Cell} {roots : List (Nat × Nat)} {jets : List Air.Jet}
@@ -725,9 +784,6 @@ theorem ProbeOK.popPathL {r : Nat} (hr : r < C.h) (hl : C.main r (SEL + 13) = 1)
       cases hz
     · exact hu q hq (hact _ hc0)
 
-/-- The fields a later probe row pops, from its POP path. -/
-def popsAt (Po : Table) (e : Nat → Nat) (k : Nat) : List Nat := (List.range k).map fun i => (Po.main (e i) 4).val
-
 /-- **A later probe row ends its segment**: the head is the segment's
     marker, the pops are the POP path's, and a nil lies below them. -/
 theorem ProbeOK.endLater {r : Nat} (hr : r < C.h) (hl : C.main r (SEL + 13) = 1) {s : Air.Seg}
@@ -802,6 +858,141 @@ theorem ProbeOK.endLast (h0 : 0 < C.h) {s : Air.Seg} (hsa : s.arity = 0) (hla : 
   show ((some (Cell.atom (s.ctor + s.base)) == some (.atom (s.ctor + s.base))) && _) = true
   rw [show (some (Cell.atom (s.ctor + s.base)) == some (.atom (s.ctor + s.base))) = true from beq_iff_eq.2 rfl]
   rfl
+
+-- ---------------------------------------------------------------------------
+-- The parent's end row
+-- ---------------------------------------------------------------------------
+
+/-- **A later probe row's `SEGEND` lookup finds a row that provides it**:
+    a row with children, whose count less one and clock are the
+    looked-up pair. -/
+theorem ProbeOK.segendHit {r : Nat} (hr : r < C.h) (hl : C.main r (SEL + 13) = 1) :
+    ∃ r', r' < C.h ∧ C.main r' P_NKIDS ≠ 0 ∧
+      C.main r' P_CNT - 1 = C.main r (S_BASE + 4) ∧ C.main r' J_CLK = C.main r P_CLKP := by
+  let v : List F := [C.main r (S_BASE + 4), C.main r P_CLKP]
+  have hH : C.h < P := Nat.lt_of_le_of_lt h.cpu_h (by decide)
+  cases hany : (List.range C.h).any (fun r' => !decide (C.main r' P_NKIDS = 0) &&
+      decide ([C.main r' P_CNT - 1, C.main r' J_CLK] = v)) with
+  | true =>
+    obtain ⟨r', hr', hb⟩ := List.any_eq_true.1 hany
+    rw [Bool.and_eq_true, Bool.not_eq_true', decide_eq_false_iff_not, decide_eq_true_eq] at hb
+    obtain ⟨hne, hv⟩ := hb
+    simp only [v, List.cons.injEq, and_true] at hv
+    exact ⟨r', List.mem_range.1 hr', hne, hv.1, hv.2⟩
+  | false =>
+    exfalso
+    have hz : ∀ q, q < C.h → C.main q P_NKIDS = 0 ∨ ¬ ([C.main q P_CNT - 1, C.main q J_CLK] = v) := by
+      intro q hq
+      have := List.any_eq_false.1 hany q (List.mem_range.2 hq)
+      cases hq0 : decide (C.main q P_NKIDS = 0) with
+      | true => exact .inl (of_decide_eq_true hq0)
+      | false =>
+        right; intro e
+        apply this
+        rw [hq0, decide_eq_true e]; rfl
+    let a : Nat → Nat := fun q => if decide ([C.main q (S_BASE + 4), C.main q P_CLKP] = v) && decide (C.main q (SEL + 13) = 1)
+      then 1 else 0
+    have hrow : ∀ q, q < C.h → rowSends (cpuAirP hd0 stk0 ctr0 n la) C "segend" v q = ofN (a q) := by
+      intro q hq
+      rw [cpuP_segend]
+      simp only [env_main0 hq]
+      have e1 : (if [C.main q P_CNT - 1, C.main q J_CLK] = v then -C.main q P_NKIDS else 0) = 0 := by
+        rcases hz q hq with h0 | h0
+        · rw [h0]; split <;> decide
+        · rw [if_neg h0]
+      rw [e1, zero_add']
+      show _ = ofN (if _ then 1 else 0)
+      split
+      · rename_i hm
+        rw [decide_eq_true hm, Bool.true_and]
+        rcases val_of_bit (sel_bitP h.cpu hq (i := 13) (by decide)) with e | e
+        · have e0 : C.main q (SEL + 13) = 0 := Fin.ext e
+          rw [e0, decide_eq_false (by decide)]; rfl
+        · have e0 : C.main q (SEL + 13) = 1 := Fin.ext e
+          rw [e0, decide_eq_true rfl]; rfl
+      · rename_i hm
+        rw [decide_eq_false hm, Bool.false_and]; rfl
+    have hb := h.bal "segend" v
+    simp only [probeTables, List.foldr_cons, List.foldr_nil] at hb
+    rw [sends_nobus' (A := memAir) rfl, sends_nobus' (A := progAir heap) rfl, sends_nobus' (A := rootsAir roots) rfl,
+      sends_nobus' (A := hdrAir jets) rfl, sends_nobus' (A := tmplAir jets) rfl, sends_nobus' (A := popAir) rfl,
+      sends_nobus' (A := instwAir) rfl, sends_nobus' (A := planAir plan) rfl, sends_nobus' (A := pwAir) rfl,
+      add_zero', add_zero', add_zero', add_zero', add_zero', add_zero', add_zero', add_zero', add_zero'] at hb
+    unfold tableSends at hb
+    rw [foldr_range_congr C.h hrow, fold_ofN] at hb
+    have hge : a r ≤ sumTo C.h a := sumTo_ge C.h r hr
+    have ha1 : a r = 1 := by
+      show (if _ then 1 else 0) = 1
+      rw [decide_eq_true rfl, decide_eq_true hl]; rfl
+    have hle : sumTo C.h a ≤ C.h := sumTo_le_one (fun q => by show (if _ then 1 else 0) ≤ 1; split <;> decide) C.h
+    rw [add_zero'] at hb
+    have := ofN_inj (b := 0) (Nat.lt_of_le_of_lt hle hH) (by decide) (hb.trans ofN_zero.symm)
+    rw [this] at hge
+    rw [ha1] at hge
+    exact absurd hge (by decide)
+
+/-- **A later probe row probes its parent's field**: the pointer in `P_F`
+    is the field its parent's end row popped. -/
+theorem ProbeOK.childPtr (hfit : planFitB plan = true) (hn : n = plan.length)
+    {r : Nat} (hr : r < C.h) (h0r : 0 < r) (hp : isPr C r = true) {s : Air.Seg} (hs : plan[pc C r]? = some s)
+    (hS : SegAt C r S_BASE s) :
+    s.field < (fldP C Mm plan n s.parent).length ∧
+      (C.main r P_F).val = ((fldP C Mm plan n s.parent)[s.field]?).getD 0 := by
+  have hH : C.h < P := Nat.lt_of_le_of_lt h.cpu_h (by decide)
+  have hnP : n < P := by rw [hn]; exact Nat.lt_of_le_of_lt h.plan_le (by decide)
+  have h0 : 0 < C.h := Nat.lt_of_le_of_lt (Nat.zero_le r) hr
+  have hl : C.main r (SEL + 13) = 1 := (pr_later h.cpu hH hr h0r hp).2
+  obtain ⟨sb, sk, sc, sa, spa, sfi⟩ := planFit_get hfit hs
+  -- the parent's end row
+  obtain ⟨r', hr', hnk, hcnt, hclk⟩ := h.segendHit hr hl
+  have hl' : C.main r' (SEL + 13) = 1 := by
+    have := (probe_row h.cpu hr').2.2.2.2.2.2.1
+    rcases mul_eq_zero this with e | e
+    · exact absurd e hnk
+    · exact (sub_eq_zero e).symm
+  have hp' : isPr C r' = true := by
+    have e := sprobe_ind h.cpu hr'
+    have h12 : C.main r' (SEL + 12) = 0 := by
+      have hk := h.kindAt hr' hl' (by decide)
+      rw [hk 12 (by decide), if_neg (by decide)]
+    rw [h12, hl', zero_add'] at e
+    cases hq : isPr C r'
+    · rw [hq] at e; exact absurd e (by decide)
+    · rfl
+  rw [cnt_eq h.cpu hH r' hr', hS.2.2.2.2.1] at hcnt
+  have hpc : pc C r' = s.parent + 1 := by
+    have e1 : ofN (pc C r') = ofN (s.parent + 1) := by
+      rw [ofN_add, ofN_one, ← hcnt, sub_add_cancel']
+    exact ofN_inj (Nat.lt_of_le_of_lt (pc_le C r') (Nat.lt_trans hr' hH))
+      (Nat.lt_trans (Nat.succ_lt_succ spa) (by decide)) e1
+  obtain ⟨hlt, hrow⟩ := pr_eq h.cpu hH hnP h0 hr' hp'
+  rw [hpc] at hlt hrow
+  obtain ⟨_, sp, hsp, hSp⟩ := h.eSeg hr' hl'
+  rw [hpc, Nat.add_sub_cancel] at hsp
+  obtain ⟨_, _, spc, spa', _, _⟩ := planFit_get hfit hsp
+  obtain ⟨e, hpe, hue, hpop, _⟩ := h.endLater hr' hl' hSp spa' spc (planFit_get hfit hsp).1
+  have hfld : fldP C Mm plan n s.parent = popsAt Po e sp.arity := by
+    apply fldP_eq hsp (rest := (C.main r' E_REST).val)
+    rw [hrow]; exact hpop
+  -- the argument lookup
+  have cv := col_eval hr
+  have hI : (⟨"arg", 1, sPLater, [col P_CLKP, col (S_BASE + 5), col P_F]⟩ : Inter) ∈
+      cpuInters ++ jetInters ++ probeInters := by
+    refine List.mem_append_right _ ?_
+    simp only [probeInters]
+    iterate 7 refine List.mem_cons_of_mem _ ?_
+    exact List.mem_cons_self
+  have hit := h.argHit ⟨(cpuAirP hd0 stk0 ctr0 n la, C), List.mem_cons_self, rfl, r, hr, _, hI, rfl, rfl,
+    by show sPLater.eval _ = 1; simp only [sPLater, E.eval, cv]; exact hl⟩
+  simp only [List.map_cons, List.map_nil, cv] at hit
+  rw [← hclk, clk_eqP h.cpu r' hr', hS.2.2.2.2.2] at hit
+  obtain ⟨i, hi, hfi, hx⟩ := h.core.argPath hpe hue (by
+    obtain ⟨q, hq, ha, hf⟩ := hit
+    exact ⟨q, hq, ha, hf⟩)
+  have hfi' : s.field = i := ofN_inj (Nat.lt_trans sfi (by decide))
+    (Nat.lt_trans (Nat.lt_trans hi spa') (by decide)) hfi
+  rw [hfld, popsAt_length, hfi', popsAt_get Po e hi, hx]
+  exact ⟨hi, rfl⟩
 
 end
 

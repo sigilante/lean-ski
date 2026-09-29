@@ -114,6 +114,11 @@ def pwAir : AirD :=
      ⟨"mem", 1, col 5, [.add (.add (col 1) (col 3)) (col 4), c 5, .add (col 1) (col 4),
        .add (.add (.add (col 1) (col 3)) (col 4)) one]⟩], []⟩
 
+/-- **The plan's numbers fit** below `2^24`, as the probe verifier checks. -/
+def planFitB (plan : List Air.Seg) : Bool :=
+  plan.all fun s => decide (s.base < 2 ^ 24) && decide (s.k < 2 ^ 24) && decide (s.ctor < 2 ^ 24) &&
+    decide (s.arity < 2 ^ 24) && decide (s.parent < 2 ^ 24) && decide (s.field < 2 ^ 24)
+
 /-- The last segment's marker, `ctor + base`. -/
 def lastAtom (plan : List Air.Seg) : Nat := (plan.getLast?.map fun s => s.ctor + s.base).getD 0
 
