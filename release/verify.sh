@@ -6,8 +6,10 @@
 #   1. the term in release/sumto/corpus.txt is lean-ski's corpus row
 #      `sumto_us`, the compiled `3 sumto` (bench/Dump.lean prints it);
 #   2. ski-air jet-verify: Lean's `lake exe jets statement` checks the jet
-#      file against that term and licenses its roots (Air.rootsOKB), then
-#      the proof is verified against the term and the jet file;
+#      file against that term and licenses its roots (Air.rootsOKB), Lean's
+#      `lake exe circuit compare-jets` checks that the AIRs it verifies with
+#      are Circuit.jetAirs (so Circuit.jetExport_sound applies), then the
+#      proof is verified against the term and the jet file;
 #   3. forgeries must be refused: the proof with one byte changed, the
 #      proof offered for another term, the proof with a byte appended, a
 #      name that is a path, and a proof that Omega halts, made over a forged
@@ -15,7 +17,9 @@
 #      read and the verifier's differently;
 #   4. Lean's own check of Avon's witness table (Air.checkJA_sound);
 #   5. the output: ski-air probe-verify checks the probe proof against the
-#      term, the jet file and Lean's plan of `[6]`; offered for `[5]` or for
+#      term, the jet file and Lean's plan of `[6]`, its AIRs Lean's
+#      Circuit.probeAirs (`compare-probe`, so Circuit.probeExport_sound
+#      applies); offered for `[5]` or for
 #      the error outcome, or with one byte changed, it is refused; the
 #      halting proof offered as a probe proof is refused; Lean's
 #      `jets check-probe` accepts the probe table for `[6]` alone
@@ -39,7 +43,7 @@ ok() { printf 'ok   %s\n' "$*"; }
 no() { printf 'FAIL %s\n' "$*"; failed=1; [ -n "${VERIFY_ALL:-}" ] || exit 1; }
 
 echo "--- building the Lean checkers and the verifier (first run: minutes)"
-lake build jets > /dev/null
+lake build jets circuit > /dev/null
 (cd bench/plonky3 && cargo build --release --locked --quiet)
 SKI_AIR=${SKI_AIR:-bench/plonky3/target/release/ski-air}
 

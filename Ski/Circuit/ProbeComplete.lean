@@ -209,6 +209,100 @@ theorem balancedP (hpar : ∀ c, 0 < c → c < R.n → (R.seg c).parent < c)
 end PRun
 
 -- ---------------------------------------------------------------------------
+-- The run's registers lie in memory
+-- ---------------------------------------------------------------------------
+
+namespace PRun
+
+variable {R : PRun} {t : Term} (hA : AcceptsP R.A (load t) R.roots R.jets R.plan R.p R.fld R.row)
+  (hroots : RootsOK (load t).heap R.roots R.jets)
+include hA hroots
+
+theorem valid_hd {r : Air.Row} (hv : Valid R.A r) (hc : r.ctr ≤ R.A.length) : r.hd < R.A.length := by
+  obtain ⟨cell, hrd, _⟩ := (shape hv).reads 0 (by decide) rfl
+  exact Nat.lt_of_lt_of_le (rd_get hrd).1 hc
+
+/-- **Every head of the run is a cell.** -/
+theorem hd_lt {i : Nat} (hi : i ≤ R.last) : (R.row i).hd < R.A.length := by
+  have hc : (R.row i).ctr ≤ R.A.length := (hA.ctrs hroots i hi).2.1
+  have hpre : R.A.take (load t).heap.length = (load t).heap := by rw [← hA.ctr0]; exact hA.heap0
+  have hhl : (load t).heap.length ≤ R.A.length := by
+    have := congrArg List.length hpre; rw [List.length_take] at this; omega
+  have lt_ctr : ∀ {cell}, rd R.A (R.row i).ctr (R.row i).hd = some cell → (R.row i).hd < R.A.length := by
+    intro cell h
+    unfold rd at h; split at h
+    · next hlt => exact Nat.lt_of_lt_of_le hlt hc
+    · cases h
+  rcases Nat.lt_or_ge i R.last with hl | hl
+  · cases hp : R.isP i with
+    | true =>
+      obtain ⟨hjn, hpj⟩ := isP_pcnt hA hp
+      rcases Nat.eq_zero_or_pos (R.pcnt i) with h0 | h0
+      · have : i = 0 := by rw [← hpj, h0, hA.p0]
+        subst this
+        rw [hA.hd0]
+        obtain ⟨_, hhd, _⟩ := load_fits t
+        omega
+      · obtain ⟨hhead, _⟩ := later_end hA hjn h0
+        rw [hpj] at hhead
+        exact lt_ctr hhead
+    | false =>
+      have hn : ∀ j, j < R.plan.length → i ≠ R.p j := by
+        intro j hj e
+        have := isP_iff.2 ⟨j, hj, e.symm⟩
+        rw [hp] at this; cases this
+      rcases hA.norm i hl hn with h | ⟨g, _, hm, _, _⟩ | h
+      · exact valid_hd hA hroots (.inl (by rw [h]; rfl)) hc
+      · obtain ⟨_, _, _, htm, _⟩ := hroots _ g hm
+        exact Nat.lt_of_lt_of_le (termAt_lt htm) hhl
+      · exact valid_hd hA hroots (.inr h.1) hc
+  · have : i = R.last := by omega
+    subst this
+    obtain ⟨_, hhead, _⟩ := last_end hA
+    exact lt_ctr hhead
+
+/-- **Every stack pointer of the run is in memory.** -/
+theorem stk_le (hfit : Fits R.A) (hstk0 : (R.row 0).stk = (load t).stk) :
+    ∀ i, i ≤ R.last → (R.row i).stk ≤ R.A.length := by
+  have hpre : R.A.take (load t).heap.length = (load t).heap := by rw [← hA.ctr0]; exact hA.heap0
+  have hhl : (load t).heap.length ≤ R.A.length := by
+    have := congrArg List.length hpre; rw [List.length_take] at this; omega
+  intro i
+  induction i with
+  | zero =>
+    intro _
+    rw [hstk0]
+    obtain ⟨_, _, hstk⟩ := load_fits t
+    omega
+  | succ i ih =>
+    intro hi
+    have hc1 : (R.row (i + 1)).ctr ≤ R.A.length := (hA.ctrs hroots (i + 1) hi).2.1
+    cases hp : R.isP i with
+    | true =>
+      obtain ⟨hjn, hpj⟩ := isP_pcnt hA hp
+      obtain ⟨_, hnext⟩ := probe_spec hA hjn
+      rw [hpj] at hnext
+      rw [hnext] at hc1 ⊢
+      show (R.row i).ctr + (R.seg (R.pcnt i)).k ≤ R.A.length
+      have : (R.row i).ctr + ((R.seg (R.pcnt i)).k + (R.seg (R.pcnt i)).k + 1) ≤ R.A.length := hc1
+      omega
+    | false =>
+      have hn : ∀ j, j < R.plan.length → i ≠ R.p j := by
+        intro j hj e
+        have := isP_iff.2 ⟨j, hj, e.symm⟩
+        rw [hp] at this; cases this
+      have hil : i < R.p R.plan.length := by unfold last n at hi; omega
+      have hc : (R.row i).ctr ≤ R.A.length := (hA.ctrs hroots i (Nat.le_of_lt hil)).2.1
+      rcases hA.norm i hil hn with h | ⟨_, J, _, _, hI⟩ | h
+      · exact step_stk hfit h hc hc1
+      · rcases instRow_stk hfit hI with e | e
+        · rw [e]; exact ih (by omega)
+        · exact Nat.le_of_lt e
+      · rw [h.2]; exact ih (by omega)
+
+end PRun
+
+-- ---------------------------------------------------------------------------
 -- The theorem
 -- ---------------------------------------------------------------------------
 
@@ -219,7 +313,7 @@ open Mach Term
     children and whose last segment has no fields, over a memory whose cells
     fit and whose tables fit the verifier's bounds (`2^21` rows each), gives
     tables that AIRs with the probe circuit's normal forms accept, with
-    Plonky3's selectors; the memory and the rows' registers are the run's.
+    Plonky3's selectors; they decode back to the memory and the run.
     The jet table must have rows, and the first row's stack is the loaded
     term's (a probe row ignores it). -/
 theorem probe_complete {t : Term} {roots : List (Nat × Nat)} {jets : List Air.Jet} {plan : List Air.Seg}
@@ -240,8 +334,7 @@ theorem probe_complete {t : Term} {roots : List (Nat × Nat)} {jets : List Air.J
     (hHX : (PRun.pwRows ⟨A, roots, jets, plan, p, fld, row⟩ K).length ≤ HX) (hHX0 : 0 < HX) (hHX21 : HX ≤ 2 ^ 21) :
     ∃ C Mm Pg Rt Hd Tm Po Iw Pl Pw, AcceptedP Rs [C, Mm, Pg, Rt, Hd, Tm, Po, Iw, Pl, Pw] ∧ C.h = K ∧
       Mm.h = A.length ∧ Po.h = HP ∧ Iw.h = HW ∧ Pw.h = HX ∧ memOf Mm = A ∧
-      ∀ i, i ≤ p plan.length →
-        C.main i HD = ofN (row i).hd ∧ C.main i STK = ofN (row i).stk ∧ C.main i CTR = ofN (row i).ctr := by
+      ∀ i, i ≤ p plan.length → rowOf C i = row i := by
   let R : PRun := ⟨A, roots, jets, plan, p, fld, row⟩
   have hA' : AcceptsP R.A (load t) R.roots R.jets R.plan R.p R.fld R.row := hA
   have hn0 : 0 < R.n := hA.nonempty
@@ -341,13 +434,18 @@ theorem probe_complete {t : Term} {roots : List (Nat × Nat)} {jets : List Air.J
         (ofN (cellFields (A.getD m .nil)).2)) = _
       rw [hg, cellOf_enc _ (by omega) (by omega), List.getElem?_eq_getElem hm']
     · rw [List.getElem?_eq_none (by rw [List.length_range]; exact hm), List.getElem?_eq_none hm]; rfl
-  · -- the registers are the run's
+  · -- the rows decode back
     intro i hi
     have hq : R.J.rowQ i = row i := JRun.rowQ_lt (show i < R.last + 1 from Nat.lt_succ_of_le hi)
     have cr : ∀ c, c < 3 → C.main i c = Circuit.cpuCol A (row i) c := by
       intro c hc3
       show R.cpuColP K i c = _
       rw [PRun.regP hA' hc3, hq]
-    exact ⟨cr HD (by decide), cr STK (by decide), cr CTR (by decide)⟩
+    have hh : (row i).hd < A.length := PRun.hd_lt hA' hroots hi
+    have hst : (row i).stk ≤ A.length := PRun.stk_le hA' hroots hfit hstk0 i hi
+    have hc : (row i).ctr ≤ A.length := (hA.ctrs hroots i hi).2.1
+    show (⟨(C.main i HD).val, (C.main i STK).val, (C.main i CTR).val⟩ : Air.Row) = row i
+    rw [cr HD (by decide), cr STK (by decide), cr CTR (by decide), cpuCol_hd, cpuCol_stk, cpuCol_ctr,
+      val_ofN (by omega), val_ofN (by omega), val_ofN (by omega)]
 
 end Circuit

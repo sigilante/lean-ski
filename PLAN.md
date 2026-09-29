@@ -769,8 +769,21 @@ data (`witAirs`), checked against the Rust by its verifier; soundness,
 completeness, `wit_complete` (every run from the witness machine of a
 well-formed region, ending at `K`, at the verifier's heights).
 
-Not yet covered: jets (`AcceptsJ`), probes (`AcceptsP`) and the Sudoku
-circuit. Their headers still argue the step informally.
+The Sudoku circuit (`bench/plonky3/src/sudoku.rs`): its four AIRs as
+data (`sudAirs`); soundness, `sudExport_sound` (an accepted proof's input
+bits solve the puzzle), and completeness, `sud_complete` (every accepting
+run of the statement machine at the verifier's fixed heights).
+
+The jet circuit (`release/`): its eight AIRs as data (`jetAirs`), checked
+against the Rust by the verifier, which also recomputes the jet table;
+soundness, `jetExport_sound` (an accepted proof is a run of `AcceptsJ`,
+so the term evaluates up to weak reduction of the value), and
+completeness, `jet_complete` (every run of `AcceptsJ` within `2^21` rows).
+The probe circuit: its ten AIRs as data (`probeAirs`), checked against
+the Rust by the verifier, which recomputes the plan from the outcome;
+soundness, `probeExport_sound` (an accepted proof decodes the term to the
+outcome), and completeness, `probe_complete` (every run of `AcceptsP`
+from the loaded term within the verifier's heights).
 
 ## 6. Acceptance
 
@@ -801,5 +814,5 @@ output: probe segments over jets show that `3 sumto` decodes to `[6]`
 with one byte changed; Lean's `jets check-probe` accepts its table. Avon
 runs its probe segments too (`avon witness --plan`), and its table is
 byte-identical to `ski-air`'s own. The verifier's
-constraints are argued, not proved, to be `AcceptsJ` and `AcceptsP`
-(`release/README.md`).
+constraints are proved to be `AcceptsJ` and `AcceptsP`
+(`jetExport_sound`, `probeExport_sound`; `release/README.md`).

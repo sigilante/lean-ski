@@ -417,8 +417,14 @@ instantiation rows and template table, and the probe segments.
   memory heights only up to `2^21`: addresses stay below `2^21` and
   counters below `2^23`, so a read at or above the counter wraps to at
   least `p − 2^21`, which no 24-bit decomposition represents.
-- **The link to Lean is per table.** The Lean checkers check `Accepts`,
-  `sudokuCheck` and `AcceptsJ` on each table the prover proves (`checkA`
-  decides; the other two are proved sound); that every table the verifier
-  accepts satisfies them is argued in the headers of `src/main.rs`,
-  `src/sudoku.rs` and `src/jets.rs`, not proved in Lean.
+- **The link to Lean is proved from the constraints.** Each verifier
+  pipes the AIRs it verifies with to `lake exe circuit`, which checks them
+  against Lean's `baseAirs`, `sudAirs`, `jetAirs` or `probeAirs`, and Lean
+  proves that the tables those AIRs accept satisfy `Accepts`, the Sudoku
+  statement, `AcceptsJ` or `AcceptsP` (`export_sound`, `sudExport_sound`,
+  `jetExport_sound`, `probeExport_sound`), and that every run has tables
+  they accept. Assumed: Plonky3's STARK and LogUp soundness, that an
+  accepted proof has such tables (`Accepted`, `Ski/Circuit/Air.lean`).
+  Trusted: the export's parser and Plonky3's symbolic builder. The Lean
+  checkers also check each table the prover proves (`checkA` decides;
+  `sudokuCheck` and `checkJA` are proved sound).

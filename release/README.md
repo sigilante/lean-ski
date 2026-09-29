@@ -130,13 +130,16 @@ run.
 
 The limits:
 
-- **The link from Plonky3 to Lean is argued, not proved.** That every
-  table the verifier accepts satisfies `Air.AcceptsJ`, or with probe
-  segments `Air.AcceptsP`, is argued in the headers of
-  `bench/plonky3/src/main.rs`, `src/jets.rs` and `src/probe.rs`. Lean
-  checks the tables these proofs cover (items 5 and 6), but nothing links
-  a table to a proof's bytes. The tables and proofs do regenerate, byte
-  for byte.
+- **The link from Plonky3 to Lean is proved from the constraints, and
+  assumes the STARK.** The verifier checks the AIRs it verifies with
+  against Lean's `jetAirs` and `probeAirs` (`lake exe circuit
+  compare-jets`, `compare-probe`), and Lean proves that every table they
+  accept satisfies `Air.AcceptsJ`, or with probe segments `Air.AcceptsP`
+  (`jetExport_sound`, `probeExport_sound`). That an accepted proof has
+  such tables is Plonky3's STARK and LogUp soundness, assumed. Lean also
+  checks the tables these proofs cover (items 5 and 6), though nothing
+  links a table to a proof's bytes. The tables and proofs regenerate,
+  byte for byte.
 - **The verifier trusts its build.** The statement check runs the Lean
   project of the checkout the verifier binary was built in, with `lake`
   from `PATH`; `$LEAN_SKI` is consulted only when that is absent.
