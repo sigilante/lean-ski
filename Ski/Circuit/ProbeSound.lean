@@ -457,4 +457,542 @@ theorem ProbeOK.planHit {r : Nat} (hr : r < C.h) {I : Inter} (hI : I ∈ probeIn
 
 end
 
+-- ---------------------------------------------------------------------------
+-- Chains: POPCH at instantiations and later probe rows, WCH, PWCH
+-- ---------------------------------------------------------------------------
+
+theorem pop_rowSendsG {Po : Table} {q : Nat} (hq : q < Po.h) (hb : Po.main q 7 * (Po.main q 7 - 1) = 0)
+    (t c' l s : F) :
+    rowSends popAir Po "popch" [t, c', l, s] q =
+      ofN (if (popEdges Po t c').act q && decide ((popEdges Po t c').outN q = (l, [s])) then 1 else 0) -
+      ofN (if (popEdges Po t c').act q && decide ((popEdges Po t c').inN q = (l, [s])) then 1 else 0) := by
+  have cv := col_eval hq
+  simp only [rowSends, popAir, popInters, List.foldr_cons, List.foldr_nil, List.map_cons, List.map_nil, E.eval, cv,
+    B.one, B.c, ofN_one, true_and, false_and, ↓reduceIte, add_zero']
+  rw [if_neg (show ¬ ("mem" = "popch" ∧ [Po.main q 3, ofN 5, Po.main q 4, Po.main q 5] = [t, c', l, s]) from
+      fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("arg" = "popch" ∧ [Po.main q 0, Po.main q 2, Po.main q 4] = [t, c', l, s]) from
+      fun h' => absurd h'.1 (by decide)), add_zero', add_zero']
+  have eneg : ∀ (P : Prop) [Decidable P] (x : F), (if P then -x else 0) = -(if P then x else 0) := by
+    intro P _ x; split
+    · rfl
+    · decide
+  rw [eneg, bit_ite hb, bit_ite hb, dec_msg, dec_msg, sub_eq_add_neg' _ _, add_comm']
+  have ea : (popEdges Po t c').act q = (decide (Po.main q 7 = 1) && decide (Po.main q 0 = t) &&
+      decide (Po.main q 1 = c')) := rfl
+  have ei : (popEdges Po t c').inN q = (Po.main q 2, [Po.main q 3]) := rfl
+  have eo : (popEdges Po t c').outN q = (Po.main q 2 + 1, [Po.main q 5]) := rfl
+  rw [ea, ei, eo]
+  simp only [Bool.and_assoc]
+
+/-- An INSTW row's chain messages: its outgoing edge less its incoming one. -/
+theorem instw_rowSendsG {Iw : Table} {q : Nat} (hq : q < Iw.h) (hb : Iw.main q 17 * (Iw.main q 17 - 1) = 0)
+    (t c0 g0 l : F) :
+    rowSends instwAir Iw "wch" [t, c0, g0, l] q =
+      ofN (if (wchEdges Iw t c0 g0).act q && decide ((wchEdges Iw t c0 g0).outN q = (l, [])) then 1 else 0) -
+      ofN (if (wchEdges Iw t c0 g0).act q && decide ((wchEdges Iw t c0 g0).inN q = (l, [])) then 1 else 0) := by
+  have cv := col_eval hq
+  simp only [rowSends, instwAir, instwInters, List.foldr_cons, List.foldr_nil, List.map_cons, List.map_nil, E.eval,
+    cv, B.one, B.c, ofN_one, true_and, ↓reduceIte, add_zero']
+  rw [if_neg (show ¬ ("arg" = "wch" ∧ [Iw.main q 0, Iw.main q 8, Iw.main q 15] = [t, c0, g0, l]) from
+      fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("arg" = "wch" ∧ [Iw.main q 0, Iw.main q 12, Iw.main q 16] = [t, c0, g0, l]) from
+      fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("tmpl" = "wch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("mem" = "wch" ∧ _) from fun h' => absurd h'.1 (by decide))]
+  simp only [zero_add', add_zero']
+  have eneg : ∀ (P : Prop) [Decidable P] (x : F), (if P then -x else 0) = -(if P then x else 0) := by
+    intro P _ x; split
+    · rfl
+    · decide
+  rw [eneg, bit_ite hb, bit_ite hb, dec_msgW, dec_msgW, sub_eq_add_neg' _ _, add_comm']
+  have ea : (wchEdges Iw t c0 g0).act q = (decide (Iw.main q 17 = 1) && decide (Iw.main q 0 = t) &&
+      decide (Iw.main q 1 = c0) && decide (Iw.main q 2 = g0)) := rfl
+  have ei : (wchEdges Iw t c0 g0).inN q = (Iw.main q 3, []) := rfl
+  have eo : (wchEdges Iw t c0 g0).outN q = (Iw.main q 3 + 1, []) := rfl
+  rw [ea, ei, eo]
+  simp only [Bool.and_assoc]
+
+
+/-- The PW rows at counter `t`, counter `c0`, base `b0` and marker count
+    `k0`, as edges: from `(i, [])` to `(i + 1, [])`. -/
+def pwEdges (Pw : Table) (t c0 b0 k0 : F) : Edges :=
+  ⟨Pw.h, fun q => decide (Pw.main q 5 = 1) && decide (Pw.main q 0 = t) && decide (Pw.main q 1 = c0) &&
+      decide (Pw.main q 2 = b0) && decide (Pw.main q 3 = k0),
+    fun q => Pw.main q 4, fun _ => [], fun _ => []⟩
+
+theorem dec_msg5 (a b c d e t u x y l : F) :
+    decide ([a, b, c, d, e] = [t, u, x, y, l]) =
+      (decide (a = t) && decide (b = u) && decide (c = x) && decide (d = y) &&
+        decide ((e, ([] : List F)) = (l, []))) := by
+  simp only [List.cons.injEq, Prod.mk.injEq, and_true, Bool.decide_and, Bool.and_assoc]
+
+theorem pw_rowSendsG {Pw : Table} {q : Nat} (hq : q < Pw.h) (hb : Pw.main q 5 * (Pw.main q 5 - 1) = 0)
+    (t c0 b0 k0 l : F) :
+    rowSends pwAir Pw "pwch" [t, c0, b0, k0, l] q =
+      ofN (if (pwEdges Pw t c0 b0 k0).act q && decide ((pwEdges Pw t c0 b0 k0).outN q = (l, [])) then 1 else 0) -
+      ofN (if (pwEdges Pw t c0 b0 k0).act q && decide ((pwEdges Pw t c0 b0 k0).inN q = (l, [])) then 1 else 0) := by
+  have cv := col_eval hq
+  simp only [rowSends, pwAir, List.foldr_cons, List.foldr_nil, List.map_cons, List.map_nil, E.eval, cv,
+    B.one, B.c, ofN_one, true_and, ↓reduceIte, add_zero']
+  rw [if_neg (show ¬ ("mem" = "pwch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("mem" = "pwch" ∧ _) from fun h' => absurd h'.1 (by decide))]
+  simp only [add_zero']
+  have eneg : ∀ (P : Prop) [Decidable P] (x : F), (if P then -x else 0) = -(if P then x else 0) := by
+    intro P _ x; split
+    · rfl
+    · decide
+  rw [eneg, bit_ite hb, bit_ite hb, dec_msg5, dec_msg5, sub_eq_add_neg' _ _, add_comm']
+  have ea : (pwEdges Pw t c0 b0 k0).act q = (decide (Pw.main q 5 = 1) && decide (Pw.main q 0 = t) &&
+      decide (Pw.main q 1 = c0) && decide (Pw.main q 2 = b0) && decide (Pw.main q 3 = k0)) := rfl
+  have ei : (pwEdges Pw t c0 b0 k0).inN q = (Pw.main q 4, []) := rfl
+  have eo : (pwEdges Pw t c0 b0 k0).outN q = (Pw.main q 4 + 1, []) := rfl
+  rw [ea, ei, eo]
+  simp only [Bool.and_assoc]
+
+/-- The probe CPU's messages on a bus other than `mem`: its jet and probe
+    messages. -/
+theorem cpuP_rowSends_off {hd0 stk0 ctr0 n la : Nat} {C : Table} {bus : String} (hb : bus ≠ "mem") (v : List F)
+    (r : Nat) : rowSends (cpuAirP hd0 stk0 ctr0 n la) C bus v r =
+      (jetInters ++ probeInters).foldr (fun I acc => (if I.bus = bus ∧ I.fields.map (fun e => e.eval (C.env r)) = v then
+        I.count.eval (C.env r) else 0) + acc) 0 := by
+  unfold rowSends
+  show (cpuInters ++ jetInters ++ probeInters).foldr _ 0 = _
+  rw [List.append_assoc, List.foldr_append]
+  apply foldr_zero_init
+  intro I hI
+  have hm : I.bus = "mem" := by
+    have : cpuInters.all (fun I => I.bus == "mem") = true := by decide
+    exact beq_iff_eq.1 (List.all_eq_true.1 this I hI)
+  exact if_neg (fun (h' : I.bus = bus ∧ _) => hb (h'.1 ▸ hm))
+
+theorem cpuP_popch {hd0 stk0 ctr0 n la : Nat} (C : Table) (r : Nat) (v : List F) :
+    rowSends (cpuAirP hd0 stk0 ctr0 n la) C "popch" v r =
+    ((if [C.env r (.main 0 J_CLK), C.env r (.main 0 CTR), 0, C.env r (.main 0 STK)] = v then
+      C.env r (.main 0 (SEL + 11)) else 0) +
+    (if [C.env r (.main 0 J_CLK), C.env r (.main 0 CTR), C.env r (.main 0 J_K), C.env r (.main 0 J_REST)] = v then
+      -C.env r (.main 0 (SEL + 11)) else 0)) +
+    ((if [C.env r (.main 0 J_CLK), C.env r (.main 0 CTR), 0, C.env r (.main 0 STK)] = v then
+      C.env r (.main 0 (SEL + 13)) else 0) +
+    (if [C.env r (.main 0 J_CLK), C.env r (.main 0 CTR), C.env r (.main 0 (E_BASE + 3)), C.env r (.main 0 E_REST)] = v
+      then -C.env r (.main 0 (SEL + 13)) else 0)) := by
+  rw [cpuP_rowSends_off (by decide), List.foldr_append]
+  simp only [jetInters, probeInters, List.foldr_cons, List.foldr_nil, List.map_cons, List.map_nil, E.eval, B.col,
+    B.c, sInst, sPLater, sProbe, sPFirst, true_and, ofN_zero, B.one, ofN_one]
+  rw [if_neg (show ¬ ("roots" = "popch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("hdr" = "popch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("wch" = "popch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("wch" = "popch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("arg" = "popch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("plan" = "popch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("plan" = "popch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("mem" = "popch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("segend" = "popch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("segend" = "popch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("arg" = "popch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("pwch" = "popch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("pwch" = "popch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("mem" = "popch" ∧ _) from fun h' => absurd h'.1 (by decide))]
+  simp only [zero_add', add_zero']
+  exact (add_assoc' _ _ _).symm
+
+theorem cpuP_wch {hd0 stk0 ctr0 n la : Nat} (C : Table) (r : Nat) (v : List F) :
+    rowSends (cpuAirP hd0 stk0 ctr0 n la) C "wch" v r =
+    (if [C.env r (.main 0 J_CLK), C.env r (.main 0 CTR), C.env r (.main 0 J_G), 0] = v then
+      C.env r (.main 0 (SEL + 11)) else 0) +
+    (if [C.env r (.main 0 J_CLK), C.env r (.main 0 CTR), C.env r (.main 0 J_G), C.env r (.main 0 J_N)] = v then
+      -C.env r (.main 0 (SEL + 11)) else 0) := by
+  rw [cpuP_rowSends_off (by decide), List.foldr_append]
+  simp only [jetInters, probeInters, List.foldr_cons, List.foldr_nil, List.map_cons, List.map_nil, E.eval, B.col,
+    B.c, sInst, sPLater, sProbe, sPFirst, true_and, ofN_zero, B.one, ofN_one]
+  rw [if_neg (show ¬ ("roots" = "wch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("hdr" = "wch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("popch" = "wch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("popch" = "wch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("arg" = "wch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("plan" = "wch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("plan" = "wch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("popch" = "wch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("popch" = "wch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("mem" = "wch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("segend" = "wch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("segend" = "wch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("arg" = "wch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("pwch" = "wch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("pwch" = "wch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("mem" = "wch" ∧ _) from fun h' => absurd h'.1 (by decide))]
+  simp only [zero_add', add_zero']
+
+theorem cpuP_pwch {hd0 stk0 ctr0 n la : Nat} (C : Table) (r : Nat) (v : List F) :
+    rowSends (cpuAirP hd0 stk0 ctr0 n la) C "pwch" v r =
+    (if [C.env r (.main 0 J_CLK), C.env r (.main 0 CTR), C.env r (.main 0 S_BASE), C.env r (.main 0 (S_BASE + 1)),
+        0] = v then C.env r (.main 0 (SEL + 12)) + C.env r (.main 0 (SEL + 13)) else 0) +
+    (if [C.env r (.main 0 J_CLK), C.env r (.main 0 CTR), C.env r (.main 0 S_BASE), C.env r (.main 0 (S_BASE + 1)),
+        C.env r (.main 0 (S_BASE + 1))] = v then
+      -(C.env r (.main 0 (SEL + 12)) + C.env r (.main 0 (SEL + 13))) else 0) := by
+  rw [cpuP_rowSends_off (by decide), List.foldr_append]
+  simp only [jetInters, probeInters, List.foldr_cons, List.foldr_nil, List.map_cons, List.map_nil, E.eval, B.col,
+    B.c, sInst, sPLater, sProbe, sPFirst, true_and, ofN_zero, B.one, ofN_one]
+  rw [if_neg (show ¬ ("roots" = "pwch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("hdr" = "pwch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("wch" = "pwch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("wch" = "pwch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("popch" = "pwch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("popch" = "pwch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("arg" = "pwch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("plan" = "pwch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("plan" = "pwch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("popch" = "pwch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("popch" = "pwch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("mem" = "pwch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("segend" = "pwch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("segend" = "pwch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("arg" = "pwch" ∧ _) from fun h' => absurd h'.1 (by decide)),
+    if_neg (show ¬ ("mem" = "pwch" ∧ _) from fun h' => absurd h'.1 (by decide))]
+  simp only [zero_add', add_zero']
+
+theorem msg_iteP (t c0 b0 k0 a l : F) (x : F) :
+    (if [t, c0, b0, k0, a] = [t, c0, b0, k0, l] then x else 0) =
+      if (some (a, ([] : List F)) : Option Node) = some (l, []) then x else 0 := by
+  cases hd : decide (a = l) with
+  | true =>
+    have e := of_decide_eq_true hd
+    rw [if_pos (show [t, c0, b0, k0, a] = [t, c0, b0, k0, l] by rw [e]),
+      if_pos (show (some (a, ([] : List F)) : Option Node) = some (l, []) by rw [e])]
+  | false =>
+    have e := of_decide_eq_false hd
+    rw [if_neg (fun h' => e (by simp only [List.cons.injEq] at h'; exact h'.2.2.2.2.1)),
+      if_neg (fun h' => e (by simp only [Option.some.injEq, Prod.mk.injEq] at h'; exact h'.1))]
+
+def popEndG (C : Table) (r0 : Nat) (c' K R : F) : Option Node :=
+  if c' = C.main r0 CTR then some (K, [R]) else none
+
+section
+
+variable {hd0 stk0 ctr0 n la : Nat} {heap : List Cell} {roots : List (Nat × Nat)} {jets : List Air.Jet}
+  {plan : List Air.Seg} {C Mm Pg Rt Hd Tm Po Iw Pl Pw : Table}
+  (h : ProbeOK hd0 stk0 ctr0 n la heap roots jets plan C Mm Pg Rt Hd Tm Po Iw Pl Pw)
+include h
+
+/-- The probe CPU's rows other than `r0` send nothing on `POPCH` at `r0`'s counter. -/
+theorem ProbeOK.popch_other {r0 r : Nat} (hr0 : r0 < C.h) (hr : r < C.h) (hne : r ≠ r0) (c' l s : F) :
+    rowSends (cpuAirP hd0 stk0 ctr0 n la) C "popch" [ofN r0, c', l, s] r = 0 := by
+  have hCP : C.h < P := Nat.lt_of_le_of_lt h.cpu_h (by decide)
+  rw [cpuP_popch, env_main0 hr, clk_eqP h.cpu r hr]
+  have hne' : ofN r ≠ ofN r0 := fun e => hne (ofN_inj (Nat.lt_trans hr hCP) (Nat.lt_trans hr0 hCP) e)
+  have nf : ∀ (a b c : F), ¬ ([ofN r, a, b, c] = [ofN r0, c', l, s]) := fun a b c e => hne' (by
+    simp only [List.cons.injEq] at e; exact e.1)
+  rw [if_neg (nf _ _ _), if_neg (nf _ _ _), if_neg (nf _ _ _), if_neg (nf _ _ _), add_zero', add_zero']
+
+/-- **`POPCH` is a flow** at a row that starts a chain from `(0, stk)` and
+    ends it at `(K, R)`. -/
+theorem ProbeOK.popConserveG {r0 : Nat} (hr0 : r0 < C.h) {K R : F}
+    (hrow : ∀ v : List F, rowSends (cpuAirP hd0 stk0 ctr0 n la) C "popch" v r0 =
+      (if [ofN r0, C.main r0 CTR, 0, C.main r0 STK] = v then 1 else 0) +
+      (if [ofN r0, C.main r0 CTR, K, R] = v then -1 else 0)) (c' : F) :
+    (popEdges Po (ofN r0) c').Conserve (popStart C r0 c') (popEndG C r0 c' K R) := by
+  intro v
+  obtain ⟨l, st⟩ := v
+  have hPo : Po.h < P := Nat.lt_of_le_of_lt h.pop_h (by decide)
+  have zero_case : (∀ x : F, st ≠ [x]) →
+      (popEdges Po (ofN r0) c').cntOut (l, st) + Edges.oneIf (popStart C r0 c') (l, st) =
+        (popEdges Po (ofN r0) c').cntIn (l, st) + Edges.oneIf (popEndG C r0 c' K R) (l, st) := by
+    intro hst
+    have z1 : (popEdges Po (ofN r0) c').cntOut (l, st) = 0 := sumTo_zero (fun q => by
+      rw [show decide ((popEdges Po (ofN r0) c').outN q = (l, st)) = false from
+        decide_eq_false (fun e => hst _ (congrArg Prod.snd e).symm), Bool.and_false]; rfl) _
+    have z2 : (popEdges Po (ofN r0) c').cntIn (l, st) = 0 := sumTo_zero (fun q => by
+      rw [show decide ((popEdges Po (ofN r0) c').inN q = (l, st)) = false from
+        decide_eq_false (fun e => hst _ (congrArg Prod.snd e).symm), Bool.and_false]; rfl) _
+    have o1 : Edges.oneIf (popStart C r0 c') (l, st) = 0 := by
+      unfold Edges.oneIf popStart; split
+      · exact if_neg (fun e => hst _ (congrArg Prod.snd (Option.some.inj e)).symm)
+      · exact if_neg (fun e => by cases e)
+    have o2 : Edges.oneIf (popEndG C r0 c' K R) (l, st) = 0 := by
+      unfold Edges.oneIf popEndG; split
+      · exact if_neg (fun e => hst _ (congrArg Prod.snd (Option.some.inj e)).symm)
+      · exact if_neg (fun e => by cases e)
+    rw [z1, z2, o1, o2]
+  match st with
+  | [] => exact zero_case (fun _ e => by cases e)
+  | _ :: _ :: _ => exact zero_case (fun _ e => by cases e)
+  | [s] =>
+    have hb := h.bal "popch" [ofN r0, c', l, s]
+    simp only [probeTables, List.foldr_cons, List.foldr_nil] at hb
+    rw [sends_nobus' (A := memAir) rfl, sends_nobus' (A := progAir heap) rfl, sends_nobus' (A := rootsAir roots) rfl,
+      sends_nobus' (A := hdrAir jets) rfl, sends_nobus' (A := tmplAir jets) rfl, sends_nobus' (A := instwAir) rfl,
+      sends_nobus' (A := planAir plan) rfl, sends_nobus' (A := pwAir) rfl,
+      zero_add', zero_add', zero_add', zero_add', zero_add', add_zero', add_zero', add_zero', add_zero'] at hb
+    have hpop : tableSends popAir Po "popch" [ofN r0, c', l, s] =
+        ofN ((popEdges Po (ofN r0) c').cntOut (l, [s])) - ofN ((popEdges Po (ofN r0) c').cntIn (l, [s])) := by
+      unfold tableSends
+      rw [foldr_range_congr Po.h (fun q hq => pop_rowSendsG hq (h.pop_act hq) _ _ _ _), fold_sub, fold_ofN, fold_ofN]
+      rfl
+    have hcpu : tableSends (cpuAirP hd0 stk0 ctr0 n la) C "popch" [ofN r0, c', l, s] =
+        ofN (Edges.oneIf (popStart C r0 c') (l, [s])) - ofN (Edges.oneIf (popEndG C r0 c' K R) (l, [s])) := by
+      unfold tableSends
+      rw [fold_single _ C.h r0 hr0 (fun r hr hne => h.popch_other hr0 hr hne c' l s), hrow, msg_ite, msg_ite]
+      unfold Edges.oneIf popStart popEndG
+      have ep : ∀ (o : Option Node), (if o = some (l, [s]) then (1 : F) else 0) =
+          ofN (if o = some (l, [s]) then 1 else 0) := by
+        intro o; split <;> rfl
+      have en : ∀ (o : Option Node), (if o = some (l, [s]) then -(1 : F) else 0) =
+          -ofN (if o = some (l, [s]) then 1 else 0) := by
+        intro o; split
+        · rfl
+        · decide
+      rw [ep, en, ← sub_eq_add_neg']
+    rw [hcpu, hpop] at hb
+    have e := bal_sub hb
+    rw [← ofN_add, ← ofN_add] at e
+    have b1 := sumTo_le_one (f := fun q => if (popEdges Po (ofN r0) c').act q &&
+      decide ((popEdges Po (ofN r0) c').outN q = (l, [s])) then 1 else 0) (fun q => by split <;> decide) Po.h
+    have b2 := sumTo_le_one (f := fun q => if (popEdges Po (ofN r0) c').act q &&
+      decide ((popEdges Po (ofN r0) c').inN q = (l, [s])) then 1 else 0) (fun q => by split <;> decide) Po.h
+    have o1 : Edges.oneIf (popStart C r0 c') (l, [s]) ≤ 1 := by unfold Edges.oneIf; split <;> decide
+    have o2 : Edges.oneIf (popEndG C r0 c' K R) (l, [s]) ≤ 1 := by unfold Edges.oneIf; split <;> decide
+    have hP : Po.h + 1 < P := Nat.lt_of_le_of_lt (Nat.add_le_add_right h.pop_h 1) (by decide)
+    have e' := ofN_inj (Nat.lt_of_le_of_lt (Nat.add_le_add o1 b1) (by rw [Nat.add_comm]; exact hP))
+      (Nat.lt_of_le_of_lt (Nat.add_le_add o2 b2) (by rw [Nat.add_comm]; exact hP)) e
+    show sumTo Po.h _ + _ = sumTo Po.h _ + _
+    omega
+
+theorem ProbeOK.kindAt {r k : Nat} (hr : r < C.h) (hsel : C.main r (SEL + k) = 1) (hk : k < NKINDS) :
+    SelsAre C r k := by
+  obtain ⟨k', _, hs⟩ := kind_ofP h.cpu hr
+  have e := hs k hk; rw [hsel] at e
+  rcases Nat.decEq k k' with h1 | h1
+  · rw [if_neg h1] at e; exact absurd e (by decide)
+  · rw [← h1] at hs; exact hs
+
+/-- **`POPCH` at an instantiation row.** -/
+theorem ProbeOK.popConserve {r0 : Nat} (hr0 : r0 < C.h) (hi : C.main r0 (SEL + 11) = 1) (c' : F) :
+    (popEdges Po (ofN r0) c').Conserve (popStart C r0 c') (popEnd C r0 c') := by
+  have hs := h.kindAt hr0 hi (by decide)
+  have h13 : C.main r0 (SEL + 13) = 0 := by rw [hs 13 (by decide), if_neg (by decide)]
+  have := h.popConserveG hr0 (K := C.main r0 J_K) (R := C.main r0 J_REST) (fun v => by
+    rw [cpuP_popch]
+    have n13 : -C.main r0 (SEL + 13) = 0 := by rw [h13]; decide
+    simp only [env_main0 hr0, clk_eqP h.cpu r0 hr0]
+    rw [n13, h13, hi]
+    simp only [ite_self, add_zero']) c'
+  exact this
+
+/-- **`POPCH` at a later probe row**: the ending segment's fields. -/
+theorem ProbeOK.popConserveL {r0 : Nat} (hr0 : r0 < C.h) (hl : C.main r0 (SEL + 13) = 1) (c' : F) :
+    (popEdges Po (ofN r0) c').Conserve (popStart C r0 c')
+      (popEndG C r0 c' (C.main r0 (E_BASE + 3)) (C.main r0 E_REST)) := by
+  have hs := h.kindAt hr0 hl (by decide)
+  have h11 : C.main r0 (SEL + 11) = 0 := by rw [hs 11 (by decide), if_neg (by decide)]
+  exact h.popConserveG hr0 (fun v => by
+    rw [cpuP_popch]
+    have n11 : -C.main r0 (SEL + 11) = 0 := by rw [h11]; decide
+    simp only [env_main0 hr0, clk_eqP h.cpu r0 hr0]
+    rw [n11, h11, hl]
+    simp only [ite_self, zero_add']) c'
+
+/-- **`WCH` is a flow** at an instantiation row's key, from `0` to its
+    cell count. -/
+theorem ProbeOK.wchConserve {r0 : Nat} (hr0 : r0 < C.h) (hi : C.main r0 (SEL + 11) = 1) :
+    (wchEdges Iw (ofN r0) (C.main r0 CTR) (C.main r0 J_G)).Conserve (some ((0 : F), []))
+      (some (C.main r0 J_N, [])) := by
+  intro v
+  obtain ⟨l, st⟩ := v
+  have hCP : C.h < P := Nat.lt_of_le_of_lt h.cpu_h (by decide)
+  let E' := wchEdges Iw (ofN r0) (C.main r0 CTR) (C.main r0 J_G)
+  match st with
+  | x :: xs =>
+    have z1 : E'.cntOut (l, x :: xs) = 0 := sumTo_zero (fun q => by
+      rw [show decide (E'.outN q = (l, x :: xs)) = false from decide_eq_false (fun e => by
+        have := congrArg Prod.snd e; cases this), Bool.and_false]; rfl) _
+    have z2 : E'.cntIn (l, x :: xs) = 0 := sumTo_zero (fun q => by
+      rw [show decide (E'.inN q = (l, x :: xs)) = false from decide_eq_false (fun e => by
+        have := congrArg Prod.snd e; cases this), Bool.and_false]; rfl) _
+    have o1 : Edges.oneIf (some ((0 : F), [])) (l, x :: xs) = 0 :=
+      if_neg (fun e => by have := congrArg Prod.snd (Option.some.inj e); cases this)
+    have o2 : Edges.oneIf (some (C.main r0 J_N, [])) (l, x :: xs) = 0 :=
+      if_neg (fun e => by have := congrArg Prod.snd (Option.some.inj e); cases this)
+    show E'.cntOut _ + _ = E'.cntIn _ + _
+    rw [z1, z2, o1, o2]
+  | [] =>
+    have hb := h.bal "wch" [ofN r0, C.main r0 CTR, C.main r0 J_G, l]
+    simp only [probeTables, List.foldr_cons, List.foldr_nil] at hb
+    rw [sends_nobus' (A := memAir) rfl, sends_nobus' (A := progAir heap) rfl, sends_nobus' (A := rootsAir roots) rfl,
+      sends_nobus' (A := hdrAir jets) rfl, sends_nobus' (A := tmplAir jets) rfl, sends_nobus' (A := popAir) rfl,
+      sends_nobus' (A := planAir plan) rfl, sends_nobus' (A := pwAir) rfl,
+      zero_add', zero_add', zero_add', zero_add', zero_add', zero_add', add_zero', add_zero', add_zero'] at hb
+    have hiw : tableSends instwAir Iw "wch" [ofN r0, C.main r0 CTR, C.main r0 J_G, l] =
+        ofN (E'.cntOut (l, [])) - ofN (E'.cntIn (l, [])) := by
+      unfold tableSends
+      rw [foldr_range_congr Iw.h (fun q hq => instw_rowSendsG hq (h.instw_act hq) _ _ _ _), fold_sub, fold_ofN,
+        fold_ofN]
+      rfl
+    have hcpu : tableSends (cpuAirP hd0 stk0 ctr0 n la) C "wch" [ofN r0, C.main r0 CTR, C.main r0 J_G, l] =
+        ofN (Edges.oneIf (some ((0 : F), [])) (l, [])) - ofN (Edges.oneIf (some (C.main r0 J_N, [])) (l, [])) := by
+      unfold tableSends
+      rw [fold_single _ C.h r0 hr0 (fun r hr hne => by
+        rw [cpuP_wch, env_main0 hr, env_main0 hr, clk_eqP h.cpu r hr]
+        have hne' : ofN r ≠ ofN r0 := fun e => hne (ofN_inj (Nat.lt_trans hr hCP) (Nat.lt_trans hr0 hCP) e)
+        rw [if_neg (fun e => hne' (by simp only [List.cons.injEq] at e; exact e.1)),
+          if_neg (fun e => hne' (by simp only [List.cons.injEq] at e; exact e.1)), add_zero'])]
+      rw [cpuP_wch]
+      simp only [env_main0 hr0, clk_eqP h.cpu r0 hr0, hi]
+      rw [msg_iteW, msg_iteW]
+      unfold Edges.oneIf
+      have ep : ∀ (o : Option Node), (if o = some (l, []) then (1 : F) else 0) =
+          ofN (if o = some (l, []) then 1 else 0) := by
+        intro o; split <;> rfl
+      have en : ∀ (o : Option Node), (if o = some (l, []) then -(1 : F) else 0) =
+          -ofN (if o = some (l, []) then 1 else 0) := by
+        intro o; split
+        · rfl
+        · decide
+      rw [ep, en, ← sub_eq_add_neg']
+    rw [hcpu, hiw] at hb
+    have e := bal_sub hb
+    rw [← ofN_add, ← ofN_add] at e
+    have b1 : E'.cntOut (l, []) ≤ Iw.h := sumTo_le_one (fun q => by split <;> decide) Iw.h
+    have b2 : E'.cntIn (l, []) ≤ Iw.h := sumTo_le_one (fun q => by split <;> decide) Iw.h
+    have o1 : Edges.oneIf (some ((0 : F), [])) (l, []) ≤ 1 := by unfold Edges.oneIf; split <;> decide
+    have o2 : Edges.oneIf (some (C.main r0 J_N, [])) (l, []) ≤ 1 := by unfold Edges.oneIf; split <;> decide
+    have hP : Iw.h + 1 < P := Nat.lt_of_le_of_lt (Nat.add_le_add_right h.instw_h 1) (by decide)
+    have e' := ofN_inj (Nat.lt_of_le_of_lt (Nat.add_le_add o1 b1) (by rw [Nat.add_comm]; exact hP))
+      (Nat.lt_of_le_of_lt (Nat.add_le_add o2 b2) (by rw [Nat.add_comm]; exact hP)) e
+    show E'.cntOut (l, []) + _ = E'.cntIn (l, []) + _
+    omega
+
+/-- **`PWCH` is a flow** at a probe row's key, from `0` to the starting
+    segment's arity. -/
+theorem ProbeOK.pwConserve {r0 : Nat} (hr0 : r0 < C.h) (hp : C.main r0 (SEL + 12) + C.main r0 (SEL + 13) = 1) :
+    (pwEdges Pw (ofN r0) (C.main r0 CTR) (C.main r0 S_BASE) (C.main r0 (S_BASE + 1))).Conserve
+      (some ((0 : F), [])) (some (C.main r0 (S_BASE + 1), [])) := by
+  intro v
+  obtain ⟨l, st⟩ := v
+  have hCP : C.h < P := Nat.lt_of_le_of_lt h.cpu_h (by decide)
+  let E' := pwEdges Pw (ofN r0) (C.main r0 CTR) (C.main r0 S_BASE) (C.main r0 (S_BASE + 1))
+  match st with
+  | x :: xs =>
+    have z1 : E'.cntOut (l, x :: xs) = 0 := sumTo_zero (fun q => by
+      rw [show decide (E'.outN q = (l, x :: xs)) = false from decide_eq_false (fun e => by
+        have := congrArg Prod.snd e; cases this), Bool.and_false]; rfl) _
+    have z2 : E'.cntIn (l, x :: xs) = 0 := sumTo_zero (fun q => by
+      rw [show decide (E'.inN q = (l, x :: xs)) = false from decide_eq_false (fun e => by
+        have := congrArg Prod.snd e; cases this), Bool.and_false]; rfl) _
+    have o1 : Edges.oneIf (some ((0 : F), [])) (l, x :: xs) = 0 :=
+      if_neg (fun e => by have := congrArg Prod.snd (Option.some.inj e); cases this)
+    have o2 : Edges.oneIf (some (C.main r0 (S_BASE + 1), [])) (l, x :: xs) = 0 :=
+      if_neg (fun e => by have := congrArg Prod.snd (Option.some.inj e); cases this)
+    show E'.cntOut _ + _ = E'.cntIn _ + _
+    rw [z1, z2, o1, o2]
+  | [] =>
+    have hb := h.bal "pwch" [ofN r0, C.main r0 CTR, C.main r0 S_BASE, C.main r0 (S_BASE + 1), l]
+    simp only [probeTables, List.foldr_cons, List.foldr_nil] at hb
+    rw [sends_nobus' (A := memAir) rfl, sends_nobus' (A := progAir heap) rfl, sends_nobus' (A := rootsAir roots) rfl,
+      sends_nobus' (A := hdrAir jets) rfl, sends_nobus' (A := tmplAir jets) rfl, sends_nobus' (A := popAir) rfl,
+      sends_nobus' (A := instwAir) rfl, sends_nobus' (A := planAir plan) rfl,
+      zero_add', zero_add', zero_add', zero_add', zero_add', zero_add', zero_add', zero_add', add_zero'] at hb
+    have hpw : tableSends pwAir Pw "pwch" [ofN r0, C.main r0 CTR, C.main r0 S_BASE, C.main r0 (S_BASE + 1), l] =
+        ofN (E'.cntOut (l, [])) - ofN (E'.cntIn (l, [])) := by
+      unfold tableSends
+      rw [foldr_range_congr Pw.h (fun q hq => pw_rowSendsG hq (h.pw_act hq) _ _ _ _ _), fold_sub, fold_ofN,
+        fold_ofN]
+      rfl
+    have hcpu : tableSends (cpuAirP hd0 stk0 ctr0 n la) C "pwch"
+        [ofN r0, C.main r0 CTR, C.main r0 S_BASE, C.main r0 (S_BASE + 1), l] =
+        ofN (Edges.oneIf (some ((0 : F), [])) (l, [])) -
+          ofN (Edges.oneIf (some (C.main r0 (S_BASE + 1), [])) (l, [])) := by
+      unfold tableSends
+      rw [fold_single _ C.h r0 hr0 (fun r hr hne => by
+        rw [cpuP_pwch, env_main0 hr, env_main0 hr, env_main0 hr, env_main0 hr, clk_eqP h.cpu r hr]
+        have hne' : ofN r ≠ ofN r0 := fun e => hne (ofN_inj (Nat.lt_trans hr hCP) (Nat.lt_trans hr0 hCP) e)
+        rw [if_neg (fun e => hne' (by simp only [List.cons.injEq] at e; exact e.1)),
+          if_neg (fun e => hne' (by simp only [List.cons.injEq] at e; exact e.1)), add_zero'])]
+      rw [cpuP_pwch]
+      simp only [env_main0 hr0, clk_eqP h.cpu r0 hr0, hp]
+      rw [msg_iteP, msg_iteP]
+      unfold Edges.oneIf
+      have ep : ∀ (o : Option Node), (if o = some (l, []) then (1 : F) else 0) =
+          ofN (if o = some (l, []) then 1 else 0) := by
+        intro o; split <;> rfl
+      have en : ∀ (o : Option Node), (if o = some (l, []) then -(1 : F) else 0) =
+          -ofN (if o = some (l, []) then 1 else 0) := by
+        intro o; split
+        · rfl
+        · decide
+      rw [ep, en, ← sub_eq_add_neg']
+    rw [hcpu, hpw] at hb
+    have e := bal_sub hb
+    rw [← ofN_add, ← ofN_add] at e
+    have b1 : E'.cntOut (l, []) ≤ Pw.h := sumTo_le_one (fun q => by split <;> decide) Pw.h
+    have b2 : E'.cntIn (l, []) ≤ Pw.h := sumTo_le_one (fun q => by split <;> decide) Pw.h
+    have o1 : Edges.oneIf (some ((0 : F), [])) (l, []) ≤ 1 := by unfold Edges.oneIf; split <;> decide
+    have o2 : Edges.oneIf (some (C.main r0 (S_BASE + 1), [])) (l, []) ≤ 1 := by
+      unfold Edges.oneIf; split <;> decide
+    have hP : Pw.h + 1 < P := Nat.lt_of_le_of_lt (Nat.add_le_add_right h.pw_h 1) (by decide)
+    have e' := ofN_inj (Nat.lt_of_le_of_lt (Nat.add_le_add o1 b1) (by rw [Nat.add_comm]; exact hP))
+      (Nat.lt_of_le_of_lt (Nat.add_le_add o2 b2) (by rw [Nat.add_comm]; exact hP)) e
+    show E'.cntOut (l, []) + _ = E'.cntIn (l, []) + _
+    omega
+
+theorem ProbeOK.jets_le : jets.length ≤ 2 ^ 27 := by
+  have e : Hd.h = (hdrRows jets).length := h.hdpre.1
+  have hl : jets.length ≤ (hdrRows jets).length := by
+    have := padCopies_length_ge (jets.zipIdx.map fun (J, g) => hdrRow J g)
+    rw [List.length_map, List.length_zipIdx] at this
+    exact this
+  have := h.hdr_h
+  omega
+
+theorem ProbeOK.heap_le : heap.length ≤ 2 ^ 27 := by
+  have e : Pg.h = (programRows heap).length := h.pgpre.1
+  have := programRows_length_ge heap
+  have := h.prog_h
+  omega
+
+/-- **The probe circuit's instantiation rows are the jet circuit's**: an
+    accepted probe proof gives the facts `JetCore` collects. -/
+theorem ProbeOK.core : JetCore heap roots jets C Mm Po Iw := by
+  refine ⟨h.po, h.iw, clk_eqP h.cpu, h.mem_h, h.pop_h, h.instw_h, mem_addr h.mem, h.jets_le, h.heap_le,
+    fun q hq ha => ?_, fun w hw ha => ?_, fun v hv => ?_, fun w hw ha => h.tmplHit hw ha,
+    fun r hr hi => h.rootsHit hr hi, fun r hr hi => h.hdrHit hr hi, fun r0 hr0 hi c' => h.popConserve hr0 hi c',
+    fun r0 hr0 hi => h.wchConserve hr0 hi, fun r hr1 hi => ?_⟩
+  · have cv := col_eval hq
+    exact h.memHit ⟨(popAir, Po), by simp [probeTables], rfl, q, hq, ⟨"mem", 1, col 7, [col 3, c 5, col 4, col 5]⟩,
+      List.mem_cons_of_mem _ (List.mem_cons_of_mem _ List.mem_cons_self), rfl,
+      by simp only [List.map_cons, List.map_nil, cv, B.c]; rfl, by rw [cv, ha]⟩
+  · have cv := col_eval hw
+    exact h.memHit ⟨(instwAir, Iw), by simp [probeTables], rfl, w, hw,
+      ⟨"mem", 1, col 17, [.add (col 1) (col 3), col 4, col 13, col 14]⟩,
+      List.mem_cons_of_mem _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _
+        (List.mem_cons_of_mem _ List.mem_cons_self)))), rfl,
+      by simp only [List.map_cons, List.map_nil, E.eval, cv], by rw [cv, ha]⟩
+  · rcases hv with ⟨r, hr, ha, rfl⟩ | ⟨w, hw, ha, rfl⟩ | ⟨w, hw, ha, rfl⟩
+    · have cv := col_eval hr
+      exact h.argHit ⟨(cpuAirP hd0 stk0 ctr0 n la, C), by simp [probeTables], rfl, r, hr,
+        ⟨"arg", 1, col J_RA, [col J_CLK, col J_RV, col J_XROOT]⟩,
+        List.mem_append_left _ (List.mem_append_right _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _
+          (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _
+            List.mem_cons_self))))))), rfl,
+        by simp only [List.map_cons, List.map_nil, cv], by rw [cv, ha]⟩
+    · have cv := col_eval hw
+      exact h.argHit ⟨(instwAir, Iw), by simp [probeTables], rfl, w, hw, ⟨"arg", 1, col 6, [col 0, col 8, col 15]⟩,
+        List.mem_cons_self, rfl, by simp only [List.map_cons, List.map_nil, cv], by rw [cv, ha]⟩
+    · have cv := col_eval hw
+      exact h.argHit ⟨(instwAir, Iw), by simp [probeTables], rfl, w, hw, ⟨"arg", 1, col 10, [col 0, col 12, col 16]⟩,
+        List.mem_cons_of_mem _ List.mem_cons_self, rfl, by simp only [List.map_cons, List.map_nil, cv],
+        by rw [cv, ha]⟩
+  · have hr : r < C.h := Nat.lt_of_succ_lt hr1
+    have hsel := h.kindAt hr hi (by decide)
+    obtain ⟨_, _, _, _, hnHd, hnStk, hnCtr⟩ := inst_facts hr hsel
+    have hp : sProbe.eval (C.env r) = 0 := by
+      simp only [sProbe, sPFirst, sPLater, E.eval, B.col, env_main0 hr]
+      rw [hsel 12 (by decide), hsel 13 (by decide), if_neg (by decide), if_neg (by decide)]
+      rfl
+    obtain ⟨m1, m2, m3⟩ := next_regsP h.cpu hr hr1
+    rw [m1, m2, m3, hnHd, hnStk, hnCtr, hi, hp, zero_add', zero_add', one_mul', one_mul', zero_mul', zero_mul',
+      zero_mul', add_zero', add_zero', add_zero']
+    exact ⟨rfl, rfl, rfl⟩
+
+end
+
 end Circuit
