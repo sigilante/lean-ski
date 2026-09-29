@@ -478,6 +478,106 @@ theorem JetOK.argHit {v : List F}
 end
 
 -- ---------------------------------------------------------------------------
+-- The template's shape, and the numbers that must fit
+-- ---------------------------------------------------------------------------
+
+/-- **A template cell is a leaf or an application.** -/
+theorem symCells_cells (J : Air.Jet) : ∀ (body : OTerm) (off : Nat), ∀ cl ∈ (symCells J body off).1,
+    (cl.2 = none ∧ cl.1 < 3) ∨ (cl.1 = 3 ∧ ∃ a b, cl.2 = some (a, b))
+  | .S, _, cl, h => by simp only [symCells, List.mem_singleton] at h; subst h; exact .inl ⟨rfl, by decide⟩
+  | .K, _, cl, h => by simp only [symCells, List.mem_singleton] at h; subst h; exact .inl ⟨rfl, by decide⟩
+  | .I, _, cl, h => by simp only [symCells, List.mem_singleton] at h; subst h; exact .inl ⟨rfl, by decide⟩
+  | .var _, _, cl, h => by simp only [symCells, List.not_mem_nil] at h
+  | .app f a, off, cl, h => by
+    unfold symCells at h
+    rcases List.mem_append.1 h with h | h
+    · rcases List.mem_append.1 h with h | h
+      · exact symCells_cells J f off cl h
+      · exact symCells_cells J a _ cl h
+    · rw [List.mem_singleton] at h; subst h; exact .inr ⟨rfl, _, _, rfl⟩
+
+/-- **A local root is a written cell.** -/
+theorem symCells_root_local (J : Air.Jet) : ∀ (body : OTerm) (off j : Nat),
+    (symCells J body off).2 = .local_ j → j < off + (symCells J body off).1.length
+  | .S, off, j, h => by simp only [symCells, Op.local_.injEq] at h; subst h; show off < off + 1; omega
+  | .K, off, j, h => by simp only [symCells, Op.local_.injEq] at h; subst h; show off < off + 1; omega
+  | .I, off, j, h => by simp only [symCells, Op.local_.injEq] at h; subst h; show off < off + 1; omega
+  | .var x, off, j, h => by
+    show j < off + 0
+    have e : (symCells J (.var x) off).2 = varOp J x := rfl
+    rw [e] at h
+    unfold varOp at h
+    split at h <;> cases h
+  | .app f a, off, j, h => by
+    unfold symCells at h ⊢
+    simp only [Op.local_.injEq] at h
+    simp only [List.length_append, List.length_singleton]
+    omega
+
+/-- An operand whose value fits in 24 bits. -/
+def opSmall : Op → Bool
+  | .local_ j => decide (j < 2 ^ 24)
+  | .arg i => decide (i < 2 ^ 24)
+  | .glob a => decide (a < 2 ^ 24)
+
+/-- **A jet whose numbers fit**: arity, cell count and operands below
+    `2^24`, so they are the same numbers in the field.  `compare-jets`
+    checks it of the verifier's jet table. -/
+def jetFitB (J : Air.Jet) : Bool :=
+  decide (J.xs.length < 2 ^ 24) && decide ((symCells J J.body 0).1.length < 2 ^ 24) &&
+    opSmall (symCells J J.body 0).2 &&
+    (symCells J J.body 0).1.all fun cl => match cl.2 with
+      | some (a, b) => opSmall a && opSmall b
+      | none => true
+
+theorem opSmall_val {o : Op} (h : opSmall o = true) :
+    ∀ n, (o = .local_ n ∨ o = .arg n ∨ o = .glob n) → n < 2 ^ 24 := by
+  intro n hn
+  rcases hn with rfl | rfl | rfl <;> exact of_decide_eq_true h
+
+/-- `wrsG` holds when each cell is where it is written. -/
+theorem wrsG_of {g : Nat → Option Cell} : ∀ (ws : List Cell) (c : Nat),
+    (∀ j, (hj : j < ws.length) → g (c + j) = some ws[j]) → wrsG g c ws = true
+  | [], _, _ => rfl
+  | w :: ws, c, h => by
+    show ((g c == some w) && wrsG g (c + 1) ws) = true
+    have h0 := h 0 (by simp)
+    rw [Nat.add_zero, show (w :: ws)[0] = w from rfl] at h0
+    rw [h0, beq_iff_eq.2 rfl, Bool.true_and]
+    exact wrsG_of ws (c + 1) (fun j hj => by
+      have := h (j + 1) (by simp only [List.length_cons]; omega)
+      rw [show c + (j + 1) = c + 1 + j by omega] at this
+      exact this)
+
+/-- A term read from a heap starts inside it. -/
+theorem termAt_lt {heap : List Cell} : ∀ {f a : Nat} {u : Term}, Mach.termAt heap f a = some u → a < heap.length
+  | 0, _, _, h => by cases h
+  | f + 1, a, u, h => by
+    unfold Mach.termAt at h
+    cases ha : heap[a]? with
+    | none => rw [ha] at h; cases h
+    | some _ => exact (List.getElem?_eq_some_iff.1 ha).1
+
+/-- Bits weighted by powers of two: a number below `2^n`. -/
+theorem bitsVal_lt {T : Table} {r : Nat} (hr : r < T.h) (b : Nat) :
+    ∀ n, n ≤ 24 → (∀ i, i < n → T.main r (b + i) * (T.main r (b + i) - 1) = 0) →
+    (((List.range n).foldl (fun v i => E.add v (E.mul (col (b + i)) (c (2 ^ i)))) zero).eval (T.env r)).val < 2 ^ n
+  | 0, _, _ => by show (0 : Nat) < 1; decide
+  | n + 1, hn, hb => by
+    have ih := bitsVal_lt hr b n (Nat.le_of_succ_le hn) (fun i hi => hb i (Nat.lt_succ_of_lt hi))
+    rw [List.range_succ, List.foldl_append, List.foldl_cons, List.foldl_nil]
+    generalize ((List.range n).foldl (fun v i => E.add v (E.mul (col (b + i)) (c (2 ^ i)))) zero) = X at ih ⊢
+    simp only [E.eval, B.col, B.c, env_main0 hr]
+    generalize X.eval (T.env r) = x at ih ⊢
+    have hpow : 2 ^ (n + 1) ≤ 2 ^ 24 := Nat.pow_le_pow_right (by decide) hn
+    have hP : 2 ^ 24 < P := by decide
+    rcases bit_of (hb n (Nat.lt_succ_self n)) with e | e <;> rw [e]
+    · rw [zero_mul', add_zero']
+      exact Nat.lt_of_lt_of_le ih (Nat.pow_le_pow_right (by decide) (Nat.le_succ n))
+    · rw [one_mul', val_add_nat (by rw [Nat.pow_succ] at hpow; omega), Nat.pow_succ]
+      omega
+
+-- ---------------------------------------------------------------------------
 -- Chains: the flows of POPCH and WCH
 -- ---------------------------------------------------------------------------
 
@@ -895,6 +995,140 @@ theorem JetOK.wchConserve {r0 : Nat} (hr0 : r0 < C.h) (hi : C.main r0 (SEL + 11)
       (Nat.lt_of_le_of_lt (Nat.add_le_add o2 b2) (by rw [Nat.add_comm]; exact hP)) e
     show E'.cntOut (l, []) + _ = E'.cntIn (l, []) + _
     omega
+
+/-- **An active POP row reads a stack cell below its counter.** -/
+theorem JetOK.popRead {q : Nat} (hq : q < Po.h) (ha : Po.main q 7 = 1) :
+    (Po.main q 3).val < (Po.main q 1).val ∧
+    rd (memOf Mm) (Po.main q 1).val (Po.main q 3).val = some (.cons (Po.main q 4).val (Po.main q 5).val) := by
+  have cv := col_eval hq
+  obtain ⟨hlt, hget⟩ := h.cell (h.memHit ⟨(popAir, Po), by simp [jetTables], rfl, q, hq,
+    ⟨"mem", 1, col 7, [col 3, c 5, col 4, col 5]⟩,
+    List.mem_cons_of_mem _ (List.mem_cons_of_mem _ List.mem_cons_self), rfl,
+    by simp only [List.map_cons, List.map_nil, cv, B.c]; rfl, by rw [cv, ha]⟩)
+  rw [show E.eval (Po.env q) (E.const (ofN 5)) = ofN 5 from rfl, cellOf_cons] at hget
+  -- the range check: `c = s + 1 + v`, with no wrap
+  have hc := h.po.2 (.mul (col 7) (.sub (.sub (.sub (col 1) (col 3)) one) popVal))
+    (List.mem_append_right _ List.mem_cons_self) q hq
+  simp only [E.eval, cv, ha, one_mul', B.one, B.c, ofN_one] at hc
+  have e := sub_eq_zero hc
+  have hv := bitsVal_lt hq 8 24 (Nat.le_refl _) (fun i hi => col_bit h.po (i := 8 + i)
+    (by simp only [popAir, popCons, List.mem_append]; exact .inl (.inr (List.mem_map.2 ⟨i, List.mem_range.2 hi, rfl⟩)))
+    hq)
+  have hv' : (popVal.eval (Po.env q)).val < 2 ^ 24 := hv
+  have hm := h.mem_h
+  have hctr : Po.main q 1 = (Po.main q 3 + 1) + popVal.eval (Po.env q) := by rw [← e, add_sub_cancel3]
+  have h1 : (Po.main q 3 + 1).val = (Po.main q 3).val + 1 :=
+    val_add_of_lt (by have : 2 ^ 27 + 2 ^ 24 + 8 < P := P_big; show _ + 1 < P; omega)
+  have hval : (Po.main q 1).val = (Po.main q 3).val + 1 + (popVal.eval (Po.env q)).val := by
+    rw [hctr, val_add_of_lt (by rw [h1]; have : 2 ^ 27 + 2 ^ 24 + 8 < P := P_big; omega), h1]
+  refine ⟨by omega, ?_⟩
+  unfold rd
+  rw [if_pos (by omega), hget]
+
+/-- **An instantiation's pops are one path of POP rows**, and they are the
+    only active POP rows at its counter. -/
+theorem JetOK.popPath {r : Nat} (hr : r < C.h) (hi : C.main r (SEL + 11) = 1) {k : Nat} (hk : k < 2 ^ 24)
+    (hK : C.main r J_K = ofN k) :
+    ∃ (e : Nat → Nat) (sF : Nat → F), sF 0 = C.main r STK ∧ sF k = C.main r J_REST ∧
+      (∀ i, i < k → e i < Po.h ∧ Po.main (e i) 7 = 1 ∧ Po.main (e i) 0 = ofN r ∧
+        Po.main (e i) 1 = C.main r CTR ∧ Po.main (e i) 2 = ofN i ∧ Po.main (e i) 3 = sF i ∧
+        Po.main (e i) 5 = sF (i + 1)) ∧
+      ∀ q, q < Po.h → Po.main q 7 = 1 → Po.main q 0 = ofN r → ∃ i, i < k ∧ e i = q := by
+  have hH : Po.h < P := Nat.lt_of_le_of_lt h.pop_h (by decide)
+  have hkP : k < P := Nat.lt_trans hk (by decide)
+  have hc : (popEdges Po (ofN r) (C.main r CTR)).Conserve (some ((0 : F), [C.main r STK]))
+      (some (ofN k, [C.main r J_REST])) := by
+    have := h.popConserve hr hi (C.main r CTR)
+    unfold popStart popEnd at this
+    rw [if_pos rfl, if_pos rfl, hK] at this
+    exact this
+  obtain ⟨e, st, h0, hkst, hp, hu⟩ := Edges.path _ hH hkP hc
+  refine ⟨e, fun i => (st i).headD 0, by show (st 0).headD 0 = _; rw [h0]; rfl,
+    by show (st k).headD 0 = _; rw [hkst]; rfl, fun i hi => ?_, ?_⟩
+  · obtain ⟨h1, h2, h3, h4, h5⟩ := hp i hi
+    have ha : (decide (Po.main (e i) 7 = 1) && decide (Po.main (e i) 0 = ofN r) &&
+        decide (Po.main (e i) 1 = C.main r CTR)) = true := h2
+    simp only [Bool.and_eq_true, decide_eq_true_eq] at ha
+    refine ⟨h1, ha.1.1, ha.1.2, ha.2, h3, ?_, ?_⟩
+    · show Po.main (e i) 3 = (st i).headD 0
+      have : [Po.main (e i) 3] = st i := h4
+      rw [← this]; rfl
+    · show Po.main (e i) 5 = (st (i + 1)).headD 0
+      have : [Po.main (e i) 5] = st (i + 1) := h5
+      rw [← this]; rfl
+  · intro q hq ha hclk
+    have hact : ∀ c' : F, Po.main q 1 = c' → (popEdges Po (ofN r) c').act q = true := by
+      intro c' hc'
+      show (decide (Po.main q 7 = 1) && decide (Po.main q 0 = ofN r) && decide (Po.main q 1 = c')) = true
+      rw [decide_eq_true ha, decide_eq_true hclk, decide_eq_true hc']; rfl
+    rcases (inferInstance : Decidable (Po.main q 1 = C.main r CTR)) with hc0 | hc0
+    · exfalso
+      have hcn := h.popConserve hr hi (Po.main q 1)
+      unfold popStart popEnd at hcn
+      rw [if_neg hc0, if_neg hc0] at hcn
+      have hz := Edges.noFlow _ hH hcn q hq
+      rw [hact (Po.main q 1) rfl] at hz
+      cases hz
+    · exact hu q hq (hact _ hc0)
+
+/-- **The pops, read**: along the path, `popR` pops the POP rows' arguments. -/
+theorem JetOK.popR_path {r k : Nat} {e : Nat → Nat} {sF : Nat → F}
+    (hp : ∀ i, i < k → e i < Po.h ∧ Po.main (e i) 7 = 1 ∧ Po.main (e i) 0 = ofN r ∧
+        Po.main (e i) 1 = C.main r CTR ∧ Po.main (e i) 2 = ofN i ∧ Po.main (e i) 3 = sF i ∧
+        Po.main (e i) 5 = sF (i + 1)) :
+    ∀ m, m ≤ k → popR (fun a => (memOf Mm)[a]?) (C.main r CTR).val m (sF (k - m)).val =
+      some ((List.range m).map (fun i => (Po.main (e (k - m + i)) 4).val), (sF k).val)
+  | 0, _ => by show some ([], (sF (k - 0)).val) = _; rw [Nat.sub_zero]; rfl
+  | m + 1, hm => by
+    have hj : k - (m + 1) < k := by omega
+    obtain ⟨h1, h2, _, h4, _, h6, h7⟩ := hp _ hj
+    obtain ⟨_, hrd⟩ := h.popRead h1 h2
+    rw [h4, h6, h7, show k - (m + 1) + 1 = k - m by omega] at hrd
+    show (match rdG (fun a => (memOf Mm)[a]?) (C.main r CTR).val (sF (k - (m + 1))).val with
+      | some (.cons x r') => (popR (fun a => (memOf Mm)[a]?) (C.main r CTR).val m r').map fun (p : List Nat × Nat) => (x :: p.1, p.2)
+      | _ => none) = _
+    rw [← rd_G, hrd]
+    dsimp only
+    rw [JetOK.popR_path hp m (Nat.le_of_succ_le hm)]
+    simp only [Option.map_some, Option.some.injEq, Prod.mk.injEq, and_true]
+    rw [List.range_succ_eq_map, List.map_cons, List.map_map, Nat.add_zero]
+    congr 1
+    apply List.map_congr_left
+    intro i _
+    show (Po.main (e (k - m + i)) 4).val = (Po.main (e (k - (m + 1) + (i + 1))) 4).val
+    rw [show k - (m + 1) + (i + 1) = k - m + i by omega]
+
+/-- **An argument lookup at an instantiation's counter finds its pops.** -/
+theorem JetOK.argPath {r k : Nat} {e : Nat → Nat}
+    (hp : ∀ i, i < k → e i < Po.h ∧ Po.main (e i) 2 = ofN i)
+    (hu : ∀ q, q < Po.h → Po.main q 7 = 1 → Po.main q 0 = ofN r → ∃ i, i < k ∧ e i = q) {v x : F}
+    (hit : ∃ p ∈ jetTables hd0 stk0 ctr0 heap roots jets C Mm Pg Rt Hd Tm Po Iw,
+      (p.1.name == "cpu" || p.1.name == "instw") = true ∧
+      ∃ r', r' < p.2.h ∧ ∃ I ∈ p.1.inters, I.bus = "arg" ∧
+        I.fields.map (fun e => e.eval (p.2.env r')) = [ofN r, v, x] ∧ I.count.eval (p.2.env r') = 1) :
+    ∃ i, i < k ∧ v = ofN i ∧ x = Po.main (e i) 4 := by
+  obtain ⟨q, hq, ha, hf⟩ := h.argHit hit
+  simp only [List.cons.injEq, and_true] at hf
+  obtain ⟨i, hi, hiq⟩ := hu q hq ha hf.1
+  subst hiq
+  exact ⟨i, hi, by rw [← hf.2.1, (hp i hi).2], hf.2.2.symm⟩
+
+/-- **An instantiation's writes are one path of INSTW rows.** -/
+theorem JetOK.wchPath {r : Nat} (hr : r < C.h) (hi : C.main r (SEL + 11) = 1) {n : Nat} (hn : n < 2 ^ 24)
+    (hN : C.main r J_N = ofN n) :
+    ∃ w : Nat → Nat, ∀ j, j < n → w j < Iw.h ∧ Iw.main (w j) 17 = 1 ∧ Iw.main (w j) 0 = ofN r ∧
+      Iw.main (w j) 1 = C.main r CTR ∧ Iw.main (w j) 2 = C.main r J_G ∧ Iw.main (w j) 3 = ofN j := by
+  have hH : Iw.h < P := Nat.lt_of_le_of_lt h.instw_h (by decide)
+  have hnP : n < P := Nat.lt_trans hn (by decide)
+  have hc := h.wchConserve hr hi
+  rw [hN] at hc
+  obtain ⟨w, _, _, _, hp, _⟩ := Edges.path _ hH hnP hc
+  refine ⟨w, fun j hj => ?_⟩
+  obtain ⟨h1, h2, h3, _, _⟩ := hp j hj
+  have ha : (decide (Iw.main (w j) 17 = 1) && decide (Iw.main (w j) 0 = ofN r) &&
+      decide (Iw.main (w j) 1 = C.main r CTR) && decide (Iw.main (w j) 2 = C.main r J_G)) = true := h2
+  simp only [Bool.and_eq_true, decide_eq_true_eq] at ha
+  exact ⟨h1, ha.1.1.1, ha.1.1.2, ha.1.2, ha.2, h3⟩
 
 end
 
