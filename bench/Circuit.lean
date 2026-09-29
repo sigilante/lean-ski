@@ -3,6 +3,7 @@ import Ski.Circuit.CompAir
 import Ski.Circuit.WitAir
 import Ski.Circuit.SudAir
 import Ski.Circuit.JetAir
+import Ski.Circuit.ProbeAir
 import Ski.ComposedText
 open Term
 
@@ -269,6 +270,48 @@ def compareJets (path : String) : IO UInt32 := do
     IO.println "THE JET TABLE DOES NOT FIT"; return 1
   compareAirs rust (jetAirs t roots jets)
 
+/-- An outcome, as `lake exe jets plan` reads it: `err`, or `val` and the
+    stack's numbers in plain decimal, with the same cap on segments. -/
+def parseOutcomeC : List String → Option Outcome
+  | ["err"] => some .err
+  | "val" :: ns => do
+    let ns ← ns.mapM decimal
+    if ns.foldl (· + ·) 0 + 3 * ns.length + 2 > 65536 then none
+    some (.val (ns.map Item.num))
+  | _ => none
+where
+  decimal (w : String) : Option Nat :=
+    if !w.isEmpty && w.all Char.isDigit && (w == "0" || w.front != '0') then w.toNat? else none
+
+/-- The probe circuit: `term T`, `outcome …`, then the ten AIRs.  The jet
+    table is Lean's for the term, as for `compare-jets`; the plan is Lean's
+    for the outcome, `Air.planOf (Probe.toV o) 0`, what `lake exe jets plan`
+    prints.  `MATCH` also means the side conditions of the soundness
+    theorem hold: licensed roots, numbers that fit, and a last segment with
+    no fields. -/
+def compareProbe (path : String) : IO UInt32 := do
+  let text ← readInput path
+  let ls := (text.splitOn "\n").filter (fun l => !l.trimAscii.toString.isEmpty)
+  let some t := (match ls with
+      | l :: _ => match words l with
+        | ["term", s] => parseTerm s
+        | _ => none
+      | [] => none) | do IO.println "MALFORMED: no term"; return 1
+  let some o := (match ls.drop 1 with
+      | l :: _ => match words l with
+        | "outcome" :: ws => parseOutcomeC ws
+        | _ => none
+      | [] => none) | do IO.println "MALFORMED: no outcome"; return 1
+  let some v := Probe.toV o | do IO.println "NO PLAN FOR THE OUTCOME"; return 1
+  let plan := Air.planOf v 0
+  let some rust := parseAirs (ls.length + 1) (ls.drop 2) | do IO.println "MALFORMED AIRS"; return 1
+  let (roots, jets) := JetTable.jetTable (Mach.load t).heap JetTable.allTemplates
+  if !(Air.rootsOKB (Mach.load t).heap roots jets && jets.all jetFitB) then
+    IO.println "THE JET TABLE DOES NOT FIT"; return 1
+  if (plan.getLast?.map (·.arity)) != some 0 then
+    IO.println "THE LAST SEGMENT HAS FIELDS"; return 1
+  compareAirs rust (probeAirs t roots jets plan)
+
 def main (args : List String) : IO UInt32 := do
   match args with
   | ["compare", path] => compare path
@@ -276,6 +319,7 @@ def main (args : List String) : IO UInt32 := do
   | ["compare-witness", path] => compareWitness path
   | ["compare-sudoku", path] => compareSudoku path
   | ["compare-jets", path] => compareJets path
+  | ["compare-probe", path] => compareProbe path
   | _ =>
-    IO.eprintln "usage: circuit compare|compare-composed|compare-witness|compare-sudoku|compare-jets FILE|-"
+    IO.eprintln "usage: circuit compare|compare-composed|compare-witness|compare-sudoku|compare-jets|compare-probe FILE|-"
     return 2

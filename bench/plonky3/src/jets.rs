@@ -858,6 +858,36 @@ pub fn export_jets(term: &str, jets: &std::path::Path) -> Result<String, String>
     Ok(export_airs_j(&t, &airs(&t, &jt, None)?))
 }
 
+/// The probe verifier's AIRs, after the term and the outcome (`lake exe
+/// circuit compare-probe`, which recomputes the plan from the outcome).
+pub fn export_airs_p(t: &Term, outcome: &[&str], v_airs: &[SkiAir]) -> String {
+    let mut term = String::new();
+    super::export::unparse(t, &mut term);
+    let names = ["cpu", "mem", "prog", "roots", "hdr", "tmpl", "pop", "instw", "plan", "pw"];
+    let mut s = format!("term {term}\noutcome {}\n", outcome.join(" "));
+    for (n, a) in names.iter().zip(v_airs.iter()) {
+        s.push_str(&super::export::export_air(n, a));
+    }
+    s
+}
+
+/// Lean checks that the probe verifier's AIRs, for a term, its jet table and
+/// the plan of an outcome, are `Circuit.probeAirs`.
+fn compare_probe(t: &Term, jt: &JetTable, plan: &[probe::Seg], outcome: &[&str]) -> Result<(), String> {
+    let a = catch_unwind(AssertUnwindSafe(|| airs(t, jt, Some(plan))))
+        .map_err(|e| format!("verifier panic: {}", panic_text(&e)))??;
+    lean_statement("circuit", &["compare-probe", "-"], export_airs_p(t, outcome, &a).as_bytes())?;
+    Ok(())
+}
+
+/// `ski-air export-probe TERM JETS OUTCOME…`: the probe verifier's AIRs.
+pub fn export_probe(term: &str, jets: &std::path::Path, outcome: &[&str]) -> Result<String, String> {
+    let t = parse(term.trim().as_bytes(), &mut 0);
+    let jt = read_jets(jets);
+    let (plan, _) = probe::lean_plan(outcome)?;
+    Ok(export_airs_p(&t, outcome, &airs(&t, &jt, Some(&plan))?))
+}
+
 fn prove_and_verify_j(t: &Term, jt: &JetTable, tr: &JTraces, plan: Option<&[probe::Seg]>) -> Outcome {
     let (proof, prove_s) = match prove_j(t, jt, tr, plan) {
         Ok(p) => p,
@@ -1056,6 +1086,7 @@ pub fn probe_prove(term: &std::path::Path, jets: &std::path::Path, table_out: &s
     let (proof, prove_s) = prove_j(&t, &jt, &tr, Some(&plan))?;
     let bytes = postcard::to_allocvec(&proof).map_err(|e| format!("serialize: {e}"))?;
     std::fs::write(proof_out, &bytes).map_err(|e| format!("{}: {e}", proof_out.display()))?;
+    compare_probe(&t, &jt, &plan, outcome)?;
     verify_j(&t, &jt, &proof, Some(&plan))?;
     println!(
         "proved {} rows ({} instantiations, {} segments), {} memory cells, in {prove_s:.2} s; proof {} bytes -> {}",
@@ -1178,6 +1209,7 @@ pub fn probe_prove_table(term: &std::path::Path, jets: &std::path::Path, table: 
     let (proof, prove_s) = prove_j(&t, &jt, &tr, Some(&plan))?;
     let bytes = postcard::to_allocvec(&proof).map_err(|e| format!("serialize: {e}"))?;
     std::fs::write(proof_out, &bytes).map_err(|e| format!("{}: {e}", proof_out.display()))?;
+    compare_probe(&t, &jt, &plan, outcome)?;
     verify_j(&t, &jt, &proof, Some(&plan))?;
     println!(
         "proved {} rows ({} instantiations, {} segments), {} memory cells, in {prove_s:.2} s; proof {} bytes -> {}",
@@ -1223,6 +1255,7 @@ pub fn probe_verify(corpus: &std::path::Path, dir: &std::path::Path, name: &str,
         return Err(format!("{} bytes after the proof", rest.len()));
     }
     let t0 = Instant::now();
+    compare_probe(&t, &jt, &plan, outcome)?;
     verify_j(&t, &jt, &proof, Some(&plan))?;
     println!(
         "VERIFIED {name}: the term decodes to {} ({} segments; {:.3} s)",

@@ -119,6 +119,20 @@ if command -v cargo >/dev/null 2>&1 \
   else
     bad "jets sumto_us: the Rust circuit differs from Circuit.jetAirs"
   fi
+  if "$ski" export-probe "$(cat release/sumto/sumto_us.term)" release/sumto/jets/sumto_us.jets val 6 > "$exp.p" \
+     && .lake/build/bin/circuit compare-probe "$exp.p" | tail -1 | grep -q '^MATCH'; then
+    note "ok — probes sumto_us: the Rust circuit is Circuit.probeAirs"
+  else
+    bad "probes sumto_us: the Rust circuit differs from Circuit.probeAirs"
+  fi
+  # another outcome's plan: the circuit must differ
+  sed 's/^outcome val 6$/outcome val 5/' "$exp.p" > "$exp.pbad"
+  if .lake/build/bin/circuit compare-probe "$exp.pbad" | tail -1 | grep -q '^MATCH'; then
+    bad "another outcome's plan was accepted"
+  else
+    note "ok — another outcome's plan is refused"
+  fi
+  /bin/rm -f "$exp.p" "$exp.pbad"
   # doctor one template row's tag: the jet table must differ
   awk '/^air tmpl/ { t = 1 } t && /^pretrace/ { p = 1; print; next } p && !d { $3 = $3 + 1; d = 1 } { print }' \
     "$exp.c" > "$exp.cbad"

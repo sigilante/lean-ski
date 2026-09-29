@@ -1123,6 +1123,17 @@ fn main() {
         print!("{}", export::export_base(&args[2]));
         return;
     }
+    if args.len() >= 5 && args[1] == "export-probe" {
+        let outcome: Vec<&str> = args[4..].iter().map(|s| s.as_str()).collect();
+        match jets::export_probe(&args[2], std::path::Path::new(&args[3]), &outcome) {
+            Ok(s) => print!("{s}"),
+            Err(e) => {
+                eprintln!("{e}");
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
     if args.len() == 4 && args[1] == "export-jets" {
         match jets::export_jets(&args[2], std::path::Path::new(&args[3])) {
             Ok(s) => print!("{s}"),
