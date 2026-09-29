@@ -1,4 +1,5 @@
 import Ski.SudokuCheck
+import Ski.SudokuText
 open Term
 
 /-!
@@ -31,18 +32,7 @@ A cell is `S`, `K`, `I`, `N`, `A f x`, `C x r` or `X n` (the atom `n`).
 -/
 
 open Sudoku Stmt Mach
-
-def ACC : Nat := 731
-def REJ : Nat := 732
-
-def cellText : Cell → String
-  | .S => "S"
-  | .K => "K"
-  | .I => "I"
-  | .nil => "N"
-  | .app f x => s!"A {f} {x}"
-  | .cons x r => s!"C {x} {r}"
-  | .atom n => s!"X {n}"
+open SudokuText
 
 def words (l : String) : List String := (l.splitOn " ").filter (· ≠ "")
 
@@ -61,10 +51,6 @@ def parseRow (ws : List String) : Option Air.Row :=
   match ws with
   | [h, s, c] => do some ⟨← h.toNat?, ← s.toNat?, ← c.toNat?⟩
   | _ => none
-
-def parseDigits (s : String) : Option (List Nat) :=
-  let cs := s.toList
-  if cs.length == 81 && cs.all Char.isDigit then some (cs.map fun ch => ch.toNat - '0'.toNat) else none
 
 /-- A table: the clues, the markers, the memory and the rows. -/
 def parseTable (ls : List String) : Option (List Clue × Nat × Nat × Array Cell × List Air.Row) := do
@@ -90,20 +76,6 @@ def parseTable (ls : List String) : Option (List Clue × Nat × Nat × Array Cel
 def bits (ρ : Nat → Bool) : String :=
   String.ofList ((List.range 729).map fun n => if ρ n then '1' else '0')
 
-/-- **The statement** of a puzzle: `public.txt`.  The heap is the statement
-    machine's for all-false inputs with the input cells blank; by
-    `Stmt.stmtMachine_public` it states the machine for every input. -/
-def publicText (puzzle : List Nat) : String := Id.run do
-  let m := stmtMachineA (fun _ => false) 729 (sudokuExpr (cluesOf puzzle)) ACC REJ
-  let ctr := m.heap.length
-  let digits := String.ofList (puzzle.map fun d => Char.ofNat (d + '0'.toNat))
-  let mut s := s!"{digits}\n{ACC} {REJ} {m.hd} {m.stk} {ctr} 3 729\n{ctr}\n"
-  let mut i := 0
-  for c in m.heap do
-    s := s ++ (if 3 ≤ i && i < 3 + 729 then "W" else cellText c) ++ "\n"
-    i := i + 1
-  return s
-
 def emit (dir : String) : IO UInt32 := do
   IO.FS.createDirAll dir
   let clues := wikiClues
@@ -120,14 +92,6 @@ where
     | .and a b | .or a b => size a + size b + 1
     | .not a => size a + 1
     | _ => 1
-
-/-- The puzzle a statement file names, if the file is exactly that puzzle's
-    statement and its clues are well formed. -/
-def statementOfText (text : String) : Option (List Nat) :=
-  match (text.splitOn "\n").head? >>= fun l => parseDigits l.trimAscii.toString with
-  | some puzzle =>
-    if cluesOKB (cluesOf puzzle) && text == publicText puzzle then some puzzle else none
-  | none => none
 
 def statementOf (path : String) : IO (Option (List Nat)) := do
   return statementOfText (← IO.FS.readFile path)

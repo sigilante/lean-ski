@@ -1,6 +1,7 @@
 import Ski.Circuit.Base
 import Ski.Circuit.CompAir
 import Ski.Circuit.WitAir
+import Ski.Circuit.SudAir
 import Ski.ComposedText
 open Term
 
@@ -228,11 +229,29 @@ def compareWitness (path : String) : IO UInt32 := do
   let some rust := parseAirs (rest.length + 1) rest | do IO.println "MALFORMED AIRS"; return 1
   compareAirs rust (witAirs V x W)
 
+/-- The Sudoku circuit: `public N`, the statement's `N` lines, then the four
+    AIRs.  The statement must be exactly `SudokuText.publicText` of its
+    puzzle, with well-formed clues, as `lake exe sudoku statement` checks. -/
+def compareSudoku (path : String) : IO UInt32 := do
+  let text ← readInput path
+  let ls := text.splitOn "\n"
+  let some n := (match ls with
+      | l :: _ => match words l with
+        | ["public", k] => k.toNat?
+        | _ => none
+      | [] => none) | do IO.println "MALFORMED: no statement"; return 1
+  let stmt := "\n".intercalate ((ls.drop 1).take n) ++ "\n"
+  let some puzzle := SudokuText.statementOfText stmt | do IO.println "NOT A STATEMENT"; return 1
+  let rest := ((ls.drop (n + 1)).filter (fun l => !l.trimAscii.toString.isEmpty))
+  let some rust := parseAirs (rest.length + 1) rest | do IO.println "MALFORMED AIRS"; return 1
+  compareAirs rust (sudAirs puzzle)
+
 def main (args : List String) : IO UInt32 := do
   match args with
   | ["compare", path] => compare path
   | ["compare-composed", path] => compareComposed path
   | ["compare-witness", path] => compareWitness path
+  | ["compare-sudoku", path] => compareSudoku path
   | _ =>
-    IO.eprintln "usage: circuit compare|compare-composed|compare-witness FILE|-"
+    IO.eprintln "usage: circuit compare|compare-composed|compare-witness|compare-sudoku FILE|-"
     return 2

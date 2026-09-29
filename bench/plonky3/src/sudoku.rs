@@ -131,6 +131,8 @@ pub struct Public {
     wit_n: u32,
     /// The initial heap, `None` at the inputs.
     cells: Vec<Option<Cell>>,
+    /// The statement's bytes, as Lean checked them.
+    text: String,
 }
 
 fn parse_cell(l: &str) -> Cell {
@@ -169,6 +171,7 @@ pub fn parse_public(text: &str) -> Public {
         wit_lo: h[5],
         wit_n: h[6],
         cells,
+        text: text.to_string(),
     };
     assert_eq!(p.ctr0 as usize, n);
     // Necessary, not sufficient: `lake exe sudoku statement` checks the rest.
@@ -229,6 +232,25 @@ fn wit_pre(p: &Public) -> Vec<[u32; 2]> {
     let mut pre: Vec<[u32; 2]> = (0..p.wit_n).map(|n| [p.wit_lo + n, 1]).collect();
     pre.resize(1 << LOG_WIT, [0, 0]);
     pre
+}
+
+/// The Sudoku verifier's four AIRs for a statement, in the export format of
+/// `src/export.rs`, after the statement's text (`lake exe circuit
+/// compare-sudoku` reads both).
+pub fn export_sudoku(text: &str) -> String {
+    let p = parse_public(text);
+    export_airs(&p, &airs(&p))
+}
+
+fn export_airs(p: &Public, v_airs: &[SkiAir]) -> String {
+    let mut s = format!("public {}\n{}", p.text.lines().count(), p.text);
+    if !p.text.ends_with('\n') {
+        s.push('\n');
+    }
+    for (n, a) in ["cpu", "mem", "prog", "wit"].iter().zip(v_airs.iter()) {
+        s.push_str(&super::export::export_air(n, a));
+    }
+    s
 }
 
 /// The verifier's AIRs, from the public statement alone.
@@ -406,6 +428,9 @@ fn prove_and_verify_zk(p: &Public, traces: &[RowMajorMatrix<Val>; 4]) -> (Outcom
     let verified = catch_unwind(AssertUnwindSafe(|| {
         let v_config = make_zk_config(Some(PUBLIC_SEED));
         let v_airs = airs(p);
+        // The AIRs it verifies with are the Lean circuit for the statement:
+        // Lean compares their symbolic export with `Circuit.sudAirs`.
+        lean_statement("circuit", &["compare-sudoku", "-"], export_airs(p, &v_airs).as_bytes())?;
         let zk = v_config.is_zk();
         let prog_log = p3_util::log2_strict_usize(program_of(p).len());
         let want = [LOG_ROWS + zk, LOG_MEM + zk, prog_log + zk, LOG_WIT + zk];
