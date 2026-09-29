@@ -34,6 +34,7 @@ import Ski.Circuit.JetAir
 import Ski.Circuit.Flow
 import Ski.Circuit.JetKind
 import Ski.Circuit.JetSound
+import Ski.Circuit.JetComplete
 import Ski.BoolProbe
 import Ski.Statement
 import Ski.Sudoku
@@ -612,3 +613,10 @@ open Ski.Audit
   Circuit.JetOK.popPath Circuit.JetOK.popR_path Circuit.JetOK.wchPath Circuit.JetOK.resolve Circuit.JetOK.rootRes
   Circuit.JetOK.cellAt Circuit.JetOK.inst Circuit.JetOK.acceptsJ Circuit.JetOK.heap0 Circuit.JetOK.sound
   Circuit.jet_guarded Circuit.jetOK_of Circuit.jetExport_sound
+
+-- The jet circuit: completeness, the honest tables satisfying and balancing
+#audit_clean Circuit.JRun.base_trans Circuit.JRun.inst_spec Circuit.JRun.cpu_sat Circuit.JRun.pop_sat
+  Circuit.JRun.instw_sat Circuit.sends_rows Circuit.JRun.bal_popch Circuit.JRun.bal_wch Circuit.JRun.bal_arg
+  Circuit.prov_sends Circuit.JRun.bal_roots Circuit.JRun.bal_hdr Circuit.JRun.bal_tmpl Circuit.JRun.cpu_honestJ
+  Circuit.JRun.pop_honest Circuit.JRun.instw_honest Circuit.bal_mem4 Circuit.JRun.balanced Circuit.AcceptsJ.stk_le
+  Circuit.jet_complete
