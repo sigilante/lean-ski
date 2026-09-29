@@ -40,6 +40,7 @@ import Ski.Circuit.ProbeAir
 import Ski.Circuit.ProbeKind
 import Ski.Circuit.ProbeSound
 import Ski.Circuit.ProbeRows
+import Ski.Circuit.ProbeComplete
 import Ski.BoolProbe
 import Ski.Statement
 import Ski.Sudoku
@@ -639,3 +640,10 @@ open Ski.Audit
   Circuit.ProbeOK.probeStep Circuit.ProbeOK.popPathL Circuit.ProbeOK.endLater Circuit.ProbeOK.endLast
   Circuit.ProbeOK.segendHit Circuit.ProbeOK.childPtr Circuit.ProbeOK.norm Circuit.ProbeOK.acceptsP
   Circuit.ProbeOK.heap0 Circuit.ProbeOK.sound Circuit.probe_guarded Circuit.probeOK_of Circuit.probeExport_sound
+
+-- Probe completeness: the honest tables satisfy the AIRs and balance
+#audit_clean Circuit.PRun.jok Circuit.PRun.probe_spec Circuit.PRun.later_end Circuit.PRun.probe_rowSat
+  Circuit.PRun.norm_rowSat Circuit.PRun.cpu_satP Circuit.PRun.pop_satP Circuit.PRun.pw_satP Circuit.mem5_sat
+  Circuit.bal_mem5 Circuit.PRun.cpuP_split Circuit.PRun.bal_popch_probe Circuit.PRun.bal_pwch Circuit.PRun.bal_plan
+  Circuit.PRun.bal_segend Circuit.PRun.bal_arg_probe Circuit.PRun.cpu_honestP Circuit.PRun.pw_honest
+  Circuit.PRun.pop_honestP Circuit.PRun.balancedP Circuit.probe_complete

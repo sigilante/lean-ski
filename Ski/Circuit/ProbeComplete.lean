@@ -208,5 +208,146 @@ theorem balancedP (hpar : ∀ c, 0 < c → c < R.n → (R.seg c).parent < c)
 
 end PRun
 
+-- ---------------------------------------------------------------------------
+-- The theorem
+-- ---------------------------------------------------------------------------
+
+open Mach Term
+
+/-- **Completeness of the probe circuit.**  A run of the AIR with probe
+    segments from a loaded term, for a plan whose parents come before their
+    children and whose last segment has no fields, over a memory whose cells
+    fit and whose tables fit the verifier's bounds (`2^21` rows each), gives
+    tables that AIRs with the probe circuit's normal forms accept, with
+    Plonky3's selectors; the memory and the rows' registers are the run's.
+    The jet table must have rows, and the first row's stack is the loaded
+    term's (a probe row ignores it). -/
+theorem probe_complete {t : Term} {roots : List (Nat × Nat)} {jets : List Air.Jet} {plan : List Air.Seg}
+    {Rs : List AirD} (hs : sameAirsB Rs (probeAirs t roots jets plan) = true)
+    (hroots : RootsOK (load t).heap roots jets)
+    (hprov : 0 < (rootsRows roots).length ∧ 0 < (hdrRows jets).length ∧ 0 < (tmplRows jets).length)
+    (hprov27 : (rootsRows roots).length ≤ 2 ^ 27 ∧ (hdrRows jets).length ≤ 2 ^ 27 ∧
+      (tmplRows jets).length ≤ 2 ^ 27 ∧ (planRows plan).length ≤ 2 ^ 27)
+    (hpar : ∀ c s, 0 < c → plan[c]? = some s → s.parent < c)
+    (hlast : ∀ s, plan.getLast? = some s → s.arity = 0)
+    {A : List Cell} {p : Nat → Nat} {fld : Nat → List Nat} {row : Nat → Air.Row}
+    (hA : AcceptsP A (load t) roots jets plan p fld row) (hstk0 : (row 0).stk = (load t).stk)
+    (hfit : Fits A) (hlen : A.length ≤ 2 ^ 21)
+    {K HP HW HX : Nat} (hK : p plan.length < K) (hK21 : K ≤ 2 ^ 21)
+    (hHP : (PRun.popRowsP ⟨A, roots, jets, plan, p, fld, row⟩ K).length ≤ HP) (hHP0 : 0 < HP) (hHP21 : HP ≤ 2 ^ 21)
+    (hHW : (JRun.instwRows (PRun.J ⟨A, roots, jets, plan, p, fld, row⟩) K).length ≤ HW) (hHW0 : 0 < HW)
+    (hHW21 : HW ≤ 2 ^ 21)
+    (hHX : (PRun.pwRows ⟨A, roots, jets, plan, p, fld, row⟩ K).length ≤ HX) (hHX0 : 0 < HX) (hHX21 : HX ≤ 2 ^ 21) :
+    ∃ C Mm Pg Rt Hd Tm Po Iw Pl Pw, AcceptedP Rs [C, Mm, Pg, Rt, Hd, Tm, Po, Iw, Pl, Pw] ∧ C.h = K ∧
+      Mm.h = A.length ∧ Po.h = HP ∧ Iw.h = HW ∧ Pw.h = HX ∧ memOf Mm = A ∧
+      ∀ i, i ≤ p plan.length →
+        C.main i HD = ofN (row i).hd ∧ C.main i STK = ofN (row i).stk ∧ C.main i CTR = ofN (row i).ctr := by
+  let R : PRun := ⟨A, roots, jets, plan, p, fld, row⟩
+  have hA' : AcceptsP R.A (load t) R.roots R.jets R.plan R.p R.fld R.row := hA
+  have hn0 : 0 < R.n := hA.nonempty
+  obtain ⟨_, hhd, hstk⟩ := load_fits t
+  have hpre : A.take (load t).heap.length = (load t).heap := by rw [← hA.ctr0]; exact hA.heap0
+  have hhl : (load t).heap.length ≤ A.length := by
+    have := congrArg List.length hpre; rw [List.length_take] at this; omega
+  have hA0 : 0 < A.length := by omega
+  have hPP : P = 2013265921 := rfl
+  have e1 : (row 0).hd = (load t).hd := hA.hd0
+  have e3 : (row 0).ctr = (load t).heap.length := hA.ctr0
+  have hl24 : R.A.length ≤ 2 ^ 24 := Nat.le_trans (show A.length ≤ 2 ^ 21 from hlen) (by decide)
+  -- the plan's facts, as the run reads them
+  have hpar' : ∀ c, 0 < c → c < R.n → (R.seg c).parent < c := fun c h0 hc => hpar c _ h0 (PRun.seg_get hA' hc)
+  have hsl : plan.getLast? = some (R.seg (R.n - 1)) := by
+    rw [List.getLast?_eq_getElem?]; exact PRun.seg_get hA' (Nat.sub_lt hn0 Nat.one_pos)
+  have hlast' : (R.seg (R.n - 1)).arity = 0 := hlast _ hsl
+  have hla : lastAtom plan = (R.seg (R.n - 1)).ctor + (R.seg (R.n - 1)).base := by
+    unfold lastAtom; rw [hsl]; rfl
+  have hKl : R.last < K := hK
+  -- the tables
+  let C := R.cpuTableP K
+  let Pg := progTable (load t).heap
+  let Po := R.popTableP K HP
+  let Iw := R.J.instwTable K HW
+  let Pw := R.pwTable K HX
+  let Rt := provTable (rootsRows roots) (R.J.cntRoots K)
+  let Hd := provTable (hdrRows jets) (R.J.cntHdr K)
+  let Tm := provTable (tmplRows jets) (R.J.cntTmpl K)
+  let Pl := provTable (planRows plan) (R.cntPlan K)
+  let Mm := memTable5 A (cpuAirP (row 0).hd (row 0).stk (row 0).ctr plan.length (lastAtom plan)) (progAir (load t).heap)
+    popAir instwAir pwAir C Pg Po Iw Pw
+  have hPg : Pg.h ≤ 2 ^ 24 := programRows_length_le (by omega)
+  have hcpu : Sat (cpuAirP (row 0).hd (row 0).stk (row 0).ctr plan.length (lastAtom plan)) C :=
+    PRun.cpu_satP hA' hroots hKl hl24 hlast' hla
+  have hbal := PRun.balancedP hA' hroots hpar' hlast' (lastAtom plan) hpre (show A.length < P by omega) hKl hHP hHW hHX
+  have hpl0 : 0 < (planRows plan).length := by
+    have := padCopies_length_ge (plan.zipIdx.map fun (s, j) =>
+      [ofN j, ofN s.base, ofN s.k, ofN s.ctor, ofN s.arity, ofN s.parent, ofN s.field])
+    rw [List.length_map, List.length_zipIdx] at this
+    exact Nat.lt_of_lt_of_le hn0 this
+  have hacc : Accepted (probeAirs t roots jets plan) [C, Mm, Pg, Rt, Hd, Tm, Po, Iw, Pl, Pw] := by
+    have z : (probeAirs t roots jets plan).zip [C, Mm, Pg, Rt, Hd, Tm, Po, Iw, Pl, Pw] =
+        probeTables (row 0).hd (row 0).stk (row 0).ctr plan.length (lastAtom plan) (load t).heap roots jets plan
+          C Mm Pg Rt Hd Tm Po Iw Pl Pw := by
+      rw [e1, hstk0, e3]; rfl
+    refine ⟨rfl, ?_, ?_, ?_, ?_⟩
+    · rw [z]
+      intro q hq
+      simp only [probeTables, List.mem_cons, List.not_mem_nil, or_false] at hq
+      rcases hq with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
+      · exact ⟨hcpu, .inl rfl⟩
+      · exact ⟨mem5_sat A _ _ _ _ _ _ _ _ _ _ hA0, .inl rfl⟩
+      · exact ⟨(prog_sat _ (by omega)).1, .inr (prog_sat _ (by omega)).2⟩
+      · exact ⟨(prov_sat hprov.1).1, .inr (prov_sat hprov.1).2⟩
+      · exact ⟨(prov_sat hprov.2.1).1, .inr (prov_sat hprov.2.1).2⟩
+      · exact ⟨(prov_sat hprov.2.2).1, .inr (prov_sat hprov.2.2).2⟩
+      · exact ⟨PRun.pop_satP hA' hroots hl24 hHP0, .inl rfl⟩
+      · exact ⟨R.J.instw_sat hHW0, .inl rfl⟩
+      · exact ⟨(prov_sat hpl0).1, .inr (prov_sat hpl0).2⟩
+      · exact ⟨PRun.pw_satP hHX0, .inl rfl⟩
+    · rw [z]; exact hbal
+    · rw [z]
+      unfold HeightsOK probeTables
+      simp only [List.foldr_cons, List.foldr_nil]
+      show 25 * K + (0 * A.length + (1 * Pg.h + (0 * Rt.h + (0 * Hd.h + (0 * Tm.h + (3 * HP + (6 * HW +
+        (0 * Pl.h + (4 * HX + 0))))))))) < P
+      omega
+    · rw [z]
+      intro q hq
+      simp only [probeTables, List.mem_cons, List.not_mem_nil, or_false] at hq
+      rcases hq with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
+      · show K ≤ 2 ^ 27; omega
+      · show A.length ≤ 2 ^ 27; omega
+      · show Pg.h ≤ 2 ^ 27; omega
+      · exact hprov27.1
+      · exact hprov27.2.1
+      · exact hprov27.2.2.1
+      · show HP ≤ 2 ^ 27; omega
+      · show HW ≤ 2 ^ 27; omega
+      · exact hprov27.2.2.2
+      · show HX ≤ 2 ^ 27; omega
+  have hRs : AcceptedP Rs [C, Mm, Pg, Rt, Hd, Tm, Po, Iw, Pl, Pw] :=
+    (acceptedP_iff_of (probe_guarded t roots jets plan) hs _).2 (accepted_transfer (sameAirsB_symm hs) hacc)
+  refine ⟨C, Mm, Pg, Rt, Hd, Tm, Po, Iw, Pl, Pw, hRs, rfl, rfl, rfl, rfl, rfl, ?_, ?_⟩
+  · -- the memory decodes back
+    apply List.ext_getElem?
+    intro m
+    unfold memOf
+    rw [List.getElem?_map]
+    rcases Nat.lt_or_ge m Mm.h with hm | hm
+    · rw [List.getElem?_range hm, Option.map_some]
+      have hm' : m < A.length := hm
+      have hg : A.getD m .nil = A[m] := by rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hm']; rfl
+      have hf := hfit _ (List.getElem_mem hm')
+      show some (cellOf (ofN (cellTag (A.getD m .nil))) (ofN (cellFields (A.getD m .nil)).1)
+        (ofN (cellFields (A.getD m .nil)).2)) = _
+      rw [hg, cellOf_enc _ (by omega) (by omega), List.getElem?_eq_getElem hm']
+    · rw [List.getElem?_eq_none (by rw [List.length_range]; exact hm), List.getElem?_eq_none hm]; rfl
+  · -- the registers are the run's
+    intro i hi
+    have hq : R.J.rowQ i = row i := JRun.rowQ_lt (show i < R.last + 1 from Nat.lt_succ_of_le hi)
+    have cr : ∀ c, c < 3 → C.main i c = Circuit.cpuCol A (row i) c := by
+      intro c hc3
+      show R.cpuColP K i c = _
+      rw [PRun.regP hA' hc3, hq]
+    exact ⟨cr HD (by decide), cr STK (by decide), cr CTR (by decide)⟩
+
 end Circuit
-#print axioms Circuit.PRun.balancedP
