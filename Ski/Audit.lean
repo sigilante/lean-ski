@@ -25,6 +25,7 @@ import Ski.Circuit.Selectors
 import Ski.Circuit.CompAir
 import Ski.Circuit.CompFinal
 import Ski.Circuit.CompComplete
+import Ski.Circuit.WitAir
 import Ski.BoolProbe
 import Ski.Statement
 import Ski.Sudoku

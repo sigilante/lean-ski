@@ -1,5 +1,6 @@
 import Ski.Circuit.Base
 import Ski.Circuit.CompAir
+import Ski.Circuit.WitAir
 import Ski.ComposedText
 open Term
 
@@ -210,10 +211,28 @@ def compareComposed (path : String) : IO UInt32 := do
   let some rust := parseAirs (rest.length + 1) rest | do IO.println "MALFORMED AIRS"; return 1
   compareAirs rust (compAirs M W)
 
+/-- The witness circuit: `public N`, the statement's `N` lines, then the
+    four AIRs.  The statement must be exactly `WitnessText.publicText` of its
+    atom and region size, as `lake exe witness statement` checks. -/
+def compareWitness (path : String) : IO UInt32 := do
+  let text ← readInput path
+  let ls := text.splitOn "\n"
+  let some n := (match ls with
+      | l :: _ => match words l with
+        | ["public", k] => k.toNat?
+        | _ => none
+      | [] => none) | do IO.println "MALFORMED: no statement"; return 1
+  let stmt := "\n".intercalate ((ls.drop 1).take n) ++ "\n"
+  let some (V, x, W) := WitnessText.statementOfText stmt | do IO.println "NOT A STATEMENT"; return 1
+  let rest := ((ls.drop (n + 1)).filter (fun l => !l.trimAscii.toString.isEmpty))
+  let some rust := parseAirs (rest.length + 1) rest | do IO.println "MALFORMED AIRS"; return 1
+  compareAirs rust (witAirs V x W)
+
 def main (args : List String) : IO UInt32 := do
   match args with
   | ["compare", path] => compare path
   | ["compare-composed", path] => compareComposed path
+  | ["compare-witness", path] => compareWitness path
   | _ =>
-    IO.eprintln "usage: circuit compare FILE|- | circuit compare-composed FILE|-"
+    IO.eprintln "usage: circuit compare|compare-composed|compare-witness FILE|-"
     return 2

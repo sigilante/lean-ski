@@ -1123,6 +1123,17 @@ fn main() {
         print!("{}", export::export_base(&args[2]));
         return;
     }
+    if args.len() == 3 && args[1] == "export-witness" {
+        let text = std::fs::read_to_string(&args[2]).expect("statement");
+        match witness::export_witness(&text) {
+            Ok(s) => print!("{s}"),
+            Err(e) => {
+                eprintln!("{e}");
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
     if args.len() == 3 && args[1] == "export-composed" {
         let text = std::fs::read_to_string(&args[2]).expect("statement");
         match composed::export_composed(&text) {

@@ -90,6 +90,8 @@ pub struct Public {
     ctr0: u32,
     /// The initial heap, `None` in the region.
     cells: Vec<Option<Cell>>,
+    /// The statement's bytes, as Lean checked them.
+    text: String,
 }
 
 fn parse_cell(l: &str) -> Result<Cell, String> {
@@ -142,7 +144,7 @@ pub fn parse_public(text: &str) -> Result<Public, String> {
     if w == 0 || w > 1 << LOG_WIT {
         return Err(format!("a region of {w} cells"));
     }
-    Ok(Public { v, x, w, hd0: regs[0], stk0: regs[1], ctr0: regs[2], cells })
+    Ok(Public { v, x, w, hd0: regs[0], stk0: regs[1], ctr0: regs[2], cells, text: text.to_string() })
 }
 
 /// A region file: `W` cells, one per line.
@@ -181,6 +183,25 @@ fn wit_pre(p: &Public) -> Vec<[u32; 3]> {
     let mut pre: Vec<[u32; 3]> = (0..p.w).map(|i| [i, 1, 0]).collect();
     pre.resize(1 << LOG_WIT, [0, 0, 0]);
     pre
+}
+
+/// The witness verifier's four AIRs for a statement, in the export format
+/// of `src/export.rs`, after the statement's text (`lake exe circuit
+/// compare-witness` reads both).
+pub fn export_witness(text: &str) -> Result<String, String> {
+    let p = parse_public(text)?;
+    Ok(export_airs(&p, &airs(&p)))
+}
+
+fn export_airs(p: &Public, v_airs: &[SkiAir]) -> String {
+    let mut s = format!("public {}\n{}", p.text.lines().count(), p.text);
+    if !p.text.ends_with('\n') {
+        s.push('\n');
+    }
+    for (n, a) in ["cpu", "mem", "prog", "wit"].iter().zip(v_airs.iter()) {
+        s.push_str(&super::export::export_air(n, a));
+    }
+    s
 }
 
 /// The verifier's AIRs, from the public statement alone.
@@ -405,6 +426,9 @@ fn prove_and_verify(p: &Public, traces: &[RowMajorMatrix<Val>; 4]) -> (Outcome, 
     let verified = catch_unwind(AssertUnwindSafe(|| {
         let v_config = make_zk_config(Some(PUBLIC_SEED));
         let v_airs = airs(p);
+        // The AIRs it verifies with are the Lean circuit for the statement:
+        // Lean compares their symbolic export with `Circuit.witAirs`.
+        lean_statement("circuit", &["compare-witness", "-"], export_airs(p, &v_airs).as_bytes())?;
         let want = heights(p, v_config.is_zk());
         if proof.degree_bits != want {
             return Err(format!("heights {:?}, the statement's are {want:?}", proof.degree_bits));

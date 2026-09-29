@@ -99,6 +99,14 @@ if command -v cargo >/dev/null 2>&1 \
       bad "composed $f: the Rust circuit differs from Circuit.compAirs"
     fi
   done
+  for f in neg sat; do
+    if "$ski" export-witness "bench/plonky3/witness/$f/public.txt" > "$exp.c" \
+       && .lake/build/bin/circuit compare-witness "$exp.c" | tail -1 | grep -q '^MATCH'; then
+      note "ok — witness $f: the Rust circuit is Circuit.witAirs"
+    else
+      bad "witness $f: the Rust circuit differs from Circuit.witAirs"
+    fi
+  done
   /bin/rm -f "$exp.c"
   # doctor one constant in the CPU's constraints: it must differ
   awk '!d && / c1$/ { sub(/ c1$/, " c2"); d = 1 } { print }' "$exp" > "$exp.bad"
