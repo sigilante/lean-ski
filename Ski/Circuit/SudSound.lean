@@ -233,7 +233,7 @@ theorem SudOK.memHit {v : List F}
 theorem SudOK.mem_h : Mm.h ≤ 2 ^ 27 := h.two (memAirC, Mm) (by simp [sudTables])
 
 theorem SudOK.row : RowOK hd0 stk0 ctr0 C Mm :=
-  ⟨h.cpu.1, fun _ hr _ => (sat_base_of_S h.cpu).row hr, mem_addrC h.mem, h.mem_h, fun r hr I hI hbus hc =>
+  ⟨h.cpu.1, fun _ _ hr _ => (sat_base_of_S h.cpu).row hr, mem_addrC h.mem, h.mem_h, fun r hr I hI hbus hc =>
     h.memHit ⟨(cpuAirS hd0 stk0 ctr0 ACC, C), by simp [sudTables], rfl, r, hr, I, List.mem_append_left _ hI, hbus,
       rfl, hc⟩⟩
 
@@ -390,7 +390,7 @@ theorem SudOK.accepts :
   obtain ⟨hhd, hstk, hlen, _⟩ := stmtMachine_public (bitsS Mm) (fun _ => false) 729 e ACC REJ
   obtain ⟨_, bhd, bstk, _⟩ := stmt_fitsB (ρ := fun _ => false) hb
   have hP := h.heap_lt hb
-  have hA := h.row.acceptsFrom (fun r hr => inst_zero ((sat_base_of_S h.cpu).row hr) hr) (m0 := stmtMachine (bitsS Mm) 729 e ACC REJ)
+  have hA := h.row.acceptsFrom (fun r hr => (sat_base_of_S h.cpu).row hr) (m0 := stmtMachine (bitsS Mm) 729 e ACC REJ)
     (h.heap0 hb) hhd hstk hlen
     ⟨Nat.lt_trans bhd hP, Nat.lt_trans bstk hP, hP⟩
   refine ⟨hA, ?_⟩

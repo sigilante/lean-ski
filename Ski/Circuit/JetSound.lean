@@ -312,7 +312,7 @@ theorem JetOK.memHit {v : List F}
 
 /-- **The corpus rows are a corpus-CPU circuit's.** -/
 theorem JetOK.row : RowOK hd0 stk0 ctr0 C Mm :=
-  ⟨h.cpu.1, fun _ hr h11 => rowSat_ofJ h.cpu hr h11, mem_addr h.mem, h.mem_h, fun r hr I hI hbus hc =>
+  ⟨h.cpu.1, fun _ _ hr hk => rowSat_ofJ h.cpu hr (by rw [hk.2 11 (by decide), if_neg (Nat.ne_of_gt hk.1)]), mem_addr h.mem, h.mem_h, fun r hr I hI hbus hc =>
     h.memHit ⟨(cpuAirJ hd0 stk0 ctr0, C), by simp [jetTables], rfl, r, hr, I, List.mem_append_left _ hI, hbus,
       rfl, hc⟩⟩
 
