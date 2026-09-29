@@ -32,6 +32,7 @@ import Ski.Circuit.SudSound
 import Ski.Circuit.SudComplete
 import Ski.Circuit.JetAir
 import Ski.Circuit.Flow
+import Ski.Circuit.JetKind
 import Ski.BoolProbe
 import Ski.Statement
 import Ski.Sudoku
@@ -599,3 +600,7 @@ open Ski.Audit
 
 -- Chains on a balanced bus: no supply, no flow; one supply, one path
 #audit_clean Circuit.pigeon Circuit.Edges.walk_stops Circuit.Edges.noFlow Circuit.Edges.sumTo_path Circuit.Edges.path
+
+-- The jet CPU's rows: the eleven kinds are corpus rows; an instantiation's parts
+#audit_clean Circuit.bus_hit_on Circuit.bus_hit Circuit.inst_facts Circuit.kind_ofJ Circuit.flags_zero
+  Circuit.rowSat_ofJ Circuit.next_regsJ Circuit.clk_eq
