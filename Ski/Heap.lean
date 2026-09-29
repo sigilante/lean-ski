@@ -684,6 +684,40 @@ def build : List Cell → Term → List Cell × Nat
     let (h2, pa) := build h1 a
     alloc h2 (.app pf pa)
 
+/-- `build` over an array: the same cells, in time linear in the term. -/
+def buildA : Array Cell → Term → Array Cell × Nat
+  | h, .S => (h.push .S, h.size)
+  | h, .K => (h.push .K, h.size)
+  | h, .I => (h.push .I, h.size)
+  | h, .app f a =>
+    let (h1, pf) := buildA h f
+    let (h2, pa) := buildA h1 a
+    (h2.push (.app pf pa), h2.size)
+
+theorem buildA_eq : ∀ (t : Term) (h : Array Cell),
+    ((buildA h t).1.toList, (buildA h t).2) = build h.toList t
+  | .S, h => by simp [buildA, build, alloc]
+  | .K, h => by simp [buildA, build, alloc]
+  | .I, h => by simp [buildA, build, alloc]
+  | .app f a, h => by
+    have ef := buildA_eq f h
+    have ea := buildA_eq a (buildA h f).1
+    unfold buildA build
+    rw [← ef]
+    dsimp only
+    rw [← ea]
+    simp [alloc]
+
+def buildFast (h : List Cell) (t : Term) : List Cell × Nat :=
+  let r := buildA h.toArray t
+  (r.1.toList, r.2)
+
+/-- Compiled code builds over an array; proofs keep `build`. -/
+@[csimp] theorem build_eq_buildFast : @build = @buildFast := by
+  funext h t
+  unfold buildFast
+  rw [buildA_eq, List.toList_toArray]
+
 theorem build_spec : ∀ (t : Term) (h : List Cell),
     ∃ cs, (build h t).1 = h ++ cs ∧ (build h t).2 < (build h t).1.length ∧
       termAt (build h t).1 ((build h t).2 + 1) (build h t).2 = some t

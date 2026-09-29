@@ -323,6 +323,80 @@ private cell exposed, another formula, another region size or another
 root. The caller compares the formula the statement names with the one
 meant, and the Lean tables, which hold the witness, stay the prover's.
 
+## A SKIlark statement in zero knowledge
+
+A SKIlark (Joy) predicate is the verifier of an atom of the composed
+circuit. **The statement `split`**: some hidden term `w` makes `vsplit x
+w` reduce to `K`. On a witness that is a stack of bit numerals, `vsplit`
+reads two numbers below `2^k` and accepts exactly when they add up to `x`.
+**It is the path from a SKIlark program to a proof, not a range proof,**
+for two reasons:
+
+- **A hidden term is not data.** It answers the verifier's case analysis
+  however it likes: `K (K (RVal R))`, with `R` a stack of `2k - 1`
+  zeros, is no stack at all and passes at `x` = 0 or 1 (SKIlark's
+  `tests/test_zk.py` pins it at `k` = 2 and 8). A claim about data needs the
+  witness as literal bits the circuit constrains to Booleans, as the
+  Sudoku inputs are.
+- **The claim is vacuous.** Some `a, b < 2^k` add up to every `x < 2^k`
+  (`a = x`, `b = 0`), so even a well-formed witness shows only `x < 2^k`.
+  A range proof needs a commitment binding the hidden number to something
+  public.
+
+- **The convention** (`skilark.zk`, in the SKIlark repository): `V x w`
+  runs the program on the stack `x` above `w` and returns Scott true, `K`
+  itself, exactly when the program returns a nonzero numeral on top. The
+  wrapper is SKIjack source (`vsplit`), appended to the compiled program.
+- **The encoding.** `x` is one quotation of its bits, least significant
+  outermost, `X_i = [X_{i+1} x_i]`; the hidden `w` is the stack of `a`'s
+  and `b`'s bits, interleaved. Each of the `k` unrolled steps unpacks
+  `x_i` with `i` and branches on `x_i`, the carry, `a_i` and `b_i`; a bit
+  other than `0` or `1`, a wrong sum bit, or a carry out fails. On
+  stacks of numerals, `V` accepts exactly when the first `2k` items are
+  bits of two numbers adding up to `x` in `k` bits (tested: exhaustively
+  at `k = 2`, sampled at `k = 8`).
+- **The source, not the Python.** `lake exe skilark statement SRC K X
+  PUBLIC` compiles the SKIjack source in Lean (`Front.compileFile`, which
+  agrees with `skijack` on SKIlark's compiled output: 41,727 symbols at
+  `k = 2`) and checks that the statement is the atom `vsplit x`, with
+  `x < 2^k`. That the source is `skilark.zk`'s `split` for width `k` is
+  the producer's word; `python -m skilark.zk 8` regenerates it byte for
+  byte.
+- **The heights are the statement's.** `public.txt` may name the CPU and
+  memory log heights, `log R M` with each in `[8, 20]`; without the line
+  they are `2^11`, so earlier statements are unchanged.
+  `Circuit.comp_complete_log` proves completeness at any such heights.
+- **The witness is small.** `w` takes 41 of the 255 region cells, its
+  cells shared (`regionShared`).
+
+```
+~/SKIlark/.venv/bin/python -m skilark.zk 8 > bench/plonky3/skilark/split8/source.ski
+lake build skilark && lake exe skilark emit bench/plonky3/skilark/split8/source.ski 8 200 123 77 17 18 bench/plonky3/skilark/split8
+lake exe skilark statement bench/plonky3/skilark/split8/source.ski 8 200 bench/plonky3/skilark/split8/public.txt
+bench/plonky3/target/release/ski-air composed bench/plonky3/skilark bench/plonky3/tables   # prove, verify, guess test, tamper
+```
+
+Measured, 2026-09-29, Apple M4 Max, release build, `k = 8`, `x = 200`
+(heights `2^17` rows, `2^18` memory, `2^8` witness):
+
+```
+split8   49,462 public cells, 1 bit, a region of 255 (41 used), 2 segments
+         129,114 rows, 212,326 memory cells
+         prove 9.8 s, verify 8.0 s, proof 786 KiB, peak memory 2.0 GB   verified
+guess    no match; a match with the blinding off
+clear    the atom's bit clear: rejected
+wrong    b + 1 for b: the run does not end at K over a nil; rejected
+nonbool  a bit cell I: rejected
+forged   a region cell pointing forward: rejected
+nonbit   a's first bit 2: the program errs; the prover refuses
+```
+
+The cost is the SKIlark program's: about 6,800 host contractions per bit,
+on unary numerals and the compiled kernel's case dispatch; `k = 16` takes
+111,574 host contractions against 54,546 for `k = 8`. At these heights
+the proof has under `2^21` LogUp messages, so a zero denominator aborts it
+with probability below `2^-102` (`abort_count`).
+
 ## Jets: instantiation rows
 
 `src/jets.rs` proves every corpus row with supercombinator instantiation

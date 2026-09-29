@@ -796,6 +796,21 @@ invertible. That fails exactly for the `P^2` challenges in `F(x^2)`, about
 prover for at most one `α` per message (`abort_count`), below `2^-103`. Assumed: Plonky3's hiding PCS for the committed traces and
 openings, and the challenge's independence of the blinding.
 
+SKIlark in zero knowledge (`bench/Skilark.lean`, `release/skilark`): a
+SKIlark predicate on the stack `x` above `w` is the verifier of a
+composed atom, accepted when it leaves a nonzero numeral. The first,
+`split` (`skilark.zk`), adds two hidden bit strings and compares the sum
+with `x`. Lean compiles the verifier from its SKIjack source, so a
+statement is checked against the source. The statement names its CPU and
+memory heights (`log R M`; completeness at any of them,
+`comp_complete_log`). At `k = 8`: 129,114 rows at `2^17`, proved in
+9.8 s, verified in 8.0 s. It is a pipeline, not a range proof: a hidden
+term answers the verifier's case analysis without being data (`K (K
+(RVal R))`, `R` a stack of `2k - 1` zeros, passes at `x` = 0 or 1), and some pair of `k`-bit numbers adds up to any
+`k`-bit `x`. Open: data witnesses as literal bits the circuit constrains,
+passed to the verifier; a commitment in SKIlark to bind them; jets under
+the hiding, which the unary kernel's cost calls for.
+
 ## 6. Acceptance
 
 L0/L1: `lake build` elaborates the manifest, `gates.sh` passes, `lake exe

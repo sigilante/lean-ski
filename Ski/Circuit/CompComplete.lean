@@ -559,23 +559,25 @@ theorem witRowsG_len {a0 N W : Nat} (h : N + W ≤ 2 ^ 8) : (witRowsG a0 N W).le
 
 theorem witRows_len {N W : Nat} (h : N + W ≤ 2 ^ 8) : (witRows N W).length = 2 ^ 8 := witRowsG_len h
 
-/-- **Completeness of the composed circuit**: a run the Lean AIR with
-    segments accepts, from the composed machine of literal bits and a
-    well-formed region, over a memory of `2^11` cells whose cells point into
-    it, ending within `2^11` rows, with at most `2^8` private cells (the
-    composed verifier's heights), gives tables that AIRs with the composed
-    circuit's normal forms accept, with Plonky3's selectors; they decode
-    back to the memory and the run. -/
-theorem comp_complete {M : MF} {W : Nat} {Rs : List AirD} (hs : sameAirsB Rs (compAirs M W) = true)
+/-- **Completeness of the composed circuit**, at the heights a statement
+    names: a run the Lean AIR with segments accepts, from the composed
+    machine of literal bits and a well-formed region, over a memory of
+    `2^Lm` cells whose cells point into it, ending within `2^R` rows, with
+    at most `2^8` private cells, `R` and `Lm` at most `20`, gives tables
+    that AIRs with the composed circuit's normal forms accept, with
+    Plonky3's selectors; they decode back to the memory and the run. -/
+theorem comp_complete_log {R Lm : Nat} (hR : R ≤ 20) (hLm : Lm ≤ 20) {M : MF} {W : Nat} {Rs : List AirD} (hs : sameAirsB Rs (compAirs M W) = true)
     {ρ : Nat → Bool} {region : List Cell} (hrl : region.length = W)
     (hr : ∀ i c, region[i]? = some c → cellOK (BT.nleaves (clear M) + 3 + i) c = true)
     {A : List Cell} {e : Nat → Nat} {row : Nat → Row}
     (hA : AcceptsC A (cMachine ρ (clear M) region (stmtOf M)) (cHeap ρ (clear M) region (stmtOf M)).2
       (cHeap ρ (clear M) region (stmtOf M)).1.length (stmtOf M).length e row)
-    (hfit : Fits A) (hlen : A.length = 2 ^ 11) (hK : e ((stmtOf M).length - 1) < 2 ^ 11)
+    (hfit : Fits A) (hlen : A.length = 2 ^ Lm) (hK : e ((stmtOf M).length - 1) < 2 ^ R)
     (hNW : BT.nleaves (clear M) + W ≤ 2 ^ 8) :
-    ∃ C Mm Pg Wt Sg, AcceptedP Rs [C, Mm, Pg, Wt, Sg] ∧ C.h = 2 ^ 11 ∧ Mm.h = 2 ^ 11 ∧ Wt.h = 2 ^ 8 ∧
+    ∃ C Mm Pg Wt Sg, AcceptedP Rs [C, Mm, Pg, Wt, Sg] ∧ C.h = 2 ^ R ∧ Mm.h = 2 ^ Lm ∧ Wt.h = 2 ^ 8 ∧
       memOf Mm = A ∧ ∀ i, i ≤ e ((stmtOf M).length - 1) → rowOf C i = row i := by
+  have hRb : 2 ^ R ≤ 1048576 := Nat.pow_le_pow_right (by decide) hR
+  have hLb : 2 ^ Lm ≤ 1048576 := Nat.pow_le_pow_right (by decide) hLm
   have hl : region.length = (List.replicate W Cell.S).length := by rw [List.length_replicate, hrl]
   obtain ⟨_, hstk, hroots, hlenm, htake, hpub⟩ :=
     cMachine_public ρ (fun _ => false) (clear M) region (List.replicate W .S) (stmtOf M) hl
@@ -629,15 +631,15 @@ theorem comp_complete {M : MF} {W : Nat} {Rs : List AirD} (hs : sameAirsB Rs (co
     rwa [show BT.nleaves (clear M) + 3 + i = 3 + BT.nleaves (clear M) + i by omega] at this
   -- the numbers
   have hPP : P = 2013265921 := rfl
-  have hAl : A.length < P := by rw [hlen]; decide
-  have hnK : (stmtOf M).length ≤ 2 ^ 11 := by
+  have hAl : A.length < P := by rw [hlen, hPP]; omega
+  have hnK : (stmtOf M).length ≤ 2 ^ R := by
     have := emono_ge hA.emono ((stmtOf M).length - 1) (by omega); omega
   have hRlt : (blankRoots (clear M) W (stmtOf M)).length < P := by rw [hnR]; omega
   have hsmall : 3 + BT.nleaves (clear M) + W ≤ 2 ^ 24 := by omega
   have hlenW : 3 + BT.nleaves (clear M) + W ≤ A.length := by omega
   have hbl : (blankM (clear M) W (stmtOf M)).heap.length = m0.heap.length := hlenm.symm
   -- the tables
-  let C := cpuTableC A row e (stmtOf M).length (blankRoots (clear M) W (stmtOf M)) (2 ^ 11)
+  let C := cpuTableC A row e (stmtOf M).length (blankRoots (clear M) W (stmtOf M)) (2 ^ R)
   let cpu := cpuAirC (blankM (clear M) W (stmtOf M)).hd (blankM (clear M) W (stmtOf M)).stk
     (blankM (clear M) W (stmtOf M)).heap.length (blankRoots (clear M) W (stmtOf M)).length
     (blankM (clear M) W (stmtOf M)).stk
@@ -646,7 +648,7 @@ theorem comp_complete {M : MF} {W : Nat} {Rs : List AirD} (hs : sameAirsB Rs (co
   let Mm := memTableC A cpu (progAirC (blankM (clear M) W (stmtOf M)).heap (BT.nleaves (clear M)) W)
     (witAir (BT.nleaves (clear M)) W) C Pg Wt
   let Sg := segsTableC (blankRoots (clear M) W (stmtOf M)) cpu C
-  have hb : ∀ i, i < 2 ^ 11 → (rowP row e (stmtOf M).length i).ctr ≤ 2 ^ 24 := by
+  have hb : ∀ i, i < 2 ^ R → (rowP row e (stmtOf M).length i).ctr ≤ 2 ^ 24 := by
     intro i _
     unfold rowP
     split
@@ -699,8 +701,8 @@ theorem comp_complete {M : MF} {W : Nat} {Rs : List AirD} (hs : sameAirsB Rs (co
       have hPg : Pg.h ≤ 2 ^ 24 := progRowsC_le (by omega)
       have hSg : Sg.h ≤ 2 ^ 24 := segRows_le (by omega)
       have hWt : Wt.h = 2 ^ 8 := witRows_len hNW
-      have hC : C.h = 2 ^ 11 := rfl
-      have hMm : Mm.h = 2 ^ 11 := hlen
+      have hC : C.h = 2 ^ R := rfl
+      have hMm : Mm.h = 2 ^ Lm := hlen
       show 11 * C.h + (1 * Mm.h + (1 * Pg.h + (2 * Wt.h + (0 * Sg.h + 0)))) < P
       omega
     · rw [z]
@@ -710,7 +712,7 @@ theorem comp_complete {M : MF} {W : Nat} {Rs : List AirD} (hs : sameAirsB Rs (co
       have hSg : Sg.h ≤ 2 ^ 24 := segRows_le (by omega)
       have hWt : Wt.h = 2 ^ 8 := witRows_len hNW
       rcases hp with rfl | rfl | rfl | rfl | rfl
-      · show 2 ^ 11 ≤ 2 ^ 27; decide
+      · show 2 ^ R ≤ 2 ^ 27; exact Nat.pow_le_pow_right (by decide) (by omega)
       · show A.length ≤ 2 ^ 27; omega
       · show Pg.h ≤ 2 ^ 27; omega
       · show Wt.h ≤ 2 ^ 27; omega
@@ -734,7 +736,7 @@ theorem comp_complete {M : MF} {W : Nat} {Rs : List AirD} (hs : sameAirsB Rs (co
     · rw [List.getElem?_eq_none (by rw [List.length_range]; exact hm), List.getElem?_eq_none hm]; rfl
   · -- the rows decode back
     intro i hi
-    have hiK : i < 2 ^ 11 := by omega
+    have hiK : i < 2 ^ R := by omega
     have e1 : rowP row e (stmtOf M).length i = row i := by unfold rowP; rw [if_pos hi]
     have hc := hctr i hi
     have hnil : (blankM (clear M) W (stmtOf M)).stk ≤ A.length := by
@@ -755,5 +757,19 @@ theorem comp_complete {M : MF} {W : Nat} {Rs : List AirD} (hs : sameAirsB Rs (co
     show (⟨(ofN (row i).hd).val, (ofN (row i).stk).val, (ofN (row i).ctr).val⟩ : Row) = row i
     rw [val_ofN (by show (row i).hd < P; have : (row i).hd < (row i).ctr := hh; omega),
       val_ofN (by omega), val_ofN (by omega)]
+
+/-- **Completeness of the composed circuit** at its default heights, `2^11`
+    rows and memory cells and `2^8` private cells. -/
+theorem comp_complete {M : MF} {W : Nat} {Rs : List AirD} (hs : sameAirsB Rs (compAirs M W) = true)
+    {ρ : Nat → Bool} {region : List Cell} (hrl : region.length = W)
+    (hr : ∀ i c, region[i]? = some c → cellOK (BT.nleaves (clear M) + 3 + i) c = true)
+    {A : List Cell} {e : Nat → Nat} {row : Nat → Row}
+    (hA : AcceptsC A (cMachine ρ (clear M) region (stmtOf M)) (cHeap ρ (clear M) region (stmtOf M)).2
+      (cHeap ρ (clear M) region (stmtOf M)).1.length (stmtOf M).length e row)
+    (hfit : Fits A) (hlen : A.length = 2 ^ 11) (hK : e ((stmtOf M).length - 1) < 2 ^ 11)
+    (hNW : BT.nleaves (clear M) + W ≤ 2 ^ 8) :
+    ∃ C Mm Pg Wt Sg, AcceptedP Rs [C, Mm, Pg, Wt, Sg] ∧ C.h = 2 ^ 11 ∧ Mm.h = 2 ^ 11 ∧ Wt.h = 2 ^ 8 ∧
+      memOf Mm = A ∧ ∀ i, i ≤ e ((stmtOf M).length - 1) → rowOf C i = row i :=
+  comp_complete_log (by decide) (by decide) hs hrl hr hA hfit hlen hK hNW
 
 end Circuit

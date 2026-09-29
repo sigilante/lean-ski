@@ -38,5 +38,9 @@ name = "composed"
 root = "bench.Composed"
 
 [[lean_exe]]
+name = "skilark"
+root = "bench.Skilark"
+
+[[lean_exe]]
 name = "circuit"
 root = "bench.Circuit"

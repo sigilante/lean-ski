@@ -18,7 +18,7 @@ release/verify.sh
 It needs elan (Lean) and cargo (Rust), and nothing from Avon. The first
 run builds Lean's checkers and the verifier, which takes minutes; after
 that it runs in about 15 seconds. It prints one `ok` line per check, then
-`VERIFIED: release/sumto`, and exits nonzero if any check fails.
+`VERIFIED: release/sumto, release/composed and release/skilark`, and exits nonzero if any check fails.
 
 ## What is verified
 
@@ -92,6 +92,13 @@ that it runs in about 15 seconds. It prints one `ok` line per check, then
    from its file as one byte string, against the statement alone. A proof
    with one byte changed or a byte appended, a statement with a hidden cell
    exposed, and the `∨` proof offered for the `∧` statement are refused.
+8. **A SKIlark statement in zero knowledge.** `skilark/split8` holds the
+   SKIjack source of a SKIlark predicate (`source.ski`), a statement and a
+   proof. `lake exe skilark statement` compiles the source in Lean and
+   checks that the statement is its atom for `x = 200` in 8 bits; offered
+   as `x = 201`, or as `x = 712`, which 8 bits cannot hold, it refuses.
+   `ski-air composed-verify` checks the proof; with one byte changed, it
+   is refused.
 
 ## What the proofs mean, and what they do not
 
@@ -106,12 +113,27 @@ to a list of terms, each of which must evaluate to `K` on literal bits and
 a hidden witness (`Ski/Compose.lean`). An accepted table runs one segment
 per term (`Ski/Composed.lean`), and its bits and witness read back as a
 realizer of the formula (`CompM.checkC_realizes`). The proofs hide the
-bits and the witness: a hiding PCS, fixed heights and blinded lookup
-sums, as in the Sudoku proof; the argument is informal. They are
+bits and the witness: a hiding PCS, heights each statement fixes, and blinded
+lookup sums, as in the Sudoku proof. Lean proves that the published lookup sums
+hide the witness (`Circuit.comp_zk`, `Ski/ZK/`); the hiding PCS is
+assumed. They are
 randomized, so they do not regenerate byte for byte. That the prover
 *knows* a realizer rests on the STARK's knowledge soundness, assumed. The
 verdict names the formula: whoever reads it compares that formula with the
 one they meant.
+
+**The SKIlark proof** (`skilark/split8`). The atom's verifier is the
+SKIlark predicate `split`, compiled from `source.ski`. The statement: some
+hidden term `w` makes `vsplit x w` reduce to `K`, for `x = 200` in 8
+bits. On a witness that is a stack of bit numerals, `vsplit` accepts
+exactly two numbers below `2^8` adding up to 200. The proof shows less:
+the witness is a term, which can answer the verifier's case analysis
+without being a stack (`K (K (RVal R))`, with `R` a stack of 15 zeros,
+passes at `x` = 0 or 1), and some pair of
+8-bit numbers adds up to any 8-bit `x`, so the claim holds for every
+`x < 2^8`. It demonstrates the path from a SKIlark program to a proof, not
+a range proof. The proof runs at `2^17` CPU rows and `2^18` memory cells,
+heights the statement names.
 
 **The output proof.** A result is read by probing: the term, applied to
 three fresh marker atoms, must head-reduce to the marker of `RVal`
@@ -198,6 +220,12 @@ instantiation writes only the cells that depend on its arguments
 6. The Ω forgery's hand-written table (`forgeries/omega/omega.table`,
    which `lake exe jets check` rejects) is proved over the forged jet
    table.
+7. The composed proofs: Lean emits each statement and witness, and
+   `ski-air composed-prove` proves it; the witness stays in a temporary
+   directory.
+8. The SKIlark proof: SKIlark writes `skilark/split8/source.ski`
+   (`python -m skilark.zk 8`), Lean emits the statement and witness from
+   it, and `ski-air composed-prove` proves it.
 
 Avon's witnesses are byte-identical to the tables lean-ski's own prover
 writes for the same term, jet table and plan (Avon's `make

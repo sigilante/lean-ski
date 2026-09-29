@@ -81,8 +81,8 @@ def emit (dir : String) : IO UInt32 := do
 def statement (path : String) : IO UInt32 := do
   let text ← if path == "-" then (← IO.getStdin).readToEnd else IO.FS.readFile path
   match statementOfText text with
-  | some (M, W) =>
-    IO.println s!"STATEMENT {path}: the formula {formulaText M}, a region of {W} cells"
+  | some (M, W, lg) =>
+    IO.println s!"STATEMENT {path}: the formula {formulaText M}, a region of {W} cells, heights 2^{lg.1} and 2^{lg.2}"
     return 0
   | none =>
     IO.println s!"NOT A STATEMENT {path}"
@@ -126,7 +126,7 @@ def formulaEq : MF → MF → Bool
   | _, _ => false
 
 def check (pub : String) (paths : List String) : IO UInt32 := do
-  let some (M, W) := statementOfText (← IO.FS.readFile pub)
+  let some (M, W, _) := statementOfText (← IO.FS.readFile pub)
     | do IO.println s!"NOT A STATEMENT {pub}"; return 1
   let mut bad := 0
   for path in paths do

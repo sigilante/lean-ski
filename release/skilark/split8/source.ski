@@ -1,0 +1,83 @@
+-- SKIlark, compiled: every word a function stack -> result, a program the
+-- composition of its words, quotations defunctionalized (skilark.joy).
+nat    === Zero | Suc nat
+item   === Num nat | Quot quot
+stack  === Empty | Push item stack
+quot   === Q1 | Q2 | Q3 | Q4 | Q5 | Q6 | Q7 | Q8 | Q9 | Q10 | Q11 | Q12 | Q13 | Q14 | Q15 | Q16 | Q17 | Q18 | Q19 | Q20 | Q21 | Q22 | Q23 | Q24 | Q25 | Q26 | Q27 | Q28 | Q29 | Q30 | Q31 | QCons item quot | QUnit item | QThen quot
+result === RVal stack | RErr | RTime
+
+add m n = n |> { Zero m; Suc k (Suc (add m k)) }
+mul m n = n |> { Zero Zero; Suc k (add m (mul m k)) }
+
+-- composition, threading the result
+seq f g s = f s |> { RVal t (g t); RErr RErr; RTime RTime }
+idW s = RVal s
+
+wDup s = s |> { Empty RErr; Push a t (RVal (Push a (Push a t))) }
+wSwap s = s |> { Empty RErr; Push a t (t |> { Empty RErr; Push b u (RVal (Push b (Push a u))) }) }
+wPop s = s |> { Empty RErr; Push a t (RVal t) }
+wQcons s = s |> { Empty RErr; Push a t (a |> { Num n RErr; Quot r (t |> { Empty RErr; Push b u (RVal (Push (Quot (QCons b r)) u)) }) }) }
+-- [P] [Q] cat == [[P] i Q]: cons the left quotation onto "i then Q"
+wCat s = s |> { Empty RErr; Push a t (a |> { Num n RErr; Quot r (t |> { Empty RErr; Push b u (b |> { Num m RErr; Quot l (RVal (Push (Quot (QCons (Quot l) (QThen r))) u)) }) }) }) }
+wUnit s = s |> { Empty RErr; Push a t (RVal (Push (Quot (QUnit a)) t)) }
+wDip ap s = s |> { Empty RErr; Push a t (a |> { Num n RErr; Quot r (t |> { Empty RErr; Push b u (ap r u |> { RVal v (RVal (Push b v)); RErr RErr; RTime RTime }) }) }) }
+wDo ap s = s |> { Empty RErr; Push a t (a |> { Num n RErr; Quot r (ap r t) }) }
+wIfz ap s = s |> { Empty RErr; Push a t (a |> { Num n RErr; Quot sc (t |> { Empty RErr; Push b u (b |> { Num n RErr; Quot z (u |> { Empty RErr; Push c v (c |> { Num n (n |> { Zero (ap z v); Suc m (ap sc (Push (Num m) v)) }); Quot r RErr }) }) }) }) }) }
+wLit n s = RVal (Push (Num n) s)
+wQuote r s = RVal (Push (Quot r) s)
+wAdd s = s |> { Empty RErr; Push a t (t |> { Empty RErr; Push b u (a |> { Num m (b |> { Num n (RVal (Push (Num (add m n)) u)); Quot r RErr }); Quot r RErr }) }) }
+
+one   := Suc Zero
+two   := Suc one
+five  := Suc (Suc (Suc two))
+ten   := add five five
+fuel  := mul ten (add ten ten)
+
+-- the eliminator of quot: Joy's i is one case; fuel is one unit per apply
+apply f q s = f |> { Zero RTime; Suc g (q |> { Q1 (b1 (apply g) s); Q2 (b2 (apply g) s); Q3 (b3 (apply g) s); Q4 (b4 (apply g) s); Q5 (b5 (apply g) s); Q6 (b6 (apply g) s); Q7 (b7 (apply g) s); Q8 (b8 (apply g) s); Q9 (b9 (apply g) s); Q10 (b10 (apply g) s); Q11 (b11 (apply g) s); Q12 (b12 (apply g) s); Q13 (b13 (apply g) s); Q14 (b14 (apply g) s); Q15 (b15 (apply g) s); Q16 (b16 (apply g) s); Q17 (b17 (apply g) s); Q18 (b18 (apply g) s); Q19 (b19 (apply g) s); Q20 (b20 (apply g) s); Q21 (b21 (apply g) s); Q22 (b22 (apply g) s); Q23 (b23 (apply g) s); Q24 (b24 (apply g) s); Q25 (b25 (apply g) s); Q26 (b26 (apply g) s); Q27 (b27 (apply g) s); Q28 (b28 (apply g) s); Q29 (b29 (apply g) s); Q30 (b30 (apply g) s); Q31 (b31 (apply g) s); QCons x r (apply g r (Push x s)); QUnit x (RVal (Push x s)); QThen b (seq (wDo (apply g)) (apply g b) s) }) }
+applyU q s = q |> { Q1 (b1 applyU s); Q2 (b2 applyU s); Q3 (b3 applyU s); Q4 (b4 applyU s); Q5 (b5 applyU s); Q6 (b6 applyU s); Q7 (b7 applyU s); Q8 (b8 applyU s); Q9 (b9 applyU s); Q10 (b10 applyU s); Q11 (b11 applyU s); Q12 (b12 applyU s); Q13 (b13 applyU s); Q14 (b14 applyU s); Q15 (b15 applyU s); Q16 (b16 applyU s); Q17 (b17 applyU s); Q18 (b18 applyU s); Q19 (b19 applyU s); Q20 (b20 applyU s); Q21 (b21 applyU s); Q22 (b22 applyU s); Q23 (b23 applyU s); Q24 (b24 applyU s); Q25 (b25 applyU s); Q26 (b26 applyU s); Q27 (b27 applyU s); Q28 (b28 applyU s); Q29 (b29 applyU s); Q30 (b30 applyU s); Q31 (b31 applyU s); QCons x r (applyU r (Push x s)); QUnit x (RVal (Push x s)); QThen b (seq (wDo applyU) (applyU b) s) }
+
+-- static quotations, hoisted
+b1 ap = seq (wQuote Q4) (seq (wQuote Q5) ((wIfz ap)))
+b2 ap = seq (wQuote Q6) (seq (wQuote Q7) ((wIfz ap)))
+b3 ap = seq (wQuote Q8) (seq (wQuote Q9) ((wIfz ap)))
+b4 ap = seq (wQuote Q10) (seq (wQuote Q11) ((wIfz ap)))
+b5 ap = seq (wQuote Q12) (seq (wQuote Q9) ((wIfz ap)))
+b6 ap = seq (wQuote Q13) (seq (wQuote Q14) ((wIfz ap)))
+b7 ap = seq (wQuote Q15) (seq (wQuote Q9) ((wIfz ap)))
+b8 ap = seq (wQuote Q16) (seq (wQuote Q17) ((wIfz ap)))
+b9 ap = seq (wLit Zero) ((wDo ap))
+b10 ap = seq (wQuote Q18) (seq (wQuote Q19) ((wIfz ap)))
+b11 ap = seq (wQuote Q16) (seq (wQuote Q9) ((wIfz ap)))
+b12 ap = seq (wQuote Q20) (seq (wQuote Q21) ((wIfz ap)))
+b13 ap = seq (wQuote Q22) (seq (wQuote Q23) ((wIfz ap)))
+b14 ap = seq (wQuote Q24) (seq (wQuote Q9) ((wIfz ap)))
+b15 ap = seq (wQuote Q24) (seq (wQuote Q14) ((wIfz ap)))
+b16 ap = seq (wQuote Q25) (seq (wQuote Q26) ((wIfz ap)))
+b17 ap = seq (wQuote Q6) (seq (wQuote Q9) ((wIfz ap)))
+b18 ap = seq (wQuote Q27) (seq (wQuote Q23) ((wIfz ap)))
+b19 ap = seq (wQuote Q25) (seq (wQuote Q9) ((wIfz ap)))
+b20 ap = seq (wQuote Q28) (seq (wQuote Q29) ((wIfz ap)))
+b21 ap = seq (wQuote Q10) (seq (wQuote Q9) ((wIfz ap)))
+b22 ap = (wLit (Suc Zero))
+b23 ap = seq (wQuote Q9) (seq (wQuote Q9) ((wIfz ap)))
+b24 ap = seq (wQuote Q9) (seq (wQuote Q23) ((wIfz ap)))
+b25 ap = seq (wQuote Q9) (seq (wQuote Q30) ((wIfz ap)))
+b26 ap = seq (wQuote Q13) (seq (wQuote Q9) ((wIfz ap)))
+b27 ap = (wLit Zero)
+b28 ap = seq (wQuote Q9) (seq (wQuote Q31) ((wIfz ap)))
+b29 ap = seq (wQuote Q18) (seq (wQuote Q9) ((wIfz ap)))
+b30 ap = seq (wQuote Q22) (seq (wQuote Q9) ((wIfz ap)))
+b31 ap = seq (wQuote Q27) (seq (wQuote Q9) ((wIfz ap)))
+
+-- programs, from skilark.joy.compiled
+csplit ap = seq (wLit Zero) (seq wSwap (seq (wDo ap) (seq wSwap (seq (wQuote Q1) (seq (wDip ap) (seq (wDo ap) (seq wSwap (seq (wQuote Q1) (seq (wDip ap) (seq (wDo ap) (seq wSwap (seq (wQuote Q1) (seq (wDip ap) (seq (wDo ap) (seq wSwap (seq (wQuote Q1) (seq (wDip ap) (seq (wDo ap) (seq wSwap (seq (wQuote Q1) (seq (wDip ap) (seq (wDo ap) (seq wSwap (seq (wQuote Q1) (seq (wDip ap) (seq (wDo ap) (seq wSwap (seq (wQuote Q1) (seq (wDip ap) (seq (wDo ap) (seq (wQuote Q2) (seq (wQuote Q3) ((wIfz ap))))))))))))))))))))))))))))))))))
+rsplit := csplit (apply fuel) Empty
+usplit := csplit applyU Empty
+
+-- the verifier: the program on the stack x above w, accepted when it
+-- returns a nonzero numeral on top (skilark.zk)
+bool === T | F
+appendS s t = s |> { Empty t; Push a u (Push a (appendS u t)) }
+accept r = r |> { RVal s (s |> { Empty F; Push a t (a |> { Num n (n |> { Zero F; Suc m T }); Quot q F }) }); RErr F; RTime F }
+vsplit x w = accept (csplit applyU (appendS x w))

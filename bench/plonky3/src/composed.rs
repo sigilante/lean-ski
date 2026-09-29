@@ -18,7 +18,8 @@
 //!
 //! Five tables under one batch STARK with the hiding PCS of `src/sudoku.rs`:
 //!
-//! - **CPU** and **memory**, at fixed heights.  A new kind, **`RESTART`**,
+//! - **CPU** and **memory**, at heights the statement fixes (`log R M`,
+//!   default `2^11`).  A new kind, **`RESTART`**,
 //!   ends a segment and starts the next: it reads `K` at the head and a nil
 //!   at the stack, as `HK1` does, and moves to the next segment's root over
 //!   the public nil, the counter unchanged.  Its selector is a restart
@@ -47,7 +48,7 @@
 //! *knows* them is the STARK's knowledge soundness, assumed.
 //!
 //! **Hiding** is the Sudoku proof's: salted commitments and random
-//! codewords, fixed heights, and two blinding messages.  Where each segment
+//! codewords, the statement's heights, and two blinding messages.  Where each segment
 //! ends is a private row index; the roots are public.  The guess test
 //! replays the transcript and recomputes the witness table's terminal for
 //! the true bits and region: it must not match, and must match with the
@@ -118,9 +119,12 @@ pub fn eval_segs<AB: PermutationAirBuilder + InteractionBuilder>(b: &mut AB) {
 // The statement
 // ---------------------------------------------------------------------------
 
-/// The heights, fixed for every statement.
+/// The CPU and memory heights a statement takes when it names none; a
+/// statement may name others with a `log R M` line, within
+/// `LOG_BOUNDS`.
 const LOG_ROWS: usize = 11;
 const LOG_MEM: usize = 11;
+const LOG_BOUNDS: std::ops::RangeInclusive<usize> = 8..=20;
 const LOG_WIT: usize = 8;
 /// The least height the hiding PCS commits (`src/witness.rs`).
 const LOG_MIN: usize = 8;
@@ -128,6 +132,9 @@ const LOG_MIN: usize = 8;
 pub struct Public {
     formula: String,
     w: u32,
+    /// The CPU's and the memory's log heights.
+    log_rows: usize,
+    log_mem: usize,
     nbits: u32,
     roots: Vec<u32>,
     nil: u32,
@@ -165,7 +172,19 @@ pub fn parse_public(text: &str) -> Result<Public, String> {
     let mut next = || ls.next().ok_or_else(|| "a truncated statement".to_string());
     let formula = next()?.strip_prefix("formula ").ok_or("expected `formula …`")?.to_string();
     let w = nums(next()?, "W")?;
-    let nbits = nums(next()?, "bits")?;
+    let mut l = next()?;
+    let (log_rows, log_mem) = if l.starts_with("log ") {
+        let lg = nums(l, "log")?;
+        l = next()?;
+        match lg[..] {
+            [r, m] if LOG_BOUNDS.contains(&(r as usize)) && LOG_BOUNDS.contains(&(m as usize))
+                && (r, m) != (LOG_ROWS as u32, LOG_MEM as u32) => (r as usize, m as usize),
+            _ => return Err("a bad `log` line".into()),
+        }
+    } else {
+        (LOG_ROWS, LOG_MEM)
+    };
+    let nbits = nums(l, "bits")?;
     let roots = nums(next()?, "roots")?;
     let nil = nums(next()?, "nil")?;
     let regs: Vec<u32> = next()?.split(' ').map(|x| x.parse().map_err(|_| "a bad register".to_string())).collect::<Result<_, _>>()?;
@@ -188,7 +207,7 @@ pub fn parse_public(text: &str) -> Result<Public, String> {
     if nbits + w > 1 << LOG_WIT {
         return Err("too many private cells".into());
     }
-    Ok(Public { formula, w, nbits, roots, nil, hd0: regs[0], stk0: regs[1], ctr0: regs[2], cells, text: text.to_string() })
+    Ok(Public { formula, w, log_rows, log_mem, nbits, roots, nil, hd0: regs[0], stk0: regs[1], ctr0: regs[2], cells, text: text.to_string() })
 }
 
 /// A witness file: one line per bit (`1`, `0`, or any cell, for the tamper
@@ -293,7 +312,7 @@ fn table(p: &Public, mut heap: Vec<Cell>) -> Option<CTable> {
     for (j, &root) in p.roots.iter().enumerate() {
         let (mut hd, mut stk) = (root, p.nil);
         loop {
-            if rows.len() >= 1 << LOG_ROWS {
+            if rows.len() >= 1 << p.log_rows {
                 return None;
             }
             rows.push([hd, stk, heap.len() as u32]);
@@ -311,12 +330,12 @@ fn table(p: &Public, mut heap: Vec<Cell>) -> Option<CTable> {
         }
     }
     let (run_rows, run_mem) = (rows.len(), heap.len());
-    if run_mem > 1 << LOG_MEM {
+    if run_mem > 1 << p.log_mem {
         return None;
     }
     let last = *rows.last().unwrap();
-    rows.resize(1 << LOG_ROWS, last);
-    heap.resize(1 << LOG_MEM, Cell::Nil);
+    rows.resize(1 << p.log_rows, last);
+    heap.resize(1 << p.log_mem, Cell::Nil);
     Some(CTable { rows, restarts, mem: heap, run_rows, run_mem })
 }
 
@@ -412,7 +431,7 @@ fn lean_table(p: &Public, tb: &CTable) -> String {
 
 fn heights(p: &Public, zk: usize) -> [usize; 5] {
     let lg = |n: usize| p3_util::log2_strict_usize(n);
-    [LOG_ROWS + zk, LOG_MEM + zk, lg(program_of(p).len()) + zk, LOG_WIT + zk, lg(segs_pre(p).len()) + zk]
+    [p.log_rows + zk, p.log_mem + zk, lg(program_of(p).len()) + zk, LOG_WIT + zk, lg(segs_pre(p).len()) + zk]
 }
 
 /// A composed proof.
@@ -644,11 +663,13 @@ pub fn main(dir: &std::path::Path, out: &std::path::Path) -> usize {
             }
         };
         println!(
-            "  {} public cells, {} bits, a region of {}, {} segments; heights 2^{LOG_ROWS} rows, 2^{LOG_MEM} memory, 2^{LOG_WIT} witness",
+            "  {} public cells, {} bits, a region of {}, {} segments; heights 2^{} rows, 2^{} memory, 2^{LOG_WIT} witness",
             p.cells.len() as u32 - p.nbits - p.w,
             p.nbits,
             p.w,
-            p.roots.len()
+            p.roots.len(),
+            p.log_rows,
+            p.log_mem
         );
         let private = match read_witness(&p, &d.join("witness.txt")) {
             Ok(r) => r,

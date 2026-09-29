@@ -23,6 +23,13 @@
 #      knowledge.  The witness stays in a temporary directory, and the
 #      proofs are randomized (hiding), so they do not regenerate byte for
 #      byte; any proof composed-verify accepts is as good.
+#   8. a SKIlark predicate (release/skilark/split8): the SKIjack source of
+#      `split` for 8 bits, from SKIlark (`python -m
+#      skilark.zk 8`, SKILARK_PY, default ~/SKIlark/.venv/bin/python; the
+#      committed source when it is absent); Lean compiles it and emits the
+#      statement `x = 200` and the witness `a = 123, b = 77`, at heights
+#      2^17 and 2^18; ski-air composed-prove proves it.  The witness stays
+#      in a temporary directory.
 #
 # Run from anywhere; writes release/sumto/.  One job at a time.
 
@@ -90,3 +97,17 @@ for n in or and; do
     bench/plonky3/target/release/ski-air composed-prove "release/composed/$n/public.txt" \
         "$tmp/composed/$n/witness.txt" "release/composed/$n/$n.proof"
 done
+
+echo "--- a SKIlark predicate in zero knowledge: vsplit, x = 200 in 8 bits"
+S=release/skilark/split8
+mkdir -p "$S"
+PY=${SKILARK_PY:-$HOME/SKIlark/.venv/bin/python}
+if [ -x "$PY" ]; then
+    "$PY" -m skilark.zk 8 > "$S/source.ski"
+else
+    echo "no SKIlark at $PY: keeping the committed $S/source.ski"
+fi
+lake build skilark > /dev/null
+lake exe skilark emit "$S/source.ski" 8 200 123 77 17 18 "$tmp/skilark"
+/bin/cp "$tmp/skilark/public.txt" "$S/public.txt"
+bench/plonky3/target/release/ski-air composed-prove "$S/public.txt" "$tmp/skilark/witness.txt" "$S/split8.proof"

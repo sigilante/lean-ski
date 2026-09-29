@@ -14,11 +14,15 @@ namespace ComposedText
 
 open Mach Compose CompM
 
-def termText : Term → String
-  | .S => "S"
-  | .K => "K"
-  | .I => "I"
-  | .app f a => "`" ++ termText f ++ termText a
+/-- A term's prefix form appended to `s`: linear in the term, where
+    concatenating the halves' strings is quadratic on a deep spine. -/
+def termTextTo : Term → String → String
+  | .S, s => s.push 'S'
+  | .K, s => s.push 'K'
+  | .I, s => s.push 'I'
+  | .app f a, s => termTextTo a (termTextTo f (s.push '`'))
+
+def termText (t : Term) : String := termTextTo t ""
 
 def parseTermF : Nat → List Char → Option (Term × List Char)
   | 0, _ => none
@@ -93,24 +97,33 @@ def regionOf' (N W : Nat) (w : Term) : Option (List Cell) :=
   let n := (build pre w).1.length - (N + 3)
   if n ≤ W then some ((build (pre ++ List.replicate (W - n) .S) w).1.drop (N + 3)) else none
 
-/-- **The statement** of a formula and a region size: `public.txt`.  The
-    heap is the composed machine's with the bit cells and the region blank;
-    by `CompM.cMachine_public` it states the machine for every witness of
-    that size. -/
-def publicText (M : MF) (W : Nat) : String := Id.run do
+/-- The CPU's and the memory's log heights when a statement names none. -/
+def defaultLog : Nat × Nat := (11, 11)
+
+/-- The log heights a statement may name: each in `[8, 20]`. -/
+def logOK (lg : Nat × Nat) : Bool := 8 ≤ lg.1 && lg.1 ≤ 20 && 8 ≤ lg.2 && lg.2 ≤ 20
+
+/-- **The statement** of a formula, a region size and the log heights of
+    the CPU and the memory: `public.txt`.  The heap is the composed
+    machine's with the bit cells and the region blank; by
+    `CompM.cMachine_public` it states the machine for every witness of that
+    size.  The heights take a line, `log R M`, only when they are not the
+    default, so the statements written before it are unchanged. -/
+def publicText (M : MF) (W : Nat) (lg : Nat × Nat := defaultLog) : String := Id.run do
   let shp := clear M
   let N := BT.nleaves shp
   let region := List.replicate W Cell.S
   let m := cMachine (fun _ => false) shp region (stmtOf M)
   let roots := (cHeap (fun _ => false) shp region (stmtOf M)).2
-  let mut s := s!"formula {formulaText M}\nW {W}\nbits {N}\nroots {" ".intercalate (roots.map toString)}\nnil {m.stk}\n{m.hd} {m.stk} {m.heap.length}\n"
+  let logLine := if lg == defaultLog then "" else s!"log {lg.1} {lg.2}\n"
+  let mut s := s!"formula {formulaText M}\nW {W}\n{logLine}bits {N}\nroots {" ".intercalate (roots.map toString)}\nnil {m.stk}\n{m.hd} {m.stk} {m.heap.length}\n"
   let mut i := 0
   for c in m.heap do
     s := s ++ (if 3 ≤ i && i < N + 3 + W then "W" else cellText c) ++ "\n"
     i := i + 1
   return s
 
-def statementOfText (text : String) : Option (MF × Nat) := do
+def statementOfText (text : String) : Option (MF × Nat × (Nat × Nat)) := do
   let ls := text.splitOn "\n"
   let M ← match words (ls.getD 0 "") with
     | "formula" :: ws => parseFormula ws
@@ -118,6 +131,9 @@ def statementOfText (text : String) : Option (MF × Nat) := do
   let W ← match words (ls.getD 1 "") with
     | ["W", n] => n.toNat?
     | _ => none
-  if 0 < W && text == publicText M W then some (M, W) else none
+  let lg ← match words (ls.getD 2 "") with
+    | ["log", r, m] => do some (← r.toNat?, ← m.toNat?)
+    | _ => some defaultLog
+  if 0 < W && logOK lg && text == publicText M W lg then some (M, W, lg) else none
 
 end ComposedText

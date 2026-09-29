@@ -28,7 +28,13 @@
 #      and the ∧ of two atoms, the statement is Lean's, and ski-air
 #      composed-verify checks the proof from its file; with one byte
 #      changed, a byte appended, a doctored statement, or offered for the
-#      other formula, it is refused.
+#      other formula, it is refused;
+#   7. a SKIlark statement in zero knowledge (release/skilark/split8): Lean
+#      compiles the SKIjack source of the predicate `split` and checks
+#      that the statement is `vsplit` for x = 200 in 8 bits (`lake exe
+#      skilark statement`), and refuses it as x = 201 or x = 712; ski-air
+#      composed-verify checks the proof; with one byte changed, it is
+#      refused.
 #
 # Exits nonzero on any failure.
 
@@ -245,5 +251,36 @@ else
     ok "the ∨ proof offered for the ∧ statement is refused ($(head -c 60 "$tmp/cx.log"))"
 fi
 
+echo "--- 7. a SKIlark predicate in zero knowledge: vsplit, x = 200 in 8 bits"
+lake build skilark > /dev/null
+S=release/skilark/split8
+lake exe skilark statement "$S/source.ski" 8 200 "$S/public.txt" > "$tmp/ss.log" \
+    && ok "$(head -c 100 "$tmp/ss.log")" \
+    || no "release/skilark/split8/public.txt is not the statement of its source ($(head -c 80 "$tmp/ss.log"))"
+if lake exe skilark statement "$S/source.ski" 8 201 "$S/public.txt" > "$tmp/ss2.log"; then
+    no "the statement read as x = 201"
+else
+    ok "the statement is not the one for x = 201 ($(head -c 60 "$tmp/ss2.log"))"
+fi
+if lake exe skilark statement "$S/source.ski" 8 712 "$S/public.txt" > "$tmp/ss3.log"; then
+    no "the statement read as x = 712, which 8 bits cannot hold"
+else
+    ok "the statement is refused as x = 712 ($(head -c 60 "$tmp/ss3.log"))"
+fi
+"$SKI_AIR" composed-verify "$S/public.txt" "$S/split8.proof" > "$tmp/sv.log" \
+    && ok "the split8 proof verifies from its file" \
+    || no "the split8 proof does not verify ($(head -c 80 "$tmp/sv.log"))"
+/bin/cp "$S/split8.proof" "$tmp/sflip.proof"
+size=$(wc -c < "$tmp/sflip.proof")
+off=$((size / 2))
+byte=$(dd if="$tmp/sflip.proof" bs=1 skip=$off count=1 2>/dev/null | od -An -tu1 | tr -d ' ')
+printf '%b' "$(printf '\\0%03o' $(( (byte + 1) % 256 )))" \
+    | dd of="$tmp/sflip.proof" bs=1 seek=$off count=1 conv=notrunc 2>/dev/null
+if "$SKI_AIR" composed-verify "$S/public.txt" "$tmp/sflip.proof" > "$tmp/sf.log"; then
+    no "the split8 proof with one byte changed verified"
+else
+    ok "the split8 proof with one byte changed is refused ($(head -c 60 "$tmp/sf.log"))"
+fi
+
 [ "$failed" = 0 ] || { echo "NOT VERIFIED: release"; exit 1; }
-echo "VERIFIED: release/sumto and release/composed"
+echo "VERIFIED: release/sumto, release/composed and release/skilark"

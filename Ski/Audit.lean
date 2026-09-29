@@ -592,7 +592,8 @@ open Ski.Audit
 #audit_clean Circuit.cntS_end Circuit.cntS_after Circuit.valid_rowP Circuit.cpuC_kind Circuit.cpuC_read
   Circuit.cpuC_sat Circuit.cpuC_memSend Circuit.foldBits_val Circuit.wit_sat Circuit.AcceptsC.ctr_le
   Circuit.AcceptsC.stk_le Circuit.progC_honest Circuit.witT_honest Circuit.cpuC_honest Circuit.cpuC_segsHonest
-  Circuit.balancedC Circuit.memC_sat Circuit.comp_complete
+  Circuit.balancedC Circuit.memC_sat Circuit.comp_complete Circuit.comp_complete_log Mach.buildA_eq
+  Mach.build_eq_buildFast
 
 -- The hidden-term circuit: soundness against the atom's realizer, and completeness
 #audit_clean Circuit.RowOK.read Circuit.RowOK.step Circuit.RowOK.halt Circuit.RowOK.acceptsFrom

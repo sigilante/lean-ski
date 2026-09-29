@@ -209,7 +209,7 @@ def compareComposed (path : String) : IO UInt32 := do
         | _ => none
       | [] => none) | do IO.println "MALFORMED: no statement"; return 1
   let stmt := "\n".intercalate ((ls.drop 1).take n) ++ "\n"
-  let some (M, W) := ComposedText.statementOfText stmt | do IO.println "NOT A STATEMENT"; return 1
+  let some (M, W, _) := ComposedText.statementOfText stmt | do IO.println "NOT A STATEMENT"; return 1
   let rest := ((ls.drop (n + 1)).filter (fun l => !l.trimAscii.toString.isEmpty))
   let some rust := parseAirs (rest.length + 1) rest | do IO.println "MALFORMED AIRS"; return 1
   compareAirs rust (compAirs M W)
