@@ -21,6 +21,7 @@ import Ski.ComposeExamples
 import Ski.Composed
 import Ski.Circuit.BaseSound
 import Ski.Circuit.BaseComplete
+import Ski.Circuit.Selectors
 import Ski.BoolProbe
 import Ski.Statement
 import Ski.Sudoku
@@ -554,3 +555,6 @@ open Ski.Audit
   Circuit.cpu_honest Circuit.prog_honest Circuit.mstep_fits
   Circuit.base_complete Circuit.fits_pad Circuit.base_complete_padded Circuit.eval_complete
   Circuit.export_complete
+-- Plonky3's selectors as they are: any values of their zero pattern
+#audit_clean Circuit.guarded_iff Circuit.satP_iff Circuit.satP_transfer Circuit.base_guarded
+  Circuit.acceptedP_iff Circuit.export_sound_P Circuit.export_complete_P

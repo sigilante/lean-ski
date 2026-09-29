@@ -747,8 +747,9 @@ is proved to check exactly `Air.Accepts` (`Ski/Circuit/`):
   soundness (every constraint vanishes on every row; every bus balances,
   with the heights' check), and heights within BabyBear's two-adic
   domains, `2^27`, which the verifier's own cap of `2^21` implies.
-  Plonky3's selectors are nonzero multiples of `0`/`1` selectors, which
-  changes nothing here: each constraint uses one only as a factor. Trusted, not proved: the export's parser and the
+  Plonky3's selectors are not `0`/`1`; `Ski/Circuit/Selectors.lean`
+  proves soundness and completeness with any selectors of their zero
+  pattern (`export_sound_P`, `export_complete_P`). Trusted, not proved: the export's parser and the
   compiled comparison, and Plonky3's symbolic builder recording what its
   verifier checks.
 

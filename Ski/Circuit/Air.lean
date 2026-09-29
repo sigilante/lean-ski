@@ -21,13 +21,11 @@ bound.  A **table** is its trace: a height and its cells.
 
 These are the assumptions; everything below them is proved.
 
-Plonky3's selectors are not `0`/`1`: its first-row selector is the domain
-size on row 0, its transition selector a nonzero value off the last row.
-Every constraint here uses a selector only as a factor of the whole
-constraint (`B.whenFirst`, `B.whenLast`, `B.whenTrans`), and a nonzero
-factor does not change where a constraint vanishes, so `Sat` is what
-Plonky3 gives for these circuits.  The comparison treats selectors as
-variables, so an exported constraint of another shape would differ.
+`Table.env` gives the selectors `0`/`1` values; Plonky3's are nonzero
+multiples of them.  `Ski/Circuit/Selectors.lean` reads the constraints
+with any selectors of Plonky3's zero pattern (`SatP`) and proves that for
+the corpus circuit, and any AIRs with its normal forms, the two readings
+accept the same tables (`acceptedP_iff`).
 -/
 
 namespace Circuit
