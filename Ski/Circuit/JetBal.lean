@@ -696,4 +696,80 @@ theorem bal_arg {m0 : Mach} (hA : AcceptsJ R.A m0 R.roots R.jets R.k R.row) {K H
 
 end JRun
 
+-- ---------------------------------------------------------------------------
+-- Providers
+-- ---------------------------------------------------------------------------
+
+theorem provRow_fields {name : String} {w : Nat} {rows : List (List F)} {cnt : List F → Nat}
+    (hlen : ∀ x ∈ rows, x.length = w) {q : Nat} (hq : q < rows.length) :
+    ((List.range w).map prec).map (fun e => e.eval ((provTable rows cnt).env q)) = rows[q] := by
+  rw [List.map_map]
+  have e : ∀ i, (fun e => E.eval ((provTable rows cnt).env q) e) (prec i) = rows[q].getD i 0 := by
+    intro i
+    show ofRows rows ((q + 0) % rows.length) i = _
+    rw [Nat.add_zero, Nat.mod_eq_of_lt hq]
+    unfold ofRows; rw [List.getD_eq_getElem?_getD (l := rows), List.getElem?_eq_getElem hq]; rfl
+  rw [show (List.range w).map ((fun e => E.eval ((provTable rows cnt).env q) e) ∘ prec) =
+    (List.range w).map (fun i => rows[q].getD i 0) from List.map_congr_left (fun i _ => e i),
+    ← hlen _ (List.getElem_mem hq), map_getD_self]
+
+theorem firstOcc_true {rows : List (List F)} {m : Nat} (h : ∀ j, j < m → rows.getD j [] ≠ rows.getD m []) :
+    firstOcc rows m = true :=
+  List.all_eq_true.2 fun j hj => by
+    rw [Bool.not_eq_true', decide_eq_false_iff_not]; exact h j (List.mem_range.1 hj)
+
+theorem firstOcc_false {rows : List (List F)} {m q : Nat} (hmq : m < q) (h : rows.getD m [] = rows.getD q []) :
+    firstOcc rows q = false := by
+  cases hc : firstOcc rows q with
+  | false => rfl
+  | true =>
+    have := List.all_eq_true.1 hc m (List.mem_range.2 hmq)
+    rw [h, decide_eq_true rfl] at this
+    cases this
+
+/-- **A provider receives each tuple's count once**, on its first row. -/
+theorem prov_sends {name : String} {w : Nat} {rows : List (List F)} {cnt : List F → Nat}
+    (hlen : ∀ x ∈ rows, x.length = w) (v : List F) :
+    tableSends (providerAir name w rows) (provTable rows cnt) name v = -(if v ∈ rows then ofN (cnt v) else 0) := by
+  have hrow : ∀ q, q < rows.length → rowSends (providerAir name w rows) (provTable rows cnt) name v q =
+      if rows.getD q [] = v then -(if firstOcc rows q then ofN (cnt (rows.getD q [])) else 0) else 0 := by
+    intro q hq
+    have eg : rows.getD q [] = rows[q] := by rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hq]; rfl
+    simp only [rowSends, providerAir, List.foldr_cons, List.foldr_nil, true_and]
+    rw [provRow_fields (name := name) hlen hq, add_zero', eg]
+    show (if rows[q] = v then -((provTable rows cnt).main ((q + 0) % rows.length) 0) else 0) = _
+    rw [Nat.add_zero, Nat.mod_eq_of_lt hq]
+    show (if rows[q] = v then -(if firstOcc rows q then ofN (cnt (rows.getD q [])) else 0) else 0) = _
+    rw [eg]
+  unfold tableSends
+  show (List.range rows.length).foldr _ 0 = _
+  cases hv : decide (v ∈ rows) with
+  | false =>
+    have hv' := of_decide_eq_false hv
+    rw [if_neg hv']
+    rw [fold_zero _ _ (fun q hq => by
+      have hq' := List.mem_range.1 hq
+      rw [hrow q hq', if_neg (fun e => hv' (by
+        rw [← e, List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hq']; exact List.getElem_mem hq'))])]
+    decide
+  | true =>
+    have hv' := of_decide_eq_true hv
+    rw [if_pos hv']
+    obtain ⟨q1, hq1, e1⟩ := List.getElem_of_mem hv'
+    have hp1 : decide (rows.getD q1 [] = v) = true := by
+      rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hq1]; exact decide_eq_true e1
+    obtain ⟨m, hm, hpm, hmin⟩ := Edges.exists_first (fun q => decide (rows.getD q [] = v)) q1 hp1
+    have hmL : m < rows.length := Nat.lt_of_le_of_lt hm hq1
+    have em : rows.getD m [] = v := of_decide_eq_true hpm
+    rw [fold_single _ rows.length m hmL (fun q hq hne => by
+      rw [hrow q hq]
+      split
+      · next eq =>
+        rcases Nat.lt_or_ge q m with hlt | hge
+        · exact absurd (decide_eq_true eq) (by rw [hmin q hlt]; decide)
+        · rw [firstOcc_false (show m < q by omega) (by rw [em, eq]), if_neg (by decide)]; decide
+      · rfl)]
+    rw [hrow m hmL, if_pos em, firstOcc_true (fun j hj => by
+      rw [em]; intro e; have := hmin j hj; rw [decide_eq_true e] at this; cases this), em, if_pos rfl]
+
 end Circuit

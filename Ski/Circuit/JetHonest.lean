@@ -144,10 +144,13 @@ def cntTmpl (K : Nat) (v : List F) : Nat :=
 
 end JRun
 
+/-- Row `q` is its tuple's first occurrence. -/
+def firstOcc (rows : List (List F)) (q : Nat) : Bool :=
+  (List.range q).all fun q' => !(decide (rows.getD q' [] = rows.getD q []))
+
 /-- A provider's table: each tuple's count on its first row. -/
 def provTable (rows : List (List F)) (cnt : List F → Nat) : Table :=
-  ⟨rows.length, fun q _ => if rows.findIdx (· == rows.getD q []) = q then ofN (cnt (rows.getD q [])) else 0,
-    ofRows rows⟩
+  ⟨rows.length, fun q _ => if firstOcc rows q then ofN (cnt (rows.getD q [])) else 0, ofRows rows⟩
 
 /-- The memory table: each cell, with the count of messages sent to it by
     the CPU, the program, POP and INSTW. -/
