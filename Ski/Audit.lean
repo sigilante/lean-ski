@@ -16,6 +16,8 @@ import Ski.ProbeTree
 import Ski.AirProbe
 import Ski.Witness
 import Ski.WitnessExamples
+import Ski.Compose
+import Ski.ComposeExamples
 import Ski.BoolProbe
 import Ski.Statement
 import Ski.Sudoku
@@ -491,6 +493,16 @@ open Ski.Audit
 
 -- A hidden term: knowing a realizer of an atom, proved by the AIR from the witness machine
 #audit_clean Wit.wfB_sound Wit.wf_termAt Wit.witnessOf_some Wit.odecode_wMachine Wit.odecode_K Wit.wit_sound Wit.wit_realizes Wit.build_shape Wit.wMachine_public Wit.witCheck_sound Wit.witCheck_realizes WitEx.neg_real WitEx.neg_not_I WitEx.neg_fake WitEx.sat_real WitEx.sat_not_TTT WitEx.sat_fake
+
+-- Zero knowledge, composed: a formula's statement, exact both ways, and the composition theorem
+#audit_clean Compose.ws1 Compose.sI_app Compose.pairT_app Compose.pairT_fst Compose.pairT_snd
+  Compose.inlT_app Compose.inrT_app Compose.K_wsteps Compose.eval_K_iff Compose.wsteps_K_iff
+  Compose.F_not_K Compose.boolT_sel Compose.BT.sub_append Compose.enc_proj_step Compose.close_appL
+  Compose.close_appP Compose.env0 Compose.env1 Compose.stmt_beta Compose.proj_sub Compose.fm_red
+  Compose.phi_iff Compose.leaf_iff Compose.leaves_prefix Compose.leaf_path Compose.readBack_real
+  Compose.real_of_accepted Compose.clear_shape Compose.clear_leaves Compose.good_of_real
+  Compose.accepted_of_good Compose.accepted_of_real Compose.compose ComposeEx.negOr_accepts
+  ComposeEx.negOr_real ComposeEx.negOr_refuses_clear ComposeEx.negOr_refuses_I
 
 -- Boolean statements: a formula compiled to Scott Booleans, read by a probe, and proved by the AIR
 #audit_clean BExpr.sbool_sel BExpr.fill_tt BExpr.fill_ff BExpr.bool_reduce BExpr.probe_true

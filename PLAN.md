@@ -702,6 +702,19 @@ evaluation: a verifier applies its witness to finitely many arguments,
 and a term can fake any finite behaviour (`neg_fake`, `sat_fake`), so data
 witnesses belong in cells the circuit fixes, as the Sudoku inputs are.
 
+Zero knowledge, composed (`Ski/Compose.lean`): a formula of atoms under
+`∧` and `∨` compiles to one statement about evaluation, exact in both
+directions, and over an assumed, idealized proof system for such
+statements the composed system inherits completeness, knowledge
+soundness and zero knowledge, hence witness indistinguishability
+(`compose`). The statement is a list of evaluations over hidden literal
+bits and a hidden term, not one evaluation: an atom is realized by
+evaluation to the literal `K`, which no combinator conjoins exactly, since
+`S (K K) I` behaves as `K` and is not `K`. Not built: the circuit for the
+general statement (several evaluations in one table, with bits and a
+term); the hidden-term circuit covers one term and no bits, the Sudoku
+circuit bits and one formula. Not formalized: implication and `∃`.
+
 ### Slated: the verifier checks exactly the spec
 
 Today the step from the Plonky3 verifier to the Lean spec is argued, not

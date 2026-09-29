@@ -15,6 +15,8 @@ import Ski.ProbeTree
 import Ski.AirProbe
 import Ski.Witness
 import Ski.WitnessExamples
+import Ski.Compose
+import Ski.ComposeExamples
 import Ski.BoolProbe
 import Ski.Statement
 import Ski.Sudoku
