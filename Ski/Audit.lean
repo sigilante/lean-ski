@@ -647,3 +647,4 @@ open Ski.Audit
   Circuit.bal_mem5 Circuit.PRun.cpuP_split Circuit.PRun.bal_popch_probe Circuit.PRun.bal_pwch Circuit.PRun.bal_plan
   Circuit.PRun.bal_segend Circuit.PRun.bal_arg_probe Circuit.PRun.cpu_honestP Circuit.PRun.pw_honest
   Circuit.PRun.pop_honestP Circuit.PRun.balancedP Circuit.PRun.hd_lt Circuit.PRun.stk_le Circuit.probe_complete
+  Circuit.AcceptsP.pad

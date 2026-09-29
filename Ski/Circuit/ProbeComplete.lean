@@ -218,6 +218,7 @@ variable {R : PRun} {t : Term} (hA : AcceptsP R.A (load t) R.roots R.jets R.plan
   (hroots : RootsOK (load t).heap R.roots R.jets)
 include hA hroots
 
+omit hA hroots in
 theorem valid_hd {r : Air.Row} (hv : Valid R.A r) (hc : r.ctr ≤ R.A.length) : r.hd < R.A.length := by
   obtain ⟨cell, hrd, _⟩ := (shape hv).reads 0 (by decide) rfl
   exact Nat.lt_of_lt_of_le (rd_get hrd).1 hc
@@ -252,10 +253,10 @@ theorem hd_lt {i : Nat} (hi : i ≤ R.last) : (R.row i).hd < R.A.length := by
         have := isP_iff.2 ⟨j, hj, e.symm⟩
         rw [hp] at this; cases this
       rcases hA.norm i hl hn with h | ⟨g, _, hm, _, _⟩ | h
-      · exact valid_hd hA hroots (.inl (by rw [h]; rfl)) hc
+      · exact valid_hd (.inl (by rw [h]; rfl)) hc
       · obtain ⟨_, _, _, htm, _⟩ := hroots _ g hm
         exact Nat.lt_of_lt_of_le (termAt_lt htm) hhl
-      · exact valid_hd hA hroots (.inr h.1) hc
+      · exact valid_hd (.inr h.1) hc
   · have : i = R.last := by omega
     subst this
     obtain ⟨_, hhead, _⟩ := last_end hA
@@ -447,5 +448,44 @@ theorem probe_complete {t : Term} {roots : List (Nat × Nat)} {jets : List Air.J
     show (⟨(C.main i HD).val, (C.main i STK).val, (C.main i CTR).val⟩ : Air.Row) = row i
     rw [cr HD (by decide), cr STK (by decide), cr CTR (by decide), cpuCol_hd, cpuCol_stk, cpuCol_ctr,
       val_ofN (by omega), val_ofN (by omega), val_ofN (by omega)]
+
+/-- **A run with probe segments over a memory is a run over the memory
+    padded**: reads stay below the counter, and writes check the same
+    cells.  So the prover's memory, padded to a power of two, is covered. -/
+theorem AcceptsP.pad {M : List Cell} {roots : List (Nat × Nat)} {jets : List Air.Jet} {plan : List Air.Seg}
+    {p : Nat → Nat} {fld : Nat → List Nat} {row : Nat → Air.Row}
+    (hA : AcceptsP M (load t) roots jets plan p fld row) (hroots : RootsOK (load t).heap roots jets)
+    (pad : List Cell) : AcceptsP (M ++ pad) (load t) roots jets plan p fld row := by
+  have hc : ∀ i, i ≤ p plan.length → (row i).ctr ≤ M.length := fun i hi => (hA.ctrs hroots i hi).2.1
+  have hpn : ∀ j, j ≤ plan.length → p j ≤ p plan.length := fun j hj => pmono_le hA.pmono hj (Nat.le_refl _)
+  have hpop : ∀ c k s, c ≤ M.length →
+      popR (fun a => (M ++ pad)[a]?) c k s = popR (fun a => M[a]?) c k s := by
+    intro c k s hc'
+    rw [popR_popN, popR_popN, List.take_append_of_le_length hc']
+  refine ⟨hA.nonempty, ?_, hA.hd0, hA.ctr0, hA.p0, hA.pmono, fun j s hs => ?_, hA.fields, fun i hi hn => ?_,
+    fun j s hs => ?_⟩
+  · rw [List.take_append_of_le_length (hc 0 (Nat.zero_le _))]; exact hA.heap0
+  · have hj : j < plan.length := (List.getElem?_eq_some_iff.1 hs).1
+    have hci := hc (p j) (hpn j (Nat.le_of_lt hj))
+    have h := hA.probe j s hs
+    unfold probeRow probeRowG at h ⊢
+    split at h
+    · next hw =>
+      have hw' : wrs M (row (p j)).ctr (pcells s.base s.k (row (p j)).ctr) = true := by rw [wrs_G]; exact hw
+      have := wrs_pad (pad := pad) hw'
+      rw [wrs_G] at this
+      rw [if_pos this]; exact h
+    · cases h
+  · have hci := hc i (Nat.le_of_lt hi)
+    rcases hA.norm i hi hn with h | ⟨g, J, hm, hJ, hI⟩ | h
+    · exact .inl (stepRow_pad hci h)
+    · exact .inr (.inl ⟨g, J, hm, hJ, instRow_pad hci hI⟩)
+    · exact .inr (.inr ⟨by rw [haltRow_pad hci]; exact h.1, h.2⟩)
+  · have hj : j < plan.length := (List.getElem?_eq_some_iff.1 hs).1
+    have hci := hc (p (j + 1)) (hpn (j + 1) hj)
+    have h := hA.ends j s hs
+    unfold Air.endRow endRowG at h ⊢
+    rw [show rdG (fun a => (M ++ pad)[a]?) = rd (M ++ pad) from rfl, rd_pad hci, hpop _ _ _ hci]
+    exact h
 
 end Circuit
