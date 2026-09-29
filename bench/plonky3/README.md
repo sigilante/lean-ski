@@ -420,9 +420,12 @@ instantiation rows and template table, and the probe segments.
   - The composed proof's segment table is private, but for accepting
     runs its multiplicities are `1` for segments `1..n-1` and `0`
     elsewhere (`composed.rs`, `table`); `comp_zk` assumes it shared.
-  - The prover aborts on a zero LogUp denominator. For the blinding
-    messages that event is witness-independent; for the others it is not,
-    and has probability at most about the number of messages over `P^4`.
+  - The prover aborts on a zero LogUp denominator, and whether it does
+    depends on the witness. Every bus prefix is `α` plus an offset free
+    of `α`, so for any tables, `β` and blinding at most one `α` per
+    message aborts (`abort_count`, `Ski/ZK/Abort.lean`): at most `2^-103`
+    for Sudoku (under `2^20` messages), `2^-109` for the hidden term and
+    `2^-108` for the composed statement.
   - Everything committed and opened rests on Plonky3's hiding PCS,
     unproved; no simulator for the whole transcript is written down.
 - **Security is Plonky3's benchmark setting**: blowup 2, 100 queries and 16

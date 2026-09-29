@@ -91,6 +91,7 @@ import Ski.Table
 import Ski.Examples
 import Ski.ZK.Circuits
 import Ski.ZK.Generic
+import Ski.ZK.Abort
 
 /-!
 # The audit manifest — build-enforced
@@ -659,3 +660,4 @@ open Ski.Audit
   Circuit.terminal_setBlind Circuit.chain_terminals
   Circuit.sud_zk Circuit.sud_zk_valid Circuit.wit_zk Circuit.wit_zk_valid Circuit.comp_zk Circuit.comp_zk_valid
   Circuit.vdm_eq Circuit.generic_iff Circuit.det_zero_iff Circuit.nongeneric_count
+  Circuit.den_one Circuit.abort_count Circuit.entries_length
