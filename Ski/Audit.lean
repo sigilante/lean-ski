@@ -18,6 +18,7 @@ import Ski.Witness
 import Ski.WitnessExamples
 import Ski.Compose
 import Ski.ComposeExamples
+import Ski.Composed
 import Ski.BoolProbe
 import Ski.Statement
 import Ski.Sudoku
@@ -503,6 +504,13 @@ open Ski.Audit
   Compose.real_of_accepted Compose.clear_shape Compose.clear_leaves Compose.good_of_real
   Compose.accepted_of_good Compose.accepted_of_real Compose.compose ComposeEx.negOr_accepts
   ComposeEx.negOr_real ComposeEx.negOr_refuses_clear ComposeEx.negOr_refuses_I
+
+-- The circuit's statement for a composed proof: segments of evaluation, and its checker
+#audit_clean CompM.sbool_boolT CompM.encO_fill CompM.fillB_shape CompM.addStmts_spec CompM.slots_wf
+  CompM.cMachine_decode CompM.emono_le CompM.segStart_le CompM.not_end CompM.halt_K
+  CompM.AcceptsC.segment CompM.msteps_len CompM.AcceptsC.runs CompM.composed_sound
+  CompM.addStmts_shape CompM.getElem_agree CompM.cMachine_public CompM.checkC_sound
+  CompM.shape_of_same CompM.checkC_realizes
 
 -- Boolean statements: a formula compiled to Scott Booleans, read by a probe, and proved by the AIR
 #audit_clean BExpr.sbool_sel BExpr.fill_tt BExpr.fill_ff BExpr.bool_reduce BExpr.probe_true

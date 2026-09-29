@@ -17,6 +17,7 @@ import Ski.Witness
 import Ski.WitnessExamples
 import Ski.Compose
 import Ski.ComposeExamples
+import Ski.Composed
 import Ski.BoolProbe
 import Ski.Statement
 import Ski.Sudoku

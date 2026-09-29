@@ -82,6 +82,7 @@ use p3_symmetric::{PaddingFreeSponge, TruncatedPermutation};
 use p3_uni_stark::StarkConfig;
 
 mod jets;
+mod composed;
 mod probe;
 mod sudoku;
 mod witness;
@@ -458,6 +459,9 @@ struct CpuAir {
     /// The public probe plan, when the table carries probe columns (after
     /// the jet columns; only with jets) and runs probe segments.
     probe: Option<probe::ProbePub>,
+    /// The public segments, when the table runs several evaluations
+    /// (`src/composed.rs`): its restart columns come last.
+    restart: Option<composed::RestartPub>,
 }
 
 #[derive(Clone, Debug)]
@@ -488,6 +492,7 @@ enum SkiAir {
     Jet(jets::JetAir),
     Probe(probe::ProbeAir),
     WitT(witness::WitTAir),
+    Segs(composed::SegsAir),
 }
 
 impl<F: Field> BaseAir<F> for SkiAir {
@@ -498,6 +503,7 @@ impl<F: Field> BaseAir<F> for SkiAir {
                     + if c.blind { 2 * BLIND_WIDTH } else { 0 }
                     + if c.jets { JET_WIDTH } else { 0 }
                     + if c.probe.is_some() { probe::PROBE_WIDTH } else { 0 }
+                    + if c.restart.is_some() { composed::RESTART_WIDTH } else { 0 }
             }
             SkiAir::Mem(m) => 5 + if m.blind { BLIND_WIDTH } else { 0 },
             SkiAir::Prog(_) => 1,
@@ -505,6 +511,7 @@ impl<F: Field> BaseAir<F> for SkiAir {
             SkiAir::Jet(j) => j.width(),
             SkiAir::Probe(p) => p.width(),
             SkiAir::WitT(_) => witness::WT_W,
+            SkiAir::Segs(_) => 1,
         }
     }
 
@@ -528,6 +535,10 @@ impl<F: Field> BaseAir<F> for SkiAir {
             SkiAir::Probe(p) => p.preprocessed(),
             SkiAir::WitT(w) => Some(RowMajorMatrix::new(
                 w.pre.iter().flat_map(|r| r.iter().map(|&v| F::from_u32(v))).collect(),
+                3,
+            )),
+            SkiAir::Segs(sg) => Some(RowMajorMatrix::new(
+                sg.pre.iter().flat_map(|r| r.iter().map(|&v| F::from_u32(v))).collect(),
                 2,
             )),
             _ => None,
@@ -540,7 +551,8 @@ impl<F: Field> BaseAir<F> for SkiAir {
             SkiAir::Wit(_) => 2,
             SkiAir::Jet(j) => j.preprocessed_width(),
             SkiAir::Probe(p) => p.preprocessed_width(),
-            SkiAir::WitT(_) => 2,
+            SkiAir::WitT(_) => 3,
+            SkiAir::Segs(_) => 2,
             _ => 0,
         }
     }
@@ -559,6 +571,7 @@ where
             SkiAir::Jet(j) => j.eval(b),
             SkiAir::Probe(p) => p.eval(b),
             SkiAir::WitT(_) => witness::eval_witt(b),
+            SkiAir::Segs(_) => composed::eval_segs(b),
         }
     }
 }
@@ -584,6 +597,11 @@ impl CpuAir {
         let ha = s(10);
         let inst = s(11);
         let (p_first, p_later) = (s(12), s(13));
+        // A restart row (`src/composed.rs`), when the table has segments: its
+        // selector is the first restart column, outside the kinds, so tables
+        // without segments keep their layout.
+        let rbase = CPU_WIDTH + if self.blind { 2 * BLIND_WIDTH } else { 0 };
+        let rs = if self.restart.is_some() { loc[rbase].clone() } else { AB::Expr::ZERO };
         let probe = p_first.clone() + p_later.clone();
         let f = |i: usize| loc[FLD + i].clone();
         let (a0, b0, a1, b1, a2, b2, a3, b3) = (f(0), f(1), f(2), f(3), f(4), f(5), f(6), f(7));
@@ -592,7 +610,11 @@ impl CpuAir {
         for i in 0..NKINDS {
             b.assert_bool(s(i));
         }
-        let sels: Vec<AB::Expr> = (0..NKINDS).map(s).collect();
+        let mut sels: Vec<AB::Expr> = (0..NKINDS).map(s).collect();
+        if self.restart.is_some() {
+            b.assert_bool(rs.clone());
+            sels.push(rs.clone());
+        }
         b.assert_eq(sum::<AB>(&sels), one.clone());
 
         let halt = sum::<AB>(&[
@@ -618,9 +640,10 @@ impl CpuAir {
             (kk.clone() + hk1.clone() + hk2.clone()) * c(1)
                 + (ki.clone() + hi1.clone()) * c(2)
                 + app.clone() * c(3)
-                + (ha.clone() + p_later.clone()) * c(6),
+                + (ha.clone() + p_later.clone()) * c(6)
+                + rs.clone() * c(1),
             sum::<AB>(&[ki.clone(), kk.clone(), ks.clone(), hk2.clone(), hs2.clone(), hs3.clone()]) * c(5)
-                + sum::<AB>(&[hi1.clone(), hk1.clone(), hs1.clone()]) * c(4),
+                + sum::<AB>(&[hi1.clone(), hk1.clone(), hs1.clone(), rs.clone()]) * c(4),
             sum::<AB>(&[kk.clone(), ks.clone(), hs3.clone()]) * c(5)
                 + (hk2.clone() + hs2.clone()) * c(4),
             ks.clone() * c(5) + hs3.clone() * c(4),
@@ -697,6 +720,12 @@ impl CpuAir {
                 b.assert_zero(p_first.clone());
                 b.assert_zero(p_later.clone());
             }
+        }
+        if let Some(rp) = &self.restart {
+            assert!(!self.jets && self.probe.is_none(), "segments run without jets or probes");
+            let (h, st) = composed::eval_cpu_restart(b, &loc, &nxt, rs.clone(), rbase, rp);
+            next_hd = next_hd + h;
+            next_stk = next_stk + st;
         }
         {
             let mut t = b.when_transition();
@@ -922,7 +951,7 @@ fn lean_table(term: &str, tb: &Table) -> String {
 /// The AIRs, with the constants and the program table given.
 fn airs_of(hd0: u32, stk0: u32, ctr0: u32, pre: Vec<[u32; 5]>) -> Vec<SkiAir> {
     vec![
-        SkiAir::Cpu(CpuAir { hd0, stk0, ctr0, accept: None, accept_k: false, blind: false, jets: false, probe: None }),
+        SkiAir::Cpu(CpuAir { hd0, stk0, ctr0, accept: None, accept_k: false, blind: false, jets: false, probe: None, restart: None }),
         SkiAir::Mem(MemAir { blind: false }),
         SkiAir::Prog(ProgAir { pre }),
     ]
@@ -1084,6 +1113,19 @@ const MIN_LOG: usize = 4;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
+    if args.len() == 4 && args[1] == "composed" {
+        let out = std::path::Path::new(&args[3]);
+        std::fs::create_dir_all(out).unwrap();
+        if std::env::var_os("SKI_AIR_PANICS").is_none() {
+            std::panic::set_hook(Box::new(|_| {}));
+        }
+        let failures = composed::main(std::path::Path::new(&args[2]), out);
+        if failures > 0 {
+            println!("\n{failures} FAILURES");
+            std::process::exit(1);
+        }
+        return;
+    }
     if args.len() == 4 && args[1] == "witness" {
         let out = std::path::Path::new(&args[3]);
         std::fs::create_dir_all(out).unwrap();
@@ -1165,7 +1207,7 @@ fn main() {
     }
     if args.len() != 3 {
         eprintln!(
-            "usage: ski-air CORPUS OUTDIR | ski-air sudoku DIR OUTDIR | ski-air witness DIR OUTDIR | ski-air jets CORPUS JETSDIR OUTDIR\n       \
+            "usage: ski-air CORPUS OUTDIR | ski-air sudoku DIR OUTDIR | ski-air witness DIR OUTDIR | ski-air composed DIR OUTDIR | ski-air jets CORPUS JETSDIR OUTDIR\n       \
              ski-air jet-prove TERM JETS TABLE PROOF | ski-air jet-verify CORPUS JETSDIR NAME PROOF\n       \
              ski-air probes CORPUS JETSDIR OUTDIR | ski-air probe-prove TERM JETS TABLE PROOF OUTCOME...\n       \
              ski-air probe-prove-table TERM JETS TABLE PROOF OUTCOME...\n       \

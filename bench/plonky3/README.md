@@ -252,6 +252,68 @@ tampered ones and a table offered under the other example's statement;
 `lake exe witness statement` rejects a `public.txt` with a region cell
 exposed, another input or another region size.
 
+## A composed statement in zero knowledge
+
+`src/composed.rs` proves the statement of a formula of atoms under `∧` and
+`∨` (`Ski/Compose.lean`): public terms, a check of the formula over
+hidden bits and a guard per atom, each of which must evaluate to `K` on
+the literal bits and a hidden witness. The statement is the composed
+machine `CompM.cMachine` of `Ski/Composed.lean`: the slot cells, one cell
+per bit, the witness region, then the bits' encoding and each term applied
+to the bits and the witness, at its segment's root. `lake exe composed
+emit` writes each example's `public.txt`, the machine with the bits and
+region blank, and its witnesses; the verifier first runs `lake exe
+composed statement`, which accepts exactly the machine of the formula and
+region size the file names (`CompM.cMachine_public`).
+
+The table runs one **segment** per term. A new CPU row, **restart**, ends a
+segment and starts the next: it reads `K` at the head over a nil, as the
+halting kind `HK1` does, and moves to the next root (looked up in SEGS, a
+preprocessed table of the roots) over the public nil. Its selector is a
+column of its own, outside the kinds, so tables without segments keep
+their layout. A segment count starts at 0, grows by one on each restart,
+and is `n - 1` on the last row, which is `HK1`. The witness table has a
+bit mode: a bit cell is `K` or `A 0 1` (`K I`), a literal Scott Boolean;
+a region cell is `S`, `K`, `I` or an application of two cells below it.
+A table the verifier accepts satisfies `CompM.AcceptsC`, so each term
+evaluates to `K` on the bits and witness (`CompM.composed_sound`), and
+they read back as a realizer of the formula (`CompM.checkC_realizes`).
+`lake exe composed check` decides it on each table proved here. Hiding
+is the Sudoku proof's; where a segment ends is a private row.
+
+Two examples, the `∨` and the `∧` of the two atoms of
+`Ski/WitnessExamples.lean`:
+
+```
+lake build composed && lake exe composed emit bench/plonky3/composed
+cd bench/plonky3 && cargo build --release
+./target/release/ski-air composed composed tables   # statement check, prove, verify, guess test, tamper
+cd ../.. && lake exe composed check bench/plonky3/composed/or/public.txt bench/plonky3/tables/composed_or.txt
+lake exe composed check bench/plonky3/composed/or/public.txt bench/plonky3/tables/tampered_composed_or_*.txt  # REJECT
+```
+
+Measured, 2026-09-28, Apple M4 Max, release build (heights `2^11` rows and
+memory, `2^8` witness):
+
+```
+or       2 bits, a region of 64, 3 segments; 264 rows, 712 memory cells
+         prove 0.11 s, verify 0.014 s, proof 476 KiB   verified
+and      2 bits, a region of 64, 3 segments; 468 rows, 947 memory cells
+         prove 0.12 s, verify 0.015 s, proof 486 KiB   verified
+guess    no match for either; a match for each with the blinding off
+clear    every bit clear: the formula check ends at K I; rejected
+wrong    a set atom's verifier rejects its component; rejected
+nonbool  a bit cell I: rejected by the witness table's bit mode
+forged   a region cell pointing forward, never read: rejected by the witness table
+```
+
+`lake exe composed check` accepts both honest tables and rejects the
+eight tampered ones and a table offered under the other formula's
+statement; `lake exe composed statement` rejects a `public.txt` with a
+private cell exposed, another formula, another region size or another
+root. The caller compares the formula the statement names with the one
+meant, and the Lean tables, which hold the witness, stay the prover's.
+
 ## Jets: instantiation rows
 
 `src/jets.rs` proves every corpus row with supercombinator instantiation

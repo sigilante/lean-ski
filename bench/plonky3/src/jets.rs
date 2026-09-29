@@ -746,7 +746,7 @@ fn airs(t: &Term, jt: &JetTable, plan: Option<&[probe::Seg]>) -> Result<Vec<SkiA
     let (loaded, hd0, stk0) = load(t);
     let pp = plan.map(probe::ProbePub::of).transpose()?;
     let mut a = vec![
-        SkiAir::Cpu(CpuAir { hd0, stk0, ctr0: loaded.len() as u32, accept: None, accept_k: false, blind: false, jets: true, probe: pp }),
+        SkiAir::Cpu(CpuAir { hd0, stk0, ctr0: loaded.len() as u32, accept: None, accept_k: false, blind: false, jets: true, probe: pp, restart: None }),
         SkiAir::Mem(MemAir { blind: false }),
         SkiAir::Prog(ProgAir { pre: program(t, MIN_LOG) }),
         SkiAir::Jet(JetAir::Roots(roots_pre(jt))),

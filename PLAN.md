@@ -710,10 +710,13 @@ soundness and zero knowledge, hence witness indistinguishability
 (`compose`). The statement is a list of evaluations over hidden literal
 bits and a hidden term, not one evaluation: an atom is realized by
 evaluation to the literal `K`, which no combinator conjoins exactly, since
-`S (K K) I` behaves as `K` and is not `K`. Not built: the circuit for the
-general statement (several evaluations in one table, with bits and a
-term); the hidden-term circuit covers one term and no bits, the Sudoku
-circuit bits and one formula. Not formalized: implication and `∃`.
+`S (K K) I` behaves as `K` and is not `K`. The circuit for it is built
+(`Ski/Composed.lean`, `src/composed.rs`): one segment per term, each
+ending at `K` over the empty stack, restart rows to the next root, bits
+constrained to Scott Booleans. A table the checker accepts for a
+formula's statement has bits and a witness that read back as a realizer
+of the formula (`checkC_realizes`); the `∨` and `∧` of two atoms prove in
+about 0.1 s. Not formalized: implication and `∃`.
 
 ### Slated: the verifier checks exactly the spec
 

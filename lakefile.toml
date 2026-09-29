@@ -32,3 +32,7 @@ root = "bench.Jets"
 [[lean_exe]]
 name = "witness"
 root = "bench.Witness"
+
+[[lean_exe]]
+name = "composed"
+root = "bench.Composed"

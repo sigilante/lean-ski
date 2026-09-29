@@ -77,7 +77,7 @@ const WT_FLAGS: usize = 0;
 const WT_A: usize = 4;
 const WT_B: usize = 5;
 const WT_BITS: usize = 6;
-const WT_BLIND: usize = WT_BITS + 4 * RANGE_BITS;
+pub const WT_BLIND: usize = WT_BITS + 4 * RANGE_BITS;
 pub const WT_W: usize = WT_BLIND + BLIND_WIDTH;
 
 /// The public part of the statement: `public.txt`.
@@ -175,17 +175,18 @@ fn program_of(p: &Public) -> Vec<[u32; 5]> {
     pre
 }
 
-/// The witness table's preprocessed columns: the region's addresses.
-fn wit_pre(p: &Public) -> Vec<[u32; 2]> {
-    let mut pre: Vec<[u32; 2]> = (0..p.w).map(|i| [i, 1]).collect();
-    pre.resize(1 << LOG_WIT, [0, 0]);
+/// The witness table's preprocessed columns: the region's addresses,
+/// active, none in bit mode.
+fn wit_pre(p: &Public) -> Vec<[u32; 3]> {
+    let mut pre: Vec<[u32; 3]> = (0..p.w).map(|i| [i, 1, 0]).collect();
+    pre.resize(1 << LOG_WIT, [0, 0, 0]);
     pre
 }
 
 /// The verifier's AIRs, from the public statement alone.
 fn airs(p: &Public) -> Vec<SkiAir> {
     vec![
-        SkiAir::Cpu(CpuAir { hd0: p.hd0, stk0: p.stk0, ctr0: p.ctr0, accept: None, accept_k: true, blind: true, jets: false, probe: None }),
+        SkiAir::Cpu(CpuAir { hd0: p.hd0, stk0: p.stk0, ctr0: p.ctr0, accept: None, accept_k: true, blind: true, jets: false, probe: None, restart: None }),
         SkiAir::Mem(MemAir { blind: true }),
         SkiAir::Prog(ProgAir { pre: program_of(p) }),
         SkiAir::WitT(WitTAir { pre: wit_pre(p) }),
@@ -196,20 +197,21 @@ fn airs(p: &Public) -> Vec<SkiAir> {
 // The witness table
 // ---------------------------------------------------------------------------
 
-/// The witness table: preprocessed `(addr, active)`, committed the cell at
-/// `addr`.
+/// The witness table: preprocessed `(addr, active, bit)`, committed the
+/// cell at `addr`.
 #[derive(Clone, Debug)]
 pub struct WitTAir {
-    pub pre: Vec<[u32; 2]>,
+    pub pre: Vec<[u32; 3]>,
 }
 
 /// Each active row is the cell at its address: `S`, `K`, `I`, or `A a b`
-/// with `a` and `b` below the address.
+/// with `a` and `b` below the address.  A row in bit mode is a Scott
+/// Boolean: `K`, or `A 0 1` (`K I`, the slot cells at 0 and 1).
 pub fn eval_witt<AB: PermutationAirBuilder + InteractionBuilder>(b: &mut AB) {
     let pre: Vec<AB::Expr> = b.preprocessed().current_slice().iter().map(|&v| v.into()).collect();
     let main = b.main();
     let l: Vec<AB::Expr> = main.current_slice().iter().map(|&v| v.into()).collect();
-    let (addr, act) = (pre[0].clone(), pre[1].clone());
+    let (addr, act, bit) = (pre[0].clone(), pre[1].clone(), pre[2].clone());
     let one = AB::Expr::ONE;
     let fl: Vec<AB::Expr> = (0..4).map(|q| l[WT_FLAGS + q].clone()).collect();
     for q in 0..4 {
@@ -237,6 +239,10 @@ pub fn eval_witt<AB: PermutationAirBuilder + InteractionBuilder>(b: &mut AB) {
     b.assert_zero(app.clone() * (addr.clone() - pa.clone() - one.clone() - num(1)));
     b.assert_zero(app.clone() * (pb.clone() - num(2)));
     b.assert_zero(app.clone() * (addr.clone() - pb.clone() - one.clone() - num(3)));
+    // Bit mode: no `S`, no `I`, and an application is `A 0 1`.
+    b.assert_zero(bit.clone() * (fl[0].clone() + fl[2].clone()));
+    b.assert_zero(bit.clone() * pa.clone());
+    b.assert_zero(bit * (pb.clone() - app.clone()));
     let tag = fl[1].clone() + fl[2].clone() * AB::Expr::from_u32(2) + app * AB::Expr::from_u32(3);
     b.push_interaction(BUS, [addr, tag, pa, pb], Count::bounded(act, 1));
     blind_msg(b, &l, WT_BLIND, BLIND_A, true);
@@ -244,9 +250,17 @@ pub fn eval_witt<AB: PermutationAirBuilder + InteractionBuilder>(b: &mut AB) {
 
 /// The witness trace of a region: its cells, flagged and decomposed.
 fn witness_trace(p: &Public, mem: &[Cell], mult: &mut [u32]) -> RowMajorMatrix<Val> {
-    let mut v = vec![Val::ZERO; (1 << LOG_WIT) * WT_W];
-    for i in 0..p.w as usize {
-        let r = &mut v[i * WT_W..(i + 1) * WT_W];
+    let addrs: Vec<u32> = (0..p.w).collect();
+    witness_rows(&addrs, 1 << LOG_WIT, mem, mult)
+}
+
+/// The witness rows for the cells at `addrs`, one per row, padded to
+/// `height` rows.
+pub(crate) fn witness_rows(addrs: &[u32], height: usize, mem: &[Cell], mult: &mut [u32]) -> RowMajorMatrix<Val> {
+    let mut v = vec![Val::ZERO; height * WT_W];
+    for (row, &a) in addrs.iter().enumerate() {
+        let i = a as usize;
+        let r = &mut v[row * WT_W..(row + 1) * WT_W];
         let c = mem[i];
         let k = match c {
             Cell::S => 0,
