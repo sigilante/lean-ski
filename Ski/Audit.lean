@@ -11,6 +11,8 @@ import Ski.Inst
 import Ski.SmallLemma
 import Ski.AirJet
 import Ski.JetTable
+import Ski.JetPublic
+import Ski.JetRun
 import Ski.InstOpen
 import Ski.ProbeTree
 import Ski.AirProbe
@@ -686,3 +688,7 @@ open Ski.Audit
 #audit_clean Circuit.countN_eq_sumN Circuit.sumN_add Circuit.sumN_const Circuit.sumTo_sumN Circuit.xrefN_sum
   Circuit.inner_pcsN Circuit.inner_chainN Circuit.transcript_zkN Circuit.comp_transcriptN
   Circuit.chain_viewT Circuit.viewT_xrefN Circuit.tsum_tsumN
+
+-- Public closures: jets over a heap with private cells, licensed over the blank heap and every filled one
+#audit_clean Air.termAtG_public Air.termAt_public Air.publicB_sound Air.rootsOK_public Air.privC_false
+  Air.rootsOK_filled Air.jetStmtC_sound

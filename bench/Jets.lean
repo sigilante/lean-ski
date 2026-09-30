@@ -101,13 +101,7 @@ def parseTable (ls : List String) : Option (Term × Array Cell × List Air.Row) 
 /-- **The jet file** of a term: what the prover's preprocessed tables hold. -/
 def jetFile (t : Term) (tmpls : List (List Nat × OTerm)) : String × Nat × Nat := Id.run do
   let (roots, jets) := jetTable (load t).heap tmpls
-  let mut s := s!"roots {roots.length}\n"
-  for (a, g) in roots do
-    s := s ++ s!"{a} {g}\n"
-  s := s ++ s!"jets {jets.length}\n"
-  for J in jets do
-    s := s ++ jetText J
-  return (s, roots.length, jets.length)
+  return (tableText roots jets, roots.length, jets.length)
 
 def emit (dir : String) : IO UInt32 := do
   IO.FS.createDirAll dir

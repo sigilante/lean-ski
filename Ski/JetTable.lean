@@ -164,19 +164,40 @@ def globalize : OTerm → Nat → OTerm × List (Nat × Term) × Nat
 -- The jet table
 -- ---------------------------------------------------------------------------
 
+/-- Which cells have a **public closure**: every cell below them, by
+    application, a term cell outside `priv`.  One pass in address order; a
+    pointer that is not backward counts as private, which only drops
+    candidates (`Air.publicB` is the check). -/
+def pubCells (A : Array Cell) (priv : Nat → Bool) : Array Bool := Id.run do
+  let mut pub : Array Bool := Array.mkEmpty A.size
+  for i in [0:A.size] do
+    let ok := !priv i &&
+      match A[i]? with
+      | some .S => true
+      | some .K => true
+      | some .I => true
+      | some (.app g x) => decide (g < i) && decide (x < i) && pub.getD g false && pub.getD x false
+      | _ => false
+    pub := pub.push ok
+  return pub
+
 /-- **The jet table of a loaded heap**: the licensed roots and the jets they
     name.  Every returned root passes `Air.rootOKB`.  With `globals` off, a
-    body keeps its closed subterms, and an instantiation writes them. -/
-def jetTable (h0 : List Cell) (tmpls : List (List Nat × OTerm)) (globals : Bool := true) :
+    body keeps its closed subterms, and an instantiation writes them.  With
+    private addresses `priv`, a root or a global is only a cell whose
+    closure avoids them (`pubCells`; the rule of `Air.publicB`). -/
+def jetTable (h0 : List Cell) (tmpls : List (List Nat × OTerm)) (globals : Bool := true)
+    (priv : Nat → Bool := fun _ => false) :
     List (Nat × Nat) × List Jet :=
   Id.run do
     let A := h0.toArray
     let (hc0, ids) := heapIds {} A
+    let pub := pubCells A priv
     let mut hc := hc0
     let mut firstAt : Std.HashMap Nat Nat := {}
     for i in [0:ids.size] do
       match ids[i]! with
-      | some k => if !firstAt.contains k then firstAt := firstAt.insert k i
+      | some k => if pub.getD i false && !firstAt.contains k then firstAt := firstAt.insert k i
       | none => pure ()
     -- candidate jets, by the id of their compiled root
     let mut jetOf : Std.HashMap Nat Jet := {}
@@ -204,7 +225,7 @@ def jetTable (h0 : List Cell) (tmpls : List (List Nat × OTerm)) (globals : Bool
     let mut jetIx : Std.HashMap Nat Nat := {}
     let mut roots : Array (Nat × Nat) := #[]
     for i in [0:ids.size] do
-      match ids[i]! with
+      match (if pub.getD i false then ids[i]! else none) with
       | some k =>
         match jetOf[k]? with
         | some J =>
@@ -270,6 +291,17 @@ def jetText (J : Jet) : String :=
     s ++ (match ops with
       | some (a, b) => s!"{tag} {a.text} {b.text}"
       | none => s!"{tag}") ++ "\n") head
+
+/-- **A jet table as text**, the file `jets emit` writes: the roots, then
+    each jet as its template rows (`jetText`). -/
+def tableText (roots : List (Nat × Nat)) (jets : List Jet) : String := Id.run do
+  let mut s := s!"roots {roots.length}\n"
+  for (a, g) in roots do
+    s := s ++ s!"{a} {g}\n"
+  s := s ++ s!"jets {jets.length}\n"
+  for J in jets do
+    s := s ++ jetText J
+  return s
 
 -- ---------------------------------------------------------------------------
 -- The template rows are `icells`

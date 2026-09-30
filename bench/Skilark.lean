@@ -1,6 +1,7 @@
 import Ski.Front
 import Ski.ComposedText
-import Ski.JetTable
+import Ski.JetPublic
+import Ski.JetRun
 open Term
 
 /-!
@@ -240,19 +241,17 @@ def cstatement (src : String) (k m seed x c : Nat) (pub : String) : IO UInt32 :=
     of `split`'s verifier, in the clear, and its jet table from the
     source's own templates (`JetTable.fileTemplates`): `DIR/split.term`,
     `DIR/split.jets`, for `ski-air jets-measure` and `lake exe jets
-    check-src`. -/
+    check-src`.  Then the closure rule (`Air.publicB`) with the bits'
+    cells private: `DIR/split_pub.jets`, and both tables' runs counted
+    (`JetRun.runJ`).  A measurement in the clear, over the heap of these
+    bits: the verifier's table is `cjets`'s, over the blank composed heap. -/
 def jets (src : String) (k x a b : Nat) (dir : String) : IO UInt32 := do
   let text ← IO.FS.readFile src
   let some (V, E) ← readB src | do IO.println s!"{src}: not a SKIlark predicate source"; return 1
   let t := V ⬝ xTerm E (bitsOf k x) ⬝ CompM.boolsT (splitBits k a b)
   let tmpls := JetTable.fileTemplates (text.toList.map Char.toNat)
   let (roots, js) := JetTable.jetTable (Mach.load t).heap tmpls
-  let mut s := s!"roots {roots.length}\n"
-  for (addr, g) in roots do
-    s := s ++ s!"{addr} {g}\n"
-  s := s ++ s!"jets {js.length}\n"
-  for J in js do
-    s := s ++ JetTable.jetText J
+  let s := JetTable.tableText roots js
   IO.FS.createDirAll dir
   IO.FS.writeFile s!"{dir}/split.term" (termText t ++ "\n")
   IO.FS.writeFile s!"{dir}/split.jets" s
@@ -260,7 +259,122 @@ def jets (src : String) (k x a b : Nat) (dir : String) : IO UInt32 := do
   -- `V`, then `x`, then the bits, children first.
   let bitsStart := (Mach.build (Mach.build [] V).1 (xTerm E (bitsOf k x))).1.length
   IO.println s!"split k={k}, x = {x}, a = {a}, b = {b}: {tmpls.length} templates, {js.length} jets, {roots.length} roots, loaded heap {(Mach.load t).heap.length} cells, the bits' cells from {bitsStart}"
+  let bitsEnd := (Mach.build (Mach.build (Mach.build [] V).1 (xTerm E (bitsOf k x))).1
+    (CompM.boolsT (splitBits k a b))).1.length
+  let priv := fun i => decide (bitsStart ≤ i) && decide (i < bitsEnd)
+  let (rootsP, jsP) := JetTable.jetTable (Mach.load t).heap tmpls (priv := priv)
+  IO.FS.writeFile s!"{dir}/split_pub.jets" (JetTable.tableText rootsP jsP)
+  let pubOK := Air.publicB (Mach.load t).heap priv rootsP jsP && Air.rootsOKB (Mach.load t).heap rootsP jsP
+  IO.println s!"  the closure rule, the bits' cells [{bitsStart}, {bitsEnd}) private: {jsP.length} jets, {rootsP.length} roots ({roots.length - rootsP.length} dropped); publicB and rootsOKB: {pubOK}"
+  let m := Mach.load t
+  let heap := m.heap.toArray
+  let fuel := 2 ^ 22
+  for (label, rs, jss) in [("jetted     ", roots, js), ("closure rule", rootsP, jsP)] do
+    match JetRun.runJ (JetRun.rootMap rs jss) heap m.hd m.stk fuel with
+    | some (sf, c, rows) =>
+      let acc := Air.checkJA sf.1 m rs jss rows.toList
+      IO.println s!"  {label}  rows {c.rows} = {c.cpu} cpu + {c.pop} pop + {c.instw} instw, cells {c.cells}, {c.insts} insts, halts at {repr (JetRun.shape sf)}; checkJA {acc}"
+    | none => IO.println s!"  {label}  did not halt"
   return 0
+
+-- ---------------------------------------------------------------------------
+-- A composed statement's jets, under the closure rule
+-- ---------------------------------------------------------------------------
+
+/-- The composed statement of `PUBLIC`, its bits' shape, region size and
+    terms, as the verifier holds it (`statementOfText`). -/
+def readStmt (pub : String) : IO (Option (CStmt × Nat)) := do
+  match statementOfText (← IO.FS.readFile pub) with
+  | some (c, W', _) => return some (c, W')
+  | none => return none
+
+def srcTemplates (src : String) : IO (List (List Nat × OTerm)) := do
+  return JetTable.fileTemplates ((← IO.FS.readFile src).toList.map Char.toNat)
+
+/-- `skilark cjets SRC PUBLIC OUT [--no-rule]`: the jet table of the
+    composed statement `PUBLIC` over its blank heap, from the templates of
+    `SRC`, under the closure rule (`Air.jetTableC`), written to `OUT`; with
+    `--no-rule`, the table without it, which the statement check refuses. -/
+def cjets (src pub out : String) (noRule : Bool := false) : IO UInt32 := do
+  let some (c, W') ← readStmt pub | do IO.println s!"NOT A STATEMENT {pub}"; return 1
+  let tmpls ← srcTemplates src
+  let blank := (cMachine (fun _ => false) c.shp (List.replicate W' .S) c.Ps).heap
+  let (roots, js) := Air.jetTableC c.shp W' c.Ps tmpls
+  let (roots0, js0) := JetTable.jetTable blank tmpls
+  IO.FS.writeFile out (if noRule then JetTable.tableText roots0 js0 else JetTable.tableText roots js)
+  let N := BT.nleaves c.shp
+  IO.println s!"{pub}: blank heap {blank.length} cells, private [3, {3 + N + W'}); {tmpls.length} templates"
+  let priv := Air.privC N W'
+  let privGlobs := js0.foldl (fun n J => n + (J.glob.filter fun (_, a) => !Air.pubAtG (fun i => blank[i]?) priv (blank.length + 1) a).length) 0
+  IO.println s!"  without the rule: {js0.length} jets, {roots0.length} roots; rootsOKB {Air.rootsOKB blank roots0 js0}, publicB {Air.publicB blank priv roots0 js0}: {(roots0.filter fun (a, _) => !Air.pubAtG (fun i => blank[i]?) priv (blank.length + 1) a).length} roots and {privGlobs} globals reach a private cell"
+  IO.println s!"  the closure rule: {js.length} jets, {roots.length} roots ({roots0.length - roots.length} dropped); {if noRule then "the table without it" else "the table"} written to {out}"
+  return 0
+
+/-- `skilark cjets-statement SRC PUBLIC JETS`: the verifier's check of a
+    composed statement's jet table (`Air.jetStmtC`): `JETS` is the table
+    Lean computes over `PUBLIC`'s blank heap from `SRC`'s templates, its
+    roots licensed (`rootsOKB`) and their closures public (`publicB`).
+    Accepted, the roots are licensed over every filled heap
+    (`Air.jetStmtC_sound`). -/
+def cjetsStatement (src pub jf : String) : IO UInt32 := do
+  let some (c, W') ← readStmt pub | do IO.println s!"NOT A STATEMENT {pub}"; return 1
+  let tmpls ← srcTemplates src
+  let text ← IO.FS.readFile jf
+  if Air.jetStmtC text c.shp W' c.Ps tmpls then
+    IO.println s!"ACCEPT {jf}: the jet table of {pub}, licensed over every filled heap (Air.jetStmtC_sound)"
+    return 0
+  -- why not: the same checks, on the table as given
+  let blank := (cMachine (fun _ => false) c.shp (List.replicate W' .S) c.Ps).heap
+  let (roots, js) := Air.jetTableC c.shp W' c.Ps tmpls
+  IO.println s!"REFUSE {jf}: {if text == JetTable.tableText roots js then "the table Lean computes, but" else "not the table Lean computes; Lean's own table:"} rootsOKB {Air.rootsOKB blank roots js}, publicB {Air.publicB blank (Air.privC (BT.nleaves c.shp) W') roots js}"
+  return 1
+
+/-- Parse a witness file: `N` bits, `0` or `1`, then the region's cells. -/
+def readWitness (path : String) (N : Nat) : IO (Option (List Bool × List Cell)) := do
+  let ls := ((← IO.FS.readFile path).splitOn "\n").filter (fun l => !l.trimAscii.toString.isEmpty)
+  let bits := (ls.take N).map fun l => l.trimAscii.toString == "1"
+  let cells := (ls.drop N).filterMap fun l => parseCell (words l.trimAscii.toString)
+  if (ls.take N).length != N || cells.length != (ls.drop N).length then return none
+  return some (bits, cells)
+
+/-- `skilark cjets-measure SRC PUBLIC WITNESS`: a predicate statement's run
+    over its **filled** heap (the witness's bits and region), plain, jetted
+    in the clear (the table over the filled heap, no rule), and with the
+    statement's table (over the blank heap, the closure rule), counted by
+    `JetRun.runJ`; each run's table checked by `Air.checkJA` from the
+    filled machine.  A measurement: the witness itself is not checked
+    (bit mode, `cellOK`; `lake exe composed check` does that), so a forged
+    witness measures too. -/
+def cjetsMeasure (src pub wit : String) : IO UInt32 := do
+  let some (c, W') ← readStmt pub | do IO.println s!"NOT A STATEMENT {pub}"; return 1
+  if c.Ps.length != 1 then IO.println "one term only"; return 1
+  let N := BT.nleaves c.shp
+  let some (bits, region) ← readWitness wit N | do IO.println s!"MALFORMED {wit}"; return 1
+  if region.length != W' then IO.println s!"the region is not {W'} cells"; return 1
+  let tmpls ← srcTemplates src
+  let m := cMachine (fun n => bits.getD n false) c.shp region c.Ps
+  let heap := m.heap.toArray
+  let (rootsS, jsS) := Air.jetTableC c.shp W' c.Ps tmpls
+  let (rootsF, jsF) := JetTable.jetTable m.heap tmpls
+  IO.println s!"{pub} with {wit} (measured, not checked): filled heap {heap.size} cells; the statement's table {jsS.length} jets, {rootsS.length} roots; in the clear {jsF.length} jets, {rootsF.length} roots"
+  let blank := (cMachine (fun _ => false) c.shp (List.replicate W' .S) c.Ps).heap
+  let (roots0, js0) := JetTable.jetTable blank tmpls
+  IO.println s!"  licensed over this filled heap (rootsOKB): the statement's table {Air.rootsOKB m.heap rootsS jsS}; the blank heap's table without the rule {Air.rootsOKB m.heap roots0 js0}"
+  let fuel := 2 ^ 22
+  let mut bad := 0
+  let mut plain := 0
+  for (label, rs, jss) in [("plain       ", [], []), ("in the clear", rootsF, jsF), ("the rule    ", rootsS, jsS)] do
+    match JetRun.runJ (JetRun.rootMap rs jss) heap m.hd m.stk fuel with
+    | some (sf, cst, rows) =>
+      let halts := JetRun.shape sf == (some .K, 0)
+      let acc := Air.checkJA sf.1 m rs jss rows.toList
+      if label == "plain       " then plain := cst.cpu
+      if !halts || !acc then bad := bad + 1
+      IO.println s!"  {label}  cpu {cst.cpu} ({JetRun.pct cst.cpu plain}), pop {cst.pop}, instw {cst.instw}, cells {cst.cells}, {cst.insts} insts; {if halts then "halts at K over the nil" else "DOES NOT HALT AT K"}; checkJA {acc}"
+    | none =>
+      bad := bad + 1
+      IO.println s!"  {label}  did not halt"
+  return (if bad == 0 then 0 else 1)
 
 end SkilarkZK
 
@@ -284,10 +398,14 @@ def main (args : List String) : IO UInt32 := do
     match n k, n x, n a, n b with
     | some k, some x, some a, some b => SkilarkZK.jets src k x a b dir
     | _, _, _, _ => IO.println "bad numbers"; return 2
+  | ["cjets", src, pub, out] => SkilarkZK.cjets src pub out
+  | ["cjets", src, pub, out, "--no-rule"] => SkilarkZK.cjets src pub out true
+  | ["cjets-statement", src, pub, jf] => SkilarkZK.cjetsStatement src pub jf
+  | ["cjets-measure", src, pub, wit] => SkilarkZK.cjetsMeasure src pub wit
   | ["cstatement", src, k, m, seed, x, c, pub] =>
     match n k, n m, n seed, n x, n c with
     | some k, some m, some seed, some x, some c => SkilarkZK.cstatement src k m seed x c pub
     | _, _, _, _, _ => IO.println "bad numbers"; return 2
   | _ =>
-    IO.println "usage: skilark emit SRC K X A B R M DIR | skilark statement SRC K X PUBLIC\n       skilark cemit SRC K M SEED X A B R RLOG MLOG DIR | skilark cstatement SRC K M SEED X C PUBLIC"
+    IO.println "usage: skilark emit SRC K X A B R M DIR | skilark statement SRC K X PUBLIC\n       skilark cemit SRC K M SEED X A B R RLOG MLOG DIR | skilark cstatement SRC K M SEED X C PUBLIC\n       skilark jets SRC K X A B DIR\n       skilark cjets SRC PUBLIC OUT [--no-rule] | skilark cjets-statement SRC PUBLIC JETS | skilark cjets-measure SRC PUBLIC WITNESS"
     return 2

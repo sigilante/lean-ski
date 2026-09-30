@@ -832,6 +832,18 @@ triple (`viewT_xrefN`), and the sums over two tuples are the sums over two
 edges (`tsum_tsumN`). So `comp_transcript`, `sud_transcript` and
 `wit_transcript`, their statements unchanged, rest on the tree: the
 design's milestone 2.
+The closure rule, the design's milestone 3 (`Ski/JetPublic.lean`): the
+composed heap's private cells, the bit slots and the region, are pointed
+into by public cells, so a jet table checked over the blank heap need not
+hold over the filled one, and on `split8` and `csplit8` it does not. Lean
+now computes a composed statement's table under the rule (roots and
+globals only at cells whose closure is public, `jetTableC`), and the
+verifier's check (`jetStmtC`: the recomputed table, `rootsOKB`, `publicB`)
+licenses its roots over every filled heap (`jetStmtC_sound`, by
+`termAt_public`). Under the rule `split8` runs in 11,598 CPU rows against
+129,964 plain (8.9%), `csplit8` in 157,680 against 471,887 (33.4%), both
+checked by `checkJA` from the filled heap (`lake exe skilark cjets`,
+`cjets-statement`, `cjets-measure`).
 
 Step 1 (a commitment in SKIlark) is closed at this toy scope. Real
 parameters do not fit SKI reduction: a full adder written natively in

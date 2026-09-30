@@ -478,11 +478,68 @@ jetted    11,483 rows,  74,116 cells, 2,237 instantiations (padded CPU, POP, INS
 Lean accepts the jetted table (`jets check-src`: `checkJA` with the
 source's jets, sound by `Air.checkJA_sound` whichever templates proposed
 the roots). The plain count is the composed proof's 129,965 rows less the
-segment's setup. Under hiding, the closure rule of Avon's `ZK-JETS.md` §4
-would drop the roots that reach the hidden bits: here 104 of the 21,049,
-and no global; the run is then 11,571 rows, still 8.9%. `jets-measure`
-does not prove: the prover's check of its AIRs recomputes the jet tables
-from the corpus's templates, not a source's.
+segment's setup. `jets-measure` does not prove: the prover's check of its
+AIRs recomputes the jet tables from the corpus's templates, not a
+source's.
+
+`skilark jets` also applies the closure rule of Avon's `ZK-JETS.md` §4
+with the bits' cells `[51646, 51839)` private (`split_pub.jets`): it drops
+the 104 roots that reach them, and no global, and the run (`JetRun.runJ`,
+the counts `ski-air jets-measure` makes) is 11,570 CPU rows and the halt
+row, 11,571, still 8.9%; `Air.checkJA` accepts both runs. This is a
+measurement in the clear, over the heap of these bits, not the
+verifier's table, which `cjets` computes over the blank composed heap
+(below).
+
+### Jets on a composed statement, under the closure rule
+
+**The composed heap has private cells, and the jet table must avoid
+them.** A predicate statement's heap (`CompM.cHeap`) holds the bit slots
+and the witness region at addresses `[3, 3 + N + W)`, and public cells
+point into them. Lean computes the statement's jet table over the blank
+heap, the verifier's, with the closure rule: a root or a global is a cell
+whose every cell below, by application, is public
+(`Air.jetTableC`, `JetTable.pubCells`). The verifier's check
+(`Air.jetStmtC`) recomputes that table, and checks its roots licensed
+(`rootsOKB`) and their closures public (`publicB`) over the blank heap;
+accepted, the roots are licensed over the heap of every witness
+(`Air.jetStmtC_sound`, from `termAt_public` and `rootsOK_filled`).
+
+```
+lake exe skilark cjets SRC PUBLIC OUT [--no-rule]      # the table, over the blank heap
+lake exe skilark cjets-statement SRC PUBLIC OUT        # ACCEPT: Air.jetStmtC_sound
+lake exe skilark cjets-measure SRC PUBLIC WITNESS      # runs over the filled heap
+```
+
+Measured, 2026-09-30, on `bench/plonky3/skilark/{split8,csplit8}`:
+
+```
+split8   blank heap 51,841 cells, private [3, 20)
+         without the rule 21,043 roots: 47 roots and 3 globals reach a private cell
+         the rule  20,996 roots, 129 jets; cjets-statement ACCEPT
+         plain     129,964 CPU rows
+         the rule   11,598 CPU (8.9%), 8,614 POP, 12,363 INSTW; halts at K over the nil; checkJA ACCEPT
+csplit8  blank heap 137,817 cells, private [3, 28)
+         without the rule 57,245 roots: 71 roots and 5 globals reach a private cell
+         the rule  57,174 roots, 182 jets; cjets-statement ACCEPT
+         plain     471,887 CPU rows
+         the rule  157,680 CPU (33.4%), 105,544 POP, 76,037 INSTW; halts at K over the nil; checkJA ACCEPT
+```
+
+**The hazard is real.** The table without the rule passes `rootsOKB`
+over the blank heap and fails it over the honest filled heap, for both
+statements: a root or a global it licenses reads a different term once
+the bits are in (on `split8`, the global `G 25` is `K ⬝ slot₀`, `K (K I)`
+blank and `K K` with bit 0 set; the rule moves it to a public
+`K (K I)`). That table fails `publicB` (`cjets` reports it). The
+statement check refuses it (`--no-rule`), and a hand-edited table, by
+text: Lean's recomputed table is the only one accepted, and `rootsOKB`
+and `publicB` re-check it, since the table generator is not trusted.
+`cjets-measure` measures; it does not check the witness. `checkJA` checks each run from the filled machine,
+which also checks the statement's table licensed there. The saving on
+`csplit8` is a third, against `split8`'s tenth. On `csplit8`, `cjets`
+takes 151 s (it computes the table with the rule and without) and
+`cjets-statement` 70 s, each in under 80 MB.
 
 ## Jets: instantiation rows
 
