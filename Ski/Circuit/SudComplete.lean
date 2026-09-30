@@ -353,6 +353,7 @@ theorem sud_complete {puzzle : List Nat} (hc : CluesOK (cluesOf puzzle)) {Rs : L
     (hacc : rd A (row (k - 1)).ctr (row (k - 1)).hd = some (.atom ACC))
     (hfit : Fits A) (hlen : A.length = 2 ^ 16) (hk : k ≤ 2 ^ 16) :
     ∃ C Mm Pg Wt, AcceptedP Rs [C, Mm, Pg, Wt] ∧ C.h = 2 ^ 16 ∧ Mm.h = 2 ^ 16 ∧ Wt.h = 2 ^ 10 ∧
+      Pg = progTableS (stmtMachine (fun _ => false) 729 (sudokuExpr (cluesOf puzzle)) ACC REJ).heap ∧
       memOf Mm = A ∧ ∀ i, i < k → rowOf C i = row i := by
   have hb := bounded_sudoku hc
   obtain ⟨hhd, hstk, hlenm, hpub⟩ :=
@@ -445,7 +446,7 @@ theorem sud_complete {puzzle : List Nat} (hc : CluesOK (cluesOf puzzle)) {Rs : L
       · show 2 ^ 10 ≤ 2 ^ 27; decide
   have hRs : AcceptedP Rs [C, Mm, Pg, Wt] :=
     (acceptedP_iff_of (sud_guarded puzzle) hs _).2 (accepted_transfer (sameAirsB_symm hs) hacc')
-  refine ⟨C, Mm, Pg, Wt, hRs, rfl, hlen, rfl, ?_, ?_⟩
+  refine ⟨C, Mm, Pg, Wt, hRs, rfl, hlen, rfl, by rw [hbl], ?_, ?_⟩
   · -- the memory decodes back
     apply List.ext_getElem?
     intro m

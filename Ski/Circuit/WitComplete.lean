@@ -372,6 +372,7 @@ theorem wit_complete {V x : Term} {W : Nat} {Rs : List AirD} (hs : sameAirsB Rs 
     (hK : rd A (row (k - 1)).ctr (row (k - 1)).hd = some .K ∧ rd A (row (k - 1)).ctr (row (k - 1)).stk = some .nil)
     (hfit : Fits A) (hlen : A.length = 2 ^ 10) (hk : k ≤ 2 ^ 10) :
     ∃ C Mm Pg Wt, AcceptedP Rs [C, Mm, Pg, Wt] ∧ C.h = 2 ^ 10 ∧ Mm.h = 2 ^ 10 ∧ Wt.h = 2 ^ 8 ∧
+      Pg = progTableW (wMachine (List.replicate W .S) (V ⬝ x)).heap W ∧
       memOf Mm = A ∧ ∀ i, i < k → rowOf C i = row i := by
   have hl : ws.length = (List.replicate W Cell.S).length := by rw [List.length_replicate, hwl]
   obtain ⟨hhd, hstk, hlenm, htake, hpub⟩ := wMachine_public ws (List.replicate W .S) (V ⬝ x) hl
@@ -454,7 +455,7 @@ theorem wit_complete {V x : Term} {W : Nat} {Rs : List AirD} (hs : sameAirsB Rs 
       · show Wt.h ≤ 2 ^ 27; omega
   have hRs : AcceptedP Rs [C, Mm, Pg, Wt] :=
     (acceptedP_iff_of (wit_guarded V x W) hs _).2 (accepted_transfer (sameAirsB_symm hs) hacc)
-  refine ⟨C, Mm, Pg, Wt, hRs, rfl, hlen, witRowsG_len (by omega), ?_, ?_⟩
+  refine ⟨C, Mm, Pg, Wt, hRs, rfl, hlen, witRowsG_len (by omega), rfl, ?_, ?_⟩
   · -- the memory decodes back
     apply List.ext_getElem?
     intro m

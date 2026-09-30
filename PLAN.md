@@ -793,7 +793,13 @@ of a statement (`sud_zk`, `wit_zk`, `comp_zk`; the composed ones sharing
 their segment table), for a fixed challenge whose combiner matrix is
 invertible. That fails exactly for the `P^2` challenges in `F(x^2)`, about
 `2^-62` (`generic_iff`, `nongeneric_count`). A zero denominator aborts the
-prover for at most one `α` per message (`abort_count`), below `2^-103`. Assumed: Plonky3's hiding PCS for the committed traces and
+prover for at most one `α` per message (`abort_count`), below `2^-103`.
+A simulator for the whole transcript (`Ski/ZK/Transcript.lean`,
+`transcript_zk`): fixed by the statement, it matches the real transcript
+on every event within `P^2/P^4 + M/P^4 + ε/NR` of the draws, for
+public-coin challenges and a PCS within `ε` of simulatable (`PCSClose`,
+the one assumption). The composed proof's segment table is public for the
+honest prover (`segs_honest`). Assumed: Plonky3's hiding PCS for the committed traces and
 openings, and the challenge's independence of the blinding.
 
 SKIlark in zero knowledge (`bench/Skilark.lean`, `release/skilark`): a

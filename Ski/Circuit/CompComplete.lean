@@ -534,6 +534,209 @@ theorem AcceptsC.stk_le : ∀ i, i ≤ e (n - 1) → (row i).stk ≤ A.length :=
 
 end
 
+-- ---------------------------------------------------------------------------
+-- The honest segment table is public
+-- ---------------------------------------------------------------------------
+
+/-! The segment table's multiplicities are a main column, which the prover
+writes.  For an accepting run they are fixed by the statement: one restart
+into each segment after the first, none into the first (`segs_honest`).  So
+the honest segment table is `segsPub roots`, a function of the public
+roots, as `composed.rs` writes it, and its LogUp terminal is public. -/
+
+/-- **The public segment table**: the preprocessed `(j, root_j)` rows, and
+    multiplicity `1` on each segment after the first. -/
+def segsPub (roots : List Nat) : Table :=
+  ⟨(segRows roots).length, fun q _ => if 1 ≤ q ∧ q < roots.length then 1 else 0,
+   fun q j => ((segRows roots).getD q []).getD j 0⟩
+
+/-- A row sends on a bus through the one interaction on that bus. -/
+theorem rowSends_one {T : Table} {bus : String} {v : List F} {r : Nat} (I0 : Inter) :
+    ∀ (L1 L2 : List Inter), (∀ I ∈ L1, I.bus ≠ bus) → (∀ I ∈ L2, I.bus ≠ bus) →
+    (L1 ++ I0 :: L2).foldr (fun I acc =>
+      (if I.bus = bus ∧ I.fields.map (fun e => e.eval (T.env r)) = v then I.count.eval (T.env r) else 0) + acc) 0 =
+      if I0.bus = bus ∧ I0.fields.map (fun e => e.eval (T.env r)) = v then I0.count.eval (T.env r) else 0
+  | [], L2, _, h2 => by
+    rw [List.nil_append, List.foldr_cons]
+    have : ∀ L : List Inter, (∀ I ∈ L, I.bus ≠ bus) → L.foldr (fun I acc =>
+        (if I.bus = bus ∧ I.fields.map (fun e => e.eval (T.env r)) = v then I.count.eval (T.env r) else 0) + acc)
+        0 = 0 := by
+      intro L hL
+      induction L with
+      | nil => rfl
+      | cons I L ih =>
+        rw [List.foldr_cons, if_neg (fun h => hL I List.mem_cons_self h.1), ih (fun J hJ => hL J (List.mem_cons_of_mem I hJ))]
+        exact zero_add' 0
+    rw [this L2 h2]
+    exact add_zero' _
+  | I :: L1, L2, h1, h2 => by
+    rw [List.cons_append, List.foldr_cons]
+    rw [if_neg (fun h => h1 I List.mem_cons_self h.1),
+      rowSends_one I0 L1 L2 (fun J hJ => h1 J (List.mem_cons_of_mem I hJ)) h2]
+    exact zero_add' _
+
+/-- A sum over rows of one row's `1`. -/
+theorem foldr_single (K x : Nat) (hx : x < K) :
+    (List.range K).foldr (fun r acc => (if r = x then (1 : F) else 0) + acc) 0 = 1 := by
+  have key : ∀ m, m ≤ K → (List.range m).foldr (fun r acc => (if r = x then (1 : F) else 0) + acc) 0 =
+      if x < m then 1 else 0 := by
+    intro m
+    induction m with
+    | zero => intro _; rfl
+    | succ m ih =>
+      intro hm
+      rw [List.range_succ, List.foldr_append]
+      show (List.range m).foldr _ ((if m = x then (1 : F) else 0) + 0) = _
+      rw [add_zero']
+      rcases Nat.lt_trichotomy m x with h | h | h
+      · rw [if_neg (by omega), if_neg (by omega)]
+        exact (ih (by omega)).trans (if_neg (by omega))
+      · subst h
+        rw [if_pos rfl, if_pos (by omega)]
+        have e0 : ∀ l : List Nat, (∀ r ∈ l, r ≠ m) → l.foldr (fun r acc => (if r = m then (1 : F) else 0) + acc) 1 = 1 := by
+          intro l hl
+          induction l with
+          | nil => rfl
+          | cons r l ihl =>
+            show (if r = m then (1 : F) else 0) + _ = 1
+            rw [if_neg (hl r List.mem_cons_self), ihl (fun r' h' => hl r' (List.mem_cons_of_mem r h'))]
+            exact zero_add' 1
+        exact e0 _ (fun r hr => by have := List.mem_range.1 hr; omega)
+      · rw [if_neg (by omega), if_pos (by omega)]
+        exact (ih (by omega)).trans (if_pos h)
+  rw [key K (Nat.le_refl K), if_pos hx]
+
+section
+
+variable {A : List Cell} {m0 : Mach} {roots : List Nat} {nilA n : Nat} {e : Nat → Nat} {row : Nat → Row}
+  (hA : AcceptsC A m0 roots nilA n e row) {K : Nat} (hK : e (n - 1) < K)
+include hA hK
+
+/-- A CPU row's `segs` message: the restart indicator, with the next
+    segment's number and root. -/
+theorem cpuC_rowSegs (hd0 stk0 ctr0 n' nilA' : Nat) {r : Nat} (hr : r < K) (v : List F) :
+    rowSends (cpuAirC hd0 stk0 ctr0 n' nilA') (cpuTableC A row e n roots K) "segs" v r =
+      if [ofN (cntS (rsI e n) r + 1), ofN (roots.getD (cntS (rsI e n) r + 1) 0)] = v
+      then ofN (rsI e n r) else 0 := by
+  have cv := cpuC_col hA hK (roots := roots) hr
+  unfold rowSends
+  show cpuIntersC.foldr _ 0 = _
+  rw [cpuIntersC_eq]
+  have he := rowSends_one (T := cpuTableC A row e n roots K) (bus := "segs") (v := v) (r := r)
+    ⟨"segs", 1, sRS, [.add (col CNT) one, col ROOT]⟩
+    [readInterC 0, readInterC 1, readInterC 2, readInterC 3,
+     ⟨"mem", 1, sApp, [col CTR, c 5, fld 1, col STK]⟩,
+     ⟨"mem", 1, sS, [col CTR, c 3, fld 4, fld 6]⟩,
+     ⟨"mem", 1, sS, [.add (col CTR) one, c 5, col CTR, fld 7]⟩,
+     ⟨"mem", 1, sS, [.add (col CTR) (c 2), c 5, fld 6, .add (col CTR) one]⟩]
+    [⟨"blind_a", 1, .neg (col (BLA + 4)), blindFields BLA⟩,
+     ⟨"blind_b", 1, col (BLB + 4), blindFields BLB⟩]
+    (by decide) (by decide)
+  refine he.trans ?_
+  have hf : List.map (fun x0 => x0.eval ((cpuTableC A row e n roots K).env r)) [.add (col CNT) one, col ROOT] =
+      [ofN (cntS (rsI e n) r + 1), ofN (roots.getD (cntS (rsI e n) r + 1) 0)] := by
+    simp only [List.map_cons, List.map_nil, E.eval, cv, B.one, B.c, ofN_one, cpuColC_cnt, cpuColC_root]
+    rw [← ofN_one, ← ofN_add]
+  have hc : sRS.eval ((cpuTableC A row e n roots K).env r) = ofN (rsI e n r) := by
+    show (col RS).eval _ = _
+    rw [cv, cpuColC_rs]
+  rw [hf, hc]
+  by_cases hv : [ofN (cntS (rsI e n) r + 1), ofN (roots.getD (cntS (rsI e n) r + 1) 0)] = v
+  · rw [if_pos ⟨rfl, hv⟩, if_pos hv]
+  · rw [if_neg (fun h => hv h.2), if_neg hv]
+
+/-- **The honest segment multiplicities**: segment `q`'s row receives one
+    restart when `q ≥ 1`, and none for the first. -/
+theorem cpuC_segsCount (hd0 stk0 ctr0 n' nilA' : Nat) (hn : roots.length = n) (hP : n < P) {q : Nat}
+    (hq : q < n) :
+    tableSends (cpuAirC hd0 stk0 ctr0 n' nilA') (cpuTableC A row e n roots K) "segs"
+      [ofN q, ofN (roots.getD q 0)] = if 1 ≤ q then 1 else 0 := by
+  have hmono := hA.emono
+  -- which rows send to segment `q`
+  have row_eq : ∀ r, r < K → rowSends (cpuAirC hd0 stk0 ctr0 n' nilA') (cpuTableC A row e n roots K) "segs"
+      [ofN q, ofN (roots.getD q 0)] r = if 1 ≤ q ∧ r = e (q - 1) then 1 else 0 := by
+    intro r hr
+    rw [cpuC_rowSegs hA hK hd0 stk0 ctr0 n' nilA' hr]
+    cases hrs : isRestart e n r with
+    | false =>
+      have h0 : rsI e n r = 0 := by unfold rsI; rw [hrs]; rfl
+      rw [h0]
+      have : ¬ (1 ≤ q ∧ r = e (q - 1)) := by
+        rintro ⟨h1, rfl⟩
+        have : isRestart e n (e (q - 1)) = true := isRestart_iff.2 ⟨q - 1, by omega, rfl⟩
+        rw [this] at hrs; cases hrs
+      rw [if_neg this]
+      split <;> rfl
+    | true =>
+      obtain ⟨j, hj, rfl⟩ := isRestart_iff.1 hrs
+      have h1 : rsI e n (e j) = 1 := by unfold rsI; rw [hrs]; rfl
+      rw [h1, cntS_end hmono j (by omega)]
+      by_cases hjq : j + 1 = q
+      · subst hjq
+        rw [if_pos rfl, if_pos ⟨by omega, by simp⟩]; rfl
+      · have hne : [ofN (j + 1), ofN (roots.getD (j + 1) 0)] ≠ [ofN q, ofN (roots.getD q 0)] := by
+          intro h
+          have h' := congrArg List.head? h
+          simp only [List.head?_cons, Option.some.injEq] at h'
+          have := congrArg Fin.val h'
+          rw [val_ofN (by omega), val_ofN (by omega)] at this
+          exact hjq this
+        rw [if_neg hne]
+        have : ¬ (1 ≤ q ∧ e j = e (q - 1)) := by
+          rintro ⟨h1, h2⟩
+          rcases Nat.lt_trichotomy j (q - 1) with h | h | h
+          · have := emono_lt hmono h (by omega); omega
+          · omega
+          · have := emono_lt hmono h (by omega); omega
+        rw [if_neg this]
+  unfold tableSends
+  show (List.range K).foldr _ 0 = _
+  have hcongr : (List.range K).foldr (fun r acc => rowSends (cpuAirC hd0 stk0 ctr0 n' nilA')
+      (cpuTableC A row e n roots K) "segs" [ofN q, ofN (roots.getD q 0)] r + acc) 0 =
+      (List.range K).foldr (fun r acc => (if 1 ≤ q ∧ r = e (q - 1) then (1 : F) else 0) + acc) 0 := by
+    have : ∀ l : List Nat, (∀ r ∈ l, r < K) → l.foldr (fun r acc => rowSends (cpuAirC hd0 stk0 ctr0 n' nilA')
+        (cpuTableC A row e n roots K) "segs" [ofN q, ofN (roots.getD q 0)] r + acc) 0 =
+        l.foldr (fun r acc => (if 1 ≤ q ∧ r = e (q - 1) then (1 : F) else 0) + acc) 0 := by
+      intro l hl
+      induction l with
+      | nil => rfl
+      | cons r l ih =>
+        show _ + _ = _ + _
+        rw [row_eq r (hl r List.mem_cons_self), ih (fun r' h' => hl r' (List.mem_cons_of_mem r h'))]
+    exact this _ (fun r hr => List.mem_range.1 hr)
+  rw [hcongr]
+  by_cases h1 : 1 ≤ q
+  · have hlt : e (q - 1) < K := Nat.lt_of_le_of_lt (emono_le hmono (a := q - 1) (b := n - 1) (by omega) (by omega)) hK
+    rw [if_pos h1]
+    refine Eq.trans ?_ (foldr_single K (e (q - 1)) hlt)
+    simp only [h1, true_and]
+  · rw [if_neg h1]
+    have : ∀ l : List Nat, l.foldr (fun r acc => (if 1 ≤ q ∧ r = e (q - 1) then (1 : F) else 0) + acc) 0 = 0 := by
+      intro l
+      induction l with
+      | nil => rfl
+      | cons r l ih =>
+        show _ + _ = 0
+        rw [if_neg (fun h => h1 h.1), ih]
+        exact zero_add' 0
+    exact this _
+
+/-- **The honest segment table is the public one.** -/
+theorem segs_honest (hd0 stk0 ctr0 n' nilA' : Nat) (hn : roots.length = n) (hP : n < P) :
+    segsTableC roots (cpuAirC hd0 stk0 ctr0 n' nilA') (cpuTableC A row e n roots K) = segsPub roots := by
+  unfold segsTableC segsPub
+  congr 1
+  funext q _
+  by_cases hq : q < roots.length
+  · rw [if_pos hq, cpuC_segsCount hA hK hd0 stk0 ctr0 n' nilA' hn hP (by omega)]
+    by_cases h1 : 1 ≤ q
+    · rw [if_pos h1, if_pos ⟨h1, hq⟩]
+    · rw [if_neg h1, if_neg (fun h => h1 h.1)]
+  · rw [if_neg hq, if_neg (fun h => hq h.2)]
+
+end
+
+
 theorem progRowsC_le {heap : List Cell} {N W : Nat} (h : heap.length ≤ 2 ^ 24) :
     (progRowsC heap N W).length ≤ 2 ^ 24 := by
   have hf := List.length_filter_le (fun x : Cell × Nat => !(3 ≤ x.2 && x.2 < 3 + N + W)) heap.zipIdx
@@ -576,6 +779,7 @@ theorem comp_completeG_log {R Lm : Nat} (hR : R ≤ 20) (hLm : Lm ≤ 20) {shp :
     (hfit : Fits A) (hlen : A.length = 2 ^ Lm) (hK : e (Ps.length - 1) < 2 ^ R)
     (hNW : BT.nleaves shp + W ≤ 2 ^ 8) :
     ∃ C Mm Pg Wt Sg, AcceptedP Rs [C, Mm, Pg, Wt, Sg] ∧ C.h = 2 ^ R ∧ Mm.h = 2 ^ Lm ∧ Wt.h = 2 ^ 8 ∧
+      Pg = progTableC (blankM shp W Ps).heap (BT.nleaves shp) W ∧ Sg = segsPub (blankRoots shp W Ps) ∧
       memOf Mm = A ∧ ∀ i, i ≤ e (Ps.length - 1) → rowOf C i = row i := by
   have hRb : 2 ^ R ≤ 1048576 := Nat.pow_le_pow_right (by decide) hR
   have hLb : 2 ^ Lm ≤ 1048576 := Nat.pow_le_pow_right (by decide) hLm
@@ -720,7 +924,8 @@ theorem comp_completeG_log {R Lm : Nat} (hR : R ≤ 20) (hLm : Lm ≤ 20) {shp :
       · show Sg.h ≤ 2 ^ 27; omega
   have hRs : AcceptedP Rs [C, Mm, Pg, Wt, Sg] :=
     (acceptedP_iff_of (compG_guarded shp Ps W) hs _).2 (accepted_transfer (sameAirsB_symm hs) hacc)
-  refine ⟨C, Mm, Pg, Wt, Sg, hRs, rfl, hlen, witRows_len hNW, ?_, ?_⟩
+  refine ⟨C, Mm, Pg, Wt, Sg, hRs, rfl, hlen, witRows_len hNW, rfl,
+    segs_honest hA hK _ _ _ _ _ hnR (by rw [← hnR]; exact hRlt), ?_, ?_⟩
   · -- the memory decodes back
     apply List.ext_getElem?
     intro m
@@ -769,6 +974,8 @@ theorem comp_complete_log {R Lm : Nat} (hR : R ≤ 20) (hLm : Lm ≤ 20) {M : MF
     (hfit : Fits A) (hlen : A.length = 2 ^ Lm) (hK : e ((stmtOf M).length - 1) < 2 ^ R)
     (hNW : BT.nleaves (clear M) + W ≤ 2 ^ 8) :
     ∃ C Mm Pg Wt Sg, AcceptedP Rs [C, Mm, Pg, Wt, Sg] ∧ C.h = 2 ^ R ∧ Mm.h = 2 ^ Lm ∧ Wt.h = 2 ^ 8 ∧
+      Pg = progTableC (blankM (clear M) W (stmtOf M)).heap (BT.nleaves (clear M)) W ∧
+      Sg = segsPub (blankRoots (clear M) W (stmtOf M)) ∧
       memOf Mm = A ∧ ∀ i, i ≤ e ((stmtOf M).length - 1) → rowOf C i = row i :=
   comp_completeG_log hR hLm hs hrl hr hA hfit hlen hK hNW
 
@@ -783,6 +990,8 @@ theorem comp_complete {M : MF} {W : Nat} {Rs : List AirD} (hs : sameAirsB Rs (co
     (hfit : Fits A) (hlen : A.length = 2 ^ 11) (hK : e ((stmtOf M).length - 1) < 2 ^ 11)
     (hNW : BT.nleaves (clear M) + W ≤ 2 ^ 8) :
     ∃ C Mm Pg Wt Sg, AcceptedP Rs [C, Mm, Pg, Wt, Sg] ∧ C.h = 2 ^ 11 ∧ Mm.h = 2 ^ 11 ∧ Wt.h = 2 ^ 8 ∧
+      Pg = progTableC (blankM (clear M) W (stmtOf M)).heap (BT.nleaves (clear M)) W ∧
+      Sg = segsPub (blankRoots (clear M) W (stmtOf M)) ∧
       memOf Mm = A ∧ ∀ i, i ≤ e ((stmtOf M).length - 1) → rowOf C i = row i :=
   comp_complete_log (by decide) (by decide) hs hrl hr hA hfit hlen hK hNW
 

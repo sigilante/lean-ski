@@ -487,8 +487,28 @@ instantiation rows and template table, and the probe segments.
   its randomization of the trace as statistically hiding only, and
   `HidingFriPcs` enforces a masking budget (trace height at least
   `2 · (queries + 4 · opening points)`) that every Sudoku table meets.
-- **The zero-knowledge argument is formal for the terminals only.**
-  `Ski/ZK/Circuits.lean` proves that two balanced table sets for one
+- **The zero-knowledge argument is formal, over a hiding PCS.**
+  `Ski/ZK/Transcript.lean` gives a simulator for the whole transcript
+  (`transcript_zk`; per circuit `sud_transcript`, `wit_transcript`,
+  `comp_transcript`): from public data it matches the real transcript on
+  every event within a fraction `P^2 / P^4 + M / P^4 + ε / NR` of the
+  draws, `M` the LogUp messages. The model: public-coin challenges `α`
+  and `β`, uniform and independent of the prover's randomness
+  (honest-verifier zero knowledge; Fiat–Shamir in the random oracle model
+  makes it non-interactive, a standard step not proved here); and one
+  assumption, `PCSClose ε`, that what the PCS commits and opens matches a
+  simulator's output from the challenges and the published terminals,
+  each event's count over the `NR` draws of the PCS's randomness within
+  `ε` (`PCSHides`, the exact case, gives `ε = 0`).
+  The simulator is fixed by the statement before the witness, and the
+  theorem holds for every witness. A PCS that shows nothing satisfies the
+  assumption (`pcsHides_unit`), so the part published in the clear is
+  simulated with no assumption. The composed proof's segment table has
+  private multiplicities, but the honest prover's are fixed by the
+  statement, one restart into each segment after the first
+  (`segs_honest`); the completeness theorems return exactly the public
+  program and segment tables the simulator reads. Its core, for the terminals,
+  is that `Ski/ZK/Circuits.lean` proves that two balanced table sets for one
   statement publish their witness, CPU and memory terminals with the same
   distribution over the two blinding tuples (`sud_zk`, `wit_zk`,
   `comp_zk`), counted exactly over all `P^8` pairs, and within `2 P^4` of
@@ -497,12 +517,13 @@ instantiation rows and template table, and the probe segments.
     lies in the subfield `F(x^2)` (`generic_iff`): `P^2` of the `P^4`
     challenges (`nongeneric_count`), about `2^-62`, which dominates the
     bound.
-  - The challenge is fixed. In Plonky3 it is a Fiat–Shamir output of the
-    trace commitments, which contain the blinding columns; independence
-    rests on the hiding PCS in the random oracle model, unproved.
+  - The challenges are the verifier's, uniform and independent. In
+    Plonky3 they are Fiat–Shamir outputs of the trace commitments, which
+    contain the blinding columns; that step rests on the hiding PCS in the
+    random oracle model, unproved.
   - The composed proof's segment table is private, but for accepting
     runs its multiplicities are `1` for segments `1..n-1` and `0`
-    elsewhere (`composed.rs`, `table`); `comp_zk` assumes it shared.
+    elsewhere: proved (`segs_honest`), and what `composed.rs` writes.
   - The prover aborts on a zero LogUp denominator, and whether it does
     depends on the witness. Every bus prefix is `α` plus an offset free
     of `α`, so for any tables, `β` and blinding at most one `α` per
@@ -510,7 +531,7 @@ instantiation rows and template table, and the probe segments.
     for Sudoku (under `2^20` messages), `2^-109` for the hidden term and
     `2^-108` for the composed statement.
   - Everything committed and opened rests on Plonky3's hiding PCS,
-    unproved; no simulator for the whole transcript is written down.
+    assumed (`PCSClose ε`), statistical and unaudited.
 - **Security is Plonky3's benchmark setting**: blowup 2, 100 queries and 16
   bits of query grinding. Plonky3's `conjectured_soundness_bits` gives 116,
   but that counts the query phase only and Plonky3 marks it as not a

@@ -93,6 +93,7 @@ import Ski.ZK.Circuits
 import Ski.ZK.Generic
 import Ski.ZK.Abort
 import Ski.Circuit.CompPred
+import Ski.ZK.Transcript
 
 /-!
 # The audit manifest — build-enforced
@@ -669,3 +670,8 @@ open Ski.Audit
 #audit_clean Circuit.compG_guarded Circuit.compOK_ofG Circuit.compExportG_sound Circuit.comp_completeG_log
   CompM.combBT_nleaves CompM.fillB_combBT CompM.slotBits_length CompM.pred_iff
   Circuit.predExport_sound Circuit.checkPred_sound
+
+-- The whole transcript, simulated over an ideal hiding PCS
+#audit_clean Circuit.transcript_zk Circuit.pcsHides_unit Circuit.pcsClose_of_hides Circuit.inner_pcs
+  Circuit.inner_chain Circuit.allEntries_length Circuit.comp_transcript Circuit.sud_transcript Circuit.wit_transcript
+  Circuit.rowSends_one Circuit.foldr_single Circuit.cpuC_rowSegs Circuit.cpuC_segsCount Circuit.segs_honest
