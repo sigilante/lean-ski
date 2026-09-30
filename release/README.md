@@ -100,6 +100,12 @@ that it runs in about 15 seconds. It prints one `ok` line per check, then
    as `x = 201`, or as `x = 712`, which 8 bits cannot hold, it refuses.
    `ski-air composed-verify` checks the proof; with one byte changed, it
    is refused.
+9. **A committed split.** `skilark/csplit8` holds the source of `csplit`,
+   a statement and a proof. `lake exe skilark cstatement` compiles the
+   source and checks that the statement is its predicate for `x = 200`
+   and the commitment `c = 255`, the weights regenerated from seed 1;
+   offered as `c = 256`, it refuses. `ski-air composed-verify` checks the
+   proof; with one byte changed, it is refused.
 
 ## What the proofs mean, and what they do not
 
@@ -136,6 +142,16 @@ proof shows only that `200 < 2^8`. It demonstrates a SKIlark program
 proving over hidden data; a range proof needs a commitment binding the
 hidden number to something public. The proof runs at `2^17` CPU rows and
 `2^18` memory cells, heights the statement names.
+
+**The committed split** (`skilark/csplit8`). The same over 24 literal
+bits: `a` and `b` add up to 200, and `a`'s bits with 8 random bits `r`
+sum, under public weights, to the commitment `c = 255`: a knapsack
+commitment to `a`. The proof holds 24 Booleans on which `vcsplitB`
+accepts (`Circuit.predExport_sound`); that it accepts exactly these
+conditions is tested, not proved. At these sizes the commitment neither
+binds nor hides: `2^16` openings map to sums of at most 437, and a search finds
+one at once. It is the shape of a committed range proof; real parameters
+need a cheaper kernel. It runs at `2^19` rows and `2^20` memory cells.
 
 **The output proof.** A result is read by probing: the term, applied to
 three fresh marker atoms, must head-reduce to the marker of `RVal`
@@ -228,6 +244,8 @@ instantiation writes only the cells that depend on its arguments
 8. The SKIlark proof: SKIlark writes `skilark/split8/source.ski`
    (`python -m skilark.zk 8`), Lean emits the statement and witness from
    it, and `ski-air composed-prove` proves it.
+9. The committed split: likewise, from `python -m skilark.zk csplit 8 8`
+   and `lake exe skilark cemit`.
 
 Avon's witnesses are byte-identical to the tables lean-ski's own prover
 writes for the same term, jet table and plan (Avon's `make

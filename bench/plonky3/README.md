@@ -406,6 +406,52 @@ kernel's case dispatch. At these heights the proof has under `2^21` LogUp
 messages, so a zero denominator aborts it with probability below `2^-102`
 (`abort_count`).
 
+### A committed split
+
+`csplit` (`skilark.zk`) commits the hidden number, in a toy commitment:
+the verifier `vcsplitB` reads `a`, `b` (8 bits each) and `r` (8 bits) as
+literal bits, and accepts when `a + b = x` and `c = Σ a_i A_i + Σ r_j B_j`,
+a knapsack (subset-sum) commitment to `a` with randomness `r` under public
+weights `A`, `B`. The weights are in `x`, with `c`, so each ripple step
+runs the same Joy tree (the kernel's dispatch grows with the program's
+distinct quotations); the step also adds `a_i`'s weight to a running sum,
+`r`'s weights follow, and the wrapper compares the sum with `c`. `lake exe
+skilark cstatement SRC K M SEED X C PUBLIC` checks a statement against the
+source, the weights regenerated from the seed.
+
+**It is the shape of a committed range proof, not a secure one.** A
+knapsack commitment binds under subset-sum hardness and hides when the
+weights and `r` are large; here the `2^16` openings map to 430 sums, none
+above 437, and `c = 255` alone opens to 157 values of `a`: the commitment
+neither binds nor hides, and a search finds openings at once. Real parameters need a far cheaper kernel, which is what
+jets under the hiding would give. That `vcsplitB` accepts exactly the bits
+with `a + b = x` and the commitment `c` is tested, not proved: at
+`k = m = 2`, every `a`, `b`, `r` and `x` against the right `c`, the next,
+and `0` (752 cases), and samples at `k = m = 8`.
+
+```
+~/SKIlark/.venv/bin/python -m skilark.zk csplit 8 8 > bench/plonky3/skilark/csplit8/source.ski
+lake exe skilark cemit bench/plonky3/skilark/csplit8/source.ski 8 8 1 200 123 77 181 19 20 bench/plonky3/skilark/csplit8
+lake exe skilark cstatement bench/plonky3/skilark/csplit8/source.ski 8 8 1 200 255 bench/plonky3/skilark/csplit8/public.txt
+bench/plonky3/target/release/ski-air composed bench/plonky3/skilark bench/plonky3/tables
+```
+
+Measured, 2026-09-29, Apple M4 Max, release build, `a = 123`, `b = 77`,
+`r = 181`, weights from seed 1, `c = 255` (heights `2^19` rows, `2^20`
+memory):
+
+```
+csplit8  137,792 public cells, 24 bits, a region of 1, 1 segment
+         471,888 rows, 672,985 memory cells; 200,884 host contractions
+         prove 42.4 s, verify 52.0 s, proof 928 KiB, peak memory 6.5 GB   verified
+guess    no match; a match with the blinding off
+clear, wrong (another r), nonbool, forged: each rejected
+```
+
+`lake exe composed check` accepts the honest table and rejects the
+tampered one. At these heights the proof has under `2^23` LogUp messages,
+so a zero denominator aborts it with probability below `2^-100`.
+
 ## Jets: instantiation rows
 
 `src/jets.rs` proves every corpus row with supercombinator instantiation

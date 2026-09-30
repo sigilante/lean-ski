@@ -31,6 +31,12 @@
 #      `a = 123, b = 77`, at heights
 #      2^17 and 2^18; ski-air composed-prove proves it.  The witness stays
 #      in a temporary directory.
+#   9. a committed split (release/skilark/csplit8): SKIlark's `python -m
+#      skilark.zk csplit 8 8` (or the committed source); Lean emits the
+#      statement x = 200 with the knapsack commitment of a = 123 and
+#      r = 181 under the weights of seed 1, and the witness, the bits of
+#      a, b = 77 and r, at heights 2^19 and 2^20; ski-air composed-prove
+#      proves it.
 #
 # Run from anywhere; writes release/sumto/.  One job at a time.
 
@@ -112,3 +118,15 @@ lake build skilark > /dev/null
 lake exe skilark emit "$S/source.ski" 8 200 123 77 17 18 "$tmp/skilark"
 /bin/cp "$tmp/skilark/public.txt" "$S/public.txt"
 bench/plonky3/target/release/ski-air composed-prove "$S/public.txt" "$tmp/skilark/witness.txt" "$S/split8.proof"
+
+echo "--- a committed split in zero knowledge: a + b = 200, a in a toy knapsack commitment c = 255"
+S=release/skilark/csplit8
+mkdir -p "$S"
+if [ -x "$PY" ]; then
+    "$PY" -m skilark.zk csplit 8 8 > "$S/source.ski"
+else
+    echo "no SKIlark at $PY: keeping the committed $S/source.ski"
+fi
+lake exe skilark cemit "$S/source.ski" 8 8 1 200 123 77 181 19 20 "$tmp/csplit"
+/bin/cp "$tmp/csplit/public.txt" "$S/public.txt"
+bench/plonky3/target/release/ski-air composed-prove "$S/public.txt" "$tmp/csplit/witness.txt" "$S/csplit8.proof"

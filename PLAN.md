@@ -813,9 +813,11 @@ accepted proof holds Booleans on which the verifier accepts
 verifier's case analysis however it likes. The first predicate, `split`
 (`skilark.zk`), adds two hidden bit strings and compares the sum with
 `x`; at `k = 8`, 129,965 rows at `2^17`. The statement names its heights
-(`log R M`). Open: a commitment in SKIlark, without which `split` shows
-only `x < 2^k`; jets under the hiding, which the unary kernel's cost calls
-for.
+(`log R M`). The committed split `csplit` adds a knapsack commitment to
+`a` under public weights, checked in the same pass: 471,888 rows at
+`2^19`, proved in 42 s. At these sizes the commitment neither binds nor
+hides (`2^16` openings, sums of at most 437); it is the statement's shape.
+Open: real commitment parameters, which need jets under the hiding.
 
 ## 6. Acceptance
 

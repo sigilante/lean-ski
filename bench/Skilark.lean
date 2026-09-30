@@ -150,6 +150,87 @@ def statement (src : String) (k x : Nat) (pub : String) : IO UInt32 := do
     IO.println s!"NOT A PREDICATE STATEMENT {pub}"
     return 1
 
+-- ---------------------------------------------------------------------------
+-- The committed split
+-- ---------------------------------------------------------------------------
+
+/-- The knapsack's public weights, `skilark.zk.weights`: from `seed`, a
+    linear congruential sequence, each weight `1 + x mod (bound - 1)`. -/
+def weightsOf (n seed bound : Nat) : List Nat :=
+  let rec go : Nat → Nat → List Nat
+    | 0, _ => []
+    | n + 1, x =>
+      let x' := (x * 1103515245 + 12345) % 2 ^ 31
+      (1 + x' % (bound - 1)) :: go n x'
+  go n seed
+
+/-- The toy commitment: the weights of `a`'s and `r`'s set bits, summed. -/
+def commitOf (k m : Nat) (ws : List Nat) (a r : Nat) : Nat :=
+  ((ws.zip (bitsOf k a ++ bitsOf m r)).map fun (w, d) => w * d).sum
+
+/-- `x` for the committed split: `X_i = [X_{i+1} A_i x_i]`, the last
+    `[[C W] A x]`, `W_j = [W_{j+1} B_j]` the weights of `r`. -/
+def xcTerm (E : Enc) (k _m : Nat) (ws : List Nat) (x c : Nat) : Term :=
+  let rs := ws.drop k
+  let rec goW : List Nat → Term
+    | [] => E.quot []
+    | [b] => E.quot [E.num b]
+    | b :: r => E.quot [goW r, E.num b]
+  let cw := E.quot [E.num c, goW rs]
+  let rec goX : List (Nat × Nat) → Term
+    | [] => E.quot []
+    | [(w, d)] => E.quot [cw, E.num w, E.num d]
+    | (w, d) :: r => E.quot [goX r, E.num w, E.num d]
+  E.stack [goX ((ws.take k).zip (bitsOf k x))]
+
+/-- The committed split's bits: `a`'s and `b`'s interleaved, then `r`'s. -/
+def cbits (k m a b r : Nat) : List Bool := splitBits k a b ++ (bitsOf m r).map (· == 1)
+
+def readC (path : String) : IO (Option (Term × Enc)) := do
+  let some s := compile (← IO.FS.readFile path) | return none
+  let some V := s.get "vcsplitB" | return none
+  let some E := s.enc | return none
+  return some (V, E)
+
+/-- The weights' bound, `skilark.zk.weights`'s default. -/
+def bound : Nat := 64
+
+def cemit (src : String) (k m seed x a b r rl ml : Nat) (dir : String) : IO UInt32 := do
+  if k == 0 || m == 0 || 2 ^ k ≤ x || 2 ^ k ≤ a || 2 ^ k ≤ b || 2 ^ m ≤ r then
+    IO.println s!"k and m positive, x, a, b below 2^{k}, r below 2^{m}"; return 1
+  let some (V, E) ← readC src | do IO.println s!"{src}: not a committed split's source"; return 1
+  if !logOK (rl, ml) then IO.println "heights out of bounds"; return 1
+  let ws := weightsOf (k + m) seed bound
+  let c := commitOf k m ws a r
+  let st := CStmt.pred V (xcTerm E k m ws x c) (2 * k + m)
+  if !privateOK st W then IO.println "too many bits"; return 1
+  let N := 2 * k + m
+  let bits := cbits k m a b r
+  IO.FS.createDirAll dir
+  IO.FS.writeFile s!"{dir}/public.txt" (publicTextC st W (rl, ml))
+  IO.FS.writeFile s!"{dir}/witness.txt" (witnessText bits [.S])
+  IO.FS.writeFile s!"{dir}/witness_clear.txt" (witnessText (bits.map fun _ => false) [.S])
+  IO.FS.writeFile s!"{dir}/witness_wrong.txt" (witnessText (cbits k m a b (r ^^^ 1)) [.S])
+  IO.FS.writeFile s!"{dir}/witness_nonbool.txt" ("I\n" ++ witnessText (bits.drop 1) [.S])
+  IO.FS.writeFile s!"{dir}/witness_forged.txt" (witnessText bits [.app (N + 3) (N + 3)])
+  IO.println s!"csplit k={k} m={m} seed={seed}: x = {x}, c = {c}; a = {a}, b = {b}, r = {r} (a + b = x: {a + b == x}); weights {ws}; {N} bits, heights 2^{rl} and 2^{ml}"
+  return 0
+
+def cstatement (src : String) (k m seed x c : Nat) (pub : String) : IO UInt32 := do
+  if k == 0 || m == 0 || 2 ^ k ≤ x then IO.println s!"NOT A STATEMENT: bad sizes, or x = {x} not below 2^{k}"; return 1
+  let some (V, E) ← readC src | do IO.println s!"{src}: not a committed split's source"; return 1
+  let ws := weightsOf (k + m) seed bound
+  match statementOfText (← IO.FS.readFile pub) with
+  | some (.pred V' x' n, W', lg) =>
+    if V' == V && x' == xcTerm E k m ws x c && n == 2 * k + m && W' == W then
+      IO.println s!"STATEMENT {pub}: some {2 * k + m} literal bits make vcsplitB accept x = {x} and c = {c}, weights {ws} (vcsplitB compiled from {src}; heights 2^{lg.1} and 2^{lg.2})"
+      return 0
+    IO.println s!"NOT THIS STATEMENT {pub}"
+    return 1
+  | _ =>
+    IO.println s!"NOT A PREDICATE STATEMENT {pub}"
+    return 1
+
 end SkilarkZK
 
 def main (args : List String) : IO UInt32 := do
@@ -163,6 +244,15 @@ def main (args : List String) : IO UInt32 := do
     match n k, n x with
     | some k, some x => SkilarkZK.statement src k x pub
     | _, _ => IO.println "bad numbers"; return 2
+  | ["cemit", src, k, m, seed, x, a, b, r, rl, ml, dir] =>
+    match n k, n m, n seed, n x, n a, n b, n r, n rl, n ml with
+    | some k, some m, some seed, some x, some a, some b, some r, some rl, some ml =>
+      SkilarkZK.cemit src k m seed x a b r rl ml dir
+    | _, _, _, _, _, _, _, _, _ => IO.println "bad numbers"; return 2
+  | ["cstatement", src, k, m, seed, x, c, pub] =>
+    match n k, n m, n seed, n x, n c with
+    | some k, some m, some seed, some x, some c => SkilarkZK.cstatement src k m seed x c pub
+    | _, _, _, _, _ => IO.println "bad numbers"; return 2
   | _ =>
-    IO.println "usage: skilark emit SRC K X A B R M DIR | skilark statement SRC K X PUBLIC"
+    IO.println "usage: skilark emit SRC K X A B R M DIR | skilark statement SRC K X PUBLIC\n       skilark cemit SRC K M SEED X A B R RLOG MLOG DIR | skilark cstatement SRC K M SEED X C PUBLIC"
     return 2

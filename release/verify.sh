@@ -34,7 +34,13 @@
 #      is the predicate `vsplitB` for x = 200 over 16 literal bits (`lake
 #      exe skilark statement`), and refuses it as x = 201 or x = 712; ski-air
 #      composed-verify checks the proof; with one byte changed, it is
-#      refused.
+#      refused;
+#   8. a committed split (release/skilark/csplit8): Lean compiles the
+#      SKIjack source of `csplit` and checks that the statement is the
+#      predicate `vcsplitB` for x = 200 and the knapsack commitment c = 255
+#      over 24 literal bits, weights from seed 1 (`lake exe skilark
+#      cstatement`), and refuses it for c = 256; ski-air composed-verify
+#      checks the proof; with one byte changed, it is refused.
 #
 # Exits nonzero on any failure.
 
@@ -280,6 +286,31 @@ if "$SKI_AIR" composed-verify "$S/public.txt" "$tmp/sflip.proof" > "$tmp/sf.log"
     no "the split8 proof with one byte changed verified"
 else
     ok "the split8 proof with one byte changed is refused ($(head -c 60 "$tmp/sf.log"))"
+fi
+
+echo "--- 8. a committed split: a + b = 200, a in a toy knapsack commitment c = 255"
+S=release/skilark/csplit8
+lake exe skilark cstatement "$S/source.ski" 8 8 1 200 255 "$S/public.txt" > "$tmp/cs.log" \
+    && ok "$(head -c 100 "$tmp/cs.log")" \
+    || no "release/skilark/csplit8/public.txt is not the statement of its source ($(head -c 80 "$tmp/cs.log"))"
+if lake exe skilark cstatement "$S/source.ski" 8 8 1 200 256 "$S/public.txt" > "$tmp/cs2.log"; then
+    no "the statement read as c = 256"
+else
+    ok "the statement is not the one for c = 256 ($(head -c 60 "$tmp/cs2.log"))"
+fi
+"$SKI_AIR" composed-verify "$S/public.txt" "$S/csplit8.proof" > "$tmp/cv8.log" \
+    && ok "the csplit8 proof verifies from its file" \
+    || no "the csplit8 proof does not verify ($(head -c 80 "$tmp/cv8.log"))"
+/bin/cp "$S/csplit8.proof" "$tmp/cflip8.proof"
+size=$(wc -c < "$tmp/cflip8.proof")
+off=$((size / 2))
+byte=$(dd if="$tmp/cflip8.proof" bs=1 skip=$off count=1 2>/dev/null | od -An -tu1 | tr -d ' ')
+printf '%b' "$(printf '\\0%03o' $(( (byte + 1) % 256 )))" \
+    | dd of="$tmp/cflip8.proof" bs=1 seek=$off count=1 conv=notrunc 2>/dev/null
+if "$SKI_AIR" composed-verify "$S/public.txt" "$tmp/cflip8.proof" > "$tmp/cf8.log"; then
+    no "the csplit8 proof with one byte changed verified"
+else
+    ok "the csplit8 proof with one byte changed is refused ($(head -c 60 "$tmp/cf8.log"))"
 fi
 
 [ "$failed" = 0 ] || { echo "NOT VERIFIED: release"; exit 1; }
