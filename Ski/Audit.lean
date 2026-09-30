@@ -92,6 +92,7 @@ import Ski.Examples
 import Ski.ZK.Circuits
 import Ski.ZK.Generic
 import Ski.ZK.Abort
+import Ski.Circuit.CompPred
 
 /-!
 # The audit manifest — build-enforced
@@ -662,3 +663,9 @@ open Ski.Audit
   Circuit.sud_zk Circuit.sud_zk_valid Circuit.wit_zk Circuit.wit_zk_valid Circuit.comp_zk Circuit.comp_zk_valid
   Circuit.vdm_eq Circuit.generic_iff Circuit.det_zero_iff Circuit.nongeneric_count
   Circuit.den_one Circuit.abort_count Circuit.entries_length
+
+-- Predicates over literal bits: the composed circuit for any evaluation statement, and a
+-- verifier that reads the constrained bits, not the witness
+#audit_clean Circuit.compG_guarded Circuit.compOK_ofG Circuit.compExportG_sound Circuit.comp_completeG_log
+  CompM.combBT_nleaves CompM.fillB_combBT CompM.slotBits_length CompM.pred_iff
+  Circuit.predExport_sound Circuit.checkPred_sound

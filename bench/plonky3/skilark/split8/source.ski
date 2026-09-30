@@ -81,3 +81,8 @@ bool === T | F
 appendS s t = s |> { Empty t; Push a u (Push a (appendS u t)) }
 accept r = r |> { RVal s (s |> { Empty F; Push a t (a |> { Num n (n |> { Zero F; Suc m T }); Quot q F }) }); RErr F; RTime F }
 vsplit x w = accept (csplit applyU (appendS x w))
+
+-- the verifier over literal bits (lean-ski's predicate statements)
+bitNum b = b (Num (Suc Zero)) (Num Zero)
+vsplitB x r = vsplit x (decBits r)
+decBits qr0 = qr0 (\qb0. \qr1. Push (bitNum qb0) (qr1 (\qb1. \qr2. Push (bitNum qb1) (qr2 (\qb2. \qr3. Push (bitNum qb2) (qr3 (\qb3. \qr4. Push (bitNum qb3) (qr4 (\qb4. \qr5. Push (bitNum qb4) (qr5 (\qb5. \qr6. Push (bitNum qb5) (qr6 (\qb6. \qr7. Push (bitNum qb6) (qr7 (\qb7. \qr8. Push (bitNum qb7) (qr8 (\qb8. \qr9. Push (bitNum qb8) (qr9 (\qb9. \qr10. Push (bitNum qb9) (qr10 (\qb10. \qr11. Push (bitNum qb10) (qr11 (\qb11. \qr12. Push (bitNum qb11) (qr12 (\qb12. \qr13. Push (bitNum qb12) (qr13 (\qb13. \qr14. Push (bitNum qb13) (qr14 (\qb14. \qr15. Push (bitNum qb14) (Push (bitNum qr15) Empty))))))))))))))))))))))))))))))

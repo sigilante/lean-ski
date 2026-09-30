@@ -95,7 +95,8 @@ that it runs in about 15 seconds. It prints one `ok` line per check, then
 8. **A SKIlark statement in zero knowledge.** `skilark/split8` holds the
    SKIjack source of a SKIlark predicate (`source.ski`), a statement and a
    proof. `lake exe skilark statement` compiles the source in Lean and
-   checks that the statement is its atom for `x = 200` in 8 bits; offered
+   checks that the statement is its predicate for `x = 200` over 16
+   literal bits; offered
    as `x = 201`, or as `x = 712`, which 8 bits cannot hold, it refuses.
    `ski-air composed-verify` checks the proof; with one byte changed, it
    is refused.
@@ -122,18 +123,19 @@ randomized, so they do not regenerate byte for byte. That the prover
 verdict names the formula: whoever reads it compares that formula with the
 one they meant.
 
-**The SKIlark proof** (`skilark/split8`). The atom's verifier is the
-SKIlark predicate `split`, compiled from `source.ski`. The statement: some
-hidden term `w` makes `vsplit x w` reduce to `K`, for `x = 200` in 8
-bits. On a witness that is a stack of bit numerals, `vsplit` accepts
-exactly two numbers below `2^8` adding up to 200. The proof shows less:
-the witness is a term, which can answer the verifier's case analysis
-without being a stack (`K (K (RVal R))`, with `R` a stack of 15 zeros,
-passes at `x` = 0 or 1), and some pair of
-8-bit numbers adds up to any 8-bit `x`, so the claim holds for every
-`x < 2^8`. It demonstrates the path from a SKIlark program to a proof, not
-a range proof. The proof runs at `2^17` CPU rows and `2^18` memory cells,
-heights the statement names.
+**The SKIlark proof** (`skilark/split8`). A predicate statement over
+literal bits: the SKIlark verifier `vsplitB`, compiled from `source.ski`,
+reads 16 hidden bits, which the circuit constrains to `K` or `K I`, and
+never a hidden term. An accepted proof holds 16 Booleans on which
+`vsplitB` accepts `x = 200` (`Circuit.predExport_sound`). On such bits
+`vsplitB` accepts exactly two 8-bit numbers adding up to 200, as tested,
+not proved: every bit pattern for numbers of 2 and 3 bits, all 4,096
+cases for 4 bits once, and samples for 8 bits. The
+claim is weak: some pair of 8-bit numbers adds up to any 8-bit `x`, so the
+proof shows only that `200 < 2^8`. It demonstrates a SKIlark program
+proving over hidden data; a range proof needs a commitment binding the
+hidden number to something public. The proof runs at `2^17` CPU rows and
+`2^18` memory cells, heights the statement names.
 
 **The output proof.** A result is read by probing: the term, applied to
 three fresh marker atoms, must head-reduce to the marker of `RVal`

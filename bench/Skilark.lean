@@ -3,42 +3,41 @@ import Ski.ComposedText
 open Term
 
 /-!
-SKIlark statements for the composed circuit: a SKIlark predicate as the
-verifier of one atom, proved in zero knowledge.
+SKIlark predicates in zero knowledge: a SKIlark program as the verifier of
+a predicate statement over literal bits (`Ski/Predicate.lean`), proved by
+the composed circuit.
 
-The statement `split`, from `skilark.zk` (the SKIlark repository), is
-that some hidden term `w` makes `vsplit x w` reduce to `K`.  Its verifier
-`vsplit` is SKIjack source; Lean compiles it here (`Front.compileFile`),
-so a statement is checked against the source, not against the Python that
-wrote it; that the source is `skilark.zk`'s `split` for width `k` is the
-producer's word.  On a witness that is a stack of bit numerals, `vsplit`
-accepts exactly two numbers below `2^k` adding up to `x`.  What the proof
-shows is weaker, in two ways:
+The predicate `split`, from `skilark.zk` (the SKIlark repository): its
+verifier `vsplitB x r` decodes `r`, `2k` literal bits, into the bits of two
+numbers `a` and `b` (interleaved, least significant first), and accepts
+when they add up to `x` in `k` bits.  Lean compiles it here from its
+SKIjack source (`Front.compileFile`), so a statement is checked against
+the source, not the Python that wrote it; that the source is
+`skilark.zk`'s `split` for width `k` is the producer's word.  `x` is one
+quotation of its bits, least significant outermost.
 
-- the witness is a term, and a term answers the verifier's case analysis
-  however it likes: `K (K (RVal R))`, with `R` a stack of `2k - 1`
-  zeros, is no stack at all and passes at `x` = 0 or 1;
-- some `a, b < 2^k` add up to every `x < 2^k` (`a = x`, `b = 0`), so even
-  a well-formed witness shows only that `x < 2^k`.
+**What an accepted proof shows** (`Circuit.predExport_sound`): the proof's
+memory holds `2k` Booleans `bs` with `vsplitB x (boolsT bs)` evaluating to
+`K`.  The bits are the circuit's constrained slot cells, `K` or `K I`, so
+the verifier runs on data a prover cannot shape.  That `vsplitB` accepts
+exactly the bits of two numbers adding up to `x` is tested, not proved:
+exhaustively at `k` = 2 and 3, sampled at `k = 8` (`tests/test_zk.py`).
+And the claim is weak: some `a, b < 2^k` add up to every `x < 2^k`
+(`a = x`, `b = 0`), so an accepted proof shows only that `x < 2^k`.  A
+range proof needs a commitment binding the hidden number to something
+public.
 
-It is the path from a SKIlark program to a proof, not a range proof: a
-claim about data needs the witness as literal bits the circuit
-constrains, and a range proof needs a commitment binding the hidden
-number to something public.  `x` is one quotation of `x`'s bits,
-least significant outermost; the hidden `w` is the stack of `a`'s and
-`b`'s bits, interleaved, least significant first.
-
-- `skilark emit SRC K X A B R M DIR` compiles `SRC`, and writes to `DIR`
-  the statement of the atom `vsplit x` at CPU and memory heights `2^R` and
-  `2^M` (`public.txt`), the honest witness (`witness.txt`: the atom's bit,
-  then the region, `w`'s cells shared), and the composed circuit's four
-  tamper witnesses: the bit clear (`witness_clear.txt`), `b + 1` in place
-  of `b` (`witness_wrong.txt`), a bit cell that is no Boolean
-  (`witness_nonbool.txt`), and a region cell pointing forward
-  (`witness_forged.txt`); and `witness_nonbit.txt`, `a`'s first bit `2`.
-- `skilark statement SRC K X PUBLIC` checks that `PUBLIC` is the statement
-  of `vsplit x`, for `vsplit` compiled from `SRC` and `x` the bits of `X`
-  in `K` bits, at any heights `ComposedText` accepts.
+- `skilark emit SRC K X A B R M DIR` compiles `SRC` and writes to `DIR`
+  the predicate statement `vsplitB x` over `2K` bits at CPU and memory
+  heights `2^R` and `2^M` (`public.txt`), the honest witness (the bits of
+  `A` and `B`, then a one-cell region: `witness.txt`), and the composed
+  circuit's four tamper witnesses: every bit clear (`witness_clear.txt`),
+  the bits of `B + 1` for `B` (`witness_wrong.txt`), a bit cell that is no
+  Boolean (`witness_nonbool.txt`), and a region cell pointing forward
+  (`witness_forged.txt`).
+- `skilark statement SRC K X PUBLIC` checks that `PUBLIC` is the predicate
+  statement `vsplitB x` over `2K` bits, for `vsplitB` compiled from `SRC`
+  and `x` the bits of `X < 2^K`, at any heights `ComposedText` accepts.
 -/
 
 open Mach Compose ComposedText CompM
@@ -101,85 +100,54 @@ def xTerm (E : Enc) (ds : List Nat) : Term :=
     | d :: r => E.quot [go r, E.num d]
   E.stack [go ds]
 
-/-- `w`: `a_0 b_0 a_1 b_1 …`. -/
-def wTerm (E : Enc) (da db : List Nat) : Term :=
-  E.stack ((da.zip db).flatMap fun (a, b) => [E.num a, E.num b])
-
-/-- Write `t`'s cells after `h`, children first, each distinct cell once. -/
-def hcons : List (Cell × Nat) → List Cell → Term → List (Cell × Nat) × List Cell × Nat
-  | memo, h, t =>
-    let intern (memo : List (Cell × Nat)) (h : List Cell) (c : Cell) :=
-      match memo.lookup c with
-      | some a => (memo, h, a)
-      | none => ((c, h.length) :: memo, h ++ [c], h.length)
-    match t with
-    | .S => intern memo h .S
-    | .K => intern memo h .K
-    | .I => intern memo h .I
-    | .app f a =>
-      let (m1, h1, pf) := hcons memo h f
-      let (m2, h2, pa) := hcons m1 h1 a
-      intern m2 h2 (.app pf pa)
-
-/-- The region holding `w` at its last cell, after `N` bit cells: filler
-    `S` cells, then `w`'s cells shared. -/
-def regionShared (N W : Nat) (w : Term) : Option (List Cell) :=
-  let pre := List.replicate (N + 3) Cell.S
-  let n := (hcons [] pre w).2.1.length - (N + 3)
-  if n ≤ W then some ((hcons [] (pre ++ List.replicate (W - n) .S) w).2.1.drop (N + 3)) else none
-
 def witnessText (bits : List Bool) (region : List Cell) : String :=
   bits.foldl (fun s b => s ++ (if b then "1" else "0") ++ "\n") "" ++
     region.foldl (fun s c => s ++ cellText c ++ "\n") ""
 
-def readSrc (path : String) : IO (Option (Src × Term × Enc)) := do
-  let some s := compile (← IO.FS.readFile path) | return none
-  let some V := s.get "vsplit" | return none
-  let some E := s.enc | return none
-  return some (s, V, E)
+/-- The region: one cell, since the predicate reads no witness. -/
+def W : Nat := 1
 
-/-- The region size: the private cells the composed circuit allows, less
-    the atom's bit. -/
-def W : Nat := 2 ^ 8 - 1
+def readB (path : String) : IO (Option (Term × Enc)) := do
+  let some s := compile (← IO.FS.readFile path) | return none
+  let some V := s.get "vsplitB" | return none
+  let some E := s.enc | return none
+  return some (V, E)
+
+/-- `a`'s and `b`'s bits, interleaved, least significant first. -/
+def splitBits (k a b : Nat) : List Bool :=
+  ((bitsOf k a).zip (bitsOf k b)).flatMap fun (u, v) => [u == 1, v == 1]
 
 def emit (src : String) (k x a b r m : Nat) (dir : String) : IO UInt32 := do
   if k == 0 || 2 ^ k ≤ x || 2 ^ k ≤ a || 2 ^ k ≤ b then
     IO.println s!"x, a and b must be below 2^{k}"; return 1
-  let some (_, V, E) ← readSrc src | do IO.println s!"{src}: not a SKIlark statement source"; return 1
+  let some (V, E) ← readB src | do IO.println s!"{src}: not a SKIlark predicate source"; return 1
   if !logOK (r, m) then IO.println "heights out of bounds"; return 1
-  let M := MF.atom V (xTerm E (bitsOf k x))
-  let N := BT.nleaves (clear M)
-  let w := wTerm E (bitsOf k a) (bitsOf k b)
-  let some good := regionShared N W w | do IO.println "the witness does not fit"; return 1
-  let some wrong := regionShared N W (wTerm E (bitsOf k a) (bitsOf k (b + 1))) | do
-    IO.println "the wrong witness does not fit"; return 1
-  let some nonbit := regionShared N W (wTerm E (2 :: (bitsOf k a).drop 1) (bitsOf k b)) | do
-    IO.println "the non-bit witness does not fit"; return 1
+  let c := CStmt.pred V (xTerm E (bitsOf k x)) (2 * k)
+  if !privateOK c W then IO.println "too many bits"; return 1
+  let N := 2 * k
+  let bits := splitBits k a b
   IO.FS.createDirAll dir
-  IO.FS.writeFile s!"{dir}/public.txt" (publicText M W (r, m))
-  IO.FS.writeFile s!"{dir}/witness.txt" (witnessText [true] good)
-  IO.FS.writeFile s!"{dir}/witness_clear.txt" (witnessText [false] good)
-  IO.FS.writeFile s!"{dir}/witness_wrong.txt" (witnessText [true] wrong)
-  IO.FS.writeFile s!"{dir}/witness_nonbool.txt" ("I\n" ++ witnessText [] good)
-  IO.FS.writeFile s!"{dir}/witness_forged.txt"
-    (witnessText [true] (good.set 0 (.app (N + 3 + W - 1) (N + 3 + W - 1))))
-  IO.FS.writeFile s!"{dir}/witness_nonbit.txt" (witnessText [true] nonbit)
-  let used := good.length - (good.takeWhile (· == .S)).length
-  IO.println s!"split k={k}: x = {x}, a = {a}, b = {b} (a + b = x: {a + b == x}); region {used} of {W} cells; heights 2^{r} and 2^{m}"
+  IO.FS.writeFile s!"{dir}/public.txt" (publicTextC c W (r, m))
+  IO.FS.writeFile s!"{dir}/witness.txt" (witnessText bits [.S])
+  IO.FS.writeFile s!"{dir}/witness_clear.txt" (witnessText (bits.map fun _ => false) [.S])
+  IO.FS.writeFile s!"{dir}/witness_wrong.txt" (witnessText (splitBits k a ((b + 1) % 2 ^ k)) [.S])
+  IO.FS.writeFile s!"{dir}/witness_nonbool.txt" ("I\n" ++ witnessText (bits.drop 1) [.S])
+  IO.FS.writeFile s!"{dir}/witness_forged.txt" (witnessText bits [.app (N + 3) (N + 3)])
+  IO.println s!"split k={k}: x = {x}, a = {a}, b = {b} (a + b = x: {a + b == x}); {N} bits, heights 2^{r} and 2^{m}"
   return 0
 
 def statement (src : String) (k x : Nat) (pub : String) : IO UInt32 := do
   if k == 0 || 2 ^ k ≤ x then IO.println s!"NOT A STATEMENT: x = {x} is not below 2^{k}"; return 1
-  let some (_, V, E) ← readSrc src | do IO.println s!"{src}: not a SKIlark statement source"; return 1
+  let some (V, E) ← readB src | do IO.println s!"{src}: not a SKIlark predicate source"; return 1
   match statementOfText (← IO.FS.readFile pub) with
-  | some (.atom V' x', W', lg) =>
-    if V' == V && x' == xTerm E (bitsOf k x) && W' == W then
-      IO.println s!"STATEMENT {pub}: some hidden term w makes vsplit x w reduce to K, for x = {x} in {k} bits (vsplit compiled from {src}; heights 2^{lg.1} and 2^{lg.2})"
+  | some (.pred V' x' n, W', lg) =>
+    if V' == V && x' == xTerm E (bitsOf k x) && n == 2 * k && W' == W then
+      IO.println s!"STATEMENT {pub}: some {2 * k} literal bits make vsplitB accept x = {x} in {k} bits (vsplitB compiled from {src}; heights 2^{lg.1} and 2^{lg.2})"
       return 0
     IO.println s!"NOT THIS STATEMENT {pub}"
     return 1
   | _ =>
-    IO.println s!"NOT A STATEMENT {pub}"
+    IO.println s!"NOT A PREDICATE STATEMENT {pub}"
     return 1
 
 end SkilarkZK

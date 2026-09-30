@@ -17,10 +17,14 @@ namespace Circuit
 open B Air Compose CompM Stmt Mach Wit
 
 /-- The composed circuit is guarded, for every statement. -/
-theorem comp_guarded (M : MF) (W : Nat) : ∀ A ∈ compAirs M W, A.cons.all E.guarded = true := by
+theorem compG_guarded (shp : BT) (Ps : List Term) (W : Nat) :
+    ∀ A ∈ compAirsG shp Ps W, A.cons.all E.guarded = true := by
   intro A hA
-  simp only [compAirs, List.mem_cons, List.not_mem_nil, or_false] at hA
+  simp only [compAirsG, List.mem_cons, List.not_mem_nil, or_false] at hA
   rcases hA with rfl | rfl | rfl | rfl | rfl <;> rfl
+
+theorem comp_guarded (M : MF) (W : Nat) : ∀ A ∈ compAirs M W, A.cons.all E.guarded = true :=
+  compG_guarded (clear M) (stmtOf M) W
 
 /-- With Plonky3's selectors or `0`/`1` ones, AIRs with a guarded
     circuit's normal forms accept the same tables. -/
@@ -40,27 +44,28 @@ theorem acceptedP_iff_of {Rs Ls : List AirD} (hg : ∀ A ∈ Ls, A.cons.all E.gu
     exact ⟨⟨sels01 _, (pair p hp _).2 (h2 p hp).1⟩, (h2 p hp).2⟩
 
 /-- Acceptance of the composed circuit's data is `CompOK`. -/
-theorem compOK_of {M : MF} {W : Nat} {ts : List Table} (h : Accepted (compAirs M W) ts) :
+theorem compOK_ofG {shp : BT} {Ps : List Term} {W : Nat} {ts : List Table}
+    (h : Accepted (compAirsG shp Ps W) ts) :
     ∃ C Mm Pg Wt Sg, ts = [C, Mm, Pg, Wt, Sg] ∧
-      CompOK (blankM (clear M) W (stmtOf M)).hd (blankM (clear M) W (stmtOf M)).stk
-        (blankM (clear M) W (stmtOf M)).heap.length (blankRoots (clear M) W (stmtOf M)).length
-        (blankM (clear M) W (stmtOf M)).stk (blankM (clear M) W (stmtOf M)).heap (BT.nleaves (clear M)) W
-        (blankRoots (clear M) W (stmtOf M)) C Mm Pg Wt Sg := by
+      CompOK (blankM shp W Ps).hd (blankM shp W Ps).stk
+        (blankM shp W Ps).heap.length (blankRoots shp W Ps).length
+        (blankM shp W Ps).stk (blankM shp W Ps).heap (BT.nleaves shp) W
+        (blankRoots shp W Ps) C Mm Pg Wt Sg := by
   obtain ⟨hl, hsat, hbal, hht, htwo⟩ := h
   match ts, hl with
   | [C, Mm, Pg, Wt, Sg], _ =>
-    have mem : ∀ A T, (A, T) ∈ (compAirs M W).zip [C, Mm, Pg, Wt, Sg] →
+    have mem : ∀ A T, (A, T) ∈ (compAirsG shp Ps W).zip [C, Mm, Pg, Wt, Sg] →
         Sat A T ∧ (A.pre = 0 ∨ PreIs A T) := fun A T hm => hsat (A, T) hm
-    have z : (compAirs M W).zip [C, Mm, Pg, Wt, Sg] =
-        compTables (blankM (clear M) W (stmtOf M)).hd (blankM (clear M) W (stmtOf M)).stk
-          (blankM (clear M) W (stmtOf M)).heap.length (blankRoots (clear M) W (stmtOf M)).length
-          (blankM (clear M) W (stmtOf M)).stk (blankM (clear M) W (stmtOf M)).heap (BT.nleaves (clear M)) W
-          (blankRoots (clear M) W (stmtOf M)) C Mm Pg Wt Sg := rfl
+    have z : (compAirsG shp Ps W).zip [C, Mm, Pg, Wt, Sg] =
+        compTables (blankM shp W Ps).hd (blankM shp W Ps).stk
+          (blankM shp W Ps).heap.length (blankRoots shp W Ps).length
+          (blankM shp W Ps).stk (blankM shp W Ps).heap (BT.nleaves shp) W
+          (blankRoots shp W Ps) C Mm Pg Wt Sg := rfl
     rw [z] at mem hbal hht htwo
-    have pre : ∀ A T, (A, T) ∈ compTables (blankM (clear M) W (stmtOf M)).hd (blankM (clear M) W (stmtOf M)).stk
-          (blankM (clear M) W (stmtOf M)).heap.length (blankRoots (clear M) W (stmtOf M)).length
-          (blankM (clear M) W (stmtOf M)).stk (blankM (clear M) W (stmtOf M)).heap (BT.nleaves (clear M)) W
-          (blankRoots (clear M) W (stmtOf M)) C Mm Pg Wt Sg → A.pre ≠ 0 → PreIs A T := by
+    have pre : ∀ A T, (A, T) ∈ compTables (blankM shp W Ps).hd (blankM shp W Ps).stk
+          (blankM shp W Ps).heap.length (blankRoots shp W Ps).length
+          (blankM shp W Ps).stk (blankM shp W Ps).heap (BT.nleaves shp) W
+          (blankRoots shp W Ps) C Mm Pg Wt Sg → A.pre ≠ 0 → PreIs A T := by
       intro A T hm hp
       rcases (mem A T hm).2 with h0 | h0
       · exact absurd h0 hp
@@ -71,7 +76,27 @@ theorem compOK_of {M : MF} {W : Nat} {ts : List Table} (h : Accepted (compAirs M
       pre _ _ (by simp [compTables]) (by show (3 : Nat) ≠ 0; decide),
       pre _ _ (by simp [compTables]) (by show (2 : Nat) ≠ 0; decide), hbal, hht, htwo⟩⟩
 
+theorem compOK_of {M : MF} {W : Nat} {ts : List Table} (h : Accepted (compAirs M W) ts) :
+    ∃ C Mm Pg Wt Sg, ts = [C, Mm, Pg, Wt, Sg] ∧
+      CompOK (blankM (clear M) W (stmtOf M)).hd (blankM (clear M) W (stmtOf M)).stk
+        (blankM (clear M) W (stmtOf M)).heap.length (blankRoots (clear M) W (stmtOf M)).length
+        (blankM (clear M) W (stmtOf M)).stk (blankM (clear M) W (stmtOf M)).heap (BT.nleaves (clear M)) W
+        (blankRoots (clear M) W (stmtOf M)) C Mm Pg Wt Sg :=
+  compOK_ofG h
+
 theorem stmtOf_pos (M : MF) : 0 < (stmtOf M).length := by simp [stmtOf]
+
+/-- **Soundness of the composed circuit, for any evaluation statement**:
+    an accepted proof's memory holds bits of the shape and a region whose
+    witness makes every term evaluate to `K` on those bits. -/
+theorem compExportG_sound {shp : BT} {Ps : List Term} {W : Nat} {Rs : List AirD} {ts : List Table}
+    (hPs : 0 < Ps.length) (hs : sameAirsB Rs (compAirsG shp Ps W) = true) (h : AcceptedP Rs ts) :
+    ∃ C Mm Pg Wt Sg, ts = [C, Mm, Pg, Wt, Sg] ∧ ∃ w,
+      cWitness (bitsM (memOf Mm)) (BT.nleaves shp) (regionM (memOf Mm) (BT.nleaves shp) W) = some w ∧
+      EvalRel (Ps, SameShape shp) (fillB shp (bitsM (memOf Mm)) 0) w := by
+  have hacc := accepted_transfer hs ((acceptedP_iff_of (compG_guarded shp Ps W) hs ts).1 h)
+  obtain ⟨C, Mm, Pg, Wt, Sg, rfl, hok⟩ := compOK_ofG hacc
+  exact ⟨C, Mm, Pg, Wt, Sg, rfl, hok.sound hPs⟩
 
 /-- **Soundness of the composed circuit**: an accepted proof's memory
     holds bits and a region whose witness the formula's statement accepts,
@@ -82,9 +107,7 @@ theorem compExport_sound {M : MF} {W : Nat} {Rs : List AirD} {ts : List Table}
       cWitness (bitsM (memOf Mm)) (BT.nleaves (clear M)) (regionM (memOf Mm) (BT.nleaves (clear M)) W) = some w ∧
       Compose.Accepts M (fillB (clear M) (bitsM (memOf Mm)) 0) w ∧
       Real M.toForm (readBack M (fillB (clear M) (bitsM (memOf Mm)) 0) w []) := by
-  have hacc := accepted_transfer hs ((acceptedP_iff_of (comp_guarded M W) hs ts).1 h)
-  obtain ⟨C, Mm, Pg, Wt, Sg, rfl, hok⟩ := compOK_of hacc
-  obtain ⟨w, hw, hs', hall⟩ := hok.sound (stmtOf_pos M)
+  obtain ⟨C, Mm, Pg, Wt, Sg, rfl, w, hw, hs', hall⟩ := compExportG_sound (stmtOf_pos M) hs h
   have ha : Compose.Accepts M (fillB (clear M) (bitsM (memOf Mm)) 0) w := ⟨shape_of_same M _ hs', hall⟩
   exact ⟨C, Mm, Pg, Wt, Sg, rfl, w, hw, ha, real_of_accepted ha⟩
 

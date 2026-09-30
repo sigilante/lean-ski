@@ -136,15 +136,19 @@ def progRowsC (heap : List Cell) (N W : Nat) : List (List F) :=
 def progAirC (heap : List Cell) (N W : Nat) : AirD :=
   ⟨"prog", 1, 5, [col 0], [⟨"mem", 1, prec 4, [prec 0, prec 1, prec 2, prec 3]⟩], progRowsC heap N W⟩
 
-/-- **The composed circuit for a statement**: what its verifier builds. -/
-def compAirs (M : MF) (W : Nat) : List AirD :=
-  let shp := clear M
+/-- **The composed circuit for an evaluation statement**: bits of the
+    shape `shp`, a region of `W` cells, and the terms `Ps`, each to evaluate
+    to `K` on the bits and the region's witness. -/
+def compAirsG (shp : BT) (Ps : List Term) (W : Nat) : List AirD :=
   let N := BT.nleaves shp
   let region := List.replicate W Cell.S
-  let m := cMachine (fun _ => false) shp region (stmtOf M)
-  let roots := (cHeap (fun _ => false) shp region (stmtOf M)).2
+  let m := cMachine (fun _ => false) shp region Ps
+  let roots := (cHeap (fun _ => false) shp region Ps).2
   [cpuAirC m.hd m.stk m.heap.length roots.length m.stk, memAirC,
    progAirC m.heap N W,
    witAir N W, segsAir roots]
+
+/-- **The composed circuit for a formula**: what its verifier builds. -/
+def compAirs (M : MF) (W : Nat) : List AirD := compAirsG (clear M) (stmtOf M) W
 
 end Circuit

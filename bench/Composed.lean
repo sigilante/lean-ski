@@ -17,17 +17,23 @@ Composed statements for the Plonky3 prover, and the check of their tables
   verifier rejects), `witness_nonbool.txt` (a bit cell `I`, no Boolean),
   and `witness_forged.txt` (a region cell pointing forward, never read).
 - `composed statement PUBLIC` checks that a statement file is exactly the
-  composed machine of the formula it names, for the region size it names:
-  what the verifier runs before it trusts `public.txt`.  `-` reads stdin.
+  composed machine of the statement it names, a formula or a predicate over
+  literal bits (`ComposedText.CStmt`), for the region size and heights it
+  names: what the verifier runs before it trusts `public.txt`.  `-` reads
+  stdin.
 - `composed check PUBLIC TABLE...` checks tables the prover wrote with
-  `CompM.checkC`, for the statement's formula.  `ACCEPT` means the bits
-  the table's memory sets and the witness its region holds are accepted by
-  the formula's statement and read back as a realizer of the formula
-  (`CompM.checkC_realizes`).
+  `CompM.checkC`, for the statement.  For a formula, `ACCEPT` means the
+  bits the table's memory sets and the witness its region holds are
+  accepted by the formula's statement and read back as a realizer of the
+  formula (`CompM.checkC_realizes`); for a predicate, that its verifier
+  accepts the bits (`Circuit.checkPred_sound`).
 
 **A formula**, on one line, in prefix form: `A <V> <x>` an atom, `& F G`,
 `| F G` (terms in prefix form, `` ` `` for application).
-**`public.txt`**: `formula …`, `W <size>`, `bits <n>`, `roots r₀ …`,
+**A predicate**: `predicate <V> <x> <n>`, the verifier `V` of `x` over `n`
+literal bits (`Ski/Predicate.lean`).
+**`public.txt`**: `formula …` or `predicate …`, `W <size>`, optionally
+`log R M`, `bits <n>`, `roots r₀ …`,
 `nil <address>`, `hd stk ctr`, then `ctr` cells, one per line, a bit or
 region cell as `W`.  The blanks stand for literal Scott Booleans (the bits,
 `K` or `K I`) and well-formed cells (the region), which the check and the
@@ -81,20 +87,18 @@ def emit (dir : String) : IO UInt32 := do
 def statement (path : String) : IO UInt32 := do
   let text ← if path == "-" then (← IO.getStdin).readToEnd else IO.FS.readFile path
   match statementOfText text with
-  | some (M, W, lg) =>
-    IO.println s!"STATEMENT {path}: the formula {formulaText M}, a region of {W} cells, heights 2^{lg.1} and 2^{lg.2}"
+  | some (c, W, lg) =>
+    IO.println s!"STATEMENT {path}: {c.header}, a region of {W} cells, heights 2^{lg.1} and 2^{lg.2}"
     return 0
   | none =>
     IO.println s!"NOT A STATEMENT {path}"
     return 1
 
 def parseTable (ls : List String) :
-    Option (MF × Nat × Array Cell × Array Nat × Array Air.Row) := do
+    Option (CStmt × Nat × Array Cell × Array Nat × Array Air.Row) := do
   match ls with
   | fl :: wl :: nl :: rest =>
-    let M ← match words fl with
-      | "formula" :: ws => parseFormula ws
-      | _ => none
+    let M ← parseHeader (words fl)
     let W ← match words wl with
       | ["W", n] => n.toNat?
       | _ => none
@@ -125,8 +129,13 @@ def formulaEq : MF → MF → Bool
   | .or A B, .or A' B' => formulaEq A A' && formulaEq B B'
   | _, _ => false
 
+def stmtEq : CStmt → CStmt → Bool
+  | .formula M, .formula M' => formulaEq M M'
+  | .pred V x n, .pred V' x' n' => V == V' && x == x' && n == n'
+  | _, _ => false
+
 def check (pub : String) (paths : List String) : IO UInt32 := do
-  let some (M, W, _) := statementOfText (← IO.FS.readFile pub)
+  let some (c, W, _) := statementOfText (← IO.FS.readFile pub)
     | do IO.println s!"NOT A STATEMENT {pub}"; return 1
   let mut bad := 0
   for path in paths do
@@ -139,11 +148,15 @@ def check (pub : String) (paths : List String) : IO UInt32 := do
       IO.println s!"MALFORMED {path}"
       bad := bad + 1
     | some (M', W', A, ends, R) =>
-      if !formulaEq M' M || W' != W then
+      if !stmtEq M' c || W' != W then
         IO.println s!"REJECT {path} (not the statement of {pub})"
         bad := bad + 1
-      else if checkC (clear M) W (stmtOf M) A ends R then
-        IO.println s!"ACCEPT {path}: its bits and witness read back as a realizer of the formula ({R.size} rows, {A.size} cells, {ends.size} segments)"
+      else if checkC c.shp W c.Ps A ends R then
+        match c with
+        | .formula _ =>
+          IO.println s!"ACCEPT {path}: its bits and witness read back as a realizer of the formula ({R.size} rows, {A.size} cells, {ends.size} segments)"
+        | .pred _ _ n =>
+          IO.println s!"ACCEPT {path}: the predicate accepts its {n} bits ({R.size} rows, {A.size} cells, {ends.size} segments)"
       else
         IO.println s!"REJECT {path}"
         bad := bad + 1

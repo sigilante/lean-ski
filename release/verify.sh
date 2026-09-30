@@ -29,10 +29,10 @@
 #      composed-verify checks the proof from its file; with one byte
 #      changed, a byte appended, a doctored statement, or offered for the
 #      other formula, it is refused;
-#   7. a SKIlark statement in zero knowledge (release/skilark/split8): Lean
-#      compiles the SKIjack source of the predicate `split` and checks
-#      that the statement is `vsplit` for x = 200 in 8 bits (`lake exe
-#      skilark statement`), and refuses it as x = 201 or x = 712; ski-air
+#   7. a SKIlark predicate in zero knowledge (release/skilark/split8): Lean
+#      compiles the SKIjack source of `split` and checks that the statement
+#      is the predicate `vsplitB` for x = 200 over 16 literal bits (`lake
+#      exe skilark statement`), and refuses it as x = 201 or x = 712; ski-air
 #      composed-verify checks the proof; with one byte changed, it is
 #      refused.
 #
@@ -251,7 +251,7 @@ else
     ok "the ∨ proof offered for the ∧ statement is refused ($(head -c 60 "$tmp/cx.log"))"
 fi
 
-echo "--- 7. a SKIlark predicate in zero knowledge: vsplit, x = 200 in 8 bits"
+echo "--- 7. a SKIlark predicate in zero knowledge: vsplitB, x = 200 over 16 literal bits"
 lake build skilark > /dev/null
 S=release/skilark/split8
 lake exe skilark statement "$S/source.ski" 8 200 "$S/public.txt" > "$tmp/ss.log" \

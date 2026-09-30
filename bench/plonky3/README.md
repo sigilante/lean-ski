@@ -323,79 +323,88 @@ private cell exposed, another formula, another region size or another
 root. The caller compares the formula the statement names with the one
 meant, and the Lean tables, which hold the witness, stay the prover's.
 
-## A SKIlark statement in zero knowledge
+## A SKIlark predicate in zero knowledge
 
-A SKIlark (Joy) predicate is the verifier of an atom of the composed
-circuit. **The statement `split`**: some hidden term `w` makes `vsplit x
-w` reduce to `K`. On a witness that is a stack of bit numerals, `vsplit`
-reads two numbers below `2^k` and accepts exactly when they add up to `x`.
-**It is the path from a SKIlark program to a proof, not a range proof,**
-for two reasons:
+A SKIlark (Joy) program is the verifier of a **predicate statement over
+literal bits** (`Ski/Predicate.lean`), which the composed circuit proves.
+A predicate `V x` over `n` bits has the shape of `n` bits and one term,
+`[ρ w] V x ρ`: the verifier reads the bits and never the hidden witness
+term. The bits are the machine's slot cells, which the witness table
+constrains to `K` or `K I`, so the verifier runs on a list of Scott
+Booleans a prover cannot shape. **`Circuit.predExport_sound`**: an
+accepted proof's memory holds `n` Booleans `bs` with `V x (boolsT bs)`
+evaluating to `K`. Completeness is `Circuit.comp_completeG_log`, and the
+zero knowledge of the published sums `comp_zk`, both for any evaluation
+statement; the circuit is `Circuit.compAirsG`, of which the formula
+circuit is an instance.
 
-- **A hidden term is not data.** It answers the verifier's case analysis
-  however it likes: `K (K (RVal R))`, with `R` a stack of `2k - 1`
-  zeros, is no stack at all and passes at `x` = 0 or 1 (SKIlark's
-  `tests/test_zk.py` pins it at `k` = 2 and 8). A claim about data needs the
-  witness as literal bits the circuit constrains to Booleans, as the
-  Sudoku inputs are.
-- **The claim is vacuous.** Some `a, b < 2^k` add up to every `x < 2^k`
-  (`a = x`, `b = 0`), so even a well-formed witness shows only `x < 2^k`.
-  A range proof needs a commitment binding the hidden number to something
-  public.
+**Why not the witness term.** A formula's atom hands its verifier a
+component of the hidden term, and a term answers the verifier's case
+analysis however it likes: over a hidden term, SKIlark's `vsplit` accepts
+`K (K (RVal R))`, `R` a stack of `2k - 1` zeros, which is no stack at all,
+at `x` = 0 and 1 (pinned in SKIlark's `tests/test_zk.py`). A claim about data needs the
+data as literal bits.
 
-- **The convention** (`skilark.zk`, in the SKIlark repository): `V x w`
-  runs the program on the stack `x` above `w` and returns Scott true, `K`
-  itself, exactly when the program returns a nonzero numeral on top. The
-  wrapper is SKIjack source (`vsplit`), appended to the compiled program.
-- **The encoding.** `x` is one quotation of its bits, least significant
-  outermost, `X_i = [X_{i+1} x_i]`; the hidden `w` is the stack of `a`'s
-  and `b`'s bits, interleaved. Each of the `k` unrolled steps unpacks
-  `x_i` with `i` and branches on `x_i`, the carry, `a_i` and `b_i`; a bit
-  other than `0` or `1`, a wrong sum bit, or a carry out fails. On
-  stacks of numerals, `V` accepts exactly when the first `2k` items are
-  bits of two numbers adding up to `x` in `k` bits (tested: exhaustively
-  at `k = 2`, sampled at `k = 8`).
+**The predicate `split`** (`skilark.zk`, in the SKIlark repository):
+`vsplitB x r` decodes `r`, `2k` literal bits, into the bits of two numbers
+`a` and `b` (interleaved, least significant first), runs a Joy predicate
+on the stack `x` above them, and returns Scott true, `K` itself, when it
+leaves a nonzero numeral. `x` is one quotation of its bits, least
+significant outermost. Each of the `k` unrolled steps unpacks `x_i` and
+branches on `x_i`, the carry, `a_i` and `b_i`; a wrong sum bit or a carry
+out fails. That `vsplitB` accepts exactly the bits of two numbers adding
+up to `x` is tested, not proved: every bit pattern at `k` = 2 and 3 in
+the tests, all 4,096 cases at `k = 4` in a one-off run, and a few samples
+at `k = 8`.
+
+**What it proves, and what it does not.** Some `a, b < 2^k` add up to
+every `x < 2^k` (`a = x`, `b = 0`), so an accepted proof shows only that
+`x < 2^k`: the pipeline is sound, the statement is weak. A range proof
+needs a commitment binding the hidden number to something public.
+
 - **The source, not the Python.** `lake exe skilark statement SRC K X
   PUBLIC` compiles the SKIjack source in Lean (`Front.compileFile`, which
-  agrees with `skijack` on SKIlark's compiled output: 41,727 symbols at
-  `k = 2`) and checks that the statement is the atom `vsplit x`, with
-  `x < 2^k`. That the source is `skilark.zk`'s `split` for width `k` is
-  the producer's word; `python -m skilark.zk 8` regenerates it byte for
-  byte.
+  gives the term `skijack` gives) and checks that the statement is the
+  predicate `vsplitB x` over `2K` bits, with `x < 2^K`. That the source is
+  `skilark.zk`'s `split` for width `K` is the producer's word; `python -m
+  skilark.zk 8` regenerates it byte for byte.
 - **The heights are the statement's.** `public.txt` may name the CPU and
   memory log heights, `log R M` with each in `[8, 20]`; without the line
   they are `2^11`, so earlier statements are unchanged.
-  `Circuit.comp_complete_log` proves completeness at any such heights.
-- **The witness is small.** `w` takes 41 of the 255 region cells, its
-  cells shared (`regionShared`).
 
 ```
 ~/SKIlark/.venv/bin/python -m skilark.zk 8 > bench/plonky3/skilark/split8/source.ski
 lake build skilark && lake exe skilark emit bench/plonky3/skilark/split8/source.ski 8 200 123 77 17 18 bench/plonky3/skilark/split8
 lake exe skilark statement bench/plonky3/skilark/split8/source.ski 8 200 bench/plonky3/skilark/split8/public.txt
 bench/plonky3/target/release/ski-air composed bench/plonky3/skilark bench/plonky3/tables   # prove, verify, guess test, tamper
+lake exe composed check bench/plonky3/skilark/split8/public.txt bench/plonky3/tables/composed_split8.txt   # the predicate accepts its 16 bits
 ```
 
 Measured, 2026-09-29, Apple M4 Max, release build, `k = 8`, `x = 200`
-(heights `2^17` rows, `2^18` memory, `2^8` witness):
+(heights `2^17` rows, `2^18` memory, `2^8` witness), `ski-air composed`,
+under a load average of about 5 (proving varied from 12.7 to 23.8 s over
+five runs):
 
 ```
-split8   49,462 public cells, 1 bit, a region of 255 (41 used), 2 segments
-         129,114 rows, 212,326 memory cells
-         prove 9.8 s, verify 8.0 s, proof 786 KiB, peak memory 2.0 GB   verified
+split8   51,824 public cells, 16 bits, a region of 1, 1 segment
+         129,965 rows, 215,400 memory cells; 53,450 host contractions
+         prove 12.7 s, verify 14.0 s, proof 793 KiB, peak memory 2.0 GB   verified
 guess    no match; a match with the blinding off
-clear    the atom's bit clear: rejected
-wrong    b + 1 for b: the run does not end at K over a nil; rejected
+clear    every bit clear: rejected
+wrong    the bits of b + 1 for b: rejected
 nonbool  a bit cell I: rejected
 forged   a region cell pointing forward: rejected
-nonbit   a's first bit 2: the program errs; the prover refuses
 ```
 
-The cost is the SKIlark program's: about 6,800 host contractions per bit,
-on unary numerals and the compiled kernel's case dispatch; `k = 16` takes
-111,574 host contractions against 54,546 for `k = 8`. At these heights
-the proof has under `2^21` LogUp messages, so a zero denominator aborts it
-with probability below `2^-102` (`abort_count`).
+`lake exe composed check` accepts the honest table (`checkPred_sound`) and
+rejects the four tampered ones. The standalone `composed-verify` takes
+14 to 19 s, of which Lean's statement check is about 6 s and its
+comparison of the circuit most of the rest. The cost is the SKIlark
+program's: about 6,700 host contractions per bit of `x` (3,300 per
+literal bit), on unary numerals and the compiled
+kernel's case dispatch. At these heights the proof has under `2^21` LogUp
+messages, so a zero denominator aborts it with probability below `2^-102`
+(`abort_count`).
 
 ## Jets: instantiation rows
 

@@ -54,6 +54,12 @@
 //! the true bits and region: it must not match, and must match with the
 //! blinding off.
 //!
+//! **Predicates.**  A statement may instead be a predicate over literal
+//! bits, `predicate V x n` (`Ski/Predicate.lean`): one term, `[ρ w] V x ρ`,
+//! whose verifier reads the `n` bits, constrained to `K` or `K I`, and not
+//! the witness; an accepted proof has bits on which `V` accepts `x`
+//! (`Circuit.predExport_sound`).  The machinery below is the same.
+//!
 //! **What the caller must do.**  The statement names its own formula: the
 //! verifier prints it, and whoever reads the verdict compares it with the
 //! formula they meant.  The Lean tables hold the witness in the clear and
@@ -130,7 +136,8 @@ const LOG_WIT: usize = 8;
 const LOG_MIN: usize = 8;
 
 pub struct Public {
-    formula: String,
+    /// The statement's first line: `formula …` or `predicate V x n`.
+    header: String,
     w: u32,
     /// The CPU's and the memory's log heights.
     log_rows: usize,
@@ -170,7 +177,10 @@ fn nums(l: &str, key: &str) -> Result<Vec<u32>, String> {
 pub fn parse_public(text: &str) -> Result<Public, String> {
     let mut ls = text.lines();
     let mut next = || ls.next().ok_or_else(|| "a truncated statement".to_string());
-    let formula = next()?.strip_prefix("formula ").ok_or("expected `formula …`")?.to_string();
+    let header = next()?.to_string();
+    if !(header.starts_with("formula ") || header.starts_with("predicate ")) {
+        return Err("expected `formula …` or `predicate …`".into());
+    }
     let w = nums(next()?, "W")?;
     let mut l = next()?;
     let (log_rows, log_mem) = if l.starts_with("log ") {
@@ -207,7 +217,7 @@ pub fn parse_public(text: &str) -> Result<Public, String> {
     if nbits + w > 1 << LOG_WIT {
         return Err("too many private cells".into());
     }
-    Ok(Public { formula, w, log_rows, log_mem, nbits, roots, nil, hd0: regs[0], stk0: regs[1], ctr0: regs[2], cells, text: text.to_string() })
+    Ok(Public { header, w, log_rows, log_mem, nbits, roots, nil, hd0: regs[0], stk0: regs[1], ctr0: regs[2], cells, text: text.to_string() })
 }
 
 /// A witness file: one line per bit (`1`, `0`, or any cell, for the tamper
@@ -406,7 +416,7 @@ fn traces(p: &Public, tb: &CTable, blind: bool) -> [RowMajorMatrix<Val>; 5] {
 
 /// The table in `lake exe composed check`'s format.
 fn lean_table(p: &Public, tb: &CTable) -> String {
-    let mut s = format!("formula {}\nW {}\n{}\n", p.formula, p.w, tb.mem.len());
+    let mut s = format!("{}\nW {}\n{}\n", p.header, p.w, tb.mem.len());
     for cell in &tb.mem {
         s.push_str(&cell.lean());
         s.push('\n');
@@ -562,8 +572,8 @@ pub fn composed_verify(public: &std::path::Path, proof_in: &std::path::Path) -> 
     let t0 = Instant::now();
     verify(&p, &proof)?;
     println!(
-        "VERIFIED: the proof checks against the statement of the formula {} ({} segments; {:.3} s)",
-        p.formula,
+        "VERIFIED: the proof checks against the statement {} ({} segments; {:.3} s)",
+        p.header,
         p.roots.len(),
         t0.elapsed().as_secs_f64()
     );
@@ -652,7 +662,7 @@ pub fn main(dir: &std::path::Path, out: &std::path::Path) -> usize {
                 failures += 1;
                 continue;
             }
-            Ok(_) => println!("{name}: the statement of its formula (checked by Lean)"),
+            Ok(_) => println!("{name}: its statement (checked by Lean)"),
         }
         let p = match parse_public(&text) {
             Ok(p) => p,

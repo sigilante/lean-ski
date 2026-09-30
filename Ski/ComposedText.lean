@@ -1,13 +1,16 @@
 import Ski.Composed
+import Ski.Predicate
 open Term
 
 /-!
 # A composed statement's text
 
 `public.txt` as `lake exe composed statement` checks it and the verifier's
-Lean comparison of its circuit reads it: a formula and a region size, and
+Lean comparison of its circuit reads it: a statement, a region size, and
 the composed machine with the private cells blank (`publicText`), parsed
-back only when it is exactly that text (`statementOfText`).
+back only when it is exactly that text (`statementOfText`).  A statement is
+a formula of atoms (`formula …`) or a predicate over literal bits
+(`predicate V x n`, `Ski/Predicate.lean`).
 -/
 
 namespace ComposedText
@@ -97,6 +100,35 @@ def regionOf' (N W : Nat) (w : Term) : Option (List Cell) :=
   let n := (build pre w).1.length - (N + 3)
   if n ≤ W then some ((build (pre ++ List.replicate (W - n) .S) w).1.drop (N + 3)) else none
 
+/-- **A composed statement**: a formula of atoms, or a predicate `V x` over
+    `n` literal bits. -/
+inductive CStmt
+  | formula (M : MF)
+  | pred (V x : Term) (n : Nat)
+
+/-- Its bits' shape. -/
+def CStmt.shp : CStmt → BT
+  | .formula M => clear M
+  | .pred _ _ n => combBT n
+
+/-- Its terms, each to evaluate to `K` on the bits and the witness. -/
+def CStmt.Ps : CStmt → List Term
+  | .formula M => stmtOf M
+  | .pred V x _ => [predStmt V x]
+
+/-- Its first line. -/
+def CStmt.header : CStmt → String
+  | .formula M => s!"formula {formulaText M}"
+  | .pred V x n => s!"predicate {termText V} {termText x} {n}"
+
+def parseHeader (ws : List String) : Option CStmt :=
+  match ws with
+  | "formula" :: r => (parseFormula r).map .formula
+  | ["predicate", v, x, n] => do
+    let n ← n.toNat?
+    if n = 0 then none else some (.pred (← parseTerm v) (← parseTerm x) n)
+  | _ => none
+
 /-- The CPU's and the memory's log heights when a statement names none. -/
 def defaultLog : Nat × Nat := (11, 11)
 
@@ -109,31 +141,35 @@ def logOK (lg : Nat × Nat) : Bool := 8 ≤ lg.1 && lg.1 ≤ 20 && 8 ≤ lg.2 &&
     `CompM.cMachine_public` it states the machine for every witness of that
     size.  The heights take a line, `log R M`, only when they are not the
     default, so the statements written before it are unchanged. -/
-def publicText (M : MF) (W : Nat) (lg : Nat × Nat := defaultLog) : String := Id.run do
-  let shp := clear M
+def publicTextC (c : CStmt) (W : Nat) (lg : Nat × Nat := defaultLog) : String := Id.run do
+  let shp := c.shp
   let N := BT.nleaves shp
   let region := List.replicate W Cell.S
-  let m := cMachine (fun _ => false) shp region (stmtOf M)
-  let roots := (cHeap (fun _ => false) shp region (stmtOf M)).2
+  let m := cMachine (fun _ => false) shp region c.Ps
+  let roots := (cHeap (fun _ => false) shp region c.Ps).2
   let logLine := if lg == defaultLog then "" else s!"log {lg.1} {lg.2}\n"
-  let mut s := s!"formula {formulaText M}\nW {W}\n{logLine}bits {N}\nroots {" ".intercalate (roots.map toString)}\nnil {m.stk}\n{m.hd} {m.stk} {m.heap.length}\n"
+  let mut s := s!"{c.header}\nW {W}\n{logLine}bits {N}\nroots {" ".intercalate (roots.map toString)}\nnil {m.stk}\n{m.hd} {m.stk} {m.heap.length}\n"
   let mut i := 0
   for c in m.heap do
     s := s ++ (if 3 ≤ i && i < N + 3 + W then "W" else cellText c) ++ "\n"
     i := i + 1
   return s
 
-def statementOfText (text : String) : Option (MF × Nat × (Nat × Nat)) := do
+/-- A formula's statement. -/
+def publicText (M : MF) (W : Nat) (lg : Nat × Nat := defaultLog) : String := publicTextC (.formula M) W lg
+
+/-- The private cells the witness table holds: the bits and the region. -/
+def privateOK (c : CStmt) (W : Nat) : Bool := 0 < W && BT.nleaves c.shp + W ≤ 2 ^ 8
+
+def statementOfText (text : String) : Option (CStmt × Nat × (Nat × Nat)) := do
   let ls := text.splitOn "\n"
-  let M ← match words (ls.getD 0 "") with
-    | "formula" :: ws => parseFormula ws
-    | _ => none
+  let c ← parseHeader (words (ls.getD 0 ""))
   let W ← match words (ls.getD 1 "") with
     | ["W", n] => n.toNat?
     | _ => none
   let lg ← match words (ls.getD 2 "") with
     | ["log", r, m] => do some (← r.toNat?, ← m.toNat?)
     | _ => some defaultLog
-  if 0 < W && logOK lg && text == publicText M W lg then some (M, W, lg) else none
+  if privateOK c W && logOK lg && text == publicTextC c W lg then some (c, W, lg) else none
 
 end ComposedText

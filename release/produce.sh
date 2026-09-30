@@ -27,7 +27,8 @@
 #      `split` for 8 bits, from SKIlark (`python -m
 #      skilark.zk 8`, SKILARK_PY, default ~/SKIlark/.venv/bin/python; the
 #      committed source when it is absent); Lean compiles it and emits the
-#      statement `x = 200` and the witness `a = 123, b = 77`, at heights
+#      predicate statement `x = 200` and the witness, the 16 bits of
+#      `a = 123, b = 77`, at heights
 #      2^17 and 2^18; ski-air composed-prove proves it.  The witness stays
 #      in a temporary directory.
 #
@@ -98,7 +99,7 @@ for n in or and; do
         "$tmp/composed/$n/witness.txt" "release/composed/$n/$n.proof"
 done
 
-echo "--- a SKIlark predicate in zero knowledge: vsplit, x = 200 in 8 bits"
+echo "--- a SKIlark predicate in zero knowledge: vsplitB, x = 200 over 16 literal bits"
 S=release/skilark/split8
 mkdir -p "$S"
 PY=${SKILARK_PY:-$HOME/SKIlark/.venv/bin/python}
