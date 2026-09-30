@@ -794,8 +794,8 @@ their segment table), for a fixed challenge whose combiner matrix is
 invertible. That fails exactly for the `P^2` challenges in `F(x^2)`, about
 `2^-62` (`generic_iff`, `nongeneric_count`). A zero denominator aborts the
 prover for at most one `α` per message (`abort_count`), below `2^-103`.
-A simulator for the whole transcript (`Ski/ZK/Transcript.lean`,
-`transcript_zk`): fixed by the statement, it matches the real transcript
+A simulator for the whole transcript (`transcript_zk`; the model in
+`Ski/ZK/Transcript.lean`, the proof in `Ski/ZK/TranscriptN.lean`): fixed by the statement, it matches the real transcript
 on every event within `P^2/P^4 + M/P^4 + ε/NR` of the draws, for
 public-coin challenges and a PCS within `ε` of simulatable (`PCSClose`,
 the one assumption). The composed proof's segment table is public for the
@@ -825,11 +825,13 @@ table (`jets check-src`). The design for jets under hiding is Avon's
 `tree_hides`): a spanning tree of blinding buses over any number of
 private tables hides their terminals, and the composed circuits' chain is
 its three-table case (`chain_hides_tree`). The whole-transcript simulator
-over any such tree is `transcript_zkN` (`Ski/ZK/TranscriptN.lean`), the
-composed circuit a three-table instance of it (`comp_transcriptN`, the
-content of `comp_transcript` in the tree's form). The design's milestone 2
-asked for `comp_transcript` itself re-derived; the instance stands beside
-it instead.
+over any such tree is `transcript_zkN` (`Ski/ZK/TranscriptN.lean`), and
+the three-table `transcript_zk` is its instance: the chain's view is the
+tree's (`chain_viewT`), the tree's reference base the chain's reference
+triple (`viewT_xrefN`), and the sums over two tuples are the sums over two
+edges (`tsum_tsumN`). So `comp_transcript`, `sud_transcript` and
+`wit_transcript`, their statements unchanged, rest on the tree: the
+design's milestone 2.
 
 Step 1 (a commitment in SKIlark) is closed at this toy scope. Real
 parameters do not fit SKI reduction: a full adder written natively in

@@ -674,8 +674,8 @@ open Ski.Audit
   Circuit.predExport_sound Circuit.checkPred_sound
 
 -- The whole transcript, simulated over an ideal hiding PCS
-#audit_clean Circuit.transcript_zk Circuit.pcsHides_unit Circuit.pcsClose_of_hides Circuit.inner_pcs
-  Circuit.inner_chain Circuit.allEntries_length Circuit.comp_transcript Circuit.sud_transcript Circuit.wit_transcript
+#audit_clean Circuit.transcript_zk Circuit.pcsHides_unit Circuit.pcsClose_of_hides
+  Circuit.allEntries_length Circuit.comp_transcript Circuit.sud_transcript Circuit.wit_transcript
   Circuit.rowSends_one Circuit.foldr_single Circuit.cpuC_rowSegs Circuit.cpuC_segsCount Circuit.segs_honest
 
 -- A blinding tree hides the terminals: any spanning tree of blinding buses, one tuple an edge
@@ -685,3 +685,4 @@ open Ski.Audit
 -- The whole transcript over any number of blinded tables
 #audit_clean Circuit.countN_eq_sumN Circuit.sumN_add Circuit.sumN_const Circuit.sumTo_sumN Circuit.xrefN_sum
   Circuit.inner_pcsN Circuit.inner_chainN Circuit.transcript_zkN Circuit.comp_transcriptN
+  Circuit.chain_viewT Circuit.viewT_xrefN Circuit.tsum_tsumN

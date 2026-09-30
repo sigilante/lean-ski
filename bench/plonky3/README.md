@@ -566,8 +566,9 @@ instantiation rows and template table, and the probe segments.
   `HidingFriPcs` enforces a masking budget (trace height at least
   `2 · (queries + 4 · opening points)`) that every Sudoku table meets.
 - **The zero-knowledge argument is formal, over a hiding PCS.**
-  `Ski/ZK/Transcript.lean` gives a simulator for the whole transcript
-  (`transcript_zk`; per circuit `sud_transcript`, `wit_transcript`,
+  `Ski/ZK/Transcript.lean` and `TranscriptN.lean` give a simulator for
+  the whole transcript (`transcript_zk`, the three-table instance of the
+  tree's `transcript_zkN`; per circuit `sud_transcript`, `wit_transcript`,
   `comp_transcript`): from public data it matches the real transcript on
   every event within a fraction `P^2 / P^4 + M / P^4 + ε / NR` of the
   draws, `M` the LogUp messages. The model: public-coin challenges `α`

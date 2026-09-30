@@ -1,17 +1,27 @@
 import Ski.ZK.Transcript
 import Ski.ZK.Tree
+import Ski.Circuit.CompComplete
+import Ski.Circuit.SudComplete
+import Ski.Circuit.WitComplete
 
 /-!
 # A simulator for the whole transcript, over any number of blinded tables
 
-`transcript_zk` simulates the transcript of a circuit with three private
-tables blinded along a chain.  A circuit with more private tables (the
-jet tables under hiding, Avon's `docs/ZK-JETS.md`) blinds them along a
-tree: `m + 1` tables, `m` edges, each a bus of its own carrying one
-uniform tuple, each running either way (`Tree.lean`).  This file proves
-the same simulation for any such tree (`transcript_zkN`).
+A circuit with more private tables than three (the jet tables under
+hiding, Avon's `docs/ZK-JETS.md`) blinds them along a tree: `m + 1`
+tables, `m` edges, each a bus of its own carrying one uniform tuple, each
+running either way (`Tree.lean`).  This file proves the simulation of the
+transcript for any such tree (`transcript_zkN`), and derives the
+three-table theorem, the chain memory ← CPU ← witness, as its instance
+(`transcript_zk`), with the circuits' instances `sud_transcript`,
+`wit_transcript` and `comp_transcript`.  Each circuit instance takes the
+public tables the honest prover writes: the program table of the
+statement's heap, and for the composed proof the segment table
+`segsPub roots`, whose multiplicities are private columns but fixed by the
+statement for the honest prover (`segs_honest`).  The completeness
+theorems return exactly these tables, so `tp` and `pb` are public.
 
-**The model** is `transcript_zk`'s: public-coin challenges `α` and `β`
+**The model** is `Transcript.lean`'s: public-coin challenges `α` and `β`
 (honest-verifier zero knowledge; Fiat–Shamir not proved), the prover's
 randomness the PCS's `ρ < NR` and the tuples, uniform and independent, one
 assumption, a PCS whose view is within `ε` of a simulator's from the
@@ -334,7 +344,7 @@ theorem transcript_zkN {PV PB : Type} {off : EF → String → EF} {NR M ε m : 
   exact ⟨by omega, by omega⟩
 
 -- ---------------------------------------------------------------------------
--- The composed circuit, as a tree of three
+-- The chain, a tree of three
 -- ---------------------------------------------------------------------------
 
 /-- The composed circuits' buses, by edge: edge 0 is `blind_b` (CPU on
@@ -347,13 +357,107 @@ theorem chainBus_pre (pre : String → EF) : (fun k => pre (chainBus k)) = chain
   funext k
   cases k <;> rfl
 
+/-- Three terminals in the tree's order: memory, CPU, witness. -/
+def enc3 (x : View3) : List EF := [x.tm, x.tc, x.tw]
+
+/-- The chain's triple, from the tree's view. -/
+def dec3 : List EF → View3
+  | [m, c, w] => ⟨w, c, m⟩
+  | _ => ⟨EF.zero, EF.zero, EF.zero⟩
+
+theorem dec3_enc3 (x : View3) : dec3 (enc3 x) = x := rfl
+
+/-- **The chain's view is the tree's**, for any assignment: `t 1` blinds
+    `blind_a`, `t 0` `blind_b`. -/
+theorem chain_viewT (β preA preB : EF) (x : View3) (t : Nat → Tup) :
+    viewT β (chainPre preA preB) (fun _ => false) chainPar 3 (chainBase x) t =
+      enc3 (chainView β preA preB x (t 1) (t 0)) := by
+  rw [viewT_congr_t 3 _ t (chainTups (t 1) (t 0)) (fun k hk => by
+    unfold chainTups
+    rcases (show k = 0 ∨ k = 1 by omega) with rfl | rfl <;> rfl), tree_chain]
+  rfl
+
+/-- The tree's reference base is the chain's reference triple. -/
+theorem viewT_xrefN (β preA preB : EF) (sg : Nat → Bool) (tp : EF) (t : Nat → Tup) :
+    viewT β (chainPre preA preB) sg chainPar 3 (xrefN tp) t =
+      viewT β (chainPre preA preB) sg chainPar 3 (chainBase (xref tp)) t :=
+  viewT_congr_x chainPar_ok 3 _ _ t (fun j hj => by
+    rcases (show j = 0 ∨ j = 1 ∨ j = 2 by omega) with rfl | rfl | rfl <;> rfl)
+
+/-- A sum over two tuples is one over the assignments of two edges, `a`
+    the tuple of edge 1 and `b` of edge 0. -/
+theorem tsum_tsumN (NR : Nat) (f : EF → EF → Nat → Tup → Tup → Nat) :
+    tsum NR f = tsumN NR 2 (fun α β r t => f α β r (t 1) (t 0)) := rfl
+
+/-- The tree's published view, in the chain's form. -/
+def decV {PV PB : Type} : TViewN PV PB → TView PV PB
+  | none => none
+  | some (pv, α, β, L, q) => some (pv, α, β, dec3 L, q)
+
+/-- **The transcript is simulatable, over a hiding PCS**, for three
+    private tables blinded along the chain: `transcript_zkN` for the tree
+    of three (`chain_viewT`), its events read back in the chain's form
+    (`decV`).  Given the chain (the published private terminals are
+    `chainView` of the unblinded ones, whose sum is minus the public
+    terminal `tp`), at most `M` LogUp messages, and a PCS whose view is
+    within `ε` of a simulator's for each blinding and challenges
+    (`PCSClose`), the simulated transcript matches the real one on every
+    event `E`, up to `errG + errA + errP` of the `Q4 · Q4 · NR · Q4 · Q4`
+    draws: `errG` for the `P^2` non-generic challenges `β`, a fraction
+    `P^2 / P^4`; `errA` for the aborts, a fraction `M / P^4`; `errP` for
+    the PCS, a fraction `ε / NR`.  The simulator (`simV`) uses the
+    challenges, the public `tp` and `pb`, and `psim`: a zero-knowledge
+    statement when `psim` is fixed by the statement alone, before the
+    witness. -/
+theorem transcript_zk {PV PB : Type} {off : EF → String → EF} {NR M ε : Nat}
+    {tabs : Tup → Tup → List (AirD × Table)}
+    {tv : (String → EF) → EF → Tup → Tup → View3} {tp : (String → EF) → EF → EF}
+    {pb : (String → EF) → EF → PB}
+    {pcs : Tup → Tup → EF → EF → Nat → PV} {psim : EF → EF → View3 → Nat → PV}
+    {xu : (String → EF) → EF → View3}
+    (hchain : ∀ pre β a b, tv pre β a b = chainView β (pre "blind_a") (pre "blind_b") (xu pre β) a b)
+    (hsum : ∀ pre β, (xu pre β).sum = EF.zero.sub (tp pre β))
+    (hM : ∀ a b, (allEntries (tabs a b)).length ≤ M)
+    (hpcs : PCSClose off NR tv pcs psim ε) (E : TView PV PB → Bool) :
+    tsum NR (fun α β r a b => indB (E (realV off tabs tv pb pcs α β r a b))) ≤
+      tsum NR (fun α β r a b => indB (E (simV off tp pb psim α β r a b))) +
+        Q4 * (NR * (Q4 * Q4) * (P * P)) + Q4 * (NR * (Q4 * (Q4 * M))) + Q4 * (Q4 * (Q4 * (Q4 * ε))) ∧
+    tsum NR (fun α β r a b => indB (E (simV off tp pb psim α β r a b))) ≤
+      tsum NR (fun α β r a b => indB (E (realV off tabs tv pb pcs α β r a b))) +
+        Q4 * (NR * (Q4 * Q4) * (P * P)) + Q4 * (NR * (Q4 * (Q4 * M))) + Q4 * (Q4 * (Q4 * (Q4 * ε))) := by
+  have h := transcript_zkN (m := 2) (M := M) (ε := ε) chainPar_ok (bus := chainBus) (sg := fun _ => false)
+    (tabs := fun t => tabs (t 1) (t 0)) (tv := fun pre β t => enc3 (tv pre β (t 1) (t 0))) (tp := tp) (pb := pb)
+    (pcs := fun t => pcs (t 1) (t 0)) (psim := fun α β L => psim α β (dec3 L))
+    (xu := fun pre β => chainBase (xu pre β))
+    (fun pre β t => by rw [chainBus_pre, chain_viewT, hchain])
+    (fun pre β => by rw [chainBase_sum]; exact hsum pre β)
+    (fun t => hM _ _) (fun t α β F => hpcs (t 1) (t 0) α β F) (fun v => E (decV v))
+  have hr : ∀ α β r (t : Nat → Tup), E (decV (realVN off (fun t => tabs (t 1) (t 0))
+      (fun pre β t => enc3 (tv pre β (t 1) (t 0))) pb (fun t => pcs (t 1) (t 0)) α β r t)) =
+      E (realV off tabs tv pb pcs α β r (t 1) (t 0)) := by
+    intro α β r t
+    unfold realVN realV
+    cases Aborts (prefixOf α (off β)) β (tabs (t 1) (t 0)) <;> rfl
+  have hs : ∀ α β r (t : Nat → Tup), E (decV (simVN off pb chainBus (fun _ => false) chainPar 3 tp
+      (fun α β L => psim α β (dec3 L)) α β r t)) = E (simV off tp pb psim α β r (t 1) (t 0)) := by
+    intro α β r t
+    unfold simVN simV
+    rw [chainBus_pre, viewT_xrefN, chain_viewT]
+    rfl
+  simp only [hr, hs] at h
+  rw [tsum_tsumN, tsum_tsumN]
+  rw [Nat.pow_two Q4, Nat.mul_assoc Q4 Q4 M, Nat.mul_assoc Q4 Q4 ε] at h
+  exact h
+
+-- ---------------------------------------------------------------------------
+-- The circuits
+-- ---------------------------------------------------------------------------
+
 /-- The composed circuit's published private terminals, in the tree's
     order: memory, CPU, witness; `t 1` blinds `blind_a`, `t 0` `blind_b`. -/
 def compViewN (pre : String → EF) (β : EF) (hd0 stk0 ctr0 n nilA N W : Nat) (C Mm Wt : Table) (t : Nat → Tup) :
     List EF :=
-  [(compView pre β hd0 stk0 ctr0 n nilA N W C Mm Wt (t 1) (t 0)).tm,
-   (compView pre β hd0 stk0 ctr0 n nilA N W C Mm Wt (t 1) (t 0)).tc,
-   (compView pre β hd0 stk0 ctr0 n nilA N W C Mm Wt (t 1) (t 0)).tw]
+  enc3 (compView pre β hd0 stk0 ctr0 n nilA N W C Mm Wt (t 1) (t 0))
 
 /-- **The composed proof's transcript, by `transcript_zkN`**: the tree of
     three the composed circuits blind (formulas and predicates alike). -/
@@ -384,13 +488,90 @@ theorem comp_transcriptN {PV : Type} (off : EF → String → EF) (NR ε : Nat)
     (xu := fun pre β => chainBase ⟨terminal pre β (witAir N W) Wt, terminal pre β (cpuAirC hd0 stk0 ctr0 n nilA) C,
       terminal pre β memAirC Mm⟩)
     (fun pre β t => by
-      show compViewN pre β hd0 stk0 ctr0 n nilA N W C Mm Wt t = _
-      rw [chainBus_pre, viewT_congr_t 3 _ t (chainTups (t 1) (t 0)) (fun k hk => by
-        unfold chainTups
-        rcases (show k = 0 ∨ k = 1 by omega) with rfl | rfl <;> rfl), tree_chain]
-      unfold compViewN
-      rw [comp_chain pre β hd0 stk0 ctr0 n nilA N W h (t 1) (t 0)])
+      rw [chainBus_pre, chain_viewT, ← comp_chain pre β hd0 stk0 ctr0 n nilA N W h (t 1) (t 0)]; rfl)
     (fun pre β => by rw [chainBase_sum]; exact comp_sum pre β hb)
     (fun t => Nat.le_of_eq (by rw [allEntries_length, allEntries_length]; rfl)) hpcs E
+
+section
+variable {PV : Type} (off : EF → String → EF) (NR ε : Nat)
+  (pcs : Tup → Tup → EF → EF → Nat → PV) (psim : EF → EF → View3 → Nat → PV)
+
+/-- **The composed proof's transcript is simulatable** (formulas and
+    predicates alike), over a hiding PCS.  The prover's tables are
+    balanced and unblinded before it blinds them with `a` and `b`, and its
+    program and segment tables are the public ones, as the honest prover's
+    are (`comp_completeG_log`, `segs_honest`); so the simulator's `tp` and
+    `pb`, those tables' terminals, are public. -/
+theorem comp_transcript {hd0 stk0 ctr0 n nilA : Nat} {heap : List Cell} {N W : Nat} {roots : List Nat}
+    {C Mm Wt : Table}
+    (hb : Balanced (compTables hd0 stk0 ctr0 n nilA heap N W roots C Mm (progTableC heap N W) Wt (segsPub roots)))
+    (h : Unblinded WT_BLIND C Mm Wt)
+    (hpcs : PCSClose off NR (fun pre β a b => compView pre β hd0 stk0 ctr0 n nilA N W C Mm Wt a b) pcs psim ε)
+    (E : TView PV (EF × EF) → Bool) :
+    let tabs := fun a b => compTables hd0 stk0 ctr0 n nilA heap N W roots ((C.setBlind BLA a).setBlind BLB b)
+      (Mm.setBlind 5 b) (progTableC heap N W) (Wt.setBlind WT_BLIND a) (segsPub roots)
+    let tv := fun pre β a b => compView pre β hd0 stk0 ctr0 n nilA N W C Mm Wt a b
+    let pb := fun pre β => (terminal pre β (progAirC heap N W) (progTableC heap N W), terminal pre β (segsAir roots) (segsPub roots))
+    let tp := fun pre β => (terminal pre β (progAirC heap N W) (progTableC heap N W)).add (terminal pre β (segsAir roots) (segsPub roots))
+    let M := (allEntries (compTables hd0 stk0 ctr0 n nilA heap N W roots C Mm (progTableC heap N W) Wt
+      (segsPub roots))).length
+    tsum NR (fun α β r a b => indB (E (realV off tabs tv pb pcs α β r a b))) ≤
+      tsum NR (fun α β r a b => indB (E (simV off tp pb psim α β r a b))) +
+        Q4 * (NR * (Q4 * Q4) * (P * P)) + Q4 * (NR * (Q4 * (Q4 * M))) + Q4 * (Q4 * (Q4 * (Q4 * ε))) ∧
+    tsum NR (fun α β r a b => indB (E (simV off tp pb psim α β r a b))) ≤
+      tsum NR (fun α β r a b => indB (E (realV off tabs tv pb pcs α β r a b))) +
+        Q4 * (NR * (Q4 * Q4) * (P * P)) + Q4 * (NR * (Q4 * (Q4 * M))) + Q4 * (Q4 * (Q4 * (Q4 * ε))) :=
+  transcript_zk (xu := fun pre β => ⟨terminal pre β (witAir N W) Wt,
+      terminal pre β (cpuAirC hd0 stk0 ctr0 n nilA) C, terminal pre β memAirC Mm⟩)
+    (fun pre β a b => comp_chain pre β hd0 stk0 ctr0 n nilA N W h a b)
+    (fun pre β => comp_sum pre β hb)
+    (fun a b => Nat.le_of_eq (by rw [allEntries_length, allEntries_length]; rfl)) hpcs E
+
+/-- **The Sudoku proof's transcript is simulatable**, over a hiding PCS. -/
+theorem sud_transcript {hd0 stk0 ctr0 : Nat} {heap : List Cell} {C Mm Wt : Table}
+    (hb : Balanced (sudTables hd0 stk0 ctr0 heap C Mm (progTableS heap) Wt)) (h : Unblinded 1 C Mm Wt)
+    (hpcs : PCSClose off NR (fun pre β a b => sudView pre β hd0 stk0 ctr0 C Mm Wt a b) pcs psim ε)
+    (E : TView PV EF → Bool) :
+    let tabs := fun a b => sudTables hd0 stk0 ctr0 heap ((C.setBlind BLA a).setBlind BLB b)
+      (Mm.setBlind 5 b) (progTableS heap) (Wt.setBlind 1 a)
+    let tv := fun pre β a b => sudView pre β hd0 stk0 ctr0 C Mm Wt a b
+    let tp := fun pre β => terminal pre β (progAirS heap) (progTableS heap)
+    let M := (allEntries (sudTables hd0 stk0 ctr0 heap C Mm (progTableS heap) Wt)).length
+    tsum NR (fun α β r a b => indB (E (realV off tabs tv tp pcs α β r a b))) ≤
+      tsum NR (fun α β r a b => indB (E (simV off tp tp psim α β r a b))) +
+        Q4 * (NR * (Q4 * Q4) * (P * P)) + Q4 * (NR * (Q4 * (Q4 * M))) + Q4 * (Q4 * (Q4 * (Q4 * ε))) ∧
+    tsum NR (fun α β r a b => indB (E (simV off tp tp psim α β r a b))) ≤
+      tsum NR (fun α β r a b => indB (E (realV off tabs tv tp pcs α β r a b))) +
+        Q4 * (NR * (Q4 * Q4) * (P * P)) + Q4 * (NR * (Q4 * (Q4 * M))) + Q4 * (Q4 * (Q4 * (Q4 * ε))) :=
+  transcript_zk (xu := fun pre β => ⟨terminal pre β witAirS Wt,
+      terminal pre β (cpuAirS hd0 stk0 ctr0 SudokuText.ACC) C, terminal pre β memAirC Mm⟩)
+    (fun pre β a b => sud_chain pre β hd0 stk0 ctr0 h a b)
+    (fun pre β => sud_sum pre β hb)
+    (fun a b => Nat.le_of_eq (by rw [allEntries_length, allEntries_length]; rfl)) hpcs E
+
+/-- **The hidden-term proof's transcript is simulatable**, over a hiding
+    PCS. -/
+theorem wit_transcript {hd0 stk0 ctr0 : Nat} {heap : List Cell} {W : Nat} {C Mm Wt : Table}
+    (hb : Balanced (witTables hd0 stk0 ctr0 heap W C Mm (progTableW heap W) Wt)) (h : Unblinded WT_BLIND C Mm Wt)
+    (hpcs : PCSClose off NR (fun pre β a b => witView pre β hd0 stk0 ctr0 W C Mm Wt a b) pcs psim ε)
+    (E : TView PV EF → Bool) :
+    let tabs := fun a b => witTables hd0 stk0 ctr0 heap W ((C.setBlind BLA a).setBlind BLB b)
+      (Mm.setBlind 5 b) (progTableW heap W) (Wt.setBlind WT_BLIND a)
+    let tv := fun pre β a b => witView pre β hd0 stk0 ctr0 W C Mm Wt a b
+    let tp := fun pre β => terminal pre β (progAirW heap W) (progTableW heap W)
+    let M := (allEntries (witTables hd0 stk0 ctr0 heap W C Mm (progTableW heap W) Wt)).length
+    tsum NR (fun α β r a b => indB (E (realV off tabs tv tp pcs α β r a b))) ≤
+      tsum NR (fun α β r a b => indB (E (simV off tp tp psim α β r a b))) +
+        Q4 * (NR * (Q4 * Q4) * (P * P)) + Q4 * (NR * (Q4 * (Q4 * M))) + Q4 * (Q4 * (Q4 * (Q4 * ε))) ∧
+    tsum NR (fun α β r a b => indB (E (simV off tp tp psim α β r a b))) ≤
+      tsum NR (fun α β r a b => indB (E (realV off tabs tv tp pcs α β r a b))) +
+        Q4 * (NR * (Q4 * Q4) * (P * P)) + Q4 * (NR * (Q4 * (Q4 * M))) + Q4 * (Q4 * (Q4 * (Q4 * ε))) :=
+  transcript_zk (xu := fun pre β => ⟨terminal pre β (witAirW W) Wt,
+      terminal pre β (cpuAirW hd0 stk0 ctr0) C, terminal pre β memAirC Mm⟩)
+    (fun pre β a b => wit_chain pre β hd0 stk0 ctr0 W h a b)
+    (fun pre β => wit_sum pre β hb)
+    (fun a b => Nat.le_of_eq (by rw [allEntries_length, allEntries_length]; rfl)) hpcs E
+
+end
 
 end Circuit
