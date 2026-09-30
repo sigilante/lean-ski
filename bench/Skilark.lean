@@ -1,5 +1,6 @@
 import Ski.Front
 import Ski.ComposedText
+import Ski.JetTable
 open Term
 
 /-!
@@ -231,6 +232,36 @@ def cstatement (src : String) (k m seed x c : Nat) (pub : String) : IO UInt32 :=
     IO.println s!"NOT A PREDICATE STATEMENT {pub}"
     return 1
 
+-- ---------------------------------------------------------------------------
+-- In the clear, with jets
+-- ---------------------------------------------------------------------------
+
+/-- `skilark jets SRC K X A B DIR`: the closed term `vsplitB x (boolsT bits)`
+    of `split`'s verifier, in the clear, and its jet table from the
+    source's own templates (`JetTable.fileTemplates`): `DIR/split.term`,
+    `DIR/split.jets`, for `ski-air jets-measure` and `lake exe jets
+    check-src`. -/
+def jets (src : String) (k x a b : Nat) (dir : String) : IO UInt32 := do
+  let text ← IO.FS.readFile src
+  let some (V, E) ← readB src | do IO.println s!"{src}: not a SKIlark predicate source"; return 1
+  let t := V ⬝ xTerm E (bitsOf k x) ⬝ CompM.boolsT (splitBits k a b)
+  let tmpls := JetTable.fileTemplates (text.toList.map Char.toNat)
+  let (roots, js) := JetTable.jetTable (Mach.load t).heap tmpls
+  let mut s := s!"roots {roots.length}\n"
+  for (addr, g) in roots do
+    s := s ++ s!"{addr} {g}\n"
+  s := s ++ s!"jets {js.length}\n"
+  for J in js do
+    s := s ++ JetTable.jetText J
+  IO.FS.createDirAll dir
+  IO.FS.writeFile s!"{dir}/split.term" (termText t ++ "\n")
+  IO.FS.writeFile s!"{dir}/split.jets" s
+  -- The bits' cells come last before the two applications: `load` builds
+  -- `V`, then `x`, then the bits, children first.
+  let bitsStart := (Mach.build (Mach.build [] V).1 (xTerm E (bitsOf k x))).1.length
+  IO.println s!"split k={k}, x = {x}, a = {a}, b = {b}: {tmpls.length} templates, {js.length} jets, {roots.length} roots, loaded heap {(Mach.load t).heap.length} cells, the bits' cells from {bitsStart}"
+  return 0
+
 end SkilarkZK
 
 def main (args : List String) : IO UInt32 := do
@@ -249,6 +280,10 @@ def main (args : List String) : IO UInt32 := do
     | some k, some m, some seed, some x, some a, some b, some r, some rl, some ml =>
       SkilarkZK.cemit src k m seed x a b r rl ml dir
     | _, _, _, _, _, _, _, _, _ => IO.println "bad numbers"; return 2
+  | ["jets", src, k, x, a, b, dir] =>
+    match n k, n x, n a, n b with
+    | some k, some x, some a, some b => SkilarkZK.jets src k x a b dir
+    | _, _, _, _ => IO.println "bad numbers"; return 2
   | ["cstatement", src, k, m, seed, x, c, pub] =>
     match n k, n m, n seed, n x, n c with
     | some k, some m, some seed, some x, some c => SkilarkZK.cstatement src k m seed x c pub

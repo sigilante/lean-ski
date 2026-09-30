@@ -1494,6 +1494,41 @@ fn lean_of(term: &str, run: &JRun, tr: &JTraces) -> String {
 // Main
 // ---------------------------------------------------------------------------
 
+/// `ski-air jets-measure TERM JETS TABLE`: run one term plain and jetted,
+/// write the jetted table for Lean (`lake exe jets check-src`), and prove
+/// and verify it.  A measurement: the jet file is not checked against a
+/// statement here, as `ski-air jets` checks the corpus's.
+pub fn measure(term_path: &std::path::Path, jets_path: &std::path::Path, table_out: &std::path::Path) -> Result<(), String> {
+    let term = std::fs::read_to_string(term_path).map_err(|e| format!("{}: {e}", term_path.display()))?;
+    let term = term.trim().to_string();
+    let jets_text = std::fs::read_to_string(jets_path).map_err(|e| format!("{}: {e}", jets_path.display()))?;
+    let t = parse(term.as_bytes(), &mut 0);
+    let jt = parse_jets(&jets_text);
+    let plain = run(&t);
+    let jr = run_jets(&t, &jt, None);
+    let tr = build_traces(&t, &jt, &jr);
+    std::fs::write(table_out, lean_of(&term, &jr, &tr)).map_err(|e| format!("{}: {e}", table_out.display()))?;
+    let (pop_h, instw_h) = (tr.pop.values.len() / POP_W, tr.instw.values.len() / INSTW_W);
+    println!(
+        "plain {} rows, {} cells; jetted {} rows, {} cells, {} instantiations; padded CPU {}, POP {}, INSTW {}",
+        plain.rows.len(),
+        plain.heap.len(),
+        jr.rows.len(),
+        jr.heap.len(),
+        jr.insts,
+        tr.regs.len(),
+        pop_h,
+        instw_h
+    );
+    match prove_and_verify_j(&t, &jt, &tr, None) {
+        Outcome::Verified(p, v) => {
+            println!("jetted: proved in {p:.2} s, verified in {v:.3} s");
+            Ok(())
+        }
+        Outcome::Refused(e) | Outcome::Rejected(e) => Err(format!("the jetted table: {e}")),
+    }
+}
+
 /// `ski-air jets CORPUS JETSDIR OUTDIR`: prove every corpus row jetted.
 pub fn main(corpus: &str, corpus_path: &std::path::Path, dir: &std::path::Path, out: &std::path::Path) -> usize {
     let mut failures = 0;

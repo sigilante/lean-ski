@@ -452,6 +452,38 @@ clear, wrong (another r), nonbool, forged: each rejected
 tampered one. At these heights the proof has under `2^23` LogUp messages,
 so a zero denominator aborts it with probability below `2^-100`.
 
+### Jets on a SKIlark predicate, in the clear
+
+**Jets cut `split8`'s run to under a tenth.** The closed term `vsplitB x
+(boolsT bits)`, the predicate's verifier applied to its public `x = 200`
+and the bits of `a = 123`, `b = 77`, run plain and with supercombinator
+jets whose table comes from the SKIjack source's own templates
+(`JetTable.fileTemplates`): 178 templates give 130 jets and 21,049
+licensed roots in the 51,842-cell loaded heap.
+
+```
+lake exe skilark jets release/skilark/split8/source.ski 8 200 123 77 DIR   # DIR/split.term, DIR/split.jets
+bench/plonky3/target/release/ski-air jets-measure DIR/split.term DIR/split.jets DIR/jet_split.txt
+lake exe jets check-src release/skilark/split8/source.ski DIR/jet_split.txt  # ACCEPT: Air.checkJA_sound
+```
+
+Measured, 2026-09-29:
+
+```
+plain    129,957 rows, 215,393 cells                      (padded CPU 2^17)
+jetted    11,483 rows,  74,116 cells, 2,237 instantiations (padded CPU, POP, INSTW 2^14)
+          8.8% of the plain rows; the run ends at K over the empty stack
+```
+
+Lean accepts the jetted table (`jets check-src`: `checkJA` with the
+source's jets, sound by `Air.checkJA_sound` whichever templates proposed
+the roots). The plain count is the composed proof's 129,965 rows less the
+segment's setup. Under hiding, the closure rule of Avon's `ZK-JETS.md` §4
+would drop the roots that reach the hidden bits: here 104 of the 21,049,
+and no global; the run is then 11,571 rows, still 8.9%. `jets-measure`
+does not prove: the prover's check of its AIRs recomputes the jet tables
+from the corpus's templates, not a source's.
+
 ## Jets: instantiation rows
 
 `src/jets.rs` proves every corpus row with supercombinator instantiation

@@ -230,6 +230,33 @@ def check (row : Option String) (paths : List String) : IO UInt32 := do
         bad := bad + 1
   return (if bad == 0 then 0 else 1)
 
+/-- `jets check-src SRC TABLE…`: `check`, with the jets the templates of the
+    SKIjack source `SRC` license (`JetTable.fileTemplates`), for a term
+    compiled from a source outside the corpus.  `ACCEPT` means what it means
+    for `check` (`Air.checkJA_sound`): the roots are licensed by `rootOKB`,
+    whichever templates proposed them. -/
+def checkSrc (src : String) (paths : List String) : IO UInt32 := do
+  let tmpls := fileTemplates ((← IO.FS.readFile src).toList.map Char.toNat)
+  let mut bad := 0
+  for path in paths do
+    let text ← match ← (IO.FS.readFile path).toBaseIO with
+      | .ok t => pure t
+      | .error _ => pure ""
+    let ls := (text.splitOn "\n").filter (fun l => !l.trimAscii.toString.isEmpty)
+    match parseTable ls with
+    | none =>
+      IO.println s!"MALFORMED {path}"
+      bad := bad + 1
+    | some (t, A, rows) =>
+      let m := load t
+      let (roots, jets) := jetTable m.heap tmpls
+      if checkJA A m roots jets rows then
+        IO.println s!"ACCEPT {path}: the source's term ({rows.length} rows, {A.size} cells, {roots.length} roots, {jets.length} jets)"
+      else
+        IO.println s!"REJECT {path}"
+        bad := bad + 1
+  return (if bad == 0 then 0 else 1)
+
 /-- An outcome from words: `err`, or `val` and the stack's numbers, top
     first, each in plain decimal, so one outcome has one spelling. -/
 def parseOutcome : List String → Option Outcome
@@ -319,6 +346,7 @@ def checkProbe (row : Option String) (path : String) (ws : List String) : IO UIn
 def main (args : List String) : IO UInt32 := do
   match args with
   | ["emit", dir] => emit dir
+  | "check-src" :: src :: paths => checkSrc src paths
   | ["statement", corpus, dir] => statement corpus dir
   | ["statement-stdin"] => statementStdin
   | "check" :: "--row" :: name :: paths => check (some name) paths

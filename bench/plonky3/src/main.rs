@@ -1269,6 +1269,15 @@ fn main() {
         }
         return;
     }
+    if args.len() == 5 && args[1] == "jets-measure" {
+        std::panic::set_hook(Box::new(|_| {}));
+        let p = |i: usize| std::path::Path::new(&args[i]);
+        if let Err(e) = jets::measure(p(2), p(3), p(4)) {
+            println!("FAILED: {e}");
+            std::process::exit(1);
+        }
+        return;
+    }
     if args.len() == 5 && args[1] == "jets" {
         let corpus = std::fs::read_to_string(&args[2]).expect("corpus");
         let out = std::path::Path::new(&args[4]);

@@ -817,6 +817,12 @@ verifier's case analysis however it likes. The first predicate, `split`
 `a` under public weights, checked in the same pass: 471,888 rows at
 `2^19`, proved in 42 s. At these sizes the commitment neither binds nor
 hides (`2^16` openings, sums of at most 437); it is the statement's shape.
+Jets on SKIlark code, measured in the clear (`bench/plonky3/README.md`):
+`split8`'s verifier runs in 11,483 rows jetted against 129,957 plain,
+8.8%, with 130 jets from the source's templates; Lean accepts the jetted
+table (`jets check-src`). The design for jets under hiding is Avon's
+`docs/ZK-JETS.md`.
+
 Step 1 (a commitment in SKIlark) is closed at this toy scope. Real
 parameters do not fit SKI reduction: a full adder written natively in
 SKIjack costs 450 to 640 host contractions a bit (measured on 8- to
