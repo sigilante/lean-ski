@@ -817,7 +817,16 @@ verifier's case analysis however it likes. The first predicate, `split`
 `a` under public weights, checked in the same pass: 471,888 rows at
 `2^19`, proved in 42 s. At these sizes the commitment neither binds nor
 hides (`2^16` openings, sums of at most 437); it is the statement's shape.
-Open: real commitment parameters, which need jets under the hiding.
+Step 1 (a commitment in SKIlark) is closed at this toy scope. Real
+parameters do not fit SKI reduction: a full adder written natively in
+SKIjack costs 450 to 640 host contractions a bit (measured on 8- to
+128-bit sums), and the circuit's largest heights (`2^20` rows, about
+400,000 contractions) afford some 800 of them, where a knapsack or SIS
+commitment with sound parameters needs tens of thousands and a
+lightweight-cipher hash about `10^4`. A commitment that binds needs the
+hash computed outside the reduction: a precompile table (Poseidon2 over
+BabyBear, Plonky3's own hash) with a Lean specification, the first data
+jet, which Step 2 builds toward.
 
 ## 6. Acceptance
 
