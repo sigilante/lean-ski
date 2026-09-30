@@ -824,7 +824,12 @@ table (`jets check-src`). The design for jets under hiding is Avon's
 `docs/ZK-JETS.md`; its tree lemma is built (`Ski/ZK/Tree.lean`,
 `tree_hides`): a spanning tree of blinding buses over any number of
 private tables hides their terminals, and the composed circuits' chain is
-its three-table case (`chain_hides_tree`).
+its three-table case (`chain_hides_tree`). The whole-transcript simulator
+over any such tree is `transcript_zkN` (`Ski/ZK/TranscriptN.lean`), the
+composed circuit a three-table instance of it (`comp_transcriptN`, the
+content of `comp_transcript` in the tree's form). The design's milestone 2
+asked for `comp_transcript` itself re-derived; the instance stands beside
+it instead.
 
 Step 1 (a commitment in SKIlark) is closed at this toy scope. Real
 parameters do not fit SKI reduction: a full adder written natively in
