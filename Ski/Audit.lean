@@ -94,6 +94,7 @@ import Ski.ZK.Generic
 import Ski.ZK.Abort
 import Ski.Circuit.CompPred
 import Ski.ZK.Transcript
+import Ski.ZK.Tree
 
 /-!
 # The audit manifest — build-enforced
@@ -675,3 +676,7 @@ open Ski.Audit
 #audit_clean Circuit.transcript_zk Circuit.pcsHides_unit Circuit.pcsClose_of_hides Circuit.inner_pcs
   Circuit.inner_chain Circuit.allEntries_length Circuit.comp_transcript Circuit.sud_transcript Circuit.wit_transcript
   Circuit.rowSends_one Circuit.foldr_single Circuit.cpuC_rowSegs Circuit.cpuC_segsCount Circuit.segs_honest
+
+-- A blinding tree hides the terminals: any spanning tree of blinding buses, one tuple an edge
+#audit_clean Circuit.countN_last Circuit.viewT_congr_x Circuit.viewT_congr_t Circuit.sumL_updF
+  Circuit.edge_shift Circuit.tree_hides Circuit.viewT_sum Circuit.tree_chain Circuit.chain_hides_tree

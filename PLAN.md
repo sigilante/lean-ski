@@ -821,7 +821,10 @@ Jets on SKIlark code, measured in the clear (`bench/plonky3/README.md`):
 `split8`'s verifier runs in 11,483 rows jetted against 129,957 plain,
 8.8%, with 130 jets from the source's templates; Lean accepts the jetted
 table (`jets check-src`). The design for jets under hiding is Avon's
-`docs/ZK-JETS.md`.
+`docs/ZK-JETS.md`; its tree lemma is built (`Ski/ZK/Tree.lean`,
+`tree_hides`): a spanning tree of blinding buses over any number of
+private tables hides their terminals, and the composed circuits' chain is
+its three-table case (`chain_hides_tree`).
 
 Step 1 (a commitment in SKIlark) is closed at this toy scope. Real
 parameters do not fit SKI reduction: a full adder written natively in
