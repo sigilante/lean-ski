@@ -844,6 +844,15 @@ licenses its roots over every filled heap (`jetStmtC_sound`, by
 129,964 plain (8.9%), `csplit8` in 157,680 against 471,887 (33.4%), both
 checked by `checkJA` from the filled heap (`lake exe skilark cjets`,
 `cjets-statement`, `cjets-measure`).
+The circuit as data, milestone 4: `Ski/Circuit/CompJAir.lean`
+(`compJAirs`) and `bench/plonky3/src/compj.rs`, ten tables and a blinding
+tree of seven tuples, the same constraint for constraint
+(`compare-compJ`). Proved under hiding: `split8` in 11,599 CPU rows
+(11 s), `csplit8` at `2^18` and `2^19` against the plain `2^19` and
+`2^20` (26 s against 42), and the three-segment `and` and `or`, whose
+restarts fall between instantiations. Soundness, completeness and zero
+knowledge are milestones 5–7; POP's and INSTW's budgets are verifier
+arguments until the statement carries them.
 
 Step 1 (a commitment in SKIlark) is closed at this toy scope. Real
 parameters do not fit SKI reduction: a full adder written natively in

@@ -541,6 +541,61 @@ which also checks the statement's table licensed there. The saving on
 takes 151 s (it computes the table with the rule and without) and
 `cjets-statement` 70 s, each in under 80 MB.
 
+### The composed circuit with jets, in zero knowledge
+
+**A composed statement proves with jets under hiding** (`src/compj.rs`,
+Avon's `ZK-JETS.md` milestone 4). Ten tables: the composed circuit's
+five and the jet circuit's five. The CPU is both CPUs at once: the jet
+columns at 121–130, three blinding blocks at 131–145, the restart columns
+at 146–148, so `INST` (selector 11) and the restart are distinct columns.
+Seven blinding tuples span the eight private tables as a tree,
+`WIT —a— CPU —b— MEM` and `CPU —c— POP —d— INSTW —e— TMPL —f— HDR —g—
+ROOTS`. The provider tables are padded to `2^8` rows, as the hiding PCS
+needs.
+
+The verifier holds the statement, its jet table (`skilark cjets`), the
+SKIjack source the templates come from, and POP's and INSTW's budgets.
+Lean checks the statement (`composed statement`), then the jet table and
+the AIRs in one call (`lake exe circuit compare-compJ SRC -`):
+`Air.jetStmtC` on the table's bytes, `jetFitB`, and the ten AIRs against
+`Circuit.compJAirs`, constraint for constraint. The verifier pins all ten
+heights.
+
+```
+lake exe skilark cjets SRC PUBLIC JETS
+ski-air export-compj PUBLIC JETS | lake exe circuit compare-compJ SRC -    # MATCH, ten AIRs
+ski-air compj-prove PUBLIC JETS SRC LP LI WITNESS PROOF                   # proves, then verifies
+ski-air compj-verify PUBLIC JETS SRC LP LI PROOF                          # VERIFIED
+ski-air compj-tamper PUBLIC JETS SRC LP LI WITNESS                        # an unbalanced tree: REJECTED
+```
+
+Measured, 2026-09-30:
+
+```
+statement             CPU rows (INST)   POP      INSTW    memory    heights CPU mem POP INSTW   prove     proof
+split8                 11,599 (2,250)    8,614   12,363    74,246   2^17 2^18 2^14 2^14       11.1 s    1.11 MB
+csplit8 at log 18 19  157,681 (46,549) 105,544   76,037   330,512   2^18 2^19 2^17 2^17       25.9 s    1.17 MB
+and (3 segments)          404 (69)         116       17       889   2^11 2^11 2^8  2^8         0.14 s   0.78 MB
+or (3 segments)           220 (41)          67       10       673   2^11 2^11 2^8  2^8         0.16 s   0.78 MB
+```
+
+`and` and `or` take `split8`'s source's templates, so their segments
+restart between instantiations. Without jets `csplit8` needs `2^19` rows
+and `2^20` memory and proves in 42 s; with them it fits `2^18` and
+`2^19`. Verifying takes 17 s on `split8` and 112 s on `csplit8`, nearly
+all of it Lean's check of the jet table. On `split8`, `and` and `or`
+the wrong, clear and non-Boolean witnesses are refused (a segment does not
+end at `K` over the nil) and the forged region is rejected (the witness
+table). On `split8` a wrong budget is rejected (the heights), and an
+unbalanced blinding tree fails LogUp's terminal sum.
+
+What the proofs show rests on milestones 5–7 of the design: the
+circuit's soundness (`compJExport_sound`), completeness and zero knowledge
+(`compJ_transcript`) are not yet proved. POP's and INSTW's budgets are the
+verifier's arguments, each in `[8, 20]`, not yet lines of the statement:
+a prover who chose them per run would publish the size of its
+instantiations, so zero knowledge needs them fixed by the statement.
+
 ## Jets: instantiation rows
 
 `src/jets.rs` proves every corpus row with supercombinator instantiation

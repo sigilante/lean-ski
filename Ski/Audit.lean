@@ -33,6 +33,7 @@ import Ski.Circuit.SudAir
 import Ski.Circuit.SudSound
 import Ski.Circuit.SudComplete
 import Ski.Circuit.JetAir
+import Ski.Circuit.CompJAir
 import Ski.Circuit.Flow
 import Ski.Circuit.JetKind
 import Ski.Circuit.JetSound
@@ -692,3 +693,6 @@ open Ski.Audit
 -- Public closures: jets over a heap with private cells, licensed over the blank heap and every filled one
 #audit_clean Air.termAtG_public Air.termAt_public Air.publicB_sound Air.rootsOK_public Air.privC_false
   Air.rootsOK_filled Air.jetStmtC_sound
+
+-- The composed circuit with jets, as data: the composed tables carry over, a blinded table keeps its own
+#audit_clean Circuit.compJAirs_composed Circuit.withBlocks_cons

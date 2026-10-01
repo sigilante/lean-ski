@@ -4,6 +4,7 @@ import Ski.Circuit.WitAir
 import Ski.Circuit.SudAir
 import Ski.Circuit.JetAir
 import Ski.Circuit.ProbeAir
+import Ski.Circuit.CompJAir
 import Ski.ComposedText
 open Term
 
@@ -314,6 +315,41 @@ def compareProbe (path : String) : IO UInt32 := do
     IO.println "THE PLAN DOES NOT FIT"; return 1
   compareAirs rust (probeAirs t roots jets plan)
 
+/-- The composed circuit with jets: `public N`, the statement's `N` lines,
+    `jets M`, the jet table's `M` lines, then the ten AIRs.  The statement
+    must be exactly `ComposedText.publicTextC` of its terms and region size,
+    as `lake exe composed statement` checks; the jet table must be the one
+    Lean computes over the statement's blank heap from the templates of
+    the SKIjack source `SRC`, its roots licensed and their closures public
+    (`Air.jetStmtC`, so licensed over every filled heap,
+    `Air.jetStmtC_sound`), and its numbers must fit (`Circuit.jetFitB`). -/
+def compareCompJ (src path : String) : IO UInt32 := do
+  let text ← readInput path
+  let ls := text.splitOn "\n"
+  let some n := (match ls with
+      | l :: _ => match words l with
+        | ["public", k] => k.toNat?
+        | _ => none
+      | [] => none) | do IO.println "MALFORMED: no statement"; return 1
+  let stmt := "\n".intercalate ((ls.drop 1).take n) ++ "\n"
+  let some (c, W, _) := ComposedText.statementOfText stmt | do IO.println "NOT A STATEMENT"; return 1
+  let ls2 := ls.drop (n + 1)
+  let some m := (match ls2 with
+      | l :: _ => match words l with
+        | ["jets", k] => k.toNat?
+        | _ => none
+      | [] => none) | do IO.println "MALFORMED: no jet table"; return 1
+  let jtext := "\n".intercalate ((ls2.drop 1).take m) ++ "\n"
+  let tmpls := JetTable.fileTemplates ((← IO.FS.readFile src).toList.map Char.toNat)
+  if !Air.jetStmtC jtext c.shp W c.Ps tmpls then
+    IO.println "NOT THE STATEMENT'S JET TABLE"; return 1
+  let (roots, jets) := Air.jetTableC c.shp W c.Ps tmpls
+  if !jets.all jetFitB then
+    IO.println "THE JET TABLE DOES NOT FIT"; return 1
+  let rest := ((ls2.drop (m + 1)).filter (fun l => !l.trimAscii.toString.isEmpty))
+  let some rust := parseAirs (rest.length + 1) rest | do IO.println "MALFORMED AIRS"; return 1
+  compareAirs rust (compJAirs c.shp c.Ps W roots jets)
+
 def main (args : List String) : IO UInt32 := do
   match args with
   | ["compare", path] => compare path
@@ -322,6 +358,7 @@ def main (args : List String) : IO UInt32 := do
   | ["compare-sudoku", path] => compareSudoku path
   | ["compare-jets", path] => compareJets path
   | ["compare-probe", path] => compareProbe path
+  | ["compare-compJ", src, path] => compareCompJ src path
   | _ =>
-    IO.eprintln "usage: circuit compare|compare-composed|compare-witness|compare-sudoku|compare-jets|compare-probe FILE|-"
+    IO.eprintln "usage: circuit compare|compare-composed|compare-witness|compare-sudoku|compare-jets|compare-probe FILE|-\n       circuit compare-compJ SRC FILE|-"
     return 2

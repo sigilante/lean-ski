@@ -131,26 +131,26 @@ pub fn eval_segs<AB: PermutationAirBuilder + InteractionBuilder>(b: &mut AB) {
 const LOG_ROWS: usize = 11;
 const LOG_MEM: usize = 11;
 const LOG_BOUNDS: std::ops::RangeInclusive<usize> = 8..=20;
-const LOG_WIT: usize = 8;
+pub(crate) const LOG_WIT: usize = 8;
 /// The least height the hiding PCS commits (`src/witness.rs`).
-const LOG_MIN: usize = 8;
+pub(crate) const LOG_MIN: usize = 8;
 
 pub struct Public {
     /// The statement's first line: `formula …` or `predicate V x n`.
-    header: String,
-    w: u32,
+    pub(crate) header: String,
+    pub(crate) w: u32,
     /// The CPU's and the memory's log heights.
-    log_rows: usize,
-    log_mem: usize,
-    nbits: u32,
-    roots: Vec<u32>,
-    nil: u32,
-    hd0: u32,
-    stk0: u32,
-    ctr0: u32,
-    cells: Vec<Option<Cell>>,
+    pub(crate) log_rows: usize,
+    pub(crate) log_mem: usize,
+    pub(crate) nbits: u32,
+    pub(crate) roots: Vec<u32>,
+    pub(crate) nil: u32,
+    pub(crate) hd0: u32,
+    pub(crate) stk0: u32,
+    pub(crate) ctr0: u32,
+    pub(crate) cells: Vec<Option<Cell>>,
     /// The statement's bytes, as Lean checked them.
-    text: String,
+    pub(crate) text: String,
 }
 
 fn parse_cell(l: &str) -> Result<Cell, String> {
@@ -245,11 +245,11 @@ pub fn read_witness(p: &Public, path: &std::path::Path) -> Result<Vec<Cell>, Str
 }
 
 /// The initial heap for the private cells (bits, then region).
-fn heap_of(p: &Public, private: &[Cell]) -> Vec<Cell> {
+pub(crate) fn heap_of(p: &Public, private: &[Cell]) -> Vec<Cell> {
     p.cells.iter().enumerate().map(|(i, c)| c.unwrap_or_else(|| private[i - 3])).collect()
 }
 
-fn program_of(p: &Public) -> Vec<[u32; 5]> {
+pub(crate) fn program_of(p: &Public) -> Vec<[u32; 5]> {
     let mut pre: Vec<[u32; 5]> = p
         .cells
         .iter()
@@ -266,14 +266,14 @@ fn program_of(p: &Public) -> Vec<[u32; 5]> {
 }
 
 /// The private addresses: the bits, in bit mode, then the region.
-fn wit_pre(p: &Public) -> Vec<[u32; 3]> {
+pub(crate) fn wit_pre(p: &Public) -> Vec<[u32; 3]> {
     let mut pre: Vec<[u32; 3]> = (0..p.nbits).map(|i| [3 + i, 1, 1]).collect();
     pre.extend((0..p.w).map(|i| [3 + p.nbits + i, 1, 0]));
     pre.resize(1 << LOG_WIT, [0, 0, 0]);
     pre
 }
 
-fn segs_pre(p: &Public) -> Vec<[u32; 2]> {
+pub(crate) fn segs_pre(p: &Public) -> Vec<[u32; 2]> {
     let mut pre: Vec<[u32; 2]> = p.roots.iter().enumerate().map(|(j, &r)| [j as u32, r]).collect();
     let first = pre[0];
     pre.resize(pow2_at_least(pre.len(), LOG_MIN), first);
@@ -524,7 +524,7 @@ fn export_airs(p: &Public, v_airs: &[SkiAir]) -> String {
     s
 }
 
-fn checked_public(path: &std::path::Path) -> Result<Public, String> {
+pub(crate) fn checked_public(path: &std::path::Path) -> Result<Public, String> {
     let text = std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
     lean_statement("composed", &["statement", "-"], text.as_bytes()).map_err(|e| format!("statement: {e}"))?;
     parse_public(&text)

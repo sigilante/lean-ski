@@ -73,7 +73,7 @@ pub enum Op {
 
 impl Op {
     /// Flags (local, argument, global) and value.
-    fn cols(self) -> [u32; 4] {
+    pub(crate) fn cols(self) -> [u32; 4] {
         match self {
             Op::Local(j) => [1, 0, 0, j],
             Op::Arg(i) => [0, 1, 0, i],
@@ -84,15 +84,15 @@ impl Op {
 
 #[derive(Clone, Debug)]
 pub struct JetT {
-    k: u32,
-    root: Op,
+    pub(crate) k: u32,
+    pub(crate) root: Op,
     /// Each cell: its tag, and its operands for an application.
-    cells: Vec<(u32, Option<(Op, Op)>)>,
+    pub(crate) cells: Vec<(u32, Option<(Op, Op)>)>,
 }
 
 pub struct JetTable {
-    roots: Vec<(u32, u32)>,
-    jets: Vec<JetT>,
+    pub(crate) roots: Vec<(u32, u32)>,
+    pub(crate) jets: Vec<JetT>,
 }
 
 fn parse_op(w: &[&str]) -> Op {
@@ -156,10 +156,18 @@ fn pad_copies<const W: usize>(mut rows: Vec<[u32; W]>, min_log: usize) -> Vec<[u
 }
 
 fn roots_pre(t: &JetTable) -> Vec<[u32; 2]> {
-    pad_copies(t.roots.iter().map(|&(a, g)| [a, g]).collect(), MIN_LOG)
+    roots_pre_min(t, MIN_LOG)
+}
+
+pub(crate) fn roots_pre_min(t: &JetTable, min_log: usize) -> Vec<[u32; 2]> {
+    pad_copies(t.roots.iter().map(|&(a, g)| [a, g]).collect(), min_log)
 }
 
 fn hdr_pre(t: &JetTable) -> Vec<[u32; 7]> {
+    hdr_pre_min(t, MIN_LOG)
+}
+
+pub(crate) fn hdr_pre_min(t: &JetTable, min_log: usize) -> Vec<[u32; 7]> {
     pad_copies(
         t.jets
             .iter()
@@ -169,11 +177,15 @@ fn hdr_pre(t: &JetTable) -> Vec<[u32; 7]> {
                 [g as u32, j.k, j.cells.len() as u32, r[0], r[1], r[2], r[3]]
             })
             .collect(),
-        MIN_LOG,
+        min_log,
     )
 }
 
 fn tmpl_pre(t: &JetTable) -> Vec<[u32; 11]> {
+    tmpl_pre_min(t, MIN_LOG)
+}
+
+pub(crate) fn tmpl_pre_min(t: &JetTable, min_log: usize) -> Vec<[u32; 11]> {
     let mut rows = Vec::new();
     for (g, jt) in t.jets.iter().enumerate() {
         for (j, &(tag, ops)) in jt.cells.iter().enumerate() {
@@ -184,23 +196,26 @@ fn tmpl_pre(t: &JetTable) -> Vec<[u32; 11]> {
             rows.push([g as u32, j as u32, tag, a[0], a[1], a[2], a[3], b[0], b[1], b[2], b[3]]);
         }
     }
-    pad_copies(rows, MIN_LOG)
+    pad_copies(rows, min_log)
 }
 
 // ---------------------------------------------------------------------------
 // The AIRs
 // ---------------------------------------------------------------------------
 
-const POP_W: usize = 8 + RANGE_BITS;
-const INSTW_W: usize = 18;
+pub(crate) const POP_W: usize = 8 + RANGE_BITS;
+pub(crate) const INSTW_W: usize = 18;
 
+/// The jet tables; each flag says whether the table carries its blinding
+/// blocks, its edges in the composed circuit's blinding tree
+/// (`src/compj.rs`).
 #[derive(Clone, Debug)]
 pub enum JetAir {
-    Roots(Vec<[u32; 2]>),
-    Hdr(Vec<[u32; 7]>),
-    Tmpl(Vec<[u32; 11]>),
-    Pop,
-    Instw,
+    Roots(Vec<[u32; 2]>, bool),
+    Hdr(Vec<[u32; 7]>, bool),
+    Tmpl(Vec<[u32; 11]>, bool),
+    Pop(bool),
+    Instw(bool),
 }
 
 fn matrix<F: Field, const W: usize>(rows: &[[u32; W]]) -> RowMajorMatrix<F> {
@@ -208,39 +223,66 @@ fn matrix<F: Field, const W: usize>(rows: &[[u32; W]]) -> RowMajorMatrix<F> {
 }
 
 impl JetAir {
-    pub fn width(&self) -> usize {
+    /// The columns before the blinding blocks.
+    pub fn base_width(&self) -> usize {
         match self {
-            JetAir::Roots(_) | JetAir::Hdr(_) | JetAir::Tmpl(_) => 1,
-            JetAir::Pop => POP_W,
-            JetAir::Instw => INSTW_W,
+            JetAir::Roots(..) | JetAir::Hdr(..) | JetAir::Tmpl(..) => 1,
+            JetAir::Pop(_) => POP_W,
+            JetAir::Instw(_) => INSTW_W,
         }
+    }
+
+    /// The blinding blocks, when blinded: a received message (the edge to
+    /// the parent), then a sent one.  The tree is `CPU —c— POP —d— INSTW
+    /// —e— TMPL —f— HDR —g— ROOTS`.
+    pub fn blocks(&self) -> &'static [(&'static str, bool)] {
+        match self {
+            JetAir::Roots(_, true) => &[("blind_g", false)],
+            JetAir::Hdr(_, true) => &[("blind_f", false), ("blind_g", true)],
+            JetAir::Tmpl(_, true) => &[("blind_e", false), ("blind_f", true)],
+            JetAir::Pop(true) => &[("blind_c", false), ("blind_d", true)],
+            JetAir::Instw(true) => &[("blind_d", false), ("blind_e", true)],
+            _ => &[],
+        }
+    }
+
+    pub fn width(&self) -> usize {
+        self.base_width() + BLIND_WIDTH * self.blocks().len()
     }
 
     pub fn preprocessed<F: Field>(&self) -> Option<RowMajorMatrix<F>> {
         match self {
-            JetAir::Roots(p) => Some(matrix(p)),
-            JetAir::Hdr(p) => Some(matrix(p)),
-            JetAir::Tmpl(p) => Some(matrix(p)),
+            JetAir::Roots(p, _) => Some(matrix(p)),
+            JetAir::Hdr(p, _) => Some(matrix(p)),
+            JetAir::Tmpl(p, _) => Some(matrix(p)),
             _ => None,
         }
     }
 
     pub fn preprocessed_width(&self) -> usize {
         match self {
-            JetAir::Roots(_) => 2,
-            JetAir::Hdr(_) => 7,
-            JetAir::Tmpl(_) => 11,
+            JetAir::Roots(..) => 2,
+            JetAir::Hdr(..) => 7,
+            JetAir::Tmpl(..) => 11,
             _ => 0,
         }
     }
 
     pub fn eval<AB: PermutationAirBuilder + InteractionBuilder>(&self, b: &mut AB) {
         match self {
-            JetAir::Roots(_) => eval_provider(b, ROOTS),
-            JetAir::Hdr(_) => eval_provider(b, HDR),
-            JetAir::Tmpl(_) => eval_provider(b, TMPL),
-            JetAir::Pop => eval_pop(b),
-            JetAir::Instw => eval_instw(b),
+            JetAir::Roots(..) => eval_provider(b, ROOTS),
+            JetAir::Hdr(..) => eval_provider(b, HDR),
+            JetAir::Tmpl(..) => eval_provider(b, TMPL),
+            JetAir::Pop(_) => eval_pop(b),
+            JetAir::Instw(_) => eval_instw(b),
+        }
+        let blocks = self.blocks();
+        if !blocks.is_empty() {
+            let main = b.main();
+            let loc: Vec<AB::Expr> = main.current_slice().iter().map(|&v| v.into()).collect();
+            for (i, &(bus, send)) in blocks.iter().enumerate() {
+                blind_msg(b, &loc, self.base_width() + BLIND_WIDTH * i, bus, send);
+            }
         }
     }
 }
@@ -347,14 +389,14 @@ pub fn eval_cpu_inst<AB: PermutationAirBuilder + InteractionBuilder>(
 
 /// An instantiation, as its rows need it.
 #[derive(Clone, Debug)]
-struct InstInfo {
-    g: u32,
+pub(crate) struct InstInfo {
+    pub(crate) g: u32,
     /// The stack cells popped: `(s, x, s')`.
-    pops: Vec<(u32, u32, u32)>,
-    rest: u32,
-    xroot: u32,
+    pub(crate) pops: Vec<(u32, u32, u32)>,
+    pub(crate) rest: u32,
+    pub(crate) xroot: u32,
     /// The written cells and, per cell, the argument pointers its operands use.
-    cells: Vec<(Cell, u32, u32)>,
+    pub(crate) cells: Vec<(Cell, u32, u32)>,
 }
 
 struct JRun {
@@ -390,14 +432,14 @@ fn pop(heap: &[Cell], k: u32, mut s: u32) -> Option<(Vec<(u32, u32, u32)>, u32)>
     Some((out, s))
 }
 
-const MAX_STATES: usize = 1 << 20;
+pub(crate) const MAX_STATES: usize = 1 << 20;
 
 /// Run from a state to a halt, instantiating at every root with enough
 /// arguments, pushing every row but the halted one; `false` if the run
 /// passes `MAX_STATES` rows first.  `extra` is an unlicensed root, used
 /// once (the tamper test).
 #[allow(clippy::too_many_arguments)]
-fn run_seg(
+pub(crate) fn run_seg(
     heap: &mut Vec<Cell>,
     hd: &mut u32,
     stk: &mut u32,
@@ -562,7 +604,7 @@ struct JTraces {
     regs: Vec<[u32; 3]>,
 }
 
-fn counts<const W: usize>(pre: &[[u32; W]], used: &std::collections::HashMap<[u32; W], u32>) -> RowMajorMatrix<Val> {
+pub(crate) fn counts<const W: usize>(pre: &[[u32; W]], used: &std::collections::HashMap<[u32; W], u32>) -> RowMajorMatrix<Val> {
     // Each tuple's count goes on its first row; copies stay at zero.
     let mut seen = std::collections::HashSet::new();
     let v = pre
@@ -749,11 +791,11 @@ fn airs(t: &Term, jt: &JetTable, plan: Option<&[probe::Seg]>) -> Result<Vec<SkiA
         SkiAir::Cpu(CpuAir { hd0, stk0, ctr0: loaded.len() as u32, accept: None, accept_k: false, blind: false, jets: true, probe: pp, restart: None }),
         SkiAir::Mem(MemAir { blind: false }),
         SkiAir::Prog(ProgAir { pre: program(t, MIN_LOG) }),
-        SkiAir::Jet(JetAir::Roots(roots_pre(jt))),
-        SkiAir::Jet(JetAir::Hdr(hdr_pre(jt))),
-        SkiAir::Jet(JetAir::Tmpl(tmpl_pre(jt))),
-        SkiAir::Jet(JetAir::Pop),
-        SkiAir::Jet(JetAir::Instw),
+        SkiAir::Jet(JetAir::Roots(roots_pre(jt), false)),
+        SkiAir::Jet(JetAir::Hdr(hdr_pre(jt), false)),
+        SkiAir::Jet(JetAir::Tmpl(tmpl_pre(jt), false)),
+        SkiAir::Jet(JetAir::Pop(false)),
+        SkiAir::Jet(JetAir::Instw(false)),
     ];
     if let Some(p) = plan {
         a.push(SkiAir::Probe(probe::ProbeAir::Plan(probe::plan_pre(p))));

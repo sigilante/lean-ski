@@ -83,6 +83,7 @@ use p3_uni_stark::StarkConfig;
 
 mod jets;
 mod composed;
+mod compj;
 mod export;
 mod probe;
 mod sudoku;
@@ -425,7 +426,12 @@ const CPU_BLB: usize = CPU_WIDTH + BLIND_WIDTH;
 const BLIND_A: &str = "blind_a";
 const BLIND_B: &str = "blind_b";
 
-/// The CPU's jet columns, when it has them (never with blinding): the row
+/// The composed circuit with jets (`src/compj.rs`) sends a third blinding
+/// message, to POP.
+const BLIND_C: &str = "blind_c";
+
+/// The CPU's jet columns, when it has them (right after the corpus CPU's;
+/// the blinding columns follow them, `CpuAir::bl_base`): the row
 /// counter, then an instantiation's jet, arity, cell count, root operand
 /// (one-hot local, argument, global, and its value), the root's argument
 /// pointer, and the rest of the stack.
@@ -496,16 +502,34 @@ enum SkiAir {
     Segs(composed::SegsAir),
 }
 
+impl CpuAir {
+    /// The number of blinding messages: `blind_a` and `blind_b`, and
+    /// `blind_c` with jets (`src/compj.rs`).
+    fn nblind(&self) -> usize {
+        match (self.blind, self.jets) {
+            (false, _) => 0,
+            (true, false) => 2,
+            (true, true) => 3,
+        }
+    }
+
+    /// The first blinding column: after the jet and probe columns.
+    fn bl_base(&self) -> usize {
+        CPU_WIDTH
+            + if self.jets { JET_WIDTH } else { 0 }
+            + if self.probe.is_some() { probe::PROBE_WIDTH } else { 0 }
+    }
+
+    /// The first restart column: after the blinding columns.
+    fn rbase(&self) -> usize {
+        self.bl_base() + self.nblind() * BLIND_WIDTH
+    }
+}
+
 impl<F: Field> BaseAir<F> for SkiAir {
     fn width(&self) -> usize {
         match self {
-            SkiAir::Cpu(c) => {
-                CPU_WIDTH
-                    + if c.blind { 2 * BLIND_WIDTH } else { 0 }
-                    + if c.jets { JET_WIDTH } else { 0 }
-                    + if c.probe.is_some() { probe::PROBE_WIDTH } else { 0 }
-                    + if c.restart.is_some() { composed::RESTART_WIDTH } else { 0 }
-            }
+            SkiAir::Cpu(c) => c.rbase() + if c.restart.is_some() { composed::RESTART_WIDTH } else { 0 },
             SkiAir::Mem(m) => 5 + if m.blind { BLIND_WIDTH } else { 0 },
             SkiAir::Prog(_) => 1,
             SkiAir::Wit(_) => 1 + BLIND_WIDTH,
@@ -601,7 +625,7 @@ impl CpuAir {
         // A restart row (`src/composed.rs`), when the table has segments: its
         // selector is the first restart column, outside the kinds, so tables
         // without segments keep their layout.
-        let rbase = CPU_WIDTH + if self.blind { 2 * BLIND_WIDTH } else { 0 };
+        let rbase = self.rbase();
         let rs = if self.restart.is_some() { loc[rbase].clone() } else { AB::Expr::ZERO };
         let probe = p_first.clone() + p_later.clone();
         let f = |i: usize| loc[FLD + i].clone();
@@ -723,7 +747,7 @@ impl CpuAir {
             }
         }
         if let Some(rp) = &self.restart {
-            assert!(!self.jets && self.probe.is_none(), "segments run without jets or probes");
+            assert!(self.probe.is_none(), "segments run without probes");
             let (h, st) = composed::eval_cpu_restart(b, &loc, &nxt, rs.clone(), rbase, rp);
             next_hd = next_hd + h;
             next_stk = next_stk + st;
@@ -744,8 +768,12 @@ impl CpuAir {
         }
         b.when_last_row().assert_eq(halt, one.clone());
         if self.blind {
-            blind_msg(b, &loc, CPU_BLA, BLIND_A, false);
-            blind_msg(b, &loc, CPU_BLB, BLIND_B, true);
+            let bl = self.bl_base();
+            blind_msg(b, &loc, bl, BLIND_A, false);
+            blind_msg(b, &loc, bl + BLIND_WIDTH, BLIND_B, true);
+            if self.jets {
+                blind_msg(b, &loc, bl + 2 * BLIND_WIDTH, BLIND_C, true);
+            }
         }
         // The output: the last row is `K` with no argument, the halting kind
         // `HK1`, which reads `K` at the head and a nil at the stack.
@@ -1157,6 +1185,39 @@ fn main() {
                 eprintln!("{e}");
                 std::process::exit(1);
             }
+        }
+        return;
+    }
+    if args.len() == 4 && args[1] == "export-compj" {
+        let text = std::fs::read_to_string(&args[2]).expect("statement");
+        let jtext = std::fs::read_to_string(&args[3]).expect("jet table");
+        match compj::export_compj(&text, &jtext) {
+            Ok(s) => print!("{s}"),
+            Err(e) => {
+                eprintln!("{e}");
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
+    if (args.len() == 9 && args[1] == "compj-prove") || (args.len() == 8 && (args[1] == "compj-verify" || args[1] == "compj-tamper")) {
+        std::panic::set_hook(Box::new(|_| {}));
+        let pth = |i: usize| std::path::Path::new(&args[i]);
+        let lg = match (args[5].parse(), args[6].parse()) {
+            (Ok(lp), Ok(li)) if compj::LOG_BOUNDS.contains(&lp) && compj::LOG_BOUNDS.contains(&li) => compj::JLogs { lp, li },
+            _ => {
+                eprintln!("LP and LI are numbers in [8, 20]");
+                std::process::exit(2);
+            }
+        };
+        let r = match args[1].as_str() {
+            "compj-prove" => compj::compj_prove(pth(2), pth(3), &args[4], lg, pth(7), pth(8)),
+            "compj-verify" => compj::compj_verify(pth(2), pth(3), &args[4], lg, pth(7)),
+            _ => compj::compj_tamper(pth(2), pth(3), &args[4], lg, pth(7)),
+        };
+        if let Err(e) = r {
+            println!("FAILED: {e}");
+            std::process::exit(1);
         }
         return;
     }
