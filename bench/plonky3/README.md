@@ -589,9 +589,18 @@ end at `K` over the nil) and the forged region is rejected (the witness
 table). On `split8` a wrong budget is rejected (the heights), and an
 unbalanced blinding tree fails LogUp's terminal sum.
 
-What the proofs show rests on milestones 5–7 of the design: the
-circuit's soundness (`compJExport_sound`), completeness and zero knowledge
-(`compJ_transcript`) are not yet proved. POP's and INSTW's budgets are the
+**What an accepted proof shows is proved** (milestone 5,
+`Circuit.compJExport_sound`): for the jet table Lean checked and AIRs
+with `compJAirs`' normal forms, the memory holds bits and a region whose
+witness makes every term evaluate to `K`; for a predicate, `V x` accepts
+the bits (`predJExport_sound`). An instantiation is weak reduction, so a
+jetted run proves evaluation up to weak reduction of the value; a value
+with `K`'s head and arity is `K` (`CompM.chead_K`), so the statement is
+proved exactly. `compj-prove … TABLE` writes the run as a table, and
+`lake exe composed check-cj SRC PUBLIC TABLE` decides it (`CompM.checkCJ`):
+ACCEPT on `split8`, `and` and `or`, REJECT on a table with one row's head
+or one segment's end changed. Completeness and zero knowledge
+(`compJ_transcript`) are milestones 6 and 7. POP's and INSTW's budgets are the
 verifier's arguments, each in `[8, 20]`, not yet lines of the statement:
 a prover who chose them per run would publish the size of its
 instantiations, so zero knowledge needs them fixed by the statement.

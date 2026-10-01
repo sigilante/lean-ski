@@ -1200,7 +1200,7 @@ fn main() {
         }
         return;
     }
-    if (args.len() == 9 && args[1] == "compj-prove") || (args.len() == 8 && (args[1] == "compj-verify" || args[1] == "compj-tamper")) {
+    if ((args.len() == 9 || args.len() == 10) && args[1] == "compj-prove") || (args.len() == 8 && (args[1] == "compj-verify" || args[1] == "compj-tamper")) {
         std::panic::set_hook(Box::new(|_| {}));
         let pth = |i: usize| std::path::Path::new(&args[i]);
         let lg = match (args[5].parse(), args[6].parse()) {
@@ -1211,7 +1211,7 @@ fn main() {
             }
         };
         let r = match args[1].as_str() {
-            "compj-prove" => compj::compj_prove(pth(2), pth(3), &args[4], lg, pth(7), pth(8)),
+            "compj-prove" => compj::compj_prove(pth(2), pth(3), &args[4], lg, pth(7), pth(8), args.get(9).map(std::path::Path::new)),
             "compj-verify" => compj::compj_verify(pth(2), pth(3), &args[4], lg, pth(7)),
             _ => compj::compj_tamper(pth(2), pth(3), &args[4], lg, pth(7)),
         };

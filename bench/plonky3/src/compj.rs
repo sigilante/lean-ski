@@ -400,15 +400,45 @@ fn read(path: &std::path::Path) -> Result<String, String> {
     std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))
 }
 
-/// `ski-air compj-prove PUBLIC JETS SRC LP LI WITNESS PROOF`: prove the
-/// statement with jets for the prover's bits and region, write the proof,
-/// and check it verifies.
-pub fn compj_prove(public: &std::path::Path, jets_path: &std::path::Path, src: &str, lg: JLogs, wit: &std::path::Path, proof_out: &std::path::Path) -> Result<(), String> {
+/// The run as a table in `lake exe composed check-cj`'s format (the
+/// composed checker's, `CompM.checkCJ`): the memory, the segments' ends,
+/// and the rows, padded as the CPU and memory traces are.
+fn lean_table(p: &Public, r: &CJRun) -> String {
+    let k = 1usize << p.log_rows;
+    let mut mem = r.heap.clone();
+    mem.resize(1 << p.log_mem, Cell::Nil);
+    let mut s = format!("{}\nW {}\n{}\n", p.header, p.w, mem.len());
+    for cell in &mem {
+        s.push_str(&cell.lean());
+        s.push('\n');
+    }
+    let mut ends: Vec<usize> = r.restarts.clone();
+    ends.push(k - 1);
+    s.push_str(&format!("ends {}\n", ends.len()));
+    for e in ends {
+        s.push_str(&format!("{e}\n"));
+    }
+    s.push_str(&format!("{k}\n"));
+    let last = r.rows.last().unwrap().0;
+    for i in 0..k {
+        let [h, st, c] = if i < r.rows.len() { r.rows[i].0 } else { last };
+        s.push_str(&format!("{h} {st} {c}\n"));
+    }
+    s
+}
+
+/// `ski-air compj-prove PUBLIC JETS SRC LP LI WITNESS PROOF [TABLE]`: prove
+/// the statement with jets for the prover's bits and region, write the
+/// proof (and the Lean table), and check it verifies.
+pub fn compj_prove(public: &std::path::Path, jets_path: &std::path::Path, src: &str, lg: JLogs, wit: &std::path::Path, proof_out: &std::path::Path, table_out: Option<&std::path::Path>) -> Result<(), String> {
     let p = checked_public(public)?;
     let jtext = read(jets_path)?;
     let jt = parse_jets(&jtext);
     let private = read_witness(&p, wit)?;
     let r = run(&p, &jt, heap_of(&p, &private))?;
+    if let Some(t) = table_out {
+        std::fs::write(t, lean_table(&p, &r)).map_err(|e| format!("{}: {e}", t.display()))?;
+    }
     let tr = traces(&p, &jt, &r, lg, true)?;
     let (proof, prove_s) = prove(&p, &jt, lg, &tr)?;
     let bytes = postcard::to_allocvec(&proof).map_err(|e| format!("serialize: {e}"))?;

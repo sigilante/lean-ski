@@ -850,9 +850,15 @@ tree of seven tuples, the same constraint for constraint
 (`compare-compJ`). Proved under hiding: `split8` in 11,599 CPU rows
 (11 s), `csplit8` at `2^18` and `2^19` against the plain `2^19` and
 `2^20` (26 s against 42), and the three-segment `and` and `or`, whose
-restarts fall between instantiations. Soundness, completeness and zero
-knowledge are milestones 5–7; POP's and INSTW's budgets are verifier
-arguments until the statement carries them.
+restarts fall between instantiations. Its soundness, milestone 5
+(`Ski/ComposedJ.lean`, `Ski/Circuit/CompJ*.lean`): an accepted proof, for
+the jet table Lean checked, has bits and a witness on which every term
+evaluates to `K` (`compJExport_sound`). The jet circuit's instantiation
+argument carries over whole (`CJOK.core : JetCore`), and a jetted run's
+value `K` is exactly `K` (`chead_K`). The checker `checkCJ` accepts the
+honest tables. Completeness and zero knowledge are milestones 6–7; POP's
+and INSTW's budgets are verifier arguments until the statement carries
+them.
 
 Step 1 (a commitment in SKIlark) is closed at this toy scope. Real
 parameters do not fit SKI reduction: a full adder written natively in

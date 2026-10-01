@@ -34,6 +34,8 @@ import Ski.Circuit.SudSound
 import Ski.Circuit.SudComplete
 import Ski.Circuit.JetAir
 import Ski.Circuit.CompJAir
+import Ski.Circuit.CompJFinal
+import Ski.ComposedJ
 import Ski.Circuit.Flow
 import Ski.Circuit.JetKind
 import Ski.Circuit.JetSound
@@ -696,3 +698,13 @@ open Ski.Audit
 
 -- The composed circuit with jets, as data: the composed tables carry over, a blinded table keeps its own
 #audit_clean Circuit.compJAirs_composed Circuit.withBlocks_cons
+
+-- Soundness of the composed circuit with jets: the machine with jets and segments, its rows and kinds, the
+-- jet core from its tables, the memory's prefix, the restarts and instantiations, the export
+#audit_clean CompM.chead_K CompM.AcceptsCJ.runs CompM.composedJ_sound CompM.checkCJ_sound
+  Circuit.kind_ofCJ Circuit.kindOKCJ_all Circuit.kind_factsCJ Circuit.next_regsCJ Circuit.clk_eqCJ
+  Circuit.rowSends_withBlocks Circuit.CJOK.memHit Circuit.CJOK.segHit Circuit.CJOK.rootsHit Circuit.CJOK.hdrHit
+  Circuit.CJOK.tmplHit Circuit.CJOK.argHit Circuit.CJOK.read Circuit.CJOK.step Circuit.CJOK.halt
+  Circuit.CJOK.popConserve Circuit.CJOK.wchConserve Circuit.CJOK.core Circuit.CJOK.heap0 Circuit.CJOK.regionWF
+  Circuit.CJOK.blank_le Circuit.CJOK.restart Circuit.CJOK.norm Circuit.CJOK.acceptsCJ Circuit.CJOK.sound
+  Circuit.compJ_guarded Circuit.compJOK_of Circuit.compJExport_sound Circuit.predJExport_sound Circuit.checkCJ_pred

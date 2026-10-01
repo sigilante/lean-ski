@@ -1,4 +1,5 @@
 import Ski.Composed
+import Ski.ComposedJ
 import Ski.ComposedText
 import Ski.ComposeExamples
 open Term
@@ -162,11 +163,42 @@ def check (pub : String) (paths : List String) : IO UInt32 := do
         bad := bad + 1
   return (if bad == 0 then 0 else 1)
 
+/-- `composed check-cj SRC PUBLIC TABLE…`: the composed checker with jets
+    (`CompM.checkCJ`, sound by `CompM.checkCJ_sound`), with the statement's
+    jet table as Lean computes it from the templates of the SKIjack source
+    `SRC` (`Air.jetTableC`). -/
+def checkCJ (src pub : String) (paths : List String) : IO UInt32 := do
+  let some (c, W, _) := statementOfText (← IO.FS.readFile pub)
+    | do IO.println s!"NOT A STATEMENT {pub}"; return 1
+  let tmpls := JetTable.fileTemplates ((← IO.FS.readFile src).toList.map Char.toNat)
+  let (roots, jets) := Air.jetTableC c.shp W c.Ps tmpls
+  let mut bad := 0
+  for path in paths do
+    let text ← match ← (IO.FS.readFile path).toBaseIO with
+      | .ok t => pure t
+      | .error _ => pure ""
+    let ls := (text.splitOn "\n").filter (fun l => !l.trimAscii.toString.isEmpty)
+    match parseTable ls with
+    | none =>
+      IO.println s!"MALFORMED {path}"
+      bad := bad + 1
+    | some (M', W', A, ends, R) =>
+      if !stmtEq M' c || W' != W then
+        IO.println s!"REJECT {path} (not the statement of {pub})"
+        bad := bad + 1
+      else if CompM.checkCJ c.shp W c.Ps roots jets A ends R then
+        IO.println s!"ACCEPT {path}: every term evaluates to K on its bits and witness, with jets ({R.size} rows, {A.size} cells, {ends.size} segments, {roots.length} roots)"
+      else
+        IO.println s!"REJECT {path}"
+        bad := bad + 1
+  return (if bad == 0 then 0 else 1)
+
 def main (args : List String) : IO UInt32 := do
   match args with
   | ["emit", dir] => emit dir
   | ["statement", pub] => statement pub
   | "check" :: pub :: paths => check pub paths
+  | "check-cj" :: src :: pub :: paths => checkCJ src pub paths
   | _ =>
-    IO.eprintln "usage: composed emit DIR | composed statement PUBLIC | composed check PUBLIC TABLE..."
+    IO.eprintln "usage: composed emit DIR | composed statement PUBLIC | composed check PUBLIC TABLE... | composed check-cj SRC PUBLIC TABLE..."
     return 2
