@@ -862,8 +862,13 @@ honest tables. Its completeness, milestone 6
 that `compJAirs` accepts at those heights, with the public program and
 segment tables (`compJ_complete_log`). Every blinded table's flags are
 clear, so it sends as its base, and the balance reuses the jet circuit's
-bus by bus. Zero knowledge is milestone 7; POP's and INSTW's budgets are
-verifier arguments until the statement carries them.
+bus by bus. Its zero knowledge, milestone 7 (`Ski/ZK/CompJ.lean`):
+over a hiding PCS a simulator from the statement alone matches the real
+transcript (`compJ_transcript`, `transcript_zkN` for the tree of eight
+tables and seven tuples), and the honest tables meet its hypotheses
+(`CRun.honest_zk`). The statement fixes POP's and INSTW's budgets with
+the other heights (`log R M Lp Li`), so no height depends on the
+witness.
 
 Step 1 (a commitment in SKIlark) is closed at this toy scope. Real
 parameters do not fit SKI reduction: a full adder written natively in

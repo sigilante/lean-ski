@@ -553,20 +553,25 @@ Seven blinding tuples span the eight private tables as a tree,
 ROOTS`. The provider tables are padded to `2^8` rows, as the hiding PCS
 needs.
 
-The verifier holds the statement, its jet table (`skilark cjets`), the
-SKIjack source the templates come from, and POP's and INSTW's budgets.
-Lean checks the statement (`composed statement`), then the jet table and
-the AIRs in one call (`lake exe circuit compare-compJ SRC -`):
+The verifier holds the statement, its jet table (`skilark cjets`) and
+the SKIjack source the templates come from. The statement fixes all four
+free heights before the run: its line `log R M Lp Li` names the CPU's,
+the memory's, POP's and INSTW's, each in `[8, 20]` (`composed budget`
+writes it from a composed statement). A composed statement and one with
+jets are distinct: each checker refuses the other's. Lean checks the
+statement (`composed statement-jets`), then the jet table and the AIRs in
+one call (`lake exe circuit compare-compJ SRC -`):
 `Air.jetStmtC` on the table's bytes, `jetFitB`, and the ten AIRs against
 `Circuit.compJAirs`, constraint for constraint. The verifier pins all ten
 heights.
 
 ```
-lake exe skilark cjets SRC PUBLIC JETS
-ski-air export-compj PUBLIC JETS | lake exe circuit compare-compJ SRC -    # MATCH, ten AIRs
-ski-air compj-prove PUBLIC JETS SRC LP LI WITNESS PROOF                   # proves, then verifies
-ski-air compj-verify PUBLIC JETS SRC LP LI PROOF                          # VERIFIED
-ski-air compj-tamper PUBLIC JETS SRC LP LI WITNESS                        # an unbalanced tree: REJECTED
+lake exe composed budget PUBLIC LP LI JPUBLIC                             # the statement with jets
+lake exe skilark cjets SRC JPUBLIC JETS
+ski-air export-compj JPUBLIC JETS | lake exe circuit compare-compJ SRC -  # MATCH, ten AIRs
+ski-air compj-prove JPUBLIC JETS SRC WITNESS PROOF                        # proves, then verifies
+ski-air compj-verify JPUBLIC JETS SRC PROOF                               # VERIFIED
+ski-air compj-tamper JPUBLIC JETS SRC WITNESS                             # an unbalanced tree: REJECTED
 ```
 
 Measured, 2026-09-30:
@@ -586,8 +591,9 @@ and `2^20` memory and proves in 42 s; with them it fits `2^18` and
 all of it Lean's check of the jet table. On `split8`, `and` and `or`
 the wrong, clear and non-Boolean witnesses are refused (a segment does not
 end at `K` over the nil) and the forged region is rejected (the witness
-table). On `split8` a wrong budget is rejected (the heights), and an
-unbalanced blinding tree fails LogUp's terminal sum.
+table). A proof checked against a statement with another budget is
+rejected (the heights), and an unbalanced blinding tree fails LogUp's
+terminal sum.
 
 **What an accepted proof shows is proved** (milestone 5,
 `Circuit.compJExport_sound`): for the jet table Lean checked and AIRs
@@ -607,11 +613,39 @@ memory cells and `2^Lp`, `2^Li` POP and INSTW rows, all at most `2^20`,
 gives tables that AIRs with `compJAirs`' normal forms accept at those
 heights. The program and segment tables are the public ones, and the
 tables decode back to the memory and the run. `compJStmt_complete_log`
-takes the jet table Lean checks (`jetStmtC`). Zero knowledge
-(`compJ_transcript`) is milestone 7. POP's and INSTW's budgets are the
-verifier's arguments, each in `[8, 20]`, not yet lines of the statement:
-a prover who chose them per run would publish the size of its
-instantiations, so zero knowledge needs them fixed by the statement.
+takes the jet table Lean checks (`jetStmtC`).
+
+**The transcript hides the witness** (milestone 7,
+`Circuit.compJ_transcript`, `Ski/ZK/CompJ.lean`): over a hiding PCS, a
+simulator that holds only the statement matches the real transcript on
+every event, up to the non-generic challenges, the aborts and the PCS's
+distance. It is `transcript_zkN` for the tree of eight private tables
+and seven tuples that `compj.rs` blinds. The published terminals are the
+tree's view of the unblinded ones (`compJ_chain`), which sum to minus the
+public program and segment tables' (`compJ_sum`, by LogUp over balanced
+tables). The honest tables meet the hypotheses (`CRun.honest_zk`). Every
+height is the statement's, so the transcript's shape is fixed before the
+witness.
+
+What the theorem rests on:
+- **The statement comes first.** The verifier fixes the statement, its
+  budgets included, and the source `SRC` before the witness exists. A
+  prover who wrote its own statement per witness could choose `R`, `M`,
+  `Lp` and `Li` and so publish the sizes of its run; one who chose `SRC`
+  would publish which templates it used.
+- **The model is honest-verifier zero knowledge.** It draws the
+  challenges uniformly, and the simulator's `psim` must be fixed by the
+  statement alone. The real challenges are Fiat–Shamir outputs, a step
+  taken in the random-oracle model and not formalized.
+- **`PCSCloseN` carries the committed traces' hiding**: the main and
+  permutation traces, the quotient, FRI and the openings. The theorem's
+  own content is the eight terminals' tree argument, with its error terms
+  for non-generic challenges and aborts.
+- **The `2^8` floor has a margin of about 50 values.** With 100 FRI queries
+  at arity 2 a table opens about 200 points against its 256 random values
+  under hiding. The witness table and the providers sit at `2^8`, and POP
+  and INSTW do too at a budget of 8. More queries or a wider fold would
+  need a higher floor.
 
 ## Jets: instantiation rows
 

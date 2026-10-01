@@ -95,6 +95,31 @@ def statement (path : String) : IO UInt32 := do
     IO.println s!"NOT A STATEMENT {path}"
     return 1
 
+/-- `composed statement-jets PUBLIC`: a statement for the circuit with jets,
+    its `log R M Lp Li` line fixing all four free heights. -/
+def statementJ (path : String) : IO UInt32 := do
+  let text ← if path == "-" then (← IO.getStdin).readToEnd else IO.FS.readFile path
+  match statementOfTextJ text with
+  | some (c, W, lg, bud) =>
+    IO.println s!"STATEMENT {path}: {c.header}, a region of {W} cells, heights 2^{lg.1} and 2^{lg.2}, budgets 2^{bud.1} and 2^{bud.2}"
+    return 0
+  | none =>
+    IO.println s!"NOT A STATEMENT WITH JETS {path}"
+    return 1
+
+/-- `composed budget PUBLIC LP LI OUT`: the statement with jets of the
+    composed statement `PUBLIC`, its POP and INSTW budgets `2^LP` and
+    `2^LI`, written to `OUT`. -/
+def budget (path lp li out : String) : IO UInt32 := do
+  let some (c, W, lg) := statementOfText (← IO.FS.readFile path)
+    | do IO.println s!"NOT A STATEMENT {path}"; return 1
+  let some bud := (do some (← lp.toNat?, ← li.toNat?) : Option (Nat × Nat))
+    | do IO.println "LP and LI are numbers"; return 1
+  if !logOK bud then IO.println "LP and LI are in [8, 20]"; return 1
+  IO.FS.writeFile out (publicTextC c W lg (some bud))
+  IO.println s!"{out}: {c.header}, heights 2^{lg.1} and 2^{lg.2}, budgets 2^{bud.1} and 2^{bud.2}"
+  return 0
+
 def parseTable (ls : List String) :
     Option (CStmt × Nat × Array Cell × Array Nat × Array Air.Row) := do
   match ls with
@@ -168,7 +193,7 @@ def check (pub : String) (paths : List String) : IO UInt32 := do
     jet table as Lean computes it from the templates of the SKIjack source
     `SRC` (`Air.jetTableC`). -/
 def checkCJ (src pub : String) (paths : List String) : IO UInt32 := do
-  let some (c, W, _) := statementOfText (← IO.FS.readFile pub)
+  let some (c, W, _) := statementOfTextAny (← IO.FS.readFile pub)
     | do IO.println s!"NOT A STATEMENT {pub}"; return 1
   let tmpls := JetTable.fileTemplates ((← IO.FS.readFile src).toList.map Char.toNat)
   let (roots, jets) := Air.jetTableC c.shp W c.Ps tmpls
@@ -197,8 +222,10 @@ def main (args : List String) : IO UInt32 := do
   match args with
   | ["emit", dir] => emit dir
   | ["statement", pub] => statement pub
+  | ["statement-jets", pub] => statementJ pub
+  | ["budget", pub, lp, li, out] => budget pub lp li out
   | "check" :: pub :: paths => check pub paths
   | "check-cj" :: src :: pub :: paths => checkCJ src pub paths
   | _ =>
-    IO.eprintln "usage: composed emit DIR | composed statement PUBLIC | composed check PUBLIC TABLE... | composed check-cj SRC PUBLIC TABLE..."
+    IO.eprintln "usage: composed emit DIR | composed statement PUBLIC | composed statement-jets PUBLIC\n       composed budget PUBLIC LP LI OUT | composed check PUBLIC TABLE... | composed check-cj SRC PUBLIC TABLE..."
     return 2

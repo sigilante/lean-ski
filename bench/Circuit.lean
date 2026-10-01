@@ -317,8 +317,9 @@ def compareProbe (path : String) : IO UInt32 := do
 
 /-- The composed circuit with jets: `public N`, the statement's `N` lines,
     `jets M`, the jet table's `M` lines, then the ten AIRs.  The statement
-    must be exactly `ComposedText.publicTextC` of its terms and region size,
-    as `lake exe composed statement` checks; the jet table must be the one
+    must be exactly `ComposedText.publicTextC` of its terms, region size,
+    heights and budgets, as `lake exe composed statement-jets` checks; the
+    jet table must be the one
     Lean computes over the statement's blank heap from the templates of
     the SKIjack source `SRC`, its roots licensed and their closures public
     (`Air.jetStmtC`, so licensed over every filled heap,
@@ -332,7 +333,7 @@ def compareCompJ (src path : String) : IO UInt32 := do
         | _ => none
       | [] => none) | do IO.println "MALFORMED: no statement"; return 1
   let stmt := "\n".intercalate ((ls.drop 1).take n) ++ "\n"
-  let some (c, W, _) := ComposedText.statementOfText stmt | do IO.println "NOT A STATEMENT"; return 1
+  let some (c, W, _) := ComposedText.statementOfTextJ stmt | do IO.println "NOT A STATEMENT WITH JETS"; return 1
   let ls2 := ls.drop (n + 1)
   let some m := (match ls2 with
       | l :: _ => match words l with

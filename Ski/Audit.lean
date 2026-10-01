@@ -36,6 +36,7 @@ import Ski.Circuit.JetAir
 import Ski.Circuit.CompJAir
 import Ski.Circuit.CompJFinal
 import Ski.Circuit.CompJComplete
+import Ski.ZK.CompJ
 import Ski.ComposedJ
 import Ski.Circuit.Flow
 import Ski.Circuit.JetKind
@@ -719,3 +720,9 @@ open Ski.Audit
   Circuit.sat_withBlocks Circuit.honest_withBlocks Circuit.provCJ_sat Circuit.sends_memC5 Circuit.memC5_sat
   Circuit.bal_segsC Circuit.JRun.pop_wide Circuit.JRun.instw_wide Circuit.CRun.balancedCJ
   Circuit.compJ_complete_log Circuit.compJStmt_complete_log
+
+-- Zero knowledge of the composed circuit with jets: the tree of eight tables and seven tuples, each blinded
+-- table's terminal, the published view as the tree's, the sum, the transcript, and the honest tables' fit
+#audit_clean Circuit.jetPar_ok Circuit.viewT_jet Circuit.ef_mid Circuit.ef_last Circuit.ef_cpu
+  Circuit.blindInter_avoids Circuit.terminal_wb2 Circuit.terminal_wb1 Circuit.terminal_cpuCJ Circuit.compJ_chain
+  Circuit.compJ_sum Circuit.compJ_transcript Circuit.witT_flag Circuit.CRun.honest_zk

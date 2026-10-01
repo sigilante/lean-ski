@@ -1200,20 +1200,13 @@ fn main() {
         }
         return;
     }
-    if ((args.len() == 9 || args.len() == 10) && args[1] == "compj-prove") || (args.len() == 8 && (args[1] == "compj-verify" || args[1] == "compj-tamper")) {
+    if ((args.len() == 7 || args.len() == 8) && args[1] == "compj-prove") || (args.len() == 6 && (args[1] == "compj-verify" || args[1] == "compj-tamper")) {
         std::panic::set_hook(Box::new(|_| {}));
         let pth = |i: usize| std::path::Path::new(&args[i]);
-        let lg = match (args[5].parse(), args[6].parse()) {
-            (Ok(lp), Ok(li)) if compj::LOG_BOUNDS.contains(&lp) && compj::LOG_BOUNDS.contains(&li) => compj::JLogs { lp, li },
-            _ => {
-                eprintln!("LP and LI are numbers in [8, 20]");
-                std::process::exit(2);
-            }
-        };
         let r = match args[1].as_str() {
-            "compj-prove" => compj::compj_prove(pth(2), pth(3), &args[4], lg, pth(7), pth(8), args.get(9).map(std::path::Path::new)),
-            "compj-verify" => compj::compj_verify(pth(2), pth(3), &args[4], lg, pth(7)),
-            _ => compj::compj_tamper(pth(2), pth(3), &args[4], lg, pth(7)),
+            "compj-prove" => compj::compj_prove(pth(2), pth(3), &args[4], pth(5), pth(6), args.get(7).map(std::path::Path::new)),
+            "compj-verify" => compj::compj_verify(pth(2), pth(3), &args[4], pth(5)),
+            _ => compj::compj_tamper(pth(2), pth(3), &args[4], pth(5)),
         };
         if let Err(e) = r {
             println!("FAILED: {e}");
@@ -1358,7 +1351,9 @@ fn main() {
              ski-air jet-prove TERM JETS TABLE PROOF | ski-air jet-verify CORPUS JETSDIR NAME PROOF\n       \
              ski-air probes CORPUS JETSDIR OUTDIR | ski-air probe-prove TERM JETS TABLE PROOF OUTCOME...\n       \
              ski-air probe-prove-table TERM JETS TABLE PROOF OUTCOME...\n       \
-             ski-air probe-verify CORPUS JETSDIR NAME PROOF OUTCOME..."
+             ski-air probe-verify CORPUS JETSDIR NAME PROOF OUTCOME...\n       \
+             ski-air export-compj PUBLIC JETS | ski-air compj-prove PUBLIC JETS SRC WITNESS PROOF [TABLE]\n       \
+             ski-air compj-verify PUBLIC JETS SRC PROOF | ski-air compj-tamper PUBLIC JETS SRC WITNESS"
         );
         std::process::exit(2);
     }

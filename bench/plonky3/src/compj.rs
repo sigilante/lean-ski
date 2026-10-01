@@ -20,21 +20,24 @@
 //!   jet table and its AIRs (`lake exe circuit compare-compJ SRC -`): Lean
 //!   checks the table (`Air.jetStmtC`, over the templates of the SKIjack
 //!   source `SRC`) and that the AIRs are `Circuit.compJAirs` of both.
-//! - **Heights** are public budgets: the CPU's and memory's are the
-//!   statement's (`log R M`); POP's and INSTW's, `2^LP` and `2^LI`, are the
-//!   verifier's arguments.  The provider tables are padded to `2^8`, as the
-//!   hiding PCS needs.
+//! - **Heights** are public budgets, all four the statement's (`log R M Lp
+//!   Li`, checked by `lake exe composed statement-jets`): fixed before the
+//!   witness, so no height reveals the run's size.  The provider tables are
+//!   padded to `2^8`, as the hiding PCS needs.
 //! - **The blinding tree** has eight private tables and seven tuples:
 //!   `WIT —a— CPU —b— MEM`, `CPU —c— POP —d— INSTW —e— TMPL —f— HDR —g—
 //!   ROOTS`, each tuple sent from one end and received at the other
 //!   (`Circuit.tree_hides`, `Circuit.transcript_zkN`).
 //!
 //! This is the circuit as data and its honest prover (milestone 4 of the
-//! design).  Its soundness (`compJExport_sound`), completeness and zero
-//! knowledge theorems are milestones 5–7.
+//! design).  Its soundness (`Circuit.compJExport_sound`), completeness
+//! (`Circuit.compJ_complete_log`) and zero knowledge
+//! (`Circuit.compJ_transcript`) are proved, milestones 5–7.  The prover's
+//! printed line reports private counts (rows, instantiations, cells): a
+//! benchmark's, not part of the proof.
 
 use super::*;
-use composed::{checked_public, heap_of, parse_public, program_of, read_witness, segs_pre, wit_pre, Public, RestartPub, SegsAir, LOG_MIN, LOG_WIT, RESTART_WIDTH};
+use composed::{heap_of, parse_public, program_of, read_witness, segs_pre, wit_pre, Public, RestartPub, SegsAir, LOG_MIN, LOG_WIT, RESTART_WIDTH};
 use jets::{counts, hdr_pre_min, parse_jets, roots_pre_min, run_seg, tmpl_pre_min, InstInfo, JetAir, JetTable, Op, INSTW_W, POP_W};
 use p3_uni_stark::StarkGenericConfig;
 use sudoku::{blind_tuple, make_zk_config, set_blind, widen, ZkConfig, PUBLIC_SEED};
@@ -42,12 +45,9 @@ use witness::{witness_rows, WitTAir, WT_BLIND};
 
 const NAMES: [&str; 10] = ["cpu", "mem", "prog", "wit", "segs", "roots", "hdr", "tmpl", "pop", "instw"];
 
-/// The bounds on POP's and INSTW's log heights, the statement's for the
-/// CPU and memory (`composed::LOG_BOUNDS`): at least `2^8` for the hiding
-/// PCS, at most `2^20` for the height bound (`ZK-JETS.md` §4).
-pub const LOG_BOUNDS: std::ops::RangeInclusive<usize> = 8..=20;
-
-/// POP's and INSTW's log heights: public budgets.
+/// POP's and INSTW's log heights: public budgets, the statement's
+/// `log R M Lp Li`, each in `[8, 20]` (at least `2^8` for the hiding PCS, at
+/// most `2^20` for the height bound, `ZK-JETS.md` §4).
 #[derive(Clone, Copy, Debug)]
 pub struct JLogs {
     pub lp: usize,
@@ -400,6 +400,17 @@ fn read(path: &std::path::Path) -> Result<String, String> {
     std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))
 }
 
+/// A statement for the circuit with jets, as Lean checks it (`lake exe
+/// composed statement-jets`): the composed statement whose `log R M Lp Li`
+/// line fixes the budgets before the run.
+fn checked_public_j(path: &std::path::Path) -> Result<(Public, JLogs), String> {
+    let text = read(path)?;
+    lean_statement("composed", &["statement-jets", "-"], text.as_bytes()).map_err(|e| format!("statement: {e}"))?;
+    let p = parse_public(&text)?;
+    let (lp, li) = p.budgets.ok_or("the statement fixes no budgets")?;
+    Ok((p, JLogs { lp, li }))
+}
+
 /// The run as a table in `lake exe composed check-cj`'s format (the
 /// composed checker's, `CompM.checkCJ`): the memory, the segments' ends,
 /// and the rows, padded as the CPU and memory traces are.
@@ -427,11 +438,11 @@ fn lean_table(p: &Public, r: &CJRun) -> String {
     s
 }
 
-/// `ski-air compj-prove PUBLIC JETS SRC LP LI WITNESS PROOF [TABLE]`: prove
+/// `ski-air compj-prove PUBLIC JETS SRC WITNESS PROOF [TABLE]`: prove
 /// the statement with jets for the prover's bits and region, write the
 /// proof (and the Lean table), and check it verifies.
-pub fn compj_prove(public: &std::path::Path, jets_path: &std::path::Path, src: &str, lg: JLogs, wit: &std::path::Path, proof_out: &std::path::Path, table_out: Option<&std::path::Path>) -> Result<(), String> {
-    let p = checked_public(public)?;
+pub fn compj_prove(public: &std::path::Path, jets_path: &std::path::Path, src: &str, wit: &std::path::Path, proof_out: &std::path::Path, table_out: Option<&std::path::Path>) -> Result<(), String> {
+    let (p, lg) = checked_public_j(public)?;
     let jtext = read(jets_path)?;
     let jt = parse_jets(&jtext);
     let private = read_witness(&p, wit)?;
@@ -466,11 +477,11 @@ pub fn compj_prove(public: &std::path::Path, jets_path: &std::path::Path, src: &
     Ok(())
 }
 
-/// `ski-air compj-verify PUBLIC JETS SRC LP LI PROOF`: the standalone
+/// `ski-air compj-verify PUBLIC JETS SRC PROOF`: the standalone
 /// verifier.  Lean checks the statement's bytes, then the jet table and the
 /// AIRs; the proof, one byte string, must verify.
-pub fn compj_verify(public: &std::path::Path, jets_path: &std::path::Path, src: &str, lg: JLogs, proof_in: &std::path::Path) -> Result<(), String> {
-    let p = checked_public(public)?;
+pub fn compj_verify(public: &std::path::Path, jets_path: &std::path::Path, src: &str, proof_in: &std::path::Path) -> Result<(), String> {
+    let (p, lg) = checked_public_j(public)?;
     let jtext = read(jets_path)?;
     let bytes = std::fs::read(proof_in).map_err(|e| format!("{}: {e}", proof_in.display()))?;
     let (proof, rest): (CJProof, &[u8]) = postcard::take_from_bytes(&bytes).map_err(|e| format!("deserialize: {e}"))?;
@@ -491,8 +502,8 @@ pub fn compj_verify(public: &std::path::Path, jets_path: &std::path::Path, src: 
 /// A prover that skips the blinding, or blinds with mismatched tuples, for
 /// the tamper test: the proof must not verify when the tree does not
 /// balance.
-pub fn compj_tamper(public: &std::path::Path, jets_path: &std::path::Path, src: &str, lg: JLogs, wit: &std::path::Path) -> Result<(), String> {
-    let p = checked_public(public)?;
+pub fn compj_tamper(public: &std::path::Path, jets_path: &std::path::Path, src: &str, wit: &std::path::Path) -> Result<(), String> {
+    let (p, lg) = checked_public_j(public)?;
     let jtext = read(jets_path)?;
     let jt = parse_jets(&jtext);
     let private = read_witness(&p, wit)?;

@@ -140,14 +140,20 @@ def logOK (lg : Nat × Nat) : Bool := 8 ≤ lg.1 && lg.1 ≤ 20 && 8 ≤ lg.2 &&
     machine's with the bit cells and the region blank; by
     `CompM.cMachine_public` it states the machine for every witness of that
     size.  The heights take a line, `log R M`, only when they are not the
-    default, so the statements written before it are unchanged. -/
-def publicTextC (c : CStmt) (W : Nat) (lg : Nat × Nat := defaultLog) : String := Id.run do
+    default, so the statements written before it are unchanged.  A
+    statement for the circuit with jets (`bud`) also fixes POP's and
+    INSTW's log heights, its budgets, before the run: its line is always
+    `log R M Lp Li`, so the composed circuit's check refuses it. -/
+def publicTextC (c : CStmt) (W : Nat) (lg : Nat × Nat := defaultLog) (bud : Option (Nat × Nat) := none) :
+    String := Id.run do
   let shp := c.shp
   let N := BT.nleaves shp
   let region := List.replicate W Cell.S
   let m := cMachine (fun _ => false) shp region c.Ps
   let roots := (cHeap (fun _ => false) shp region c.Ps).2
-  let logLine := if lg == defaultLog then "" else s!"log {lg.1} {lg.2}\n"
+  let logLine := match bud with
+    | some b => s!"log {lg.1} {lg.2} {b.1} {b.2}\n"
+    | none => if lg == defaultLog then "" else s!"log {lg.1} {lg.2}\n"
   let mut s := s!"{c.header}\nW {W}\n{logLine}bits {N}\nroots {" ".intercalate (roots.map toString)}\nnil {m.stk}\n{m.hd} {m.stk} {m.heap.length}\n"
   let mut i := 0
   for c in m.heap do
@@ -171,5 +177,27 @@ def statementOfText (text : String) : Option (CStmt × Nat × (Nat × Nat)) := d
     | ["log", r, m] => do some (← r.toNat?, ← m.toNat?)
     | _ => some defaultLog
   if privateOK c W && logOK lg && text == publicTextC c W lg then some (c, W, lg) else none
+
+/-- **A statement for the circuit with jets**: a composed statement whose
+    `log R M Lp Li` line also fixes POP's and INSTW's log heights, each in
+    `[8, 20]`; parsed back only when it is exactly `publicTextC`'s text. -/
+def statementOfTextJ (text : String) : Option (CStmt × Nat × (Nat × Nat) × (Nat × Nat)) := do
+  let ls := text.splitOn "\n"
+  let c ← parseHeader (words (ls.getD 0 ""))
+  let W ← match words (ls.getD 1 "") with
+    | ["W", n] => n.toNat?
+    | _ => none
+  let (lg, bud) ← match words (ls.getD 2 "") with
+    | ["log", r, m, p, i] => do some ((← r.toNat?, ← m.toNat?), (← p.toNat?, ← i.toNat?))
+    | _ => none
+  if privateOK c W && logOK lg && logOK bud && text == publicTextC c W lg (some bud) then some (c, W, lg, bud)
+  else none
+
+/-- A statement of either circuit: the composed one's (no budgets) or the
+    one with jets'. -/
+def statementOfTextAny (text : String) : Option (CStmt × Nat × (Nat × Nat) × Option (Nat × Nat)) :=
+  match statementOfText text with
+  | some (c, W, lg) => some (c, W, lg, none)
+  | none => (statementOfTextJ text).map fun (c, W, lg, bud) => (c, W, lg, some bud)
 
 end ComposedText

@@ -282,9 +282,10 @@ def jets (src : String) (k x a b : Nat) (dir : String) : IO UInt32 := do
 -- ---------------------------------------------------------------------------
 
 /-- The composed statement of `PUBLIC`, its bits' shape, region size and
-    terms, as the verifier holds it (`statementOfText`). -/
+    terms, as the verifier holds it (`statementOfText`), with or without
+    jet budgets (`statementOfTextJ`). -/
 def readStmt (pub : String) : IO (Option (CStmt × Nat)) := do
-  match statementOfText (← IO.FS.readFile pub) with
+  match statementOfTextAny (← IO.FS.readFile pub) with
   | some (c, W', _) => return some (c, W')
   | none => return none
 

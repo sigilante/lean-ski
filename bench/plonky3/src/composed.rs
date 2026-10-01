@@ -142,6 +142,9 @@ pub struct Public {
     /// The CPU's and the memory's log heights.
     pub(crate) log_rows: usize,
     pub(crate) log_mem: usize,
+    /// POP's and INSTW's log heights, for the circuit with jets
+    /// (`log R M Lp Li`); none for the composed circuit.
+    pub(crate) budgets: Option<(usize, usize)>,
     pub(crate) nbits: u32,
     pub(crate) roots: Vec<u32>,
     pub(crate) nil: u32,
@@ -183,16 +186,19 @@ pub fn parse_public(text: &str) -> Result<Public, String> {
     }
     let w = nums(next()?, "W")?;
     let mut l = next()?;
-    let (log_rows, log_mem) = if l.starts_with("log ") {
+    let (log_rows, log_mem, budgets) = if l.starts_with("log ") {
         let lg = nums(l, "log")?;
         l = next()?;
+        let ok = |x: u32| LOG_BOUNDS.contains(&(x as usize));
         match lg[..] {
-            [r, m] if LOG_BOUNDS.contains(&(r as usize)) && LOG_BOUNDS.contains(&(m as usize))
-                && (r, m) != (LOG_ROWS as u32, LOG_MEM as u32) => (r as usize, m as usize),
+            [r, m] if ok(r) && ok(m) && (r, m) != (LOG_ROWS as u32, LOG_MEM as u32) => (r as usize, m as usize, None),
+            [r, m, lp, li] if ok(r) && ok(m) && ok(lp) && ok(li) => {
+                (r as usize, m as usize, Some((lp as usize, li as usize)))
+            }
             _ => return Err("a bad `log` line".into()),
         }
     } else {
-        (LOG_ROWS, LOG_MEM)
+        (LOG_ROWS, LOG_MEM, None)
     };
     let nbits = nums(l, "bits")?;
     let roots = nums(next()?, "roots")?;
@@ -217,7 +223,7 @@ pub fn parse_public(text: &str) -> Result<Public, String> {
     if nbits + w > 1 << LOG_WIT {
         return Err("too many private cells".into());
     }
-    Ok(Public { header, w, log_rows, log_mem, nbits, roots, nil, hd0: regs[0], stk0: regs[1], ctr0: regs[2], cells, text: text.to_string() })
+    Ok(Public { header, w, log_rows, log_mem, budgets, nbits, roots, nil, hd0: regs[0], stk0: regs[1], ctr0: regs[2], cells, text: text.to_string() })
 }
 
 /// A witness file: one line per bit (`1`, `0`, or any cell, for the tamper
