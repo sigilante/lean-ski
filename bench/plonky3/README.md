@@ -572,7 +572,14 @@ ski-air export-compj JPUBLIC JETS | lake exe circuit compare-compJ SRC -  # MATC
 ski-air compj-prove JPUBLIC JETS SRC WITNESS PROOF                        # proves, then verifies
 ski-air compj-verify JPUBLIC JETS SRC PROOF                               # VERIFIED
 ski-air compj-tamper JPUBLIC JETS SRC WITNESS                             # an unbalanced tree: REJECTED
+ski-air compj-prove-table JPUBLIC JETS SRC TABLE PROOF                    # proves a table another producer wrote
 ```
+
+Avon writes the witness table (`avon witness --statement=JPUBLIC
+--jet-table=JETS WITNESS`, Avon's `docs/ZK-JETS.md` milestone 8), byte for
+byte the one `compj-prove … TABLE` writes; `compj-prove-table` proves it,
+reading each instantiation row from the table as `jet-prove` does. Avon's
+`make zk-jet-witness-check` runs `and`, `or` and `split8` through both.
 
 Measured, 2026-09-30:
 

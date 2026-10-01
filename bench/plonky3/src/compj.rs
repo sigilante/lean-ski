@@ -37,8 +37,8 @@
 //! benchmark's, not part of the proof.
 
 use super::*;
-use composed::{heap_of, parse_public, program_of, read_witness, segs_pre, wit_pre, Public, RestartPub, SegsAir, LOG_MIN, LOG_WIT, RESTART_WIDTH};
-use jets::{counts, hdr_pre_min, parse_jets, roots_pre_min, run_seg, tmpl_pre_min, InstInfo, JetAir, JetTable, Op, INSTW_W, POP_W};
+use composed::{heap_of, nums, parse_cell, parse_public, program_of, read_witness, segs_pre, wit_pre, Public, RestartPub, SegsAir, LOG_MIN, LOG_WIT, RESTART_WIDTH};
+use jets::{counts, hdr_pre_min, inst_of_row, parse_jets, roots_pre_min, run_seg, tmpl_pre_min, InstInfo, JetAir, JetTable, Op, INSTW_W, POP_W};
 use p3_uni_stark::StarkGenericConfig;
 use sudoku::{blind_tuple, make_zk_config, set_blind, widen, ZkConfig, PUBLIC_SEED};
 use witness::{witness_rows, WitTAir, WT_BLIND};
@@ -371,7 +371,7 @@ fn prove(p: &Public, jt: &JetTable, lg: JLogs, tr: &[RowMajorMatrix<Val>]) -> Re
     }
 }
 
-/// **The verifier**: the statement, the jet table, the budgets and the
+/// **The verifier**: the statement with its budgets, the jet table and the
 /// source the templates come from (a relative `src` is read from the
 /// lean-ski root, where `lean_statement` runs Lean; the templates only
 /// propose roots, which Lean licenses whatever proposed them).  Lean checks the jet table and that the
@@ -471,6 +471,105 @@ pub fn compj_prove(public: &std::path::Path, jets_path: &std::path::Path, src: &
         lg.lp,
         lg.li,
         t1.elapsed().as_secs_f64(),
+        bytes.len(),
+        proof_out.display()
+    );
+    Ok(())
+}
+
+/// A run from a table another producer wrote (Avon's composed witness), in
+/// `lean_table`'s format: the statement's header and region size, the memory
+/// at the statement's height beginning with its public cells, the segments'
+/// ends (the restarts, then the last row), and the rows at the statement's
+/// height.  Each row but a restart is an instantiation when it records one
+/// (`jets::inst_of_row`); the circuit checks the rest.
+fn run_of_table_cj(p: &Public, jt: &JetTable, text: &str) -> Result<CJRun, String> {
+    let mut ls = text.lines();
+    let mut next = || ls.next().ok_or_else(|| "a truncated table".to_string());
+    if next()? != p.header {
+        return Err("the table is for another statement".into());
+    }
+    if next()? != format!("W {}", p.w) {
+        return Err("the table's region size is not the statement's".into());
+    }
+    let msize: usize = next()?.parse().map_err(|_| "a bad memory size".to_string())?;
+    if msize != 1 << p.log_mem || p.cells.len() > msize {
+        return Err(format!("{msize} memory cells, not the statement's 2^{}", p.log_mem));
+    }
+    let mut mem = Vec::with_capacity(msize);
+    for _ in 0..msize {
+        mem.push(parse_cell(next()?)?);
+    }
+    if p.cells.iter().zip(&mem).any(|(c, m)| c.is_some_and(|c| c != *m)) {
+        return Err("the memory does not begin with the statement's heap".into());
+    }
+    let ends = nums(next()?, "ends")?;
+    if ends.len() != 1 || ends[0] as usize != p.roots.len() {
+        return Err(format!("not {} segments' ends", p.roots.len()));
+    }
+    let ends: Vec<usize> = (0..p.roots.len())
+        .map(|_| next()?.parse::<usize>().map_err(|_| "a bad end".to_string()))
+        .collect::<Result<_, _>>()?;
+    let k: usize = next()?.parse().map_err(|_| "a bad row count".to_string())?;
+    if k != 1 << p.log_rows {
+        return Err(format!("{k} rows, not the statement's 2^{}", p.log_rows));
+    }
+    let mut rows = Vec::with_capacity(k);
+    for _ in 0..k {
+        let l = next()?;
+        let v: Vec<u32> = l.split(' ').map(|x| x.parse().map_err(|_| format!("a bad row: {l}"))).collect::<Result<_, _>>()?;
+        if v.len() != 3 {
+            return Err(format!("a bad row: {l}"));
+        }
+        rows.push([v[0], v[1], v[2]]);
+    }
+    if ls.any(|l| !l.is_empty()) {
+        return Err("text after the table".into());
+    }
+    let (last, restarts) = ends.split_last().unwrap();
+    if *last != k - 1 || restarts.windows(2).any(|w| w[0] >= w[1]) || restarts.iter().any(|&e| e >= k - 1) {
+        return Err("the ends are not increasing restarts and the last row".into());
+    }
+    let roots: std::collections::HashMap<u32, u32> = jt.roots.iter().copied().collect();
+    let restart: std::collections::HashSet<usize> = restarts.iter().copied().collect();
+    let mut out = Vec::with_capacity(k);
+    let mut insts = 0;
+    for i in 0..k {
+        let info = if restart.contains(&i) { None } else { inst_of_row(jt, &roots, &mem, &rows, i) };
+        if info.is_some() {
+            insts += 1;
+        }
+        out.push((rows[i], info));
+    }
+    Ok(CJRun { rows: out, restarts: restarts.to_vec(), heap: mem, insts })
+}
+
+/// `ski-air compj-prove-table PUBLIC JETS SRC TABLE PROOF`: prove the table
+/// another producer wrote (Avon's composed witness) for the statement with
+/// jets and its jet table; write the proof, and check it verifies.
+pub fn compj_prove_table(public: &std::path::Path, jets_path: &std::path::Path, src: &str, table: &std::path::Path, proof_out: &std::path::Path) -> Result<(), String> {
+    let (p, lg) = checked_public_j(public)?;
+    let jtext = read(jets_path)?;
+    let jt = parse_jets(&jtext);
+    let text = read(table)?;
+    // A malformed table may panic reading it or building the traces: no run.
+    let (r, tr) = catch_unwind(AssertUnwindSafe(|| {
+        let r = run_of_table_cj(&p, &jt, &text)?;
+        let tr = traces(&p, &jt, &r, lg, true)?;
+        Ok::<_, String>((r, tr))
+    }))
+    .map_err(|e| format!("the table is no run: {}", panic_text(&e)))??;
+    let (proof, prove_s) = prove(&p, &jt, lg, &tr)?;
+    let bytes = postcard::to_allocvec(&proof).map_err(|e| format!("serialize: {e}"))?;
+    std::fs::write(proof_out, &bytes).map_err(|e| format!("{}: {e}", proof_out.display()))?;
+    verify(&p, &jtext, src, lg, &proof)?;
+    println!(
+        "proved the table: {} instantiations, heights 2^{} 2^{} 2^{} 2^{}, in {prove_s:.2} s; proof {} bytes -> {}",
+        r.insts,
+        p.log_rows,
+        p.log_mem,
+        lg.lp,
+        lg.li,
         bytes.len(),
         proof_out.display()
     );

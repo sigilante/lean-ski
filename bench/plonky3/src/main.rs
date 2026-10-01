@@ -1200,6 +1200,15 @@ fn main() {
         }
         return;
     }
+    if args.len() == 7 && args[1] == "compj-prove-table" {
+        std::panic::set_hook(Box::new(|_| {}));
+        let pth = |i: usize| std::path::Path::new(&args[i]);
+        if let Err(e) = compj::compj_prove_table(pth(2), pth(3), &args[4], pth(5), pth(6)) {
+            println!("FAILED: {e}");
+            std::process::exit(1);
+        }
+        return;
+    }
     if ((args.len() == 7 || args.len() == 8) && args[1] == "compj-prove") || (args.len() == 6 && (args[1] == "compj-verify" || args[1] == "compj-tamper")) {
         std::panic::set_hook(Box::new(|_| {}));
         let pth = |i: usize| std::path::Path::new(&args[i]);
@@ -1353,7 +1362,8 @@ fn main() {
              ski-air probe-prove-table TERM JETS TABLE PROOF OUTCOME...\n       \
              ski-air probe-verify CORPUS JETSDIR NAME PROOF OUTCOME...\n       \
              ski-air export-compj PUBLIC JETS | ski-air compj-prove PUBLIC JETS SRC WITNESS PROOF [TABLE]\n       \
-             ski-air compj-verify PUBLIC JETS SRC PROOF | ski-air compj-tamper PUBLIC JETS SRC WITNESS"
+             ski-air compj-verify PUBLIC JETS SRC PROOF | ski-air compj-tamper PUBLIC JETS SRC WITNESS\n       \
+             ski-air compj-prove-table PUBLIC JETS SRC TABLE PROOF"
         );
         std::process::exit(2);
     }

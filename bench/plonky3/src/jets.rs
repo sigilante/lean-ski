@@ -992,6 +992,48 @@ fn parse_table(text: &str) -> Result<(String, Vec<Cell>, Vec<[u32; 3]>), String>
 /// licensed root and the next row and the memory at the counter are that
 /// instantiation's (as `Air.instRow` would find them), and otherwise a
 /// machine transition or a halt, which the traces classify.
+/// What row `i` of a table another producer wrote records, if it is an
+/// instantiation: at a licensed root with enough arguments below its
+/// counter, the jet's cells written at the counter, and the next row the
+/// body's root over the rest.  Anything else is a machine row, which the
+/// circuit checks.
+pub(crate) fn inst_of_row(
+    jt: &JetTable,
+    roots: &std::collections::HashMap<u32, u32>,
+    mem: &[Cell],
+    rows: &[[u32; 3]],
+    i: usize,
+) -> Option<InstInfo> {
+    let [hd, stk, ctr] = rows[i];
+    roots.get(&hd).and_then(|&g| {
+        let j = &jt.jets[g as usize];
+        let below = &mem[..(ctr as usize).min(mem.len())];
+        let (pops, rest) = pop(below, j.k, stk)?;
+        let ps: Vec<u32> = pops.iter().map(|p| p.1).collect();
+        let cells: Vec<(Cell, u32, u32)> = j
+            .cells
+            .iter()
+            .map(|&(tag, ops)| match ops {
+                Some((a, b)) => {
+                    let xa = if let Op::Arg(q) = a { ps[q as usize] } else { 0 };
+                    let xb = if let Op::Arg(q) = b { ps[q as usize] } else { 0 };
+                    (Cell::App(resolve(a, ctr, &ps), resolve(b, ctr, &ps)), xa, xb)
+                }
+                None => (match tag { 0 => Cell::S, 1 => Cell::K, _ => Cell::I }, 0, 0),
+            })
+            .collect();
+        let n = cells.len() as u32;
+        let written = mem.get(ctr as usize..ctr as usize + n as usize)?;
+        if written.iter().zip(&cells).any(|(m, c)| *m != c.0) {
+            return None;
+        }
+        let root = resolve(j.root, ctr, &ps);
+        let xroot = if let Op::Arg(q) = j.root { ps[q as usize] } else { 0 };
+        let next = ctr.checked_add(n)?;
+        (rows.get(i + 1) == Some(&[root, rest, next])).then_some(InstInfo { g, pops, rest, xroot, cells })
+    })
+}
+
 fn run_of_table(t: &Term, jt: &JetTable, mem: Vec<Cell>, rows: Vec<[u32; 3]>) -> Result<JRun, String> {
     let (loaded, _, _) = load(t);
     if mem.len() < loaded.len() || mem[..loaded.len()] != loaded[..] {
@@ -1000,38 +1042,12 @@ fn run_of_table(t: &Term, jt: &JetTable, mem: Vec<Cell>, rows: Vec<[u32; 3]>) ->
     let roots: std::collections::HashMap<u32, u32> = jt.roots.iter().copied().collect();
     let mut out = Vec::with_capacity(rows.len());
     let mut insts = 0;
-    for (i, &[hd, stk, ctr]) in rows.iter().enumerate() {
-        let info = roots.get(&hd).and_then(|&g| {
-            let j = &jt.jets[g as usize];
-            let below = &mem[..(ctr as usize).min(mem.len())];
-            let (pops, rest) = pop(below, j.k, stk)?;
-            let ps: Vec<u32> = pops.iter().map(|p| p.1).collect();
-            let cells: Vec<(Cell, u32, u32)> = j
-                .cells
-                .iter()
-                .map(|&(tag, ops)| match ops {
-                    Some((a, b)) => {
-                        let xa = if let Op::Arg(q) = a { ps[q as usize] } else { 0 };
-                        let xb = if let Op::Arg(q) = b { ps[q as usize] } else { 0 };
-                        (Cell::App(resolve(a, ctr, &ps), resolve(b, ctr, &ps)), xa, xb)
-                    }
-                    None => (match tag { 0 => Cell::S, 1 => Cell::K, _ => Cell::I }, 0, 0),
-                })
-                .collect();
-            let n = cells.len() as u32;
-            let written = mem.get(ctr as usize..(ctr + n) as usize)?;
-            if written.iter().zip(&cells).any(|(m, c)| *m != c.0) {
-                return None;
-            }
-            let root = resolve(j.root, ctr, &ps);
-            let xroot = if let Op::Arg(q) = j.root { ps[q as usize] } else { 0 };
-            (rows.get(i + 1) == Some(&[root, rest, ctr + n]))
-                .then_some(InstInfo { g, pops, rest, xroot, cells })
-        });
+    for i in 0..rows.len() {
+        let info = inst_of_row(jt, &roots, &mem, &rows, i);
         if info.is_some() {
             insts += 1;
         }
-        out.push(([hd, stk, ctr], info));
+        out.push((rows[i], info));
     }
     Ok(JRun { rows: out, heap: mem, loaded, insts, probe: None })
 }

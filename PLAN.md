@@ -868,7 +868,9 @@ transcript (`compJ_transcript`, `transcript_zkN` for the tree of eight
 tables and seven tuples), and the honest tables meet its hypotheses
 (`CRun.honest_zk`). The statement fixes POP's and INSTW's budgets with
 the other heights (`log R M Lp Li`), so no height depends on the
-witness.
+witness. Avon writes the witness tables (milestone 8: `avon witness
+--statement`), byte for byte ski-air's, and `ski-air compj-prove-table`
+proves them under hiding.
 
 Step 1 (a commitment in SKIlark) is closed at this toy scope. Real
 parameters do not fit SKI reduction: a full adder written natively in

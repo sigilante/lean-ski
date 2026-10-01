@@ -156,7 +156,7 @@ pub struct Public {
     pub(crate) text: String,
 }
 
-fn parse_cell(l: &str) -> Result<Cell, String> {
+pub(crate) fn parse_cell(l: &str) -> Result<Cell, String> {
     let w: Vec<&str> = l.split(' ').collect();
     let n = |i: usize| w.get(i).and_then(|x| x.parse::<u32>().ok()).ok_or_else(|| format!("a bad cell: {l}"));
     Ok(match w[0] {
@@ -171,7 +171,7 @@ fn parse_cell(l: &str) -> Result<Cell, String> {
     })
 }
 
-fn nums(l: &str, key: &str) -> Result<Vec<u32>, String> {
+pub(crate) fn nums(l: &str, key: &str) -> Result<Vec<u32>, String> {
     let rest = l.strip_prefix(&format!("{key} ")).ok_or_else(|| format!("expected `{key} …`, found {l:?}"))?;
     rest.split(' ').map(|x| x.parse().map_err(|_| format!("a bad number in {l:?}"))).collect()
 }
