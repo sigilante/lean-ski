@@ -1278,6 +1278,20 @@ fn main() {
         }
         return;
     }
+    if ((args.len() == 5 || args.len() == 6) && args[1] == "sudoku-prove") || (args.len() == 4 && args[1] == "sudoku-verify") {
+        std::panic::set_hook(Box::new(|_| {}));
+        let pth = |i: usize| std::path::Path::new(&args[i]);
+        let r = if args[1] == "sudoku-prove" {
+            sudoku::sudoku_prove(pth(2), pth(3), pth(4), args.get(5).map(std::path::Path::new))
+        } else {
+            sudoku::sudoku_verify(pth(2), pth(3))
+        };
+        if let Err(e) = r {
+            println!("FAILED: {e}");
+            std::process::exit(1);
+        }
+        return;
+    }
     if args.len() == 4 && args[1] == "sudoku" {
         let out = std::path::Path::new(&args[3]);
         std::fs::create_dir_all(out).unwrap();
@@ -1363,7 +1377,8 @@ fn main() {
              ski-air probe-verify CORPUS JETSDIR NAME PROOF OUTCOME...\n       \
              ski-air export-compj PUBLIC JETS | ski-air compj-prove PUBLIC JETS SRC WITNESS PROOF [TABLE]\n       \
              ski-air compj-verify PUBLIC JETS SRC PROOF | ski-air compj-tamper PUBLIC JETS SRC WITNESS\n       \
-             ski-air compj-prove-table PUBLIC JETS SRC TABLE PROOF"
+             ski-air compj-prove-table PUBLIC JETS SRC TABLE PROOF\n       \
+             ski-air sudoku-prove PUBLIC WITNESS PROOF [TABLE] | ski-air sudoku-verify PUBLIC PROOF"
         );
         std::process::exit(2);
     }

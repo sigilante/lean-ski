@@ -145,6 +145,8 @@ lake build sudoku && lake exe sudoku emit bench/plonky3/sudoku
 lake exe sudoku statement bench/plonky3/sudoku/public.txt   # the verifier's statement check
 cd bench/plonky3 && cargo build --release
 ./target/release/ski-air sudoku sudoku tables               # prove, verify, guess test, tamper
+./target/release/ski-air sudoku-prove sudoku/public.txt sudoku/witness.txt sudoku.proof   # to a file
+./target/release/ski-air sudoku-verify sudoku/public.txt sudoku.proof                     # VERIFIED
 cd ../.. && P=bench/plonky3/sudoku/public.txt
 lake exe sudoku check $P bench/plonky3/tables/sudoku.txt
 lake exe sudoku check $P bench/plonky3/tables/tampered_sudoku_*.txt   # each must be REJECT

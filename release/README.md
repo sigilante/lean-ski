@@ -1,4 +1,4 @@
-# Release: `3 sumto`, proved, and its output `[6]`
+# Release: `3 sumto`, proved, and its output `[6]`; statements in zero knowledge
 
 This directory holds two proofs about the SKIlark program `3 sumto`,
 compiled to SKI:
@@ -16,9 +16,12 @@ release/verify.sh
 ```
 
 It needs elan (Lean) and cargo (Rust), and nothing from Avon. The first
-run builds Lean's checkers and the verifier, which takes minutes; after
-that it runs in about 15 seconds. It prints one `ok` line per check, then
-`VERIFIED: release/sumto, release/composed and release/skilark`, and exits nonzero if any check fails.
+run builds Lean's checkers and the verifier, which takes minutes. After
+that it runs in about twelve minutes on an Apple M4 Max, most of it Lean's
+checks of the statements and jet tables; `QUICK=1 release/verify.sh` skips
+`csplit8`'s proof with jets, about two of them. It prints one `ok` line
+per check, then `VERIFIED: …`, and exits nonzero if any check fails. It is
+not part of CI.
 
 ## What is verified
 
@@ -107,6 +110,31 @@ that it runs in about 15 seconds. It prints one `ok` line per check, then
    offered as `c = 256`, it refuses. `ski-air composed-verify` checks the
    proof; with one byte changed, it is refused.
 
+10. **A Sudoku in zero knowledge.** `sudoku` holds the statement of
+    Wikipedia's puzzle and a proof that the prover holds its solution, the
+    grid hidden. `verify.sh` checks that `public.txt` is Lean's statement
+    (`lake exe sudoku emit`); `ski-air sudoku-verify PUBLIC PROOF` pipes it
+    to Lean's check (`lake exe sudoku statement -`), has Lean compare its
+    AIRs with `Circuit.sudAirs`, and verifies the proof. With one byte
+    changed, a byte appended, or a statement with its last cell removed, it
+    is refused.
+11. **`split8` with jets, under hiding.** `skilark/split8/jets` holds the
+    statement with jets (`public.txt`: the predicate's statement whose line
+    `log 17 18 14 14` fixes the CPU's, the memory's, POP's and INSTW's
+    heights), its jet table (`split8.jets`) and a proof. `lake exe skilark
+    statement` checks that the statement is `vsplitB`'s for `x = 200`, and
+    names its budgets. `ski-air compj-verify` pipes the statement to Lean
+    (`composed statement-jets`), has Lean check the jet table
+    (`Air.jetStmtC`: it is the table Lean computes from the source's
+    templates over the statement's blank heap, every root licensed and its
+    closure public, so licensed over every filled heap) and compare the ten
+    AIRs with `Circuit.compJAirs`, and verifies the proof. With one byte
+    changed, offered for the plain statement, for a statement with POP's
+    budget `2^15`, or with the jet table Lean computes without the closure
+    rule, it is refused.
+12. **`csplit8` with jets, under hiding.** `skilark/csplit8/jets`, the
+    same at `log 18 19 17 17`, a height below the plain proof's.
+
 ## What the proofs mean, and what they do not
 
 **The halting proof.** An accepted table satisfies `Air.AcceptsJ` from
@@ -152,6 +180,35 @@ conditions is tested, not proved. At these sizes the commitment neither
 binds nor hides: `2^16` openings map to sums of at most 437, and a search finds
 one at once. It is the shape of a committed range proof; real parameters
 need a cheaper kernel. It runs at `2^19` rows and `2^20` memory cells.
+
+**The Sudoku proof** (`sudoku`). The statement is the formula of
+Wikipedia's puzzle (`Sudoku.sudokuExpr`) over 729 hidden Boolean cells,
+one per digit and square. An accepted proof holds a grid on which the
+formula's run reaches the accepting marker: a solution of the puzzle
+(`Sudoku.sudoku_sound`). The grid is hidden as in the composed proofs
+(`Circuit.sud_zk`, `Circuit.sud_transcript`). It runs at `2^16` rows,
+`2^16` memory cells and `2^10` inputs.
+
+**The proofs with jets** (`skilark/*/jets`). The same predicates, proved
+with the composed circuit with jets: a licensed template's instantiation
+takes one CPU row where the machine took many. `split8` runs in 11,599 CPU
+rows (2,250 instantiations, 8,614 POP and 12,363 INSTW rows) against
+129,964 without jets; `csplit8` fits `2^18` rows and `2^19` memory
+cells against the plain proof's `2^19` and `2^20`. Avon wrote each
+witness table (`avon witness --statement`, Avon's `docs/ZK-JETS.md`
+milestone 8), byte for byte the table lean-ski's prover writes, and
+ski-air proved it (`compj-prove-table`). What an accepted proof shows is
+the plain proof's: some literal bits on which the predicate accepts
+(`Circuit.predJExport_sound`, for the jet table Lean checked). An
+instantiation is weak reduction, so a jetted run proves evaluation up to
+weak reduction of the value; a value with `K`'s head and arity is `K`
+(`CompM.chead_K`), so the claim is exact. The honest tables are accepted
+(`Circuit.compJ_complete_log`). The transcript hides the bits
+(`Circuit.compJ_transcript`), under the conditions the plain proofs share
+-- a hiding PCS, Fiat–Shamir in the random-oracle model, a simulator fixed
+by the statement -- and one of its own: the verifier fixes the statement,
+its budgets included, and the source before the witness. The jet table is
+public; which templates the run used, and how often, is not.
 
 **The output proof.** A result is read by probing: the term, applied to
 three fresh marker atoms, must head-reduce to the marker of `RVal`
@@ -246,6 +303,16 @@ instantiation writes only the cells that depend on its arguments
    it, and `ski-air composed-prove` proves it.
 9. The committed split: likewise, from `python -m skilark.zk csplit 8 8`
    and `lake exe skilark cemit`.
+10. The Sudoku proof: Lean emits the statement and witness (`lake exe
+    sudoku emit`), and `ski-air sudoku-prove` proves it.
+11. The proofs with jets: Lean writes the statement with jets (`lake exe
+    composed budget`) and its jet table (`lake exe skilark cjets`); Avon
+    (`avon witness --statement --jet-table`) writes the witness table,
+    which `lake exe composed check-cj` accepts; `ski-air compj-prove-table`
+    proves it, and `ski-air compj-verify` checks the proof.
+
+`release/produce.sh STAGE…` runs some of these: `sumto`, `composed`,
+`split8`, `csplit8`, `sudoku`, `jets`.
 
 Avon's witnesses are byte-identical to the tables lean-ski's own prover
 writes for the same term, jet table and plan (Avon's `make

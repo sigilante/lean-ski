@@ -138,13 +138,18 @@ def emit (src : String) (k x a b r m : Nat) (dir : String) : IO UInt32 := do
   IO.println s!"split k={k}: x = {x}, a = {a}, b = {b} (a + b = x: {a + b == x}); {N} bits, heights 2^{r} and 2^{m}"
   return 0
 
+/-- A statement with jets' budgets, for the verdict line. -/
+def budgetsText : Option (Nat × Nat) → String
+  | some (p, i) => s!"; with jets, budgets 2^{p} and 2^{i}"
+  | none => ""
+
 def statement (src : String) (k x : Nat) (pub : String) : IO UInt32 := do
   if k == 0 || 2 ^ k ≤ x then IO.println s!"NOT A STATEMENT: x = {x} is not below 2^{k}"; return 1
   let some (V, E) ← readB src | do IO.println s!"{src}: not a SKIlark predicate source"; return 1
-  match statementOfText (← IO.FS.readFile pub) with
-  | some (.pred V' x' n, W', lg) =>
+  match statementOfTextAny (← IO.FS.readFile pub) with
+  | some (.pred V' x' n, W', lg, bud) =>
     if V' == V && x' == xTerm E (bitsOf k x) && n == 2 * k && W' == W then
-      IO.println s!"STATEMENT {pub}: some {2 * k} literal bits make vsplitB accept x = {x} in {k} bits (vsplitB compiled from {src}; heights 2^{lg.1} and 2^{lg.2})"
+      IO.println s!"STATEMENT {pub}: some {2 * k} literal bits make vsplitB accept x = {x} in {k} bits (vsplitB compiled from {src}; heights 2^{lg.1} and 2^{lg.2}{budgetsText bud})"
       return 0
     IO.println s!"NOT THIS STATEMENT {pub}"
     return 1
@@ -222,10 +227,10 @@ def cstatement (src : String) (k m seed x c : Nat) (pub : String) : IO UInt32 :=
   if k == 0 || m == 0 || 2 ^ k ≤ x then IO.println s!"NOT A STATEMENT: bad sizes, or x = {x} not below 2^{k}"; return 1
   let some (V, E) ← readC src | do IO.println s!"{src}: not a committed split's source"; return 1
   let ws := weightsOf (k + m) seed bound
-  match statementOfText (← IO.FS.readFile pub) with
-  | some (.pred V' x' n, W', lg) =>
+  match statementOfTextAny (← IO.FS.readFile pub) with
+  | some (.pred V' x' n, W', lg, bud) =>
     if V' == V && x' == xcTerm E k m ws x c && n == 2 * k + m && W' == W then
-      IO.println s!"STATEMENT {pub}: some {2 * k + m} literal bits make vcsplitB accept x = {x} and c = {c}, weights {ws} (vcsplitB compiled from {src}; heights 2^{lg.1} and 2^{lg.2})"
+      IO.println s!"STATEMENT {pub}: some {2 * k + m} literal bits make vcsplitB accept x = {x} and c = {c}, weights {ws} (vcsplitB compiled from {src}; heights 2^{lg.1} and 2^{lg.2}{budgetsText bud})"
       return 0
     IO.println s!"NOT THIS STATEMENT {pub}"
     return 1

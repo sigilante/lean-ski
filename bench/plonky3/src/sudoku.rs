@@ -395,10 +395,10 @@ fn lean_table(p: &Public, tb: &SudokuTable) -> String {
 // Proving and verifying
 // ---------------------------------------------------------------------------
 
-/// Prove the traces, then verify the proof against the public statement
-/// alone.  The verifier rebuilds its AIRs and preprocessed commitments from
-/// `public.txt` and accepts only the statement's heights.
-fn prove_and_verify_zk(p: &Public, traces: &[RowMajorMatrix<Val>; 4]) -> (Outcome, usize) {
+type SProof = p3_batch_stark::BatchProof<ZkConfig>;
+
+/// Prove the traces under hiding.
+fn prove_zk(p: &Public, traces: &[RowMajorMatrix<Val>; 4]) -> Result<(SProof, f64), String> {
     let log = |m: &RowMajorMatrix<Val>| p3_util::log2_strict_usize(m.values.len() / m.width);
     let proved = catch_unwind(AssertUnwindSafe(|| {
         let config = make_zk_config(None);
@@ -416,15 +416,16 @@ fn prove_and_verify_zk(p: &Public, traces: &[RowMajorMatrix<Val>; 4]) -> (Outcom
             prove_batch(&config, &instances, &prover_data).map_err(|e| format!("prove: {e:?}"))?;
         Ok::<_, String>((proof, t0.elapsed().as_secs_f64()))
     }));
-    let (proof, prove_s) = match proved {
-        Ok(Ok(p)) => p,
-        Ok(Err(e)) => return (Outcome::Refused(e), 0),
-        Err(e) => return (Outcome::Refused(format!("panic: {}", panic_text(&e))), 0),
-    };
-    let size = postcard_size(&proof);
+    match proved {
+        Ok(r) => r,
+        Err(e) => Err(format!("panic: {}", panic_text(&e))),
+    }
+}
 
-    // The verifier: the public statement, the proof, nothing else.
-    let t1 = Instant::now();
+/// **The verifier**: the public statement, the proof, nothing else.  It
+/// rebuilds its AIRs and preprocessed commitments from `public.txt` and
+/// accepts only the statement's heights.
+fn verify_zk(p: &Public, proof: &SProof) -> Result<(), String> {
     let verified = catch_unwind(AssertUnwindSafe(|| {
         let v_config = make_zk_config(Some(PUBLIC_SEED));
         let v_airs = airs(p);
@@ -440,15 +441,83 @@ fn prove_and_verify_zk(p: &Public, traces: &[RowMajorMatrix<Val>; 4]) -> (Outcom
         let v_data = ProverData::<ZkConfig>::from_airs_and_degrees(&v_config, &v_airs, &want)
             .map_err(|e| format!("verifier setup: {e:?}"))?;
         let pvs = vec![vec![]; 4];
-        verify_batch(&v_config, &v_airs, &proof, &pvs, &v_data.common)
+        verify_batch(&v_config, &v_airs, proof, &pvs, &v_data.common)
             .map_err(|e| format!("verify: {e:?}"))
     }));
-    let outcome = match verified {
-        Ok(Ok(())) => Outcome::Verified(prove_s, t1.elapsed().as_secs_f64()),
-        Ok(Err(e)) => Outcome::Rejected(e),
-        Err(e) => Outcome::Rejected(format!("verifier panic: {}", panic_text(&e))),
+    match verified {
+        Ok(r) => r,
+        Err(e) => Err(format!("verifier panic: {}", panic_text(&e))),
+    }
+}
+
+/// Prove the traces, then verify the proof against the public statement
+/// alone.
+fn prove_and_verify_zk(p: &Public, traces: &[RowMajorMatrix<Val>; 4]) -> (Outcome, usize) {
+    let (proof, prove_s) = match prove_zk(p, traces) {
+        Ok(x) => x,
+        Err(e) => return (Outcome::Refused(e), 0),
+    };
+    let size = postcard_size(&proof);
+    let t1 = Instant::now();
+    let outcome = match verify_zk(p, &proof) {
+        Ok(()) => Outcome::Verified(prove_s, t1.elapsed().as_secs_f64()),
+        Err(e) => Outcome::Rejected(e),
     };
     (outcome, size)
+}
+
+/// The statement, as Lean checks it (`lake exe sudoku statement`): the
+/// bytes Lean reads are the ones parsed.
+fn checked_public(path: &std::path::Path) -> Result<Public, String> {
+    let text = std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    lean_statement("sudoku", &["statement", "-"], text.as_bytes()).map_err(|e| format!("statement: {e}"))?;
+    Ok(parse_public(&text))
+}
+
+/// `ski-air sudoku-prove PUBLIC WITNESS PROOF [TABLE]`: prove the statement
+/// for the prover's grid, write the proof (and the Lean table), and check
+/// it verifies.
+pub fn sudoku_prove(public: &std::path::Path, wit: &std::path::Path, proof_out: &std::path::Path, table_out: Option<&std::path::Path>) -> Result<(), String> {
+    let p = checked_public(public)?;
+    let bits = read_bits(wit);
+    if bits.len() != p.wit_n as usize {
+        return Err(format!("{}: {} inputs, not {}", wit.display(), bits.len(), p.wit_n));
+    }
+    let tb = table(&p, heap_of(&p, &bits)).ok_or("the run does not fit the statement's heights")?;
+    if last_head(&tb) != Cell::Atom(p.acc) {
+        return Err("the run does not reach the accepting marker: the grid is no solution".into());
+    }
+    if let Some(t) = table_out {
+        std::fs::write(t, lean_table(&p, &tb)).map_err(|e| format!("{}: {e}", t.display()))?;
+    }
+    let (proof, prove_s) = prove_zk(&p, &sudoku_traces(&p, &tb))?;
+    let bytes = postcard::to_allocvec(&proof).map_err(|e| format!("serialize: {e}"))?;
+    std::fs::write(proof_out, &bytes).map_err(|e| format!("{}: {e}", proof_out.display()))?;
+    verify_zk(&p, &proof)?;
+    println!(
+        "proved {} rows, {} memory cells, in {prove_s:.2} s; proof {} bytes -> {}",
+        tb.run_rows,
+        tb.run_mem,
+        bytes.len(),
+        proof_out.display()
+    );
+    Ok(())
+}
+
+/// `ski-air sudoku-verify PUBLIC PROOF`: **the standalone verifier**.  Lean
+/// checks the statement's bytes; the proof, read from its file, must be one
+/// byte string and verify against the statement alone.
+pub fn sudoku_verify(public: &std::path::Path, proof_in: &std::path::Path) -> Result<(), String> {
+    let p = checked_public(public)?;
+    let bytes = std::fs::read(proof_in).map_err(|e| format!("{}: {e}", proof_in.display()))?;
+    let (proof, rest): (SProof, &[u8]) = postcard::take_from_bytes(&bytes).map_err(|e| format!("deserialize: {e}"))?;
+    if !rest.is_empty() {
+        return Err(format!("{} bytes after the proof", rest.len()));
+    }
+    let t0 = Instant::now();
+    verify_zk(&p, &proof)?;
+    println!("VERIFIED: the proof checks against the Sudoku statement ({:.3} s)", t0.elapsed().as_secs_f64());
+    Ok(())
 }
 
 /// The proof's size in bytes, serialized.

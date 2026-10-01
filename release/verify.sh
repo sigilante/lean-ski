@@ -40,7 +40,24 @@
 #      predicate `vcsplitB` for x = 200 and the knapsack commitment c = 255
 #      over 24 literal bits, weights from seed 1 (`lake exe skilark
 #      cstatement`), and refuses it for c = 256; ski-air composed-verify
-#      checks the proof; with one byte changed, it is refused.
+#      checks the proof; with one byte changed, it is refused;
+#   9. a Sudoku in zero knowledge (release/sudoku): the statement is Lean's
+#      of Wikipedia's puzzle (`lake exe sudoku emit`, and `lake exe sudoku
+#      statement` through the verifier); ski-air sudoku-verify checks the
+#      proof; with one byte changed, a byte appended, or a doctored
+#      statement, it is refused;
+#  10. split8 with jets, under hiding (release/skilark/split8/jets): Lean
+#      checks that the statement with jets is vsplitB's for x = 200 (`lake
+#      exe skilark statement`), with its budgets; ski-air compj-verify
+#      checks the proof, after Lean's statement check, its check of the jet
+#      table (Air.jetStmtC: the roots licensed over every filled heap) and
+#      its comparison of the ten AIRs with Circuit.compJAirs.  With one byte
+#      changed, offered for the plain statement, for a statement with
+#      another budget, or with the jet table Lean computes without the
+#      closure rule, it is refused;
+#  11. csplit8 with jets (release/skilark/csplit8/jets), the same; about
+#      two minutes, nearly all Lean's check of the jet table.  QUICK=1
+#      skips it.
 #
 # Exits nonzero on any failure.
 
@@ -55,7 +72,7 @@ ok() { printf 'ok   %s\n' "$*"; }
 no() { printf 'FAIL %s\n' "$*"; failed=1; [ -n "${VERIFY_ALL:-}" ] || exit 1; }
 
 echo "--- building the Lean checkers and the verifier (first run: minutes)"
-lake build jets circuit > /dev/null
+lake build jets circuit composed skilark sudoku > /dev/null
 (cd bench/plonky3 && cargo build --release --locked --quiet)
 SKI_AIR=${SKI_AIR:-bench/plonky3/target/release/ski-air}
 
@@ -313,5 +330,105 @@ else
     ok "the csplit8 proof with one byte changed is refused ($(head -c 60 "$tmp/cf8.log"))"
 fi
 
+flip() {   # copy $1 to $2 with its middle byte changed
+    /bin/cp "$1" "$2"
+    local size off byte
+    size=$(wc -c < "$2")
+    off=$((size / 2))
+    byte=$(dd if="$2" bs=1 skip=$off count=1 2>/dev/null | od -An -tu1 | tr -d ' ')
+    printf '%b' "$(printf '\\0%03o' $(( (byte + 1) % 256 )))" \
+        | dd of="$2" bs=1 seek=$off count=1 conv=notrunc 2>/dev/null
+}
+
+echo "--- 9. a Sudoku in zero knowledge: Wikipedia's puzzle"
+lake build sudoku > /dev/null
+lake exe sudoku emit "$tmp/sudoku" > /dev/null
+U=release/sudoku
+cmp -s "$tmp/sudoku/public.txt" "$U/public.txt" \
+    && ok "release/sudoku/public.txt is Lean's statement of the puzzle" \
+    || no "release/sudoku/public.txt is not Lean's statement"
+"$SKI_AIR" sudoku-verify "$U/public.txt" "$U/sudoku.proof" > "$tmp/uv.log" \
+    && ok "the Sudoku proof verifies from its file ($(head -c 60 "$tmp/uv.log"))" \
+    || no "the Sudoku proof does not verify ($(head -c 80 "$tmp/uv.log"))"
+flip "$U/sudoku.proof" "$tmp/uflip.proof"
+if "$SKI_AIR" sudoku-verify "$U/public.txt" "$tmp/uflip.proof" > "$tmp/uf.log"; then
+    no "the Sudoku proof with one byte changed verified"
+else
+    ok "the Sudoku proof with one byte changed is refused ($(head -c 60 "$tmp/uf.log"))"
+fi
+/bin/cp "$U/sudoku.proof" "$tmp/ulong.proof"
+printf '\0' >> "$tmp/ulong.proof"
+if "$SKI_AIR" sudoku-verify "$U/public.txt" "$tmp/ulong.proof" > "$tmp/ul.log"; then
+    no "the Sudoku proof with a byte appended verified"
+else
+    ok "the Sudoku proof with a byte appended is refused ($(head -c 60 "$tmp/ul.log"))"
+fi
+sed '$d' "$U/public.txt" > "$tmp/upub.txt"
+if "$SKI_AIR" sudoku-verify "$tmp/upub.txt" "$U/sudoku.proof" > "$tmp/up.log"; then
+    no "the Sudoku proof verified against a doctored statement"
+else
+    ok "the Sudoku proof against a doctored statement is refused ($(head -c 60 "$tmp/up.log"))"
+fi
+
+echo "--- 10. split8 with jets, under hiding"
+S=release/skilark/split8
+J=$S/jets
+lake exe skilark statement "$S/source.ski" 8 200 "$J/public.txt" > "$tmp/js.log" \
+    && ok "$(head -c 100 "$tmp/js.log") … $(grep -o 'budgets 2^[0-9]* and 2^[0-9]*' "$tmp/js.log")" \
+    || no "release/skilark/split8/jets/public.txt is not the statement of its source ($(head -c 80 "$tmp/js.log"))"
+if lake exe skilark statement "$S/source.ski" 8 201 "$J/public.txt" > "$tmp/js2.log"; then
+    no "the statement with jets read as x = 201"
+else
+    ok "the statement with jets is not the one for x = 201"
+fi
+"$SKI_AIR" compj-verify "$J/public.txt" "$J/split8.jets" "$S/source.ski" "$J/split8.proof" > "$tmp/jv.log" \
+    && ok "the split8 proof with jets verifies from its files ($(head -c 40 "$tmp/jv.log"))" \
+    || no "the split8 proof with jets does not verify ($(head -c 80 "$tmp/jv.log"))"
+flip "$J/split8.proof" "$tmp/jflip.proof"
+if "$SKI_AIR" compj-verify "$J/public.txt" "$J/split8.jets" "$S/source.ski" "$tmp/jflip.proof" > "$tmp/jf.log"; then
+    no "the split8 proof with jets, one byte changed, verified"
+else
+    ok "the split8 proof with jets, one byte changed, is refused ($(head -c 60 "$tmp/jf.log"))"
+fi
+if "$SKI_AIR" compj-verify "$S/public.txt" "$J/split8.jets" "$S/source.ski" "$J/split8.proof" > "$tmp/jp.log"; then
+    no "the split8 proof with jets verified against the plain statement"
+else
+    ok "the split8 proof with jets is refused for the plain statement ($(head -c 60 "$tmp/jp.log"))"
+fi
+sed '3s/^log \([0-9]*\) \([0-9]*\) \([0-9]*\) /log \1 \2 15 /' "$J/public.txt" > "$tmp/jbud.txt"
+if cmp -s "$tmp/jbud.txt" "$J/public.txt"; then
+    no "could not change the budget of release/skilark/split8/jets/public.txt"
+elif "$SKI_AIR" compj-verify "$tmp/jbud.txt" "$J/split8.jets" "$S/source.ski" "$J/split8.proof" > "$tmp/jb.log"; then
+    no "the split8 proof with jets verified for another budget"
+else
+    ok "the split8 proof with jets is refused for POP's budget 2^15 ($(head -c 60 "$tmp/jb.log"))"
+fi
+lake exe skilark cjets "$S/source.ski" "$J/public.txt" "$tmp/norule.jets" --no-rule > /dev/null
+if "$SKI_AIR" compj-verify "$J/public.txt" "$tmp/norule.jets" "$S/source.ski" "$J/split8.proof" > "$tmp/jn.log"; then
+    no "the split8 proof with jets verified with the jet table without the closure rule"
+else
+    ok "the jet table without the closure rule is refused ($(head -c 60 "$tmp/jn.log"))"
+fi
+
+if [ -z "${QUICK:-}" ]; then
+echo "--- 11. csplit8 with jets, under hiding (about two minutes; QUICK=1 skips it)"
+S=release/skilark/csplit8
+J=$S/jets
+lake exe skilark cstatement "$S/source.ski" 8 8 1 200 255 "$J/public.txt" > "$tmp/jcs.log" \
+    && ok "$(head -c 100 "$tmp/jcs.log") … $(grep -o 'budgets 2^[0-9]* and 2^[0-9]*' "$tmp/jcs.log")" \
+    || no "release/skilark/csplit8/jets/public.txt is not the statement of its source ($(head -c 80 "$tmp/jcs.log"))"
+"$SKI_AIR" compj-verify "$J/public.txt" "$J/csplit8.jets" "$S/source.ski" "$J/csplit8.proof" > "$tmp/jcv.log" \
+    && ok "the csplit8 proof with jets verifies from its files ($(head -c 40 "$tmp/jcv.log"))" \
+    || no "the csplit8 proof with jets does not verify ($(head -c 80 "$tmp/jcv.log"))"
+flip "$J/csplit8.proof" "$tmp/jcflip.proof"
+if "$SKI_AIR" compj-verify "$J/public.txt" "$J/csplit8.jets" "$S/source.ski" "$tmp/jcflip.proof" > "$tmp/jcf.log"; then
+    no "the csplit8 proof with jets, one byte changed, verified"
+else
+    ok "the csplit8 proof with jets, one byte changed, is refused ($(head -c 60 "$tmp/jcf.log"))"
+fi
+else
+echo "--- 11. csplit8 with jets: skipped (QUICK=1)"
+fi
+
 [ "$failed" = 0 ] || { echo "NOT VERIFIED: release"; exit 1; }
-echo "VERIFIED: release/sumto, release/composed and release/skilark"
+echo "VERIFIED: release/sumto, release/composed, release/skilark (with jets${QUICK:+, csplit8 skipped}) and release/sudoku"
