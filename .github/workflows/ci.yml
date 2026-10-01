@@ -16,11 +16,18 @@ jobs:
       # Ski.ZK.Generic peaks at about 11 GiB (the kernel's normal forms in
       # vdm_n0–3); a private repository's runner has 7.8.  Swap carries the
       # peak, and systemd-oomd is stopped so pressure pages out instead of
-      # killing the runner.
+      # killing the runner.  The swap file shares the runner's disk with the
+      # toolchain, so the preinstalled toolchains this project never uses go
+      # first.
+      - name: Free disk space
+        run: |
+          df -h / /mnt
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h / /mnt
       - name: Swap, for Ski.ZK.Generic
         run: |
           sudo systemctl stop systemd-oomd || true
-          sudo fallocate -l 10G /mnt/swapfile
+          sudo fallocate -l 8G /mnt/swapfile
           sudo chmod 600 /mnt/swapfile
           sudo mkswap /mnt/swapfile
           sudo swapon /mnt/swapfile
