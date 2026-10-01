@@ -599,8 +599,16 @@ with `K`'s head and arity is `K` (`CompM.chead_K`), so the statement is
 proved exactly. `compj-prove … TABLE` writes the run as a table, and
 `lake exe composed check-cj SRC PUBLIC TABLE` decides it (`CompM.checkCJ`):
 ACCEPT on `split8`, `and` and `or`, REJECT on a table with one row's head
-or one segment's end changed. Completeness and zero knowledge
-(`compJ_transcript`) are milestones 6 and 7. POP's and INSTW's budgets are the
+or one segment's end changed.
+
+**The honest tables are accepted** (milestone 6,
+`Circuit.compJ_complete_log`): a jetted run within `2^R` rows, `2^Lm`
+memory cells and `2^Lp`, `2^Li` POP and INSTW rows, all at most `2^20`,
+gives tables that AIRs with `compJAirs`' normal forms accept at those
+heights. The program and segment tables are the public ones, and the
+tables decode back to the memory and the run. `compJStmt_complete_log`
+takes the jet table Lean checks (`jetStmtC`). Zero knowledge
+(`compJ_transcript`) is milestone 7. POP's and INSTW's budgets are the
 verifier's arguments, each in `[8, 20]`, not yet lines of the statement:
 a prover who chose them per run would publish the size of its
 instantiations, so zero knowledge needs them fixed by the statement.

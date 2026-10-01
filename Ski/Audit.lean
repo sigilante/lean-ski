@@ -35,6 +35,7 @@ import Ski.Circuit.SudComplete
 import Ski.Circuit.JetAir
 import Ski.Circuit.CompJAir
 import Ski.Circuit.CompJFinal
+import Ski.Circuit.CompJComplete
 import Ski.ComposedJ
 import Ski.Circuit.Flow
 import Ski.Circuit.JetKind
@@ -708,3 +709,13 @@ open Ski.Audit
   Circuit.CJOK.popConserve Circuit.CJOK.wchConserve Circuit.CJOK.core Circuit.CJOK.heap0 Circuit.CJOK.regionWF
   Circuit.CJOK.blank_le Circuit.CJOK.restart Circuit.CJOK.norm Circuit.CJOK.acceptsCJ Circuit.CJOK.sound
   Circuit.compJ_guarded Circuit.compJOK_of Circuit.compJExport_sound Circuit.predJExport_sound Circuit.checkCJ_pred
+
+-- Completeness of the composed circuit with jets: the honest CPU satisfies its AIR and sends honestly, the
+-- blinded tables send as their bases, the ten tables balance, and the main theorem with its statement form
+#audit_clean CompM.AcceptsCJ.ctr_le CompM.AcceptsCJ.jok CompM.AcceptsCJ.stk_le CompM.AcceptsCJ.hd_lt
+  Circuit.CRun.cpuCJ_sat Circuit.CRun.cpuCJ_honest Circuit.CRun.cpuCJ_jetSends Circuit.CRun.cpuCJ_blindZero
+  Circuit.CRun.cpuCJ_segsHonest Circuit.CRun.segs_honestCJ Circuit.JRun.bal_rootsCJ Circuit.JRun.bal_hdrCJ
+  Circuit.JRun.bal_tmplCJ Circuit.sends_provCJ Circuit.sends_quiet_tail Circuit.sends_withBlocks_quiet
+  Circuit.sat_withBlocks Circuit.honest_withBlocks Circuit.provCJ_sat Circuit.sends_memC5 Circuit.memC5_sat
+  Circuit.bal_segsC Circuit.JRun.pop_wide Circuit.JRun.instw_wide Circuit.CRun.balancedCJ
+  Circuit.compJ_complete_log Circuit.compJStmt_complete_log

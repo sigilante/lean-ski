@@ -856,9 +856,14 @@ the jet table Lean checked, has bits and a witness on which every term
 evaluates to `K` (`compJExport_sound`). The jet circuit's instantiation
 argument carries over whole (`CJOK.core : JetCore`), and a jetted run's
 value `K` is exactly `K` (`chead_K`). The checker `checkCJ` accepts the
-honest tables. Completeness and zero knowledge are milestones 6–7; POP's
-and INSTW's budgets are verifier arguments until the statement carries
-them.
+honest tables. Its completeness, milestone 6
+(`Ski/Circuit/CompJComplete.lean`): a jetted run within `2^R` rows,
+`2^Lm` cells and `2^Lp`, `2^Li` POP and INSTW rows gives honest tables
+that `compJAirs` accepts at those heights, with the public program and
+segment tables (`compJ_complete_log`). Every blinded table's flags are
+clear, so it sends as its base, and the balance reuses the jet circuit's
+bus by bus. Zero knowledge is milestone 7; POP's and INSTW's budgets are
+verifier arguments until the statement carries them.
 
 Step 1 (a commitment in SKIlark) is closed at this toy scope. Real
 parameters do not fit SKI reduction: a full adder written natively in
