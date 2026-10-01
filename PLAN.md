@@ -870,7 +870,8 @@ tables and seven tuples), and the honest tables meet its hypotheses
 the other heights (`log R M Lp Li`), so no height depends on the
 witness. Avon writes the witness tables (milestone 8: `avon witness
 --statement`), byte for byte ski-air's, and `ski-air compj-prove-table`
-proves them under hiding.
+proves them under hiding. The release holds `split8` and `csplit8` with
+jets and a Sudoku, all in zero knowledge (milestone 9, `release/verify.sh`).
 
 Step 1 (a commitment in SKIlark) is closed at this toy scope. Real
 parameters do not fit SKI reduction: a full adder written natively in
