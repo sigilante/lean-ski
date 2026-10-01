@@ -13,8 +13,38 @@ jobs:
           curl -sSfL https://github.com/leanprover/elan/releases/latest/download/elan-x86_64-unknown-linux-gnu.tar.gz | tar xz
           ./elan-init -y --default-toolchain none
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      # Ski.ZK.Generic peaks at about 11 GiB (the kernel's normal forms in
+      # vdm_n0–3); a private repository's runner has 7.8.  Swap carries the
+      # peak, and systemd-oomd is stopped so pressure pages out instead of
+      # killing the runner.
+      - name: Swap, for Ski.ZK.Generic
+        run: |
+          sudo systemctl stop systemd-oomd || true
+          sudo fallocate -l 10G /mnt/swapfile
+          sudo chmod 600 /mnt/swapfile
+          sudo mkswap /mnt/swapfile
+          sudo swapon /mnt/swapfile
+          free -h
+      # The last good build's artifacts: Lake rebuilds only the modules whose
+      # sources or imports changed (it compares hashes, not timestamps).
+      - name: Restore the build
+        uses: actions/cache/restore@v4
+        with:
+          path: .lake/build
+          key: core-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lake-manifest.json') }}-${{ github.sha }}
+          restore-keys: core-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lake-manifest.json') }}-
+      # Alone, so no other module competes for memory at its peak.
+      - name: Build Ski.ZK.Generic alone
+        run: lake build Ski.ZK.Generic
       - name: Build (elaborates the audit manifest)
+        id: build
         run: lake build
+      - name: Save the build
+        if: always() && steps.build.outcome == 'success'
+        uses: actions/cache/save@v4
+        with:
+          path: .lake/build
+          key: core-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lake-manifest.json') }}-${{ github.sha }}
       - name: Gates
         run: ./scripts/gates.sh
       - name: Conformance against the reference reducer's counts
