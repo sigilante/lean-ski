@@ -78,14 +78,29 @@ echo "== gate 5: the Rust corpus circuit is the Lean circuit =="
 # they have the normal forms of Circuit.baseAirs, the hypothesis of
 # Circuit.export_sound and Circuit.export_complete.  A doctored export must
 # be refused.
+# Its inputs are generated here, not read from the gitignored bench
+# directories: the corpus terms (ski-air's own `IK` and `SKKS`, and
+# `sumto_us` from the corpus dump), and the Sudoku and hidden-term
+# statements (`lake exe sudoku emit`, `lake exe witness emit`, which write
+# the files bench/plonky3/sudoku and bench/plonky3/witness hold).
 ski=bench/plonky3/target/release/ski-air
+gen=$(mktemp -d)
 if command -v cargo >/dev/null 2>&1 \
    && (cd bench/plonky3 && cargo build --release >/dev/null 2>&1) \
-   && lake build circuit >/dev/null 2>&1; then
+   && lake build circuit sudoku witness >/dev/null 2>&1; then
+  if ! { lake env lean --run bench/Dump.lean > "$gen/corpus.txt" \
+         && lake exe sudoku emit "$gen/sudoku" >/dev/null \
+         && lake exe witness emit "$gen/witness" >/dev/null; }; then
+    bad "gate 5's inputs could not be generated"
+  fi
   exp=$(mktemp)
   for f in skks ik sumto_us; do
-    t=$(head -1 "bench/plonky3/tables/$f.txt")
-    if "$ski" export-base "$t" > "$exp" && .lake/build/bin/circuit compare "$exp" | tail -1 | grep -q '^MATCH'; then
+    case $f in
+      skks) t='```SKKS' ;;
+      ik) t='`IK' ;;
+      *) t=$(awk -v n="$f" '$1 == n { print $3 }' "$gen/corpus.txt") ;;
+    esac
+    if [ -n "$t" ] && "$ski" export-base "$t" > "$exp" && .lake/build/bin/circuit compare "$exp" | tail -1 | grep -q '^MATCH'; then
       note "ok — $f: the Rust circuit is Circuit.baseAirs"
     else
       bad "$f: the Rust circuit differs from Circuit.baseAirs"
@@ -100,14 +115,14 @@ if command -v cargo >/dev/null 2>&1 \
     fi
   done
   for f in neg sat; do
-    if "$ski" export-witness "bench/plonky3/witness/$f/public.txt" > "$exp.c" \
+    if "$ski" export-witness "$gen/witness/$f/public.txt" > "$exp.c" \
        && .lake/build/bin/circuit compare-witness "$exp.c" | tail -1 | grep -q '^MATCH'; then
       note "ok — witness $f: the Rust circuit is Circuit.witAirs"
     else
       bad "witness $f: the Rust circuit differs from Circuit.witAirs"
     fi
   done
-  if "$ski" export-sudoku "bench/plonky3/sudoku/public.txt" > "$exp.c" \
+  if "$ski" export-sudoku "$gen/sudoku/public.txt" > "$exp.c" \
      && .lake/build/bin/circuit compare-sudoku "$exp.c" | tail -1 | grep -q '^MATCH'; then
     note "ok — sudoku: the Rust circuit is Circuit.sudAirs"
   else
@@ -153,6 +168,7 @@ if command -v cargo >/dev/null 2>&1 \
 else
   note "skipped — cargo or the circuit exe unavailable"
 fi
+/bin/rm -rf "$gen"
 
 if [ $fail -ne 0 ]; then echo; echo "GATES FAILED"; exit 1; fi
 echo "ALL GATES PASSED"
