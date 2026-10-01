@@ -87,7 +87,7 @@ ski=bench/plonky3/target/release/ski-air
 gen=$(mktemp -d)
 if command -v cargo >/dev/null 2>&1 \
    && (cd bench/plonky3 && cargo build --release >/dev/null 2>&1) \
-   && lake build circuit sudoku witness >/dev/null 2>&1; then
+   && lake build circuit sudoku witness jets >/dev/null 2>&1; then
   if ! { lake env lean --run bench/Dump.lean > "$gen/corpus.txt" \
          && lake exe sudoku emit "$gen/sudoku" >/dev/null \
          && lake exe witness emit "$gen/witness" >/dev/null; }; then
@@ -134,11 +134,16 @@ if command -v cargo >/dev/null 2>&1 \
   else
     bad "jets sumto_us: the Rust circuit differs from Circuit.jetAirs"
   fi
-  if "$ski" export-probe "$(cat release/sumto/sumto_us.term)" release/sumto/jets/sumto_us.jets val 6 > "$exp.p" \
-     && .lake/build/bin/circuit compare-probe "$exp.p" | tail -1 | grep -q '^MATCH'; then
+  # export-probe asks `lake exe jets plan` for the outcome's plan, so the
+  # jets executable is built above.
+  if "$ski" export-probe "$(cat release/sumto/sumto_us.term)" release/sumto/jets/sumto_us.jets val 6 \
+       > "$exp.p" 2> "$exp.perr" \
+     && .lake/build/bin/circuit compare-probe "$exp.p" > "$exp.pout" 2>&1 \
+     && tail -1 "$exp.pout" | grep -q '^MATCH'; then
     note "ok — probes sumto_us: the Rust circuit is Circuit.probeAirs"
   else
     bad "probes sumto_us: the Rust circuit differs from Circuit.probeAirs"
+    tail -5 "$exp.perr" "$exp.pout" 2>/dev/null | sed 's/^/    /'
   fi
   # another outcome's plan: the circuit must differ
   sed 's/^outcome val 6$/outcome val 5/' "$exp.p" > "$exp.pbad"
@@ -147,7 +152,7 @@ if command -v cargo >/dev/null 2>&1 \
   else
     note "ok — another outcome's plan is refused"
   fi
-  /bin/rm -f "$exp.p" "$exp.pbad"
+  /bin/rm -f "$exp.p" "$exp.pbad" "$exp.perr" "$exp.pout"
   # doctor one template row's tag: the jet table must differ
   awk '/^air tmpl/ { t = 1 } t && /^pretrace/ { p = 1; print; next } p && !d { $3 = $3 + 1; d = 1 } { print }' \
     "$exp.c" > "$exp.cbad"
