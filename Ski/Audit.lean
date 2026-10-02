@@ -38,6 +38,7 @@ import Ski.Circuit.CompJFinal
 import Ski.Circuit.CompJComplete
 import Ski.ZK.CompJ
 import Ski.ZK.LogUpCJ
+import Ski.ZK.MaskOOD
 import Ski.ComposedJ
 import Ski.Circuit.Flow
 import Ski.Circuit.JetKind
@@ -734,3 +735,9 @@ open Ski.Audit
   Circuit.group_sum Circuit.group_count Circuit.group_nodup Circuit.kpoly_cval Circuit.kpoly_inj
   Circuit.collide_count Circuit.terminals_rsum Circuit.logup_sound Circuit.logup_accept Circuit.compJAirs_ok
   Circuit.compJ_logup_sound
+
+-- The hiding PCS's algebraic core: interpolation over F, a column interleaved with random rows opens with one
+-- distribution whatever its trace, at points of F and out of domain, one column or many
+#audit_clean Circuit.froots_lt Circuit.finterp_eval Circuit.fagree_zero Circuit.fagree Circuit.vsum_shift
+  Circuit.vsum_append Circuit.vsum_comm Circuit.mask_hides Circuit.mF_root Circuit.mF_ne Circuit.mask_hides_ood
+  Circuit.masks_hide

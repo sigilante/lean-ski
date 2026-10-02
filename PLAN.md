@@ -745,7 +745,8 @@ is proved to check exactly `Air.Accepts` (`Ski/Circuit/`):
   padded with nils as the prover pads it; they decode back to the run.
 - **Assumed, not proved** (`Accepted`): Plonky3's STARK and LogUp
   soundness (every constraint vanishes on every row; every bus balances,
-  with the heights' check), and heights within BabyBear's two-adic
+  with the heights' check; LogUp's interactive core is since proved,
+  `logup_accept`, below), and heights within BabyBear's two-adic
   domains, `2^27`, which the verifier's own cap of `2^21` implies.
   Plonky3's selectors are not `0`/`1`; `Ski/Circuit/Selectors.lean`
   proves soundness and completeness with any selectors of their zero
@@ -872,6 +873,19 @@ witness. Avon writes the witness tables (milestone 8: `avon witness
 --statement`), byte for byte ski-air's, and `ski-air compj-prove-table`
 proves them under hiding. The release holds `split8` and `csplit8` with
 jets and a Sudoku, all in zero knowledge (milestone 9, `release/verify.sh`).
+
+Two assumptions, reduced to their algebra. **LogUp** (`Ski/ZK/LogUpSound.lean`):
+tables whose buses do not balance pass Plonky3's check for at most
+`P^4 (M^2 W + 2M)` of the `P^8` challenge pairs (`logup_accept`), and
+`compJ_logup_sound` instantiates it for `compJAirs`. The commitment's
+binding and the STARK's soundness stay assumed. **The hiding PCS**
+(`Ski/ZK/MaskOOD.lean`): the random rows `HidingFriPcs` interleaves make a
+column's openings at `|S|` points of `F` and `|Z|` of the extension
+independent of the trace when `|S| + 4|Z| ≤ n` (`masks_hide`), in the
+public-coin interactive model with the points independent of the masks.
+Applied with `S ∪ gS`, since the quotient's openings couple to the next
+row. The quotient chunks, the codeword columns, FRI, Merkle salts and
+Fiat–Shamir stay assumed, so `PCSClose` stays a hypothesis.
 
 Step 1 (a commitment in SKIlark) is closed at this toy scope. Real
 parameters do not fit SKI reduction: a full adder written natively in
