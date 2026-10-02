@@ -56,7 +56,8 @@
 use super::*;
 use p3_lookup::Count;
 use p3_uni_stark::StarkGenericConfig;
-use sudoku::{blind_tuple, make_zk_config, postcard_size, report, run_from, set_blind, widen, ZkConfig, PUBLIC_SEED};
+use crate::seed::{BlindStream, PcsStreams, ProverSeed};
+use sudoku::{blind_tuple, public_zk_config, secret_zk_config, postcard_size, report, run_from, set_blind, widen, ZkConfig};
 
 // ---------------------------------------------------------------------------
 // The statement
@@ -346,11 +347,11 @@ fn last_cells(tb: &WitTable) -> (Cell, Cell) {
 
 /// The four traces, with the blinding messages in row 0 (or, for the
 /// guess test's control, with the blinding off).
-fn traces(p: &Public, tb: &WitTable) -> [RowMajorMatrix<Val>; 4] {
-    traces_b(p, tb, true)
+fn traces(p: &Public, tb: &WitTable, bs: BlindStream) -> [RowMajorMatrix<Val>; 4] {
+    traces_b(p, tb, true, bs)
 }
 
-fn traces_b(p: &Public, tb: &WitTable, blind: bool) -> [RowMajorMatrix<Val>; 4] {
+fn traces_b(p: &Public, tb: &WitTable, blind: bool, bs: BlindStream) -> [RowMajorMatrix<Val>; 4] {
     let mut mult = vec![0u32; tb.mem.len()];
     let mut cpu = widen(cpu_trace(&tb.rows, &tb.mem, &mut mult), 2 * BLIND_WIDTH);
     let pre = program_of(p);
@@ -367,7 +368,8 @@ fn traces_b(p: &Public, tb: &WitTable, blind: bool) -> [RowMajorMatrix<Val>; 4] 
     }
     let mut mem = widen(RowMajorMatrix::new(mem, 5), BLIND_WIDTH);
     if blind {
-        let (ba, bb) = (blind_tuple(), blind_tuple());
+        let mut rng = bs;
+        let (ba, bb) = (blind_tuple(&mut rng), blind_tuple(&mut rng));
         set_blind(&mut wit, WT_BLIND, ba);
         set_blind(&mut cpu, CPU_BLA, ba);
         set_blind(&mut cpu, CPU_BLB, bb);
@@ -402,13 +404,13 @@ fn heights(p: &Public, zk: usize) -> [usize; 4] {
 
 /// Prove the traces, then verify the proof against the public statement
 /// alone, at the statement's heights.
-fn prove_and_verify(p: &Public, traces: &[RowMajorMatrix<Val>; 4]) -> (Outcome, usize) {
+fn prove_and_verify(p: &Public, traces: &[RowMajorMatrix<Val>; 4], ps: PcsStreams) -> (Outcome, usize) {
     let proved = catch_unwind(AssertUnwindSafe(|| {
-        let config = make_zk_config(None);
+        let config = secret_zk_config(ps);
         let a = airs(p);
         let degrees = heights(p, config.is_zk());
         let t0 = Instant::now();
-        let prover_data = ProverData::<ZkConfig>::from_airs_and_degrees(&make_zk_config(Some(PUBLIC_SEED)), &a, &degrees)
+        let prover_data = ProverData::<ZkConfig>::from_airs_and_degrees(&public_zk_config(), &a, &degrees)
             .map_err(|e| format!("setup: {e:?}"))?;
         let tr: Vec<&RowMajorMatrix<Val>> = traces.iter().collect();
         let pvs = vec![vec![]; 4];
@@ -424,7 +426,7 @@ fn prove_and_verify(p: &Public, traces: &[RowMajorMatrix<Val>; 4]) -> (Outcome, 
     let size = postcard_size(&proof);
     let t1 = Instant::now();
     let verified = catch_unwind(AssertUnwindSafe(|| {
-        let v_config = make_zk_config(Some(PUBLIC_SEED));
+        let v_config = public_zk_config();
         let v_airs = airs(p);
         // The AIRs it verifies with are the Lean circuit for the statement:
         // Lean compares their symbolic export with `Circuit.witAirs`.
@@ -454,15 +456,16 @@ fn guess_matches(p: &Public, region: &[Cell], blind: bool) -> bool {
     use p3_batch_stark::{BatchShape, BatchVerifierTranscript};
     use p3_lookup::{LogUpGadget, LookupProtocol};
     let tb = table(p, heap_of(p, region)).expect("the honest run fits");
-    let tr = traces_b(p, &tb, blind);
-    let config = make_zk_config(None);
+    let (bs, ps) = ProverSeed::fresh().split();
+    let tr = traces_b(p, &tb, blind, bs);
+    let config = secret_zk_config(ps);
     let a = airs(p);
-    let pd = ProverData::<ZkConfig>::from_airs_and_degrees(&make_zk_config(Some(PUBLIC_SEED)), &a, &heights(p, config.is_zk()))
+    let pd = ProverData::<ZkConfig>::from_airs_and_degrees(&public_zk_config(), &a, &heights(p, config.is_zk()))
         .expect("setup");
     let trs: Vec<&RowMajorMatrix<Val>> = tr.iter().collect();
     let pvs: Vec<Vec<Val>> = vec![vec![]; 4];
     let proof = prove_batch(&config, &StarkInstance::new_multiple(&a, &trs, &pvs), &pd).expect("prove");
-    let v_config = make_zk_config(Some(PUBLIC_SEED));
+    let v_config = public_zk_config();
     let v_airs = airs(p);
     let v_data = ProverData::<ZkConfig>::from_airs_and_degrees(&v_config, &v_airs, &proof.degree_bits).expect("verifier setup");
     verify_batch(&v_config, &v_airs, &proof, &pvs, &v_data.common).expect("the honest proof verifies");
@@ -565,7 +568,8 @@ pub fn main(dir: &std::path::Path, out: &std::path::Path) -> usize {
             continue;
         }
         std::fs::write(out.join(format!("witness_{name}.txt")), lean_table(&p, &tb)).unwrap();
-        match prove_and_verify(&p, &traces(&p, &tb)) {
+        let (bs, ps) = ProverSeed::fresh().split();
+        match prove_and_verify(&p, &traces(&p, &tb, bs), ps) {
             (Outcome::Verified(ps, vs), size) => println!(
                 "  honest           {} rows, {} memory cells; prove {ps:.2} s, verify {vs:.3} s, proof {} KiB  verified",
                 tb.run_rows,
@@ -601,7 +605,7 @@ pub fn main(dir: &std::path::Path, out: &std::path::Path) -> usize {
             let (h, s) = last_cells(&tb_t);
             std::fs::write(out.join(format!("tampered_witness_{name}_{tname}.txt")), lean_table(&p, &tb_t)).unwrap();
             print!("  ");
-            failures += report(tname, &format!("ends at {h:?} over {s:?}"), prove_and_verify(&p, &traces(&p, &tb_t)).0);
+            failures += report(tname, &format!("ends at {h:?} over {s:?}"), { let (bs, ps) = ProverSeed::fresh().split(); prove_and_verify(&p, &traces(&p, &tb_t, bs), ps).0 });
         }
     }
     failures

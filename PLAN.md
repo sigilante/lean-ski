@@ -911,7 +911,11 @@ Applied with `S ∪ gS`, since the quotient's openings couple to the next
 row. The quotient chunks, the codeword columns, FRI, Merkle salts and
 Fiat–Shamir stay assumed. For a PCS whose view is exactly these openings,
 `PCSCloseN` holds with `ε = 0` (`Ski/ZK/MaskPCS.lean`); for Plonky3's, it
-stays a hypothesis.
+stays a hypothesis. The prover's secret randomness is one 128-bit seed per
+proof, expanded by ChaCha20 with a stream for each of the blinding
+tuples, the leaf salts and the codewords (`bench/plonky3/src/seed.rs`);
+`transcript_prg` carries the transcript theorems to it, assuming ChaCha20
+indistinguishable from uniform (`PRGClose`, `Ski/ZK/PRG.lean`).
 
 Step 1 (a commitment in SKIlark) is closed at this toy scope. Real
 parameters do not fit SKI reduction: a full adder written natively in

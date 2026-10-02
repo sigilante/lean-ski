@@ -118,10 +118,18 @@ checks `Sudoku.sudokuCheck` on it (soundly), for the statement's puzzle and mark
 reading the inputs off the table's memory (`Sudoku.sudokuCheck_sound`).
 
 **Hiding.** The PCS is Plonky3's `HidingFriPcs`, with salted Merkle leaves
-and four random codewords drawn from the operating system's generator.
-The verifier rebuilds the preprocessed commitment, so both sides commit
-the public preprocessed tables under a fixed public seed; only the traces
-are committed under fresh randomness. The CPU and memory heights are
+and four random codewords. Every secret draw of a proof comes from one
+128-bit seed, fresh from the operating system for that proof and never
+reused (`src/seed.rs`): ChaCha20 expands it, with its own stream for the
+blinding tuples, the leaf salts and the codewords. Splitting the seed
+into its streams consumes it, so a second proof cannot reuse one. Its 128
+bits bound one key search at `2^128`, and a batch search over `N` proofs
+at about `2^128 / N`. The verifier rebuilds
+the preprocessed commitment, so both sides commit the public preprocessed
+tables under a fixed public seed; only the traces are committed under the
+secret one. The Lean theorems count over uniform randomness; that ChaCha20
+under the seed is indistinguishable from it is assumed
+(`Ski/ZK/PRG.lean`, `transcript_prg`). The CPU and memory heights are
 constants of prover and verifier (`2^16` each), not the run's, so they say
 nothing about the witness: the run's length depends on where each digit's
 bit falls.

@@ -86,6 +86,7 @@ mod composed;
 mod compj;
 mod export;
 mod probe;
+mod seed;
 mod sudoku;
 mod witness;
 

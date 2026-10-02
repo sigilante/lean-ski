@@ -40,6 +40,7 @@ import Ski.ZK.CompJ
 import Ski.ZK.LogUpCJ
 import Ski.ZK.MaskOOD
 import Ski.ZK.MaskPCS
+import Ski.ZK.PRG
 import Ski.ComposedJ
 import Ski.Circuit.Flow
 import Ski.Circuit.JetKind
@@ -770,3 +771,6 @@ open Ski.Audit
 
 -- The masked-column PCS satisfies the transcript simulator's PCS hypothesis exactly
 #audit_clean Circuit.sumTo_digitsF Circuit.pcsCloseN_masked
+
+-- The prover's randomness from one seed: counts move from uniform draws to the seed's at the generator's cost
+#audit_clean Circuit.sumTo_mulR Circuit.sumTo_bound Circuit.prg_transfer Circuit.transcript_prg

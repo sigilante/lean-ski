@@ -40,7 +40,8 @@ use super::*;
 use composed::{heap_of, nums, parse_cell, parse_public, program_of, read_witness, segs_pre, wit_pre, Public, RestartPub, SegsAir, LOG_MIN, LOG_WIT, RESTART_WIDTH};
 use jets::{counts, hdr_pre_min, inst_of_row, parse_jets, roots_pre_min, run_seg, tmpl_pre_min, InstInfo, JetAir, JetTable, Op, INSTW_W, POP_W};
 use p3_uni_stark::StarkGenericConfig;
-use sudoku::{blind_tuple, make_zk_config, set_blind, widen, ZkConfig, PUBLIC_SEED};
+use crate::seed::{BlindStream, PcsStreams, ProverSeed};
+use sudoku::{blind_tuple, public_zk_config, secret_zk_config, set_blind, widen, ZkConfig};
 use witness::{witness_rows, WitTAir, WT_BLIND};
 
 const NAMES: [&str; 10] = ["cpu", "mem", "prog", "wit", "segs", "roots", "hdr", "tmpl", "pop", "instw"];
@@ -165,7 +166,7 @@ fn pad_to(mut v: Vec<Val>, w: usize, lg: usize) -> Option<RowMajorMatrix<Val>> {
 }
 
 /// The ten traces, the blinding tuples drawn when `blind`.
-fn traces(p: &Public, jt: &JetTable, r: &CJRun, lg: JLogs, blind: bool) -> Result<Vec<RowMajorMatrix<Val>>, String> {
+fn traces(p: &Public, jt: &JetTable, r: &CJRun, lg: JLogs, blind: bool, bs: BlindStream) -> Result<Vec<RowMajorMatrix<Val>>, String> {
     use std::collections::{HashMap, HashSet};
     let k = 1usize << p.log_rows;
     let msize = 1usize << p.log_mem;
@@ -309,7 +310,8 @@ fn traces(p: &Public, jt: &JetTable, r: &CJRun, lg: JLogs, blind: bool) -> Resul
     let sp = segs_pre(p);
     let segs = counts(&sp, &segs_used);
     if blind {
-        let [ta, tb, tc, td, te, tf, tg] = std::array::from_fn(|_| blind_tuple());
+        let mut rng = bs;
+        let [ta, tb, tc, td, te, tf, tg] = std::array::from_fn(|_| blind_tuple(&mut rng));
         set_blind(&mut wit, WT_BLIND, ta);
         set_blind(&mut cpu, CJ_BL, ta);
         set_blind(&mut cpu, CJ_BL + BLIND_WIDTH, tb);
@@ -353,12 +355,12 @@ fn heights(p: &Public, jt: &JetTable, lg: JLogs, zk: usize) -> Vec<usize> {
 
 type CJProof = p3_batch_stark::BatchProof<ZkConfig>;
 
-fn prove(p: &Public, jt: &JetTable, lg: JLogs, tr: &[RowMajorMatrix<Val>]) -> Result<(CJProof, f64), String> {
+fn prove(p: &Public, jt: &JetTable, lg: JLogs, tr: &[RowMajorMatrix<Val>], ps: PcsStreams) -> Result<(CJProof, f64), String> {
     let proved = catch_unwind(AssertUnwindSafe(|| {
-        let config = make_zk_config(None);
+        let config = secret_zk_config(ps);
         let a = airs(p, jt);
         let t0 = Instant::now();
-        let pd = ProverData::<ZkConfig>::from_airs_and_degrees(&make_zk_config(Some(PUBLIC_SEED)), &a, &heights(p, jt, lg, config.is_zk()))
+        let pd = ProverData::<ZkConfig>::from_airs_and_degrees(&public_zk_config(), &a, &heights(p, jt, lg, config.is_zk()))
             .map_err(|e| format!("setup: {e:?}"))?;
         let trs: Vec<&RowMajorMatrix<Val>> = tr.iter().collect();
         let proof = prove_batch(&config, &StarkInstance::new_multiple(&a, &trs, &vec![vec![]; NAMES.len()]), &pd)
@@ -379,7 +381,7 @@ fn prove(p: &Public, jt: &JetTable, lg: JLogs, tr: &[RowMajorMatrix<Val>]) -> Re
 fn verify(p: &Public, jtext: &str, src: &str, lg: JLogs, proof: &CJProof) -> Result<(), String> {
     let verified = catch_unwind(AssertUnwindSafe(|| {
         let jt = parse_jets(jtext);
-        let v_config = make_zk_config(Some(PUBLIC_SEED));
+        let v_config = public_zk_config();
         let v_airs = airs(p, &jt);
         lean_statement("circuit", &["compare-compJ", src, "-"], export_airs(p, jtext, &v_airs).as_bytes())?;
         let want = heights(p, &jt, lg, v_config.is_zk());
@@ -450,8 +452,9 @@ pub fn compj_prove(public: &std::path::Path, jets_path: &std::path::Path, src: &
     if let Some(t) = table_out {
         std::fs::write(t, lean_table(&p, &r)).map_err(|e| format!("{}: {e}", t.display()))?;
     }
-    let tr = traces(&p, &jt, &r, lg, true)?;
-    let (proof, prove_s) = prove(&p, &jt, lg, &tr)?;
+    let (bs, ps) = ProverSeed::fresh().split();
+    let tr = traces(&p, &jt, &r, lg, true, bs)?;
+    let (proof, prove_s) = prove(&p, &jt, lg, &tr, ps)?;
     let bytes = postcard::to_allocvec(&proof).map_err(|e| format!("serialize: {e}"))?;
     std::fs::write(proof_out, &bytes).map_err(|e| format!("{}: {e}", proof_out.display()))?;
     let t1 = Instant::now();
@@ -553,13 +556,14 @@ pub fn compj_prove_table(public: &std::path::Path, jets_path: &std::path::Path, 
     let jt = parse_jets(&jtext);
     let text = read(table)?;
     // A malformed table may panic reading it or building the traces: no run.
+    let (bs, ps) = ProverSeed::fresh().split();
     let (r, tr) = catch_unwind(AssertUnwindSafe(|| {
         let r = run_of_table_cj(&p, &jt, &text)?;
-        let tr = traces(&p, &jt, &r, lg, true)?;
+        let tr = traces(&p, &jt, &r, lg, true, bs)?;
         Ok::<_, String>((r, tr))
     }))
     .map_err(|e| format!("the table is no run: {}", panic_text(&e)))??;
-    let (proof, prove_s) = prove(&p, &jt, lg, &tr)?;
+    let (proof, prove_s) = prove(&p, &jt, lg, &tr, ps)?;
     let bytes = postcard::to_allocvec(&proof).map_err(|e| format!("serialize: {e}"))?;
     std::fs::write(proof_out, &bytes).map_err(|e| format!("{}: {e}", proof_out.display()))?;
     verify(&p, &jtext, src, lg, &proof)?;
@@ -607,10 +611,12 @@ pub fn compj_tamper(public: &std::path::Path, jets_path: &std::path::Path, src: 
     let jt = parse_jets(&jtext);
     let private = read_witness(&p, wit)?;
     let r = run(&p, &jt, heap_of(&p, &private))?;
-    let mut tr = traces(&p, &jt, &r, lg, true)?;
-    // Break edge `e`: INSTW sends a tuple TMPL does not receive.
-    set_blind(&mut tr[9], INSTW_W + BLIND_WIDTH, blind_tuple());
-    match prove(&p, &jt, lg, &tr) {
+    let (bs, ps) = ProverSeed::fresh().split();
+    let mut tr = traces(&p, &jt, &r, lg, true, bs)?;
+    // Break edge `e`: INSTW sends a tuple TMPL does not receive, drawn from
+    // another seed's blinding stream.
+    set_blind(&mut tr[9], INSTW_W + BLIND_WIDTH, blind_tuple(&mut ProverSeed::fresh().split().0));
+    match prove(&p, &jt, lg, &tr, ps) {
         Err(e) => {
             println!("REFUSED: the prover fails on an unbalanced blinding tree ({e})");
             Ok(())

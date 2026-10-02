@@ -55,9 +55,8 @@ use super::*;
 use p3_uni_stark::StarkGenericConfig;
 use p3_fri::HidingFriPcs;
 use p3_merkle_tree::MerkleTreeHidingMmcs;
-use rand::rngs::StdRng;
-use rand::{RngExt, SeedableRng};
-use p3_field::PrimeField32;
+use rand::RngExt;
+use crate::seed::{BlindStream, PcsStreams, ProverRng, ProverSeed};
 
 // ---------------------------------------------------------------------------
 // The hiding configuration
@@ -68,13 +67,13 @@ type HidingValMmcs = MerkleTreeHidingMmcs<
     <Val as Field>::Packing,
     MyHash,
     MyCompress,
-    StdRng,
+    ProverRng,
     2,
     8,
     4,
 >;
 type HidingChallengeMmcs = ExtensionMmcs<Val, Challenge, HidingValMmcs>;
-type HidingPcs = HidingFriPcs<Val, Dft, HidingValMmcs, HidingChallengeMmcs, StdRng>;
+type HidingPcs = HidingFriPcs<Val, Dft, HidingValMmcs, HidingChallengeMmcs, ProverRng>;
 pub(crate) type ZkConfig = StarkConfig<HidingPcs, Challenge, Challenger>;
 
 /// Random codewords that mask the committed polynomials: at least the
@@ -82,28 +81,35 @@ pub(crate) type ZkConfig = StarkConfig<HidingPcs, Challenge, Challenger>;
 const RANDOM_CODEWORDS: usize = 4;
 
 /// The corpus's FRI parameters, with salted Merkle leaves and random
-/// codewords.  With `seed`, the salts and codewords are drawn from a public
-/// seed; without, from the operating system's generator.
+/// codewords.  `public_zk_config` draws the salts and codewords from the
+/// public seed; `secret_zk_config`, from a proof's secret seed
+/// (`crate::seed`), the salts and the codewords each their own stream.
 ///
 /// The preprocessed tables are public, and the verifier must rebuild their
 /// commitment, but the hiding MMCS salts every commitment.  So both sides
 /// commit the preprocessed tables under the public seed `PUBLIC_SEED`
 /// (`ProverData::from_airs_and_degrees`), and the prover commits its traces
-/// under a configuration seeded by the operating system.  Opening and
+/// under its secret seed.  Opening and
 /// verifying draw no randomness from the MMCS.
-pub(crate) fn make_zk_config(seed: Option<u64>) -> ZkConfig {
-    let rng = || match seed {
-        Some(s) => StdRng::seed_from_u64(s),
-        None => rand::make_rng::<StdRng>(),
-    };
+fn zk_config(salts: ProverRng, codewords: ProverRng) -> ZkConfig {
     let perm = default_babybear_poseidon2_16();
     let hash = MyHash::new(perm.clone());
     let compress = MyCompress::new(perm.clone());
-    let val_mmcs = HidingValMmcs::new(hash, compress, 0, rng());
+    let val_mmcs = HidingValMmcs::new(hash, compress, 0, salts);
     let challenge_mmcs = HidingChallengeMmcs::new(val_mmcs.clone());
     let fri = FriParameters::new_benchmark(challenge_mmcs);
-    let pcs = HidingPcs::new(Dft::default(), val_mmcs, fri, RANDOM_CODEWORDS, rng());
+    let pcs = HidingPcs::new(Dft::default(), val_mmcs, fri, RANDOM_CODEWORDS, codewords);
     ZkConfig::new(pcs, Challenger::new(perm))
+}
+
+/// The configuration both sides commit the public tables under.
+pub(crate) fn public_zk_config() -> ZkConfig {
+    zk_config(ProverRng::public(PUBLIC_SEED), ProverRng::public(PUBLIC_SEED))
+}
+
+/// The prover's configuration, under its secret streams.
+pub(crate) fn secret_zk_config(ps: PcsStreams) -> ZkConfig {
+    zk_config(ProverRng::Stream(ps.salts), ProverRng::Stream(ps.codewords))
 }
 
 /// The seed of the public preprocessed commitment.
@@ -313,11 +319,10 @@ fn last_head(tb: &SudokuTable) -> Cell {
     tb.mem[tb.rows.last().unwrap()[0] as usize]
 }
 
-/// A fresh blinding tuple, uniform over the field, from the operating
-/// system's generator.
-pub(crate) fn blind_tuple() -> [Val; BLIND_LEN] {
-    let mut rng = rand::make_rng::<StdRng>();
-    core::array::from_fn(|_| Val::from_u32(rng.random_range(0..Val::ORDER_U32)))
+/// The next blinding tuple, uniform over the field given a uniform stream
+/// (Plonky3's sampler: 31 bits, non-canonical values rejected).
+pub(crate) fn blind_tuple(bs: &mut BlindStream) -> [Val; BLIND_LEN] {
+    core::array::from_fn(|_| bs.0.random::<Val>())
 }
 
 /// `m` with `extra` zero columns appended to every row.
@@ -341,7 +346,7 @@ pub(crate) fn set_blind(m: &mut RowMajorMatrix<Val>, col: usize, tuple: [Val; BL
 /// its input address.  Row 0 of the witness, CPU and memory tables carries
 /// the blinding messages: fresh tuples `A` (witness to CPU) and `B` (CPU to
 /// memory).
-fn sudoku_traces(p: &Public, tb: &SudokuTable) -> [RowMajorMatrix<Val>; 4] {
+fn sudoku_traces(p: &Public, tb: &SudokuTable, bs: BlindStream) -> [RowMajorMatrix<Val>; 4] {
     let mut mult = vec![0u32; tb.mem.len()];
     let mut cpu = widen(cpu_trace(&tb.rows, &tb.mem, &mut mult), 2 * BLIND_WIDTH);
     let pre = program_of(p);
@@ -364,7 +369,8 @@ fn sudoku_traces(p: &Public, tb: &SudokuTable) -> [RowMajorMatrix<Val>; 4] {
         mem.extend([f(i as u32), f(cell.tag()), f(a), f(b), f(mult[i])]);
     }
     let mut mem = widen(RowMajorMatrix::new(mem, 5), BLIND_WIDTH);
-    let (ba, bb) = (blind_tuple(), blind_tuple());
+    let mut rng = bs;
+    let (ba, bb) = (blind_tuple(&mut rng), blind_tuple(&mut rng));
     set_blind(&mut wit, 1, ba);
     set_blind(&mut cpu, CPU_BLA, ba);
     set_blind(&mut cpu, CPU_BLB, bb);
@@ -398,16 +404,16 @@ fn lean_table(p: &Public, tb: &SudokuTable) -> String {
 type SProof = p3_batch_stark::BatchProof<ZkConfig>;
 
 /// Prove the traces under hiding.
-fn prove_zk(p: &Public, traces: &[RowMajorMatrix<Val>; 4]) -> Result<(SProof, f64), String> {
+fn prove_zk(p: &Public, traces: &[RowMajorMatrix<Val>; 4], ps: PcsStreams) -> Result<(SProof, f64), String> {
     let log = |m: &RowMajorMatrix<Val>| p3_util::log2_strict_usize(m.values.len() / m.width);
     let proved = catch_unwind(AssertUnwindSafe(|| {
-        let config = make_zk_config(None);
+        let config = secret_zk_config(ps);
         let a = airs(p);
         let zk = config.is_zk();
         let degrees: Vec<usize> = traces.iter().map(|m| log(m) + zk).collect();
         let t0 = Instant::now();
         let prover_data =
-            ProverData::<ZkConfig>::from_airs_and_degrees(&make_zk_config(Some(PUBLIC_SEED)), &a, &degrees)
+            ProverData::<ZkConfig>::from_airs_and_degrees(&public_zk_config(), &a, &degrees)
             .map_err(|e| format!("setup: {e:?}"))?;
         let tr: Vec<&RowMajorMatrix<Val>> = traces.iter().collect();
         let pvs = vec![vec![]; 4];
@@ -427,7 +433,7 @@ fn prove_zk(p: &Public, traces: &[RowMajorMatrix<Val>; 4]) -> Result<(SProof, f6
 /// accepts only the statement's heights.
 fn verify_zk(p: &Public, proof: &SProof) -> Result<(), String> {
     let verified = catch_unwind(AssertUnwindSafe(|| {
-        let v_config = make_zk_config(Some(PUBLIC_SEED));
+        let v_config = public_zk_config();
         let v_airs = airs(p);
         // The AIRs it verifies with are the Lean circuit for the statement:
         // Lean compares their symbolic export with `Circuit.sudAirs`.
@@ -452,8 +458,8 @@ fn verify_zk(p: &Public, proof: &SProof) -> Result<(), String> {
 
 /// Prove the traces, then verify the proof against the public statement
 /// alone.
-fn prove_and_verify_zk(p: &Public, traces: &[RowMajorMatrix<Val>; 4]) -> (Outcome, usize) {
-    let (proof, prove_s) = match prove_zk(p, traces) {
+fn prove_and_verify_zk(p: &Public, traces: &[RowMajorMatrix<Val>; 4], ps: PcsStreams) -> (Outcome, usize) {
+    let (proof, prove_s) = match prove_zk(p, traces, ps) {
         Ok(x) => x,
         Err(e) => return (Outcome::Refused(e), 0),
     };
@@ -490,7 +496,8 @@ pub fn sudoku_prove(public: &std::path::Path, wit: &std::path::Path, proof_out: 
     if let Some(t) = table_out {
         std::fs::write(t, lean_table(&p, &tb)).map_err(|e| format!("{}: {e}", t.display()))?;
     }
-    let (proof, prove_s) = prove_zk(&p, &sudoku_traces(&p, &tb))?;
+    let (bs, ps) = ProverSeed::fresh().split();
+    let (proof, prove_s) = prove_zk(&p, &sudoku_traces(&p, &tb, bs), ps)?;
     let bytes = postcard::to_allocvec(&proof).map_err(|e| format!("serialize: {e}"))?;
     std::fs::write(proof_out, &bytes).map_err(|e| format!("{}: {e}", proof_out.display()))?;
     verify_zk(&p, &proof)?;
@@ -540,19 +547,20 @@ fn guess_matches(p: &Public, bits: &[bool]) -> bool {
     use p3_batch_stark::{BatchShape, BatchVerifierTranscript};
     use p3_lookup::{LogUpGadget, LookupProtocol};
     let tb = table(p, heap_of(p, bits)).expect("the honest run fits");
-    let traces = sudoku_traces(p, &tb);
+    let (bs, ps) = ProverSeed::fresh().split();
+    let traces = sudoku_traces(p, &tb, bs);
     let log = |m: &RowMajorMatrix<Val>| p3_util::log2_strict_usize(m.values.len() / m.width);
-    let config = make_zk_config(None);
+    let config = secret_zk_config(ps);
     let a = airs(p);
     let degrees: Vec<usize> = traces.iter().map(|m| log(m) + config.is_zk()).collect();
-    let pd = ProverData::<ZkConfig>::from_airs_and_degrees(&make_zk_config(Some(PUBLIC_SEED)), &a, &degrees)
+    let pd = ProverData::<ZkConfig>::from_airs_and_degrees(&public_zk_config(), &a, &degrees)
         .expect("setup");
     let tr: Vec<&RowMajorMatrix<Val>> = traces.iter().collect();
     let pvs: Vec<Vec<Val>> = vec![vec![]; 4];
     let proof = prove_batch(&config, &StarkInstance::new_multiple(&a, &tr, &pvs), &pd).expect("prove");
 
     // The verifier's side: the statement and the proof.
-    let v_config = make_zk_config(Some(PUBLIC_SEED));
+    let v_config = public_zk_config();
     let v_airs = airs(p);
     let v_data = ProverData::<ZkConfig>::from_airs_and_degrees(&v_config, &v_airs, &proof.degree_bits)
         .expect("verifier setup");
@@ -632,8 +640,9 @@ pub fn main(dir: &std::path::Path, out: &std::path::Path) -> usize {
     let tb = table(&p, heap_of(&p, &bits)).expect("the honest run fits the statement's heights");
     assert_eq!(last_head(&tb), Cell::Atom(p.acc), "the honest run reaches the accepting marker");
     std::fs::write(out.join("sudoku.txt"), lean_table(&p, &tb)).unwrap();
-    let tr = sudoku_traces(&p, &tb);
-    match prove_and_verify_zk(&p, &tr) {
+    let (bs, ps) = ProverSeed::fresh().split();
+    let tr = sudoku_traces(&p, &tb, bs);
+    match prove_and_verify_zk(&p, &tr, ps) {
         (Outcome::Verified(ps, vs), size) => println!(
             "honest           {} rows, {} memory cells; prove {ps:.2} s, verify {vs:.3} s, proof {} KiB  verified",
             tb.run_rows,
@@ -664,14 +673,14 @@ pub fn main(dir: &std::path::Path, out: &std::path::Path) -> usize {
     let tb_s = table(&p, heap_of(&p, &swapped)).expect("the swapped run fits");
     let ends = last_head(&tb_s);
     std::fs::write(out.join("tampered_sudoku_swapped.txt"), lean_table(&p, &tb_s)).unwrap();
-    failures += report("swapped", &format!("ends at {ends:?}"), prove_and_verify_zk(&p, &sudoku_traces(&p, &tb_s)).0);
+    failures += report("swapped", &format!("ends at {ends:?}"), { let (bs, ps) = ProverSeed::fresh().split(); prove_and_verify_zk(&p, &sudoku_traces(&p, &tb_s, bs), ps).0 });
     // An input that is not a Boolean: the first input cell is `I`.
     let mut heap = heap_of(&p, &bits);
     heap[p.wit_lo as usize] = Cell::I;
     let tb_f = table(&p, heap).expect("the forged run fits");
     let ends = last_head(&tb_f);
     std::fs::write(out.join("tampered_sudoku_forged_input.txt"), lean_table(&p, &tb_f)).unwrap();
-    failures += report("forged_input", &format!("ends at {ends:?}"), prove_and_verify_zk(&p, &sudoku_traces(&p, &tb_f)).0);
+    failures += report("forged_input", &format!("ends at {ends:?}"), { let (bs, ps) = ProverSeed::fresh().split(); prove_and_verify_zk(&p, &sudoku_traces(&p, &tb_f, bs), ps).0 });
     failures
 }
 
