@@ -10,7 +10,7 @@ circuit uses is listed (`cjBuses`) and carries tuples of one width
 evaluation (`compJAirs_ok`).  For any numbering of the buses that is
 injective and below `P - 1` -- Plonky3's, by first use, is one -- tables of
 the circuit that do not balance pass the LogUp check for at most
-`P^4 (11 M^2 + 2M)` of the challenge pairs (`compJ_logup_sound`).
+`P^4 · 13 M` of the challenge pairs (`compJ_logup_sound`).
 -/
 
 namespace Circuit
@@ -48,7 +48,7 @@ theorem entries_of_zip {As : List AirD} {ts : List Table} {e : (String × List F
 
 /-- **LogUp is sound for the composed circuit with jets**: its tables, if
     their buses do not balance, pass Plonky3's LogUp check for at most
-    `P^4 (11 M^2 + 2M)` of the `P^8` challenge pairs, `M` the messages, for
+    `P^4 · 13 M` of the `P^8` challenge pairs, `M` the messages, for
     any injective numbering `idx` of its buses below `P - 1`. -/
 theorem compJ_logup_sound (idx : String → Nat) (hinj : ∀ a ∈ cjBuses, ∀ b ∈ cjBuses, idx a = idx b → a = b)
     (hlt : ∀ a ∈ cjBuses, idx a + 1 < P)
@@ -59,8 +59,7 @@ theorem compJ_logup_sound (idx : String → Nat) (hinj : ∀ a ∈ cjBuses, ∀ 
           decide (sumL (fun p => terminal (prefixOf (efOf i) (boff idx 11 (efOf j))) (efOf j) p.1 p.2)
             ((compJAirs shp Ps W roots jets).zip ts) = EF.zero)
       then 1 else 0)) ≤
-      Q4 * ((allEntries ((compJAirs shp Ps W roots jets).zip ts)).length *
-        (allEntries ((compJAirs shp Ps W roots jets).zip ts)).length * 11) +
+      Q4 * ((allEntries ((compJAirs shp Ps W roots jets).zip ts)).length * 11) +
       2 * (Q4 * (allEntries ((compJAirs shp Ps W roots jets).zip ts)).length) := by
   have hbus : ∀ e ∈ allEntries ((compJAirs shp Ps W roots jets).zip ts),
       e.1.1 ∈ cjBuses ∧ e.1.2.length = cjBusWd e.1.1 := by

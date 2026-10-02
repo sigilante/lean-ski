@@ -900,7 +900,8 @@ jets and a Sudoku, all in zero knowledge (milestone 9, `release/verify.sh`).
 
 Two assumptions, reduced to their algebra. **LogUp** (`Ski/ZK/LogUpSound.lean`):
 tables whose buses do not balance pass Plonky3's check for at most
-`P^4 (M^2 W + 2M)` of the `P^8` challenge pairs (`logup_accept`), and
+`P^4 · M (W + 2)` of the `P^8` challenge pairs (`logup_accept`), Plonky3's
+own `N (W + 2) / |EF|` with `M ≤ N`, and
 `compJ_logup_sound` instantiates it for `compJAirs`. The commitment's
 binding and the STARK's soundness stay assumed. **The hiding PCS**
 (`Ski/ZK/MaskOOD.lean`): the random rows `HidingFriPcs` interleaves make a

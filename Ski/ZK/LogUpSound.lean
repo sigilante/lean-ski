@@ -5,13 +5,16 @@ import Ski.Circuit.ProbeBal
 # LogUp is sound
 
 **`logup_accept`**: tables whose buses do not balance pass Plonky3's
-LogUp check for at most `P^4 (M^2 W + 2M)` of the `P^4 · P^4` challenge
-pairs `(α, β)`, `M` the number of messages and `W` the widest tuple: a
-fraction `(M^2 W + 2M) / P^4`.  Passing is the terminals summing to zero,
-or a denominator vanishing, where a cheating prover's fraction column is
-unconstrained and the verifier, which never checks denominators, accepts
-whatever it holds.  `logup_sound` bounds the pairs with no vanishing
-denominator by `P^4 (M^2 W + M)`; `abort_count` the others by `P^4 M`.
+LogUp check for at most `P^4 · M (W + 2)` of the `P^4 · P^4` challenge
+pairs `(α, β)`, `M` the number of messages sent or received (each table
+row's interactions, counted with repetition) and `W` the widest tuple: a
+fraction `M (W + 2) / P^4`, Plonky3's own bound (`p3-security`'s
+`logup.rs`, `N (W + 2) / |EF|`, `N = num_interactions · 2^log_trace_length`; `M`, summed over each table's own height, is at most `N` and equals it for one table).  Passing is the
+terminals summing to zero, or a denominator vanishing, where a cheating
+prover's fraction column is unconstrained and the verifier, which never
+checks denominators, accepts whatever it holds.  `logup_sound` bounds the
+pairs with no vanishing denominator by `P^4 · M (W + 1)`; `abort_count`
+the others by `P^4 M`.
 
 This is the interactive core, one attempt at uniform challenges for tables
 fixed before them: that the tables are the ones the main commitment binds,
@@ -26,14 +29,17 @@ The challenges are Plonky3's (`p3-batch-stark` 0.8.0, `p3-lookup`'s
 (`hornerL`), every tuple of one bus of one width `w ≤ W`.  A message
 `(b, v)` then has the denominator `α - φ_(b,v)(β)`, its fingerprint
 `φ_(b,v)(β) = hornerL β v - (i + 1) β^W` a polynomial in `β` of `W + 1`
-coefficients, distinct messages' distinct (`kpoly_inj`).  Two steps:
+coefficients, distinct messages' distinct (`kpoly_inj`).  Fix a message
+`k` whose net count is nonzero.  Two steps:
 
-- at all but `M^2 W` values of `β`, the fingerprints of distinct messages
-  differ (`root_count` on their difference);
-- then the terminals' sum is `Σ_k c_k / (α - φ_k)` over the distinct
-  messages, with net counts `c_k` (`group`), one nonzero when the buses do
-  not balance; its numerator `Σ_k c_k ∏_(l ≠ k) (α - φ_l)` is nonzero at
-  `φ_k` (`npoly_at`), so it has fewer than `M` roots (`alpha_count`).
+- at all but `M W` values of `β`, no other message's fingerprint meets
+  `k`'s (`root_count` on their difference, `W` roots each);
+- at such a `β`, group the messages by fingerprint (`group`): the
+  terminals' sum is `Σ_x c_x / (α - x)` over distinct points `x` with net
+  counts `c_x` (`terminals_pts`), and `k`'s point keeps `k`'s nonzero count
+  (`countOf_relabel`); the numerator `Σ_x c_x ∏_(y ≠ x) (α - y)` is
+  nonzero there (`npoly_at`), so at most `M` values of `α` pass
+  (`alpha_count`).
 -/
 
 namespace Circuit
@@ -414,18 +420,6 @@ theorem collide_count (idx : String → Nat) (W : Nat) (wd : String → Nat) {k 
 -- The theorem
 -- ---------------------------------------------------------------------------
 
-/-- Distinct keys, injective images: the images are distinct. -/
-theorem nodup_map_of {K : Type} (f : K → EF) : ∀ L : List (K × F), (L.map Prod.fst).Nodup →
-    (∀ e ∈ L, ∀ e' ∈ L, e.1 ≠ e'.1 → f e.1 ≠ f e'.1) → (L.map (fun e => f e.1)).Nodup
-  | [], _, _ => List.nodup_nil
-  | e :: L, hnd, h => by
-    rw [List.map_cons, List.nodup_cons] at hnd ⊢
-    refine ⟨fun hm => ?_, nodup_map_of f L hnd.2 (fun a ha b hb => h a (List.mem_cons_of_mem _ ha) b
-      (List.mem_cons_of_mem _ hb))⟩
-    obtain ⟨e', he', hf⟩ := List.mem_map.1 hm
-    have hk : e'.1 ≠ e.1 := fun hk => hnd.1 (List.mem_map.2 ⟨e', he', hk⟩)
-    exact h e' (List.mem_cons_of_mem _ he') e List.mem_cons_self hk hf
-
 theorem natSum_const {α : Type} (c : Nat) : ∀ l : List α, natSum l (fun _ => c) = l.length * c
   | [] => (Nat.zero_mul c).symm
   | _ :: l => by
@@ -444,31 +438,66 @@ theorem countOf_allEntries (ts : List (AirD × Table)) (bus : String) (v : List 
 section
 variable (idx : String → Nat) (W : Nat) (wd : String → Nat) (ts : List (AirD × Table))
 
-/-- The terminals' sum, over the distinct messages. -/
-theorem terminals_rsum (α β : EF) :
+/-- A nonzero net count has a message with its key. -/
+theorem countOf_mem {K : Type} [DecidableEq K] (k : K) : ∀ L : List (K × F), countOf L k ≠ 0 → ∃ e ∈ L, e.1 = k
+  | [], h => absurd rfl h
+  | e :: L, h => by
+    rw [countOf_cons] at h
+    rcases (inferInstance : Decidable (e.1 = k)) with hk | hk
+    · rw [if_neg hk, zero_add'] at h
+      obtain ⟨e', he', hk'⟩ := countOf_mem k L h
+      exact ⟨e', List.mem_cons_of_mem _ he', hk'⟩
+    · exact ⟨e, List.mem_cons_self, hk⟩
+
+/-- Relabelling the keys by `f` keeps a key's net count when no other key
+    shares its label. -/
+theorem countOf_relabel {K K' : Type} [DecidableEq K] [DecidableEq K'] (f : K → K') (k : K) :
+    ∀ L : List (K × F), (∀ e ∈ L, f e.1 = f k → e.1 = k) →
+      countOf (L.map (fun e => (f e.1, e.2))) (f k) = countOf L k
+  | [], _ => rfl
+  | e :: L, h => by
+    rw [List.map_cons, countOf_cons, countOf_cons,
+      countOf_relabel f k L (fun e' he' => h e' (List.mem_cons_of_mem _ he'))]
+    rcases (inferInstance : Decidable (e.1 = k)) with hk | hk
+    · have hf : f e.1 ≠ f k := fun hf => hk (h e List.mem_cons_self hf)
+      show (if f e.1 = f k then e.2 else 0) + _ = (if e.1 = k then e.2 else 0) + _
+      rw [if_neg hf, if_neg hk]
+    · show (if f e.1 = f k then e.2 else 0) + _ = (if e.1 = k then e.2 else 0) + _
+      rw [if_pos (congrArg f hk), if_pos hk]
+
+/-- The terminals' sum, over the distinct fingerprints at `β`. -/
+theorem terminals_pts (α β : EF) :
     sumL (fun p => terminal (prefixOf α (boff idx W β)) β p.1 p.2) ts =
-      rsum α ((group (allEntries ts).length (allEntries ts)).map (fun e => (e.2, fp idx W β e.1))) := by
+      rsum α ((group (allEntries ts).length ((allEntries ts).map (fun e => (fp idx W β e.1, e.2)))).map
+        (fun e => (e.2, e.1))) := by
   rw [sumL_congr ts (fun p _ => terminal_entries (prefixOf α (boff idx W β)) β p.1 p.2),
     ← sumL_flatMap (fun e => (EF.ofF e.2).mul (den (prefixOf α (boff idx W β)) β e.1.1 e.1.2).inv)
       (fun p : AirD × Table => entries p.1 p.2) ts]
-  refine (group_sum (fun k : String × List F => (den (prefixOf α (boff idx W β)) β k.1 k.2).inv)
-    (allEntries ts).length (allEntries ts) (Nat.le_refl _)).trans ?_
+  have e1 : sumL (fun e => (EF.ofF e.2).mul (den (prefixOf α (boff idx W β)) β e.1.1 e.1.2).inv)
+      (allEntries ts) = sumL (fun e => (EF.ofF e.2).mul ((fun x => (α.sub x).inv) e.1))
+        ((allEntries ts).map (fun e => (fp idx W β e.1, e.2))) := by
+    rw [sumL_map]
+    refine sumL_congr _ (fun e _ => ?_)
+    show (EF.ofF e.2).mul (den (prefixOf α (boff idx W β)) β e.1.1 e.1.2).inv =
+      (EF.ofF e.2).mul (α.sub (fp idx W β e.1)).inv
+    rw [den_fp]
+  refine e1.trans ((group_sum (fun x => (α.sub x).inv) (allEntries ts).length _
+    (by rw [List.length_map]; exact Nat.le_refl _)).trans ?_)
   unfold rsum
   rw [sumL_map]
-  refine sumL_congr _ (fun e _ => ?_)
-  show (EF.ofF e.2).mul (den (prefixOf α (boff idx W β)) β e.1.1 e.1.2).inv = (EF.ofF e.2).mul (α.sub (fp idx W β e.1)).inv
-  rw [den_fp]
-
-/-- Some distinct messages collide at `β`. -/
-def badB (G : List ((String × List F) × F)) (β : EF) : Bool :=
-  G.any (fun e => G.any (fun e' => decide (e.1 ≠ e'.1) && decide (fp idx W β e.1 = fp idx W β e'.1)))
 
 /-- **LogUp is sound, off the vanishing denominators**: tables whose buses
     do not balance have no vanishing denominator and terminals summing to
-    zero for at most `P^4 (M^2 W + M)` of the `P^4 · P^4` challenge pairs
+    zero for at most `P^4 (M W + M)` of the `P^4 · P^4` challenge pairs
     `(α, β)` (`α` the `i`-th element of `EF`, `β` the `j`-th), `M` the
     messages.  Each bus carries tuples of one width `wd b ≤ W`, and the
-    buses have distinct indices below `P - 1`, as Plonky3 lays them out. -/
+    buses have distinct indices below `P - 1`, as Plonky3 lays them out.
+
+    Fix an unbalanced message `k`.  At a `β` where no other message's
+    fingerprint meets `k`'s, grouping the messages by fingerprint leaves
+    `k`'s net count at its own point, so the numerator is nonzero there
+    and at most `M` values of `α` pass; each other message meets `k`'s
+    fingerprint at most at `W` values of `β`. -/
 theorem logup_sound
     (hw : ∀ e ∈ allEntries ts, e.1.2.length = wd e.1.1 ∧ wd e.1.1 ≤ W)
     (hP : ∀ e ∈ allEntries ts, idx e.1.1 + 1 < P)
@@ -478,62 +507,80 @@ theorem logup_sound
       if (!Aborts (prefixOf (efOf i) (boff idx W (efOf j))) (efOf j) ts) &&
           decide (sumL (fun p => terminal (prefixOf (efOf i) (boff idx W (efOf j))) (efOf j) p.1 p.2) ts = EF.zero)
       then 1 else 0)) ≤
-      Q4 * ((allEntries ts).length * (allEntries ts).length * W) + Q4 * (allEntries ts).length := by
+      Q4 * ((allEntries ts).length * W) + Q4 * (allEntries ts).length := by
   let E := allEntries ts
-  let G := group E.length E
   let M := E.length
-  have hGl : G.length ≤ M := group_length _ _
-  -- the keys of `G` are messages
-  have hG : ∀ g ∈ G, ∃ e ∈ E, e.1 = g.1 := group_keys _ _
-  -- an unbalanced key
-  have hnz : ∃ g ∈ G, g.2 ≠ 0 := by
-    rcases (inferInstance : Decidable (∃ g ∈ G, g.2 ≠ 0)) with hno | h
+  -- an unbalanced message, a key of some entry
+  have hnz : ∃ e ∈ E, countOf E e.1 ≠ 0 := by
+    rcases (inferInstance : Decidable (∃ e ∈ E, countOf E e.1 ≠ 0)) with hno | h
     · refine absurd (fun bus v => ?_) hb
       rw [← countOf_allEntries]
       rcases (inferInstance : Decidable (countOf E (bus, v) = 0)) with h | h
-      · exact absurd ⟨_, group_count E.length E (Nat.le_refl _) _ h, h⟩ hno
+      · obtain ⟨e, he, hk⟩ := countOf_mem (bus, v) E h
+        exact absurd ⟨e, he, by rw [hk]; exact h⟩ hno
       · exact h
     · exact h
-  -- per `β`
+  obtain ⟨e0, he0, hc0⟩ := hnz
+  let k0 := e0.1
+  -- `β` is bad when another message's fingerprint meets `k0`'s
+  let bad : Nat → Bool := fun j =>
+    E.any (fun e => decide (e.1 ≠ k0) && decide (fp idx W (efOf j) e.1 = fp idx W (efOf j) k0))
   have hinner : ∀ j, sumTo Q4 (fun i =>
       if (!Aborts (prefixOf (efOf i) (boff idx W (efOf j))) (efOf j) ts) &&
           decide (sumL (fun p => terminal (prefixOf (efOf i) (boff idx W (efOf j))) (efOf j) p.1 p.2) ts = EF.zero)
-      then 1 else 0) ≤ Q4 * (if badB idx W G (efOf j) then 1 else 0) + M := by
+      then 1 else 0) ≤ Q4 * (if bad j then 1 else 0) + M := by
     intro j
-    cases hbad : badB idx W G (efOf j) with
+    cases hbad : bad j with
     | true =>
       refine Nat.le_trans (sumTo_le_const (c := 1) (fun i => ?_) Q4) (by rw [Nat.mul_one]; exact Nat.le_add_right _ _)
       split <;> omega
     | false =>
-      let ks := G.map (fun e => (e.2, fp idx W (efOf j) e.1))
+      let L' := E.map (fun e => (fp idx W (efOf j) e.1, e.2))
+      let G' := group M L'
+      let ks := G'.map (fun e => (e.2, e.1))
       have hnd : (ks.map Prod.snd).Nodup := by
         rw [List.map_map]
-        refine nodup_map_of (fp idx W (efOf j)) G (group_nodup _ _) (fun e he e' he' hne hf => ?_)
-        have := List.any_eq_false.1 hbad e he
-        rw [List.any_eq_true.2 ⟨e', he', by rw [decide_eq_true hne, decide_eq_true hf]; rfl⟩] at this
-        exact this rfl
+        exact group_nodup M L'
+      -- `k0`'s count survives at its point
+      have hsame : ∀ e ∈ E, fp idx W (efOf j) e.1 = fp idx W (efOf j) k0 → e.1 = k0 := by
+        intro e he hf
+        rcases (inferInstance : Decidable (e.1 = k0)) with hk | hk
+        · have := List.any_eq_false.1 hbad e he
+          rw [decide_eq_true hk, decide_eq_true hf] at this
+          exact absurd rfl this
+        · exact hk
+      have hcnt : countOf L' (fp idx W (efOf j) k0) = countOf E k0 :=
+        countOf_relabel (fp idx W (efOf j)) k0 E hsame
       have hc : ∃ e ∈ ks, e.1 ≠ 0 := by
-        obtain ⟨g, hg, hg0⟩ := hnz
-        exact ⟨_, List.mem_map.2 ⟨g, hg, rfl⟩, hg0⟩
+        refine ⟨(countOf L' (fp idx W (efOf j) k0), fp idx W (efOf j) k0), List.mem_map.2
+          ⟨_, group_count M L' (by rw [List.length_map]; exact Nat.le_refl _) _ (by rw [hcnt]; exact hc0), rfl⟩, ?_⟩
+        show countOf L' (fp idx W (efOf j) k0) ≠ 0
+        rw [hcnt]; exact hc0
       have hcount := alpha_count ks hnd hc
-      have hks : ks.length = G.length := List.length_map _
+      have hks : ks.length ≤ M := by
+        show (G'.map _).length ≤ M
+        rw [List.length_map]
+        exact Nat.le_trans (group_length M L') (by rw [List.length_map]; exact Nat.le_refl _)
       refine Nat.le_trans (sumTo_mono (g := fun i =>
           if decide ((∀ e ∈ ks, efOf i ≠ e.2) ∧ rsum (efOf i) ks = EF.zero) then 1 else 0) Q4 (fun i _ => ?_))
-        (by rw [if_neg (by decide), Nat.mul_zero, Nat.zero_add]; omega)
+        (by
+          show _ ≤ Q4 * (if false = true then 1 else 0) + M
+          rw [if_neg (by decide), Nat.mul_zero, Nat.zero_add]; omega)
       rcases hab : Aborts (prefixOf (efOf i) (boff idx W (efOf j))) (efOf j) ts with _ | _
-      · rw [terminals_rsum]
+      · rw [terminals_pts]
         rcases (inferInstance : Decidable (rsum (efOf i) ks = EF.zero)) with hr | hr
         · show (if (!false) && decide (rsum (efOf i) ks = EF.zero) then 1 else 0) ≤ _
           rw [decide_eq_false hr]; exact Nat.zero_le _
         · have hoff : ∀ e ∈ ks, efOf i ≠ e.2 := by
             intro e he
             obtain ⟨g, hg, rfl⟩ := List.mem_map.1 he
-            obtain ⟨e', he', hk⟩ := hG g hg
+            obtain ⟨g', hg', hk⟩ := group_keys M L' g hg
+            obtain ⟨e', he', rfl⟩ := List.mem_map.1 hg'
             have hden := List.any_eq_false.1 hab e' he'
             intro h
             apply hden
-            have h' : efOf i = fp idx W (efOf j) g.1 := h
-            rw [den_fp, show (e'.1.1, e'.1.2) = g.1 from hk, ← h', EF.sub_self]
+            have h' : efOf i = fp idx W (efOf j) e'.1 := h.trans hk.symm
+            rw [den_fp, ← h', EF.sub_self]
             rfl
           show (if (!false) && decide (rsum (efOf i) ks = EF.zero) then 1 else 0) ≤
             if decide ((∀ e ∈ ks, efOf i ≠ e.2) ∧ rsum (efOf i) ks = EF.zero) then 1 else 0
@@ -541,46 +588,38 @@ theorem logup_sound
           exact Nat.le_refl _
       · show (if (!true) && _ then 1 else 0) ≤ _
         exact Nat.zero_le _
-  -- the colliding `β`
-  have hcol : sumTo Q4 (fun j => if badB idx W G (efOf j) then 1 else 0) ≤ M * M * W := by
-    let q : Nat → ((String × List F) × F) → ((String × List F) × F) → Nat := fun j e e' =>
-      if decide (e.1 ≠ e'.1) && decide (fp idx W (efOf j) e.1 = fp idx W (efOf j) e'.1) then 1 else 0
-    have h1 : ∀ j, (if badB idx W G (efOf j) then 1 else 0) ≤ natSum G (fun e => natSum G (fun e' => q j e e')) := by
-      intro j
-      refine Nat.le_trans (any_le _ G) (natSum_le G (fun e _ => any_le _ G))
-    have h2 : ∀ e ∈ G, ∀ e' ∈ G, sumTo Q4 (fun j => q j e e') ≤ W := by
-      intro e he e' he'
-      rcases (inferInstance : Decidable (e.1 = e'.1)) with hk | hk
-      · obtain ⟨a, ha, hak⟩ := hG e he
-        obtain ⟨b, hb', hbk⟩ := hG e' he'
-        refine Nat.le_trans (sumTo_mono Q4 (fun j _ => ?_)) (collide_count idx W wd (k := e.1) (k' := e'.1)
-          (hak ▸ hw a ha) (hbk ▸ hw b hb') (hak ▸ hP a ha) (hbk ▸ hP b hb')
-          (fun h => by rw [← hak, ← hbk]; exact hidx a ha b hb' (by rw [hak, hbk]; exact h)) hk)
-        show (if decide (e.1 ≠ e'.1) && decide (fp idx W (efOf j) e.1 = fp idx W (efOf j) e'.1) then 1 else 0) ≤ _
+  -- the bad `β`: each other message meets `k0`'s fingerprint at most `W` times
+  have hcol : sumTo Q4 (fun j => if bad j then 1 else 0) ≤ M * W := by
+    let q : Nat → ((String × List F) × F) → Nat := fun j e =>
+      if decide (e.1 ≠ k0) && decide (fp idx W (efOf j) e.1 = fp idx W (efOf j) k0) then 1 else 0
+    have h2 : ∀ e ∈ E, sumTo Q4 (fun j => q j e) ≤ W := by
+      intro e he
+      rcases (inferInstance : Decidable (e.1 = k0)) with hk | hk
+      · refine Nat.le_trans (sumTo_mono Q4 (fun j _ => ?_)) (collide_count idx W wd (k := e.1) (k' := k0)
+          (hw e he) (hw e0 he0) (hP e he) (hP e0 he0) (hidx e he e0 he0) hk)
+        show (if decide (e.1 ≠ k0) && decide (fp idx W (efOf j) e.1 = fp idx W (efOf j) k0) then 1 else 0) ≤ _
         rw [decide_eq_true hk]
         exact Nat.le_refl _
       · refine Nat.le_trans (Nat.le_of_eq ((congrArg (sumTo Q4) (funext fun j => ?_)).trans
           (by rw [sumTo_const, Nat.mul_zero] : sumTo Q4 (fun _ => 0) = 0))) (Nat.zero_le W)
-        show (if decide (e.1 ≠ e'.1) && _ then 1 else 0) = 0
+        show (if decide (e.1 ≠ k0) && _ then 1 else 0) = 0
         rw [decide_eq_false (fun h => h hk)]; rfl
-    calc sumTo Q4 (fun j => if badB idx W G (efOf j) then 1 else 0)
-        ≤ sumTo Q4 (fun j => natSum G (fun e => natSum G (fun e' => q j e e'))) := sumTo_mono Q4 (fun j _ => h1 j)
-      _ = natSum G (fun e => natSum G (fun e' => sumTo Q4 (fun j => q j e e'))) := by
-          rw [sumTo_natSum]; congr 1; funext e; rw [sumTo_natSum]
-      _ ≤ natSum G (fun _ => natSum G (fun _ => W)) :=
-          natSum_le G (fun e he => natSum_le G (fun e' he' => h2 e he e' he'))
-      _ = G.length * (G.length * W) := by rw [natSum_const, natSum_const]
-      _ ≤ M * (M * W) := Nat.mul_le_mul hGl (Nat.mul_le_mul_right W hGl)
-      _ = M * M * W := (Nat.mul_assoc _ _ _).symm
-  calc _ ≤ sumTo Q4 (fun j => Q4 * (if badB idx W G (efOf j) then 1 else 0) + M) := sumTo_mono Q4 (fun j _ => hinner j)
-    _ = Q4 * sumTo Q4 (fun j => if badB idx W G (efOf j) then 1 else 0) + Q4 * M := by
+    calc sumTo Q4 (fun j => if bad j then 1 else 0)
+        ≤ sumTo Q4 (fun j => natSum E (fun e => q j e)) := sumTo_mono Q4 (fun j _ => any_le _ E)
+      _ = natSum E (fun e => sumTo Q4 (fun j => q j e)) := sumTo_natSum _ _ _
+      _ ≤ natSum E (fun _ => W) := natSum_le E h2
+      _ = M * W := natSum_const W E
+  calc _ ≤ sumTo Q4 (fun j => Q4 * (if bad j then 1 else 0) + M) := sumTo_mono Q4 (fun j _ => hinner j)
+    _ = Q4 * sumTo Q4 (fun j => if bad j then 1 else 0) + Q4 * M := by
         rw [sumTo_add, sumTo_mul_left, sumTo_const]
-    _ ≤ Q4 * (M * M * W) + Q4 * M := Nat.add_le_add_right (Nat.mul_le_mul_left Q4 hcol) _
+    _ ≤ Q4 * (M * W) + Q4 * M := Nat.add_le_add_right (Nat.mul_le_mul_left Q4 hcol) _
 
 /-- **LogUp is sound**: tables whose buses do not balance pass the check --
     the terminals sum to zero, or a denominator vanishes and the cheating
-    prover's column there is free -- for at most `P^4 (M^2 W + 2M)` of the
-    `P^4 · P^4` challenge pairs. -/
+    prover's column there is free -- for at most `P^4 · M (W + 2)` of the
+    `P^4 · P^4` challenge pairs, the fraction `M (W + 2) / P^4` that
+    Plonky3's own analysis takes (`p3-security`'s `N (W + 2) / |EF|`, with
+    `M ≤ N`, equal for one table). -/
 theorem logup_accept
     (hw : ∀ e ∈ allEntries ts, e.1.2.length = wd e.1.1 ∧ wd e.1.1 ≤ W)
     (hP : ∀ e ∈ allEntries ts, idx e.1.1 + 1 < P)
@@ -590,7 +629,7 @@ theorem logup_accept
       if Aborts (prefixOf (efOf i) (boff idx W (efOf j))) (efOf j) ts ||
           decide (sumL (fun p => terminal (prefixOf (efOf i) (boff idx W (efOf j))) (efOf j) p.1 p.2) ts = EF.zero)
       then 1 else 0)) ≤
-      Q4 * ((allEntries ts).length * (allEntries ts).length * W) + 2 * (Q4 * (allEntries ts).length) := by
+      Q4 * ((allEntries ts).length * W) + 2 * (Q4 * (allEntries ts).length) := by
   have hs := logup_sound idx W wd ts hw hP hidx hb
   have ha : sumTo Q4 (fun j => sumTo Q4 (fun i =>
       if Aborts (prefixOf (efOf i) (boff idx W (efOf j))) (efOf j) ts then 1 else 0)) ≤

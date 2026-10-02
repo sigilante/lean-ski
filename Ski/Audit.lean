@@ -739,7 +739,7 @@ open Ski.Audit
 -- distinct messages; tables that do not balance pass the check for few challenges; for the circuit with jets
 #audit_clean Circuit.roots_lt Circuit.root_count Circuit.cval_divq Circuit.alpha_count Circuit.npoly_at
   Circuit.group_sum Circuit.group_count Circuit.group_nodup Circuit.kpoly_cval Circuit.kpoly_inj
-  Circuit.collide_count Circuit.terminals_rsum Circuit.logup_sound Circuit.logup_accept Circuit.compJAirs_ok
+  Circuit.collide_count Circuit.countOf_mem Circuit.countOf_relabel Circuit.terminals_pts Circuit.logup_sound Circuit.logup_accept Circuit.compJAirs_ok
   Circuit.compJ_logup_sound
 
 -- The hiding PCS's algebraic core: interpolation over F, a column interleaved with random rows opens with one
