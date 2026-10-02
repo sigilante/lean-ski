@@ -57,6 +57,9 @@ import Ski.SudokuCheck
 import Ski.Weak
 import Ski.Lambda
 import Ski.Quote
+import Ski.Requote
+import Ski.Graph
+import Ski.RWMem
 import Ski.Open
 import Ski.Abs
 import Ski.Transfer
@@ -741,3 +744,17 @@ open Ski.Audit
 #audit_clean Circuit.froots_lt Circuit.finterp_eval Circuit.fagree_zero Circuit.fagree Circuit.vsum_shift
   Circuit.vsum_append Circuit.vsum_comm Circuit.mask_hides Circuit.mF_root Circuit.mF_ne Circuit.mask_hides_ood
   Circuit.masks_hide
+
+-- Re-encoding is definable: one closed term takes ⟨t⟩ to ⟨⟨t⟩⟩
+#audit_clean Requote.quoteS_elim Requote.quoteK_elim Requote.quoteI_elim Requote.quoteApp_elim
+  Requote.R_unroll Requote.R_case Requote.requote Requote.requote_iter
+
+-- Graph reduction with update in place, sound and complete against L1, never more contractions
+#audit_clean Graph.Dec.det Graph.dec_spine Graph.spine_dec Graph.spine_ne Graph.dec_update Graph.gstep_sound
+  Graph.gstep_inv Graph.gstep_none Graph.grun_sound Graph.grun_halts Graph.grun_mono Graph.grun_le
+  Graph.loadT_spec Graph.inv_load Graph.graph_sound Graph.graph_complete Graph.graph_leaf
+  Graph.wstep_whnf Graph.wsteps_whnf Graph.graph_spine
+
+-- The read-write memory argument: timestamped multiset balance gives last-write reads, and honest runs balance
+#audit_clean RWMem.cnt_le_one RWMem.least RWMem.lastW_of RWMem.left_le_one RWMem.no_double RWMem.rw_step
+  RWMem.rw_sound RWMem.cnt_set RWMem.rw_complete

@@ -38,6 +38,9 @@ import Ski.Census
 import Ski.Outcome
 import Ski.Compile
 import Ski.Quote
+import Ski.Requote
+import Ski.Graph
+import Ski.RWMem
 import Ski.Front
 import Ski.Check
 import Ski.TypeCheck

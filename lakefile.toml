@@ -44,3 +44,7 @@ root = "bench.Skilark"
 [[lean_exe]]
 name = "circuit"
 root = "bench.Circuit"
+
+[[lean_exe]]
+name = "graphcost"
+root = "bench.GraphCost"

@@ -77,7 +77,24 @@ machine stops only at a weak head normal form (`mstep_none`). Loaded with a
 term it halts on `v` exactly when the term evaluates to `v`
 (`machine_eval`), after as many contractions as `runF` counts
 (`machine_count`). Nothing is overwritten, so no work is shared and the
-contraction counts are L1's; graph reduction with update is left open.
+contraction counts are L1's.
+
+**Graph reduction with update in place** (`Ski/Graph.lean`). A heap with
+indirection cells, a head and a spine: `I x` and `K x y` overwrite their
+cell with an indirection to `x`, and `S x y z` overwrites its cell with
+`(x z)(y z)` over two fresh cells, `z` shared. Overwriting a redex is a
+parallel step of every decoding, so the root's decoding takes a head step
+and then a parallel step. A halted run from `t` leaves a weak head normal
+form `v` with `u ↠ v` for L1's value `u`, so with `u`'s head and arity
+(`graph_sound`, `graph_spine`), it halts whenever
+L1 does (`graph_complete`), and it takes at most L1's contractions. On the
+corpus (`lake exe graphcost`) it saves 0–2% of them, 14% on `3 sumto`, but
+re-unwinds after each update: 35,675 transitions there against L2's
+25,073. Its memory is read-write, and `Ski/RWMem.lean` proves the
+generic timestamped multiset check sound: every read returns the last
+write to its address (`rw_sound`), and honest runs pass (`rw_complete`).
+Open: instantiating it on the machine's accesses, a circuit that runs the
+machine, and the budget-exact trace in this semantics.
 
 **No combinator quotes live terms** (`Ski/Lambda.lean`, `Ski/Quote.lean`).
 The untyped λ-calculus with de Bruijn indices, parallel substitution with
@@ -87,7 +104,10 @@ normalizer; combinators translate into it with weak reduction becoming
 S)` and `Q (S K K)` share a reduct, and `no_quote` follows: no closed term
 reduces `Q M` to the encoding of `M` over `S | K | I | App` for every `M`,
 since the encodings of `S K S` and `S K K` have different normal forms,
-computed by the kernel. This is Proposition 3.1 of the metacircular paper.
+computed by the kernel. This is Proposition 3.1 of the metacircular paper. Re-encoding is
+definable, since it acts on data: one closed term `R` takes every
+encoding `⟨t⟩` to `⟨⟨t⟩⟩` under weak reduction (`Ski/Requote.lean`,
+`requote`); under L1 its recursive calls stay lazy.
 
 **Part II: a logic of proofs** (`Ski/Realize.lean`, `Ski/Transfer.lean`).
 Formulas are NP atoms, `∧`, `∨`, `→` and `∃` over witnesses. Realizers
