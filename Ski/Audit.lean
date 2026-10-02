@@ -37,6 +37,7 @@ import Ski.Circuit.CompJAir
 import Ski.Circuit.CompJFinal
 import Ski.Circuit.CompJComplete
 import Ski.ZK.CompJ
+import Ski.ZK.LogUpCJ
 import Ski.ComposedJ
 import Ski.Circuit.Flow
 import Ski.Circuit.JetKind
@@ -726,3 +727,10 @@ open Ski.Audit
 #audit_clean Circuit.jetPar_ok Circuit.viewT_jet Circuit.ef_mid Circuit.ef_last Circuit.ef_cpu
   Circuit.blindInter_avoids Circuit.terminal_wb2 Circuit.terminal_wb1 Circuit.terminal_cpuCJ Circuit.compJ_chain
   Circuit.compJ_sum Circuit.compJ_transcript Circuit.witT_flag Circuit.CRun.honest_zk
+
+-- LogUp is sound: a polynomial's roots, the fingerprints of Plonky3's buses, the sum of fractions over the
+-- distinct messages; tables that do not balance pass the check for few challenges; for the circuit with jets
+#audit_clean Circuit.roots_lt Circuit.root_count Circuit.cval_divq Circuit.alpha_count Circuit.npoly_at
+  Circuit.group_sum Circuit.group_count Circuit.group_nodup Circuit.kpoly_cval Circuit.kpoly_inj
+  Circuit.collide_count Circuit.terminals_rsum Circuit.logup_sound Circuit.logup_accept Circuit.compJAirs_ok
+  Circuit.compJ_logup_sound
