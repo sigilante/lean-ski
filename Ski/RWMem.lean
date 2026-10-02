@@ -6,9 +6,8 @@ was written (`Ski/Heap.lean`).  Graph reduction overwrites cells
 (`Ski/Graph.lean`), and a read must return the *last* write.  This file
 proves the generic timestamped multiset check of offline memory checking
 (Blum, Evans, Gemmell, Kannan and Naor, 1991) sound and complete for a
-trace of accesses, each one read and one write.  Instantiating it on
-`gstep`'s accesses (several reads, up to three writes, and a write-back
-for each read without a write) is not done here.
+trace of accesses, each one read and one write.  `Ski/GraphMem.lean`
+instantiates it on the graph machine, refined to one access a step.
 
 Realised in a circuit, the check needs more than this file states: times
 below the field's characteristic (`n < p`), a range check for `rt j ≤ j`,

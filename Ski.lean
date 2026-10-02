@@ -41,6 +41,7 @@ import Ski.Quote
 import Ski.Requote
 import Ski.Graph
 import Ski.RWMem
+import Ski.GraphMem
 import Ski.Front
 import Ski.Check
 import Ski.TypeCheck

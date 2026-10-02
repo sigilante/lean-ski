@@ -39,6 +39,7 @@ import Ski.Circuit.CompJComplete
 import Ski.ZK.CompJ
 import Ski.ZK.LogUpCJ
 import Ski.ZK.MaskOOD
+import Ski.ZK.MaskPCS
 import Ski.ComposedJ
 import Ski.Circuit.Flow
 import Ski.Circuit.JetKind
@@ -60,6 +61,7 @@ import Ski.Quote
 import Ski.Requote
 import Ski.Graph
 import Ski.RWMem
+import Ski.GraphMem
 import Ski.Open
 import Ski.Abs
 import Ski.Transfer
@@ -758,3 +760,13 @@ open Ski.Audit
 -- The read-write memory argument: timestamped multiset balance gives last-write reads, and honest runs balance
 #audit_clean RWMem.cnt_le_one RWMem.least RWMem.lastW_of RWMem.left_le_one RWMem.no_double RWMem.rw_step
   RWMem.rw_sound RWMem.cnt_set RWMem.rw_complete
+
+-- The graph machine under the memory argument: one access a step, an accepted trace is the honest run,
+-- honest runs are accepted at every budget from the halt, and the accepted trace is unique
+#audit_clean GraphMem.ustep_halt GraphMem.sim_some GraphMem.sim_none GraphMem.halts_of_steps
+  GraphMem.steps_of_halts GraphMem.expected_memAt GraphMem.accepts_honest GraphMem.accepts_sound
+  GraphMem.lastW_congr GraphMem.expected_congr GraphMem.memAt_honest GraphMem.accepts_halted GraphMem.accepts_of_halted GraphMem.accepts_complete
+  GraphMem.accepts_unique
+
+-- The masked-column PCS satisfies the transcript simulator's PCS hypothesis exactly
+#audit_clean Circuit.sumTo_digitsF Circuit.pcsCloseN_masked

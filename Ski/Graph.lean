@@ -784,8 +784,8 @@ theorem grun_halts : ∀ (B n : Nat), n ≤ B → ∀ (N : Nat) {m : GM} {D w H 
           exact ⟨k + 1, m', _, grun_step hs hr⟩
 
 /-- **Fuel is monotone.**  A run that halts within fuel `k` halts within
-    every larger fuel, in the same state after the same contractions.  A
-    budget-exact trace in this semantics is not stated here. -/
+    every larger fuel, in the same state after the same contractions.  The
+    budget-exact trace in this semantics is `Ski/GraphMem.lean`'s. -/
 theorem grun_mono : ∀ {k : Nat} {m m' : GM} {c : Nat}, grun k m = some (m', c) → grun (k + 1) m = some (m', c)
   | 0, _, _, _, h => by cases h
   | k + 1, m, m', c, h => by

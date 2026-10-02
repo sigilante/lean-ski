@@ -93,8 +93,12 @@ re-unwinds after each update: 35,675 transitions there against L2's
 25,073. Its memory is read-write, and `Ski/RWMem.lean` proves the
 generic timestamped multiset check sound: every read returns the last
 write to its address (`rw_sound`), and honest runs pass (`rw_complete`).
-Open: instantiating it on the machine's accesses, a circuit that runs the
-machine, and the budget-exact trace in this semantics.
+`Ski/GraphMem.lean` instantiates it on the machine: refined to one access
+a step, the statement "`t` halts within `n` steps" over a balanced trace
+is sound (`accepts_sound`: `t` evaluates under L1), complete at every
+budget from the halting step (`accepts_complete`), and its rows are unique
+(`accepts_unique`). Open: a circuit that runs it, with the spine in
+memory.
 
 **No combinator quotes live terms** (`Ski/Lambda.lean`, `Ski/Quote.lean`).
 The untyped λ-calculus with de Bruijn indices, parallel substitution with
@@ -905,7 +909,9 @@ independent of the trace when `|S| + 4|Z| ≤ n` (`masks_hide`), in the
 public-coin interactive model with the points independent of the masks.
 Applied with `S ∪ gS`, since the quotient's openings couple to the next
 row. The quotient chunks, the codeword columns, FRI, Merkle salts and
-Fiat–Shamir stay assumed, so `PCSClose` stays a hypothesis.
+Fiat–Shamir stay assumed. For a PCS whose view is exactly these openings,
+`PCSCloseN` holds with `ε = 0` (`Ski/ZK/MaskPCS.lean`); for Plonky3's, it
+stays a hypothesis.
 
 Step 1 (a commitment in SKIlark) is closed at this toy scope. Real
 parameters do not fit SKI reduction: a full adder written natively in
