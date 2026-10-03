@@ -493,7 +493,7 @@ struct CpuAir {
     /// (`src/composed.rs`): its restart columns come last.
     restart: Option<composed::RestartPub>,
     /// The Poseidon2 jet's atom and the comb's root, when the table carries
-    /// the jet's row (`src/compp.rs`): its column follows the restart
+    /// the jet's row (`src/compp.rs`): its columns follow the restart
     /// columns.
     p2: Option<compp::P2Pub>,
 }
@@ -528,7 +528,8 @@ enum SkiAir {
     WitT(witness::WitTAir),
     Segs(composed::SegsAir),
     /// The Poseidon2 table (`src/p2air.rs`).
-    P2,
+    /// The Poseidon2 table, with its blinding block when blinded.
+    P2(bool),
     /// The Poseidon2 jet's input bits, output bits and level index
     /// (`src/compp.rs`).
     P2In,
@@ -559,7 +560,8 @@ impl CpuAir {
         self.bl_base() + self.nblind() * BLIND_WIDTH
     }
 
-    /// The jet's column, `P2SEL`: after the restart columns.
+    /// The jet's columns, `P2SEL` and its blinding block on `blind_c`: after
+    /// the restart columns.
     fn p2base(&self) -> usize {
         self.rbase() + if self.restart.is_some() { composed::RESTART_WIDTH } else { 0 }
     }
@@ -576,9 +578,9 @@ impl<F: Field> BaseAir<F> for SkiAir {
             SkiAir::Probe(p) => p.width(),
             SkiAir::WitT(_) => witness::WT_W,
             SkiAir::Segs(_) => 1,
-            SkiAir::P2 => p2air::P2_WIDTH,
-            SkiAir::P2In => compp::PI_W,
-            SkiAir::P2Out => compp::PO_W,
+            SkiAir::P2(blind) => p2air::P2_WIDTH + if *blind { BLIND_WIDTH } else { 0 },
+            SkiAir::P2In => compp::PI_W + 2 * BLIND_WIDTH,
+            SkiAir::P2Out => compp::PO_W + 2 * BLIND_WIDTH,
             SkiAir::P2Idx(_) => 1,
         }
     }
@@ -652,9 +654,20 @@ where
             SkiAir::Probe(p) => p.eval(b),
             SkiAir::WitT(_) => witness::eval_witt(b),
             SkiAir::Segs(_) => composed::eval_segs(b),
-            SkiAir::P2 => p2air::eval_p2(b),
-            SkiAir::P2In => compp::eval_p2in(b),
-            SkiAir::P2Out => compp::eval_p2out(b),
+            SkiAir::P2(blind) => {
+                p2air::eval_p2(b);
+                if *blind {
+                    compp::eval_blocks(b, p2air::P2_WIDTH, &compp::P2_BLOCKS);
+                }
+            }
+            SkiAir::P2In => {
+                compp::eval_p2in(b);
+                compp::eval_blocks(b, compp::PI_W, &compp::PI_BLOCKS);
+            }
+            SkiAir::P2Out => {
+                compp::eval_p2out(b);
+                compp::eval_blocks(b, compp::PO_W, &compp::PO_BLOCKS);
+            }
             SkiAir::P2Idx(_) => compp::eval_p2idx(b),
         }
     }
@@ -822,7 +835,7 @@ impl CpuAir {
             next_stk = next_stk + st;
         }
         if let Some(pp) = &self.p2 {
-            let (h, st, cn) = compp::eval_cpu_p2(b, &loc, p2sel.clone(), pp);
+            let (h, st, cn) = compp::eval_cpu_p2(b, &loc, p2sel.clone(), self.p2base(), pp);
             next_hd = next_hd + h;
             next_stk = next_stk + st;
             next_ctr = next_ctr + cn;
@@ -1261,6 +1274,15 @@ fn main() {
             }
         }
     }
+    if args.len() == 4 && args[1] == "compp-guess" {
+        match compp::compp_guess(std::path::Path::new(&args[2]), std::path::Path::new(&args[3])) {
+            Ok(()) => return,
+            Err(e) => {
+                eprintln!("compp-guess: {e}");
+                std::process::exit(1);
+            }
+        }
+    }
     if args.len() == 4 && args[1] == "compp-verify" {
         match compp::compp_verify(std::path::Path::new(&args[2]), std::path::Path::new(&args[3])) {
             Ok(()) => return,
@@ -1290,7 +1312,7 @@ fn main() {
         }
     }
     if args.len() == 2 && args[1] == "export-p2" {
-        print!("{}", export::export_air("p2", &SkiAir::P2));
+        print!("{}", export::export_air("p2", &SkiAir::P2(false)));
         return;
     }
     if (args.len() == 3 || (args.len() == 4 && args[3] == "tamper")) && args[1] == "p2-bench" {
@@ -1547,7 +1569,7 @@ fn main() {
              ski-air compj-verify PUBLIC JETS SRC PROOF | ski-air compj-tamper PUBLIC JETS SRC WITNESS\n       \
              ski-air compj-prove-table PUBLIC JETS SRC TABLE PROOF\n       \
              ski-air sudoku-prove PUBLIC WITNESS PROOF [TABLE] | ski-air sudoku-verify PUBLIC PROOF\n       \
-             ski-air fs-budget VERIFY-COMMAND ARGS... | ski-air poseidon2-lean | ski-air export-p2 | ski-air p2-bench N [tamper] | ski-air compp-prove PUBLIC WITNESS PROOF [--table=PATH|forge-w|forge-v] | ski-air compp-prove-table PUBLIC TABLE PROOF | ski-air compp-verify PUBLIC PROOF | ski-air export-compp PUBLIC"
+             ski-air fs-budget VERIFY-COMMAND ARGS... | ski-air poseidon2-lean | ski-air export-p2 | ski-air p2-bench N [tamper] | ski-air compp-prove PUBLIC WITNESS PROOF [--table=PATH|forge-w|forge-v] | ski-air compp-prove-table PUBLIC TABLE PROOF | ski-air compp-verify PUBLIC PROOF | ski-air compp-guess PUBLIC WITNESS | ski-air export-compp PUBLIC"
         );
         std::process::exit(2);
     }

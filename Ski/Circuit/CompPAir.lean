@@ -1,4 +1,5 @@
 import Ski.Circuit.CompAir
+import Ski.Circuit.CompJAir
 import Ski.Circuit.P2Air
 import Ski.ComposedPText
 
@@ -10,12 +11,16 @@ The nine AIRs of `bench/plonky3/src/compp.rs` for a statement `p2pre h`
 
 - the composed circuit's five (`Ski/Circuit/CompAir.lean`), the CPU
   carrying the jet's row: a selector `P2SEL` after the restart columns,
+  then a blinding block sent to P2IN on `blind_c`,
   whose row reads the atom `J` at the head and the stack cells `cons k s₁`
   and `s₁ ↦ cons β rest`, with `β` the comb's root, and the slots;
 - P2IN, one row per input bit, reading the bit's slot;
 - P2OUT, one row per output bit, writing its stack cell;
 - the keyed Poseidon2 table (`P2Air.p2Air`);
 - P2IDX, the public table of the bits' levels.
+
+P2IN, P2OUT and P2 carry blinding blocks (`withBlocks`), the blinding
+tree's edges `CPU —c— P2IN —d— P2OUT —e— P2`.
 
 `lake exe circuit compare-compp` checks the Rust export (`ski-air
 export-compp PUBLIC`) against it.
@@ -63,7 +68,7 @@ def cpuConsP2 (hd0 stk0 ctr0 n nilA J root : Nat) : List E :=
   readConsP 0 ++ readConsP 1 ++ readConsP 2 ++ readConsP 3 ++
   [sInst, sPFirst, sPLater,
    whenFirst (col CNT), whenTrans (eq (nxt CNT) (.add (col CNT) sRS)), whenLast (eq (col CNT) (c (n - 1))),
-   .mul sP2 (.sub (fld 0) (c J)), .mul sP2 (.sub (fld 4) (c root)),
+   .mul sP2 (.sub (fld 0) (c J)), .mul sP2 (.sub (fld 4) (c root)), B.bool (col (P2SEL + 5)),
    whenTrans (eq (nxt HD) (.add (.add nextHd (.mul sRS (col ROOT))) (.mul sP2 (fld 2)))),
    whenTrans (eq (nxt STK) (.add (.add nextStk (.mul sRS (c nilA))) (.mul sP2 (.add (col CTR) (c (P2_BITS - 1)))))),
    whenTrans (eq (nxt CTR) (.add nextCtr (.mul sP2 (c P2_BITS)))),
@@ -84,11 +89,13 @@ def cpuIntersP2 : List Inter :=
    ⟨"p2i", 1, .neg sP2, [col CTR, c P2_BITS, c 0]⟩,
    ⟨"p2o", 1, sP2, [col CTR, c 0, fld 5, c 0, c 0, c 1]⟩,
    ⟨"p2o", 1, .neg sP2, [col CTR, c P2_BITS, fld 5, c 0, c 0, c 1]⟩,
+   -- The blinding tree's edge to P2IN.
+   blindMsg "blind_c" (P2SEL + 1) true,
    ⟨"blind_a", 1, .neg (col (BLA + 4)), blindFields BLA⟩,
    ⟨"blind_b", 1, col (BLB + 4), blindFields BLB⟩]
 
 def cpuAirP2 (hd0 stk0 ctr0 n nilA J root : Nat) : AirD :=
-  ⟨"cpu", P2SEL + 1, 0, cpuConsP2 hd0 stk0 ctr0 n nilA J root, cpuIntersP2, []⟩
+  ⟨"cpu", P2SEL + 6, 0, cpuConsP2 hd0 stk0 ctr0 n nilA J root, cpuIntersP2, []⟩
 
 /-- The witness table's rows, padded to a power of two at least `2^8`. -/
 def witRowsP (N W : Nat) : List (List F) :=
@@ -149,6 +156,12 @@ def idxRows : List (List F) :=
 
 def p2idxAir : AirD := ⟨"p2idx", 1, 6, [], [⟨"p2idx", 0, .neg (col 0), (List.range 6).map prec⟩], idxRows⟩
 
+/-- The jet's private tables with their blinding blocks: the blinding tree's
+    edges `CPU —c— P2IN —d— P2OUT —e— P2`. -/
+def p2inAirB : AirD := withBlocks p2inAir [("blind_c", false), ("blind_d", true)]
+def p2outAirB : AirD := withBlocks p2outAir [("blind_d", false), ("blind_e", true)]
+def p2AirB : AirD := withBlocks P2Air.p2Air [("blind_e", false)]
+
 /-- **The composed circuit with the Poseidon2 jet for `p2pre h`**: what its
     verifier builds. -/
 def compPAirs (h : Nat) : List AirD :=
@@ -158,6 +171,6 @@ def compPAirs (h : Nat) : List AirD :=
   let m := cMachineO ρ0 ComposedPText.shpP ComposedPText.regionP (ComposedPText.VsP h)
   let roots := (cHeapO ρ0 ComposedPText.shpP ComposedPText.regionP (ComposedPText.VsP h)).2
   [cpuAirP2 m.hd m.stk m.heap.length roots.length m.stk ComposedPText.JP2 ComposedPText.rootP, memAirC,
-   progAirC m.heap N W, witAirP N W, segsAir roots, p2inAir, p2outAir, P2Air.p2Air, p2idxAir]
+   progAirC m.heap N W, witAirP N W, segsAir roots, p2inAirB, p2outAirB, p2AirB, p2idxAir]
 
 end Circuit

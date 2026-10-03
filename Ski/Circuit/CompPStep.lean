@@ -1,6 +1,7 @@
 import Ski.Circuit.CompPKind
 import Ski.Circuit.CompStep
 import Ski.Circuit.JetSound
+import Ski.Circuit.CompJStep
 
 /-!
 # The circuit with the Poseidon2 jet: its tables, and what the lookups force
@@ -21,7 +22,7 @@ open B Air
 def compPTables (hd0 stk0 ctr0 n nilA J root : Nat) (heap : List Cell) (N W : Nat) (roots : List Nat)
     (C Mm Pg Wt Sg Pi Po Pp Px : Table) : List (AirD × Table) :=
   [(cpuAirP2 hd0 stk0 ctr0 n nilA J root, C), (memAirC, Mm), (progAirC heap N W, Pg), (witAirP N W, Wt),
-   (segsAir roots, Sg), (p2inAir, Pi), (p2outAir, Po), (P2Air.p2Air, Pp), (p2idxAir, Px)]
+   (segsAir roots, Sg), (p2inAirB, Pi), (p2outAirB, Po), (p2AirB, Pp), (p2idxAir, Px)]
 
 /-- **What an accepted proof of the circuit with the Poseidon2 jet gives.** -/
 structure CompPOK (hd0 stk0 ctr0 n nilA J root : Nat) (heap : List Cell) (N W : Nat) (roots : List Nat)
@@ -63,6 +64,7 @@ theorem cpuIntersP2_eq : cpuIntersP2 =
      ⟨"p2i", 1, .neg sP2, [col CTR, c P2_BITS, c 0]⟩,
      ⟨"p2o", 1, sP2, [col CTR, c 0, fld 5, c 0, c 0, c 1]⟩,
      ⟨"p2o", 1, .neg sP2, [col CTR, c P2_BITS, fld 5, c 0, c 0, c 1]⟩,
+     blindMsg "blind_c" (P2SEL + 1) true,
      ⟨"blind_a", 1, .neg (col (BLA + 4)), blindFields BLA⟩,
      ⟨"blind_b", 1, col (BLB + 4), blindFields BLB⟩] := rfl
 
@@ -88,7 +90,7 @@ theorem cpu_senderP (hs : Sat (cpuAirP2 hd0 stk0 ctr0 n nilA J root) C) {B : Str
   rw [cpuIntersP2_eq] at hI
   simp only [List.mem_cons, List.not_mem_nil, or_false] at hI
   rcases hI with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
-    rfl | rfl
+    rfl | rfl | rfl
   · exact act 0 (by decide)
   · exact act 1 (by decide)
   · exact act 2 (by decide)
@@ -185,6 +187,20 @@ theorem p2_senderP {B : String} (hB : LookupBus B) : SenderOn B (P2Air.p2Air, Pp
 theorem prog_senderP (hp : PreIs (progAirC heap N W) Pg) (B : String) : SenderOn B (progAirC heap N W, Pg) :=
   (prog_senderC hp B).on
 
+/-- The blinding buses are no lookup bus. -/
+theorem blind_ne {B : String} (hB : LookupBus B) {blocks : List (String × Bool)}
+    (hb : ∀ b ∈ blocks, b.1 = "blind_c" ∨ b.1 = "blind_d" ∨ b.1 = "blind_e" := by decide) :
+    ∀ b ∈ blocks, b.1 ≠ B := by
+  intro b hm e
+  rcases hb b hm with h1 | h1 | h1 <;> rw [h1] at e <;> rcases hB with rfl | rfl | rfl <;> exact absurd e (by decide)
+
+/-- A blinded table's messages on another bus are its own. -/
+theorem tableSends_withBlocks {A : AirD} {blocks : List (String × Bool)} {T : Table} {bus : String}
+    (hb : ∀ b ∈ blocks, b.1 ≠ bus) (v : List F) :
+    tableSends (withBlocks A blocks) T bus v = tableSends A T bus v := by
+  unfold tableSends
+  exact foldr_range_congr T.h (fun q _ => rowSends_withBlocks hb v q)
+
 variable (h : CompPOK hd0 stk0 ctr0 n nilA J root heap N W roots C Mm Pg Wt Sg Pi Po Pp Px)
 include h
 
@@ -199,9 +215,9 @@ theorem CompPOK.senders {B : String} (hB : LookupBus B) :
   · exact prog_senderP h.pgpre B
   · exact wit_senderP h.wtpre hB
   · exact nomatch hpr
-  · exact pin_senderP h.pin hB
-  · exact pout_senderP h.pout hB
-  · exact p2_senderP hB
+  · exact senderOn_withBlocks (blind_ne hB) (pin_senderP h.pin hB)
+  · exact senderOn_withBlocks (blind_ne hB) (pout_senderP h.pout hB)
+  · exact senderOn_withBlocks (blind_ne hB) (p2_senderP hB)
   · exact nomatch hpr
 
 /-- **A `mem` message with count `1` is a memory row.** -/

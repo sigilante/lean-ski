@@ -26,7 +26,7 @@ theorem memP2 {c : E} (h : c ∈ cpuConsP2 hd0 stk0 ctr0 n nilA J root) : c.eval
 
 theorem memP_tail {c : E} (h : c ∈ [sInst, sPFirst, sPLater,
     whenFirst (col CNT), whenTrans (eq (nxt CNT) (.add (col CNT) sRS)), whenLast (eq (col CNT) (B.c (n - 1))),
-    .mul sP2 (.sub (fld 0) (B.c J)), .mul sP2 (.sub (fld 4) (B.c root)),
+    .mul sP2 (.sub (fld 0) (B.c J)), .mul sP2 (.sub (fld 4) (B.c root)), B.bool (col (P2SEL + 5)),
     whenTrans (eq (nxt HD) (.add (.add nextHd (.mul sRS (col ROOT))) (.mul sP2 (fld 2)))),
     whenTrans (eq (nxt STK) (.add (.add nextStk (.mul sRS (B.c nilA))) (.mul sP2 (.add (col CTR) (B.c (P2_BITS - 1)))))),
     whenTrans (eq (nxt CTR) (.add nextCtr (.mul sP2 (B.c P2_BITS)))),

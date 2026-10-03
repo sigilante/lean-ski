@@ -29,8 +29,11 @@
 //!   two, and whether the bit is an element's last, among its low 27, or the
 //!   call's last.
 //!
-//! The four jet tables carry no blinding blocks yet: this circuit is not yet
-//! zero knowledge in its jet tables.
+//! P2IN, P2OUT and P2 are private; each carries blinding blocks, the
+//! blinding tree's edges `CPU —c— P2IN —d— P2OUT —e— P2` (`PI_BLOCKS`,
+//! `PO_BLOCKS`, `P2_BLOCKS`), as the composed circuit's tables do
+//! `WIT —a— CPU —b— MEM`.  P2IDX is public, its multiplicities fixed by
+//! the number of calls.
 
 use super::*;
 use crate::seed::{BlindStream, PcsStreams, ProverSeed};
@@ -41,8 +44,9 @@ use p3_uni_stark::StarkGenericConfig;
 use sudoku::{blind_tuple, public_zk_config, secret_zk_config, set_blind, widen, ZkConfig};
 use witness::{witness_rows, WitTAir, WT_BLIND};
 
-/// The CPU's jet column: `P2SEL`.
-pub const P2_CPU_WIDTH: usize = 1;
+/// The CPU's jet columns: `P2SEL`, then the blinding block it sends to
+/// P2IN on `blind_c`.
+pub const P2_CPU_WIDTH: usize = 1 + BLIND_WIDTH;
 /// The inputs' bits.
 pub const P2_BITS: usize = 496;
 /// The first bit's slot.
@@ -73,6 +77,7 @@ pub fn eval_cpu_p2<AB: PermutationAirBuilder + InteractionBuilder>(
     b: &mut AB,
     loc: &[AB::Expr],
     p2sel: AB::Expr,
+    base: usize,
     pp: &P2Pub,
 ) -> (AB::Expr, AB::Expr, AB::Expr) {
     let c = |n: u32| AB::Expr::from_u32(n);
@@ -94,6 +99,8 @@ pub fn eval_cpu_p2<AB: PermutationAirBuilder + InteractionBuilder>(
         [ctr.clone(), c(P2_BITS as u32), rest, c(0), c(0), c(1)],
         -Count::bounded(p2sel.clone(), 1),
     );
+    // The blinding tree's edge to P2IN.
+    blind_msg(b, loc, base + 1, BLIND_C, true);
     (
         p2sel.clone() * a1,
         p2sel.clone() * (ctr.clone() + c(P2_BITS as u32 - 1)),
@@ -105,10 +112,26 @@ pub fn eval_cpu_p2<AB: PermutationAirBuilder + InteractionBuilder>(
 // The jet's tables
 // ---------------------------------------------------------------------------
 
-/// P2IN's columns.
+/// P2IN's columns, before its blinding blocks.
 pub const PI_W: usize = 13;
-/// P2OUT's columns.
+/// P2OUT's columns, before its blinding blocks.
 pub const PO_W: usize = 23;
+
+/// The jet tables' blinding blocks, their edges in the blinding tree
+/// `CPU —c— P2IN —d— P2OUT —e— P2`: a received message (the edge to the
+/// parent), then a sent one (the edge to the child).
+pub const PI_BLOCKS: [(&str, bool); 2] = [("blind_c", false), ("blind_d", true)];
+pub const PO_BLOCKS: [(&str, bool); 2] = [("blind_d", false), ("blind_e", true)];
+pub const P2_BLOCKS: [(&str, bool); 1] = [("blind_e", false)];
+
+/// A table's blinding blocks, after its first `base` columns.
+pub fn eval_blocks<AB: PermutationAirBuilder + InteractionBuilder>(b: &mut AB, base: usize, blocks: &[(&str, bool)]) {
+    let main = b.main();
+    let loc: Vec<AB::Expr> = main.current_slice().iter().map(|&v| v.into()).collect();
+    for (i, &(bus, send)) in blocks.iter().enumerate() {
+        blind_msg(b, &loc, base + BLIND_WIDTH * i, bus, send);
+    }
+}
 
 /// P2IN: `ctr lvl b acc act e pow last islow ilast val nacc em`.  The bit
 /// `lvl` is the slot `3 + lvl`: a `K` cell when true, the cell `app 0 1`
@@ -394,7 +417,7 @@ fn airs(p: &PPublic) -> Vec<SkiAir> {
         SkiAir::Segs(SegsAir { pre: segs_pre(p) }),
         SkiAir::P2In,
         SkiAir::P2Out,
-        SkiAir::P2,
+        SkiAir::P2(true),
         SkiAir::P2Idx(idx_pre()),
     ]
 }
@@ -556,8 +579,9 @@ fn traces(p: &PPublic, tb: &PTable, blind: bool, bs: BlindStream) -> Vec<RowMajo
         }
         p2rows.push((std::array::from_fn(|e| Val::from_u32(call.p2_ins[e])), call.ctr, 1));
     }
-    let mut p2 = p2air::p2_trace_keyed(&p2rows, p.logs[4]);
-    let _ = &mut p2;
+    let mut p2 = widen(p2air::p2_trace_keyed(&p2rows, p.logs[4]), BLIND_WIDTH);
+    let mut pin = widen(RowMajorMatrix::new(pin, PI_W), 2 * BLIND_WIDTH);
+    let mut pout = widen(RowMajorMatrix::new(pout, PO_W), 2 * BLIND_WIDTH);
     // Program, witness, memory.
     let pre = program_of(p);
     for r in &pre {
@@ -580,6 +604,14 @@ fn traces(p: &PPublic, tb: &PTable, blind: bool, bs: BlindStream) -> Vec<RowMajo
         set_blind(&mut cpu, CPU_BLA, ba);
         set_blind(&mut cpu, CPU_BLB, bb);
         set_blind(&mut mem, 5, bb);
+        // The jet tables' edges: CPU —c— P2IN —d— P2OUT —e— P2.
+        let (tc, td, te) = (blind_tuple(&mut rng), blind_tuple(&mut rng), blind_tuple(&mut rng));
+        set_blind(&mut cpu, pbase + 1, tc);
+        set_blind(&mut pin, PI_W, tc);
+        set_blind(&mut pin, PI_W + BLIND_WIDTH, td);
+        set_blind(&mut pout, PO_W, td);
+        set_blind(&mut pout, PO_W + BLIND_WIDTH, te);
+        set_blind(&mut p2, p2air::P2_WIDTH, te);
     }
     let sp = segs_pre(p);
     let mut seen = std::collections::HashSet::new();
@@ -597,8 +629,8 @@ fn traces(p: &PPublic, tb: &PTable, blind: bool, bs: BlindStream) -> Vec<RowMajo
         RowMajorMatrix::new(vec![Val::ZERO; pre.len()], 1),
         wit,
         RowMajorMatrix::new(segs, 1),
-        RowMajorMatrix::new(pin, PI_W),
-        RowMajorMatrix::new(pout, PO_W),
+        pin,
+        pout,
         p2,
         RowMajorMatrix::new(idxm, 1),
     ]
@@ -753,6 +785,7 @@ pub fn compp_prove(public: &std::path::Path, wit: &std::path::Path, proof_out: &
     if (tb.mem[hd as usize], tb.mem[stk as usize]) != (Cell::K, Cell::Nil) {
         return Err("the run does not end at K over a nil: the witness does not satisfy the statement".into());
     }
+    one_call(&tb)?;
     if let Some(t) = table_out {
         std::fs::write(t, lean_table(&p, &tb)).map_err(|e| format!("{}: {e}", t.display()))?;
     }
@@ -787,6 +820,17 @@ pub fn compp_verify(public: &std::path::Path, proof: &std::path::Path) -> Result
     let t0 = Instant::now();
     verify(&p, &proof)?;
     println!("{}: VERIFIED in {:.3} s", p.header, t0.elapsed().as_secs_f64());
+    Ok(())
+}
+
+/// The level table's multiplicities, public, count the jet's calls
+/// (`Circuit.idxPub`): `p2pre`'s verifier calls the jet once on every
+/// witness that satisfies it, so a run with another count is refused rather
+/// than proved, lest its proof publish the count.
+fn one_call(tb: &PTable) -> Result<(), String> {
+    if tb.calls.len() != 1 {
+        return Err(format!("the run calls the jet {} times, not once", tb.calls.len()));
+    }
     Ok(())
 }
 
@@ -895,6 +939,7 @@ pub fn compp_prove_table(public: &std::path::Path, table: &std::path::Path, proo
     let p = parse_public_p(&text)?;
     let ttext = std::fs::read_to_string(table).map_err(|e| format!("{}: {e}", table.display()))?;
     let tb = table_of_text(&p, &ttext)?;
+    one_call(&tb)?;
     let (bs, ps) = ProverSeed::fresh().split();
     let (proof, prove_s) = prove(&p, &traces(&p, &tb, true, bs), ps)?;
     let bytes = postcard::to_allocvec(&proof).map_err(|e| format!("serialize: {e}"))?;
@@ -912,5 +957,96 @@ pub fn compp_prove_table(public: &std::path::Path, table: &std::path::Path, proo
         bytes.len(),
         proof_out.display()
     );
+    Ok(())
+}
+
+/// The guess test for the jet's private tables: P2IN's, P2OUT's and P2's
+/// published terminals, against the terminals recomputed from the true
+/// witness's tables, unblinded, under the proof's own challenges.  None
+/// matches when the proof is blinded; each matches when it is not (the
+/// dictionary attack the blinding stops).
+fn guess_matches(p: &PPublic, tb: &PTable, blind: bool) -> [bool; 3] {
+    use p3_batch_stark::{BatchShape, BatchVerifierTranscript};
+    use p3_lookup::{LogUpGadget, LookupProtocol};
+    let (bs, ps) = ProverSeed::fresh().split();
+    let tr = traces(p, tb, blind, bs);
+    let config = secret_zk_config(ps);
+    let a = airs(p);
+    let pd = ProverData::<ZkConfig>::from_airs_and_degrees(&public_zk_config(), &a, &heights(p, config.is_zk()))
+        .expect("setup");
+    let trs: Vec<&RowMajorMatrix<Val>> = tr.iter().collect();
+    let pvs: Vec<Vec<Val>> = crate::stmt::public_values(&a);
+    let proof = prove_batch(&config, &StarkInstance::new_multiple(&a, &trs, &pvs), &pd).expect("prove");
+    let v_config = public_zk_config();
+    let v_airs = airs(p);
+    let v_data =
+        ProverData::<ZkConfig>::from_airs_and_degrees(&v_config, &v_airs, &proof.degree_bits).expect("verifier setup");
+    let v_pvs = crate::stmt::public_values(&v_airs);
+    verify_batch(&v_config, &v_airs, &proof, &v_pvs, &v_data.common).expect("the honest proof verifies");
+    let common = &v_data.common;
+    let shape = BatchShape {
+        trace_widths: v_airs.iter().map(|x| <SkiAir as BaseAir<Val>>::width(x)).collect(),
+        public_value_counts: crate::stmt::public_value_counts(&v_airs),
+        preprocessed_widths: v_airs.iter().map(|x| <SkiAir as BaseAir<Val>>::preprocessed_width(x)).collect(),
+        has_preprocessed_commitment: true,
+        num_lookup_instances: common.lookups.iter().filter(|l| !l.is_empty()).count(),
+        lookup_pow_bits: v_config.lookup_proof_of_work_bits(),
+        has_randomization_commitment: true,
+        ood_pow_bits: v_config.ood_proof_of_work_bits(),
+    };
+    let mut ch = v_config.initialise_challenger();
+    let mut t = BatchVerifierTranscript::<Challenger, Val, Challenge, _>::new(&mut ch, shape);
+    t.instance_bindings(&proof.degree_bits);
+    t.main_phase(proof.commitments.main.clone(), &v_pvs);
+    t.preprocessed_phase(common.preprocessed.as_ref().map(|g| g.commitment.clone()));
+    let chs = t.lookup_phase(&common.lookups, &LogUpGadget::new(), proof.lookup_pow_witness).expect("lookup challenges");
+    t.abort();
+    // The guesser's tables: the true witness's, with the blinding flags clear.
+    let (gs, _) = ProverSeed::fresh().split();
+    let guess_tr = traces(p, tb, false, gs);
+    std::array::from_fn(|i| {
+        let k = 5 + i;
+        let published = proof.lookup_terminals[k].as_ref().expect("a jet table's terminal").0;
+        let guess = LogUpGadget::new()
+            .generate_permutation::<Val, Challenge>(&guess_tr[k], &None, &[], &common.lookups[k], &chs[k])
+            .1
+            .expect("a terminal")
+            .0;
+        guess == published
+    })
+}
+
+/// `ski-air compp-guess PUBLIC WITNESS`: the guess test, blinded and as a
+/// control unblinded.
+pub fn compp_guess(public: &std::path::Path, wit: &std::path::Path) -> Result<(), String> {
+    let text = std::fs::read_to_string(public).map_err(|e| format!("{}: {e}", public.display()))?;
+    lean_statement("composed", &["statement-p2", "-"], text.as_bytes()).map_err(|e| format!("statement: {e}"))?;
+    let p = parse_public_p(&text)?;
+    let wtext = std::fs::read_to_string(wit).map_err(|e| format!("{}: {e}", wit.display()))?;
+    let ls: Vec<&str> = wtext.lines().filter(|l| !l.is_empty()).collect();
+    if ls.len() != (p.nbits + p.w) as usize {
+        return Err(format!("{}: {} lines, not {}", wit.display(), ls.len(), p.nbits + p.w));
+    }
+    let private: Vec<Cell> = ls
+        .iter()
+        .enumerate()
+        .map(|(i, l)| match (i < p.nbits as usize, *l) {
+            (true, "1") => Ok(Cell::K),
+            (true, "0") => Ok(Cell::App(0, 1)),
+            _ => parse_cell(l),
+        })
+        .collect::<Result<_, _>>()?;
+    let heap: Vec<Cell> = p.cells.iter().enumerate().map(|(i, c)| c.unwrap_or_else(|| private[i - 3])).collect();
+    let tb = table(&p, heap, Forge::None)?;
+    let blinded = guess_matches(&p, &tb, true);
+    let control = guess_matches(&p, &tb, false);
+    let names = ["P2IN", "P2OUT", "P2"];
+    for i in 0..3 {
+        println!("{}: guess matches the blinded terminal: {}; the unblinded control: {}", names[i], blinded[i], control[i]);
+    }
+    if blinded.iter().any(|&b| b) || !control.iter().all(|&b| b) {
+        return Err("the guess test fails".into());
+    }
+    println!("the guess test passes: the jet tables' terminals hide the witness");
     Ok(())
 }

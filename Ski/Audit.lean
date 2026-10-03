@@ -33,6 +33,7 @@ import Ski.P2Jet
 import Ski.ComposedP
 import Ski.Circuit.CompPFinal
 import Ski.P2PreSound
+import Ski.ZK.CompP
 import Ski.Composed
 import Ski.Circuit.BaseSound
 import Ski.Circuit.BaseComplete
@@ -857,3 +858,7 @@ open Ski.Audit
 -- What a proof of p2pre h proves: a Poseidon2 preimage
 #audit_clean P2Pre.thetaK_absorbs P2Pre.thetaK_not_K P2Pre.chk_sound P2Pre.env_J P2Pre.p2pre_meaning
   Circuit.p2preExport_sound
+
+-- Zero knowledge of the circuit with the Poseidon2 jet: the blinding tree CPU —c— P2IN —d— P2OUT —e— P2
+#audit_clean Circuit.viewT_p2 Circuit.terminal_cpuP2 Circuit.p2_avoids Circuit.compP_chain Circuit.compP_sum
+  Circuit.compP_transcript Circuit.pinB_sends Circuit.poutB_sends Circuit.p2B_sends Circuit.tableSends_withBlocks

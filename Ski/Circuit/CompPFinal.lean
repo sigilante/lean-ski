@@ -56,8 +56,10 @@ theorem compPOK_of {h : Nat} {ts : List Table} (hacc : Accepted (compPAirs h) ts
       · exact h0
     refine ⟨C, Mm, Pg, Wt, Sg, Pi, Po, Pp, Px, rfl, ⟨(mem _ _ (by simp [compPTables])).1,
       (mem _ _ (by simp [compPTables])).1, (mem _ _ (by simp [compPTables])).1,
-      (mem _ _ (by simp [compPTables])).1, (mem _ _ (by simp [compPTables])).1,
-      (mem _ _ (by simp [compPTables])).1, (mem _ _ (by simp [compPTables])).1,
+      (mem _ _ (by simp [compPTables])).1,
+      sat_of_withBlocks (mem p2inAirB Pi (by simp [compPTables])).1,
+      sat_of_withBlocks (mem p2outAirB Po (by simp [compPTables])).1,
+      sat_of_withBlocks (mem p2AirB Pp (by simp [compPTables])).1,
       pre _ _ (by simp [compPTables]) (by show (5 : Nat) ≠ 0; decide),
       pre _ _ (by simp [compPTables]) (by show (3 : Nat) ≠ 0; decide),
       pre _ _ (by simp [compPTables]) (by show (2 : Nat) ≠ 0; decide),

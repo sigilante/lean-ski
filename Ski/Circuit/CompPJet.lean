@@ -411,6 +411,31 @@ theorem sumTo_two {f : Nat → Nat} : ∀ n q q', q < n → q' < n → q ≠ q' 
       exact Nat.add_le_add_right (sumTo_ge n q' h2) _
     · exact absurd ((Nat.le_antisymm (Nat.le_of_lt_succ hq) h1).trans (Nat.le_antisymm (Nat.le_of_lt_succ hq') h2).symm) hne
 
+/-- The blinded jet tables send, on any bus but their blinding buses, what
+    the unblinded ones do. -/
+theorem pinB_sends (T : Table) (bus : String) (v : List F) (hb : bus ≠ "blind_c" ∧ bus ≠ "blind_d") :
+    tableSends p2inAirB T bus v = tableSends p2inAir T bus v :=
+  tableSends_withBlocks (fun b hm e => by
+    simp only [List.mem_cons, List.not_mem_nil, or_false] at hm
+    rcases hm with rfl | rfl
+    · exact hb.1 e.symm
+    · exact hb.2 e.symm) v
+
+theorem poutB_sends (T : Table) (bus : String) (v : List F) (hb : bus ≠ "blind_d" ∧ bus ≠ "blind_e") :
+    tableSends p2outAirB T bus v = tableSends p2outAir T bus v :=
+  tableSends_withBlocks (fun b hm e => by
+    simp only [List.mem_cons, List.not_mem_nil, or_false] at hm
+    rcases hm with rfl | rfl
+    · exact hb.1 e.symm
+    · exact hb.2 e.symm) v
+
+theorem p2B_sends (T : Table) (bus : String) (v : List F) (hb : bus ≠ "blind_e") :
+    tableSends p2AirB T bus v = tableSends P2Air.p2Air T bus v :=
+  tableSends_withBlocks (fun b hm e => by
+    simp only [List.mem_cons, List.not_mem_nil, or_false] at hm
+    subst hm
+    exact hb e.symm) v
+
 section
 
 variable {hd0 stk0 ctr0 n nilA J root : Nat} {heap : List Cell} {N W : Nat} {roots : List Nat}
@@ -419,9 +444,9 @@ variable {hd0 stk0 ctr0 n nilA J root : Nat} {heap : List Cell} {N W : Nat} {roo
 include h
 
 theorem CompPOK.cpu_h : C.h ≤ 2 ^ 27 := h.two (cpuAirP2 hd0 stk0 ctr0 n nilA J root, C) (by simp [compPTables])
-theorem CompPOK.pin_h : Pi.h ≤ 2 ^ 27 := h.two (p2inAir, Pi) (by simp [compPTables])
-theorem CompPOK.pout_h : Po.h ≤ 2 ^ 27 := h.two (p2outAir, Po) (by simp [compPTables])
-theorem CompPOK.p2_h : Pp.h ≤ 2 ^ 27 := h.two (P2Air.p2Air, Pp) (by simp [compPTables])
+theorem CompPOK.pin_h : Pi.h ≤ 2 ^ 27 := h.two (p2inAirB, Pi) (by simp [compPTables])
+theorem CompPOK.pout_h : Po.h ≤ 2 ^ 27 := h.two (p2outAirB, Po) (by simp [compPTables])
+theorem CompPOK.p2_h : Pp.h ≤ 2 ^ 27 := h.two (p2AirB, Pp) (by simp [compPTables])
 
 /-- **Every row's counter** is its head address, one, and a 24-bit value. -/
 theorem CompPOK.ctr_eq {r : Nat} (hr : r < C.h) :
@@ -631,9 +656,10 @@ theorem CompPOK.pinConserve {r0 : Nat} (hr0 : r0 < C.h) (hp : C.main r0 P2SEL = 
     simp only [compPTables, List.foldr_cons, List.foldr_nil] at hb
     rw [sends_nobus' (A := memAirC) rfl, sends_nobus' (A := progAirC heap N W) rfl,
       sends_nobus' (A := witAirP N W) rfl, sends_nobus' (A := segsAir roots) rfl,
-      sends_nobus' (A := p2outAir) rfl, sends_nobus' (A := P2Air.p2Air) (by decide),
+      sends_nobus' (A := p2outAirB) rfl, sends_nobus' (A := p2AirB) (by decide),
       sends_nobus' (A := p2idxAir) rfl] at hb
     simp only [zero_add', add_zero'] at hb
+    rw [pinB_sends Pi _ _ (by decide)] at hb
     have hpin : tableSends p2inAir Pi "p2i" [C.main r0 CTR, l, s] =
         ofN ((pinEdges Pi (C.main r0 CTR)).cntOut (l, [s])) - ofN ((pinEdges Pi (C.main r0 CTR)).cntIn (l, [s])) := by
       unfold tableSends
@@ -700,9 +726,10 @@ theorem CompPOK.poutConserve {r0 : Nat} (hr0 : r0 < C.h) (hp : C.main r0 P2SEL =
     simp only [compPTables, List.foldr_cons, List.foldr_nil] at hb
     rw [sends_nobus' (A := memAirC) rfl, sends_nobus' (A := progAirC heap N W) rfl,
       sends_nobus' (A := witAirP N W) rfl, sends_nobus' (A := segsAir roots) rfl,
-      sends_nobus' (A := p2inAir) rfl, sends_nobus' (A := P2Air.p2Air) (by decide),
+      sends_nobus' (A := p2inAirB) rfl, sends_nobus' (A := p2AirB) (by decide),
       sends_nobus' (A := p2idxAir) rfl] at hb
     simp only [zero_add', add_zero'] at hb
+    rw [poutB_sends Po _ _ (by decide)] at hb
     have hpin : tableSends p2outAir Po "p2o" [C.main r0 CTR, l, a, b, c', d] =
         ofN ((poutEdges Po (C.main r0 CTR)).cntOut (l, [a, b, c', d])) - ofN ((poutEdges Po (C.main r0 CTR)).cntIn (l, [a, b, c', d])) := by
       unfold tableSends
@@ -772,8 +799,8 @@ theorem CompPOK.poutPath {r0 : Nat} (hr0 : r0 < C.h) (hp : C.main r0 P2SEL = 1) 
 theorem CompPOK.pinLevel {q i : Nat} (hq : q < Pi.h) (ha : Pi.main q 4 = 1) (hl : Pi.main q 1 = ofN i)
     (hi : i < P2_BITS) : [Pi.main q 5, Pi.main q 6, Pi.main q 7, Pi.main q 8, Pi.main q 9] = (idxRow i).tail := by
   have cv := col_eval hq
-  obtain ⟨x, hx, hv⟩ := h.idxHit ⟨(p2inAir, Pi), by simp [compPTables], rfl, q, hq,
-    ⟨"p2idx", 1, col 4, [col 1, col 5, col 6, col 7, col 8, col 9]⟩, List.mem_cons_self, rfl, rfl,
+  obtain ⟨x, hx, hv⟩ := h.idxHit ⟨(p2inAirB, Pi), by simp [compPTables], rfl, q, hq,
+    ⟨"p2idx", 1, col 4, [col 1, col 5, col 6, col 7, col 8, col 9]⟩, List.mem_append_left _ List.mem_cons_self, rfl, rfl,
     by rw [cv, ha]⟩
   simp only [List.map_cons, List.map_nil, cv, hl] at hv
   exact idx_of h.pxpre hx hi hv
@@ -782,8 +809,8 @@ theorem CompPOK.pinLevel {q i : Nat} (hq : q < Pi.h) (ha : Pi.main q 4 = 1) (hl 
 theorem CompPOK.poutLevel {q i : Nat} (hq : q < Po.h) (ha : Po.main q 7 = 1) (hl : Po.main q 1 = ofN i)
     (hi : i < P2_BITS) : [Po.main q 8, Po.main q 9, Po.main q 10, Po.main q 11, Po.main q 12] = (idxRow i).tail := by
   have cv := col_eval hq
-  obtain ⟨x, hx, hv⟩ := h.idxHit ⟨(p2outAir, Po), by simp [compPTables], rfl, q, hq,
-    ⟨"p2idx", 1, col 7, [col 1, col 8, col 9, col 10, col 11, col 12]⟩, List.mem_cons_self, rfl, rfl,
+  obtain ⟨x, hx, hv⟩ := h.idxHit ⟨(p2outAirB, Po), by simp [compPTables], rfl, q, hq,
+    ⟨"p2idx", 1, col 7, [col 1, col 8, col 9, col 10, col 11, col 12]⟩, List.mem_append_left _ List.mem_cons_self, rfl, rfl,
     by rw [cv, ha]⟩
   simp only [List.map_cons, List.map_nil, cv, hl] at hv
   exact idx_of h.pxpre hx hi hv
@@ -794,9 +821,9 @@ theorem CompPOK.pinSlot {q i : Nat} (hq : q < Pi.h) (ha : Pi.main q 4 = 1) (hl :
     ∃ b : Bool, Pi.main q 2 = ofN b.toNat ∧ i + 3 < Mm.h ∧
       (memOf Mm)[i + 3]? = some (if b then .K else .app 0 1) := by
   have cv := col_eval hq
-  have hm := h.cell (h.memHit ⟨(p2inAir, Pi), by simp [compPTables], rfl, q, hq,
+  have hm := h.cell (h.memHit ⟨(p2inAirB, Pi), by simp [compPTables], rfl, q, hq,
     ⟨"mem", 1, col 4, [.add (col 1) (c 3), .sub (c 3) (.mul (col 2) (c 2)), c 0, .sub one (col 2)]⟩,
-    (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ List.mem_cons_self))), rfl, rfl, by rw [cv, ha]⟩)
+    (List.mem_append_left _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ List.mem_cons_self)))), rfl, rfl, by rw [cv, ha]⟩)
   simp only [E.eval, cv, hl, B.c, B.one] at hm
   have hP : i + 3 < P := Nat.lt_trans (Nat.add_lt_add_right hi 3) (by decide)
   rw [← ofN_add, val_ofN hP] at hm
@@ -811,8 +838,8 @@ theorem CompPOK.poutWrite {q : Nat} (hq : q < Po.h) (ha : Po.main q 7 = 1) :
     (Po.main q 20).val < Mm.h ∧
       (memOf Mm)[(Po.main q 20).val]? = some (.cons (Po.main q 22).val (Po.main q 21).val) := by
   have cv := col_eval hq
-  have hm := h.cell (h.memHit ⟨(p2outAir, Po), by simp [compPTables], rfl, q, hq,
-    ⟨"mem", 1, col 7, [col 20, c 5, col 22, col 21]⟩, (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ List.mem_cons_self))), rfl, rfl, by rw [cv, ha]⟩)
+  have hm := h.cell (h.memHit ⟨(p2outAirB, Po), by simp [compPTables], rfl, q, hq,
+    ⟨"mem", 1, col 7, [col 20, c 5, col 22, col 21]⟩, (List.mem_append_left _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ List.mem_cons_self)))), rfl, rfl, by rw [cv, ha]⟩)
   simp only [E.eval, cv, B.c] at hm
   rw [cellOf_cons] at hm
   exact hm
@@ -898,8 +925,9 @@ theorem CompPOK.p2vCount {t : F} {e : Nat → Nat} {st : Nat → List F}
   simp only [compPTables, List.foldr_cons, List.foldr_nil] at hb
   rw [sends_nobus' (A := cpuAirP2 hd0 stk0 ctr0 n nilA J root) (by show cpuIntersP2.all _ = true; decide), sends_nobus' (A := memAirC) rfl,
     sends_nobus' (A := progAirC heap N W) rfl, sends_nobus' (A := witAirP N W) rfl,
-    sends_nobus' (A := segsAir roots) rfl, sends_nobus' (A := p2outAir) rfl,
-    sends_nobus' (A := p2idxAir) rfl, h.pinSendsV hrows hall he x, p2SendsV h.p2 he t x] at hb
+    sends_nobus' (A := segsAir roots) rfl, sends_nobus' (A := p2outAirB) rfl,
+    sends_nobus' (A := p2idxAir) rfl, pinB_sends Pi _ _ (by decide), p2B_sends Pp _ _ (by decide),
+    h.pinSendsV hrows hall he x, p2SendsV h.p2 he t x] at hb
   simp only [zero_add', add_zero'] at hb
   rw [ofN_zero] at hb
   have e1 := eq_of_add_zero_sub hb
@@ -1018,8 +1046,8 @@ theorem CompPOK.p2wMatch {t : F} {e : Nat → Nat} {st : Nat → List F}
   rw [sends_nobus' (A := cpuAirP2 hd0 stk0 ctr0 n nilA J root) (by show cpuIntersP2.all _ = true; decide),
     sends_nobus' (A := memAirC) rfl, sends_nobus' (A := progAirC heap N W) rfl,
     sends_nobus' (A := witAirP N W) rfl, sends_nobus' (A := segsAir roots) rfl,
-    sends_nobus' (A := p2inAir) rfl, sends_nobus' (A := p2idxAir) rfl,
-    h.poutSendsW hrows hall he y, hp2, if_pos rfl] at hb
+    sends_nobus' (A := p2inAirB) rfl, sends_nobus' (A := p2idxAir) rfl,
+    poutB_sends Po _ _ (by decide), p2B_sends Pp _ _ (by decide), h.poutSendsW hrows hall he y, hp2, if_pos rfl] at hb
   simp only [zero_add', add_zero'] at hb
   have e1 := eq_of_add_zero_sub (by rw [add_comm']; exact hb)
   by_cases hc : (P2Air.p2Out.getD ε (c 0)).eval (Pp.env qs) = y

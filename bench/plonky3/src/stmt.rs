@@ -123,7 +123,10 @@ fn encode(a: &SkiAir, out: &mut Vec<u32>) {
         },
         SkiAir::WitT(WitTAir { pre }) => rows(out, 12, pre),
         SkiAir::Segs(SegsAir { pre }) => rows(out, 13, pre),
-        SkiAir::P2 => word(out, 14),
+        SkiAir::P2(blind) => {
+            word(out, 14);
+            word(out, *blind as u32);
+        }
         SkiAir::P2In => word(out, 15),
         SkiAir::P2Out => word(out, 16),
         SkiAir::P2Idx(pre) => rows(out, 17, pre),

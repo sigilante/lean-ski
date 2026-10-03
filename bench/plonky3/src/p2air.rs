@@ -155,7 +155,7 @@ pub fn eval_p2<AB: PermutationAirBuilder + InteractionBuilder>(b: &mut AB) {
 /// `ski-air p2-bench N`: a table of `N` permutations alone (all inactive),
 /// its AIR compared with Lean's, proved and verified.
 pub fn p2_bench(n: usize, tamper: bool) -> Result<(), String> {
-    let airs = vec![SkiAir::P2];
+    let airs = vec![SkiAir::P2(false)];
     lean_statement("circuit", &["compare-p2", "-"], export::export_air("p2", &airs[0]).as_bytes())?;
     let rows: Vec<([Val; 16], u32, u32)> =
         (0..n).map(|r| (std::array::from_fn(|i| Val::from_u64((r * 16 + i) as u64 * 2654435761 % 2013265921)), 0, 0)).collect();
