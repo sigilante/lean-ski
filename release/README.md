@@ -242,7 +242,13 @@ The limits:
   from `PATH`; `$LEAN_SKI` is consulted only when that is absent.
 - **The proof is not zero knowledge**, and has nothing to hide: the term
   is public.
-- **Security is Plonky3's benchmark setting** (`bench/plonky3/README.md`).
+- **Security is Plonky3's benchmark FRI setting, with grinding**: 10 bits
+  before the opening batch, 5 before the lookup and 3 before the
+  out-of-domain point, so every round reaches at least 101 conjectured
+  bits; proven, 57.5 to 65.9 (`ski-air fs-budget`, `bench/plonky3/README.md`,
+  "Fiat–Shamir, round by round").
+- **Each proof binds its whole statement**: a digest of every AIR's
+  constants is a public value the transcript absorbs (`bench/plonky3/src/stmt.rs`).
 
 ## Cost
 
