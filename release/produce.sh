@@ -118,7 +118,14 @@ if lake exe jets check "$F/omega.table" > /dev/null; then
     echo "Lean accepted the Omega table" >&2
     exit 1
 fi
-bench/plonky3/target/release/ski-air jet-prove "$F/omega.term" "$F/forged.jets" "$F/omega.table" "$F/omega.proof"
+# jet-prove writes the proof, then checks it with its own verifier, which
+# Lean's comparison of the forged jet table must make refuse it.
+/bin/rm -f "$F/omega.proof"
+if bench/plonky3/target/release/ski-air jet-prove "$F/omega.term" "$F/forged.jets" "$F/omega.table" "$F/omega.proof"; then
+    echo "ski-air's own verifier accepted the forged jet table" >&2
+    exit 1
+fi
+test -s "$F/omega.proof" || { echo "no Omega proof written" >&2; exit 1; }
 
 fi
 

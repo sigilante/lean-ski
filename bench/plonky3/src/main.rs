@@ -88,6 +88,7 @@ mod export;
 mod probe;
 mod fsbudget;
 mod seed;
+mod stmt;
 mod sudoku;
 mod witness;
 
@@ -108,12 +109,22 @@ type Dft = Radix2DitParallel<Val>;
 type Pcs = TwoAdicFriPcs<Val, Dft, ValMmcs, ChallengeMmcs>;
 type Config = StarkConfig<Pcs, Challenge, Challenger>;
 
-/// Plonky3's benchmark FRI parameters: blowup 2, 100 queries, 16 bits of
-/// query grinding, no batch grinding.
+/// Plonky3's benchmark FRI parameters (blowup 2, 100 queries, 16 bits of
+/// query grinding), with the batch, lookup and out-of-domain grinding of
+/// `GRIND_*`.
+/// Grinding before the opening batch, the lookup challenges and the
+/// out-of-domain point: with the benchmark FRI parameters, every released
+/// proof reaches 100 conjectured bits in each round, with a bit to spare
+/// (`ski-air fs-budget`).  Proven 100 bits needs more queries
+/// (`bench/plonky3/README.md`, "Fiat–Shamir, round by round").
+pub(crate) const GRIND_BATCH: usize = 10;
+pub(crate) const GRIND_LOOKUP: usize = 5;
+pub(crate) const GRIND_OOD: usize = 3;
+
 /// The FRI parameters of every configuration, hiding or not; the
 /// per-round budget (`fsbudget`) reads them from here.
 pub(crate) fn fri_params<M>(mmcs: M) -> FriParameters<M> {
-    FriParameters::new_benchmark(mmcs)
+    FriParameters { batch_proof_of_work_bits: GRIND_BATCH, ..FriParameters::new_benchmark(mmcs) }
 }
 
 fn make_config() -> Config {
@@ -125,6 +136,8 @@ fn make_config() -> Config {
     let fri = fri_params(challenge_mmcs);
     let pcs = Pcs::new(Dft::default(), val_mmcs, fri);
     Config::new(pcs, Challenger::new(perm))
+        .with_lookup_proof_of_work_bits(GRIND_LOOKUP)
+        .with_ood_proof_of_work_bits(GRIND_OOD)
 }
 
 // ---------------------------------------------------------------------------
@@ -575,6 +588,13 @@ impl<F: Field> BaseAir<F> for SkiAir {
                 2,
             )),
             _ => None,
+        }
+    }
+
+    fn num_public_values(&self) -> usize {
+        match self {
+            SkiAir::Cpu(_) => stmt::STMT_LEN,
+            _ => 0,
         }
     }
 
@@ -1049,7 +1069,7 @@ fn prove_and_verify(
         let prover_data = ProverData::<Config>::from_airs_and_degrees(&config, &airs, &degrees)
             .map_err(|e| format!("setup: {e:?}"))?;
         let traces = [cpu, mem, prog];
-        let pvs = vec![vec![], vec![], vec![]];
+        let pvs = stmt::public_values(&airs);
         let instances = StarkInstance::new_multiple(&airs, &traces, &pvs);
         let proof =
             prove_batch(&config, &instances, &prover_data).map_err(|e| format!("prove: {e:?}"))?;
@@ -1077,7 +1097,7 @@ fn prove_and_verify(
         }
         let v_data = ProverData::<Config>::from_airs_and_degrees(&v_config, &v_airs, d)
             .map_err(|e| format!("verifier setup: {e:?}"))?;
-        let pvs = vec![vec![], vec![], vec![]];
+        let pvs = stmt::public_values(&v_airs);
         let r = verify_batch(&v_config, &v_airs, &proof, &pvs, &v_data.common)
             .map_err(|e| format!("verify: {e:?}"));
         if r.is_ok() {

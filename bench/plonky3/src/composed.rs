@@ -464,7 +464,7 @@ fn prove(p: &Public, tr: &[RowMajorMatrix<Val>; 5], ps: PcsStreams) -> Result<(C
         let pd = ProverData::<ZkConfig>::from_airs_and_degrees(&public_zk_config(), &a, &heights(p, config.is_zk()))
             .map_err(|e| format!("setup: {e:?}"))?;
         let trs: Vec<&RowMajorMatrix<Val>> = tr.iter().collect();
-        let proof = prove_batch(&config, &StarkInstance::new_multiple(&a, &trs, &vec![vec![]; 5]), &pd)
+        let proof = prove_batch(&config, &StarkInstance::new_multiple(&a, &trs, &crate::stmt::public_values(&a)), &pd)
             .map_err(|e| format!("prove: {e:?}"))?;
         Ok::<_, String>((proof, t0.elapsed().as_secs_f64()))
     }));
@@ -490,7 +490,7 @@ fn verify(p: &Public, proof: &CProof) -> Result<(), String> {
         }
         let v_data = ProverData::<ZkConfig>::from_airs_and_degrees(&v_config, &v_airs, &want)
             .map_err(|e| format!("verifier setup: {e:?}"))?;
-        let r = verify_batch(&v_config, &v_airs, proof, &vec![vec![]; 5], &v_data.common).map_err(|e| format!("verify: {e:?}"));
+        let r = verify_batch(&v_config, &v_airs, proof, &crate::stmt::public_values(&v_airs), &v_data.common).map_err(|e| format!("verify: {e:?}"));
         if r.is_ok() {
             crate::fsbudget::budget!("composed", &v_airs, proof, &v_data.common, v_config, p3_uni_stark::OpeningShape::hiding(4));
         }
@@ -607,16 +607,17 @@ fn guess_matches(p: &Public, private: &[Cell], blind: bool) -> bool {
     let pd = ProverData::<ZkConfig>::from_airs_and_degrees(&public_zk_config(), &a, &heights(p, config.is_zk()))
         .expect("setup");
     let trs: Vec<&RowMajorMatrix<Val>> = tr.iter().collect();
-    let pvs: Vec<Vec<Val>> = vec![vec![]; 5];
+    let pvs: Vec<Vec<Val>> = crate::stmt::public_values(&a);
     let proof = prove_batch(&config, &StarkInstance::new_multiple(&a, &trs, &pvs), &pd).expect("prove");
     let v_config = public_zk_config();
     let v_airs = airs(p);
     let v_data = ProverData::<ZkConfig>::from_airs_and_degrees(&v_config, &v_airs, &proof.degree_bits).expect("verifier setup");
-    verify_batch(&v_config, &v_airs, &proof, &pvs, &v_data.common).expect("the honest proof verifies");
+    let v_pvs = crate::stmt::public_values(&v_airs);
+    verify_batch(&v_config, &v_airs, &proof, &v_pvs, &v_data.common).expect("the honest proof verifies");
     let common = &v_data.common;
     let shape = BatchShape {
         trace_widths: v_airs.iter().map(|x| <SkiAir as BaseAir<Val>>::width(x)).collect(),
-        public_value_counts: vec![0; 5],
+        public_value_counts: crate::stmt::public_value_counts(&v_airs),
         preprocessed_widths: v_airs.iter().map(|x| <SkiAir as BaseAir<Val>>::preprocessed_width(x)).collect(),
         has_preprocessed_commitment: true,
         num_lookup_instances: common.lookups.iter().filter(|l| !l.is_empty()).count(),
@@ -627,7 +628,7 @@ fn guess_matches(p: &Public, private: &[Cell], blind: bool) -> bool {
     let mut ch = v_config.initialise_challenger();
     let mut t = BatchVerifierTranscript::<Challenger, Val, Challenge, _>::new(&mut ch, shape);
     t.instance_bindings(&proof.degree_bits);
-    t.main_phase(proof.commitments.main.clone(), &pvs);
+    t.main_phase(proof.commitments.main.clone(), &v_pvs);
     t.preprocessed_phase(common.preprocessed.as_ref().map(|g| g.commitment.clone()));
     let chs = t.lookup_phase(&common.lookups, &LogUpGadget::new(), proof.lookup_pow_witness).expect("lookup challenges");
     t.abort();

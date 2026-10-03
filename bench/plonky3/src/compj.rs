@@ -363,7 +363,7 @@ fn prove(p: &Public, jt: &JetTable, lg: JLogs, tr: &[RowMajorMatrix<Val>], ps: P
         let pd = ProverData::<ZkConfig>::from_airs_and_degrees(&public_zk_config(), &a, &heights(p, jt, lg, config.is_zk()))
             .map_err(|e| format!("setup: {e:?}"))?;
         let trs: Vec<&RowMajorMatrix<Val>> = tr.iter().collect();
-        let proof = prove_batch(&config, &StarkInstance::new_multiple(&a, &trs, &vec![vec![]; NAMES.len()]), &pd)
+        let proof = prove_batch(&config, &StarkInstance::new_multiple(&a, &trs, &crate::stmt::public_values(&a)), &pd)
             .map_err(|e| format!("prove: {e:?}"))?;
         Ok::<_, String>((proof, t0.elapsed().as_secs_f64()))
     }));
@@ -390,7 +390,7 @@ fn verify(p: &Public, jtext: &str, src: &str, lg: JLogs, proof: &CJProof) -> Res
         }
         let v_data = ProverData::<ZkConfig>::from_airs_and_degrees(&v_config, &v_airs, &want)
             .map_err(|e| format!("verifier setup: {e:?}"))?;
-        let r = verify_batch(&v_config, &v_airs, proof, &vec![vec![]; NAMES.len()], &v_data.common).map_err(|e| format!("verify: {e:?}"));
+        let r = verify_batch(&v_config, &v_airs, proof, &crate::stmt::public_values(&v_airs), &v_data.common).map_err(|e| format!("verify: {e:?}"));
         if r.is_ok() {
             crate::fsbudget::budget!("compj", &v_airs, proof, &v_data.common, v_config, p3_uni_stark::OpeningShape::hiding(4));
         }

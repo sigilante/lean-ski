@@ -67,7 +67,14 @@ fn one(e: &SymbolicExpression<Val>) -> String {
 pub fn export_air(name: &str, air: &SkiAir) -> String {
     let width = <SkiAir as BaseAir<Val>>::width(air);
     let pre_width = <SkiAir as BaseAir<Val>>::preprocessed_width(air);
-    let layout = AirLayout { preprocessed_width: pre_width, main_width: width, ..Default::default() };
+    // The CPU's public values are the statement digest (`stmt`), which no
+    // constraint reads; the Lean circuit has none.
+    let layout = AirLayout {
+        preprocessed_width: pre_width,
+        main_width: width,
+        num_public_values: <SkiAir as BaseAir<Val>>::num_public_values(air),
+        ..Default::default()
+    };
     let b = InteractionSymbolicBuilder::<Val, Challenge>::from_air(air, layout);
     assert!(b.local_interactions().is_empty() && b.exclusive_interactions().is_empty());
     assert!(b.indexed_reads().is_empty() && b.indexed_tables().is_empty());

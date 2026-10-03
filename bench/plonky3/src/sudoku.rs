@@ -100,6 +100,8 @@ fn zk_config(salts: ProverRng, codewords: ProverRng) -> ZkConfig {
     let fri = crate::fri_params(challenge_mmcs);
     let pcs = HidingPcs::new(Dft::default(), val_mmcs, fri, RANDOM_CODEWORDS, codewords);
     ZkConfig::new(pcs, Challenger::new(perm))
+        .with_lookup_proof_of_work_bits(crate::GRIND_LOOKUP)
+        .with_ood_proof_of_work_bits(crate::GRIND_OOD)
 }
 
 /// The configuration both sides commit the public tables under.
@@ -416,7 +418,7 @@ fn prove_zk(p: &Public, traces: &[RowMajorMatrix<Val>; 4], ps: PcsStreams) -> Re
             ProverData::<ZkConfig>::from_airs_and_degrees(&public_zk_config(), &a, &degrees)
             .map_err(|e| format!("setup: {e:?}"))?;
         let tr: Vec<&RowMajorMatrix<Val>> = traces.iter().collect();
-        let pvs = vec![vec![]; 4];
+        let pvs = crate::stmt::public_values(&a);
         let instances = StarkInstance::new_multiple(&a, &tr, &pvs);
         let proof =
             prove_batch(&config, &instances, &prover_data).map_err(|e| format!("prove: {e:?}"))?;
@@ -446,7 +448,7 @@ fn verify_zk(p: &Public, proof: &SProof) -> Result<(), String> {
         }
         let v_data = ProverData::<ZkConfig>::from_airs_and_degrees(&v_config, &v_airs, &want)
             .map_err(|e| format!("verifier setup: {e:?}"))?;
-        let pvs = vec![vec![]; 4];
+        let pvs = crate::stmt::public_values(&v_airs);
         let r = verify_batch(&v_config, &v_airs, proof, &pvs, &v_data.common)
             .map_err(|e| format!("verify: {e:?}"));
         if r.is_ok() {
@@ -560,7 +562,7 @@ fn guess_matches(p: &Public, bits: &[bool]) -> bool {
     let pd = ProverData::<ZkConfig>::from_airs_and_degrees(&public_zk_config(), &a, &degrees)
         .expect("setup");
     let tr: Vec<&RowMajorMatrix<Val>> = traces.iter().collect();
-    let pvs: Vec<Vec<Val>> = vec![vec![]; 4];
+    let pvs: Vec<Vec<Val>> = crate::stmt::public_values(&a);
     let proof = prove_batch(&config, &StarkInstance::new_multiple(&a, &tr, &pvs), &pd).expect("prove");
 
     // The verifier's side: the statement and the proof.
@@ -568,11 +570,12 @@ fn guess_matches(p: &Public, bits: &[bool]) -> bool {
     let v_airs = airs(p);
     let v_data = ProverData::<ZkConfig>::from_airs_and_degrees(&v_config, &v_airs, &proof.degree_bits)
         .expect("verifier setup");
-    verify_batch(&v_config, &v_airs, &proof, &pvs, &v_data.common).expect("the honest proof verifies");
+    let v_pvs = crate::stmt::public_values(&v_airs);
+    verify_batch(&v_config, &v_airs, &proof, &v_pvs, &v_data.common).expect("the honest proof verifies");
     let common = &v_data.common;
     let shape = BatchShape {
         trace_widths: v_airs.iter().map(|x| <SkiAir as BaseAir<Val>>::width(x)).collect(),
-        public_value_counts: vec![0; 4],
+        public_value_counts: crate::stmt::public_value_counts(&v_airs),
         preprocessed_widths: v_airs.iter().map(|x| <SkiAir as BaseAir<Val>>::preprocessed_width(x)).collect(),
         has_preprocessed_commitment: true,
         num_lookup_instances: common.lookups.iter().filter(|l| !l.is_empty()).count(),
@@ -583,7 +586,7 @@ fn guess_matches(p: &Public, bits: &[bool]) -> bool {
     let mut ch = v_config.initialise_challenger();
     let mut t = BatchVerifierTranscript::<Challenger, Val, Challenge, _>::new(&mut ch, shape);
     t.instance_bindings(&proof.degree_bits);
-    t.main_phase(proof.commitments.main.clone(), &pvs);
+    t.main_phase(proof.commitments.main.clone(), &v_pvs);
     t.preprocessed_phase(common.preprocessed.as_ref().map(|g| g.commitment.clone()));
     let chs = t
         .lookup_phase(&common.lookups, &LogUpGadget::new(), proof.lookup_pow_witness)

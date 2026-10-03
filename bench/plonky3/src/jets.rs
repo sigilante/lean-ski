@@ -824,7 +824,7 @@ fn prove_j(t: &Term, jt: &JetTable, tr: &JTraces, plan: Option<&[probe::Seg]>) -
         let t0 = Instant::now();
         let pd = ProverData::<Config>::from_airs_and_degrees(&config, &a, &degrees)
             .map_err(|e| format!("setup: {e:?}"))?;
-        let pvs = vec![vec![]; traces.len()];
+        let pvs = crate::stmt::public_values(&a);
         let instances = StarkInstance::new_multiple(&a, &traces, &pvs);
         let proof = prove_batch(&config, &instances, &pd).map_err(|e| format!("prove: {e:?}"))?;
         Ok::<_, String>((proof, t0.elapsed().as_secs_f64()))
@@ -870,7 +870,7 @@ fn verify_j(t: &Term, jt: &JetTable, proof: &JProof, plan: Option<&[probe::Seg]>
         }
         let vd = ProverData::<Config>::from_airs_and_degrees(&config, &a, d)
             .map_err(|e| format!("verifier setup: {e:?}"))?;
-        let pvs = vec![vec![]; a.len()];
+        let pvs = crate::stmt::public_values(&a);
         let r = verify_batch(&config, &a, proof, &pvs, &vd.common).map_err(|e| format!("verify: {e:?}"));
         if r.is_ok() {
             crate::fsbudget::budget!("jets", &a, proof, &vd.common, config, p3_uni_stark::OpeningShape::new());

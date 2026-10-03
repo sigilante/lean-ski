@@ -923,14 +923,17 @@ Lean proves the counting step: `q` adaptive hash calls hit a round of bad
 fraction `ε` with probability at most `q ε`, grinding `b` bits divides `ε`
 by `2^b`, and the LogUp round's `ε` is `M (W + 2) / P^4` (`logup_fs`).
 Round-by-round soundness and the other rounds' fractions are
-`p3-security`'s, assumed. Every released proof, at Plonky3's benchmark FRI
-parameters, is 57.5 to 66 bits proven and 91 to 100 conjectured, bound by
-the low-degree test and the opening batch. 100 bits proven takes 203
-queries at rate `1/2` and up to 9 bits of batch grinding; 128 bits is out
-of reach with BabyBear's quartic extension and an eight-element digest.
-The transcript binds the statement through its preprocessed tables, not
-the AIRs' constants, so the bounds hold for a statement fixed before the
-proof is checked; binding the constants as public values is open.
+`p3-security`'s, assumed. At Plonky3's benchmark FRI parameters the
+released proofs were 57.5 to 66 bits proven and 91 to 100 conjectured,
+bound by the low-degree test and the opening batch. Every configuration
+now grinds 10 bits before the opening batch, 5 before the lookup and 3
+before the out-of-domain point, which brings every round to 100
+conjectured bits. 100 bits proven, a future option, takes 203 queries at
+rate `1/2`, and so tables of at least `2^9` rows for the hiding PCS's
+masking budget; 128 bits is out of reach with BabyBear's quartic extension
+and an eight-element digest. The transcript absorbs a Poseidon2 digest of
+every AIR's constants as the CPU instance's public values
+(`bench/plonky3/src/stmt.rs`), so a proof binds its whole statement.
 
 Step 1 (a commitment in SKIlark) is closed at this toy scope. Real
 parameters do not fit SKI reduction: a full adder written natively in

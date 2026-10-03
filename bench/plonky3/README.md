@@ -777,47 +777,59 @@ ones on the random-words conjecture, all on the hash behaving as a random
 oracle.
 
 Every released proof uses Plonky3's benchmark FRI parameters (rate `1/2`,
-100 queries, 16 bits of query grinding, no other grinding):
+100 queries, 16 bits of query grinding) and grinds 10 bits before the
+opening batch, 5 before the lookup and 3 before the out-of-domain point
+(`GRIND_*`):
 
 | proof | proven (unique / list decoding) | conjectured | binding round | LogUp |
 |---|---|---|---|---|
-| `3 sumto`, jetted | 57.5 / 65.9 | 98.4 | batch | 102.9 |
-| Sudoku | 57.5 / 65.9 | 95.6 | batch | 101.4 |
-| composed `and`, `or` | 57.5 / 65.9 | 100.1 | batch | 106.3 |
-| `split8` | 57.5 / 65.8 | 93.1 | batch | 100.1 |
-| `csplit8` | 57.5 / 65.6 | 91.1 | batch | 98.1 |
-| `split8` with jets | 57.5 / 65.7 | 92.2 | batch | 98.2 |
-| `csplit8` with jets | 57.5 / 65.7 | 91.2 | batch | 96.9 |
+| `3 sumto`, jetted | 57.5 / 65.9 | 107.9 | LogUp | 107.9 |
+| Sudoku | 57.5 / 65.9 | 105.0 | FRI commit | 106.4 |
+| composed `and`, `or` | 57.5 / 65.9 | 110.0 | FRI commit | 111.3 |
+| `split8` | 57.5 / 65.9 | 103.0 | FRI commit | 105.1 |
+| `csplit8` | 57.5 / 65.9 | 101.0 | FRI commit | 103.1 |
+| `split8` with jets | 57.5 / 65.9 | 102.2 | batch | 103.2 |
+| `csplit8` with jets | 57.5 / 65.9 | 101.2 | batch | 101.9 |
 
-The proven figures are bound by the low-degree test, the conjectured ones
-by the opening batch, which has no grinding. What reaching 100 bits takes,
-as the tool reports it:
-
-- **Conjectured**: up to 9 bits of batch grinding (none for the composed
-  `and` and `or`), and for `csplit8`, `split8` with jets and `csplit8`
-  with jets 2 to 4 bits on the lookup and up to 2 on the out-of-domain
-  point.
-- **Proven**: 203 queries at rate `1/2` for every proof, then the same
-  grinding. At rate `1/4`, 109 to 124 queries, except `csplit8`; at
-  `1/8`, 102, except `csplit8` and `csplit8` with jets, whose longer
-  domains cap the low-degree test below 100 bits.
-- **128 bits is out of reach** with this field and hash: the constraint
-  combination has no grinding site and stops at 114 to 116 bits
-  (`|EF| ≈ 2^123.6` over 162 to 381 constraints), and a digest of eight
-  BabyBear elements caps collisions at 123 bits.
+The proven figures are bound by the low-degree test, which only more
+queries move. Before the grinding the conjectured figures were 91 to 100,
+bound by the opening batch. 128 bits is out of reach with this field and
+hash: the constraint combination has no grinding site and stops at 114 to
+116 bits (`|EF| ≈ 2^123.6` over 162 to 381 constraints), and a digest of
+eight BabyBear elements caps collisions at 123 bits.
 
 **What the transcript binds.** Before its first challenge the transcript
 absorbs the batch's shape, every instance's degree bits, the main
-commitment, the public values (none here) and the preprocessed
-commitment, which holds the statement's heap and tables. It does not
-absorb constants inside the AIRs: the CPU's start head, stack and
-counter, the Sudoku accept marker, the probe and restart parameters. So
-the bounds hold for a statement fixed before the proof is checked, as
-`release/verify.sh` fixes it (Lean checks `public.txt` against the
-verifier's own source and parameters). They do not cover a prover that
-chooses its statement after the challenges among statements with the same
-preprocessed tables. Binding every statement constant into the transcript,
-as public values, closes that and changes every proof.
+commitment, the public values and the preprocessed commitment. Plonky3
+absorbs nothing of the constants inside the AIRs (the CPU's start head,
+stack and counter, the Sudoku accept marker, the probe and restart
+parameters), so a prover that named its statement after the challenges
+could solve for one. Every proof therefore carries, as the CPU
+instance's public values, a Poseidon2 digest of all the AIRs hold, which
+the verifier recomputes from the AIRs it builds from the statement
+(`src/stmt.rs`): a proof checks against one statement only. The encoding
+destructures every AIR exhaustively, so a new field fails to compile until
+it is encoded, and it is injective (tagged, length-prefixed, 16-bit
+halves). No constraint reads the digest, so the Lean circuits are
+unchanged.
+
+**Grinding.** Every configuration grinds 10 bits before the opening
+batch, 5 before the lookup challenges and 3 before the out-of-domain point
+(`GRIND_*`, `src/main.rs`), with the benchmark FRI parameters otherwise.
+That brings every round of every released proof to 100 conjectured bits.
+The proven figures stay where the low-degree test holds them.
+
+**Proven 100 bits, a future option.** 203 queries at rate `1/2` reach it
+for every released proof, with the same grinding. Two costs follow. The
+query part, most of a proof, roughly doubles. And the hiding PCS's masking
+budget, `2 (queries + 4 · opening points)` random rows a table, which
+`masks_hide` also needs, rises from 216 to 422: the tables of `2^8` rows
+(the composed and hidden-term circuits' witness and minimum heights) must
+grow to `2^9`, which changes their statements' heights. Rate `1/4` (124
+queries) or `1/8` (102) shortens proofs but doubles or quadruples the
+low-degree extension, and does not reach 100 bits for `csplit8`. 128 bits
+needs a larger extension field and a wider digest, a change to every Lean
+theorem over `EF`.
 
 ## What this is not
 
