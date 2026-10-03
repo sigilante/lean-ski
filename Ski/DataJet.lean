@@ -153,6 +153,79 @@ theorem respects_of_inj {α β : Type} {c : Contract α β}
   fun x y e => by rw [h x y e]
 
 -- ---------------------------------------------------------------------------
+-- Contracts in continuation-passing form
+-- ---------------------------------------------------------------------------
+
+/-- **A contract in continuation-passing form**: the jet takes its inputs
+    as separate arguments, encoded, then a continuation `k`, and passes `k`
+    its outputs, encoded:
+
+      `J ⬝ a₁ ⬝ … ⬝ aₙ ⬝ k ⟶ k ⬝ b₁ ⬝ … ⬝ bₘ`
+
+    with `[a₁, …, aₙ] = encI x` and `[b₁, …, bₘ] = encO (spec x)`.  A
+    machine passes its arguments by pointer, so separate arguments need no
+    pairing, and `k` keeps the jet's result an ordinary application. -/
+structure CContract (α β : Type) where
+  encI : α → List Term
+  encO : β → List Term
+  spec : α → β
+
+/-- Weak reduction with a continuation-passing data jet at the head
+    variable `j`. -/
+inductive CStep {α β : Type} (c : CContract α β) (j : Nat) : OTerm → OTerm → Prop
+  | S (f g x : OTerm) : CStep c j (.S ⬝ₒ f ⬝ₒ g ⬝ₒ x) (f ⬝ₒ x ⬝ₒ (g ⬝ₒ x))
+  | K (x y : OTerm) : CStep c j (.K ⬝ₒ x ⬝ₒ y) x
+  | I (x : OTerm) : CStep c j (.I ⬝ₒ x) x
+  | jet (x : α) (k : OTerm) :
+      CStep c j (appL (.var j) ((c.encI x).map Term.toO ++ [k])) (appL k ((c.encO (c.spec x)).map Term.toO))
+  | left {f f' : OTerm} (x : OTerm) (h : CStep c j f f') : CStep c j (f ⬝ₒ x) (f' ⬝ₒ x)
+  | right (f : OTerm) {x x' : OTerm} (h : CStep c j x x') : CStep c j (f ⬝ₒ x) (f ⬝ₒ x')
+
+inductive CSteps {α β : Type} (c : CContract α β) (j : Nat) : OTerm → OTerm → Prop
+  | refl (t : OTerm) : CSteps c j t t
+  | step {t t' u : OTerm} (h : CStep c j t t') (hs : CSteps c j t' u) : CSteps c j t u
+
+/-- `P` implements the contract: for every input and every continuation. -/
+def CImplements {α β : Type} (c : CContract α β) (P : Term) : Prop :=
+  ∀ x (k : Term), WSteps (appT P (c.encI x ++ [k])) (appT k (c.encO (c.spec x)))
+
+theorem map_close_toO (σ : Nat → Term) (ts : List Term) : (ts.map Term.toO).map (OTerm.close σ) = ts := by
+  induction ts with
+  | nil => rfl
+  | cons t ts ih => show _ :: _ = _ :: _; rw [close_toO, ih]
+
+theorem CStep.close {α β : Type} {c : CContract α β} {j : Nat} (σ : Nat → Term)
+    (hj : CImplements c (σ j)) {t u : OTerm} (h : CStep c j t u) :
+    WSteps (t.close σ) (u.close σ) := by
+  induction h with
+  | S f g x => exact .single (.S _ _ _)
+  | K x y => exact .single (.K _ _)
+  | I x => exact .single (.I _)
+  | jet x k =>
+    rw [_root_.close_appL, _root_.close_appL, List.map_append, map_close_toO, map_close_toO]
+    exact hj x (k.close σ)
+  | left x _ ih => exact WSteps.left _ ih
+  | right f _ ih => exact WSteps.right _ ih
+
+/-- **Closing to an implementation**, for a continuation-passing jet. -/
+theorem CSteps.close {α β : Type} {c : CContract α β} {j : Nat} (σ : Nat → Term)
+    (hj : CImplements c (σ j)) {t u : OTerm} (h : CSteps c j t u) :
+    WSteps (t.close σ) (u.close σ) := by
+  induction h with
+  | refl _ => exact .refl _
+  | step h _ ih => exact (h.close σ hj).trans ih
+
+/-- A verifier that accepts under the continuation-passing jet realizes
+    its atom with any implementation in the jet's place. -/
+theorem real_of_cjet {α β : Type} {c : CContract α β} {j : Nat} (σ : Nat → Term)
+    (hj : CImplements c (σ j)) {V : OTerm} {x r : Term}
+    (h : CSteps c j (V ⬝ₒ x.toO ⬝ₒ r.toO) .K) : Real (.atom (V.close σ) x) r := by
+  have h' := h.close σ hj
+  change WSteps (V.close σ ⬝ x.toO.close σ ⬝ r.toO.close σ) K at h'
+  rw [close_toO, close_toO] at h'
+  exact h'
+
+-- ---------------------------------------------------------------------------
 -- A contract with an implementation
 -- ---------------------------------------------------------------------------
 
@@ -245,6 +318,16 @@ def St : Type := {x : List F // x.length = 16}
     states of canonical elements to their images. -/
 def poseidon2 : Contract St (List Nat) :=
   ⟨fun x => stateT x.1, stateN, fun x => Poseidon2.permute (x.1.map Fin.val)⟩
+
+/-- **The Poseidon2 data jet in continuation-passing form**: sixteen
+    elements, then a continuation, which receives the sixteen outputs. -/
+def poseidon2C : CContract St (List Nat) :=
+  ⟨fun x => x.1.map feltT, fun y => y.map feltN, fun x => Poseidon2.permute (x.1.map Fin.val)⟩
+
+theorem poseidon2C_encI (x : St) : poseidon2C.encI x = x.1.map feltT := rfl
+theorem poseidon2C_encO : poseidon2C.encO = fun y => y.map feltN := rfl
+theorem poseidon2C_spec (x : St) : poseidon2C.spec x = Poseidon2.permute (x.1.map Fin.val) := by
+  dsimp only [poseidon2C]
 
 theorem poseidon2_encI (x : St) : poseidon2.encI x = stateT x.1 := rfl
 theorem poseidon2_encO : poseidon2.encO = stateN := rfl

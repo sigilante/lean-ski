@@ -6,6 +6,7 @@ import Ski.Circuit.JetAir
 import Ski.Circuit.ProbeAir
 import Ski.Circuit.CompJAir
 import Ski.ComposedText
+import Ski.Circuit.P2Air
 open Term
 
 /-!
@@ -284,6 +285,13 @@ where
   decimal (w : String) : Option Nat :=
     if !w.isEmpty && w.all Char.isDigit && (w == "0" || w.front != '0') then w.toNat? else none
 
+/-- The Poseidon2 table alone (`ski-air export-p2`) against `P2Air.p2Air`. -/
+def compareP2 (path : String) : IO UInt32 := do
+  let text ← readInput path
+  let ls := (text.splitOn "\n").filter (fun l => !l.trimAscii.toString.isEmpty)
+  let some rust := parseAirs (ls.length + 1) ls | do IO.println "MALFORMED AIRS"; return 1
+  compareAirs rust [P2Air.p2Air]
+
 /-- The probe circuit: `term T`, `outcome …`, then the ten AIRs.  The jet
     table is Lean's for the term, as for `compare-jets`; the plan is Lean's
     for the outcome, `Air.planOf (Probe.toV o) 0`, what `lake exe jets plan`
@@ -359,7 +367,8 @@ def main (args : List String) : IO UInt32 := do
   | ["compare-sudoku", path] => compareSudoku path
   | ["compare-jets", path] => compareJets path
   | ["compare-probe", path] => compareProbe path
+  | ["compare-p2", path] => compareP2 path
   | ["compare-compJ", src, path] => compareCompJ src path
   | _ =>
-    IO.eprintln "usage: circuit compare|compare-composed|compare-witness|compare-sudoku|compare-jets|compare-probe FILE|-\n       circuit compare-compJ SRC FILE|-"
+    IO.eprintln "usage: circuit compare|compare-composed|compare-witness|compare-sudoku|compare-jets|compare-probe|compare-p2 FILE|-\n       circuit compare-compJ SRC FILE|-"
     return 2

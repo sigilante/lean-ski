@@ -28,6 +28,7 @@ import Ski.ChainExamples
 import Ski.DataJet
 import Ski.BitArith
 import Ski.ZK.Poseidon2SKI
+import Ski.Circuit.P2Air
 import Ski.Composed
 import Ski.Circuit.BaseSound
 import Ski.Circuit.BaseComplete
@@ -817,3 +818,8 @@ open Ski.Audit
   Poseidon2SKI.outK_spec Poseidon2SKI.inS_spec Poseidon2SKI.outS_spec Poseidon2SKI.chain_ok
   Poseidon2SKI.rounds_ok Poseidon2SKI.rounds_fold Poseidon2SKI.P_spec Poseidon2SKI.poseidon2_implements
   DataJet.poseidon2_spec
+
+-- The Poseidon2 table: every row whose constraints vanish computes the permutation
+#audit_clean P2Air.evalF_ofN P2Air.toE_eval P2Air.eval_subst P2Air.bridge_ext P2Air.lin_ok P2Air.round_ok
+  P2Air.gen_ok P2Air.rounds_spec P2Air.p2_sound P2Air.p2_sound_row
+  DataJet.CSteps.close DataJet.real_of_cjet Poseidon2SKI.permute_len Poseidon2SKI.Pcps_implements

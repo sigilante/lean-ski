@@ -114,6 +114,7 @@ fn encode(a: &SkiAir, out: &mut Vec<u32>) {
         },
         SkiAir::WitT(WitTAir { pre }) => rows(out, 12, pre),
         SkiAir::Segs(SegsAir { pre }) => rows(out, 13, pre),
+        SkiAir::P2 => word(out, 14),
     }
 }
 

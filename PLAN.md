@@ -961,13 +961,18 @@ Poseidon2 (BabyBear, width 16) is arithmetic modulo `p` with Plonky3's
 constants, checked by the kernel against Plonky3's outputs on three
 inputs (`permute_matches`). A hidden hand-off commits to the value with
 Plonky3's compression, as specified and tested, on eight value and eight
-random elements. From a verified proof of each
-stage over one commitment, the extractors give one value satisfying
-both, or two distinct inputs on which the compression agrees
-(`hidden_chain`), so knowledge soundness reduces to collision
-resistance. Open: the precompile AIR and its bus, with
-a proof that its rows compute `Poseidon2.permute`, and the binding and
-hiding assumptions, which are computational and stated in prose.
+random elements. From a verified proof of each stage over one
+commitment, the extractors give one value satisfying both, or two
+distinct inputs on which the compression agrees (`hidden_chain`), so
+knowledge soundness reduces to collision resistance. The precompile's
+table exists: one row per permutation; every row of a table that
+satisfies its AIR computes `Poseidon2.permute` (`P2Air.p2_sound_row`);
+its Rust export matches Lean's constraint for constraint; 4,096
+permutations prove in 0.15 s. The jet takes its arguments in
+continuation-passing form (`DataJet.CContract`, `CSteps.close`), and
+`Poseidon2SKI.Pcps` implements it (`Pcps_implements`). Open: the jet in
+the CPU and the bus to the table, and the binding and hiding
+assumptions, which are computational and stated in prose.
 
 Fiat–Shamir, round by round (`Ski/ZK/FSRound.lean`, `ski-air fs-budget`).
 Lean proves the counting step: `q` adaptive hash calls hit a round of bad

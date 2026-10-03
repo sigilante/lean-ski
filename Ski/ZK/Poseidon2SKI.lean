@@ -641,4 +641,143 @@ theorem poseidon2_implements : DataJet.Implements DataJet.poseidon2 P := by
   rw [DataJet.poseidon2_encI, DataJet.poseidon2_encO, DataJet.poseidon2_spec]
   exact P_spec x.1 x.2
 
+theorem sboxL_len (rc vs : List Nat) (hv : vs.length = 16) (hc : rc.length = 16) : (sboxL rc vs).length = 16 := by
+  rw [← bridge_sbox vs rc hv hc, List.length_map]
+  exact len16 (P := fun rc => (sboxLE rc).length = 16) (fun _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ => rfl) rc hc
+
+theorem mat4L_len (vs : List Nat) (hv : vs.length = 16) : (mat4L vs).length = 16 := by
+  rw [← bridge_mat4 vs hv, List.length_map]; rfl
+
+theorem mixL_len (vs : List Nat) (hv : vs.length = 16) : (mixL vs).length = 16 := by
+  rw [← bridge_mix vs hv, List.length_map]; rfl
+
+theorem intLinear_len (vs : List Nat) (hv : vs.length = 16) : (Poseidon2.intLinear vs).length = 16 := by
+  rw [← bridge_intLin vs hv, List.length_map]; rfl
+
+theorem sbox0L_len (c : Nat) : ∀ vs : List Nat, (sbox0L c vs).length = vs.length
+  | [] => rfl
+  | _ :: _ => rfl
+
+theorem foldl_ext_len : ∀ (rcs : List (List Nat)), rcs.all (fun rc => decide (rc.length = 16)) = true →
+    ∀ s : List Nat, s.length = 16 → (rcs.foldl Poseidon2.extRound s).length = 16
+  | [], _, _, hs => hs
+  | rc :: rcs, h, s, hs => by
+    show ((rcs.foldl Poseidon2.extRound (Poseidon2.extRound s rc))).length = 16
+    refine foldl_ext_len rcs (band_r h) _ ?_
+    rw [extRound_split]
+    exact mixL_len _ (mat4L_len _ (sboxL_len rc s hs (of_decide_eq_true (band_l h))))
+
+theorem foldl_int_len : ∀ (cs : List Nat) (s : List Nat), s.length = 16 →
+    (cs.foldl Poseidon2.intRound s).length = 16
+  | [], _, hs => hs
+  | c :: cs, s, hs => by
+    show ((cs.foldl Poseidon2.intRound (Poseidon2.intRound s c))).length = 16
+    refine foldl_int_len cs _ ?_
+    rw [intRound_split]
+    exact intLinear_len _ (by rw [sbox0L_len]; exact hs)
+
+/-- The permutation keeps sixteen entries. -/
+theorem permute_len (s : List Nat) (hs : s.length = 16) : (Poseidon2.permute s).length = 16 := by
+  show ((Poseidon2.rcTerminal.foldl Poseidon2.extRound
+    (Poseidon2.rcInternal.foldl Poseidon2.intRound
+      (Poseidon2.rcInitial.foldl Poseidon2.extRound (Poseidon2.extLinear s))))).length = 16
+  refine foldl_ext_len _ (by decide) _ (foldl_int_len _ _ (foldl_ext_len _ (by decide) _ ?_))
+  rw [extLinear_split]
+  exact mixL_len _ (mat4L_len _ hs)
+
+theorem getD_map' {α β : Type} (f : α → β) (d : α) : ∀ (l : List α) (i : Nat) (d' : β), i < l.length →
+    (l.map f).getD i d' = f (l.getD i d)
+  | _ :: _, 0, _, _ => rfl
+  | _ :: l, i + 1, d', h => getD_map' f d l i d' (Nat.lt_of_succ_lt_succ h)
+  | [], _, _, h => absurd h (Nat.not_lt_zero _)
+
+theorem range_getD : ∀ i : Nat, i < 16 → (List.range 16).getD i 0 = i
+  | 0, _ => rfl
+  | 1, _ => rfl
+  | 2, _ => rfl
+  | 3, _ => rfl
+  | 4, _ => rfl
+  | 5, _ => rfl
+  | 6, _ => rfl
+  | 7, _ => rfl
+  | 8, _ => rfl
+  | 9, _ => rfl
+  | 10, _ => rfl
+  | 11, _ => rfl
+  | 12, _ => rfl
+  | 13, _ => rfl
+  | 14, _ => rfl
+  | 15, _ => rfl
+  | n + 16, h => absurd h (Nat.not_lt.2 (Nat.le_add_left 16 n))
+
+-- ---------------------------------------------------------------------------
+-- The continuation-passing form
+-- ---------------------------------------------------------------------------
+
+/-- **Poseidon2 in continuation-passing form**: `[x₀ … x₁₅ k] (\[s] k (π₀ s)
+    … (π₁₅ s)) (P (x₀, …, x₁₅))`, the state bound once. -/
+def Pcps : Term :=
+  lam (List.range 17)
+    (absN [17] (appL (.var 16) ((List.range 16).map fun i => projO i (.var 17))) ⬝ₒ
+      (P.toO ⬝ₒ packO ((List.range 16).map .var)))
+
+theorem appT_congr (h : Term) : ∀ (as bs : List Term), as.length = bs.length →
+    (∀ i, i < as.length → WSteps (as.getD i K) (bs.getD i K)) → WSteps (appT h as) (appT h bs)
+  | [], [], _, _ => .refl _
+  | a :: as, b :: bs, hl, hs =>
+    (WSteps.appT (WSteps.right h (hs 0 (Nat.zero_lt_succ _))) as).trans
+      (appT_congr (h ⬝ b) as bs (Nat.succ.inj hl) fun i hi => hs (i + 1) (Nat.succ_lt_succ hi))
+  | [], _ :: _, hl, _ => nomatch hl
+  | _ :: _, [], hl, _ => nomatch hl
+
+/-- **`Pcps` implements the continuation-passing Poseidon2 contract.** -/
+theorem Pcps_implements : DataJet.CImplements DataJet.poseidon2C Pcps := by
+  intro x k
+  rw [DataJet.poseidon2C_encI, DataJet.poseidon2C_encO, DataJet.poseidon2C_spec]
+  obtain ⟨xs, hx⟩ := x
+  show WSteps (appT Pcps (xs.map DataJet.feltT ++ [k])) (appT k ((Poseidon2.permute (xs.map Fin.val)).map DataJet.feltN))
+  have hlen : (xs.map DataJet.feltT ++ [k]).length = (List.range 17).length := by
+    rw [List.length_append, List.length_map, hx]; rfl
+  have hb := lam_beta (List.range 17) (absN [17] (appL (.var 16) ((List.range 16).map fun i => projO i (.var 17))) ⬝ₒ
+      (P.toO ⬝ₒ packO ((List.range 16).map .var))) (xs.map DataJet.feltT ++ [k]) hlen
+  let σ := overrideC (fun _ => I) (List.range 17) (xs.map DataJet.feltT ++ [k])
+  have hpack : (packO ((List.range 16).map OTerm.var)).close σ = DataJet.stateT xs := by
+    rw [close_packO, stateT_pack]
+    exact len16 (P := fun xs => xs.length = 16 → packT (((List.range 16).map OTerm.var).map (OTerm.close
+        (overrideC (fun _ => I) (List.range 17) (xs.map DataJet.feltT ++ [k])))) = packT (xs.map DataJet.feltT))
+      (fun a0 a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 _ => rfl) xs hx hx
+  have hk : σ 16 = k := len16 (P := fun xs => xs.length = 16 →
+      overrideC (fun _ => I) (List.range 17) (xs.map DataJet.feltT ++ [k]) 16 = k) (fun a0 a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 _ => rfl) xs hx hx
+  have e1 : (absN [17] (appL (.var 16) ((List.range 16).map fun i => projO i (.var 17))) ⬝ₒ
+      (P.toO ⬝ₒ packO ((List.range 16).map .var))).close σ =
+      (absN [17] (appL (.var 16) ((List.range 16).map fun i => projO i (.var 17)))).close σ ⬝
+        (P ⬝ DataJet.stateT xs) := by
+    show _ ⬝ (P.toO.close σ ⬝ (packO _).close σ) = _
+    rw [close_toO, hpack]
+  rw [e1] at hb
+  have hb2 := absN_beta_close [17] (appL (.var 16) ((List.range 16).map fun i => projO i (.var 17))) σ
+    [P ⬝ DataJet.stateT xs] rfl
+  rw [_root_.close_appL, List.map_map] at hb2
+  let σ' := overrideC σ [17] [P ⬝ DataJet.stateT xs]
+  have hk' : σ' 16 = k := hk
+  have hs' : σ' 17 = P ⬝ DataJet.stateT xs := rfl
+  have e2 : (OTerm.close σ' ∘ fun i => projO i (.var 17)) = fun i => projT i (P ⬝ DataJet.stateT xs) := by
+    funext i
+    show (projO i (.var 17)).close σ' = _
+    rw [close_projO, show (OTerm.var 17).close σ' = σ' 17 from rfl, hs']
+  rw [e2, show (OTerm.var 16).close σ' = σ' 16 from rfl, hk'] at hb2
+  refine hb.trans (hb2.trans ?_)
+  let y := Poseidon2.permute (xs.map Fin.val)
+  have hy : y.length = 16 := permute_len _ (by rw [List.length_map, hx])
+  refine appT_congr k _ _ (by rw [List.length_map, List.length_range, List.length_map, hy]) fun i hi => ?_
+  rw [List.length_map, List.length_range] at hi
+  rw [getD_map' (fun i => projT i (P ⬝ DataJet.stateT xs)) 0 (List.range 16) i K (by rw [List.length_range]; exact hi),
+    getD_map' DataJet.feltN 0 y i K (by rw [hy]; exact hi)]
+  have hr : (List.range 16).getD i 0 = i := range_getD i hi
+  rw [hr]
+  refine (projT_congr i (P_spec xs hx)).trans ?_
+  rw [stateN_pack]
+  have := proj_pack i (y.map DataJet.feltN) (by rw [List.length_map, hy]; exact hi)
+  rwa [getD_map' DataJet.feltN 0 y i K (by rw [hy]; exact hi)] at this
+
 end Poseidon2SKI

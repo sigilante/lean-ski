@@ -435,6 +435,28 @@ write-once heap shares no work either, and its largest tables hold about
 400,000 contractions (`PLAN.md` §5), so the hash runs in the circuit only
 as a jet.
 
+### The Poseidon2 table
+
+`src/p2air.rs` is the precompile's table, one row per permutation; Lean's
+`Ski/Circuit/P2Air.lean` is the same table as data, with `p2_sound_row`:
+every row of a table that satisfies the AIR computes `Poseidon2.permute`.
+The constraints use Plonky3's generic linear layers, and the export
+matches Lean's:
+
+```
+ski-air export-p2 | lake exe circuit compare-p2 -    # MATCH p2: 634 constraints, 1 interactions
+ski-air p2-bench 4096                                # prove and verify 4,096 permutations
+ski-air p2-bench 256 tamper                          # one output off by one: rejected
+```
+
+```
+permutations   rows    prove     verify    proof
+256            256     0.02 s    0.007 s   325 KB
+4,096          4,096   0.16 s    0.011 s   410 KB
+```
+
+The table is not yet joined to the CPU: nothing receives on `p2`.
+
 ## A SKIlark predicate in zero knowledge
 
 A SKIlark (Joy) program is the verifier of a **predicate statement over

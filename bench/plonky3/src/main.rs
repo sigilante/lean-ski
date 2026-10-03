@@ -91,6 +91,7 @@ mod seed;
 mod stmt;
 mod sudoku;
 mod witness;
+mod p2air;
 
 // ---------------------------------------------------------------------------
 // The STARK configuration
@@ -521,6 +522,8 @@ enum SkiAir {
     Probe(probe::ProbeAir),
     WitT(witness::WitTAir),
     Segs(composed::SegsAir),
+    /// The Poseidon2 table (`src/p2air.rs`).
+    P2,
 }
 
 impl CpuAir {
@@ -558,6 +561,7 @@ impl<F: Field> BaseAir<F> for SkiAir {
             SkiAir::Probe(p) => p.width(),
             SkiAir::WitT(_) => witness::WT_W,
             SkiAir::Segs(_) => 1,
+            SkiAir::P2 => p2air::P2_WIDTH,
         }
     }
 
@@ -625,6 +629,7 @@ where
             SkiAir::Probe(p) => p.eval(b),
             SkiAir::WitT(_) => witness::eval_witt(b),
             SkiAir::Segs(_) => composed::eval_segs(b),
+            SkiAir::P2 => p2air::eval_p2(b),
         }
     }
 }
@@ -1205,6 +1210,19 @@ fn main() {
         print!("{}", poseidon2_lean());
         return;
     }
+    if args.len() == 2 && args[1] == "export-p2" {
+        print!("{}", export::export_air("p2", &SkiAir::P2));
+        return;
+    }
+    if (args.len() == 3 || (args.len() == 4 && args[3] == "tamper")) && args[1] == "p2-bench" {
+        match p2air::p2_bench(args[2].parse().expect("a count"), args.len() == 4) {
+            Ok(()) => return,
+            Err(e) => {
+                eprintln!("p2-bench: {e}");
+                std::process::exit(1);
+            }
+        }
+    }
     if args.len() == 3 && args[1] == "export-base" {
         print!("{}", export::export_base(&args[2]));
         return;
@@ -1437,7 +1455,7 @@ fn main() {
              ski-air compj-verify PUBLIC JETS SRC PROOF | ski-air compj-tamper PUBLIC JETS SRC WITNESS\n       \
              ski-air compj-prove-table PUBLIC JETS SRC TABLE PROOF\n       \
              ski-air sudoku-prove PUBLIC WITNESS PROOF [TABLE] | ski-air sudoku-verify PUBLIC PROOF\n       \
-             ski-air fs-budget VERIFY-COMMAND ARGS... | ski-air poseidon2-lean"
+             ski-air fs-budget VERIFY-COMMAND ARGS... | ski-air poseidon2-lean | ski-air export-p2 | ski-air p2-bench N [tamper]"
         );
         std::process::exit(2);
     }
