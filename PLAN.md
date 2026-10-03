@@ -937,8 +937,28 @@ proof system of the chain from the stages', complete, knowledge-sound and
 zero knowledge (componentwise, the proofs' randomness independent), and
 iterates to any length. Two composed statements over a public hand-off
 prove the conjunction; a two-stage example is proved in zero knowledge, a
-proof per stage. Open: a hidden hand-off, which needs a binding
-commitment, and so a hash outside the reduction.
+proof per stage.
+
+Data jets (`Ski/DataJet.lean`, `Ski/ZK/Poseidon2.lean`). A data jet's
+contract is a Lean function over encoded data, `J ⬝ encI x ⟶ encO (spec
+x)`; a code jet's is an SKI term. Closing the jet head to any SKI term
+that implements the contract turns each reduction with the jet into a
+weak reduction (`JSteps.close`), so a verifier accepting under the jet
+realizes its atom (`real_of_jet`). An implementation needs the
+specification to be a function of the encoding (`Contract.Respects`);
+the Poseidon2 contract takes canonical field elements, injectively
+encoded (`poseidon2_respects`). The specification of Poseidon2 (BabyBear,
+width 16) is arithmetic modulo `p` with Plonky3's constants, checked by
+the kernel against Plonky3's outputs on three inputs (`permute_matches`).
+A hidden hand-off commits to the value with Plonky3's compression, as
+specified and tested, on eight value and eight random elements. From a verified proof of each
+stage over one commitment, the extractors give one value satisfying
+both, or two distinct inputs on which the compression agrees
+(`hidden_chain`), so knowledge soundness reduces to collision
+resistance. Open: an SKI implementation of Poseidon2 (one exists by
+computability; none is constructed), the precompile AIR and its bus, with
+a proof that its rows compute `Poseidon2.permute`, and the binding and
+hiding assumptions, which are computational and stated in prose.
 
 Fiat–Shamir, round by round (`Ski/ZK/FSRound.lean`, `ski-air fs-budget`).
 Lean proves the counting step: `q` adaptive hash calls hit a round of bad

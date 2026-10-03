@@ -387,8 +387,23 @@ The verifier checks each proof, and that both statements name the same
 statement digest binds `o` into its transcript. Together the two prove
 the conjunction (`chain_real`), and stage 1's witness does not prove it at
 another hand-off (`stage₁_refuses_other`). The cost is every proof, so it
-grows with the chain; a hidden hand-off needs a binding commitment in
-place of `o`.
+grows with the chain. A hidden hand-off puts a commitment in place of
+`o`: Plonky3's compression of `o` and eight random elements, as
+specified in Lean (tested against Plonky3, not proved equal). The chain's
+knowledge soundness then reduces to the compression's collision
+resistance (`hidden_chain`, `Ski/DataJet.lean`). Computing the commitment inside a stage's proof needs a
+Poseidon2 precompile in the circuit, which is open.
+
+The permutation's specification (`Ski/ZK/Poseidon2.lean`) uses Plonky3's
+own constants and test vectors, which `ski-air poseidon2-lean` prints as
+Lean:
+
+```
+ski-air poseidon2-lean > Ski/ZK/Poseidon2Data.lean
+```
+
+The kernel checks the specification against those three vectors
+(`Poseidon2.permute_matches`), a test on three inputs.
 
 ## A SKIlark predicate in zero knowledge
 

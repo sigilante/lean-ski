@@ -22,6 +22,7 @@ import Ski.ComposeXExamples
 import Ski.ComposedX
 import Ski.Chain
 import Ski.ChainExamples
+import Ski.DataJet
 import Ski.Composed
 import Ski.BoolProbe
 import Ski.Statement

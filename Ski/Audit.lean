@@ -25,6 +25,7 @@ import Ski.ComposeXExamples
 import Ski.ComposedX
 import Ski.Chain
 import Ski.ChainExamples
+import Ski.DataJet
 import Ski.Composed
 import Ski.Circuit.BaseSound
 import Ski.Circuit.BaseComplete
@@ -798,3 +799,8 @@ open Ski.Audit
 -- Incremental composition without recursion: chains of proofs over public hand-offs
 #audit_clean Chain.ofEval Chain.chain2 Chain.chain2_knowledge Chain.chain3_rel Chain.chainX_real Chain.chainX_knowledge
   ChainEx.stage₁_accepts ChainEx.stage₂_accepts ChainEx.chain_real ChainEx.stage₁_refuses_other
+
+-- Data jets: the contract, closing to an implementation, Poseidon2's specification, a hidden hand-off
+#audit_clean DataJet.JStep.close DataJet.JSteps.close DataJet.real_of_jet DataJet.respects_of_inj
+  DataJet.notP_implements DataJet.bitsT_inj DataJet.stateT_inj DataJet.poseidon2_respects
+  DataJet.hidden_chain Poseidon2.permute_matches

@@ -34,8 +34,11 @@ prove the conjunction of the two formulas, its realizer the pair of the
 read-backs.  The statement digest each proof carries
 (`bench/plonky3/src/stmt.rs`) binds `o` into that proof's transcript, so a
 prover cannot change the hand-off after its challenges.  A hidden hand-off
-needs a binding commitment in its place, which needs a hash computed
-outside the reduction: a data jet (`Ski/DataJet.lean`).
+puts a commitment in its place, Poseidon2's compression as specified, and its
+knowledge soundness reduces to the compression's collision resistance
+(`DataJet.hidden_chain`).  A stage that computes the commitment needs the
+hash outside the reduction, the Poseidon2 data jet, whose precompile is
+open.
 -/
 
 namespace Chain
