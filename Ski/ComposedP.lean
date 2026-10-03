@@ -23,9 +23,8 @@ to the bits and the region's witness, evaluates to `K`.
 over 496 bits (`comb_heap`), with the jet closed to
 `Poseidon2SKI.Pcomb`; the root is public (`combRoot_public`).
 
-What remains to join a proof to these theorems: that the circuit's accepted
-tables give such a table (`Ski/Circuit/CompPAir.lean` holds the circuit as
-data, without that proof yet).
+The circuit's accepted tables give such a table
+(`Circuit.CompPOK.acceptsCP`, `Circuit.compPExport_sound`).
 -/
 
 namespace CompM

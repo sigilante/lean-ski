@@ -20,13 +20,15 @@ not read.  The verifier is an open term with the jet's variable `JP2` free:
   their slots and passes the permutation's 496 output bits to `CHECK_h`.
 - `CHECK_h` reads the outputs' bits one at a time: the first 31 must be
   `h`'s, least significant first; then it absorbs the other 465 and is `K`
-  (`checkO`).  A wrong bit hands the rest to `Θ K`, which absorbs every
-  argument.  These two facts are tested on runs, not proved.
+  (`checkO`; tested on runs, not proved).  A wrong bit hands the rest to
+  `Θ K`, which absorbs every argument and never becomes `K`
+  (`P2Pre.chk_sound`).
 
-`CompM.composedP_sound` makes a table `AcceptsCP` accepts from this
-statement's machine a proof that `V`, with `J` closed to
-`Poseidon2SKI.Pcomb`, evaluates to `K` on the bits.  No theorem yet takes
-the circuit's accepted proof to such a table.  The text `public.txt` is `publicTextP`; its header names `h`, the
+`Circuit.compPExport_sound` makes an accepted proof of this statement's
+circuit a proof that `V`, with `J` closed to `Poseidon2SKI.Pcomb`,
+evaluates to `K` on the bits the memory holds; `Circuit.p2preExport_sound`
+reads that as a preimage: the bits' elements permute to a state beginning
+with `h`.  The text `public.txt` is `publicTextP`; its header names `h`, the
 jet's atom and the comb's root.  `statementOfTextP` parses it back only
 when it is exactly that text.
 -/

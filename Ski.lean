@@ -29,6 +29,8 @@ import Ski.P2Jet
 import Ski.ComposedP
 import Ski.ComposedPText
 import Ski.Circuit.CompPAir
+import Ski.Circuit.CompPFinal
+import Ski.P2PreSound
 import Ski.Composed
 import Ski.BoolProbe
 import Ski.Statement

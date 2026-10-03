@@ -169,4 +169,102 @@ theorem cMachineO_decode {ρ : Nat → Bool} {shp : BT} {region : List Cell} {Vs
     (pbuild (N + 2) h0 (encO shp 0)).1 Vs).1.length + 1 + 1
   omega
 
+-- ---------------------------------------------------------------------------
+-- The open machine's public part
+-- ---------------------------------------------------------------------------
+
+/-- `obuild` is `pbuild` with no slot variables. -/
+theorem obuild_pbuild : ∀ (t : OTerm) (h : List Cell), obuild h t = pbuild 0 h t
+  | .S, _ => rfl
+  | .K, _ => rfl
+  | .I, _ => rfl
+  | .var x, h => by simp [obuild, pbuild]
+  | .app f a, h => by
+    show (let (h1, pf) := obuild h f; let (h2, pa) := obuild h1 a; alloc h2 (.app pf pa)) =
+      (let (h1, pf) := pbuild 0 h f; let (h2, pa) := pbuild 0 h1 a; alloc h2 (.app pf pa))
+    rw [obuild_pbuild f h]
+    simp only [obuild_pbuild a]
+
+theorem addStmtsO_shape (pe wr : Nat) : ∀ (Vs : List OTerm) (h h' : List Cell), h.length = h'.length →
+    ∃ cs, (addStmtsO pe wr h Vs).1 = h ++ cs ∧ (addStmtsO pe wr h' Vs).1 = h' ++ cs ∧
+      (addStmtsO pe wr h Vs).2 = (addStmtsO pe wr h' Vs).2
+  | [], h, h', _ => ⟨[], by simp [addStmtsO], by simp [addStmtsO], rfl⟩
+  | P :: Vs, h, h', hl => by
+    obtain ⟨c1, p1, e1, e1'⟩ := pbuild_shape 0 P h h' hl
+    rw [← obuild_pbuild] at e1 e1'
+    have hl3 : (h ++ c1 ++ [Cell.app p1 pe, Cell.app (h ++ c1).length wr]).length =
+        (h' ++ c1 ++ [Cell.app p1 pe, Cell.app (h' ++ c1).length wr]).length := by simp [hl]
+    obtain ⟨cs, e2, e2', e3⟩ := addStmtsO_shape pe wr Vs _ _ hl3
+    have u : addStmtsO pe wr h (P :: Vs) =
+        ((addStmtsO pe wr (h ++ c1 ++ [Cell.app p1 pe, Cell.app (h ++ c1).length wr]) Vs).1,
+          ((h ++ c1).length + 1) ::
+            (addStmtsO pe wr (h ++ c1 ++ [Cell.app p1 pe, Cell.app (h ++ c1).length wr]) Vs).2) := by
+      simp only [addStmtsO, e1]
+    have u' : addStmtsO pe wr h' (P :: Vs) =
+        ((addStmtsO pe wr (h' ++ c1 ++ [Cell.app p1 pe, Cell.app (h' ++ c1).length wr]) Vs).1,
+          ((h' ++ c1).length + 1) ::
+            (addStmtsO pe wr (h' ++ c1 ++ [Cell.app p1 pe, Cell.app (h' ++ c1).length wr]) Vs).2) := by
+      simp only [addStmtsO, e1']
+    rw [u, u']
+    refine ⟨c1 ++ [Cell.app p1 pe, Cell.app (h ++ c1).length wr] ++ cs, ?_, ?_, ?_⟩
+    · rw [e2]; simp
+    · rw [e2']; simp [hl]
+    · rw [e3]; simp [hl]
+
+/-- **The open composed machine's public part**, as `cMachine_public`: bits
+    and regions of the same sizes give machines with the same registers,
+    heap length and roots, whose heaps begin with the slots of their bits and
+    their region and agree outside them. -/
+theorem cMachineO_public (ρ ρ' : Nat → Bool) (shp : BT) (region region' : List Cell) (Vs : List OTerm)
+    (hl : region.length = region'.length) :
+    (cMachineO ρ shp region Vs).hd = (cMachineO ρ' shp region' Vs).hd ∧
+    (cMachineO ρ shp region Vs).stk = (cMachineO ρ' shp region' Vs).stk ∧
+    (cHeapO ρ shp region Vs).2 = (cHeapO ρ' shp region' Vs).2 ∧
+    (cMachineO ρ shp region Vs).heap.length = (cMachineO ρ' shp region' Vs).heap.length ∧
+    (cMachineO ρ shp region Vs).heap.take (BT.nleaves shp + 3 + region.length) =
+      slotHeap ρ (BT.nleaves shp) ++ region ∧
+    ∀ i, (i < 3 ∨ BT.nleaves shp + 3 + region.length ≤ i) →
+      (cMachineO ρ shp region Vs).heap[i]? = (cMachineO ρ' shp region' Vs).heap[i]? := by
+  let N := BT.nleaves shp
+  let h0 := slotHeap ρ N ++ region
+  let h0' := slotHeap ρ' N ++ region'
+  have h0l : h0.length = h0'.length := by simp [h0, h0', slotHeap_length, hl]
+  obtain ⟨c1, p1, e1, e1'⟩ := pbuild_shape (N + 2) (encO shp 0) h0 h0' h0l
+  have h1l : (h0 ++ c1).length = (h0' ++ c1).length := by simp [h0l]
+  obtain ⟨cs, e2, e2', e3⟩ := addStmtsO_shape p1 (h0.length - 1) Vs _ _ h1l
+  have hH : cHeapO ρ shp region Vs = addStmtsO p1 (h0.length - 1) (h0 ++ c1) Vs := by
+    show addStmtsO (pbuild (N + 2) h0 (encO shp 0)).2 (h0.length - 1) (pbuild (N + 2) h0 (encO shp 0)).1 Vs = _
+    rw [e1]
+  have hH' : cHeapO ρ' shp region' Vs = addStmtsO p1 (h0.length - 1) (h0' ++ c1) Vs := by
+    show addStmtsO (pbuild (N + 2) h0' (encO shp 0)).2 (h0'.length - 1) (pbuild (N + 2) h0' (encO shp 0)).1 Vs = _
+    rw [e1', h0l]
+  have hA : (cHeapO ρ shp region Vs).1 = h0 ++ (c1 ++ cs) := by rw [hH, e2]; simp
+  have hA' : (cHeapO ρ' shp region' Vs).1 = h0' ++ (c1 ++ cs) := by rw [hH', e2']; simp
+  have hR : (cHeapO ρ shp region Vs).2 = (cHeapO ρ' shp region' Vs).2 := by rw [hH, hH', e3]
+  have hlen : h0.length = N + 3 + region.length := by simp [h0, slotHeap_length]
+  refine ⟨?_, ?_, hR, ?_, ?_, fun i hi => ?_⟩
+  · show (cHeapO ρ shp region Vs).2.getD 0 0 = (cHeapO ρ' shp region' Vs).2.getD 0 0
+    rw [hR]
+  · show (cHeapO ρ shp region Vs).1.length = (cHeapO ρ' shp region' Vs).1.length
+    rw [hA, hA']; simp [h0l]
+  · show ((cHeapO ρ shp region Vs).1 ++ [Cell.nil]).length = ((cHeapO ρ' shp region' Vs).1 ++ [Cell.nil]).length
+    rw [hA, hA']; simp [h0l]
+  · show ((cHeapO ρ shp region Vs).1 ++ [Cell.nil]).take _ = _
+    rw [hA, List.append_assoc, ← hlen, List.take_left']
+    rfl
+  · show ((cHeapO ρ shp region Vs).1 ++ [Cell.nil])[i]? = ((cHeapO ρ' shp region' Vs).1 ++ [Cell.nil])[i]?
+    have eL : (cHeapO ρ shp region Vs).1 ++ [Cell.nil] = h0 ++ ((c1 ++ cs) ++ [Cell.nil]) := by
+      rw [hA, List.append_assoc]
+    have eL' : (cHeapO ρ' shp region' Vs).1 ++ [Cell.nil] = h0' ++ ((c1 ++ cs) ++ [Cell.nil]) := by
+      rw [hA', List.append_assoc]
+    rw [eL, eL']
+    refine getElem_agree h0l fun hi' => ?_
+    rcases hi with hi | hi
+    · show (slotHeap ρ N ++ region)[i]? = (slotHeap ρ' N ++ region')[i]?
+      rw [List.getElem?_append_left (by rw [slotHeap_length]; omega),
+        List.getElem?_append_left (by rw [slotHeap_length]; omega)]
+      unfold slotHeap
+      rw [List.getElem?_append_left (by simp; omega), List.getElem?_append_left (by simp; omega)]
+    · omega
+
 end CompM

@@ -31,6 +31,8 @@ import Ski.ZK.Poseidon2SKI
 import Ski.Circuit.P2Air
 import Ski.P2Jet
 import Ski.ComposedP
+import Ski.Circuit.CompPFinal
+import Ski.P2PreSound
 import Ski.Composed
 import Ski.Circuit.BaseSound
 import Ski.Circuit.BaseComplete
@@ -837,3 +839,21 @@ open Ski.Audit
   CompM.fill_comb CompM.range'_shift CompM.slots_bits CompM.comb_heap CompM.composedP_sound
   Poseidon2SKI.poseidon2Comb_encI Poseidon2SKI.poseidon2Comb_encO Poseidon2SKI.poseidon2Comb_spec
   Poseidon2SKI.spreadT_spec Poseidon2SKI.Pcomb_implements P2Air.permute_mod P2Air.permute_lt
+
+-- The circuit with the Poseidon2 jet: accepted tables are a run AcceptsCP accepts
+#audit_clean CompM.obuild_pbuild CompM.addStmtsO_shape CompM.cMachineO_public
+  Circuit.kind_ofP2 Circuit.kindOKP_all Circuit.kind_factsP Circuit.sel_sumP2 Circuit.next_regsP2 Circuit.p2_pinsP
+  Circuit.CompPOK.memHit Circuit.CompPOK.segHit Circuit.CompPOK.idxHit Circuit.CompPOK.read Circuit.CompPOK.step
+  Circuit.CompPOK.halt Circuit.CompPOK.ctr_eq Circuit.CompPOK.next_ctr Circuit.CompPOK.jet_key_unique
+  Circuit.CompPOK.jetReads Circuit.CompPOK.jetNext Circuit.CompPOK.pinConserve Circuit.CompPOK.poutConserve
+  Circuit.CompPOK.pinPath Circuit.CompPOK.poutPath Circuit.CompPOK.pinLevel Circuit.CompPOK.poutLevel
+  Circuit.accum Circuit.lowhi Circuit.canon Circuit.CompPOK.pinSlot Circuit.CompPOK.poutWrite
+  Circuit.CompPOK.p2vCount Circuit.CompPOK.p2Unique Circuit.CompPOK.p2wMatch Circuit.CompPOK.pinVals
+  Circuit.CompPOK.poutVals Circuit.CompPOK.poutCells Circuit.CompPOK.jetOut Circuit.CompPOK.jetRow
+  Circuit.cMachineO_fitsB Circuit.CompPOK.heap0 Circuit.CompPOK.regionWF Circuit.CompPOK.restart
+  Circuit.CompPOK.normRow Circuit.CompPOK.acceptsCP Circuit.compPOK_of Circuit.verifierO_occ
+  Circuit.compPExport_sound
+
+-- What a proof of p2pre h proves: a Poseidon2 preimage
+#audit_clean P2Pre.thetaK_absorbs P2Pre.thetaK_not_K P2Pre.chk_sound P2Pre.env_J P2Pre.p2pre_meaning
+  Circuit.p2preExport_sound
