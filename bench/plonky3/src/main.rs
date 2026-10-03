@@ -1252,6 +1252,15 @@ fn main() {
         print!("{}", poseidon2_lean());
         return;
     }
+    if args.len() == 5 && args[1] == "compp-prove-table" {
+        match compp::compp_prove_table(std::path::Path::new(&args[2]), std::path::Path::new(&args[3]), std::path::Path::new(&args[4])) {
+            Ok(()) => return,
+            Err(e) => {
+                eprintln!("compp-prove-table: {e}");
+                std::process::exit(1);
+            }
+        }
+    }
     if args.len() == 4 && args[1] == "compp-verify" {
         match compp::compp_verify(std::path::Path::new(&args[2]), std::path::Path::new(&args[3])) {
             Ok(()) => return,
@@ -1261,13 +1270,18 @@ fn main() {
             }
         }
     }
-    if (args.len() == 5 || (args.len() == 6 && (args[5] == "forge-w" || args[5] == "forge-v"))) && args[1] == "compp-prove" {
-        let forge = match args.get(5).map(|s| s.as_str()) {
-            Some("forge-w") => compp::Forge::W,
-            Some("forge-v") => compp::Forge::V,
-            _ => compp::Forge::None,
+    if (args.len() == 5 || args.len() == 6) && args[1] == "compp-prove" {
+        let (forge, table_out) = match args.get(5).map(|s| s.as_str()) {
+            Some("forge-w") => (compp::Forge::W, None),
+            Some("forge-v") => (compp::Forge::V, None),
+            Some(t) if t.starts_with("--table=") && t.len() > 8 => (compp::Forge::None, Some(std::path::Path::new(&t[8..]))),
+            Some(t) => {
+                eprintln!("compp-prove: expected --table=PATH, forge-w or forge-v, not {t}");
+                std::process::exit(2);
+            }
+            None => (compp::Forge::None, None),
         };
-        match compp::compp_prove(std::path::Path::new(&args[2]), std::path::Path::new(&args[3]), std::path::Path::new(&args[4]), forge) {
+        match compp::compp_prove(std::path::Path::new(&args[2]), std::path::Path::new(&args[3]), std::path::Path::new(&args[4]), forge, table_out) {
             Ok(()) => return,
             Err(e) => {
                 eprintln!("compp-prove: {e}");
@@ -1533,7 +1547,7 @@ fn main() {
              ski-air compj-verify PUBLIC JETS SRC PROOF | ski-air compj-tamper PUBLIC JETS SRC WITNESS\n       \
              ski-air compj-prove-table PUBLIC JETS SRC TABLE PROOF\n       \
              ski-air sudoku-prove PUBLIC WITNESS PROOF [TABLE] | ski-air sudoku-verify PUBLIC PROOF\n       \
-             ski-air fs-budget VERIFY-COMMAND ARGS... | ski-air poseidon2-lean | ski-air export-p2 | ski-air p2-bench N [tamper] | ski-air compp-prove PUBLIC WITNESS PROOF [forge-w|forge-v] | ski-air compp-verify PUBLIC PROOF | ski-air export-compp PUBLIC"
+             ski-air fs-budget VERIFY-COMMAND ARGS... | ski-air poseidon2-lean | ski-air export-p2 | ski-air p2-bench N [tamper] | ski-air compp-prove PUBLIC WITNESS PROOF [--table=PATH|forge-w|forge-v] | ski-air compp-prove-table PUBLIC TABLE PROOF | ski-air compp-verify PUBLIC PROOF | ski-air export-compp PUBLIC"
         );
         std::process::exit(2);
     }

@@ -321,6 +321,9 @@ pub fn parse_public_p(text: &str) -> Result<PPublic, String> {
         return Err("a malformed header".into());
     }
     let (w, nbits, nil) = (w[0], nbits[0], nil[0]);
+    if regs[2] > 1 << 24 {
+        return Err("a heap past 2^24 cells".into());
+    }
     let mut cells = Vec::with_capacity(regs[2] as usize);
     for _ in 0..regs[2] {
         let l = next()?;
@@ -681,7 +684,8 @@ fn verify(p: &PPublic, proof: &PProof) -> Result<(), String> {
 
 /// `ski-air compp-prove PUBLIC WITNESS PROOF`: prove the statement for the
 /// prover's bits and region, write the proof, and check it verifies.
-pub fn compp_prove(public: &std::path::Path, wit: &std::path::Path, proof_out: &std::path::Path, forge: Forge) -> Result<(), String> {
+pub fn compp_prove(public: &std::path::Path, wit: &std::path::Path, proof_out: &std::path::Path, forge: Forge,
+    table_out: Option<&std::path::Path>) -> Result<(), String> {
     let text = std::fs::read_to_string(public).map_err(|e| format!("{}: {e}", public.display()))?;
     lean_statement("composed", &["statement-p2", "-"], text.as_bytes()).map_err(|e| format!("statement: {e}"))?;
     let p = parse_public_p(&text)?;
@@ -749,6 +753,9 @@ pub fn compp_prove(public: &std::path::Path, wit: &std::path::Path, proof_out: &
     if (tb.mem[hd as usize], tb.mem[stk as usize]) != (Cell::K, Cell::Nil) {
         return Err("the run does not end at K over a nil: the witness does not satisfy the statement".into());
     }
+    if let Some(t) = table_out {
+        std::fs::write(t, lean_table(&p, &tb)).map_err(|e| format!("{}: {e}", t.display()))?;
+    }
     let (bs, ps) = ProverSeed::fresh().split();
     let (proof, prove_s) = prove(&p, &traces(&p, &tb, true, bs), ps)?;
     let bytes = postcard::to_allocvec(&proof).map_err(|e| format!("serialize: {e}"))?;
@@ -780,5 +787,130 @@ pub fn compp_verify(public: &std::path::Path, proof: &std::path::Path) -> Result
     let t0 = Instant::now();
     verify(&p, &proof)?;
     println!("{}: VERIFIED in {:.3} s", p.header, t0.elapsed().as_secs_f64());
+    Ok(())
+}
+
+/// The table in `lake exe composed check`'s format: the header, `W w`, the
+/// memory, `ends n` and the segments' ends (the restarts, then the last
+/// row), and the rows.  Avon's `witness --statement` writes the same.
+fn lean_table(p: &PPublic, tb: &PTable) -> String {
+    let mut s = format!("{}\nW {}\n{}\n", p.header, p.w, tb.mem.len());
+    for cell in &tb.mem {
+        s.push_str(&cell.lean());
+        s.push('\n');
+    }
+    let mut ends: Vec<usize> = tb.restarts.clone();
+    ends.push(tb.rows.len() - 1);
+    s.push_str(&format!("ends {}\n", ends.len()));
+    for e in ends {
+        s.push_str(&format!("{e}\n"));
+    }
+    s.push_str(&format!("{}\n", tb.rows.len()));
+    for [h, st, c] in &tb.rows {
+        s.push_str(&format!("{h} {st} {c}\n"));
+    }
+    s
+}
+
+/// A table in `lean_table`'s format, read back: its memory, rows and
+/// restarts as the statement's heights fix them, and its jet calls, each a
+/// row whose next row and written cells are the jet's step from it.
+fn table_of_text(p: &PPublic, text: &str) -> Result<PTable, String> {
+    let mut ls = text.lines();
+    let mut next = || ls.next().ok_or_else(|| "a truncated table".to_string());
+    if next()? != p.header {
+        return Err("the table's header is not the statement's".into());
+    }
+    if next()? != format!("W {}", p.w) {
+        return Err("the table's region size is not the statement's".into());
+    }
+    let msize: usize = next()?.parse().map_err(|_| "a bad memory size")?;
+    if msize != 1 << p.logs[1] {
+        return Err(format!("the table's memory has {msize} cells, the statement's 2^{}", p.logs[1]));
+    }
+    let mut mem = Vec::with_capacity(msize);
+    for _ in 0..msize {
+        mem.push(parse_cell(next()?)?);
+    }
+    let ne: Vec<u32> = nums(next()?, "ends")?;
+    if ne.len() != 1 || ne[0] as usize != p.roots.len() {
+        return Err("the table's segment count is not the statement's".into());
+    }
+    let mut ends = Vec::with_capacity(p.roots.len());
+    for _ in 0..p.roots.len() {
+        ends.push(next()?.parse::<usize>().map_err(|_| "a bad segment end")?);
+    }
+    let k: usize = next()?.parse().map_err(|_| "a bad row count")?;
+    if k != 1 << p.logs[0] {
+        return Err(format!("the table has {k} rows, the statement's 2^{}", p.logs[0]));
+    }
+    let mut rows = Vec::with_capacity(k);
+    for _ in 0..k {
+        let r: Vec<u32> =
+            next()?.split(' ').map(|x| x.parse().map_err(|_| "a bad row".to_string())).collect::<Result<_, _>>()?;
+        if r.len() != 3 {
+            return Err("a bad row".into());
+        }
+        rows.push([r[0], r[1], r[2]]);
+    }
+    if *ends.last().unwrap() != k - 1 || ends.windows(2).any(|w| w[0] >= w[1]) {
+        return Err("the segment ends are not increasing to the last row".into());
+    }
+    // Every row reads below its counter, within the memory, as the CPU's
+    // trace requires.
+    for [hd, stk, ctr] in &rows {
+        if *ctr as usize > mem.len() || hd >= ctr || stk >= ctr {
+            return Err("a row reads at or above its counter, or its counter is past the memory".into());
+        }
+    }
+    let restarts = ends[..ends.len() - 1].to_vec();
+    let mut calls = Vec::new();
+    for i in 0..k - 1 {
+        let [hd, stk, ctr] = rows[i];
+        if (ctr as usize) > mem.len() || mem.get(hd as usize) != Some(&Cell::Atom(p.pp.j)) {
+            continue;
+        }
+        if let Some((h, st, ws, call)) = p2_step(&mem[..ctr as usize], hd, stk, &p.pp, Forge::None) {
+            let c = ctr as usize;
+            if rows[i + 1] == [h, st, ctr + P2_BITS as u32] && mem.get(c..c + ws.len()) == Some(&ws[..]) {
+                calls.push((i, call));
+            }
+        }
+    }
+    if P2_BITS * calls.len() > 1 << p.logs[2].min(p.logs[3]) || calls.len() > 1 << p.logs[4] {
+        return Err(format!("the table's {} jet calls do not fit the statement's heights {:?}", calls.len(), p.logs));
+    }
+    let last = *rows.last().unwrap();
+    let run_rows = rows.iter().rposition(|r| *r != last).map_or(1, |i| i + 2);
+    let run_mem = mem.iter().rposition(|c| *c != Cell::Nil).map_or(0, |i| i + 1);
+    Ok(PTable { rows, restarts, calls, mem, run_rows, run_mem })
+}
+
+/// `ski-air compp-prove-table PUBLIC TABLE PROOF`: prove a table another
+/// prover wrote (Avon's `witness --statement`), write the proof, and check
+/// it verifies.  The verifier holds only the statement and the proof.
+pub fn compp_prove_table(public: &std::path::Path, table: &std::path::Path, proof_out: &std::path::Path) -> Result<(), String> {
+    let text = std::fs::read_to_string(public).map_err(|e| format!("{}: {e}", public.display()))?;
+    lean_statement("composed", &["statement-p2", "-"], text.as_bytes()).map_err(|e| format!("statement: {e}"))?;
+    let p = parse_public_p(&text)?;
+    let ttext = std::fs::read_to_string(table).map_err(|e| format!("{}: {e}", table.display()))?;
+    let tb = table_of_text(&p, &ttext)?;
+    let (bs, ps) = ProverSeed::fresh().split();
+    let (proof, prove_s) = prove(&p, &traces(&p, &tb, true, bs), ps)?;
+    let bytes = postcard::to_allocvec(&proof).map_err(|e| format!("serialize: {e}"))?;
+    let t1 = Instant::now();
+    verify(&p, &proof)?;
+    // Only a proof that verifies is written.
+    std::fs::write(proof_out, &bytes).map_err(|e| format!("{}: {e}", proof_out.display()))?;
+    println!(
+        "{}: proved the table's {} rows ({} jet calls), {} memory cells, in {prove_s:.2} s; verified in {:.3} s; proof {} bytes -> {}",
+        p.header,
+        tb.run_rows,
+        tb.calls.len(),
+        tb.run_mem,
+        t1.elapsed().as_secs_f64(),
+        bytes.len(),
+        proof_out.display()
+    );
     Ok(())
 }
