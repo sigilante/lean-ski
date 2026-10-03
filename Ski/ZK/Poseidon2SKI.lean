@@ -714,70 +714,301 @@ theorem range_getD : ∀ i : Nat, i < 16 → (List.range 16).getD i 0 = i
 -- The continuation-passing form
 -- ---------------------------------------------------------------------------
 
-/-- **Poseidon2 in continuation-passing form**: `[x₀ … x₁₅ k] (\[s] k (π₀ s)
-    … (π₁₅ s)) (P (x₀, …, x₁₅))`, the state bound once. -/
-def Pcps : Term :=
-  lam (List.range 17)
-    (absN [17] (appL (.var 16) ((List.range 16).map fun i => projO i (.var 17))) ⬝ₒ
-      (P.toO ⬝ₒ packO ((List.range 16).map .var)))
+-- ---------------------------------------------------------------------------
+-- Any 31-bit inputs
+-- ---------------------------------------------------------------------------
 
-theorem appT_congr (h : Term) : ∀ (as bs : List Term), as.length = bs.length →
-    (∀ i, i < as.length → WSteps (as.getD i K) (bs.getD i K)) → WSteps (appT h as) (appT h bs)
-  | [], [], _, _ => .refl _
-  | a :: as, b :: bs, hl, hs =>
-    (WSteps.appT (WSteps.right h (hs 0 (Nat.zero_lt_succ _))) as).trans
-      (appT_congr (h ⬝ b) as bs (Nat.succ.inj hl) fun i hi => hs (i + 1) (Nat.succ_lt_succ hi))
-  | [], _ :: _, hl, _ => nomatch hl
-  | _ :: _, [], hl, _ => nomatch hl
+theorem in_repN : ∀ (vs : List Nat) (i : Nat), i < vs.length → vs.getD i 0 < 2 ^ 31 →
+    RepR (inK 31 ⬝ (vs.map DataJet.feltN).getD i K) (vs.getD i 0)
+  | v :: _, 0, _, hb => ⟨_, inK_spec 31 v, by
+      show val (bitsOf 31 v) = v; rw [val_bitsOf, Nat.mod_eq_of_lt (show v < 2 ^ 31 from hb)]⟩
+  | _ :: vs, i + 1, h, hb => in_repN vs i (Nat.lt_of_succ_lt_succ h) hb
+  | [], _, h, _ => absurd h (Nat.not_lt_zero _)
 
-/-- **`Pcps` implements the continuation-passing Poseidon2 contract.** -/
-theorem Pcps_implements : DataJet.CImplements DataJet.poseidon2C Pcps := by
+theorem inS_specN (vs : List Nat) (hv : vs.length = 16) (hb : ∀ i, i < 16 → vs.getD i 0 < 2 ^ 31) :
+    ∃ ts, WSteps (inS ⬝ DataJet.stateN vs) (packT ts) ∧ StR ts vs := by
+  let σ := overrideC (fun _ => I) [0] [DataJet.stateN vs]
+  have hb' := lam_beta [0] (packO ((List.range 16).map fun i => (inK 31).toO ⬝ₒ rd i)) [DataJet.stateN vs] rfl
+  rw [close_packO] at hb'
+  refine ⟨_, hb', ?_⟩
+  have hr := range16_map 0 vs hv
+  have := StR_idx (fun i => (inK 31).toO ⬝ₒ rd i) σ (fun i => vs.getD i 0) (fun i hi => by
+    show RepR ((inK 31).toO.close σ ⬝ (rd i).close σ) _
+    rw [close_toO, show (rd i).close σ = projT i (DataJet.stateN vs) from close_projO _ i _, stateN_pack]
+    have hl : i < (vs.map DataJet.feltN).length := by rw [List.length_map, hv]; exact hi
+    exact RepR.back (WSteps.right _ (proj_pack i _ hl)) (in_repN vs i (by rw [hv]; exact hi) (hb i hi)))
+    _ range16_all
+  rw [hr] at this
+  exact this
+
+/-- **`P` computes the permutation on any sixteen 31-bit values**, canonical
+    or not. -/
+theorem P_specN (vs : List Nat) (hv : vs.length = 16) (hb : ∀ i, i < 16 → vs.getD i 0 < 2 ^ 31) :
+    WSteps (P ⬝ DataJet.stateN vs) (DataJet.stateN (permute vs)) := by
+  have h := lam_beta [0] (outS.toO ⬝ₒ chainO ((rounds.map Prod.fst).map Term.toO) (inS.toO ⬝ₒ .var 0))
+    [DataJet.stateN vs] rfl
+  rw [show (outS.toO ⬝ₒ chainO ((rounds.map Prod.fst).map Term.toO) (inS.toO ⬝ₒ .var 0)).close
+      (overrideC (fun _ => I) [0] [DataJet.stateN vs]) =
+      outS ⬝ chainT (rounds.map Prod.fst) (inS ⬝ DataJet.stateN vs) by
+    show outS.toO.close _ ⬝ (chainO _ _).close _ = _
+    rw [close_toO, close_chainO]
+    show outS ⬝ chainT _ (inS.toO.close _ ⬝ DataJet.stateN vs) = _
+    rw [close_toO]] at h
+  obtain ⟨ts₀, h₀, s₀⟩ := inS_specN vs hv hb
+  obtain ⟨ts₁, h₁, s₁, l₁⟩ := chain_ok rounds rounds_ok ts₀ vs s₀ hv
+  rw [rounds_fold] at s₁ l₁
+  exact h.trans ((WSteps.right outS ((chainT_congr _ h₀).trans h₁)).trans (outS_spec ts₁ _ s₁ l₁))
+
+-- ---------------------------------------------------------------------------
+-- The jet on bits
+-- ---------------------------------------------------------------------------
+
+/-- The `i`-th 31 bits of `bs`, least significant first. -/
+def chunk (bs : List Bool) (i : Nat) : List Bool := (List.range 31).map fun j => bs.getD (31 * i + j) false
+
+/-- Sixteen 31-bit values from 496 bits. -/
+def valsB (bs : List Bool) : List Nat := (List.range 16).map fun i => val (chunk bs i)
+
+def Bits : Type := {bs : List Bool // bs.length = 496}
+
+/-- **The Poseidon2 jet on bits**, in continuation-passing form: a
+    continuation, then the sixteen inputs' 496 bits, each a Scott Boolean;
+    the continuation receives the sixteen outputs' 496 bits.  The inputs are
+    any 31-bit values; the permutation of a value is the permutation of its
+    residue. -/
+def poseidon2B : DataJet.CContract Bits (List Nat) :=
+  ⟨fun bs => bs.1.map boolT, fun ys => (ys.flatMap (bitsOf 31)).map boolT, fun bs => permute (valsB bs.1)⟩
+
+theorem poseidon2B_encI (bs : Bits) : poseidon2B.encI bs = bs.1.map boolT := rfl
+theorem poseidon2B_encO : poseidon2B.encO = fun ys => (ys.flatMap (bitsOf 31)).map boolT := rfl
+theorem poseidon2B_spec (bs : Bits) : poseidon2B.spec bs = permute (valsB bs.1) := by
+  dsimp only [poseidon2B]
+
+theorem boolT_inj' {a b : Bool} (h : boolT a = boolT b) : a = b := DataJet.boolT_inj h
+
+theorem map_boolT_inj : ∀ {a b : List Bool}, a.map boolT = b.map boolT → a = b
+  | [], [], _ => rfl
+  | x :: a, y :: b, h => by
+    obtain ⟨h1, h2⟩ := List.cons.inj h
+    rw [boolT_inj' h1, map_boolT_inj h2]
+  | [], _ :: _, h => nomatch h
+  | _ :: _, [], h => nomatch h
+
+/-- **The bit contract respects its encoding.** -/
+theorem poseidon2B_respects : ∀ x y : Bits, poseidon2B.encI x = poseidon2B.encI y → x = y :=
+  fun x y h => Subtype.ext (map_boolT_inj h)
+
+theorem val_lt : ∀ l : List Bool, val l < 2 ^ l.length
+  | [] => Nat.zero_lt_one
+  | b :: l => by
+    have := val_lt l
+    have hb : b.toNat ≤ 1 := by cases b <;> decide
+    show b.toNat + 2 * val l < 2 ^ (l.length + 1)
+    rw [Nat.pow_succ]; omega
+
+theorem bitsOf_val : ∀ l : List Bool, bitsOf l.length (val l) = l
+  | [] => rfl
+  | b :: l => by
+    show ((b.toNat + 2 * val l) % 2 == 1) :: bitsOf l.length ((b.toNat + 2 * val l) / 2) = b :: l
+    have e1 : ((b.toNat + 2 * val l) % 2 == 1) = b := by
+      rw [Nat.add_mul_mod_self_left]; cases b <;> rfl
+    have e2 : (b.toNat + 2 * val l) / 2 = val l := by
+      rw [Nat.add_mul_div_left _ _ (by decide : 0 < 2)]
+      cases b
+      · show 0 / 2 + val l = val l; rw [Nat.zero_div, Nat.zero_add]
+      · show 1 / 2 + val l = val l; rw [show 1 / 2 = 0 from rfl, Nat.zero_add]
+    rw [e1, e2, bitsOf_val l]
+
+theorem bitsT_pack : ∀ (k n : Nat), DataJet.bitsT k n = packT ((bitsOf k n).map boolT)
+  | 0, _ => rfl
+  | k + 1, n => by
+    show pairT _ (DataJet.bitsT k (n / 2)) = pairT _ (packT _)
+    rw [bitsT_pack k (n / 2)]
+
+theorem range_map_getD {α : Type} (d : α) : ∀ l : List α, (List.range l.length).map (fun i => l.getD i d) = l
+  | [] => rfl
+  | a :: l => by
+    rw [List.length_cons, List.range_succ_eq_map, List.map_cons, List.map_map]
+    show a :: (List.range l.length).map (fun i => (a :: l).getD (i + 1) d) = a :: l
+    exact congrArg _ (range_map_getD d l)
+
+theorem bitsOf_length : ∀ (k n : Nat), (bitsOf k n).length = k
+  | 0, _ => rfl
+  | k + 1, n => congrArg (· + 1) (bitsOf_length k (n / 2))
+
+theorem chunk_length (bs : List Bool) (i : Nat) : (chunk bs i).length = 31 := by
+  rw [chunk, List.length_map, List.length_range]
+
+theorem feltN_chunk (bs : List Bool) (i : Nat) :
+    DataJet.feltN (val (chunk bs i)) = packT ((List.range 31).map fun j => boolT (bs.getD (31 * i + j) false)) := by
+  show DataJet.bitsT 31 _ = _
+  rw [bitsT_pack, ← chunk_length bs i, bitsOf_val, chunk, List.map_map]; rfl
+
+theorem valsB_length (bs : List Bool) : (valsB bs).length = 16 := by
+  rw [valsB, List.length_map, List.length_range]
+
+theorem valsB_lt (bs : List Bool) (i : Nat) (hi : i < 16) : (valsB bs).getD i 0 < 2 ^ 31 := by
+  rw [valsB, getD_map' (fun i => val (chunk bs i)) 0 (List.range 16) i 0 (by rw [List.length_range]; exact hi),
+    range_getD i hi]
+  have := val_lt (chunk bs i)
+  rwa [chunk_length] at this
+
+/-- `overrideC` over the formals `[s, s + n)`. -/
+theorem override_out : ∀ (n s : Nat) (γ : Nat → Term) (Ns : List Term) (i : Nat), i < s →
+    overrideC γ (List.range' s n) Ns i = γ i
+  | 0, _, _, _, _, _ => rfl
+  | _ + 1, _, _, [], _, _ => rfl
+  | n + 1, s, γ, N :: Ns, i, hi => by
+    show overrideC (updC γ s N) (List.range' (s + 1) n) Ns i = γ i
+    rw [override_out n (s + 1) _ Ns i (by omega)]
+    exact if_neg (by omega)
+
+theorem override_in : ∀ (n s : Nat) (γ : Nat → Term) (Ns : List Term), Ns.length = n →
+    ∀ i, s ≤ i → i < s + n → overrideC γ (List.range' s n) Ns i = Ns.getD (i - s) K
+  | 0, _, _, _, _, _, h1, h2 => absurd h2 (by omega)
+  | n + 1, s, γ, N :: Ns, hl, i, h1, h2 => by
+    show overrideC (updC γ s N) (List.range' (s + 1) n) Ns i = _
+    by_cases hi : i = s
+    · rw [hi, override_out n (s + 1) _ Ns s (by omega), Nat.sub_self]
+      exact if_pos rfl
+    · rw [override_in n (s + 1) _ Ns (Nat.succ.inj hl) i (by omega) (by omega)]
+      show _ = (N :: Ns).getD (i - s) K
+      rw [show i - s = (i - (s + 1)) + 1 by omega]
+      rfl
+  | _ + 1, _, _, [], hl, _, _, _ => nomatch hl
+
+/-- A pointwise reduction of argument lists. -/
+def Pw : List Term → List Term → Prop
+  | [], [] => True
+  | a :: as, b :: bs => WSteps a b ∧ Pw as bs
+  | _, _ => False
+
+theorem Pw.append : ∀ {as bs cs ds : List Term}, Pw as bs → Pw cs ds → Pw (as ++ cs) (bs ++ ds)
+  | [], [], _, _, _, h => h
+  | _ :: _, _ :: _, _, _, ⟨h, hs⟩, h' => ⟨h, Pw.append hs h'⟩
+  | [], _ :: _, _, _, h, _ => nomatch h
+  | _ :: _, [], _, _, h, _ => nomatch h
+
+theorem Pw.map {α : Type} (f g : α → Term) : ∀ l : List α, (∀ a ∈ l, WSteps (f a) (g a)) → Pw (l.map f) (l.map g)
+  | [], _ => trivial
+  | a :: l, h => ⟨h a (List.mem_cons_self ..), Pw.map f g l fun b hb => h b (List.mem_cons_of_mem _ hb)⟩
+
+theorem Pw.flatMap {α : Type} (f g : α → List Term) : ∀ l : List α, (∀ a ∈ l, Pw (f a) (g a)) →
+    Pw (l.flatMap f) (l.flatMap g)
+  | [], _ => trivial
+  | a :: l, h => by
+    rw [List.flatMap_cons, List.flatMap_cons]
+    exact Pw.append (h a (List.mem_cons_self ..)) (Pw.flatMap f g l fun b hb => h b (List.mem_cons_of_mem _ hb))
+
+theorem appT_pw : ∀ (h : Term) {as bs : List Term}, Pw as bs → WSteps (appT h as) (appT h bs)
+  | _, [], [], _ => .refl _
+  | h, a :: as, b :: bs, ⟨hab, hs⟩ =>
+    (WSteps.appT (WSteps.right h hab) as).trans (appT_pw (h ⬝ b) hs)
+  | _, [], _ :: _, hs => nomatch hs
+  | _, _ :: _, [], hs => nomatch hs
+
+theorem mem_range16 {i : Nat} (h : i ∈ List.range 16) : i < 16 := List.mem_range.1 h
+
+/-- The inputs: sixteen literals of 31 bits, from the arguments `1 … 496`. -/
+def inO : OTerm := packO ((List.range 16).map fun i => packO ((List.range 31).map fun j => .var (1 + (31 * i + j))))
+
+/-- The outputs: the bits of the sixteen outputs, from the state in `497`. -/
+def outArgs : List OTerm := (List.range 16).flatMap fun i => (List.range 31).map fun j => projO j (projO i (.var 497))
+
+/-- **Poseidon2 on bits**: `[k b₀ … b₄₉₅] (\[s] k (π₀ π₀ s) … (π₃₀ π₁₅ s))
+    (P (literals of the bits))`. -/
+def Pbits : Term := lam (List.range 497) (absN [497] (appL (.var 0) outArgs) ⬝ₒ (P.toO ⬝ₒ inO))
+
+/-- **`Pbits` implements the bit contract.** -/
+theorem Pbits_implements : DataJet.CImplements poseidon2B Pbits := by
   intro x k
-  rw [DataJet.poseidon2C_encI, DataJet.poseidon2C_encO, DataJet.poseidon2C_spec]
-  obtain ⟨xs, hx⟩ := x
-  show WSteps (appT Pcps (xs.map DataJet.feltT ++ [k])) (appT k ((Poseidon2.permute (xs.map Fin.val)).map DataJet.feltN))
-  have hlen : (xs.map DataJet.feltT ++ [k]).length = (List.range 17).length := by
-    rw [List.length_append, List.length_map, hx]; rfl
-  have hb := lam_beta (List.range 17) (absN [17] (appL (.var 16) ((List.range 16).map fun i => projO i (.var 17))) ⬝ₒ
-      (P.toO ⬝ₒ packO ((List.range 16).map .var))) (xs.map DataJet.feltT ++ [k]) hlen
-  let σ := overrideC (fun _ => I) (List.range 17) (xs.map DataJet.feltT ++ [k])
-  have hpack : (packO ((List.range 16).map OTerm.var)).close σ = DataJet.stateT xs := by
-    rw [close_packO, stateT_pack]
-    exact len16 (P := fun xs => xs.length = 16 → packT (((List.range 16).map OTerm.var).map (OTerm.close
-        (overrideC (fun _ => I) (List.range 17) (xs.map DataJet.feltT ++ [k])))) = packT (xs.map DataJet.feltT))
-      (fun a0 a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 _ => rfl) xs hx hx
-  have hk : σ 16 = k := len16 (P := fun xs => xs.length = 16 →
-      overrideC (fun _ => I) (List.range 17) (xs.map DataJet.feltT ++ [k]) 16 = k) (fun a0 a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 _ => rfl) xs hx hx
-  have e1 : (absN [17] (appL (.var 16) ((List.range 16).map fun i => projO i (.var 17))) ⬝ₒ
-      (P.toO ⬝ₒ packO ((List.range 16).map .var))).close σ =
-      (absN [17] (appL (.var 16) ((List.range 16).map fun i => projO i (.var 17)))).close σ ⬝
-        (P ⬝ DataJet.stateT xs) := by
-    show _ ⬝ (P.toO.close σ ⬝ (packO _).close σ) = _
-    rw [close_toO, hpack]
+  rw [poseidon2B_encI, poseidon2B_encO, poseidon2B_spec]
+  obtain ⟨bs, hbs⟩ := x
+  show WSteps (appT Pbits (k :: bs.map boolT)) (appT k (((permute (valsB bs)).flatMap (bitsOf 31)).map boolT))
+  have hlen : (k :: bs.map boolT).length = (List.range 497).length := by
+    rw [List.length_cons, List.length_map, hbs, List.length_range]
+  have hb := lam_beta (List.range 497) (absN [497] (appL (.var 0) outArgs) ⬝ₒ (P.toO ⬝ₒ inO)) (k :: bs.map boolT) hlen
+  have hσ0 : ∀ i, i < 497 → overrideC (fun _ => I) (List.range 497) (k :: bs.map boolT) i =
+      (k :: bs.map boolT).getD i K := fun i hi => by
+    rw [List.range_eq_range', override_in 497 0 _ _ (by rw [List.length_cons, List.length_map, hbs]) i
+      (Nat.zero_le _) (by omega), Nat.sub_zero]
+  generalize hg : overrideC (fun _ => I) (List.range 497) (k :: bs.map boolT) = σ at hb hσ0
+  have hσ : ∀ i, i < 497 → σ i = (k :: bs.map boolT).getD i K := hσ0
+  have hσb : ∀ m, m < 496 → σ (1 + m) = boolT (bs.getD m false) := fun m hm => by
+    rw [hσ (1 + m) (by omega), Nat.add_comm 1 m]
+    show (bs.map boolT).getD m K = _
+    rw [getD_map' boolT false bs m K (by rw [hbs]; exact hm)]
+  -- The input literals: the state of the bits' values.
+  have hin : inO.close σ = DataJet.stateN (valsB bs) := by
+    rw [stateN_pack, valsB, List.map_map, inO, close_packO, List.map_map]
+    apply congrArg packT
+    refine List.map_congr_left fun i hi => ?_
+    have hi' := mem_range16 hi
+    show (packO _).close σ = DataJet.feltN (val (chunk bs i))
+    rw [close_packO, List.map_map, feltN_chunk]
+    apply congrArg packT
+    refine List.map_congr_left fun j hj => ?_
+    have hj' : j < 31 := List.mem_range.1 hj
+    exact hσb _ (by omega)
+  have e1 : (absN [497] (appL (.var 0) outArgs) ⬝ₒ (P.toO ⬝ₒ inO)).close σ =
+      (absN [497] (appL (.var 0) outArgs)).close σ ⬝ (P ⬝ DataJet.stateN (valsB bs)) := by
+    show _ ⬝ (P.toO.close σ ⬝ inO.close σ) = _
+    rw [close_toO, hin]
   rw [e1] at hb
-  have hb2 := absN_beta_close [17] (appL (.var 16) ((List.range 16).map fun i => projO i (.var 17))) σ
-    [P ⬝ DataJet.stateT xs] rfl
-  rw [_root_.close_appL, List.map_map] at hb2
-  let σ' := overrideC σ [17] [P ⬝ DataJet.stateT xs]
-  have hk' : σ' 16 = k := hk
-  have hs' : σ' 17 = P ⬝ DataJet.stateT xs := rfl
-  have e2 : (OTerm.close σ' ∘ fun i => projO i (.var 17)) = fun i => projT i (P ⬝ DataJet.stateT xs) := by
-    funext i
-    show (projO i (.var 17)).close σ' = _
-    rw [close_projO, show (OTerm.var 17).close σ' = σ' 17 from rfl, hs']
-  rw [e2, show (OTerm.var 16).close σ' = σ' 16 from rfl, hk'] at hb2
+  have hb2 := absN_beta_close [497] (appL (.var 0) outArgs) σ [P ⬝ DataJet.stateN (valsB bs)] rfl
+  generalize hg' : overrideC σ [497] [P ⬝ DataJet.stateN (valsB bs)] = σ' at hb2
+  have h0 : σ' 0 = k := by
+    rw [← hg']
+    show updC σ 497 (P ⬝ DataJet.stateN (valsB bs)) 0 = k
+    unfold updC
+    rw [if_neg (by decide)]
+    exact hσ 0 (by decide)
+  have h497 : σ' 497 = P ⬝ DataJet.stateN (valsB bs) := by
+    rw [← hg']
+    show updC σ 497 (P ⬝ DataJet.stateN (valsB bs)) 497 = _
+    unfold updC
+    exact if_pos rfl
+  rw [_root_.close_appL, show (OTerm.var 0).close σ' = σ' 0 from rfl, h0, outArgs, List.map_flatMap] at hb2
   refine hb.trans (hb2.trans ?_)
-  let y := Poseidon2.permute (xs.map Fin.val)
-  have hy : y.length = 16 := permute_len _ (by rw [List.length_map, hx])
-  refine appT_congr k _ _ (by rw [List.length_map, List.length_range, List.length_map, hy]) fun i hi => ?_
-  rw [List.length_map, List.length_range] at hi
-  rw [getD_map' (fun i => projT i (P ⬝ DataJet.stateT xs)) 0 (List.range 16) i K (by rw [List.length_range]; exact hi),
-    getD_map' DataJet.feltN 0 y i K (by rw [hy]; exact hi)]
-  have hr : (List.range 16).getD i 0 = i := range_getD i hi
-  rw [hr]
-  refine (projT_congr i (P_spec xs hx)).trans ?_
-  rw [stateN_pack]
-  have := proj_pack i (y.map DataJet.feltN) (by rw [List.length_map, hy]; exact hi)
-  rwa [getD_map' DataJet.feltN 0 y i K (by rw [hy]; exact hi)] at this
+  generalize hys' : permute (valsB bs) = ys
+  have hys : ys.length = 16 := by rw [← hys']; exact permute_len _ (valsB_length bs)
+  have hP := P_specN (valsB bs) (valsB_length bs) (valsB_lt bs)
+  rw [hys'] at hP
+  have hpw : Pw ((List.range 16).flatMap fun i => ((List.range 31).map fun j => projO j (projO i (.var 497))).map
+        (OTerm.close σ'))
+      ((List.range 16).flatMap fun i => (List.range 31).map fun j => boolT ((bitsOf 31 (ys.getD i 0)).getD j false)) := by
+    refine Pw.flatMap _ _ _ fun i hi => ?_
+    have hi' := mem_range16 hi
+    rw [List.map_map]
+    refine Pw.map _ _ _ fun j hj => ?_
+    have hj' : j < 31 := List.mem_range.1 hj
+    show WSteps ((projO j (projO i (.var 497))).close σ') _
+    rw [close_projO, close_projO, show (OTerm.var 497).close σ' = σ' 497 from rfl, h497]
+    refine (projT_congr j (projT_congr i hP)).trans ?_
+    rw [stateN_pack]
+    have hi2 : i < (ys.map DataJet.feltN).length := by rw [List.length_map, hys]; exact hi'
+    refine (projT_congr j (proj_pack i _ hi2)).trans ?_
+    rw [getD_map' DataJet.feltN 0 ys i K (by rw [hys]; exact hi'),
+      show DataJet.feltN (ys.getD i 0) = DataJet.bitsT 31 (ys.getD i 0) from rfl, bitsT_pack]
+    have hj2 : j < ((bitsOf 31 (ys.getD i 0)).map boolT).length := by
+      rw [List.length_map, bitsOf_length]; exact hj'
+    refine (proj_pack j _ hj2).trans ?_
+    rw [getD_map' boolT false _ j K (by rw [bitsOf_length]; exact hj')]
+    exact .refl _
+  refine (appT_pw k hpw).trans ?_
+  have inner : ∀ y, (List.range 31).map (fun j => boolT ((bitsOf 31 y).getD j false)) = (bitsOf 31 y).map boolT :=
+    fun y => by
+      have := range_map_getD false (bitsOf 31 y)
+      rw [bitsOf_length] at this
+      rw [show (fun j => boolT ((bitsOf 31 y).getD j false)) = boolT ∘ (fun j => (bitsOf 31 y).getD j false) from rfl,
+        ← List.map_map, this]
+  simp only [inner]
+  rw [List.map_flatMap]
+  have e : (List.range 16).flatMap (fun i => (bitsOf 31 (ys.getD i 0)).map boolT) =
+      ys.flatMap (fun y => (bitsOf 31 y).map boolT) :=
+    len16 (P := fun ys => (List.range 16).flatMap (fun i => (bitsOf 31 (ys.getD i 0)).map boolT) =
+      ys.flatMap (fun y => (bitsOf 31 y).map boolT)) (fun a0 a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 => rfl) ys hys
+  rw [e]
+  exact .refl _
 
 end Poseidon2SKI

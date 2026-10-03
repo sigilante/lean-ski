@@ -29,6 +29,8 @@ import Ski.DataJet
 import Ski.BitArith
 import Ski.ZK.Poseidon2SKI
 import Ski.Circuit.P2Air
+import Ski.P2Jet
+import Ski.ComposedP
 import Ski.Composed
 import Ski.Circuit.BaseSound
 import Ski.Circuit.BaseComplete
@@ -822,4 +824,11 @@ open Ski.Audit
 -- The Poseidon2 table: every row whose constraints vanish computes the permutation
 #audit_clean P2Air.evalF_ofN P2Air.toE_eval P2Air.eval_subst P2Air.bridge_ext P2Air.lin_ok P2Air.round_ok
   P2Air.gen_ok P2Air.rounds_spec P2Air.p2_sound P2Air.p2_sound_row
-  DataJet.CSteps.close DataJet.real_of_cjet Poseidon2SKI.permute_len Poseidon2SKI.Pcps_implements
+  DataJet.CSteps.close DataJet.real_of_cjet Poseidon2SKI.permute_len Poseidon2SKI.P_specN
+  Poseidon2SKI.Pbits_implements Poseidon2SKI.poseidon2B_respects
+
+-- The Poseidon2 jet in the machine, and composed statements that use it
+#audit_clean P2Jet.boolAt_ot P2Jet.bitsAt_ptrs P2Jet.slot_ot P2Jet.push_ot P2Jet.p2Row_cstep P2Jet.p2Row_ctr
+  P2Jet.p2Row_len CompM.build_obuild CompM.addStmts_eq CompM.addStmtsO_spec CompM.cHeap_eq CompM.cMachine_eq
+  CompM.cMachineO_decode CompM.normRowP_spec CompM.AcceptsCP.within CompM.AcceptsCP.runs CompM.composedP_sound_of CompM.composedP_sound
+  P2Jet.boolAt_cases P2Air.permute_mod P2Air.permute_lt

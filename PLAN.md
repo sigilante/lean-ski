@@ -968,11 +968,17 @@ knowledge soundness reduces to collision resistance. The precompile's
 table exists: one row per permutation; every row of a table that
 satisfies its AIR computes `Poseidon2.permute` (`P2Air.p2_sound_row`);
 its Rust export matches Lean's constraint for constraint; 4,096
-permutations prove in 0.15 s. The jet takes its arguments in
-continuation-passing form (`DataJet.CContract`, `CSteps.close`), and
-`Poseidon2SKI.Pcps` implements it (`Pcps_implements`). Open: the jet in
-the CPU and the bus to the table, and the binding and hiding
-assumptions, which are computational and stated in prose.
+permutations prove in 0.15 s. The jet takes a continuation, then the
+inputs' 496 bits as Scott Booleans, and passes the continuation the
+outputs' bits (`DataJet.CContract`, `CSteps.close`; `Poseidon2SKI.Pbits`
+implements it, `Pbits_implements`). In the machine it is an atom `J`, and
+one row pushes the output bits as stack cells into the heap's `K` and
+`K I` slots (`P2Jet.p2Row`, read back as one jet step by
+`p2Row_cstep`); composed statements may leave `J` free, and an accepted
+table with jet rows proves the statement with `J` closed to `Pbits`
+(`CompM.composedP_sound`). Open: the circuit's jet rows (the CPU's jet
+row, the bit tables and the bus to the Poseidon2 table), and the binding
+and hiding assumptions, which are computational and stated in prose.
 
 Fiat–Shamir, round by round (`Ski/ZK/FSRound.lean`, `ski-air fs-budget`).
 Lean proves the counting step: `q` adaptive hash calls hit a round of bad

@@ -430,4 +430,80 @@ theorem p2_sound_row (T : Table) (hT : Sat p2Air T) (r : Nat) (hr : r < T.h) :
     p2Out.map (E.eval (T.env r)) = (Poseidon2.permute ((ins (T.env r)).map Fin.val)).map ofN :=
   p2_sound (T.env r) (allZ_of_mem _ _ fun e he => hT.2 e he r hr)
 
+-- ---------------------------------------------------------------------------
+-- Residues
+-- ---------------------------------------------------------------------------
+
+theorem ofN_eq_mod {a b : Nat} (h : ofN a = ofN b) : a % Poseidon2.p = b % Poseidon2.p := by
+  have := congrArg Fin.val h
+  exact this
+
+/-- An expression reduced at its root depends only on its inputs' residues. -/
+theorem eval_md_mod (ρ ρ' : Nat → Nat) (hρ : ∀ i, ofN (ρ i) = ofN (ρ' i)) (e : Ex) :
+    (Ex.md e).eval ρ = (Ex.md e).eval ρ' := by
+  show e.eval ρ % Poseidon2.p = e.eval ρ' % Poseidon2.p
+  apply ofN_eq_mod
+  rw [← evalF_ofN, ← evalF_ofN]
+  exact congrArg (evalF · e) (funext hρ)
+
+theorem extLE_md : ∀ e ∈ extLE, ∃ e', e = .md e' := by
+  intro e he
+  obtain ⟨m, hm, rfl⟩ := List.mem_map.1 he
+  obtain ⟨i, _, rfl⟩ := List.mem_map.1 hm
+  exact ⟨_, rfl⟩
+
+/-- **The permutation depends only on its inputs' residues.** -/
+theorem permute_mod (s : List Nat) (hs : s.length = 16) :
+    Poseidon2.permute s = Poseidon2.permute (s.map (· % Poseidon2.p)) := by
+  have hs' : (s.map (· % Poseidon2.p)).length = 16 := by rw [List.length_map, hs]
+  have e : Poseidon2.extLinear s = Poseidon2.extLinear (s.map (· % Poseidon2.p)) := by
+    rw [← bridge_ext s hs, ← bridge_ext _ hs']
+    refine List.map_congr_left fun x hx => ?_
+    obtain ⟨e', rfl⟩ := extLE_md x hx
+    refine eval_md_mod _ _ (fun i => ?_) e'
+    show ofN (s.getD i 0) = ofN ((s.map (· % Poseidon2.p)).getD i 0)
+    have := getD_map (· % Poseidon2.p) 0 s i
+    rw [show (0 : Nat) % Poseidon2.p = 0 from rfl] at this
+    rw [this]
+    show ofN (s.getD i 0) = ofN (s.getD i 0 % Circuit.P)
+    rw [ofN_mod]
+  show (Poseidon2.rcTerminal.foldl Poseidon2.extRound
+    (Poseidon2.rcInternal.foldl Poseidon2.intRound
+      (Poseidon2.rcInitial.foldl Poseidon2.extRound (Poseidon2.extLinear s)))) =
+    (Poseidon2.rcTerminal.foldl Poseidon2.extRound
+    (Poseidon2.rcInternal.foldl Poseidon2.intRound
+      (Poseidon2.rcInitial.foldl Poseidon2.extRound (Poseidon2.extLinear (s.map (· % Poseidon2.p))))))
+  rw [e]
+
+theorem foldl_ext_last : ∀ (rcs : List (List Nat)), rcs ≠ [] →
+    rcs.all (fun rc => decide (rc.length = 16)) = true → ∀ X : List Nat, X.length = 16 →
+      ∃ Y, Y.length = 16 ∧ rcs.foldl Poseidon2.extRound X = Poseidon2.extLinear Y
+  | [], h, _, _, _ => absurd rfl h
+  | [rc], _, hc, X, hX => by
+    refine ⟨sboxL rc X, sboxL_len rc X hX (of_decide_eq_true (band_l hc)), ?_⟩
+    rw [List.foldl_cons, List.foldl_nil, extRound_split, extLinear_split]
+  | rc :: rc' :: rest, _, hc, X, hX => by
+    have hX' : (Poseidon2.extRound X rc).length = 16 := by
+      rw [extRound_split]
+      exact mixL_len _ (mat4L_len _ (sboxL_len rc X hX (of_decide_eq_true (band_l hc))))
+    rw [List.foldl_cons]
+    exact foldl_ext_last (rc' :: rest) (List.cons_ne_nil _ _) (band_r hc) _ hX'
+
+/-- **The permutation's outputs are reduced.** -/
+theorem permute_lt (s : List Nat) (hs : s.length = 16) : ∀ y ∈ Poseidon2.permute s, y < Poseidon2.p := by
+  have hin : (Poseidon2.rcInternal.foldl Poseidon2.intRound
+      (Poseidon2.rcInitial.foldl Poseidon2.extRound (Poseidon2.extLinear s))).length = 16 :=
+    foldl_int_len _ _ (foldl_ext_len _ (by decide) _ (by rw [extLinear_split]; exact mixL_len _ (mat4L_len _ hs)))
+  obtain ⟨Y, hY, e⟩ := foldl_ext_last Poseidon2.rcTerminal (by decide) (by decide) _ hin
+  intro y hy
+  have hy' : y ∈ Poseidon2.extLinear Y := by
+    have : Poseidon2.permute s = Poseidon2.rcTerminal.foldl Poseidon2.extRound
+        (Poseidon2.rcInternal.foldl Poseidon2.intRound
+          (Poseidon2.rcInitial.foldl Poseidon2.extRound (Poseidon2.extLinear s))) := rfl
+    rw [this, e] at hy; exact hy
+  rw [← bridge_ext Y hY] at hy'
+  obtain ⟨x, hx, rfl⟩ := List.mem_map.1 hy'
+  obtain ⟨e', rfl⟩ := extLE_md x hx
+  exact Nat.mod_lt _ (by decide)
+
 end P2Air
