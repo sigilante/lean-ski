@@ -946,17 +946,26 @@ that implements the contract turns each reduction with the jet into a
 weak reduction (`JSteps.close`), so a verifier accepting under the jet
 realizes its atom (`real_of_jet`). An implementation needs the
 specification to be a function of the encoding (`Contract.Respects`);
-the Poseidon2 contract takes canonical field elements, injectively
-encoded (`poseidon2_respects`). The specification of Poseidon2 (BabyBear,
-width 16) is arithmetic modulo `p` with Plonky3's constants, checked by
-the kernel against Plonky3's outputs on three inputs (`permute_matches`).
-A hidden hand-off commits to the value with Plonky3's compression, as
-specified and tested, on eight value and eight random elements. From a verified proof of each
+the Poseidon2 contract takes states of sixteen canonical field elements,
+injectively encoded (`poseidon2_respects`), and has a proved SKI
+implementation (`Poseidon2SKI.poseidon2_implements`): binary arithmetic in
+SKI (`Ski/BitArith.lean`) and the rounds as layers of arithmetic
+expressions, each round of the specification equal to its expressions'
+value (`Ski/ZK/Poseidon2SKI.lean`). The term has 12,370,891 nodes as a
+tree. Avon's graph reduction runs it on Plonky3's three test vectors to
+the proved normal form, Plonky3's output, in 962 to 981 million
+contractions (about 10.4 s each; `lake exe p2run`). Without sharing,
+which is how the circuit's write-once heap runs, it passes `8 × 10^9`;
+the circuit's largest tables hold about 400,000. The specification of
+Poseidon2 (BabyBear, width 16) is arithmetic modulo `p` with Plonky3's
+constants, checked by the kernel against Plonky3's outputs on three
+inputs (`permute_matches`). A hidden hand-off commits to the value with
+Plonky3's compression, as specified and tested, on eight value and eight
+random elements. From a verified proof of each
 stage over one commitment, the extractors give one value satisfying
 both, or two distinct inputs on which the compression agrees
 (`hidden_chain`), so knowledge soundness reduces to collision
-resistance. Open: an SKI implementation of Poseidon2 (one exists by
-computability; none is constructed), the precompile AIR and its bus, with
+resistance. Open: the precompile AIR and its bus, with
 a proof that its rows compute `Poseidon2.permute`, and the binding and
 hiding assumptions, which are computational and stated in prose.
 

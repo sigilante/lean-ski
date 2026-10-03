@@ -23,6 +23,8 @@ import Ski.ComposedX
 import Ski.Chain
 import Ski.ChainExamples
 import Ski.DataJet
+import Ski.BitArith
+import Ski.ZK.Poseidon2SKI
 import Ski.Composed
 import Ski.BoolProbe
 import Ski.Statement

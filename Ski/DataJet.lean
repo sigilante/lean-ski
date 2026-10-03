@@ -36,12 +36,11 @@ normal forms, this is necessary, since weak reduction is confluent
 (`church_rosser`); that argument is not formalized here.  An injective
 input encoding gives it (`respects_of_inj`).  The toy contract has a
 proved implementation (`notP_implements`).  The Poseidon2 contract
-respects its encoding (`poseidon2_respects`): its inputs are canonical
-field elements, each in 31 bits, and the encoding is injective
-(`stateT_inj`).  An implementation then exists because the specification
-is a total computable function of the encoding and SKI is
-Turing-complete.  None is constructed here, and the theorems take one as
-a hypothesis.
+respects its encoding (`poseidon2_respects`): its inputs are states of
+sixteen canonical field elements, each in 31 bits, and the encoding is
+injective (`stateT_inj`).  Its implementation is an SKI term built and
+proved in `Ski/ZK/Poseidon2SKI.lean` (`Poseidon2SKI.poseidon2_implements`),
+so the theorems here apply to it.
 
 **The circuit's obligation.**  The circuit must compute `spec`: a
 Poseidon2 precompile, an AIR and a bus from the CPU to it, with a proof
@@ -53,15 +52,15 @@ Plonky3's permutation on three inputs (`Poseidon2.permute_matches`).
 `Ski/Chain.lean` becomes a commitment `c = commit o r`: Plonky3's
 compression `TruncatedPermutation` as specified here (the specification
 of the permutation is tested against Plonky3's, not proved equal), the
-permutation of the value `o` and
-the randomness `r`, eight canonical elements each, truncated to eight.
-Each stage's relation is that its witness opens `c` (`Opening`, eight and
-eight elements) and that the stage's own relation holds at the opened
-value.  From a verified proof of each stage, the extractors give one
-value that opens `c` and at which both relations hold, or two openings of `c` with different
-values: two distinct inputs on which the compression agrees
-(`Collision`).  Binding is the claim that no efficient prover finds such
-a pair.  It is computational and not formalized, and the theorem reduces
+permutation of the value `o` and the randomness `r`, eight canonical
+elements each, truncated to eight.  Each stage's relation is that its
+witness opens `c` (`Opening`, eight and eight elements) and that the
+stage's own relation holds at the opened value.  From a verified proof of
+each stage, the extractors give one value that opens `c` and at which
+both relations hold, or two openings of `c` with different values: two
+distinct inputs on which the compression agrees (`Collision`).  Binding
+is the claim that no efficient prover finds such a pair.  It is
+computational and not formalized, and the theorem reduces
 the chain's knowledge soundness to it.  An injectivity hypothesis would
 be false (sixteen elements compress to eight), so the theorem names the
 collision instead of assuming none exists.
@@ -239,13 +238,22 @@ theorem stateT_inj : ∀ x y : List F, stateT x = stateT y → x = y
     obtain ⟨h1, h2⟩ := pairT_inj h
     rw [feltT_inj h1, stateT_inj x y h2]
 
+/-- A state: sixteen canonical elements. -/
+def St : Type := {x : List F // x.length = 16}
+
 /-- **The Poseidon2 data jet**: Plonky3's width-16 permutation, from
-    canonical elements to their images. -/
-def poseidon2 : Contract (List F) (List Nat) :=
-  ⟨stateT, stateN, fun x => Poseidon2.permute (x.map Fin.val)⟩
+    states of canonical elements to their images. -/
+def poseidon2 : Contract St (List Nat) :=
+  ⟨fun x => stateT x.1, stateN, fun x => Poseidon2.permute (x.1.map Fin.val)⟩
+
+theorem poseidon2_encI (x : St) : poseidon2.encI x = stateT x.1 := rfl
+theorem poseidon2_encO : poseidon2.encO = stateN := rfl
+theorem poseidon2_spec (x : St) : poseidon2.spec x = Poseidon2.permute (x.1.map Fin.val) := by
+  dsimp only [poseidon2]
 
 /-- **The Poseidon2 contract respects its encoding.** -/
-theorem poseidon2_respects : poseidon2.Respects := respects_of_inj stateT_inj
+theorem poseidon2_respects : poseidon2.Respects :=
+  respects_of_inj fun x y h => Subtype.ext (stateT_inj x.1 y.1 h)
 
 -- ---------------------------------------------------------------------------
 -- A hidden hand-off

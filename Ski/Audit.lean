@@ -26,6 +26,8 @@ import Ski.ComposedX
 import Ski.Chain
 import Ski.ChainExamples
 import Ski.DataJet
+import Ski.BitArith
+import Ski.ZK.Poseidon2SKI
 import Ski.Composed
 import Ski.Circuit.BaseSound
 import Ski.Circuit.BaseComplete
@@ -804,3 +806,14 @@ open Ski.Audit
 #audit_clean DataJet.JStep.close DataJet.JSteps.close DataJet.real_of_jet DataJet.respects_of_inj
   DataJet.notP_implements DataJet.bitsT_inj DataJet.stateT_inj DataJet.poseidon2_respects
   DataJet.hidden_chain Poseidon2.permute_matches
+
+-- Binary arithmetic in SKI, and Poseidon2 in SKI implementing the data jet
+#audit_clean BitArith.wnf_sound BitArith.run BitArith.theta_unfold BitArith.add_spec BitArith.mul_spec
+  BitArith.lt_spec BitArith.sub_spec BitArith.mod_step BitArith.mod_spec BitArith.mod_two_mul
+  BitArith.val_bitsOf BitArith.val_lit BitArith.RepR.add BitArith.RepR.mul BitArith.RepR.mod BitArith.RepR.pow7
+  Poseidon2SKI.extRound_split Poseidon2SKI.intRound_split Poseidon2SKI.bridge_sbox Poseidon2SKI.bridge_mat4
+  Poseidon2SKI.bridge_mix Poseidon2SKI.bridge_sbox0 Poseidon2SKI.bridge_intLin Poseidon2SKI.comp_ok
+  Poseidon2SKI.extL_ok Poseidon2SKI.intL_ok Poseidon2SKI.Ex.comp_spec Poseidon2SKI.layer_ok Poseidon2SKI.inK_spec
+  Poseidon2SKI.outK_spec Poseidon2SKI.inS_spec Poseidon2SKI.outS_spec Poseidon2SKI.chain_ok
+  Poseidon2SKI.rounds_ok Poseidon2SKI.rounds_fold Poseidon2SKI.P_spec Poseidon2SKI.poseidon2_implements
+  DataJet.poseidon2_spec

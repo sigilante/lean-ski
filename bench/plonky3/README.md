@@ -405,6 +405,36 @@ ski-air poseidon2-lean > Ski/ZK/Poseidon2Data.lean
 The kernel checks the specification against those three vectors
 (`Poseidon2.permute_matches`), a test on three inputs.
 
+### Poseidon2 in SKI, run by Avon
+
+The data jet's contract has a proved SKI implementation, `P`
+(`Ski/ZK/Poseidon2SKI.lean`, `poseidon2_implements`). `lake exe p2run K
+DIR` writes `P` applied to Plonky3's test vector `K` in Avon's DAG form,
+each distinct subterm once, and the normal form `P_spec` proves it
+reaches, Plonky3's output, in Avon's printed form:
+
+```
+lake exe p2run 1 DIR
+avon reduce --fuel=8000000000 --max-nodes=100000000 DIR/p2.dag | tail -n +2 | cmp - DIR/p2.expected
+```
+
+At Avon `188f7f2`, `share` mode (graph reduction), on an M4 Max:
+
+```
+vector   contractions   time      peak RSS
+0        968,992,246    10.40 s   67 MB
+1        962,192,547    10.15 s   66 MB
+2        980,820,715    10.35 s   68 MB
+```
+
+Each reaches the expected normal form byte for byte. A full round costs
+about 94 million contractions and a partial round about 15 million; one
+S-box, about 5 million. Without sharing (`--strategy=copy`), vector 1
+passes 8 × 10⁹ contractions in 33.6 s without finishing. The circuit's
+write-once heap shares no work either, and its largest tables hold about
+400,000 contractions (`PLAN.md` §5), so the hash runs in the circuit only
+as a jet.
+
 ## A SKIlark predicate in zero knowledge
 
 A SKIlark (Joy) program is the verifier of a **predicate statement over
