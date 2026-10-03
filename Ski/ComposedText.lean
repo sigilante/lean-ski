@@ -1,4 +1,5 @@
 import Ski.Composed
+import Ski.ComposedX
 import Ski.Predicate
 open Term
 
@@ -9,8 +10,9 @@ open Term
 Lean comparison of its circuit reads it: a statement, a region size, and
 the composed machine with the private cells blank (`publicText`), parsed
 back only when it is exactly that text (`statementOfText`).  A statement is
-a formula of atoms (`formula …`) or a predicate over literal bits
-(`predicate V x n`, `Ski/Predicate.lean`).
+a formula of atoms (`formula …`), a formula with `∃` and knowledge
+implication (`formula X …`, `Ski/ComposeX.lean`), or a predicate over
+literal bits (`predicate V x n`, `Ski/Predicate.lean`).
 -/
 
 namespace ComposedText
@@ -63,6 +65,59 @@ def parseFormulaF : Nat → List String → Option (MF × List String)
 
 def words (l : String) : List String := (l.splitOn " ").filter (· ≠ "")
 
+/-- A formula with `∃` and knowledge implication, in prefix form:
+    `A V x`, `& F G`, `| F G`, `E F` (`∃`), and the library's maps
+    `swap F`, `fst F`, `snd F`, `inl F G`, `inr F G`. -/
+def xsText : XS → String
+  | .atom V x => s!"A {termText V} {termText x}"
+  | .and A B => s!"& {xsText A} {xsText B}"
+  | .or A B => s!"| {xsText A} {xsText B}"
+  | .ex B => s!"E {xsText B}"
+  | .swap A => s!"swap {xsText A}"
+  | .fst A => s!"fst {xsText A}"
+  | .snd A => s!"snd {xsText A}"
+  | .inl A B => s!"inl {xsText A} {xsText B}"
+  | .inr A B => s!"inr {xsText A} {xsText B}"
+
+def parseXSF : Nat → List String → Option (XS × List String)
+  | 0, _ => none
+  | _ + 1, "A" :: v :: x :: r => do some (.atom (← parseTerm v) (← parseTerm x), r)
+  | n + 1, "&" :: r => do
+    let (a, r1) ← parseXSF n r
+    let (b, r2) ← parseXSF n r1
+    some (.and a b, r2)
+  | n + 1, "|" :: r => do
+    let (a, r1) ← parseXSF n r
+    let (b, r2) ← parseXSF n r1
+    some (.or a b, r2)
+  | n + 1, "E" :: r => do
+    let (a, r1) ← parseXSF n r
+    some (.ex a, r1)
+  | n + 1, "swap" :: r => do
+    let (a, r1) ← parseXSF n r
+    some (.swap a, r1)
+  | n + 1, "fst" :: r => do
+    let (a, r1) ← parseXSF n r
+    some (.fst a, r1)
+  | n + 1, "snd" :: r => do
+    let (a, r1) ← parseXSF n r
+    some (.snd a, r1)
+  | n + 1, "inl" :: r => do
+    let (a, r1) ← parseXSF n r
+    let (b, r2) ← parseXSF n r1
+    some (.inl a b, r2)
+  | n + 1, "inr" :: r => do
+    let (a, r1) ← parseXSF n r
+    let (b, r2) ← parseXSF n r1
+    some (.inr a b, r2)
+  | _ + 1, _ => none
+
+/-- A well-formed formula with `∃` and knowledge implication, or none. -/
+def parseXS (ws : List String) : Option XS :=
+  match parseXSF (ws.length + 1) ws with
+  | some (s, []) => if s.wf then some s else none
+  | _ => none
+
 def parseFormula (ws : List String) : Option MF :=
   match parseFormulaF (ws.length + 1) ws with
   | some (m, []) => some m
@@ -104,25 +159,30 @@ def regionOf' (N W : Nat) (w : Term) : Option (List Cell) :=
     `n` literal bits. -/
 inductive CStmt
   | formula (M : MF)
+  | xformula (s : XS)
   | pred (V x : Term) (n : Nat)
 
 /-- Its bits' shape. -/
 def CStmt.shp : CStmt → BT
   | .formula M => clear M
+  | .xformula s => clearX s.toXF
   | .pred _ _ n => combBT n
 
 /-- Its terms, each to evaluate to `K` on the bits and the witness. -/
 def CStmt.Ps : CStmt → List Term
   | .formula M => stmtOf M
+  | .xformula s => stmtOfX s.toXF
   | .pred V x _ => [predStmt V x]
 
 /-- Its first line. -/
 def CStmt.header : CStmt → String
   | .formula M => s!"formula {formulaText M}"
+  | .xformula s => s!"formula X {xsText s}"
   | .pred V x n => s!"predicate {termText V} {termText x} {n}"
 
 def parseHeader (ws : List String) : Option CStmt :=
   match ws with
+  | "formula" :: "X" :: r => (parseXS r).map .xformula
   | "formula" :: r => (parseFormula r).map .formula
   | ["predicate", v, x, n] => do
     let n ← n.toNat?

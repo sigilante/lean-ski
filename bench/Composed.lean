@@ -2,6 +2,7 @@ import Ski.Composed
 import Ski.ComposedJ
 import Ski.ComposedText
 import Ski.ComposeExamples
+import Ski.ComposeXExamples
 open Term
 
 /-!
@@ -45,7 +46,7 @@ and the cells, then `ends k` and `k` row indices, then the number of rows
 and `hd stk ctr` per row.
 -/
 
-open Mach Compose CompM WitEx ComposeEx
+open Mach Compose CompM WitEx ComposeEx ComposeXEx
 
 open ComposedText
 
@@ -65,7 +66,32 @@ def examples : List (String × MF × Nat × BT × Term × Term) :=
    ("and", .and (.atom negV x0) (.atom satV x0), 64, .node (.leaf true) (.leaf true),
      pairT negW satW, pairT negW (triple T T T))]
 
+/-- The examples with `∃` and knowledge implication: name, formula, region
+    size, the honest bits and witness, and a witness a set atom's verifier
+    rejects. -/
+def xexamples : List (String × XS × Nat × BT × Term × Term) :=
+  [("exists", exEq, 64, exEqBits, exEqW, pairT K (pairT K K)),
+   ("fst", fstAnd, 64, fstAndBits, pairT negW satW, pairT I satW),
+   ("inl", inlNeg, 64, .leaf true, negW, I)]
+
+def emitX (dir : String) : IO UInt32 := do
+  for (name, s, W, β, w, bad) in xexamples do
+    let d := s!"{dir}/{name}"
+    IO.FS.createDirAll d
+    let M := s.toXF
+    let N := BT.nleaves (clearX M)
+    let some good := regionOf' N W w | do IO.println s!"{name}: the witness does not fit"; return 1
+    let some wrong := regionOf' N W bad | do IO.println s!"{name}: the wrong witness does not fit"; return 1
+    let bits := bitList β
+    IO.FS.writeFile s!"{d}/public.txt" (publicTextC (.xformula s) W)
+    IO.FS.writeFile s!"{d}/witness.txt" (witnessText bits good)
+    IO.FS.writeFile s!"{d}/witness_wrong.txt" (witnessText bits wrong)
+    IO.println s!"{name}: {N} bits, region {W} cells, {(stmtOfX M).length} segments"
+  return 0
+
 def emit (dir : String) : IO UInt32 := do
+  let r ← emitX dir
+  if r != 0 then return r
   for (name, M, W, β, w, bad) in examples do
     let d := s!"{dir}/{name}"
     IO.FS.createDirAll d
@@ -155,8 +181,21 @@ def formulaEq : MF → MF → Bool
   | .or A B, .or A' B' => formulaEq A A' && formulaEq B B'
   | _, _ => false
 
+def xsEq : XS → XS → Bool
+  | .atom V x, .atom V' x' => V == V' && x == x'
+  | .and A B, .and A' B' => xsEq A A' && xsEq B B'
+  | .or A B, .or A' B' => xsEq A A' && xsEq B B'
+  | .ex B, .ex B' => xsEq B B'
+  | .swap A, .swap A' => xsEq A A'
+  | .fst A, .fst A' => xsEq A A'
+  | .snd A, .snd A' => xsEq A A'
+  | .inl A B, .inl A' B' => xsEq A A' && xsEq B B'
+  | .inr A B, .inr A' B' => xsEq A A' && xsEq B B'
+  | _, _ => false
+
 def stmtEq : CStmt → CStmt → Bool
   | .formula M, .formula M' => formulaEq M M'
+  | .xformula s, .xformula s' => xsEq s s'
   | .pred V x n, .pred V' x' n' => V == V' && x == x' && n == n'
   | _, _ => false
 
@@ -181,6 +220,8 @@ def check (pub : String) (paths : List String) : IO UInt32 := do
         match c with
         | .formula _ =>
           IO.println s!"ACCEPT {path}: its bits and witness read back as a realizer of the formula ({R.size} rows, {A.size} cells, {ends.size} segments)"
+        | .xformula _ =>
+          IO.println s!"ACCEPT {path}: its bits and witness read back as a realizer of the formula it concludes ({R.size} rows, {A.size} cells, {ends.size} segments)"
         | .pred _ _ n =>
           IO.println s!"ACCEPT {path}: the predicate accepts its {n} bits ({R.size} rows, {A.size} cells, {ends.size} segments)"
       else

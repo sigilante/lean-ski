@@ -918,6 +918,16 @@ tuples, the leaf salts and the codewords (`bench/plonky3/src/seed.rs`);
 `transcript_prg` carries the transcript theorems to it, assuming ChaCha20
 indistinguishable from uniform (`PRGClose`, `Ski/ZK/PRG.lean`).
 
+Composed statements with `∃` and knowledge implication (`Ski/ComposeX.lean`).
+`∃ y. F` holds `y` once in the hidden witness and pairs it into the inputs
+of `F`'s atoms, so atoms can share a hidden value. Knowledge implication
+is a public witness map Lean certifies, applied to a hidden realizer of
+its hypothesis: the statement proves `A`, the formula concluded is `T A`.
+A hidden realizer of `A → B` stays out of reach, as Part II says. Both
+compile to the same evaluation statement, so the circuit is unchanged;
+completeness, knowledge soundness and `composeX` are proved, and three
+examples are proved in zero knowledge end to end.
+
 Fiat–Shamir, round by round (`Ski/ZK/FSRound.lean`, `ski-air fs-budget`).
 Lean proves the counting step: `q` adaptive hash calls hit a round of bad
 fraction `ε` with probability at most `q ε`, grinding `b` bits divides `ε`

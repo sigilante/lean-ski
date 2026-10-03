@@ -333,6 +333,37 @@ private cell exposed, another formula, another region size or another
 root. The caller compares the formula the statement names with the one
 meant, and the Lean tables, which hold the witness, stay the prover's.
 
+### `∃` and knowledge implication
+
+A statement can also name a formula with `∃` over a hidden witness and
+knowledge implication through a certified witness map (`formula X …`,
+`Ski/ComposeX.lean`). Both compile to the same evaluation statement, so
+the circuit, the prover and the checker are unchanged.
+
+- **`∃`** (`E F`): `∃ y. F`, the value `y` held once in the witness, and
+  every atom under the binder reads `⟨x, y⟩` as its input. Atoms can then
+  share a hidden value, which separate witness components cannot.
+- **Knowledge implication** (`swap F`, `fst F`, `snd F`, `inl F G`,
+  `inr F G`): the statement proves `F`; the formula concluded is its image
+  under a public witness map from a library Lean certifies (`XS.cert`):
+  every realizer `a` of the hypothesis makes `f a` a realizer of the
+  conclusion. A hidden realizer of `A → B` cannot be proved this way,
+  since checking it means running it on every input.
+
+`lake exe composed emit DIR` writes three examples next to `or` and `and`,
+each proved, verified and checked end to end:
+
+```
+exists   ∃ y. y = w₁ ∧ y = ¬w₂     3 bits, 3 segments; 498 rows, 995 cells   verified, ACCEPT
+fst      fst (neg ∧ sat) ⊢ neg      2 bits, 3 segments; 468 rows, 947 cells   verified, ACCEPT
+inl      inl neg sat ⊢ neg ∨ sat    1 bit, 2 segments; 111 rows, 286 cells    verified, ACCEPT
+```
+
+A wrong witness is refused by the prover for each, and `composed
+statement` refuses a map applied to a formula it does not fit (`fst` of
+an atom). `lake exe composed check` reads an accepted table back as a
+realizer of the formula concluded (`CompM.checkCX_realizes`).
+
 ## A SKIlark predicate in zero knowledge
 
 A SKIlark (Joy) program is the verifier of a **predicate statement over

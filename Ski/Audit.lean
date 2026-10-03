@@ -20,6 +20,9 @@ import Ski.Witness
 import Ski.WitnessExamples
 import Ski.Compose
 import Ski.ComposeExamples
+import Ski.ComposeX
+import Ski.ComposeXExamples
+import Ski.ComposedX
 import Ski.Composed
 import Ski.Circuit.BaseSound
 import Ski.Circuit.BaseComplete
@@ -779,3 +782,13 @@ open Ski.Audit
 -- Fiat–Shamir round by round: adaptive hash calls, grinding, and the LogUp round under them
 #audit_clean Circuit.seqSum_const Circuit.seqSum_mono Circuit.seqSum_add Circuit.fs_attempts Circuit.sumTo_pair
   Circuit.sumTo_at_zero Circuit.grind_count Circuit.logup_fs
+
+-- Composed statements with ∃ over a hidden witness and knowledge implication through certified witness maps
+#audit_clean Compose.close_inpO Compose.fmX_red Compose.phi_iffX Compose.leaf_iffX Compose.leaf_pathX
+  Compose.readBackX_real Compose.real_of_acceptedX Compose.leaves_prefixX Compose.clear_shapeX
+  Compose.clear_leavesX Compose.inp_red Compose.good_lift Compose.good_of_realX Compose.accepted_of_goodX
+  Compose.accepted_of_realX Compose.composeX Compose.fst_real Compose.snd_real Compose.swap_real
+  Compose.inl_real Compose.inr_real Compose.XS.cert Compose.real_of_acceptedXS
+  CompM.shape_of_sameX CompM.checkCX_realizes
+  ComposeXEx.exEq_accepts ComposeXEx.exEq_real ComposeXEx.exEq_refuses ComposeXEx.fstAnd_accepts
+  ComposeXEx.fstAnd_real ComposeXEx.inlNeg_accepts ComposeXEx.inlNeg_real
