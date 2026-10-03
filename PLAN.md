@@ -918,6 +918,20 @@ tuples, the leaf salts and the codewords (`bench/plonky3/src/seed.rs`);
 `transcript_prg` carries the transcript theorems to it, assuming ChaCha20
 indistinguishable from uniform (`PRGClose`, `Ski/ZK/PRG.lean`).
 
+Fiat–Shamir, round by round (`Ski/ZK/FSRound.lean`, `ski-air fs-budget`).
+Lean proves the counting step: `q` adaptive hash calls hit a round of bad
+fraction `ε` with probability at most `q ε`, grinding `b` bits divides `ε`
+by `2^b`, and the LogUp round's `ε` is `M (W + 2) / P^4` (`logup_fs`).
+Round-by-round soundness and the other rounds' fractions are
+`p3-security`'s, assumed. Every released proof, at Plonky3's benchmark FRI
+parameters, is 57.5 to 66 bits proven and 91 to 100 conjectured, bound by
+the low-degree test and the opening batch. 100 bits proven takes 203
+queries at rate `1/2` and up to 9 bits of batch grinding; 128 bits is out
+of reach with BabyBear's quartic extension and an eight-element digest.
+The transcript binds the statement through its preprocessed tables, not
+the AIRs' constants, so the bounds hold for a statement fixed before the
+proof is checked; binding the constants as public values is open.
+
 Step 1 (a commitment in SKIlark) is closed at this toy scope. Real
 parameters do not fit SKI reduction: a full adder written natively in
 SKIjack costs 450 to 640 host contractions a bit (measured on 8- to

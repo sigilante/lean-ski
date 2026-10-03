@@ -86,6 +86,7 @@ mod composed;
 mod compj;
 mod export;
 mod probe;
+mod fsbudget;
 mod seed;
 mod sudoku;
 mod witness;
@@ -109,13 +110,19 @@ type Config = StarkConfig<Pcs, Challenge, Challenger>;
 
 /// Plonky3's benchmark FRI parameters: blowup 2, 100 queries, 16 bits of
 /// query grinding, no batch grinding.
+/// The FRI parameters of every configuration, hiding or not; the
+/// per-round budget (`fsbudget`) reads them from here.
+pub(crate) fn fri_params<M>(mmcs: M) -> FriParameters<M> {
+    FriParameters::new_benchmark(mmcs)
+}
+
 fn make_config() -> Config {
     let perm = default_babybear_poseidon2_16();
     let hash = MyHash::new(perm.clone());
     let compress = MyCompress::new(perm.clone());
     let val_mmcs = ValMmcs::new(hash, compress, 0);
     let challenge_mmcs = ChallengeMmcs::new(val_mmcs.clone());
-    let fri = FriParameters::new_benchmark(challenge_mmcs);
+    let fri = fri_params(challenge_mmcs);
     let pcs = Pcs::new(Dft::default(), val_mmcs, fri);
     Config::new(pcs, Challenger::new(perm))
 }
@@ -1071,8 +1078,12 @@ fn prove_and_verify(
         let v_data = ProverData::<Config>::from_airs_and_degrees(&v_config, &v_airs, d)
             .map_err(|e| format!("verifier setup: {e:?}"))?;
         let pvs = vec![vec![], vec![], vec![]];
-        verify_batch(&v_config, &v_airs, &proof, &pvs, &v_data.common)
-            .map_err(|e| format!("verify: {e:?}"))
+        let r = verify_batch(&v_config, &v_airs, &proof, &pvs, &v_data.common)
+            .map_err(|e| format!("verify: {e:?}"));
+        if r.is_ok() {
+            crate::fsbudget::budget!("corpus", &v_airs, &proof, &v_data.common, v_config, p3_uni_stark::OpeningShape::new());
+        }
+        r
     }));
     match verified {
         Ok(Ok(())) => Outcome::Verified(prove_s, t1.elapsed().as_secs_f64()),
@@ -1146,8 +1157,30 @@ fn panic_text(e: &Box<dyn std::any::Any + Send>) -> String {
 
 const MIN_LOG: usize = 4;
 
+/// Set by `ski-air fs-budget …`: verifiers print the proof's per-round
+/// Fiat–Shamir budget (`fsbudget`).
+static FS_BUDGET: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+pub(crate) fn fs_budget_on() -> bool {
+    FS_BUDGET.load(std::sync::atomic::Ordering::Relaxed)
+}
+
 fn main() {
-    let args: Vec<String> = std::env::args().collect();
+    let mut args: Vec<String> = std::env::args().collect();
+    if args.len() >= 2 && args[1] == "fs-budget" {
+        FS_BUDGET.store(true, std::sync::atomic::Ordering::Relaxed);
+        args.remove(1);
+    }
+    // Under `fs-budget`, say so when the command printed no budget.
+    struct BudgetGuard;
+    impl Drop for BudgetGuard {
+        fn drop(&mut self) {
+            if fs_budget_on() && !fsbudget::EMITTED.load(std::sync::atomic::Ordering::Relaxed) {
+                eprintln!("fs-budget: this command printed no budget (none verified, or it has no budget hook)");
+            }
+        }
+    }
+    let _budget_guard = BudgetGuard;
     if args.len() == 3 && args[1] == "export-base" {
         print!("{}", export::export_base(&args[2]));
         return;

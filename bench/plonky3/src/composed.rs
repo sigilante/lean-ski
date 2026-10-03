@@ -490,7 +490,11 @@ fn verify(p: &Public, proof: &CProof) -> Result<(), String> {
         }
         let v_data = ProverData::<ZkConfig>::from_airs_and_degrees(&v_config, &v_airs, &want)
             .map_err(|e| format!("verifier setup: {e:?}"))?;
-        verify_batch(&v_config, &v_airs, proof, &vec![vec![]; 5], &v_data.common).map_err(|e| format!("verify: {e:?}"))
+        let r = verify_batch(&v_config, &v_airs, proof, &vec![vec![]; 5], &v_data.common).map_err(|e| format!("verify: {e:?}"));
+        if r.is_ok() {
+            crate::fsbudget::budget!("composed", &v_airs, proof, &v_data.common, v_config, p3_uni_stark::OpeningShape::hiding(4));
+        }
+        r
     }));
     match verified {
         Ok(r) => r,

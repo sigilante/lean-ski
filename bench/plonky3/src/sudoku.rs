@@ -97,7 +97,7 @@ fn zk_config(salts: ProverRng, codewords: ProverRng) -> ZkConfig {
     let compress = MyCompress::new(perm.clone());
     let val_mmcs = HidingValMmcs::new(hash, compress, 0, salts);
     let challenge_mmcs = HidingChallengeMmcs::new(val_mmcs.clone());
-    let fri = FriParameters::new_benchmark(challenge_mmcs);
+    let fri = crate::fri_params(challenge_mmcs);
     let pcs = HidingPcs::new(Dft::default(), val_mmcs, fri, RANDOM_CODEWORDS, codewords);
     ZkConfig::new(pcs, Challenger::new(perm))
 }
@@ -447,8 +447,12 @@ fn verify_zk(p: &Public, proof: &SProof) -> Result<(), String> {
         let v_data = ProverData::<ZkConfig>::from_airs_and_degrees(&v_config, &v_airs, &want)
             .map_err(|e| format!("verifier setup: {e:?}"))?;
         let pvs = vec![vec![]; 4];
-        verify_batch(&v_config, &v_airs, proof, &pvs, &v_data.common)
-            .map_err(|e| format!("verify: {e:?}"))
+        let r = verify_batch(&v_config, &v_airs, proof, &pvs, &v_data.common)
+            .map_err(|e| format!("verify: {e:?}"));
+        if r.is_ok() {
+            crate::fsbudget::budget!("sudoku", &v_airs, proof, &v_data.common, v_config, p3_uni_stark::OpeningShape::hiding(RANDOM_CODEWORDS));
+        }
+        r
     }));
     match verified {
         Ok(r) => r,

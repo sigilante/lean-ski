@@ -735,6 +735,90 @@ reproduces `probe-prove`'s proof byte for byte.
 `DESIGN.md` records the tables: atoms and the witness table, the
 instantiation rows and template table, and the probe segments.
 
+## Fiat–Shamir, round by round
+
+Plonky3 draws every challenge by hashing the transcript, so a cheating
+prover can retry each round as often as it can hash. A proof is as strong
+as its weakest round: at `λ` bits each attempt at that round succeeds with
+probability at most `2^-λ`, and a round's proof of work multiplies an
+attempt's cost by `2^b`. Lean proves the counting step: over `q` adaptive
+hash calls, a round whose bad answers are a fraction `ε` of all answers is
+hit with probability at most `q ε`, and `b` bits of grinding divide that by
+`2^b` (`fs_attempts`, `grind_count`, `Ski/ZK/FSRound.lean`). That an
+accepted false proof must contain such a call, round-by-round soundness,
+is assumed; with the verifier's own `k` hash calls the bound is
+`(q + k) · max ε`. For the LogUp
+round Lean proves `ε` itself: `q` calls pass the check with unbalanced
+tables, which the prover may change at every call, with probability at
+most `q · M (W + 2) / (P^4 · 2^b)` (`logup_fs`).
+
+`ski-air fs-budget` prefixes any verifier command and prints the proof's
+rounds after it verifies:
+
+```sh
+ski-air fs-budget compj-verify JPUBLIC JETS SRC PROOF
+ski-air fs-budget composed-verify PUBLIC PROOF
+ski-air fs-budget sudoku-verify PUBLIC PROOF
+ski-air fs-budget jet-verify CORPUS JETS NAME PROOF
+```
+
+The witness and corpus test runs (`ski-air witness …`, `ski-air`) print
+one for each proof they verify; a command that prints none says so.
+
+The rounds of a batch proof (`src/fsbudget.rs`): the constraint
+combination (`ali`), at the batch's total constraint count; the
+out-of-domain point (`deep-ali`), a union over the AIRs, each at its own
+trace length; the low-degree test, its opening batch and the hash's
+collision cap, from Plonky3's `p3-security` for one instance at the longest
+trace batching every column; and LogUp, from Lean's `logup_accept`, in a
+list-decoding regime once for each of the list's candidate traces. The
+proven figures rest on the published proximity-gap bounds, the conjectured
+ones on the random-words conjecture, all on the hash behaving as a random
+oracle.
+
+Every released proof uses Plonky3's benchmark FRI parameters (rate `1/2`,
+100 queries, 16 bits of query grinding, no other grinding):
+
+| proof | proven (unique / list decoding) | conjectured | binding round | LogUp |
+|---|---|---|---|---|
+| `3 sumto`, jetted | 57.5 / 65.9 | 98.4 | batch | 102.9 |
+| Sudoku | 57.5 / 65.9 | 95.6 | batch | 101.4 |
+| composed `and`, `or` | 57.5 / 65.9 | 100.1 | batch | 106.3 |
+| `split8` | 57.5 / 65.8 | 93.1 | batch | 100.1 |
+| `csplit8` | 57.5 / 65.6 | 91.1 | batch | 98.1 |
+| `split8` with jets | 57.5 / 65.7 | 92.2 | batch | 98.2 |
+| `csplit8` with jets | 57.5 / 65.7 | 91.2 | batch | 96.9 |
+
+The proven figures are bound by the low-degree test, the conjectured ones
+by the opening batch, which has no grinding. What reaching 100 bits takes,
+as the tool reports it:
+
+- **Conjectured**: up to 9 bits of batch grinding (none for the composed
+  `and` and `or`), and for `csplit8`, `split8` with jets and `csplit8`
+  with jets 2 to 4 bits on the lookup and up to 2 on the out-of-domain
+  point.
+- **Proven**: 203 queries at rate `1/2` for every proof, then the same
+  grinding. At rate `1/4`, 109 to 124 queries, except `csplit8`; at
+  `1/8`, 102, except `csplit8` and `csplit8` with jets, whose longer
+  domains cap the low-degree test below 100 bits.
+- **128 bits is out of reach** with this field and hash: the constraint
+  combination has no grinding site and stops at 114 to 116 bits
+  (`|EF| ≈ 2^123.6` over 162 to 381 constraints), and a digest of eight
+  BabyBear elements caps collisions at 123 bits.
+
+**What the transcript binds.** Before its first challenge the transcript
+absorbs the batch's shape, every instance's degree bits, the main
+commitment, the public values (none here) and the preprocessed
+commitment, which holds the statement's heap and tables. It does not
+absorb constants inside the AIRs: the CPU's start head, stack and
+counter, the Sudoku accept marker, the probe and restart parameters. So
+the bounds hold for a statement fixed before the proof is checked, as
+`release/verify.sh` fixes it (Lean checks `public.txt` against the
+verifier's own source and parameters). They do not cover a prover that
+chooses its statement after the challenges among statements with the same
+preprocessed tables. Binding every statement constant into the transcript,
+as public values, closes that and changes every proof.
+
 ## What this is not
 
 - **The corpus proofs, plain, jetted and probed, are not zero

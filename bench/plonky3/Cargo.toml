@@ -18,6 +18,7 @@ p3-challenger = "0.8.0"
 p3-dft = "0.8.0"
 p3-symmetric = "0.8.0"
 p3-util = "0.8.0"
+p3-security = "0.8.0"
 rand = "0.10"
 chacha20 = { version = "0.10", default-features = false, features = ["rng"] }
 serde = "1"

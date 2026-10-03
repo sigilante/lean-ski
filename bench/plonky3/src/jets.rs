@@ -871,7 +871,11 @@ fn verify_j(t: &Term, jt: &JetTable, proof: &JProof, plan: Option<&[probe::Seg]>
         let vd = ProverData::<Config>::from_airs_and_degrees(&config, &a, d)
             .map_err(|e| format!("verifier setup: {e:?}"))?;
         let pvs = vec![vec![]; a.len()];
-        verify_batch(&config, &a, proof, &pvs, &vd.common).map_err(|e| format!("verify: {e:?}"))
+        let r = verify_batch(&config, &a, proof, &pvs, &vd.common).map_err(|e| format!("verify: {e:?}"));
+        if r.is_ok() {
+            crate::fsbudget::budget!("jets", &a, proof, &vd.common, config, p3_uni_stark::OpeningShape::new());
+        }
+        r
     }));
     match verified {
         Ok(r) => r,
