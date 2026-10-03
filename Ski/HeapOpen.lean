@@ -443,6 +443,42 @@ def obuild : List Cell → OTerm → List Cell × Nat
     let (h2, pa) := obuild h1 a
     alloc h2 (.app pf pa)
 
+/-- `obuild` over an array: the same cells, in time linear in the term. -/
+def obuildA : Array Cell → OTerm → Array Cell × Nat
+  | h, .S => (h.push .S, h.size)
+  | h, .K => (h.push .K, h.size)
+  | h, .I => (h.push .I, h.size)
+  | h, .var n => (h.push (.atom n), h.size)
+  | h, .app f a =>
+    let (h1, pf) := obuildA h f
+    let (h2, pa) := obuildA h1 a
+    (h2.push (.app pf pa), h2.size)
+
+theorem obuildA_eq : ∀ (t : OTerm) (h : Array Cell),
+    ((obuildA h t).1.toList, (obuildA h t).2) = obuild h.toList t
+  | .S, h => by simp [obuildA, obuild, alloc]
+  | .K, h => by simp [obuildA, obuild, alloc]
+  | .I, h => by simp [obuildA, obuild, alloc]
+  | .var n, h => by simp [obuildA, obuild, alloc]
+  | .app f a, h => by
+    have ef := obuildA_eq f h
+    have ea := obuildA_eq a (obuildA h f).1
+    unfold obuildA obuild
+    rw [← ef]
+    dsimp only
+    rw [← ea]
+    simp [alloc]
+
+def obuildFast (h : List Cell) (t : OTerm) : List Cell × Nat :=
+  let r := obuildA h.toArray t
+  (r.1.toList, r.2)
+
+/-- Compiled code builds over an array; proofs keep `obuild`. -/
+@[csimp] theorem obuild_eq_obuildFast : @obuild = @obuildFast := by
+  funext h t
+  unfold obuildFast
+  rw [obuildA_eq, List.toList_toArray]
+
 theorem obuild_spec : ∀ (t : OTerm) (h : List Cell),
     ∃ cs, (obuild h t).1 = h ++ cs ∧ (obuild h t).2 < (obuild h t).1.length ∧
       otermAt (obuild h t).1 ((obuild h t).2 + 1) (obuild h t).2 = some t

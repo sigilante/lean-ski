@@ -1,5 +1,7 @@
 import Ski.BitArith
 import Ski.DataJet
+import Ski.ZK.Poseidon2Ex
+import Ski.DataJet
 
 set_option linter.unusedSectionVars false
 set_option linter.unusedSimpArgs false
@@ -60,135 +62,6 @@ namespace Poseidon2SKI
 open Compose BitArith Poseidon2
 
 -- ---------------------------------------------------------------------------
--- Expressions over the field
--- ---------------------------------------------------------------------------
-
-/-- Arithmetic expressions over numbered inputs: the operations the
-    specification uses. -/
-inductive Ex
-  | var (i : Nat)
-  | lit (n : Nat)
-  | add (a b : Ex)
-  | mul (a b : Ex)
-  | md (a : Ex)
-  | sbox (a : Ex)
-  deriving Inhabited
-
-def Ex.eval (ρ : Nat → Nat) : Ex → Nat
-  | .var i => ρ i
-  | .lit n => n
-  | .add a b => a.eval ρ + b.eval ρ
-  | .mul a b => a.eval ρ * b.eval ρ
-  | .md a => Poseidon2.md (a.eval ρ)
-  | .sbox a => Poseidon2.sbox (a.eval ρ)
-
--- ---------------------------------------------------------------------------
--- The specification's layers over expressions
--- ---------------------------------------------------------------------------
-
-/-- `Poseidon2.mat4`, over expressions. -/
-def mat4E : List Ex → List Ex
-  | [x0, x1, x2, x3] =>
-    [.md (.add (.add (.add (.mul (.lit 2) x0) (.mul (.lit 3) x1)) x2) x3),
-     .md (.add (.add (.add x0 (.mul (.lit 2) x1)) (.mul (.lit 3) x2)) x3),
-     .md (.add (.add (.add x0 x1) (.mul (.lit 2) x2)) (.mul (.lit 3) x3)),
-     .md (.add (.add (.add (.mul (.lit 3) x0) x1) x2) (.mul (.lit 2) x3))]
-  | l => l
-
-def chunks4E : List Ex → List (List Ex)
-  | a :: b :: c :: d :: r => [a, b, c, d] :: chunks4E r
-  | [] => []
-  | l => [l]
-
-def colSumE (s : List Ex) (k : Nat) : Ex :=
-  .md (((List.range s.length).filter (fun i => i % 4 == k)).foldl (fun acc i => .add acc (s.getD i (.lit 0))) (.lit 0))
-
-def intLinearE (s : List Ex) : List Ex :=
-  let sum := Ex.md (s.foldl .add (.lit 0))
-  (s.zip V).map fun (x, v) => .md (.add sum (.mul (.lit v) x))
-
-/-- The sixteen inputs. -/
-def vars16 : List Ex := (List.range 16).map Ex.var
-
--- ---------------------------------------------------------------------------
--- The bridges: each layer of the specification is its expressions' value
--- ---------------------------------------------------------------------------
-
-/-- A statement about every list of sixteen, from one about sixteen
-    variables. -/
-theorem len16 {α : Type} {P : List α → Prop} (h : ∀ a0 a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 : α, P [a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15]) :
-    ∀ l : List α, l.length = 16 → P l
-  | [], hl => nomatch hl
-  | [_], hl => nomatch hl
-  | [_, _], hl => nomatch hl
-  | [_, _, _], hl => nomatch hl
-  | [_, _, _, _], hl => nomatch hl
-  | [_, _, _, _, _], hl => nomatch hl
-  | [_, _, _, _, _, _], hl => nomatch hl
-  | [_, _, _, _, _, _, _], hl => nomatch hl
-  | [_, _, _, _, _, _, _, _], hl => nomatch hl
-  | [_, _, _, _, _, _, _, _, _], hl => nomatch hl
-  | [_, _, _, _, _, _, _, _, _, _], hl => nomatch hl
-  | [_, _, _, _, _, _, _, _, _, _, _], hl => nomatch hl
-  | [_, _, _, _, _, _, _, _, _, _, _, _], hl => nomatch hl
-  | [_, _, _, _, _, _, _, _, _, _, _, _, _], hl => nomatch hl
-  | [_, _, _, _, _, _, _, _, _, _, _, _, _, _], hl => nomatch hl
-  | [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _], hl => nomatch hl
-  | [a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15], _ => h a0 a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15
-  | _ :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: r, hl => absurd hl (Nat.ne_of_gt (Nat.lt_of_lt_of_le (by decide) (Nat.le_add_left 17 r.length)))
-
-/-- The value of the inputs `vs`. -/
-def at16 (vs : List Nat) : Nat → Nat := fun i => vs.getD i 0
-
-/-! The rounds split into sublayers, so that the S-box and `M₄` results
-are components of the state: a full round is the S-box layer, `M₄` on
-each block, and the column mixing; a partial round is the S-box on the
-first entry and the internal layer.  The specification's rounds are these
-compositions by definition (`extRound_split`, `intRound_split`). -/
-
-def sboxL (rc s : List Nat) : List Nat := (s.zip rc).map fun (x, c) => sbox (x + c)
-def mat4L (s : List Nat) : List Nat := (chunks4 s).flatMap mat4
-def mixL (m : List Nat) : List Nat := (List.range m.length).map fun i => md (m.getD i 0 + colSum m (i % 4))
-def sbox0L (c : Nat) : List Nat → List Nat
-  | x :: r => sbox (x + c) :: r
-  | [] => []
-
-theorem extLinear_split (s : List Nat) : extLinear s = mixL (mat4L s) := rfl
-theorem extRound_split (s rc : List Nat) : extRound s rc = mixL (mat4L (sboxL rc s)) := rfl
-theorem intRound_split (s : List Nat) (c : Nat) : intRound s c = intLinear (sbox0L c s) := by
-  cases s <;> rfl
-
-def sboxLE (rc : List Nat) : List Ex := (vars16.zip rc).map fun (x, c) => .sbox (.add x (.lit c))
-def mat4LE : List Ex := (chunks4E vars16).flatMap mat4E
-def mixLE : List Ex := (List.range 16).map fun i => .md (.add (vars16.getD i (.lit 0)) (colSumE vars16 (i % 4)))
-def sbox0LE (c : Nat) : List Ex := match vars16 with
-  | x :: r => .sbox (.add x (.lit c)) :: r
-  | [] => []
-def intLinLE : List Ex := intLinearE vars16
-
-theorem bridge_sbox (vs rc : List Nat) (hv : vs.length = 16) (hc : rc.length = 16) :
-    (sboxLE rc).map (Ex.eval (at16 vs)) = sboxL rc vs :=
-  len16 (P := fun rc => (sboxLE rc).map (Ex.eval (at16 vs)) = sboxL rc vs)
-    (fun c0 c1 c2 c3 c4 c5 c6 c7 c8 c9 c10 c11 c12 c13 c14 c15 => len16 (P := fun vs => (sboxLE [c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15]).map (Ex.eval (at16 vs)) = sboxL [c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15] vs)
-      (fun a0 a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 => rfl) vs hv) rc hc
-
-theorem bridge_mat4 (vs : List Nat) (hv : vs.length = 16) : mat4LE.map (Ex.eval (at16 vs)) = mat4L vs :=
-  len16 (P := fun vs => mat4LE.map (Ex.eval (at16 vs)) = mat4L vs) (fun a0 a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 => rfl) vs hv
-
-theorem bridge_mix (vs : List Nat) (hv : vs.length = 16) : mixLE.map (Ex.eval (at16 vs)) = mixL vs :=
-  len16 (P := fun vs => mixLE.map (Ex.eval (at16 vs)) = mixL vs) (fun a0 a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 => by
-    have h : [a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15].length = 16 := rfl
-    simp only [mixL, colSum, h]
-    rfl) vs hv
-
-theorem bridge_sbox0 (vs : List Nat) (c : Nat) (hv : vs.length = 16) :
-    (sbox0LE c).map (Ex.eval (at16 vs)) = sbox0L c vs :=
-  len16 (P := fun vs => (sbox0LE c).map (Ex.eval (at16 vs)) = sbox0L c vs) (fun a0 a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 => rfl) vs hv
-
-theorem bridge_intLin (vs : List Nat) (hv : vs.length = 16) : intLinLE.map (Ex.eval (at16 vs)) = intLinear vs :=
-  len16 (P := fun vs => intLinLE.map (Ex.eval (at16 vs)) = intLinear vs) (fun a0 a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 => rfl) vs hv
-
--- ---------------------------------------------------------------------------
 -- Expressions compiled to SKI
 -- ---------------------------------------------------------------------------
 
@@ -220,12 +93,6 @@ def Ex.comp (f : Nat → OTerm) : Ex → OTerm
   | .mul a b => mulT.toO ⬝ₒ a.comp f ⬝ₒ b.comp f
   | .md a => mdT.toO ⬝ₒ a.comp f
   | .sbox a => sboxT.toO ⬝ₒ a.comp f
-
-theorem band_l {a b : Bool} (h : (a && b) = true) : a = true := by
-  cases a <;> cases b <;> first | rfl | exact nomatch h
-
-theorem band_r {a b : Bool} (h : (a && b) = true) : b = true := by
-  cases a <;> cases b <;> first | rfl | exact nomatch h
 
 /-- **An expression's term computes its value**, when every input it reads
     does. -/
@@ -503,9 +370,6 @@ theorem pack_idx (F : Nat → OTerm) (σ : Nat → Term) (H : Nat → Term)
 
 theorem range16_all : (List.range 16).all (fun i => decide (i < 16)) = true := by decide
 
-theorem range16_map {α : Type} (d : α) (l : List α) (hl : l.length = 16) : (List.range 16).map (fun i => l.getD i d) = l :=
-  len16 (P := fun l => (List.range 16).map (fun i => l.getD i d) = l) (fun _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ => rfl) l hl
-
 /-- **The state in.** -/
 theorem inS_spec (x : List DataJet.F) (hx : x.length = 16) :
     ∃ ts, WSteps (inS ⬝ DataJet.stateT x) (packT ts) ∧ StR ts (x.map Fin.val) := by
@@ -641,74 +505,6 @@ theorem poseidon2_implements : DataJet.Implements DataJet.poseidon2 P := by
   rw [DataJet.poseidon2_encI, DataJet.poseidon2_encO, DataJet.poseidon2_spec]
   exact P_spec x.1 x.2
 
-theorem sboxL_len (rc vs : List Nat) (hv : vs.length = 16) (hc : rc.length = 16) : (sboxL rc vs).length = 16 := by
-  rw [← bridge_sbox vs rc hv hc, List.length_map]
-  exact len16 (P := fun rc => (sboxLE rc).length = 16) (fun _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ => rfl) rc hc
-
-theorem mat4L_len (vs : List Nat) (hv : vs.length = 16) : (mat4L vs).length = 16 := by
-  rw [← bridge_mat4 vs hv, List.length_map]; rfl
-
-theorem mixL_len (vs : List Nat) (hv : vs.length = 16) : (mixL vs).length = 16 := by
-  rw [← bridge_mix vs hv, List.length_map]; rfl
-
-theorem intLinear_len (vs : List Nat) (hv : vs.length = 16) : (Poseidon2.intLinear vs).length = 16 := by
-  rw [← bridge_intLin vs hv, List.length_map]; rfl
-
-theorem sbox0L_len (c : Nat) : ∀ vs : List Nat, (sbox0L c vs).length = vs.length
-  | [] => rfl
-  | _ :: _ => rfl
-
-theorem foldl_ext_len : ∀ (rcs : List (List Nat)), rcs.all (fun rc => decide (rc.length = 16)) = true →
-    ∀ s : List Nat, s.length = 16 → (rcs.foldl Poseidon2.extRound s).length = 16
-  | [], _, _, hs => hs
-  | rc :: rcs, h, s, hs => by
-    show ((rcs.foldl Poseidon2.extRound (Poseidon2.extRound s rc))).length = 16
-    refine foldl_ext_len rcs (band_r h) _ ?_
-    rw [extRound_split]
-    exact mixL_len _ (mat4L_len _ (sboxL_len rc s hs (of_decide_eq_true (band_l h))))
-
-theorem foldl_int_len : ∀ (cs : List Nat) (s : List Nat), s.length = 16 →
-    (cs.foldl Poseidon2.intRound s).length = 16
-  | [], _, hs => hs
-  | c :: cs, s, hs => by
-    show ((cs.foldl Poseidon2.intRound (Poseidon2.intRound s c))).length = 16
-    refine foldl_int_len cs _ ?_
-    rw [intRound_split]
-    exact intLinear_len _ (by rw [sbox0L_len]; exact hs)
-
-/-- The permutation keeps sixteen entries. -/
-theorem permute_len (s : List Nat) (hs : s.length = 16) : (Poseidon2.permute s).length = 16 := by
-  show ((Poseidon2.rcTerminal.foldl Poseidon2.extRound
-    (Poseidon2.rcInternal.foldl Poseidon2.intRound
-      (Poseidon2.rcInitial.foldl Poseidon2.extRound (Poseidon2.extLinear s))))).length = 16
-  refine foldl_ext_len _ (by decide) _ (foldl_int_len _ _ (foldl_ext_len _ (by decide) _ ?_))
-  rw [extLinear_split]
-  exact mixL_len _ (mat4L_len _ hs)
-
-theorem getD_map' {α β : Type} (f : α → β) (d : α) : ∀ (l : List α) (i : Nat) (d' : β), i < l.length →
-    (l.map f).getD i d' = f (l.getD i d)
-  | _ :: _, 0, _, _ => rfl
-  | _ :: l, i + 1, d', h => getD_map' f d l i d' (Nat.lt_of_succ_lt_succ h)
-  | [], _, _, h => absurd h (Nat.not_lt_zero _)
-
-theorem range_getD : ∀ i : Nat, i < 16 → (List.range 16).getD i 0 = i
-  | 0, _ => rfl
-  | 1, _ => rfl
-  | 2, _ => rfl
-  | 3, _ => rfl
-  | 4, _ => rfl
-  | 5, _ => rfl
-  | 6, _ => rfl
-  | 7, _ => rfl
-  | 8, _ => rfl
-  | 9, _ => rfl
-  | 10, _ => rfl
-  | 11, _ => rfl
-  | 12, _ => rfl
-  | 13, _ => rfl
-  | 14, _ => rfl
-  | 15, _ => rfl
-  | n + 16, h => absurd h (Nat.not_lt.2 (Nat.le_add_left 16 n))
 
 -- ---------------------------------------------------------------------------
 -- The continuation-passing form
@@ -1010,5 +806,76 @@ theorem Pbits_implements : DataJet.CImplements poseidon2B Pbits := by
       ys.flatMap (fun y => (bitsOf 31 y).map boolT)) (fun a0 a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 a12 a13 a14 a15 => rfl) ys hys
   rw [e]
   exact .refl _
+
+-- ---------------------------------------------------------------------------
+-- The jet on a comb of bits
+-- ---------------------------------------------------------------------------
+
+/-- The comb of the bits: Scott pairs, the last bit bare (`BT.enc` of a
+    comb, `combBT`). -/
+def combT : List Bool → Term
+  | [] => boolT false
+  | [b] => boolT b
+  | b :: bs => pairT (boolT b) (combT bs)
+
+/-- **The Poseidon2 jet on a comb**: a continuation, then the inputs' 496
+    bits as one comb; the continuation receives the outputs' 496 bits. -/
+def poseidon2Comb : DataJet.CContract Bits (List Nat) :=
+  ⟨fun bs => [combT bs.1], fun ys => (ys.flatMap (bitsOf 31)).map boolT, fun bs => permute (valsB bs.1)⟩
+
+theorem poseidon2Comb_encI (bs : Bits) : poseidon2Comb.encI bs = [combT bs.1] := rfl
+theorem poseidon2Comb_encO : poseidon2Comb.encO = fun ys => (ys.flatMap (bitsOf 31)).map boolT := rfl
+theorem poseidon2Comb_spec (bs : Bits) : poseidon2Comb.spec bs = permute (valsB bs.1) := by
+  dsimp only [poseidon2Comb]
+
+/-- `spread n a p`: the comb `p` of `n` bits passed to `a`, bit by bit. -/
+def spreadT : Nat → Term
+  | 0 => lam [0, 1] (.var 0 ⬝ₒ .var 1)
+  | 1 => lam [0, 1] (.var 0 ⬝ₒ .var 1)
+  | n + 2 => lam [0, 1] (.var 1 ⬝ₒ absN [2, 3] ((spreadT (n + 1)).toO ⬝ₒ (.var 0 ⬝ₒ .var 2) ⬝ₒ .var 3))
+
+theorem spreadT_spec : ∀ (n : Nat) (a : Term) (bs : List Bool), bs.length = n + 1 →
+    WSteps (spreadT (n + 1) ⬝ a ⬝ combT bs) (appT a (bs.map boolT))
+  | 0, a, [b], _ => lam_beta [0, 1] (.var 0 ⬝ₒ .var 1) [a, boolT b] rfl
+  | n + 1, a, b :: c :: bs, hl => by
+    have h1 := lam_beta [0, 1] (.var 1 ⬝ₒ absN [2, 3] ((spreadT (n + 1)).toO ⬝ₒ (.var 0 ⬝ₒ .var 2) ⬝ₒ .var 3))
+      [a, combT (b :: c :: bs)] rfl
+    let σ := overrideC (fun _ => I) [0, 1] [a, combT (b :: c :: bs)]
+    have e1 : (.var 1 ⬝ₒ absN [2, 3] ((spreadT (n + 1)).toO ⬝ₒ (.var 0 ⬝ₒ .var 2) ⬝ₒ .var 3) : OTerm).close σ =
+        pairT (boolT b) (combT (c :: bs)) ⬝ (absN [2, 3] ((spreadT (n + 1)).toO ⬝ₒ (.var 0 ⬝ₒ .var 2) ⬝ₒ .var 3)).close σ :=
+      rfl
+    rw [e1] at h1
+    have h2 := pairT_app (boolT b) (combT (c :: bs)) ((absN [2, 3] ((spreadT (n + 1)).toO ⬝ₒ (.var 0 ⬝ₒ .var 2) ⬝ₒ .var 3)).close σ)
+    have h3 := absN_beta_close [2, 3] ((spreadT (n + 1)).toO ⬝ₒ (.var 0 ⬝ₒ .var 2) ⬝ₒ .var 3) σ
+      [boolT b, combT (c :: bs)] rfl
+    have e3 : ((spreadT (n + 1)).toO ⬝ₒ (.var 0 ⬝ₒ .var 2) ⬝ₒ .var 3).close
+        (overrideC σ [2, 3] [boolT b, combT (c :: bs)]) = spreadT (n + 1) ⬝ (a ⬝ boolT b) ⬝ combT (c :: bs) := by
+      show (spreadT (n + 1)).toO.close _ ⬝ _ ⬝ _ = _
+      rw [close_toO]; rfl
+    rw [e3] at h3
+    have ih := spreadT_spec n (a ⬝ boolT b) (c :: bs) (Nat.succ.inj hl)
+    exact h1.trans (h2.trans (h3.trans ih))
+  | 0, _, [], hl => nomatch hl
+  | 0, _, _ :: _ :: _, hl => absurd (Nat.succ.inj hl) (Nat.succ_ne_zero _)
+  | _ + 1, _, [], hl => nomatch hl
+  | _ + 1, _, [_], hl => absurd (Nat.succ.inj hl).symm (Nat.succ_ne_zero _)
+
+/-- `[k β] spread₄₉₆ (Pbits k) β`. -/
+def Pcomb : Term := lam [0, 1] ((spreadT 496).toO ⬝ₒ (Pbits.toO ⬝ₒ .var 0) ⬝ₒ .var 1)
+
+theorem close_app' (σ : Nat → Term) (f x : OTerm) : (f ⬝ₒ x).close σ = f.close σ ⬝ x.close σ := rfl
+
+/-- **`Pcomb` implements the comb contract.** -/
+theorem Pcomb_implements : DataJet.CImplements poseidon2Comb Pcomb := by
+  intro x k
+  rw [poseidon2Comb_encI, poseidon2Comb_encO, poseidon2Comb_spec]
+  obtain ⟨bs, hbs⟩ := x
+  have h1 := lam_beta [0, 1] ((spreadT 496).toO ⬝ₒ (Pbits.toO ⬝ₒ .var 0) ⬝ₒ .var 1) [k, combT bs] rfl
+  rw [close_app', close_app', close_app', close_toO, close_toO] at h1
+  have h2 : WSteps (spreadT 496 ⬝ (Pbits ⬝ k) ⬝ combT bs) (appT (Pbits ⬝ k) (bs.map boolT)) :=
+    spreadT_spec 495 (Pbits ⬝ k) bs hbs
+  have h3 := Pbits_implements ⟨bs, hbs⟩ k
+  rw [poseidon2B_encI, poseidon2B_encO, poseidon2B_spec, appT] at h3
+  exact h1.trans (h2.trans h3)
 
 end Poseidon2SKI

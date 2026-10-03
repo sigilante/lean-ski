@@ -87,10 +87,11 @@ ski=bench/plonky3/target/release/ski-air
 gen=$(mktemp -d)
 if command -v cargo >/dev/null 2>&1 \
    && (cd bench/plonky3 && cargo build --release >/dev/null 2>&1) \
-   && lake build circuit sudoku witness jets >/dev/null 2>&1; then
+   && lake build circuit sudoku witness jets composed >/dev/null 2>&1; then
   if ! { lake env lean --run bench/Dump.lean > "$gen/corpus.txt" \
          && lake exe sudoku emit "$gen/sudoku" >/dev/null \
-         && lake exe witness emit "$gen/witness" >/dev/null; }; then
+         && lake exe witness emit "$gen/witness" >/dev/null \
+         && mkdir -p "$gen/p2" && lake exe composed emit-p2 "$gen/p2" >/dev/null; }; then
     bad "gate 5's inputs could not be generated"
   fi
   exp=$(mktemp)
@@ -127,6 +128,17 @@ if command -v cargo >/dev/null 2>&1 \
     note "ok — sudoku: the Rust circuit is Circuit.sudAirs"
   else
     bad "sudoku: the Rust circuit differs from Circuit.sudAirs"
+  fi
+  if "$ski" export-p2 > "$exp.c" && .lake/build/bin/circuit compare-p2 "$exp.c" | tail -1 | grep -q '^MATCH'; then
+    note "ok — p2: the Rust Poseidon2 table is P2Air.p2Air"
+  else
+    bad "p2: the Rust Poseidon2 table differs from P2Air.p2Air"
+  fi
+  if "$ski" export-compp "$gen/p2/p2pre.public.txt" > "$exp.c" \
+     && .lake/build/bin/circuit compare-compp "$exp.c" | tail -1 | grep -q '^MATCH'; then
+    note "ok — composed p2pre: the Rust circuit is Circuit.compPAirs"
+  else
+    bad "composed p2pre: the Rust circuit differs from Circuit.compPAirs"
   fi
   if "$ski" export-jets "$(cat release/sumto/sumto_us.term)" release/sumto/jets/sumto_us.jets > "$exp.c" \
      && .lake/build/bin/circuit compare-jets "$exp.c" | tail -1 | grep -q '^MATCH'; then

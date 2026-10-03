@@ -1,17 +1,18 @@
 //! The Poseidon2 table (`Ski/Circuit/P2Air.lean`): one row per permutation.
 //!
-//! The 650 columns are the sixteen inputs, then for each round what it
-//! commits, and a last column holds the multiplicity: the initial external
-//! layer's new state; for a full round, the sixteen cubes `x = a^3` of
-//! `a = s + c`, then the sixteen S-box outputs `y = x x a`, then the
-//! external layer's new state; for a partial round, the first entry's cube
-//! and output, then the internal layer's new state.  The last state is the
-//! output.  The constraints are emitted in the order Lean's `P2Air.gen`
+//! The first 650 columns are the sixteen inputs, then for each round what
+//! it commits: the initial external layer's new state; for a full round,
+//! the sixteen cubes `x = a^3` of `a = s + c`, then the sixteen S-box
+//! outputs `y = x x a`, then the external layer's new state; for a partial
+//! round, the first entry's cube and output, then the internal layer's new
+//! state.  The last state is the output.  Two more columns hold the call's
+//! key and an activity bit.  The constraints are emitted in the order Lean's `P2Air.gen`
 //! builds them, and the linear layers are Plonky3's generic ones
 //! (`GenericPoseidon2LinearLayersBabyBear`), so the export compared with
 //! Lean (`lake exe circuit compare-p2`) also checks the specification's
-//! linear layers against those, as polynomials.  The table provides `(inputs,
-//! outputs)` on the bus `p2`, each row as often as its multiplicity.
+//! linear layers against those, as polynomials.  An active row receives a
+//! call's sixteen inputs on `p2v` and sends its sixteen outputs on `p2w`,
+//! each `(key, e, value)`, the key the call's counter (`src/compp.rs`).
 
 use super::*;
 use p3_baby_bear::{
@@ -22,10 +23,12 @@ use p3_poseidon2::GenericPoseidon2LinearLayers;
 use p3_field::PrimeField32;
 use p3_symmetric::Permutation;
 
-/// The committed columns, then the multiplicity.
+/// The committed columns, then the call's key (its counter) and whether the
+/// row is active.
 pub const P2_COLS: usize = 650;
-pub const P2_WIDTH: usize = P2_COLS + 1;
-pub const P2_MULT: usize = P2_COLS;
+pub const P2_KEY: usize = P2_COLS;
+pub const P2_ACT: usize = P2_COLS + 1;
+pub const P2_WIDTH: usize = P2_COLS + 2;
 
 /// The rounds' values for one input, in column order, and the output.
 fn row_values(input: [Val; 16]) -> (Vec<Val>, [Val; 16]) {
@@ -67,22 +70,22 @@ fn row_values(input: [Val; 16]) -> (Vec<Val>, [Val; 16]) {
     (row, st)
 }
 
-/// The table for `rows` inputs with their multiplicities, padded to
-/// `2^min_log` rows or the next power of two by the permutation of zero
-/// with multiplicity 0.  Each output is checked against Plonky3's
-/// permutation.
-pub fn p2_trace(rows: &[([Val; 16], u32)], min_log: usize) -> RowMajorMatrix<Val> {
+/// The table for `rows` inputs, each with its key and activity, padded to
+/// `2^min_log` rows or the next power of two by the permutation of zero,
+/// inactive.  Each output is checked against Plonky3's permutation.
+pub fn p2_trace_keyed(rows: &[([Val; 16], u32, u32)], min_log: usize) -> RowMajorMatrix<Val> {
     let perm = default_babybear_poseidon2_16();
     let h = rows.len().max(1 << min_log).next_power_of_two();
     let mut values = Vec::with_capacity(h * P2_WIDTH);
     for r in 0..h {
-        let (input, mult) = rows.get(r).copied().unwrap_or(([Val::ZERO; 16], 0));
+        let (input, key, act) = rows.get(r).copied().unwrap_or(([Val::ZERO; 16], 0, 0));
         let (row, out) = row_values(input);
         let mut want = input;
         perm.permute_mut(&mut want);
         assert_eq!(out, want, "the table's rounds are Plonky3's permutation");
         values.extend_from_slice(&row);
-        values.push(Val::from_u32(mult));
+        values.push(Val::from_u32(key));
+        values.push(Val::from_u32(act));
     }
     RowMajorMatrix::new(values, P2_WIDTH)
 }
@@ -137,21 +140,27 @@ pub fn eval_p2<AB: PermutationAirBuilder + InteractionBuilder>(b: &mut AB) {
         full(b, &mut st, &mut k, rc);
     }
     assert_eq!(k, P2_COLS);
-    let mut fields: Vec<AB::Expr> = cols(0).to_vec();
-    fields.extend(st);
-    let mult = loc[P2_MULT].clone();
-    b.push_interaction("p2", fields, Count::provided(-mult));
+    // The call's inputs received, its outputs sent, keyed by its counter.
+    let (key, act) = (loc[P2_KEY].clone(), loc[P2_ACT].clone());
+    b.assert_bool(act.clone());
+    let ins = cols(0);
+    for e in 0..16 {
+        b.push_interaction(compp::P2V, [key.clone(), AB::Expr::from_u32(e as u32), ins[e].clone()], -Count::bounded(act.clone(), 1));
+    }
+    for e in 0..16 {
+        b.push_interaction(compp::P2W, [key.clone(), AB::Expr::from_u32(e as u32), st[e].clone()], Count::bounded(act.clone(), 1));
+    }
 }
 
-/// `ski-air p2-bench N`: a table of `N` permutations alone (multiplicity 0),
+/// `ski-air p2-bench N`: a table of `N` permutations alone (all inactive),
 /// its AIR compared with Lean's, proved and verified.
 pub fn p2_bench(n: usize, tamper: bool) -> Result<(), String> {
     let airs = vec![SkiAir::P2];
     lean_statement("circuit", &["compare-p2", "-"], export::export_air("p2", &airs[0]).as_bytes())?;
-    let rows: Vec<([Val; 16], u32)> =
-        (0..n).map(|r| (std::array::from_fn(|i| Val::from_u64((r * 16 + i) as u64 * 2654435761 % 2013265921)), 0)).collect();
+    let rows: Vec<([Val; 16], u32, u32)> =
+        (0..n).map(|r| (std::array::from_fn(|i| Val::from_u64((r * 16 + i) as u64 * 2654435761 % 2013265921)), 0, 0)).collect();
     let t0 = Instant::now();
-    let mut tr = p2_trace(&rows, 8);
+    let mut tr = p2_trace_keyed(&rows, 8);
     if tamper {
         // The first row's first output, off by one: the row no longer computes Poseidon2.
         tr.values[P2_COLS - 16] += Val::ONE;

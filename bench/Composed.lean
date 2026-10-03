@@ -4,6 +4,7 @@ import Ski.ComposedText
 import Ski.ComposeExamples
 import Ski.ComposeXExamples
 import Ski.ChainExamples
+import Ski.ComposedPText
 open Term
 
 /-!
@@ -263,9 +264,32 @@ def checkCJ (src pub : String) (paths : List String) : IO UInt32 := do
         bad := bad + 1
   return (if bad == 0 then 0 else 1)
 
+/-- `composed emit-p2 DIR`: the Poseidon2 preimage statement for Plonky3's
+    test vector 1 (`ComposedPText.publicTextP`), and its witness: the
+    inputs' 496 bits, then the region's one cell. -/
+def emitP2 (dir : String) : IO UInt32 := do
+  let some (inp, outp) := Poseidon2.vectors[1]? | return 1
+  let h := outp.headD 0
+  let lg : ComposedPText.PLogs := ⟨14, 15, 9, 9, 8⟩
+  IO.FS.writeFile s!"{dir}/p2pre.public.txt" (ComposedPText.publicTextP h lg)
+  let bits := inp.flatMap (BitArith.bitsOf 31)
+  IO.FS.writeFile s!"{dir}/p2pre.witness.txt" (witnessText bits ComposedPText.regionP)
+  IO.println s!"wrote {dir}/p2pre.public.txt (h = {h}) and its witness"
+  return 0
+
+/-- `composed statement-p2 PUBLIC`: `OK` when the file is exactly a
+    Poseidon2 preimage statement. -/
+def statementP2 (path : String) : IO UInt32 := do
+  let text ← if path == "-" then (← IO.getStdin).readToEnd else IO.FS.readFile path
+  match ComposedPText.statementOfTextP text with
+  | some (h, _) => IO.println s!"OK p2pre {h}"; return 0
+  | none => IO.println "NOT A STATEMENT"; return 1
+
 def main (args : List String) : IO UInt32 := do
   match args with
   | ["emit", dir] => emit dir
+  | ["emit-p2", dir] => emitP2 dir
+  | ["statement-p2", pub] => statementP2 pub
   | ["statement", pub] => statement pub
   | ["statement-jets", pub] => statementJ pub
   | ["budget", pub, lp, li, out] => budget pub lp li out

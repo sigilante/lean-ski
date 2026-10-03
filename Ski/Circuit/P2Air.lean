@@ -1,5 +1,5 @@
 import Ski.ZK.Fermat
-import Ski.ZK.Poseidon2SKI
+import Ski.ZK.Poseidon2Ex
 
 set_option linter.unusedSimpArgs false
 
@@ -216,11 +216,17 @@ def p2Out : List E := (gen rounds 16 (colsFrom 0)).2
 
 /-- The committed columns: sixteen inputs, then the rounds' (`16 + 16 + 8·48 + 13·18`). -/
 def COLS : Nat := 650
-/-- The multiplicity of the row's message on `p2`. -/
-def MULT : Nat := 650
+/-- The call's key, its counter (`src/compp.rs`). -/
+def KEY : Nat := 650
+/-- Whether the row is a call's: its messages' multiplicity. -/
+def ACT : Nat := 651
 
-/-- **The Poseidon2 table**: each row provides `(inputs, outputs)` on `p2`. -/
-def p2Air : AirD := ⟨"p2", COLS + 1, 0, p2Cons, [⟨"p2", 0, .neg (col MULT), colsFrom 0 ++ p2Out⟩], []⟩
+/-- **The Poseidon2 table**, keyed: an active row receives `(key, e, in_e)`
+    on `p2v` and sends `(key, e, out_e)` on `p2w`, for each element `e`. -/
+def p2Air : AirD :=
+  ⟨"p2", COLS + 2, 0, p2Cons ++ [B.bool (col ACT)],
+    (List.range 16).map (fun e => ⟨"p2v", 1, .neg (col ACT), [col KEY, c e, col e]⟩) ++
+    (List.range 16).map (fun e => ⟨"p2w", 1, col ACT, [col KEY, c e, p2Out.getD e (c 0)]⟩), []⟩
 
 -- ---------------------------------------------------------------------------
 -- Soundness
@@ -428,7 +434,7 @@ theorem allZ_of_mem (ρ : Atom → F) : ∀ l : List E, (∀ e ∈ l, e.eval ρ 
 /-- **Every row of a table that satisfies the AIR computes Poseidon2.** -/
 theorem p2_sound_row (T : Table) (hT : Sat p2Air T) (r : Nat) (hr : r < T.h) :
     p2Out.map (E.eval (T.env r)) = (Poseidon2.permute ((ins (T.env r)).map Fin.val)).map ofN :=
-  p2_sound (T.env r) (allZ_of_mem _ _ fun e he => hT.2 e he r hr)
+  p2_sound (T.env r) (allZ_of_mem _ _ fun e he => hT.2 e (List.mem_append_left _ he) r hr)
 
 -- ---------------------------------------------------------------------------
 -- Residues

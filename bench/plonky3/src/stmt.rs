@@ -54,7 +54,7 @@ fn opt(out: &mut Vec<u32>, o: Option<u32>) {
 fn encode(a: &SkiAir, out: &mut Vec<u32>) {
     match a {
         SkiAir::Cpu(c) => {
-            let CpuAir { hd0, stk0, ctr0, accept, accept_k, blind, jets, probe, restart } = c;
+            let CpuAir { hd0, stk0, ctr0, accept, accept_k, blind, jets, probe, restart, p2 } = c;
             word(out, 1);
             word(out, *hd0);
             word(out, *stk0);
@@ -78,6 +78,15 @@ fn encode(a: &SkiAir, out: &mut Vec<u32>) {
                     word(out, *n);
                     word(out, *nil);
                 }
+            }
+            // The Poseidon2 jet's atom and the comb's root, only when the CPU
+            // carries its row, so every other statement's digest is
+            // unchanged; the marker is no AIR's tag, so the encoding still
+            // parses one way.
+            if let Some(crate::compp::P2Pub { j, root }) = p2 {
+                word(out, 0x7032_6a74);
+                word(out, *j);
+                word(out, *root);
             }
         }
         SkiAir::Mem(MemAir { blind }) => {
@@ -115,6 +124,9 @@ fn encode(a: &SkiAir, out: &mut Vec<u32>) {
         SkiAir::WitT(WitTAir { pre }) => rows(out, 12, pre),
         SkiAir::Segs(SegsAir { pre }) => rows(out, 13, pre),
         SkiAir::P2 => word(out, 14),
+        SkiAir::P2In => word(out, 15),
+        SkiAir::P2Out => word(out, 16),
+        SkiAir::P2Idx(pre) => rows(out, 17, pre),
     }
 }
 
@@ -160,6 +172,7 @@ mod tests {
             jets: false,
             probe: None,
             restart: None,
+            p2: None,
         })
     }
 

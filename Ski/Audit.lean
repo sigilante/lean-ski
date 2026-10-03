@@ -828,7 +828,12 @@ open Ski.Audit
   Poseidon2SKI.Pbits_implements Poseidon2SKI.poseidon2B_respects
 
 -- The Poseidon2 jet in the machine, and composed statements that use it
-#audit_clean P2Jet.boolAt_ot P2Jet.bitsAt_ptrs P2Jet.slot_ot P2Jet.push_ot P2Jet.p2Row_cstep P2Jet.p2Row_ctr
-  P2Jet.p2Row_len CompM.build_obuild CompM.addStmts_eq CompM.addStmtsO_spec CompM.cHeap_eq CompM.cMachine_eq
-  CompM.cMachineO_decode CompM.normRowP_spec CompM.AcceptsCP.within CompM.AcceptsCP.runs CompM.composedP_sound_of CompM.composedP_sound
-  P2Jet.boolAt_cases P2Air.permute_mod P2Air.permute_lt
+#audit_clean P2Jet.boolAt_cases P2Jet.boolAt_ot P2Jet.bitsAt_ptrs P2Jet.bitsAt_length P2Jet.slot_ot P2Jet.push_ot
+  P2Jet.pushR_length P2Jet.CStep.appL P2Jet.p2Row_cstep P2Jet.p2Row_ctr_len
+  CompM.build_obuild CompM.addStmts_eq CompM.addStmtsO_spec CompM.addStmtsO_ext CompM.cHeap_eq CompM.cMachine_eq
+  CompM.cMachineO_decode CompM.owstep_cstep CompM.CSteps.trans CompM.owsteps_csteps CompM.bitsAt_append
+  CompM.bitsAt_det CompM.combAt_ext CompM.combAt_take CompM.normRowP_spec CompM.AcceptsCP.within
+  CompM.AcceptsCP.within_ctr CompM.AcceptsCP.runs CompM.composedP_sound_of CompM.pbuild_len CompM.combRoot_public
+  CompM.fill_comb CompM.range'_shift CompM.slots_bits CompM.comb_heap CompM.composedP_sound
+  Poseidon2SKI.poseidon2Comb_encI Poseidon2SKI.poseidon2Comb_encO Poseidon2SKI.poseidon2Comb_spec
+  Poseidon2SKI.spreadT_spec Poseidon2SKI.Pcomb_implements P2Air.permute_mod P2Air.permute_lt
