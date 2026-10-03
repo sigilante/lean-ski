@@ -67,7 +67,9 @@ def words (l : String) : List String := (l.splitOn " ").filter (· ≠ "")
 
 /-- A formula with `∃` and knowledge implication, in prefix form:
     `A V x`, `& F G`, `| F G`, `E F` (`∃`), and the library's maps
-    `swap F`, `fst F`, `snd F`, `inl F G`, `inr F G`. -/
+    `swap F`, `fst F`, `snd F`, `inl F G`, `inr F G`.  The unproved side
+    of an injection (`G` of `inl F G`, `F` of `inr F G`) is read with no
+    bound values. -/
 def xsText : XS → String
   | .atom V x => s!"A {termText V} {termText x}"
   | .and A B => s!"& {xsText A} {xsText B}"

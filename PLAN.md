@@ -920,13 +920,25 @@ indistinguishable from uniform (`PRGClose`, `Ski/ZK/PRG.lean`).
 
 Composed statements with `∃` and knowledge implication (`Ski/ComposeX.lean`).
 `∃ y. F` holds `y` once in the hidden witness and pairs it into the inputs
-of `F`'s atoms, so atoms can share a hidden value. Knowledge implication
-is a public witness map Lean certifies, applied to a hidden realizer of
-its hypothesis: the statement proves `A`, the formula concluded is `T A`.
-A hidden realizer of `A → B` stays out of reach, as Part II says. Both
+of `F`'s atoms, so two atoms under one binder read the same hidden value.
+Knowledge implication is a public witness map Lean certifies, applied to a
+hidden realizer of its hypothesis: the statement proves `A`, the formula
+concluded is `T A`, and zero knowledge covers `A`'s witness (`inl A B`
+reveals that `A` holds). A hidden realizer of `A → B` is not checkable by
+finitely many evaluations, as Part II says. Both
 compile to the same evaluation statement, so the circuit is unchanged;
 completeness, knowledge soundness and `composeX` are proved, and three
 examples are proved in zero knowledge end to end.
+
+Incremental composition without recursion (`Ski/Chain.lean`). A chain of
+proofs, each stage its own statement and prover, later statements
+computed from earlier ones and the values they publish; `chain2` makes a
+proof system of the chain from the stages', complete, knowledge-sound and
+zero knowledge (componentwise, the proofs' randomness independent), and
+iterates to any length. Two composed statements over a public hand-off
+prove the conjunction; a two-stage example is proved in zero knowledge, a
+proof per stage. Open: a hidden hand-off, which needs a binding
+commitment, and so a hash outside the reduction.
 
 Fiat–Shamir, round by round (`Ski/ZK/FSRound.lean`, `ski-air fs-budget`).
 Lean proves the counting step: `q` adaptive hash calls hit a round of bad

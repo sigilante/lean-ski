@@ -3,6 +3,7 @@ import Ski.ComposedJ
 import Ski.ComposedText
 import Ski.ComposeExamples
 import Ski.ComposeXExamples
+import Ski.ChainExamples
 open Term
 
 /-!
@@ -72,7 +73,10 @@ def examples : List (String × MF × Nat × BT × Term × Term) :=
 def xexamples : List (String × XS × Nat × BT × Term × Term) :=
   [("exists", exEq, 64, exEqBits, exEqW, pairT K (pairT K K)),
    ("fst", fstAnd, 64, fstAndBits, pairT negW satW, pairT I satW),
-   ("inl", inlNeg, 64, .leaf true, negW, I)]
+   ("inl", inlNeg, 64, .leaf true, negW, I),
+   -- a chain of two stages over the public hand-off `F`, each its own proof
+   ("chain1", ChainEx.stage₁ ChainEx.o, 64, .leaf true, satW, triple T T T),
+   ("chain2", ChainEx.stage₂ ChainEx.o, 64, .leaf true, negW, I)]
 
 def emitX (dir : String) : IO UInt32 := do
   for (name, s, W, β, w, bad) in xexamples do

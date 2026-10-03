@@ -23,6 +23,8 @@ import Ski.ComposeExamples
 import Ski.ComposeX
 import Ski.ComposeXExamples
 import Ski.ComposedX
+import Ski.Chain
+import Ski.ChainExamples
 import Ski.Composed
 import Ski.Circuit.BaseSound
 import Ski.Circuit.BaseComplete
@@ -792,3 +794,7 @@ open Ski.Audit
   CompM.shape_of_sameX CompM.checkCX_realizes
   ComposeXEx.exEq_accepts ComposeXEx.exEq_real ComposeXEx.exEq_refuses ComposeXEx.fstAnd_accepts
   ComposeXEx.fstAnd_real ComposeXEx.inlNeg_accepts ComposeXEx.inlNeg_real
+
+-- Incremental composition without recursion: chains of proofs over public hand-offs
+#audit_clean Chain.ofEval Chain.chain2 Chain.chain2_knowledge Chain.chain3_rel Chain.chainX_real Chain.chainX_knowledge
+  ChainEx.stage₁_accepts ChainEx.stage₂_accepts ChainEx.chain_real ChainEx.stage₁_refuses_other

@@ -341,14 +341,19 @@ knowledge implication through a certified witness map (`formula X …`,
 the circuit, the prover and the checker are unchanged.
 
 - **`∃`** (`E F`): `∃ y. F`, the value `y` held once in the witness, and
-  every atom under the binder reads `⟨x, y⟩` as its input. Atoms can then
-  share a hidden value, which separate witness components cannot.
+  every atom under the binder reads `⟨x, y⟩` as its input. Two atoms
+  under one binder read the same hidden `y`; with `∧` and `∨` alone each
+  atom reads only its own component, so no two atoms can be made to agree
+  on a hidden value.
 - **Knowledge implication** (`swap F`, `fst F`, `snd F`, `inl F G`,
   `inr F G`): the statement proves `F`; the formula concluded is its image
   under a public witness map from a library Lean certifies (`XS.cert`):
   every realizer `a` of the hypothesis makes `f a` a realizer of the
-  conclusion. A hidden realizer of `A → B` cannot be proved this way,
-  since checking it means running it on every input.
+  conclusion. Zero knowledge covers the hypothesis's witness, and the
+  statement names the hypothesis: `inl A B` reveals that `A` holds, and
+  `fst (A ∧ B)` requires and checks `B`. The unproved side of an
+  injection is read with no bound values. A hidden realizer of `A → B`
+  is not checkable by finitely many evaluations.
 
 `lake exe composed emit DIR` writes three examples next to `or` and `and`,
 each proved, verified and checked end to end:
@@ -363,6 +368,27 @@ A wrong witness is refused by the prover for each, and `composed
 statement` refuses a map applied to a formula it does not fit (`fst` of
 an atom). `lake exe composed check` reads an accepted table back as a
 realizer of the formula concluded (`CompM.checkCX_realizes`).
+
+### A chain of proofs over a public hand-off
+
+Incremental composition without recursion (`Ski/Chain.lean`): each stage
+is a composed statement of its own, proved by its own prover, and later
+statements are computed from earlier ones and the values they publish.
+`lake exe composed emit` writes a two-stage chain over the hand-off
+`o = F` (`Ski/ChainExamples.lean`), proved and verified separately:
+
+```
+chain1   a satisfying assignment whose first variable is o   302 rows   verified, ACCEPT
+chain2   a negation taking o to T                             153 rows   verified, ACCEPT
+```
+
+The verifier checks each proof, and that both statements name the same
+`o` (the last term of each `formula X A V o` header). Each proof's
+statement digest binds `o` into its transcript. Together the two prove
+the conjunction (`chain_real`), and stage 1's witness does not prove it at
+another hand-off (`stage₁_refuses_other`). The cost is every proof, so it
+grows with the chain; a hidden hand-off needs a binding commitment in
+place of `o`.
 
 ## A SKIlark predicate in zero knowledge
 

@@ -22,9 +22,12 @@ the body, as `Real (.ex φ)` asks.
 a hidden realizer of `A` through a public witness map `f`, certified in
 Lean: every realizer `a` of `A` makes `f a` a realizer of `T A`
 (`XF.Cert`).  This is knowledge implication as a typed, publicly checked
-realizer, the only form it takes in a proof of knowledge: a hidden
-realizer of `A → B` would have to be checked on every input, which no
-finite evaluation does.  The statement is `A`'s; the conclusion is `T A`.
+realizer.  A hidden realizer of `A → B` is not checkable by finitely many
+evaluations, since `Real (.imp …)` quantifies over all inputs; this
+module takes the implication as a public, Lean-certified map instead.
+The statement is `A`'s, the conclusion `T A`, and zero knowledge covers
+`A`'s witness: the statement names `A`, so `inl A B` reveals that `A`
+holds, and `fst (A ∧ B)` requires and checks `B`.
 
 **The theorems.**
 - `real_of_acceptedX`: bits and a witness the statement accepts read
@@ -722,7 +725,8 @@ inductive XS
   | inr (A B : XS)
 
 /-- Its formula.  An injection's unproved side is read with no bound
-    values. -/
+    values: under `E`, `E (inl (A V x) (A V' x'))` concludes
+    `∃ y. V ⟨x, y⟩ ∨ V' x'`, the unproved side not seeing `y`. -/
 def XS.toXF : XS → XF
   | .atom V x => .atom V x
   | .and A B => .and A.toXF B.toXF
@@ -739,7 +743,10 @@ def XS.isAnd : XS → Bool
   | .and _ _ => true
   | _ => false
 
-/-- **Well-formed**: every projection or swap applies to a conjunction. -/
+/-- **Well-formed**: every projection or swap applies to a syntactic `&`,
+    and every part is well-formed, an injection's unproved side included.
+    Sufficient for the certificates (`XS.cert`), not necessary:
+    `fst (swap (A ∧ B))` is certified but not well-formed. -/
 def XS.wf : XS → Bool
   | .atom _ _ => true
   | .and A B => A.wf && B.wf
@@ -748,8 +755,8 @@ def XS.wf : XS → Bool
   | .swap A => A.isAnd && A.wf
   | .fst A => A.isAnd && A.wf
   | .snd A => A.isAnd && A.wf
-  | .inl A _ => A.wf
-  | .inr _ B => B.wf
+  | .inl A B => A.wf && B.wf
+  | .inr A B => A.wf && B.wf
 
 /-- **The library's certificates**: a well-formed formula's maps are
     certified, under any bound values. -/
@@ -780,8 +787,12 @@ theorem XS.cert : ∀ (s : XS) (ys : List Term), s.wf = true → s.toXF.Cert ys
     cases A with
     | and A1 A2 => exact snd_real ha
     | _ => simp [XS.isAnd] at h
-  | .inl A _, ys, h => ⟨XS.cert A ys h, fun _ ha => inl_real ha⟩
-  | .inr _ B, ys, h => ⟨XS.cert B ys h, fun _ hb => inr_real hb⟩
+  | .inl A _, ys, h => by
+    simp only [XS.wf, Bool.and_eq_true] at h
+    exact ⟨XS.cert A ys h.1, fun _ ha => inl_real ha⟩
+  | .inr _ B, ys, h => by
+    simp only [XS.wf, Bool.and_eq_true] at h
+    exact ⟨XS.cert B ys h.2, fun _ hb => inr_real hb⟩
 
 /-- **Knowledge soundness for a named formula**: no certificate to supply;
     well-formedness, which the statement check decides, certifies it. -/
