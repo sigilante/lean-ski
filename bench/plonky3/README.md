@@ -436,6 +436,9 @@ then compares:
 
 - every row of P2IN, P2OUT, the Poseidon2 table (its padding the zero
   input's inactive trace) and the witness table;
+- of the memory, every row's address, tag and fields (`memTable5`'s
+  first four columns); its multiplicities, a count over the other tables'
+  messages, are not compared: the memory bus enforces them in every proof;
 - of the CPU, every moving row of a run of at most 2048 (every 16th of a
   longer one), its jet rows, ends and halt, and every 64th row after it.
 
@@ -454,8 +457,9 @@ Its limits:
 
 - it compares the run both sides read, so it does not check the run;
   the AIRs and the proof do;
-- it skips the blinded traces the proofs commit to, and the CPU rows
-  between samples.
+- it skips the CPU rows between samples and the memory's multiplicities;
+  the blinded traces the proofs commit to `check-p2-blind` compares
+  (below).
 
 The comparison made the CPU trace fill an inactive read's fields as Lean's
 honest row does (`fieldsAt`), with the cell at the read's address where
@@ -480,6 +484,33 @@ guess from the true witness, recomputed under the proof's own challenges,
 matches none of them, and matches each when the proof is unblinded. It
 passes on `p2pre` and on the hand-off with the tests' witness, and gate 5
 runs it.
+
+**The blinded traces are the theorem's.** `compP_transcript` simulates
+the terminals of `Circuit.compPViewN`'s tables: the honest tables, each
+blinded by `Table.setBlind c (t k)`, which writes edge `k`'s tuple and the
+flag 1 into row 0 at column `c`, at ten blocks on the tree's five edges.
+`ski-air compp-dump` also writes the traces a proof commits to, blinded
+under a fresh seed (`DIR/NAME.blind.txt`), and `lake exe composed
+check-p2-blind DIR` checks that they are its unblinded traces blinded
+exactly so; `check-p2-tables` compares those unblinded traces with Lean's
+model, as far as it reaches (above):
+
+- every cell agrees but row 0's block cells, at the columns
+  `compPViewN` names (CPU at `BLA`, `BLB`, `P2SEL + 1`; MEM at 5; WIT at
+  `WT_BLIND`; P2IN and P2OUT at their widths and widths + 5; P2 at its
+  width);
+- each block holds a tuple, not all zero, and the flag 1; the unblinded
+  table's block columns are zero on every row, its flags clear
+  (`UnblindedCP`), CPU and memory rows included that `check-p2-tables`
+  does not reach;
+- the two blocks of each edge hold one tuple.
+
+It takes about 1.5 s, passes on the three runs, and refuses a tuple
+changed at one end of an edge, a flag cleared, a cell changed outside the
+blocks or beside one, a block moved to row 1, a zeroed tuple, and a flag
+set on a later row of both traces. Gate 5
+runs it. What it cannot see is the tuples' randomness, which rests on the
+prover's fresh seed and ChaCha20 (`transcript_prg`).
 
 The permutation's specification (`Ski/ZK/Poseidon2.lean`) uses Plonky3's
 own constants and test vectors, which `ski-air poseidon2-lean` prints as
