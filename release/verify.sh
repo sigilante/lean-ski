@@ -61,11 +61,15 @@
 #  12. the Poseidon2 jet (release/p2): the statements are Lean's (`lake exe
 #      composed emit-p2`, `emit-handoff`); ski-air compp-verify checks the
 #      proof of `p2pre h`, and refuses it with one byte changed, a byte
-#      appended, a doctored statement, or for another statement; the hidden
+#      appended, a doctored statement, for Lean's statement of another `h`
+#      at the same heights, or for another statement; the hidden
 #      hand-off's two proofs over one commitment verify as a chain
 #      (`compp-chain`, Circuit.p2commit_chainB), and the chain is refused
 #      with the proofs swapped, paired with `p2pre`, or through FIFOs that
 #      give Lean's check one statement and the verifier another.
+#
+# Each refusal must give its expected reason (`refused`): a proof refused
+# by the statement check where the proof check should refuse it fails.
 #
 # Exits nonzero on any failure.
 
@@ -91,6 +95,19 @@ failed=0
 ok() { printf 'ok   %s\n' "$*"; }
 # With VERIFY_ALL=1 every check runs and the exit comes at the end.
 no() { printf 'FAIL %s\n' "$*"; failed=1; [ -n "${VERIFY_ALL:-}" ] || exit 1; }
+# A refusal for its reason: the command failed, and its log must match the
+# pattern (grep -E), so a forgery refused by the wrong check does not pass.
+# A changed byte may also leave a proof that parses with bytes after it,
+# which the changed-byte checks accept as the reason too.
+refused() {   # LOG PATTERN WHAT
+    local why
+    why=$(grep -E -m 1 -e "$2" "$1" | head -c 70 || true)
+    if [ -n "$why" ]; then
+        ok "$3 ($why)"
+    else
+        no "$3, but not for the expected reason ($(tail -n 1 "$1" | head -c 80))"
+    fi
+}
 
 echo "--- building the Lean checkers and the verifier (first run: minutes)"
 lake build jets circuit composed skilark sudoku > /dev/null
@@ -118,14 +135,14 @@ cmp -s "$tmp/flipped.proof" "$R/sumto_us.proof" && no "the byte flip changed not
 if "$SKI_AIR" jet-verify "$R/corpus.txt" "$R/jets" sumto_us "$tmp/flipped.proof" > "$tmp/flip.log"; then
     no "a proof with one byte changed verified"
 else
-    ok "a proof with one byte changed is refused ($(head -c 70 "$tmp/flip.log"))"
+    refused "$tmp/flip.log" 'verify: [A-Z]|deserialize: |bytes after the proof' "a proof with one byte changed is refused"
 fi
 grep '^compiled_up ' "$tmp/corpus.txt" > "$tmp/other.txt"
 lake exe jets emit "$tmp/jets" > /dev/null
 if "$SKI_AIR" jet-verify "$tmp/other.txt" "$tmp/jets" compiled_up "$R/sumto_us.proof" > "$tmp/other.log"; then
     no "the proof verified for another term"
 else
-    ok "the proof offered for another term is refused ($(head -c 70 "$tmp/other.log"))"
+    refused "$tmp/other.log" 'heights \[' "the proof offered for another term is refused"
 fi
 
 /bin/cp "$R/sumto_us.proof" "$tmp/longer.proof"
@@ -133,7 +150,7 @@ printf 'x' >> "$tmp/longer.proof"
 if "$SKI_AIR" jet-verify "$R/corpus.txt" "$R/jets" sumto_us "$tmp/longer.proof" > "$tmp/longer.log"; then
     no "the proof with a byte appended verified"
 else
-    ok "the proof with a byte appended is refused ($(head -c 70 "$tmp/longer.log"))"
+    refused "$tmp/longer.log" 'bytes after the proof' "the proof with a byte appended is refused"
 fi
 # A name that is a path would let Lean's check and the verifier's reader
 # open different files; names are identifiers, on both sides.  The honest
@@ -147,7 +164,7 @@ sed "s#^sumto_us #$abs #" "$R/corpus.txt" > "$tmp/abs.txt"
 if "$SKI_AIR" jet-verify "$tmp/abs.txt" "$tmp/jd" "$abs" "$R/sumto_us.proof" > "$tmp/abs.log"; then
     no "a name that is a path was accepted"
 else
-    ok "a name that is a path is refused ($(head -c 70 "$tmp/abs.log"))"
+    refused "$tmp/abs.log" 'a name must be an identifier' "a name that is a path is refused"
 fi
 
 # The Omega forgery (release/forgeries/omega): a proof that SII(SII), which
@@ -162,7 +179,7 @@ mkdir -p "$tmp/fj"
 if "$SKI_AIR" jet-verify "$F/corpus.txt" "$tmp/fj" omega "$F/omega.proof" > "$tmp/fj.log"; then
     no "the Omega forgery verified with its forged jet table"
 else
-    ok "the Omega forgery with its forged jet table is refused ($(head -c 60 "$tmp/fj.log"))"
+    refused "$tmp/fj.log" 'statement: NOT THE JET FILE' "the Omega forgery with its forged jet table is refused"
 fi
 mkdir -p "$tmp/fifo"
 mkfifo "$tmp/fifo/omega.jets"
@@ -177,7 +194,7 @@ if "$SKI_AIR" jet-verify "$F/corpus.txt" "$tmp/fifo" omega "$F/omega.proof" > "$
     no "the Omega forgery verified through a FIFO (honest table, then forged)"
 else
     stop_writers
-    ok "the Omega forgery through a FIFO is refused ($(head -c 60 "$tmp/fifo.log"))"
+    refused "$tmp/fifo.log" 'verify: [A-Z]|deserialize: ' "the Omega forgery through a FIFO is refused"
 fi
 
 # A table's first line is the term Lean's checks read; it must be the
@@ -203,7 +220,7 @@ for claim in "val 5" "err" "val 6 0" "val 06"; do
     if "$SKI_AIR" probe-verify "$R/corpus.txt" "$R/jets" sumto_us "$P" $claim > "$tmp/claim.log"; then
         no "the probe proof verified for the outcome $claim"
     else
-        ok "the probe proof offered for $claim is refused ($(head -c 60 "$tmp/claim.log"))"
+        refused "$tmp/claim.log" 'verify: [A-Z]|deserialize: |plan: NO PLAN FOR' "the probe proof offered for $claim is refused"
     fi
 done
 /bin/cp "$P" "$tmp/pflip.proof"
@@ -216,12 +233,12 @@ cmp -s "$tmp/pflip.proof" "$P" && no "the byte flip changed nothing"
 if "$SKI_AIR" probe-verify "$R/corpus.txt" "$R/jets" sumto_us "$tmp/pflip.proof" val 6 > "$tmp/pflip.log"; then
     no "a probe proof with one byte changed verified"
 else
-    ok "a probe proof with one byte changed is refused ($(head -c 60 "$tmp/pflip.log"))"
+    refused "$tmp/pflip.log" 'verify: [A-Z]|deserialize: |bytes after the proof' "a probe proof with one byte changed is refused"
 fi
 if "$SKI_AIR" probe-verify "$R/corpus.txt" "$R/jets" sumto_us "$R/sumto_us.proof" val 6 > "$tmp/halt.log"; then
     no "the halting proof verified as a probe proof"
 else
-    ok "the halting proof offered as a probe proof is refused ($(head -c 60 "$tmp/halt.log"))"
+    refused "$tmp/halt.log" 'heights \[' "the halting proof offered as a probe proof is refused"
 fi
 term_is_sumto "$R/sumto_us.probe.table" \
     && ok "the probe table's term is the corpus row's" \
@@ -267,27 +284,27 @@ for n in or and; do
     if "$SKI_AIR" composed-verify "$C/public.txt" "$tmp/cflip.proof" > "$tmp/cf.log"; then
         no "the $n proof with one byte changed verified"
     else
-        ok "the $n proof with one byte changed is refused ($(head -c 60 "$tmp/cf.log"))"
+        refused "$tmp/cf.log" 'verify: [A-Z]|deserialize: |bytes after the proof' "the $n proof with one byte changed is refused"
     fi
     /bin/cp "$C/$n.proof" "$tmp/clong.proof"
     printf 'x' >> "$tmp/clong.proof"
     if "$SKI_AIR" composed-verify "$C/public.txt" "$tmp/clong.proof" > "$tmp/cl.log"; then
         no "the $n proof with a byte appended verified"
     else
-        ok "the $n proof with a byte appended is refused ($(head -c 60 "$tmp/cl.log"))"
+        refused "$tmp/cl.log" 'bytes after the proof' "the $n proof with a byte appended is refused"
     fi
     # A bit cell exposed as K: the statement check refuses the doctored file.
     sed '10s/^W$/K/' "$C/public.txt" > "$tmp/cpub.txt"
     if "$SKI_AIR" composed-verify "$tmp/cpub.txt" "$C/$n.proof" > "$tmp/cp.log"; then
         no "the $n proof verified against a doctored statement"
     else
-        ok "the $n proof against a doctored statement is refused ($(head -c 60 "$tmp/cp.log"))"
+        refused "$tmp/cp.log" 'statement: NOT A STATEMENT' "the $n proof against a doctored statement is refused"
     fi
 done
 if "$SKI_AIR" composed-verify release/composed/and/public.txt release/composed/or/or.proof > "$tmp/cx.log"; then
     no "the ∨ proof verified for the ∧ statement"
 else
-    ok "the ∨ proof offered for the ∧ statement is refused ($(head -c 60 "$tmp/cx.log"))"
+    refused "$tmp/cx.log" 'verify: [A-Z]|deserialize: ' "the ∨ proof offered for the ∧ statement is refused"
 fi
 
 echo "--- 7. a SKIlark predicate in zero knowledge: vsplitB, x = 200 over 16 literal bits"
@@ -304,7 +321,7 @@ fi
 if lake exe skilark statement "$S/source.ski" 8 712 "$S/public.txt" > "$tmp/ss3.log"; then
     no "the statement read as x = 712, which 8 bits cannot hold"
 else
-    ok "the statement is refused as x = 712 ($(head -c 60 "$tmp/ss3.log"))"
+    refused "$tmp/ss3.log" 'NOT A STATEMENT: x = 712' "the statement is refused as x = 712"
 fi
 "$SKI_AIR" composed-verify "$S/public.txt" "$S/split8.proof" > "$tmp/sv.log" \
     && ok "the split8 proof verifies from its file" \
@@ -318,7 +335,7 @@ printf '%b' "$(printf '\\0%03o' $(( (byte + 1) % 256 )))" \
 if "$SKI_AIR" composed-verify "$S/public.txt" "$tmp/sflip.proof" > "$tmp/sf.log"; then
     no "the split8 proof with one byte changed verified"
 else
-    ok "the split8 proof with one byte changed is refused ($(head -c 60 "$tmp/sf.log"))"
+    refused "$tmp/sf.log" 'verify: [A-Z]|deserialize: |bytes after the proof' "the split8 proof with one byte changed is refused"
 fi
 
 echo "--- 8. a committed split: a + b = 200, a in a toy knapsack commitment c = 255"
@@ -343,7 +360,7 @@ printf '%b' "$(printf '\\0%03o' $(( (byte + 1) % 256 )))" \
 if "$SKI_AIR" composed-verify "$S/public.txt" "$tmp/cflip8.proof" > "$tmp/cf8.log"; then
     no "the csplit8 proof with one byte changed verified"
 else
-    ok "the csplit8 proof with one byte changed is refused ($(head -c 60 "$tmp/cf8.log"))"
+    refused "$tmp/cf8.log" 'verify: [A-Z]|deserialize: |bytes after the proof' "the csplit8 proof with one byte changed is refused"
 fi
 
 flip() {   # copy $1 to $2 with its middle byte changed
@@ -370,20 +387,20 @@ flip "$U/sudoku.proof" "$tmp/uflip.proof"
 if "$SKI_AIR" sudoku-verify "$U/public.txt" "$tmp/uflip.proof" > "$tmp/uf.log"; then
     no "the Sudoku proof with one byte changed verified"
 else
-    ok "the Sudoku proof with one byte changed is refused ($(head -c 60 "$tmp/uf.log"))"
+    refused "$tmp/uf.log" 'verify: [A-Z]|deserialize: |bytes after the proof' "the Sudoku proof with one byte changed is refused"
 fi
 /bin/cp "$U/sudoku.proof" "$tmp/ulong.proof"
 printf '\0' >> "$tmp/ulong.proof"
 if "$SKI_AIR" sudoku-verify "$U/public.txt" "$tmp/ulong.proof" > "$tmp/ul.log"; then
     no "the Sudoku proof with a byte appended verified"
 else
-    ok "the Sudoku proof with a byte appended is refused ($(head -c 60 "$tmp/ul.log"))"
+    refused "$tmp/ul.log" 'bytes after the proof' "the Sudoku proof with a byte appended is refused"
 fi
 sed '$d' "$U/public.txt" > "$tmp/upub.txt"
 if "$SKI_AIR" sudoku-verify "$tmp/upub.txt" "$U/sudoku.proof" > "$tmp/up.log"; then
     no "the Sudoku proof verified against a doctored statement"
 else
-    ok "the Sudoku proof against a doctored statement is refused ($(head -c 60 "$tmp/up.log"))"
+    refused "$tmp/up.log" 'statement: NOT A STATEMENT' "the Sudoku proof against a doctored statement is refused"
 fi
 
 echo "--- 10. split8 with jets, under hiding"
@@ -404,12 +421,12 @@ flip "$J/split8.proof" "$tmp/jflip.proof"
 if "$SKI_AIR" compj-verify "$J/public.txt" "$J/split8.jets" "$S/source.ski" "$tmp/jflip.proof" > "$tmp/jf.log"; then
     no "the split8 proof with jets, one byte changed, verified"
 else
-    ok "the split8 proof with jets, one byte changed, is refused ($(head -c 60 "$tmp/jf.log"))"
+    refused "$tmp/jf.log" 'verify: [A-Z]|deserialize: |bytes after the proof' "the split8 proof with jets, one byte changed, is refused"
 fi
 if "$SKI_AIR" compj-verify "$S/public.txt" "$J/split8.jets" "$S/source.ski" "$J/split8.proof" > "$tmp/jp.log"; then
     no "the split8 proof with jets verified against the plain statement"
 else
-    ok "the split8 proof with jets is refused for the plain statement ($(head -c 60 "$tmp/jp.log"))"
+    refused "$tmp/jp.log" 'statement: NOT A STATEMENT WITH JETS' "the split8 proof with jets is refused for the plain statement"
 fi
 sed '3s/^log \([0-9]*\) \([0-9]*\) \([0-9]*\) /log \1 \2 15 /' "$J/public.txt" > "$tmp/jbud.txt"
 if cmp -s "$tmp/jbud.txt" "$J/public.txt"; then
@@ -417,13 +434,13 @@ if cmp -s "$tmp/jbud.txt" "$J/public.txt"; then
 elif "$SKI_AIR" compj-verify "$tmp/jbud.txt" "$J/split8.jets" "$S/source.ski" "$J/split8.proof" > "$tmp/jb.log"; then
     no "the split8 proof with jets verified for another budget"
 else
-    ok "the split8 proof with jets is refused for POP's budget 2^15 ($(head -c 60 "$tmp/jb.log"))"
+    refused "$tmp/jb.log" 'heights \[' "the split8 proof with jets is refused for POP's budget 2^15"
 fi
 lake exe skilark cjets "$S/source.ski" "$J/public.txt" "$tmp/norule.jets" --no-rule > /dev/null
 if "$SKI_AIR" compj-verify "$J/public.txt" "$tmp/norule.jets" "$S/source.ski" "$J/split8.proof" > "$tmp/jn.log"; then
     no "the split8 proof with jets verified with the jet table without the closure rule"
 else
-    ok "the jet table without the closure rule is refused ($(head -c 60 "$tmp/jn.log"))"
+    refused "$tmp/jn.log" "NOT THE STATEMENT'S JET TABLE" "the jet table without the closure rule is refused"
 fi
 
 if [ -z "${QUICK:-}" ]; then
@@ -440,7 +457,7 @@ flip "$J/csplit8.proof" "$tmp/jcflip.proof"
 if "$SKI_AIR" compj-verify "$J/public.txt" "$J/csplit8.jets" "$S/source.ski" "$tmp/jcflip.proof" > "$tmp/jcf.log"; then
     no "the csplit8 proof with jets, one byte changed, verified"
 else
-    ok "the csplit8 proof with jets, one byte changed, is refused ($(head -c 60 "$tmp/jcf.log"))"
+    refused "$tmp/jcf.log" 'verify: [A-Z]|deserialize: |bytes after the proof' "the csplit8 proof with jets, one byte changed, is refused"
 fi
 else
 echo "--- 11. csplit8 with jets: skipped (QUICK=1)"
@@ -463,14 +480,14 @@ flip "$P/p2pre.proof" "$tmp/pflip.proof"
 if "$SKI_AIR" compp-verify "$P/p2pre.public.txt" "$tmp/pflip.proof" > "$tmp/pf.log" 2>&1; then
     no "the p2pre proof with one byte changed verified"
 else
-    ok "the p2pre proof with one byte changed is refused ($(head -c 60 "$tmp/pf.log"))"
+    refused "$tmp/pf.log" 'verify: [A-Z]|deserialize: |bytes after the proof' "the p2pre proof with one byte changed is refused"
 fi
 /bin/cp "$P/p2pre.proof" "$tmp/plong.proof"
 printf 'x' >> "$tmp/plong.proof"
 if "$SKI_AIR" compp-verify "$P/p2pre.public.txt" "$tmp/plong.proof" > "$tmp/pl.log" 2>&1; then
     no "the p2pre proof with a byte appended verified"
 else
-    ok "the p2pre proof with a byte appended is refused ($(head -c 60 "$tmp/pl.log"))"
+    refused "$tmp/pl.log" 'bytes after the proof' "the p2pre proof with a byte appended is refused"
 fi
 # The first bit cell (line 11, address 3) exposed as K.
 sed '11s/^W$/K/' "$P/p2pre.public.txt" > "$tmp/ppub.txt"
@@ -479,12 +496,27 @@ if cmp -s "$tmp/ppub.txt" "$P/p2pre.public.txt"; then
 elif "$SKI_AIR" compp-verify "$tmp/ppub.txt" "$P/p2pre.proof" > "$tmp/pp.log" 2>&1; then
     no "the p2pre proof verified against a doctored statement"
 else
-    ok "the p2pre proof against a doctored statement is refused ($(head -c 60 "$tmp/pp.log"))"
+    refused "$tmp/pp.log" 'statement: NOT A STATEMENT' "the p2pre proof against a doctored statement is refused"
+fi
+# A statement Lean accepts, at the same heights, for another h (test vector
+# 0): neither the statement check nor the heights refuse it, so only the
+# proof's binding to its statement can.
+mkdir -p "$tmp/p2/other"
+lake exe composed emit-p2 "$tmp/p2/other" 0 > /dev/null
+if ! lake exe composed statement-p2 "$tmp/p2/other/p2pre.public.txt" | grep -q '^OK p2pre'; then
+    no "Lean does not accept the p2pre statement for test vector 0"
+elif [ "$(sed -n 3p "$tmp/p2/other/p2pre.public.txt")" != "$(sed -n 3p "$P/p2pre.public.txt")" ] ||
+        cmp -s "$tmp/p2/other/p2pre.public.txt" "$P/p2pre.public.txt"; then
+    no "the statement for test vector 0 is not another h at the same heights"
+elif "$SKI_AIR" compp-verify "$tmp/p2/other/p2pre.public.txt" "$P/p2pre.proof" > "$tmp/ph.log" 2>&1; then
+    no "the p2pre proof verified for another h"
+else
+    refused "$tmp/ph.log" 'verify: [A-Z]|deserialize: ' "the p2pre proof offered for another h, at the same heights, is refused"
 fi
 if "$SKI_AIR" compp-verify "$P/handoff1.public.txt" "$P/p2pre.proof" > "$tmp/po.log" 2>&1; then
     no "the p2pre proof verified for the hand-off's first statement"
 else
-    ok "the p2pre proof offered for another statement is refused ($(head -c 60 "$tmp/po.log"))"
+    refused "$tmp/po.log" 'heights \[' "the p2pre proof offered for another statement is refused"
 fi
 "$SKI_AIR" compp-chain "$P/handoff1.public.txt" "$P/handoff1.proof" "$P/handoff2.public.txt" "$P/handoff2.proof" \
     > "$tmp/ch.log" && grep -q '^CHAIN OK' "$tmp/ch.log" \
@@ -494,13 +526,13 @@ if "$SKI_AIR" compp-chain "$P/handoff1.public.txt" "$P/handoff2.proof" "$P/hando
     > "$tmp/chs.log" 2>&1; then
     no "the chain verified with the proofs swapped"
 else
-    ok "the chain with the proofs swapped is refused ($(tail -n 1 "$tmp/chs.log" | head -c 60))"
+    refused "$tmp/chs.log" 'verify: [A-Z]|deserialize: ' "the chain with the proofs swapped is refused"
 fi
 if "$SKI_AIR" compp-chain "$P/p2pre.public.txt" "$P/p2pre.proof" "$P/handoff2.public.txt" "$P/handoff2.proof" \
     > "$tmp/chp.log" 2>&1; then
     no "a chain of p2pre and p2commit verified"
 else
-    ok "a chain paired with p2pre is refused ($(tail -n 1 "$tmp/chp.log" | head -c 60))"
+    refused "$tmp/chp.log" 'chain: NOT A CHAIN' "a chain paired with p2pre is refused"
 fi
 # FIFOs that give a hand-off statement on the first read and p2pre's on the
 # second, offered with p2pre's proof twice: the verifier reads each file once
@@ -517,7 +549,7 @@ if "$SKI_AIR" compp-chain "$tmp/p2/f1" "$P/p2pre.proof" "$tmp/p2/f2" "$P/p2pre.p
     no "the chain verified through FIFOs (a hand-off to Lean, p2pre to the verifier)"
 else
     stop_writers
-    ok "the chain through FIFOs is refused ($(tail -n 1 "$tmp/chf.log" | head -c 60))"
+    refused "$tmp/chf.log" 'heights \[' "the chain through FIFOs is refused"
 fi
 
 [ "$failed" = 0 ] || { echo "NOT VERIFIED: release"; exit 1; }

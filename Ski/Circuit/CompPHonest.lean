@@ -9,7 +9,8 @@ From a run the AIR with segments and the Poseidon2 jet accepts
 of the tables `bench/plonky3/src/compp.rs`'s `traces` builds (`lake exe
 composed check-p2-tables` compares them with the unblinded traces on a
 run that `ski-air compp-dump` writes: every row of the Poseidon2 and
-witness tables and sampled CPU rows; gate 5 runs it on `p2pre`):
+witness tables and sampled CPU rows; gate 5 runs it on `p2pre` and the
+hand-off's two runs):
 
 - the CPU (`P2Run.cpuTableP`): the composed CPU's honest row
   (`cpuTableC`), and on a jet row the selector `P2SEL`, the kinds cleared,

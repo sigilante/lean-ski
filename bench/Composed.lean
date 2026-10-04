@@ -278,8 +278,8 @@ def checkCJ (src pub : String) (paths : List String) : IO UInt32 := do
 /-- `composed emit-p2 DIR`: the Poseidon2 preimage statement for Plonky3's
     test vector 1 (`ComposedPText.publicTextP`), and its witness: the
     inputs' 496 bits, then the region's one cell. -/
-def emitP2 (dir : String) : IO UInt32 := do
-  let some (inp, outp) := Poseidon2.vectors[1]? | return 1
+def emitP2 (dir : String) (k : Nat := 1) : IO UInt32 := do
+  let some (inp, outp) := Poseidon2.vectors[k]? | IO.eprintln "no such vector"; return 1
   let h := outp.headD 0
   let lg : ComposedPText.PLogs := ⟨14, 15, 9, 9, 8⟩
   IO.FS.writeFile s!"{dir}/p2pre.public.txt" (ComposedPText.publicTextP h lg)
@@ -461,6 +461,7 @@ def main (args : List String) : IO UInt32 := do
   match args with
   | ["emit", dir] => emit dir
   | ["emit-p2", dir] => emitP2 dir
+  | ["emit-p2", dir, k] => emitP2 dir k.toNat!
   | ["emit-handoff", dir] => emitHandoff dir
   | ["statement-p2", pub] => statementP2 pub
   | ["chain-p2", "-"] => chainP2In
@@ -472,5 +473,5 @@ def main (args : List String) : IO UInt32 := do
   | "check" :: pub :: paths => check pub paths
   | "check-cj" :: src :: pub :: paths => checkCJ src pub paths
   | _ =>
-    IO.eprintln "usage: composed emit DIR | composed emit-p2 DIR | composed emit-handoff DIR | composed statement-p2 PUBLIC | composed chain-p2 PUBLIC1 PUBLIC2|- | composed check-p2-tables PUBLIC DIR\n       composed statement PUBLIC | composed statement-jets PUBLIC\n       composed budget PUBLIC LP LI OUT | composed check PUBLIC TABLE... | composed check-cj SRC PUBLIC TABLE..."
+    IO.eprintln "usage: composed emit DIR | composed emit-p2 DIR [K] | composed emit-handoff DIR | composed statement-p2 PUBLIC | composed chain-p2 PUBLIC1 PUBLIC2|- | composed check-p2-tables PUBLIC DIR\n       composed statement PUBLIC | composed statement-jets PUBLIC\n       composed budget PUBLIC LP LI OUT | composed check PUBLIC TABLE... | composed check-cj SRC PUBLIC TABLE..."
     return 2

@@ -17,11 +17,13 @@ release/verify.sh
 
 It needs elan (Lean) and cargo (Rust), and nothing from Avon. The first
 run builds Lean's checkers and the verifier, which takes minutes. After
-that it runs in about thirteen minutes on an Apple M4 Max, most of it Lean's
+that it runs in about fourteen minutes on an Apple M4 Max, most of it Lean's
 checks of the statements and jet tables; `QUICK=1 release/verify.sh` skips
 `csplit8`'s proof with jets, about two of them. It prints one `ok` line
-per check, then `VERIFIED: …`, and exits nonzero if any check fails. It is
-not part of CI.
+per check, then `VERIFIED: …`, and exits nonzero if any check fails. A
+refusal counts only with its expected reason: a forgery meant for the proof
+check that the statement check refuses instead is a failure. It is not
+part of CI.
 
 ## What is verified
 
@@ -142,7 +144,10 @@ not part of CI.
       statement-p2`), has Lean compare the nine AIRs with
       `Circuit.compPAirsG`, and verifies the proof. With one byte changed, a
       byte appended, a bit cell exposed in the statement, or offered for
-      another statement, it is refused.
+      another statement, it is refused. Offered for Lean's statement of
+      another `h` (test vector 0) at the same heights, it passes the
+      statement check and the heights, and the proof check refuses it: the
+      proof binds its statement.
     - `handoff1.public.txt` and `handoff2.public.txt` are `p2commit c pat`
       for one commitment `c` and two patterns: the value's element 1 is 840,
       and its element 0 is odd. `ski-air compp-chain` reads each statement

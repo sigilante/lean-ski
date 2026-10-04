@@ -432,15 +432,44 @@ then compares:
 - of the CPU, every moving row of a run of at most 2048 (every 16th of a
   longer one), its jet rows, ends and halt, and every 64th row after it.
 
-For `p2pre` it compares 1,543 of 16,384 CPU rows in about 50 s, and gate
-5 runs it. Its limits:
+Gate 5 runs it on all three released runs, each with 0 cells differing
+(rows and times from runs by hand):
+
+```
+p2pre      1,543 of 16,384 CPU rows   about 50 s
+handoff1     918 of 16,384 CPU rows   about 90 s
+handoff2     879 of 16,384 CPU rows   about 80 s
+```
+
+Its limits:
 
 - it compares the run both sides read, so it does not check the run;
   the AIRs and the proof do;
-- it skips the blinded traces the proofs commit to, the hand-off runs,
-  and the CPU padding rows between samples. The comparison made the CPU
-trace fill an inactive read's fields as Lean's honest row does
-(`fieldsAt`); no constraint or message reads them.
+- it skips the blinded traces the proofs commit to, and the CPU rows
+  between samples.
+
+The comparison made the CPU trace fill an inactive read's fields as Lean's
+honest row does (`fieldsAt`), with the cell at the read's address where
+the trace held zeros. Every circuit's CPU shares the trace (`cpu_trace`),
+so its private columns now hold memory contents there. That keeps zero
+knowledge:
+
+- every message that carries a read's fields has a count that is 0 when
+  the read is inactive: the read's own message counts the read's
+  activity, and the writes and the jet's messages that reuse fields count
+  kinds whose rows make those reads active; so no published sum depends
+  on an inactive read's fields;
+- the CPU table is committed like every private column, its openings
+  masked by random rows (`masks_hide`);
+- for this circuit, Lean's honest model is these tables, and
+  `P2Run.honest_zkP` proves its balance and clear flags, the hypotheses of
+  `compP_transcript`.
+
+`ski-air compp-guess PUBLIC WITNESS` tests the published terminals of all
+six private tables: CPU, MEM, WIT, P2IN, P2OUT and the Poseidon2 table. A
+guess from the true witness, recomputed under the proof's own challenges,
+matches none of them, and matches each when the proof is unblinded. It
+passes on all three released statements, and gate 5 runs it.
 
 The permutation's specification (`Ski/ZK/Poseidon2.lean`) uses Plonky3's
 own constants and test vectors, which `ski-air poseidon2-lean` prints as
