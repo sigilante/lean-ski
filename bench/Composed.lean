@@ -6,6 +6,7 @@ import Ski.ComposeXExamples
 import Ski.ChainExamples
 import Ski.ComposedPText
 import Ski.P2Commit
+import Ski.Circuit.CompPHonest
 open Term
 
 /-!
@@ -152,11 +153,11 @@ def budget (path lp li out : String) : IO UInt32 := do
   IO.println s!"{out}: {c.header}, heights 2^{lg.1} and 2^{lg.2}, budgets 2^{bud.1} and 2^{bud.2}"
   return 0
 
-def parseTable (ls : List String) :
-    Option (CStmt × Nat × Array Cell × Array Nat × Array Air.Row) := do
+/-- A run table's body, after its header line: the region's size, the
+    memory, the segments' ends and the rows. -/
+def parseRun (ls : List String) : Option (Nat × Array Cell × Array Nat × Array Air.Row) := do
   match ls with
-  | fl :: wl :: nl :: rest =>
-    let M ← parseHeader (words fl)
+  | wl :: nl :: rest =>
     let W ← match words wl with
       | ["W", n] => n.toNat?
       | _ => none
@@ -176,10 +177,19 @@ def parseTable (ls : List String) :
         let rows ← (rest3.take r).mapM (fun l => parseRow (words l))
         if rows.length != r then none
         if !(rest3.drop r).isEmpty then none
-        some (M, W, cells.toArray, ends.toArray, rows.toArray)
+        some (W, cells.toArray, ends.toArray, rows.toArray)
       | [] => none
     | [] => none
   | _ => none
+
+def parseTable (ls : List String) :
+    Option (CStmt × Nat × Array Cell × Array Nat × Array Air.Row) := do
+  match ls with
+  | fl :: rest =>
+    let M ← parseHeader (words fl)
+    let (W, cells, ends, rows) ← parseRun rest
+    some (M, W, cells, ends, rows)
+  | [] => none
 
 def formulaEq : MF → MF → Bool
   | .atom V x, .atom V' x' => V == V' && x == x'
@@ -345,6 +355,90 @@ def chainP2In : IO UInt32 := do
   | [t1, t2] => chainTexts t1 t2
   | _ => IO.println "NOT TWO STATEMENTS"; return 1
 
+
+/-- A trace dump: `H W`, then `H` rows of `W` numbers. -/
+def parseMatrix (text : String) : Option (Array (Array Nat)) := do
+  let ls := (text.splitOn "\n").filter (fun l => !l.trimAscii.toString.isEmpty)
+  match ls with
+  | hl :: rest =>
+    let (h, w) ← match words hl with
+      | [a, b] => do some (← a.toNat?, ← b.toNat?)
+      | _ => none
+    let rows ← rest.mapM (fun l => (words l).mapM String.toNat?)
+    if rows.length != h || rows.any (·.length != w) then none
+    some (rows.map List.toArray).toArray
+  | [] => none
+
+/-- The cells of a dump's rows `rs` that differ from the model, the first
+    few printed. -/
+def cmpRows (name : String) (m : Array (Array Nat)) (rs : List Nat) (model : Nat → Nat → Nat) : IO Nat := do
+  let mut bad := 0
+  for r in rs do
+    let row := m.getD r #[]
+    for c in [0:row.size] do
+      let x := row.getD c 0
+      let y := model r c
+      if x != y then
+        if bad < 5 then IO.println s!"  {name} row {r} column {c}: compp.rs {x}, Lean {y}"
+        bad := bad + 1
+  return bad
+
+/-- `composed check-p2-tables PUBLIC DIR`: compare the traces `compp.rs`
+    proves (`ski-air compp-dump PUBLIC WITNESS DIR`) with Lean's model of
+    the honest tables (`Ski/Circuit/CompPHonest.lean`), built from the
+    same run (`DIR/run.txt`): every row of P2IN, P2OUT, the Poseidon2 table
+    and the witness table; of the CPU, every moving row (before the run's
+    first halt) of a run of at most 2048, else every 16th, and its jet
+    rows, segment ends, the halt and the rows after it, and every 64th row
+    past it.  `OK` when every cell agrees. -/
+def checkP2Tables (pub dir : String) : IO UInt32 := do
+  let text ← IO.FS.readFile pub
+  let some (st, _) := ComposedPText.statementOfTextG text | do IO.println "NOT A STATEMENT"; return 1
+  let runText ← IO.FS.readFile (dir ++ "/run.txt")
+  let ls := (runText.splitOn "\n").filter (fun l => !l.trimAscii.toString.isEmpty)
+  let some (hl, rest) := (match ls with | l :: r => some (l, r) | [] => none) | do IO.println "MALFORMED run.txt"; return 1
+  if hl != (text.splitOn "\n").headD "" then
+    IO.println "run.txt is not a run of the statement"; return 1
+  let some (_, cells, ends, rows) := parseRun rest | do IO.println "MALFORMED run.txt"; return 1
+  let roots := (CompM.cHeapO (fun _ => false) ComposedPText.shpP ComposedPText.regionP st.Vs).2
+  let R : Circuit.P2Run := ⟨cells.toList, ComposedPText.JP2, ComposedPText.rootP, roots,
+    fun j => ends.getD j 0, ends.size, fun i => rows.getD i ⟨0, 0, 0⟩⟩
+  let load := fun (n : String) => do
+    match parseMatrix (← IO.FS.readFile s!"{dir}/{n}.txt") with
+    | some m => pure m
+    | none => throw (IO.userError s!"MALFORMED {n}.txt")
+  let cpu ← load "cpu"
+  let pin ← load "p2in"
+  let pout ← load "p2out"
+  let p2 ← load "p2"
+  let wit ← load "wit"
+  let K := cpu.size
+  let runRows := rows.size
+  let jets := (List.range runRows).filter R.jetAt
+  -- The run's moving rows end at its first halt, which repeats until the
+  -- table's height: every moving row of a run of at most 2048, else every
+  -- 16th; the jet rows, the segments' ends, the halt and the rows after
+  -- it; then every 64th row.
+  let moving := ((List.range runRows).find? (fun r => rows.getD r ⟨0, 0, 0⟩ == rows.getD (r + 1) ⟨0, 0, 0⟩)).getD runRows
+  let step := if moving ≤ 2048 then 1 else 16
+  let cpuRows := (jets ++ ends.toList ++ [moving, moving + 1, moving + 2, runRows - 1] ++
+    (List.range moving).filter (· % step = 0) ++ (List.range K).filter (fun r => moving < r ∧ r % 64 = 0)).filter (· < K)
+  let pinL := R.pinRows K
+  let poutL := R.poutRows K
+  let p2L := R.p2Rows K ++ List.replicate (p2.size - (R.p2Rows K).length) Circuit.p2Pad
+  let N := BT.nleaves ComposedPText.shpP
+  let W := ComposedPText.regionP.length
+  let b1 ← cmpRows "cpu" cpu cpuRows fun r c => (R.cpuColP r c).val
+  let b2 ← cmpRows "p2in" pin (List.range pin.size) fun r c => ((pinL.getD r []).getD c 0).val
+  let b3 ← cmpRows "p2out" pout (List.range pout.size) fun r c => ((poutL.getD r []).getD c 0).val
+  let b4 ← cmpRows "p2" p2 (List.range p2.size) fun r c => ((p2L.getD r []).getD c 0).val
+  let b5 ← cmpRows "wit" wit (List.range wit.size) fun r c => (Circuit.witColG 3 R.A N W r c).val
+  IO.println s!"cpu: {cpuRows.length} of {K} rows ({moving} moving, {jets.length} jet calls); p2in {pin.size}, p2out {pout.size}, p2 {p2.size}, wit {wit.size} rows; cells differing: {b1}, {b2}, {b3}, {b4}, {b5}"
+  if b1 + b2 + b3 + b4 + b5 == 0 then
+    IO.println "OK: compp.rs's traces are Lean's model of the honest tables"; return 0
+  else
+    IO.println "DIFFER"; return 1
+
 def main (args : List String) : IO UInt32 := do
   match args with
   | ["emit", dir] => emit dir
@@ -352,6 +446,7 @@ def main (args : List String) : IO UInt32 := do
   | ["emit-handoff", dir] => emitHandoff dir
   | ["statement-p2", pub] => statementP2 pub
   | ["chain-p2", "-"] => chainP2In
+  | ["check-p2-tables", pub, dir] => checkP2Tables pub dir
   | ["chain-p2", p1, p2] => chainP2 p1 p2
   | ["statement", pub] => statement pub
   | ["statement-jets", pub] => statementJ pub
@@ -359,5 +454,5 @@ def main (args : List String) : IO UInt32 := do
   | "check" :: pub :: paths => check pub paths
   | "check-cj" :: src :: pub :: paths => checkCJ src pub paths
   | _ =>
-    IO.eprintln "usage: composed emit DIR | composed emit-p2 DIR | composed emit-handoff DIR | composed statement-p2 PUBLIC | composed chain-p2 PUBLIC1 PUBLIC2|-\n       composed statement PUBLIC | composed statement-jets PUBLIC\n       composed budget PUBLIC LP LI OUT | composed check PUBLIC TABLE... | composed check-cj SRC PUBLIC TABLE..."
+    IO.eprintln "usage: composed emit DIR | composed emit-p2 DIR | composed emit-handoff DIR | composed statement-p2 PUBLIC | composed chain-p2 PUBLIC1 PUBLIC2|- | composed check-p2-tables PUBLIC DIR\n       composed statement PUBLIC | composed statement-jets PUBLIC\n       composed budget PUBLIC LP LI OUT | composed check PUBLIC TABLE... | composed check-cj SRC PUBLIC TABLE..."
     return 2

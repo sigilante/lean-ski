@@ -57,7 +57,15 @@
 #      closure rule, it is refused;
 #  11. csplit8 with jets (release/skilark/csplit8/jets), the same; about
 #      two minutes, nearly all Lean's check of the jet table.  QUICK=1
-#      skips it.
+#      skips it;
+#  12. the Poseidon2 jet (release/p2): the statements are Lean's (`lake exe
+#      composed emit-p2`, `emit-handoff`); ski-air compp-verify checks the
+#      proof of `p2pre h`, and refuses it with one byte changed, a byte
+#      appended, a doctored statement, or for another statement; the hidden
+#      hand-off's two proofs over one commitment verify as a chain
+#      (`compp-chain`, Circuit.p2commit_chainB), and the chain is refused
+#      with the proofs swapped, paired with `p2pre`, or through FIFOs that
+#      give Lean's check one statement and the verifier another.
 #
 # Exits nonzero on any failure.
 
@@ -430,5 +438,82 @@ else
 echo "--- 11. csplit8 with jets: skipped (QUICK=1)"
 fi
 
+echo "--- 12. the Poseidon2 jet: a preimage, and a hidden hand-off over a commitment"
+P=release/p2
+mkdir -p "$tmp/p2"
+lake exe composed emit-p2 "$tmp/p2" > /dev/null
+lake exe composed emit-handoff "$tmp/p2" > /dev/null
+for n in p2pre handoff1 handoff2; do
+    cmp -s "$tmp/p2/$n.public.txt" "$P/$n.public.txt" \
+        && ok "release/p2/$n.public.txt is Lean's statement" \
+        || no "release/p2/$n.public.txt is not Lean's statement"
+done
+"$SKI_AIR" compp-verify "$P/p2pre.public.txt" "$P/p2pre.proof" > "$tmp/pv.log" \
+    && ok "the p2pre proof verifies ($(head -c 60 "$tmp/pv.log"))" \
+    || no "the p2pre proof does not verify ($(head -c 80 "$tmp/pv.log"))"
+flip "$P/p2pre.proof" "$tmp/pflip.proof"
+if "$SKI_AIR" compp-verify "$P/p2pre.public.txt" "$tmp/pflip.proof" > "$tmp/pf.log" 2>&1; then
+    no "the p2pre proof with one byte changed verified"
+else
+    ok "the p2pre proof with one byte changed is refused ($(head -c 60 "$tmp/pf.log"))"
+fi
+/bin/cp "$P/p2pre.proof" "$tmp/plong.proof"
+printf 'x' >> "$tmp/plong.proof"
+if "$SKI_AIR" compp-verify "$P/p2pre.public.txt" "$tmp/plong.proof" > "$tmp/pl.log" 2>&1; then
+    no "the p2pre proof with a byte appended verified"
+else
+    ok "the p2pre proof with a byte appended is refused ($(head -c 60 "$tmp/pl.log"))"
+fi
+# The first bit cell (line 11, address 3) exposed as K.
+sed '11s/^W$/K/' "$P/p2pre.public.txt" > "$tmp/ppub.txt"
+if cmp -s "$tmp/ppub.txt" "$P/p2pre.public.txt"; then
+    no "could not doctor release/p2/p2pre.public.txt"
+elif "$SKI_AIR" compp-verify "$tmp/ppub.txt" "$P/p2pre.proof" > "$tmp/pp.log" 2>&1; then
+    no "the p2pre proof verified against a doctored statement"
+else
+    ok "the p2pre proof against a doctored statement is refused ($(head -c 60 "$tmp/pp.log"))"
+fi
+if "$SKI_AIR" compp-verify "$P/handoff1.public.txt" "$P/p2pre.proof" > "$tmp/po.log" 2>&1; then
+    no "the p2pre proof verified for the hand-off's first statement"
+else
+    ok "the p2pre proof offered for another statement is refused ($(head -c 60 "$tmp/po.log"))"
+fi
+"$SKI_AIR" compp-chain "$P/handoff1.public.txt" "$P/handoff1.proof" "$P/handoff2.public.txt" "$P/handoff2.proof" \
+    > "$tmp/ch.log" && grep -q '^CHAIN OK' "$tmp/ch.log" \
+    && ok "the hand-off's two proofs verify as a chain ($(grep '^CHAIN OK' "$tmp/ch.log" | head -c 60))" \
+    || no "the hand-off does not verify as a chain ($(tail -n 1 "$tmp/ch.log" | head -c 80))"
+if "$SKI_AIR" compp-chain "$P/handoff1.public.txt" "$P/handoff2.proof" "$P/handoff2.public.txt" "$P/handoff1.proof" \
+    > "$tmp/chs.log" 2>&1; then
+    no "the chain verified with the proofs swapped"
+else
+    ok "the chain with the proofs swapped is refused ($(tail -n 1 "$tmp/chs.log" | head -c 60))"
+fi
+if "$SKI_AIR" compp-chain "$P/p2pre.public.txt" "$P/p2pre.proof" "$P/handoff2.public.txt" "$P/handoff2.proof" \
+    > "$tmp/chp.log" 2>&1; then
+    no "a chain of p2pre and p2commit verified"
+else
+    ok "a chain paired with p2pre is refused ($(tail -n 1 "$tmp/chp.log" | head -c 60))"
+fi
+# FIFOs that give a hand-off statement on the first read and p2pre's on the
+# second, offered with p2pre's proof twice: the verifier reads each file once
+# and checks the chain and the proofs on those bytes, so it must refuse.
+mkfifo "$tmp/p2/f1" "$tmp/p2/f2"
+( exec > /dev/null 2>&1
+  cat "$P/handoff1.public.txt" > "$tmp/p2/f1"; cat "$P/p2pre.public.txt" > "$tmp/p2/f1" ) &
+w1=$!
+( exec > /dev/null 2>&1
+  cat "$P/handoff2.public.txt" > "$tmp/p2/f2"; cat "$P/p2pre.public.txt" > "$tmp/p2/f2" ) &
+w2=$!
+stop_fifos() {
+    for w in "$w1" "$w2"; do pkill -P "$w" 2>/dev/null || true; kill "$w" 2>/dev/null || true; wait "$w" 2>/dev/null || true; done
+}
+if "$SKI_AIR" compp-chain "$tmp/p2/f1" "$P/p2pre.proof" "$tmp/p2/f2" "$P/p2pre.proof" > "$tmp/chf.log" 2>&1; then
+    stop_fifos
+    no "the chain verified through FIFOs (a hand-off to Lean, p2pre to the verifier)"
+else
+    stop_fifos
+    ok "the chain through FIFOs is refused ($(tail -n 1 "$tmp/chf.log" | head -c 60))"
+fi
+
 [ "$failed" = 0 ] || { echo "NOT VERIFIED: release"; exit 1; }
-echo "VERIFIED: release/sumto, release/composed, release/skilark (with jets${QUICK:+, csplit8 skipped}) and release/sudoku"
+echo "VERIFIED: release/sumto, release/composed, release/skilark (with jets${QUICK:+, csplit8 skipped}), release/sudoku and release/p2"

@@ -134,6 +134,23 @@ not part of CI.
     rule, it is refused.
 12. **`csplit8` with jets, under hiding.** `skilark/csplit8/jets`, the
     same at `log 18 19 17 17`, a height below the plain proof's.
+13. **The Poseidon2 jet.** `p2` holds three statements and their proofs.
+    `verify.sh` checks that each statement is Lean's (`lake exe composed
+    emit-p2`, `emit-handoff`).
+    - `p2pre.public.txt` is `p2pre h`, a preimage of `h` under the
+      permutation. `ski-air compp-verify` pipes it to Lean (`composed
+      statement-p2`), has Lean compare the nine AIRs with
+      `Circuit.compPAirsG`, and verifies the proof. With one byte changed, a
+      byte appended, a bit cell exposed in the statement, or offered for
+      another statement, it is refused.
+    - `handoff1.public.txt` and `handoff2.public.txt` are `p2commit c pat`
+      for one commitment `c` and two patterns: the value's element 1 is 840,
+      and its element 0 is odd. `ski-air compp-chain` reads each statement
+      once, has Lean check that the two form a chain (`composed chain-p2`,
+      `P2Commit.chainB`), verifies both proofs against those bytes, and
+      prints `CHAIN OK`. It refuses the chain with the proofs swapped, paired
+      with `p2pre`, or through FIFOs that answer Lean's read with the
+      hand-off and the verifier's with `p2pre`.
 
 ## What the proofs mean, and what they do not
 
@@ -250,6 +267,24 @@ The limits:
 - **Each proof binds its whole statement**: a digest of every AIR's
   constants is a public value the transcript absorbs (`bench/plonky3/src/stmt.rs`).
 
+**The Poseidon2 jet's proofs.** An accepted proof of `p2pre h` holds in
+its memory 496 bits whose sixteen 31-bit elements permute to a state
+beginning with `h` (`Circuit.p2preExport_sound`). An accepted proof of
+`p2commit c pat` holds bits whose compression is `c` and which meet `pat`
+(`Circuit.p2commitExport_sound`). Two accepted proofs that `compp-chain`
+accepts give one value meeting both patterns, or a collision of the
+compression read from the two proofs' tables (`Circuit.p2commit_chainB`).
+These rest on the stated assumptions:
+- Plonky3's acceptance is as modelled (`AcceptedP`);
+- the compression is collision resistant;
+- the Lean specification of Poseidon2 is Plonky3's, which is tested, not
+  proved.
+
+Each proof publishes one jet call, the same for every witness
+(`Circuit.p2pre_once`, `P2Run.honest_zk_p2pre`). The demo's randomness is a
+constant in `bench/Composed.lean`, so its commitment hides nothing; the
+hand-off shows the mechanism, not a secret.
+
 ## Cost
 
 The plain run is the machine alone (`bench/plonky3`); the jetted run is
@@ -316,9 +351,12 @@ instantiation writes only the cells that depend on its arguments
     (`avon witness --statement --jet-table`) writes the witness table,
     which `lake exe composed check-cj` accepts; `ski-air compj-prove-table`
     proves it, and `ski-air compj-verify` checks the proof.
+12. The Poseidon2 proofs: Lean emits the statements and witnesses (`lake
+    exe composed emit-p2`, `emit-handoff`); `ski-air compp-prove` proves
+    each, and `ski-air compp-chain` checks the hand-off.
 
 `release/produce.sh STAGE…` runs some of these: `sumto`, `composed`,
-`split8`, `csplit8`, `sudoku`, `jets`.
+`split8`, `csplit8`, `sudoku`, `jets`, `p2`.
 
 Avon's witnesses are byte-identical to the tables lean-ski's own prover
 writes for the same term, jet table and plan (Avon's `make
