@@ -402,7 +402,14 @@ resistance (`hidden_chain`, `Ski/DataJet.lean`).
 The circuit with the Poseidon2 jet computes the commitment inside each
 stage's proof (`Ski/P2Commit.lean`). `lake exe composed emit-handoff DIR`
 writes two `p2commit c pat` statements over one commitment and their
-shared witness:
+shared witness. Its value and randomness are fixed (`handoffValue`,
+`handoffRand`), for tests, so that commitment hides nothing; `--fresh`
+draws both from the system's entropy, as the release's statements do:
+eight uniform elements below `p`, and a value meeting both patterns with
+its undisclosed parts uniform. `--rand=FILE` reads the randomness, with
+the tests' value. `lake exe composed check-handoff PUBLIC1
+PUBLIC2` checks that two files are exactly the hand-off's statements for
+the commitment they name, which is how the release's are checked:
 
 ```
 handoff1   value element 1 is 840        13,991 rows   2.2 s   verified
@@ -432,8 +439,10 @@ then compares:
 - of the CPU, every moving row of a run of at most 2048 (every 16th of a
   longer one), its jet rows, ends and halt, and every 64th row after it.
 
-Gate 5 runs it on all three released runs, each with 0 cells differing
-(rows and times from runs by hand):
+Gate 5 runs it on `p2pre`'s run and on the hand-off's two runs with the
+tests' value and randomness (the release's hand-off witness is
+discarded), each with 0 cells differing (rows and times from runs by
+hand):
 
 ```
 p2pre      1,543 of 16,384 CPU rows   about 50 s
@@ -469,7 +478,8 @@ knowledge:
 six private tables: CPU, MEM, WIT, P2IN, P2OUT and the Poseidon2 table. A
 guess from the true witness, recomputed under the proof's own challenges,
 matches none of them, and matches each when the proof is unblinded. It
-passes on all three released statements, and gate 5 runs it.
+passes on `p2pre` and on the hand-off with the tests' witness, and gate 5
+runs it.
 
 The permutation's specification (`Ski/ZK/Poseidon2.lean`) uses Plonky3's
 own constants and test vectors, which `ski-air poseidon2-lean` prints as

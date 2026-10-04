@@ -137,8 +137,13 @@ part of CI.
 12. **`csplit8` with jets, under hiding.** `skilark/csplit8/jets`, the
     same at `log 18 19 17 17`, a height below the plain proof's.
 13. **The Poseidon2 jet.** `p2` holds three statements and their proofs.
-    `verify.sh` checks that each statement is Lean's (`lake exe composed
-    emit-p2`, `emit-handoff`).
+    `verify.sh` checks that each statement is Lean's: `p2pre`'s by
+    re-emitting it (`lake exe composed emit-p2`); the hand-off's, which
+    commit to a fresh secret value with fresh randomness Lean does not
+    know, by `lake exe
+    composed check-handoff`, which takes the commitment from the files and
+    fixes everything else, the two documented patterns and the heights. It
+    also checks that the commitment is not the fixed test randomness's.
     - `p2pre.public.txt` is `p2pre h`, a preimage of `h` under the
       permutation. `ski-air compp-verify` pipes it to Lean (`composed
       statement-p2`), has Lean compare the nine AIRs with
@@ -286,9 +291,23 @@ These rest on the stated assumptions:
   proved.
 
 Each proof publishes one jet call, the same for every witness
-(`Circuit.p2pre_once`, `P2Run.honest_zk_p2pre`). The demo's randomness is a
-constant in `bench/Composed.lean`, so its commitment hides nothing; the
-hand-off shows the mechanism, not a secret.
+(`Circuit.p2pre_once`, `P2Run.honest_zk_p2pre`).
+
+**The hand-off's commitment hides the value.** `produce.sh` drew the
+value and the randomness fresh from the system's entropy (`emit-handoff
+--fresh`; Lean's runtime reads `/dev/urandom`): the randomness eight
+uniform elements below `p`; the value element 1 = 840 and the rest
+uniform, element 0 odd, all below `2^30`. The witness, the value and the
+randomness, stayed in a temporary directory that the script removed;
+nothing in the repository holds it, and nobody, the producer included,
+can open `c` or prove a third stage over it. So `c` reveals the value only
+as far as Poseidon2's compression does on a uniform randomness input, an
+assumption about Poseidon2, as collision resistance is. What the
+statements disclose is public by design: stage 1 that element 1 is 840,
+stage 2 that element 0 is odd, and both that every value element is below
+`2^30` (bit 30 clear, which keeps the value canonical); the rest of the
+value is hidden. Tests and Avon's check use the fixed value and
+randomness in `bench/Composed.lean`, whose commitment hides nothing.
 
 ## Cost
 
@@ -357,8 +376,11 @@ instantiation writes only the cells that depend on its arguments
     which `lake exe composed check-cj` accepts; `ski-air compj-prove-table`
     proves it, and `ski-air compj-verify` checks the proof.
 12. The Poseidon2 proofs: Lean emits the statements and witnesses (`lake
-    exe composed emit-p2`, `emit-handoff`); `ski-air compp-prove` proves
-    each, and `ski-air compp-chain` checks the hand-off.
+    exe composed emit-p2`, `emit-handoff --fresh`, the hand-off's value
+    and randomness fresh from the system's entropy and its witness
+    discarded);
+    `ski-air compp-prove` proves each, and `ski-air compp-chain` checks the
+    hand-off.
 
 `release/produce.sh STAGE…` runs some of these: `sumto`, `composed`,
 `split8`, `csplit8`, `sudoku`, `jets`, `p2`.
