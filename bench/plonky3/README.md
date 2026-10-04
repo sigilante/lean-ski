@@ -45,6 +45,12 @@ lake exe aircheck bench/plonky3/tables/{ik,skks,compiled_*,interpreted_*,sumto_u
 lake exe aircheck bench/plonky3/tables/tampered_*.txt    # each must be REJECT
 ```
 
+The verifier checks each statement and its AIRs in Lean: it runs
+`lake exe composed statement-p2` (or `circuit compare-…`) in the lean-ski
+checkout it was built in, else in `$LEAN_SKI`. A Lean check that has not
+answered within `$LEAN_TIMEOUT` seconds (default 600) fails the
+verification; its stderr is reported when it prints nothing.
+
 ## Measured, 2026-09-27, Apple M4 Max, release build
 
 ```

@@ -234,7 +234,7 @@ theorem AcceptsCP.runs (h : AcceptsCP M m0 jroots jets J root roots nilA n e row
 end
 
 /-- The jet's variable closed to `Pcomb`, any other to `K`. -/
-def jetEnv (J : Nat) : Nat → Term := fun i => if i = J then Pcomb else K
+noncomputable def jetEnv (J : Nat) : Nat → Term := fun i => if i = J then Pcomb else K
 
 /-- **A table the AIR with the Poseidon2 jet accepts from the composed
     machine of an open statement proves the closed statement**, the jet's

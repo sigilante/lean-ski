@@ -712,8 +712,11 @@ def inO : OTerm := packO ((List.range 16).map fun i => packO ((List.range 31).ma
 def outArgs : List OTerm := (List.range 16).flatMap fun i => (List.range 31).map fun j => projO j (projO i (.var 497))
 
 /-- **Poseidon2 on bits**: `[k b₀ … b₄₉₅] (\[s] k (π₀ π₀ s) … (π₃₀ π₁₅ s))
-    (P (literals of the bits))`. -/
-def Pbits : Term := lam (List.range 497) (absN [497] (appL (.var 0) outArgs) ⬝ₒ (P.toO ⬝ₒ inO))
+    (P (literals of the bits))`.  `noncomputable`: no program evaluates it,
+    and compiled, it is built when a binary starts (31 s of bracket
+    abstraction over 497 variables); the kernel and the proofs are
+    unchanged. -/
+noncomputable def Pbits : Term := lam (List.range 497) (absN [497] (appL (.var 0) outArgs) ⬝ₒ (P.toO ⬝ₒ inO))
 
 /-- **`Pbits` implements the bit contract.** -/
 theorem Pbits_implements : DataJet.CImplements poseidon2B Pbits := by
@@ -861,7 +864,7 @@ theorem spreadT_spec : ∀ (n : Nat) (a : Term) (bs : List Bool), bs.length = n 
   | _ + 1, _, [_], hl => absurd (Nat.succ.inj hl).symm (Nat.succ_ne_zero _)
 
 /-- `[k β] spread₄₉₆ (Pbits k) β`. -/
-def Pcomb : Term := lam [0, 1] ((spreadT 496).toO ⬝ₒ (Pbits.toO ⬝ₒ .var 0) ⬝ₒ .var 1)
+noncomputable def Pcomb : Term := lam [0, 1] ((spreadT 496).toO ⬝ₒ (Pbits.toO ⬝ₒ .var 0) ⬝ₒ .var 1)
 
 theorem close_app' (σ : Nat → Term) (f x : OTerm) : (f ⬝ₒ x).close σ = f.close σ ⬝ x.close σ := rfl
 
