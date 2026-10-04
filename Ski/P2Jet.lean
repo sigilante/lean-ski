@@ -228,12 +228,16 @@ theorem CStep.appL {α β : Type} {cc : DataJet.CContract α β} {j : Nat} :
 def CombAt (H : List Cell) (root : Nat) : Prop :=
   ∀ bs, bitsAt H slotAddrs = some bs → otermAt H (H.length + 1) root = some (combT bs).toO
 
-/-- **A jet row reads back as one step of the jet's reduction**, when the
-    comb at `root` reads back as its bits'. -/
-theorem p2Row_cstep {M : List Cell} {j root : Nat} {r r' : Row} (h : p2Row M j root r = some r')
+/-- **A jet row, read back**, when the comb at `root` reads back as its
+    bits': the state is `J ⬝ k ⬝ β ⬝ R`, `β` the comb of 496 bits, and the
+    next state `k` applied to the bits of their permutation, then `R`. -/
+theorem p2Row_step {M : List Cell} {j root : Nat} {r r' : Row} (h : p2Row M j root r = some r')
     (hc : r.ctr ≤ M.length) (hcomb : CombAt (M.take r.ctr) root) {t : OTerm}
     (hdec : odecode (st M r) = some t) :
-    r'.ctr ≤ M.length ∧ ∃ t', odecode (st M r') = some t' ∧ DataJet.CStep poseidon2Comb j t t' := by
+    r'.ctr ≤ M.length ∧ ∃ (Nk : OTerm) (bs : List Bool) (R : List OTerm), bs.length = 496 ∧
+      t = _root_.appL (.var j) (Nk :: (combT bs).toO :: R) ∧
+      odecode (st M r') = some (_root_.appL Nk
+        (((Poseidon2.permute (valsB bs)).flatMap (bitsOf 31)).map (fun b => (boolT b).toO) ++ R)) := by
   unfold p2Row at h
   dsimp only at h
   generalize hH : M.take r.ctr = H at h hcomb
@@ -316,24 +320,34 @@ theorem p2Row_cstep {M : List Cell} {j root : Nat} {r r' : Row} (h : p2Row M j r
                       rw [List.reverse_reverse, List.length_reverse] at hpush
                       have hk' : otermAt (H ++ cs) ((H ++ cs).length + 1) k = some Nk :=
                         otermAt_grow hk (by rw [List.length_append]; omega)
-                      refine ⟨appL Nk (ob.map (fun b => (boolT b).toO) ++ R), ?_, ?_⟩
-                      · show odecode ⟨M.take (r.ctr + ob.length), k, topOf r.ctr rest ob.length⟩ = _
-                        rw [hH']
-                        apply odecode_of hk'
-                        rw [List.length_append, hcsl, show H.length + ob.length + 1 =
-                          H.length + 1 + ob.length by omega]
-                        exact hpush
-                      · rw [hargs, hj, Mach.appL_app, Mach.appL_app]
-                        have hjet := DataJet.CStep.jet (c := poseidon2Comb) (j := j) ⟨bs, hbl⟩ Nk
-                        rw [poseidon2Comb_encI, poseidon2Comb_encO, poseidon2Comb_spec, List.map_map,
-                          show (Poseidon2.permute (valsB bs)).flatMap (bitsOf 31) = ob from hob] at hjet
-                        exact CStep.appL R hjet
+                      have hob' : (Poseidon2.permute (valsB bs)).flatMap (bitsOf 31) = ob := hob
+                      refine ⟨Nk, bs, R, hbl, by rw [hargs, hj]; rfl, ?_⟩
+                      rw [hob']
+                      show odecode ⟨M.take (r.ctr + ob.length), k, topOf r.ctr rest ob.length⟩ = _
+                      rw [hH']
+                      apply odecode_of hk'
+                      rw [List.length_append, hcsl, show H.length + ob.length + 1 =
+                        H.length + 1 + ob.length by omega]
+                      exact hpush
             · rw [if_neg hβ] at h; cases h
           | [], h => cases h
           | [_], h => cases h
           | _ :: _ :: _ :: _, h => cases h
       · rw [if_neg hcond] at h; cases h
     | _ => cases h
+
+/-- **A jet row reads back as one step of the jet's reduction**, when the
+    comb at `root` reads back as its bits'. -/
+theorem p2Row_cstep {M : List Cell} {j root : Nat} {r r' : Row} (h : p2Row M j root r = some r')
+    (hc : r.ctr ≤ M.length) (hcomb : CombAt (M.take r.ctr) root) {t : OTerm}
+    (hdec : odecode (st M r) = some t) :
+    r'.ctr ≤ M.length ∧ ∃ t', odecode (st M r') = some t' ∧ DataJet.CStep poseidon2Comb j t t' := by
+  obtain ⟨h1, Nk, bs, R, hbl, rfl, hd⟩ := p2Row_step h hc hcomb hdec
+  refine ⟨h1, _, hd, ?_⟩
+  have hjet := DataJet.CStep.jet (c := poseidon2Comb) (j := j) ⟨bs, hbl⟩ Nk
+  rw [poseidon2Comb_encI, poseidon2Comb_encO, poseidon2Comb_spec, List.map_map] at hjet
+  rw [show Nk :: (combT bs).toO :: R = [Nk, (combT bs).toO] ++ R from rfl, Mach.appL_app, Mach.appL_app]
+  exact CStep.appL R hjet
 
 /-- A jet row moves the counter forward and stays within the memory. -/
 theorem p2Row_ctr_len {M : List Cell} {j root : Nat} {r r' : Row} (h : p2Row M j root r = some r')

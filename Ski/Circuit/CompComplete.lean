@@ -176,17 +176,17 @@ end
 
 section
 
-variable {A : List Cell} {m0 : Mach} {roots : List Nat} {nilA n : Nat} {e : Nat → Nat} {row : Nat → Row}
-  (hA : AcceptsC A m0 roots nilA n e row) {K : Nat} (hK : e (n - 1) < K)
-include hA hK
+variable {A : List Cell} {roots : List Nat} {n : Nat} {e : Nat → Nat} {row : Nat → Row} {K : Nat}
+  (hR : RunC A n e row K)
+include hR
 
 /-- **The composed CPU's `mem` messages are honest.** -/
 theorem cpuC_honest : ∀ r, r < (cpuTableC A row e n roots K).h → ∀ I ∈ cpuIntersC, I.bus = "mem" →
     I.count.eval ((cpuTableC A row e n roots K).env r) ≠ 0 →
     ∃ m, m < A.length ∧ I.fields.map (fun c => c.eval ((cpuTableC A row e n roots K).env r)) = tupleOf A m := by
   intro r (hr : r < K) I hI hbus hc
-  obtain ⟨I0, hI0, ec, ef⟩ := cpuC_memSend hA hK (roots := roots) hr hI hbus
-  obtain ⟨m, hm, e'⟩ := cpu_honest (M := A) (row := rowP row e n) (k := K) (fun i hi => valid_rowP hA hK hi)
+  obtain ⟨I0, hI0, ec, ef⟩ := cpuC_memSend hR (roots := roots) hr hI hbus
+  obtain ⟨m, hm, e'⟩ := cpu_honest (M := A) (row := rowP row e n) (k := K) (fun i hi => hR.valid _ hi)
     r hr I0 hI0 (by rw [ec]; exact hc)
   exact ⟨m, hm, by rw [← ef, e']⟩
 
@@ -197,7 +197,7 @@ theorem cpuC_segsHonest (hn : roots.length = n) : ∀ r, r < (cpuTableC A row e 
     ∃ q, q < roots.length ∧
       I.fields.map (fun c => c.eval ((cpuTableC A row e n roots K).env r)) = [ofN q, ofN (roots.getD q 0)] := by
   intro r (hr : r < K) I hI hbus hc
-  have cv := cpuC_col hA hK (roots := roots) hr
+  have cv := cpuC_col (A := A) (row := row) (e := e) (n := n) (roots := roots) hr
   change I ∈ cpuIntersC at hI
   rw [cpuIntersC_eq] at hI
   simp only [List.mem_cons, List.not_mem_nil, or_false] at hI
@@ -213,13 +213,13 @@ theorem cpuC_segsHonest (hn : roots.length = n) : ∀ r, r < (cpuTableC A row e 
   obtain ⟨j, hj, rfl⟩ := isRestart_iff.1 hrs
   refine ⟨j + 1, by omega, ?_⟩
   simp only [List.map_cons, List.map_nil, E.eval, cv, B.one, B.c, ofN_one, cpuColC_cnt, cpuColC_root,
-    cntS_end hA.emono j (by omega)]
+    cntS_end hR.emono j (by omega)]
   rw [← ofN_one, ← ofN_add]
 
 theorem cpuC_blindZero : ∀ r, r < (cpuTableC A row e n roots K).h → ∀ I ∈ cpuIntersC, I.bus ≠ "mem" →
     I.bus ≠ "segs" → I.count.eval ((cpuTableC A row e n roots K).env r) = 0 := by
   intro r (hr : r < K) I hI h1 h2
-  have cv := cpuC_col hA hK (roots := roots) hr
+  have cv := cpuC_col (A := A) (row := row) (e := e) (n := n) (roots := roots) hr
   change I ∈ cpuIntersC at hI
   rw [cpuIntersC_eq] at hI
   simp only [List.mem_cons, List.not_mem_nil, or_false] at hI
@@ -608,9 +608,9 @@ theorem foldr_single (K x : Nat) (hx : x < K) :
 
 section
 
-variable {A : List Cell} {m0 : Mach} {roots : List Nat} {nilA n : Nat} {e : Nat → Nat} {row : Nat → Row}
-  (hA : AcceptsC A m0 roots nilA n e row) {K : Nat} (hK : e (n - 1) < K)
-include hA hK
+variable {A : List Cell} {roots : List Nat} {n : Nat} {e : Nat → Nat} {row : Nat → Row} {K : Nat}
+  (hR : RunC A n e row K)
+include hR
 
 /-- A CPU row's `segs` message: the restart indicator, with the next
     segment's number and root. -/
@@ -618,7 +618,7 @@ theorem cpuC_rowSegs (hd0 stk0 ctr0 n' nilA' : Nat) {r : Nat} (hr : r < K) (v : 
     rowSends (cpuAirC hd0 stk0 ctr0 n' nilA') (cpuTableC A row e n roots K) "segs" v r =
       if [ofN (cntS (rsI e n) r + 1), ofN (roots.getD (cntS (rsI e n) r + 1) 0)] = v
       then ofN (rsI e n r) else 0 := by
-  have cv := cpuC_col hA hK (roots := roots) hr
+  have cv := cpuC_col (A := A) (row := row) (e := e) (n := n) (roots := roots) hr
   unfold rowSends
   show cpuIntersC.foldr _ 0 = _
   rw [cpuIntersC_eq]
@@ -651,12 +651,12 @@ theorem cpuC_segsCount (hd0 stk0 ctr0 n' nilA' : Nat) (hn : roots.length = n) (h
     (hq : q < n) :
     tableSends (cpuAirC hd0 stk0 ctr0 n' nilA') (cpuTableC A row e n roots K) "segs"
       [ofN q, ofN (roots.getD q 0)] = if 1 ≤ q then 1 else 0 := by
-  have hmono := hA.emono
+  have hmono := hR.emono
   -- which rows send to segment `q`
   have row_eq : ∀ r, r < K → rowSends (cpuAirC hd0 stk0 ctr0 n' nilA') (cpuTableC A row e n roots K) "segs"
       [ofN q, ofN (roots.getD q 0)] r = if 1 ≤ q ∧ r = e (q - 1) then 1 else 0 := by
     intro r hr
-    rw [cpuC_rowSegs hA hK hd0 stk0 ctr0 n' nilA' hr]
+    rw [cpuC_rowSegs hR hd0 stk0 ctr0 n' nilA' hr]
     cases hrs : isRestart e n r with
     | false =>
       have h0 : rsI e n r = 0 := by unfold rsI; rw [hrs]; rfl
@@ -706,7 +706,7 @@ theorem cpuC_segsCount (hd0 stk0 ctr0 n' nilA' : Nat) (hn : roots.length = n) (h
     exact this _ (fun r hr => List.mem_range.1 hr)
   rw [hcongr]
   by_cases h1 : 1 ≤ q
-  · have hlt : e (q - 1) < K := Nat.lt_of_le_of_lt (emono_le hmono (a := q - 1) (b := n - 1) (by omega) (by omega)) hK
+  · have hlt : e (q - 1) < K := Nat.lt_of_le_of_lt (emono_le hmono (a := q - 1) (b := n - 1) (by omega) (by omega)) hR.lt
     rw [if_pos h1]
     refine Eq.trans ?_ (foldr_single K (e (q - 1)) hlt)
     simp only [h1, true_and]
@@ -728,7 +728,7 @@ theorem segs_honest (hd0 stk0 ctr0 n' nilA' : Nat) (hn : roots.length = n) (hP :
   congr 1
   funext q _
   by_cases hq : q < roots.length
-  · rw [if_pos hq, cpuC_segsCount hA hK hd0 stk0 ctr0 n' nilA' hn hP (by omega)]
+  · rw [if_pos hq, cpuC_segsCount hR hd0 stk0 ctr0 n' nilA' hn hP (by omega)]
     by_cases h1 : 1 ≤ q
     · rw [if_pos h1, if_pos ⟨h1, hq⟩]
     · rw [if_neg h1, if_neg (fun h => h1 h.1)]
@@ -898,7 +898,7 @@ theorem comp_completeG_log {R Lm : Nat} (hR : R ≤ 20) (hLm : Lm ≤ 20) {shp :
       · exact ⟨wit_sat (a0 := 3) (fun _ => by decide) hbits hreg hsmall, .inr ⟨rfl, fun _ _ _ _ => rfl⟩⟩
       · exact ⟨⟨segRows_pos _, fun c hc => nomatch hc⟩, .inr ⟨rfl, fun _ _ _ _ => rfl⟩⟩
     · rw [z]
-      exact balancedC hAl hRlt (by omega) (cpuC_honest hA hK) (cpuC_segsHonest hA hK hnR) (cpuC_blindZero hA hK)
+      exact balancedC hAl hRlt (by omega) (cpuC_honest (hA.runC hK)) (cpuC_segsHonest (hA.runC hK) hnR) (cpuC_blindZero (hA.runC hK))
         (progC_honest hpubA) (witT_honest (a0 := 3) (fun _ => by decide) hbits hreg hlenW) witT_blindZero
     · rw [z]
       unfold HeightsOK compTables
@@ -925,7 +925,7 @@ theorem comp_completeG_log {R Lm : Nat} (hR : R ≤ 20) (hLm : Lm ≤ 20) {shp :
   have hRs : AcceptedP Rs [C, Mm, Pg, Wt, Sg] :=
     (acceptedP_iff_of (compG_guarded shp Ps W) hs _).2 (accepted_transfer (sameAirsB_symm hs) hacc)
   refine ⟨C, Mm, Pg, Wt, Sg, hRs, rfl, hlen, witRows_len hNW, rfl,
-    segs_honest hA hK _ _ _ _ _ hnR (by rw [← hnR]; exact hRlt), ?_, ?_⟩
+    segs_honest (hA.runC hK) _ _ _ _ _ hnR (by rw [← hnR]; exact hRlt), ?_, ?_⟩
   · -- the memory decodes back
     apply List.ext_getElem?
     intro m

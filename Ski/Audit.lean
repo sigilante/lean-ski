@@ -34,6 +34,9 @@ import Ski.ComposedP
 import Ski.Circuit.CompPFinal
 import Ski.P2PreSound
 import Ski.P2Commit
+import Ski.P2Complete
+import Ski.P2Once
+import Ski.ZK.CompPHonest
 import Ski.ZK.CompP
 import Ski.Composed
 import Ski.Circuit.BaseSound
@@ -866,6 +869,28 @@ open Ski.Audit
   P2Commit.openB_commit P2Commit.handoff Circuit.p2commitExport_sound Circuit.p2commit_chain
   P2Commit.valueOnlyB_sound P2Commit.canonicalB_sound P2Commit.ok_commit P2Commit.chainB_sound
   Circuit.p2commit_chainB
+
+-- The jet's verifiers accept honest bits
+#audit_clean P2Complete.absorbO_K P2Complete.chk_complete P2Complete.chkX_complete P2Complete.selT_complete
+  P2Complete.patO_complete P2Complete.jet_step P2Complete.p2pre_complete P2Complete.p2commit_complete
+
+-- The verifiers with the Poseidon2 jet call it exactly once
+#audit_clean P2Jet.p2Row_step P2Jet.p2Row_cstep Circuit.CompPOK.normRowSel P2Once.outer_step P2Once.outer_steps
+  P2Once.outer_occ P2Once.outer_jet P2Once.partP P2Once.partC P2Once.verifierO_eq P2Once.verifierC_eq
+  P2Once.once_of Circuit.compP_once Circuit.p2pre_once Circuit.p2commit_once
+
+-- The honest tables of the circuit with the Poseidon2 jet: balance and clear flags
+#audit_clean CompM.AcceptsC.runC Circuit.p2Row_inv Circuit.p2Row_halt Circuit.P2Run.runC
+  Circuit.P2Run.plain_row Circuit.P2Run.jetAt_spec Circuit.P2Run.cpuP_env_plain Circuit.P2Run.cpuP_honest
+  Circuit.P2Run.cpuP_segs Circuit.P2Run.segsTableP Circuit.P2Run.cpuP_blindZero Circuit.accN_succ Circuit.lowL_succ
+  Circuit.hiL_succ Circuit.pin_sends Circuit.pout_sends Circuit.sum_elems Circuit.acc_last Circuit.pin_p2i_call
+  Circuit.pin_idx_call Circuit.pin_p2v_call Circuit.pout_p2o_call Circuit.pout_idx_call Circuit.pout_p2w_call
+  Circuit.traceAll_last Circuit.rounds_len Circuit.p2RowT_get Circuit.p2_sends_v Circuit.p2_sends_w
+  Circuit.honest_ofRows Circuit.pushR_get Circuit.P2Run.pin_honest Circuit.P2Run.pout_honest Circuit.witTP_honest
+  Circuit.P2Run.cpuP_p2i Circuit.P2Run.cpuP_p2o Circuit.chunk_out Circuit.P2Run.bal_p2i Circuit.P2Run.bal_p2o
+  Circuit.P2Run.bal_p2v Circuit.P2Run.bal_p2w Circuit.P2Run.calls_sum Circuit.P2Run.cpuP_segsHonest
+  Circuit.idx_sends Circuit.P2Run.bal_p2idx Circuit.P2Run.balancedP Circuit.P2Run.honest_zkP Circuit.filter_one
+  Circuit.P2Run.calls_one Circuit.P2Run.honest_zk_one Circuit.P2Run.honest_zk_p2pre Circuit.P2Run.honest_zk_p2commit
 
 -- Zero knowledge of the circuit with the Poseidon2 jet: the blinding tree CPU —c— P2IN —d— P2OUT —e— P2
 #audit_clean Circuit.viewT_p2 Circuit.terminal_cpuP2 Circuit.p2_avoids Circuit.compP_chain Circuit.compP_sum

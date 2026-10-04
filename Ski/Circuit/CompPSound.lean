@@ -144,10 +144,12 @@ theorem CompPOK.restart {r j : Nat} (hr : r + 1 < C.h) (hrs : C.main r RS = 1)
     exact absurd (ofN_inj (by omega) (by omega) e0) (by omega)
 
 
-/-- **A row that is no restart steps, halts, or takes the jet's step.** -/
-theorem CompPOK.normRow {r : Nat} (hr : r + 1 < C.h) (hrs : C.main r RS = 0) (hJ : J < P) (hroot : root < P)
+/-- **A row that is no restart steps or halts, with `P2SEL = 0`, or takes
+    the jet's step, with `P2SEL = 1`.** -/
+theorem CompPOK.normRowSel {r : Nat} (hr : r + 1 < C.h) (hrs : C.main r RS = 0) (hJ : J < P) (hroot : root < P)
     (h499 : 499 ≤ (blankMO shp W Vs).heap.length) :
-    NormRowP (memOf Mm) [] [] J root (rowOf C r) (rowOf C (r + 1)) := by
+    (C.main r P2SEL = 0 ∧ Air.NormRow (memOf Mm) [] [] (rowOf C r) (rowOf C (r + 1))) ∨
+      (C.main r P2SEL = 1 ∧ P2Jet.p2Row (memOf Mm) J root (rowOf C r) = some (rowOf C (r + 1))) := by
   have hr' : r < C.h := Nat.lt_of_succ_lt hr
   obtain ⟨k, hk⟩ := kind_ofP2 h.cpu hr'
   have hk11 : k ≠ 11 := fun e => by
@@ -159,7 +161,7 @@ theorem CompPOK.normRow {r : Nat} (hr : r + 1 < C.h) (hrs : C.main r RS = 0) (hJ
     obtain ⟨_, _, c0⟩ := first_regsP2 h.cpu h0 rfl
     have hle := h.ctr_le (r := 0) r (by omega)
     rw [Nat.zero_add, c0, val_ofN h.heap_lt] at hle
-    exact .inr (h.jetRow hr hp hJ hroot (by omega))
+    exact .inr ⟨hp, h.jetRow hr hp hJ hroot (by omega)⟩
   · have hk11' : k < 11 := by have := hk.1; omega
     have hp0 : C.main r P2SEL = 0 := by rw [hk.2.2.2, if_neg hk12]
     obtain ⟨_, _, _, _, _, _, _, nh, ns, nc⟩ := kind_factsP hr' hk
@@ -172,12 +174,18 @@ theorem CompPOK.normRow {r : Nat} (hr : r + 1 < C.h) (hrs : C.main r RS = 0) (hJ
         ((nextCtrOfC k).eval (C.env r)).val⟩ := by
       simp only [rowOf, m1, m2, m3]
     rcases Nat.lt_or_ge k 4 with h4 | h4
-    · exact .inl (.inl (by rw [hnext]; exact h.step hr' hk h4))
-    · refine .inl (.inr (.inr ⟨h.halt hr' hk h4 hk11', ?_⟩))
+    · exact .inl ⟨hp0, .inl (by rw [hnext]; exact h.step hr' hk h4)⟩
+    · refine .inl ⟨hp0, .inr (.inr ⟨h.halt hr' hk h4 hk11', ?_⟩)⟩
       rw [hnext]
       simp only [nextHdOfC, nextStkOfC, nextCtrOfC, if_neg hk11, nextHdOf_halt h4, nextStkOf_halt h4,
         nextCtrOf_halt h4]
       simp only [rowOf, B.col, E.eval, env_main0 hr']
+
+/-- **A row that does not restart steps**: plainly, or by the jet. -/
+theorem CompPOK.normRow {r : Nat} (hr : r + 1 < C.h) (hrs : C.main r RS = 0) (hJ : J < P) (hroot : root < P)
+    (h499 : 499 ≤ (blankMO shp W Vs).heap.length) :
+    NormRowP (memOf Mm) [] [] J root (rowOf C r) (rowOf C (r + 1)) :=
+  (h.normRowSel hr hrs hJ hroot h499).imp (fun a => a.2) (fun a => a.2)
 
 /-- A segment's end reads `K` at the head over a nil: a restart (`11`) or
     the last row's `HK1` (`5`). -/

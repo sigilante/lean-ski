@@ -35,15 +35,22 @@ def cpuTableC (A : List Cell) (row : Nat → Row) (e : Nat → Nat) (n : Nat) (r
 def kindCf (A : List Cell) (row : Nat → Row) (e : Nat → Nat) (n i : Nat) : Nat :=
   if isRestart e n i then 11 else kindOf A (rowP row e n i)
 
+/-- **What the honest CPU's lemmas use of a run**: its segments, their
+    ends at `K` over the nil, and every padded row valid.  A run the AIR
+    with segments accepts gives it (`AcceptsC.runC`), and so does one with
+    the Poseidon2 jet, whose jet rows halt to the base classification. -/
+structure RunC (A : List Cell) (n : Nat) (e : Nat → Nat) (row : Nat → Row) (K : Nat) : Prop where
+  npos : 0 < n
+  emono : ∀ j, j + 1 < n → e j < e (j + 1)
+  ends : ∀ j, j < n → rd A (row (e j)).ctr (row (e j)).hd = some .K ∧ rd A (row (e j)).ctr (row (e j)).stk = some .nil
+  lt : e (n - 1) < K
+  valid : ∀ i, i < K → Valid A (rowP row e n i)
+
 section
 
 variable {A : List Cell} {m0 : Mach} {roots : List Nat} {nilA n : Nat} {e : Nat → Nat} {row : Nat → Row}
   (hA : AcceptsC A m0 roots nilA n e row) {K : Nat} (hK : e (n - 1) < K)
 include hA hK
-
-theorem restart_lt {i : Nat} (hr : isRestart e n i = true) : i < e (n - 1) := by
-  obtain ⟨j, hj, rfl⟩ := isRestart_iff.1 hr
-  exact emono_lt hA.emono (by omega) (by have := hA.npos; omega)
 
 /-- Every padded row steps or halts. -/
 theorem valid_rowP {i : Nat} (hi : i < K) : Valid A (rowP row e n i) := by
@@ -69,26 +76,42 @@ theorem valid_rowP {i : Nat} (hi : i < K) : Valid A (rowP row e n i) := by
   · obtain ⟨h1, h2⟩ := hA.ends (n - 1) (by omega)
     exact .inr (by simp only [haltRow, h1, short, h2])
 
+/-- A run the AIR with segments accepts gives `RunC`. -/
+theorem _root_.CompM.AcceptsC.runC : RunC A n e row K :=
+  ⟨hA.npos, hA.emono, hA.ends, hK, fun _ hi => valid_rowP hA hK hi⟩
+
+end
+
+section
+
+variable {A : List Cell} {roots : List Nat} {n : Nat} {e : Nat → Nat} {row : Nat → Row} {K : Nat}
+  (hR : RunC A n e row K)
+include hR
+
+theorem restart_lt {i : Nat} (hr : isRestart e n i = true) : i < e (n - 1) := by
+  obtain ⟨j, hj, rfl⟩ := isRestart_iff.1 hr
+  exact emono_lt hR.emono (by omega) (by have := hR.npos; omega)
+
 /-- A segment's end is `HK1` to the base classification. -/
 theorem end_kind {j : Nat} (hj : j < n) : kindOf A (row (e j)) = 5 := by
-  obtain ⟨h1, h2⟩ := hA.ends j hj
+  obtain ⟨h1, h2⟩ := hR.ends j hj
   simp only [kindOf, h1, h2]
 
 theorem restart_kindOf {i : Nat} (hr : isRestart e n i = true) : kindOf A (rowP row e n i) = 5 := by
   obtain ⟨j, hj, rfl⟩ := isRestart_iff.1 hr
-  have := restart_lt hA hK hr
+  have := restart_lt hR hr
   unfold rowP; rw [if_pos (by omega)]
-  exact end_kind hA hK (by omega)
+  exact end_kind hR (by omega)
 
 theorem kindCf_lt {i : Nat} (hi : i < K) : kindCf A row e n i < 12 := by
   unfold kindCf; split
   · decide
-  · have := (shape (valid_rowP hA hK hi)).lt; omega
+  · have := (shape (hR.valid _ hi)).lt; omega
 
 /-- **The honest composed row has its kind.** -/
 theorem cpuC_kind {i : Nat} (hi : i < K) :
     IsKindC (cpuTableC A row e n roots K) i (kindCf A row e n i) := by
-  refine ⟨kindCf_lt hA hK hi, fun j hj => ?_, ?_⟩
+  refine ⟨kindCf_lt hR hi, fun j hj => ?_, ?_⟩
   · show cpuColC A row e n roots i (SEL + j) = _
     have hw : SEL + j < CPU_WIDTH := by unfold SEL NKINDS CPU_WIDTH BITS FLD RANGE_BITS at *; omega
     unfold cpuColC kindCf
@@ -99,7 +122,7 @@ theorem cpuC_kind {i : Nat} (hi : i < K) :
     | false =>
       rw [if_neg (fun h => absurd h.2.2 (by simp)), cpuCol_sel _ _ hj]
       simp only [Bool.false_eq_true, ↓reduceIte]
-      have := (shape (valid_rowP hA hK hi)).lt
+      have := (shape (hR.valid _ hi)).lt
       by_cases h' : j = kindOf A (rowP row e n i)
       · rw [if_pos h', if_pos ⟨h', this⟩]
       · rw [if_neg h', if_neg (fun h => h' h.1)]
@@ -110,7 +133,7 @@ theorem cpuC_kind {i : Nat} (hi : i < K) :
     | true => rfl
     | false =>
       simp only [Bool.false_eq_true, ↓reduceIte]
-      have := (shape (valid_rowP hA hK hi)).lt
+      have := (shape (hR.valid _ hi)).lt
       rw [if_neg (by omega)]
 
 /-- Rows and columns the two tables share: every base column but the kind
@@ -129,7 +152,7 @@ theorem actOfC_kindCf {i : Nat} (hi : i < K) (j : Nat) :
   unfold kindCf
   cases hr : isRestart e n i with
   | true =>
-    rw [if_pos rfl, restart_kindOf hA hK hr]
+    rw [if_pos rfl, restart_kindOf hR hr]
     unfold actOfC actOf
     rcases (show j = 0 ∨ j = 1 ∨ j = 2 ∨ 3 ≤ j by omega) with rfl | rfl | rfl | h3
     · rfl
@@ -139,7 +162,7 @@ theorem actOfC_kindCf {i : Nat} (hi : i < K) (j : Nat) :
       split <;> first | rfl | omega
   | false =>
     simp only [Bool.false_eq_true, ↓reduceIte]
-    have := (shape (valid_rowP hA hK hi)).lt
+    have := (shape (hR.valid _ hi)).lt
     unfold actOfC; rw [if_neg (by omega)]
 
 end
@@ -187,10 +210,9 @@ theorem readRest_base : ∀ j, j < 4 →
 
 section
 
-variable {A : List Cell} {m0 : Mach} {roots : List Nat} {nilA n : Nat} {e : Nat → Nat} {row : Nat → Row}
-  (hA : AcceptsC A m0 roots nilA n e row) {K : Nat} (hK : e (n - 1) < K)
-  (hb : ∀ i, i < K → (rowP row e n i).ctr ≤ 2 ^ 24)
-include hA hK
+variable {A : List Cell} {roots : List Nat} {n : Nat} {e : Nat → Nat} {row : Nat → Row} {K : Nat}
+  (hR : RunC A n e row K) (hb : ∀ i, i < K → (rowP row e n i).ctr ≤ 2 ^ 24)
+include hR
 
 theorem cpuC_env_base {i : Nat} (hi : i < K) :
     ∀ a, baseAtom a = true → (cpuTableC A row e n roots K).env i a = (cpuTable A (rowP row e n) K).env i a := by
@@ -201,7 +223,7 @@ theorem cpuC_env_base {i : Nat} (hi : i < K) :
     | zero =>
       simp only [baseAtom, Bool.and_eq_true, decide_eq_true_eq, Bool.not_eq_true', Bool.and_eq_false_iff,
         decide_eq_false_iff_not] at ha
-      exact cpuC_agree hA hK hi ha.1 (fun h => by rcases ha.2 with h' | h' <;> omega)
+      exact cpuC_agree hR hi ha.1 (fun h => by rcases ha.2 with h' | h' <;> omega)
     | succ o => simp [baseAtom] at ha
   | _ => simp [baseAtom] at ha
 
@@ -209,8 +231,8 @@ include hb in
 /-- **The reads' constraints hold on the honest composed table.** -/
 theorem cpuC_read {i : Nat} (hi : i < K) {j : Nat} (hj : j < 4) :
     ∀ c ∈ readCons j, c.eval ((cpuTableC A row e n roots K).env i) = 0 := by
-  have hbase := cpu_read (M := A) (row := rowP row e n) (k := K) (valid_rowP hA hK hi) (hb i hi) hi hj
-  have cong := E.eval_congr (cpuC_env_base hA hK hi)
+  have hbase := cpu_read (M := A) (row := rowP row e n) (k := K) (hR.valid _ hi) (hb i hi) hi hj
+  have cong := E.eval_congr (cpuC_env_base hR (roots := roots) hi)
   obtain ⟨hrest, hbits⟩ := readRest_base j hj
   intro c hc
   have hc' := hc
@@ -220,10 +242,100 @@ theorem cpuC_read {i : Nat} (hi : i < K) {j : Nat} (hj : j < 4) :
   · rw [cong _ (hbits b hb')]; exact hbase _ hc
   · show (acts.getD j zero).eval _ * _ = 0
     rw [cong _ hrest]
-    have hk := cpuC_kind hA hK (roots := roots) hi
-    have hk0 := cpu_kind (M := A) (row := rowP row e n) (k := K) hi (shape (valid_rowP hA hK hi))
-    rw [((kind_factsC hi hk).1 j hj).1, actOfC_kindCf hA hK hi, ← ((kind_facts hi hk0).1 j hj).1]
+    have hk := cpuC_kind hR (roots := roots) hi
+    have hk0 := cpu_kind (M := A) (row := rowP row e n) (k := K) hi (shape (hR.valid _ hi))
+    rw [((kind_factsC hi hk).1 j hj).1, actOfC_kindCf hR hi, ← ((kind_facts hi hk0).1 j hj).1]
     exact hbase _ hc
+
+/-- The reads' tags are the base kind's: a restart reads as `HK1`. -/
+theorem tagOfC_kindCf {i : Nat} (hi : i < K) (j : Nat) :
+    tagOfC (kindCf A row e n i) j = tagOf (kindOf A (rowP row e n i)) j := by
+  unfold kindCf
+  cases hr : isRestart e n i with
+  | true =>
+    rw [if_pos rfl, restart_kindOf hR hr]
+    unfold tagOfC tagOf
+    rcases (show j = 0 ∨ j = 1 ∨ j = 2 ∨ 3 ≤ j by omega) with rfl | rfl | rfl | h3
+    · rfl
+    · rfl
+    · rfl
+    · simp only [↓reduceIte, show ¬ j = 0 by omega, show ¬ j = 1 by omega]
+      split <;> first | rfl | omega
+  | false =>
+    simp only [Bool.false_eq_true, ↓reduceIte]
+    have := (shape (hR.valid _ hi)).lt
+    unfold tagOfC; rw [if_neg (by omega)]
+
+omit hR in
+theorem writes_base : writeInters.all (fun I => I.count.onlyAtoms (fun a => match a with
+    | .main 0 c => decide (SEL ≤ c ∧ c < SEL + NKINDS) | _ => false) &&
+    I.fields.all (·.onlyAtoms baseAtom)) = true := by decide
+
+omit hR in
+theorem reads_base : (List.range 4).all (fun j => (addrs.getD j zero).onlyAtoms baseAtom &&
+    (fld (2 * j)).onlyAtoms baseAtom && (fld (2 * j + 1)).onlyAtoms baseAtom) = true := by decide
+
+/-- **A composed CPU `mem` message is a base one**, in count and tuple. -/
+theorem cpuC_memSend {i : Nat} (hi : i < K) {I : Inter} (hI : I ∈ cpuIntersC) (hbus : I.bus = "mem") :
+    ∃ I0 ∈ cpuInters, I0.count.eval ((cpuTable A (rowP row e n) K).env i) =
+        I.count.eval ((cpuTableC A row e n roots K).env i) ∧
+      I0.fields.map (fun c => c.eval ((cpuTable A (rowP row e n) K).env i)) =
+        I.fields.map (fun c => c.eval ((cpuTableC A row e n roots K).env i)) := by
+  have hk := cpuC_kind hR (roots := roots) hi
+  have hS := shape (hR.valid _ hi)
+  have hk0 := cpu_kind (M := A) (row := rowP row e n) (k := K) hi hS
+  obtain ⟨hfC, _, hAppC, hSC, _⟩ := kind_factsC hi hk
+  obtain ⟨hfB, _, hAppB, hSB, _⟩ := kind_facts hi hk0
+  have cong := fun (c : E) (h : c.onlyAtoms baseAtom = true) =>
+    (E.eval_congr (cpuC_env_base hR (roots := roots) hi) c h).symm
+  have hkk : ∀ m, m = 0 ∨ m = 3 → (kindCf A row e n i = m ↔ kindOf A (rowP row e n i) = m) := by
+    intro m hm
+    unfold kindCf
+    cases hr : isRestart e n i with
+    | true => rw [if_pos rfl, restart_kindOf hR hr]; rcases hm with rfl | rfl <;> decide
+    | false => simp only [Bool.false_eq_true, ↓reduceIte]
+  have rb := List.all_eq_true.1 reads_base
+  have wb := List.all_eq_true.1 writes_base
+  change I ∈ [readInterC 0, readInterC 1, readInterC 2, readInterC 3] ++ writeInters ++ _ at hI
+  simp only [List.mem_append] at hI
+  rcases hI with (hr | hw) | ho
+  · simp only [List.mem_cons, List.not_mem_nil, or_false] at hr
+    obtain ⟨j, hj, hIj⟩ : ∃ j, j < 4 ∧ I = readInterC j := by
+      rcases hr with rfl | rfl | rfl | rfl
+      · exact ⟨0, by decide, rfl⟩
+      · exact ⟨1, by decide, rfl⟩
+      · exact ⟨2, by decide, rfl⟩
+      · exact ⟨3, by decide, rfl⟩
+    subst hIj
+    have hr := rb j (List.mem_range.2 hj)
+    simp only [Bool.and_eq_true] at hr
+    refine ⟨readInter j, by rcases (show j = 0 ∨ j = 1 ∨ j = 2 ∨ j = 3 by omega) with rfl | rfl | rfl | rfl <;>
+      simp only [cpuInters, List.mem_append, List.mem_cons, true_or, or_true], ?_, ?_⟩
+    · show (acts.getD j zero).eval _ = (acts.getD j zero).eval _
+      rw [(hfB j hj).1, (hfC j hj).1, actOfC_kindCf hR hi]
+    · simp only [readInter, readInterC, List.map_cons, List.map_nil]
+      rw [(hfB j hj).2, (hfC j hj).2, tagOfC_kindCf hR hi, cong _ hr.1.1, cong _ hr.1.2, cong _ hr.2]
+  · refine ⟨I, List.mem_append_right _ hw, ?_, ?_⟩
+    · simp only [writeInters, List.mem_cons, List.not_mem_nil, or_false] at hw
+      rcases hw with rfl | rfl | rfl | rfl
+      · show sApp.eval _ = sApp.eval _
+        rw [hAppB, hAppC]
+        by_cases h0 : kindOf A (rowP row e n i) = 0
+        · rw [if_pos h0, if_pos ((hkk 0 (.inl rfl)).2 h0)]
+        · rw [if_neg h0, if_neg (fun h => h0 ((hkk 0 (.inl rfl)).1 h))]
+      all_goals
+        show sS.eval _ = sS.eval _
+        rw [hSB, hSC]
+        by_cases h0 : kindOf A (rowP row e n i) = 3
+        · rw [if_pos h0, if_pos ((hkk 3 (.inr rfl)).2 h0)]
+        · rw [if_neg h0, if_neg (fun h => h0 ((hkk 3 (.inr rfl)).1 h))]
+    · have hf := wb I hw
+      simp only [Bool.and_eq_true, List.all_eq_true] at hf
+      apply List.map_congr_left
+      intro c hc
+      exact cong c (hf.2 c hc)
+  · simp only [List.mem_cons, List.not_mem_nil, or_false] at ho
+    rcases ho with rfl | rfl | rfl <;> exact absurd hbus (by decide)
 
 end
 
@@ -241,6 +353,7 @@ variable {A : List Cell} {m0 : Mach} {roots : List Nat} {nilA n : Nat} {e : Nat 
   (hb : ∀ i, i < K → (rowP row e n i).ctr ≤ 2 ^ 24)
 include hA hK
 
+omit hA hK in
 theorem cpuC_col {i : Nat} (hi : i < K) (c : Nat) :
     (col c).eval ((cpuTableC A row e n roots K).env i) = cpuColC A row e n roots i c := by
   show (cpuTableC A row e n roots K).main ((i + 0) % K) c = _
@@ -295,14 +408,14 @@ theorem last_kindCf {i : Nat} (hi : i + 1 = K) : kindCf A row e n i = 5 := by
   have hn := hA.npos
   unfold kindCf
   cases hr : isRestart e n i with
-  | true => have := restart_lt hA hK hr; omega
+  | true => have := restart_lt (hA.runC hK) hr; omega
   | false =>
     simp only [Bool.false_eq_true, ↓reduceIte]
     have e1 : rowP row e n i = row (e (n - 1)) := by
       unfold rowP; split
       · next h => rw [show i = e (n - 1) by omega]
       · rfl
-    rw [e1]; exact end_kind hA hK (by omega)
+    rw [e1]; exact end_kind (hA.runC hK) (by omega)
 
 include hb in
 /-- The next registers, with a restart's jump. -/
@@ -314,29 +427,29 @@ theorem cpuC_next {i : Nat} (hi1 : i + 1 < K) :
     ofN (rowP row e n (i + 1)).ctr = nextCtr.eval ((cpuTableC A row e n roots K).env i) := by
   have hi : i < K := Nat.lt_of_succ_lt hi1
   have hn := hA.npos
-  have hk := cpuC_kind hA hK (roots := roots) hi
+  have hk := cpuC_kind (hA.runC hK) (roots := roots) hi
   obtain ⟨_, _, _, _, _, _, nh, ns, nc⟩ := kind_factsC hi hk
   rw [nh, ns, nc, cpuColC_rs]
   unfold kindCf
   cases hr : isRestart e n i with
   | false =>
     simp only [Bool.false_eq_true, ↓reduceIte, rsI, hr, ofN_zero, zero_mul', add_zero']
-    have hS := shape (valid_rowP hA hK hi)
+    have hS := shape ((hA.runC hK).valid _ hi)
     have hk11 : kindOf A (rowP row e n i) < 11 := hS.lt
     simp only [nextHdOfC, nextStkOfC, nextCtrOfC, if_neg (show kindOf A (rowP row e n i) ≠ 11 by omega)]
     have hbase := List.all_eq_true.1 nextOf_base _ (List.mem_range.2 hk11)
     simp only [Bool.and_eq_true] at hbase
-    have cong := E.eval_congr (cpuC_env_base hA hK (roots := roots) hi)
+    have cong := E.eval_congr (cpuC_env_base (hA.runC hK) (roots := roots) hi)
     rw [cong _ hbase.1.1, cong _ hbase.1.2, cong _ hbase.2]
-    exact cpu_next (valid_rowP hA hK (Nat.lt_of_succ_lt hi1)) hi1 (rowP_step hA hK hi1 hr)
+    exact cpu_next ((hA.runC hK).valid _ (Nat.lt_of_succ_lt hi1)) hi1 (rowP_step hA hK hi1 hr)
   | true =>
     obtain ⟨j, hj, rfl⟩ := isRestart_iff.1 hr
-    have hlt := restart_lt hA hK hr
+    have hlt := restart_lt (hA.runC hK) hr
     simp only [↓reduceIte, rsI, hr, ofN_one, one_mul']
     have z1 : (nextHdOfC 11).eval ((cpuTableC A row e n roots K).env (e j)) = 0 := rfl
     have z2 : (nextStkOfC 11).eval ((cpuTableC A row e n roots K).env (e j)) = 0 := rfl
     have z3 : (nextCtrOfC 11).eval ((cpuTableC A row e n roots K).env (e j)) =
-        cpuColC A row e n roots (e j) CTR := cpuC_col hA hK hi CTR
+        cpuColC A row e n roots (e j) CTR := cpuC_col hi CTR
     rw [z1, z2, z3, zero_add', zero_add', cpuColC_root, cntS_end hA.emono j (by omega), cpuColC_reg _ (.inr (.inr rfl))]
     have e1 : rowP row e n (e j + 1) = row (e j + 1) := by unfold rowP; rw [if_pos (by omega)]
     have e0 : rowP row e n (e j) = row (e j) := by unfold rowP; rw [if_pos (by omega)]
@@ -356,7 +469,7 @@ theorem cpuC_transC {i : Nat} (hi : i < K) {reg : Nat} (hreg : reg = HD ∨ reg 
     obtain ⟨n1, n2, n3⟩ := cpuC_next hA hK hb (roots := roots) hi1
     show 1 * (cpuColC A row e n roots ((i + 1) % K) reg - _) = 0
     rw [Nat.mod_eq_of_lt hi1, one_mul', cpuColC_reg _ hreg]
-    have cv := cpuC_col hA hK (roots := roots) hi
+    have cv := cpuC_col (A := A) (row := row) (e := e) (n := n) (roots := roots) hi
     rcases hreg with rfl | rfl | rfl
     · simp only [↓reduceIte, E.eval, sRS, cv]
       show ofN (rowP row e n (i + 1)).hd - _ = 0
@@ -368,6 +481,7 @@ theorem cpuC_transC {i : Nat} (hi : i < K) {reg : Nat} (hreg : reg = HD ∨ reg 
       show ofN (rowP row e n (i + 1)).ctr - _ = 0
       rw [n3]; exact sub_self' _
 
+omit hK in
 theorem cpuC_first {i : Nat} (hi : i < K) {reg : Nat} (hreg : reg = HD ∨ reg = STK ∨ reg = CTR) :
     (whenFirst (B.eq (col reg) (B.c (if reg = HD then roots.getD 0 0 else if reg = STK then nilA
       else m0.heap.length)))).eval ((cpuTableC A row e n roots K).env i) = 0 := by
@@ -375,7 +489,7 @@ theorem cpuC_first {i : Nat} (hi : i < K) {reg : Nat} (hreg : reg = HD ∨ reg =
   split
   · next h0 =>
     subst h0
-    rw [cpuC_col hA hK hi, cpuColC_reg _ hreg]
+    rw [cpuC_col hi, cpuColC_reg _ hreg]
     have e0 : rowP row e n 0 = row 0 := by unfold rowP; rw [if_pos (Nat.zero_le _)]
     rcases hreg with rfl | rfl | rfl
     · show 1 * (ofN (rowP row e n 0).hd - _) = _; rw [e0, hA.hd0, if_pos rfl, sub_self', mul_zero']
@@ -385,103 +499,13 @@ theorem cpuC_first {i : Nat} (hi : i < K) {reg : Nat} (hreg : reg = HD ∨ reg =
       rw [e0, hA.ctr0, if_neg (by decide), if_neg (by decide), sub_self', mul_zero']
   · exact zero_mul' _
 
-/-- The reads' tags are the base kind's: a restart reads as `HK1`. -/
-theorem tagOfC_kindCf {i : Nat} (hi : i < K) (j : Nat) :
-    tagOfC (kindCf A row e n i) j = tagOf (kindOf A (rowP row e n i)) j := by
-  unfold kindCf
-  cases hr : isRestart e n i with
-  | true =>
-    rw [if_pos rfl, restart_kindOf hA hK hr]
-    unfold tagOfC tagOf
-    rcases (show j = 0 ∨ j = 1 ∨ j = 2 ∨ 3 ≤ j by omega) with rfl | rfl | rfl | h3
-    · rfl
-    · rfl
-    · rfl
-    · simp only [↓reduceIte, show ¬ j = 0 by omega, show ¬ j = 1 by omega]
-      split <;> first | rfl | omega
-  | false =>
-    simp only [Bool.false_eq_true, ↓reduceIte]
-    have := (shape (valid_rowP hA hK hi)).lt
-    unfold tagOfC; rw [if_neg (by omega)]
-
-omit hA hK in
-theorem writes_base : writeInters.all (fun I => I.count.onlyAtoms (fun a => match a with
-    | .main 0 c => decide (SEL ≤ c ∧ c < SEL + NKINDS) | _ => false) &&
-    I.fields.all (·.onlyAtoms baseAtom)) = true := by decide
-
-omit hA hK in
-theorem reads_base : (List.range 4).all (fun j => (addrs.getD j zero).onlyAtoms baseAtom &&
-    (fld (2 * j)).onlyAtoms baseAtom && (fld (2 * j + 1)).onlyAtoms baseAtom) = true := by decide
-
-/-- **A composed CPU `mem` message is a base one**, in count and tuple. -/
-theorem cpuC_memSend {i : Nat} (hi : i < K) {I : Inter} (hI : I ∈ cpuIntersC) (hbus : I.bus = "mem") :
-    ∃ I0 ∈ cpuInters, I0.count.eval ((cpuTable A (rowP row e n) K).env i) =
-        I.count.eval ((cpuTableC A row e n roots K).env i) ∧
-      I0.fields.map (fun c => c.eval ((cpuTable A (rowP row e n) K).env i)) =
-        I.fields.map (fun c => c.eval ((cpuTableC A row e n roots K).env i)) := by
-  have hk := cpuC_kind hA hK (roots := roots) hi
-  have hS := shape (valid_rowP hA hK hi)
-  have hk0 := cpu_kind (M := A) (row := rowP row e n) (k := K) hi hS
-  obtain ⟨hfC, _, hAppC, hSC, _⟩ := kind_factsC hi hk
-  obtain ⟨hfB, _, hAppB, hSB, _⟩ := kind_facts hi hk0
-  have cong := fun (c : E) (h : c.onlyAtoms baseAtom = true) =>
-    (E.eval_congr (cpuC_env_base hA hK (roots := roots) hi) c h).symm
-  have hkk : ∀ m, m = 0 ∨ m = 3 → (kindCf A row e n i = m ↔ kindOf A (rowP row e n i) = m) := by
-    intro m hm
-    unfold kindCf
-    cases hr : isRestart e n i with
-    | true => rw [if_pos rfl, restart_kindOf hA hK hr]; rcases hm with rfl | rfl <;> decide
-    | false => simp only [Bool.false_eq_true, ↓reduceIte]
-  have rb := List.all_eq_true.1 reads_base
-  have wb := List.all_eq_true.1 writes_base
-  change I ∈ [readInterC 0, readInterC 1, readInterC 2, readInterC 3] ++ writeInters ++ _ at hI
-  simp only [List.mem_append] at hI
-  rcases hI with (hr | hw) | ho
-  · simp only [List.mem_cons, List.not_mem_nil, or_false] at hr
-    obtain ⟨j, hj, hIj⟩ : ∃ j, j < 4 ∧ I = readInterC j := by
-      rcases hr with rfl | rfl | rfl | rfl
-      · exact ⟨0, by decide, rfl⟩
-      · exact ⟨1, by decide, rfl⟩
-      · exact ⟨2, by decide, rfl⟩
-      · exact ⟨3, by decide, rfl⟩
-    subst hIj
-    have hr := rb j (List.mem_range.2 hj)
-    simp only [Bool.and_eq_true] at hr
-    refine ⟨readInter j, by rcases (show j = 0 ∨ j = 1 ∨ j = 2 ∨ j = 3 by omega) with rfl | rfl | rfl | rfl <;>
-      simp only [cpuInters, List.mem_append, List.mem_cons, true_or, or_true], ?_, ?_⟩
-    · show (acts.getD j zero).eval _ = (acts.getD j zero).eval _
-      rw [(hfB j hj).1, (hfC j hj).1, actOfC_kindCf hA hK hi]
-    · simp only [readInter, readInterC, List.map_cons, List.map_nil]
-      rw [(hfB j hj).2, (hfC j hj).2, tagOfC_kindCf hA hK hi, cong _ hr.1.1, cong _ hr.1.2, cong _ hr.2]
-  · refine ⟨I, List.mem_append_right _ hw, ?_, ?_⟩
-    · simp only [writeInters, List.mem_cons, List.not_mem_nil, or_false] at hw
-      rcases hw with rfl | rfl | rfl | rfl
-      · show sApp.eval _ = sApp.eval _
-        rw [hAppB, hAppC]
-        by_cases h0 : kindOf A (rowP row e n i) = 0
-        · rw [if_pos h0, if_pos ((hkk 0 (.inl rfl)).2 h0)]
-        · rw [if_neg h0, if_neg (fun h => h0 ((hkk 0 (.inl rfl)).1 h))]
-      all_goals
-        show sS.eval _ = sS.eval _
-        rw [hSB, hSC]
-        by_cases h0 : kindOf A (rowP row e n i) = 3
-        · rw [if_pos h0, if_pos ((hkk 3 (.inr rfl)).2 h0)]
-        · rw [if_neg h0, if_neg (fun h => h0 ((hkk 3 (.inr rfl)).1 h))]
-    · have hf := wb I hw
-      simp only [Bool.and_eq_true, List.all_eq_true] at hf
-      apply List.map_congr_left
-      intro c hc
-      exact cong c (hf.2 c hc)
-  · simp only [List.mem_cons, List.not_mem_nil, or_false] at ho
-    rcases ho with rfl | rfl | rfl <;> exact absurd hbus (by decide)
-
 include hb in
 /-- **The honest composed CPU table satisfies the composed CPU AIR.** -/
 theorem cpuC_sat : Sat (cpuAirC (roots.getD 0 0) nilA m0.heap.length n nilA) (cpuTableC A row e n roots K) := by
   have hn := hA.npos
   refine ⟨show 0 < K by omega, fun c hc i (hi : i < K) => ?_⟩
-  have hk := cpuC_kind hA hK (roots := roots) hi
-  have cv := cpuC_col hA hK (roots := roots) hi
+  have hk := cpuC_kind (hA.runC hK) (roots := roots) hi
+  have cv := cpuC_col (A := A) (row := row) (e := e) (n := n) (roots := roots) hi
   obtain ⟨_, hhalt, _, _, hHK1, _, nh, ns, nc⟩ := kind_factsC hi hk
   have hk12 := hk.1
   simp only [cpuAirC, cpuConsC, List.mem_append, List.mem_cons, List.mem_map, List.mem_range, List.not_mem_nil,
@@ -500,10 +524,10 @@ theorem cpuC_sat : Sat (cpuAirC (roots.getD 0 0) nilA m0.heap.length n nilA) (cp
     have := kind_evalC hi hk (List.all_eq_true.1 kindSumC_all _ (List.mem_range.2 hk12))
     simp only [B.eq, E.eval]
     rw [this]; exact sub_self' _
-  · exact cpuC_read hA hK hb hi (by decide) _ hc
-  · exact cpuC_read hA hK hb hi (by decide) _ hc
-  · exact cpuC_read hA hK hb hi (by decide) _ hc
-  · exact cpuC_read hA hK hb hi (by decide) _ hc
+  · exact cpuC_read (hA.runC hK) hb hi (by decide) _ hc
+  · exact cpuC_read (hA.runC hK) hb hi (by decide) _ hc
+  · exact cpuC_read (hA.runC hK) hb hi (by decide) _ hc
+  · exact cpuC_read (hA.runC hK) hb hi (by decide) _ hc
   · show (col (SEL + 11)).eval _ = 0
     rw [cv, show cpuColC A row e n roots i (SEL + 11) = _ from hk.2.1 11 (by decide),
       if_neg (fun h => by have := h.1; have := h.2; omega)]
@@ -540,9 +564,9 @@ theorem cpuC_sat : Sat (cpuAirC (roots.getD 0 0) nilA m0.heap.length n nilA) (cp
   · exact cpuC_transC hA hK hb hi (.inl rfl)
   · exact cpuC_transC hA hK hb hi (.inr (.inl rfl))
   · exact cpuC_transC hA hK hb hi (.inr (.inr rfl))
-  · exact cpuC_first hA hK hi (.inl rfl)
-  · exact cpuC_first hA hK hi (.inr (.inl rfl))
-  · exact cpuC_first hA hK hi (.inr (.inr rfl))
+  · exact cpuC_first hA hi (.inl rfl)
+  · exact cpuC_first hA hi (.inr (.inl rfl))
+  · exact cpuC_first hA hi (.inr (.inr rfl))
   · simp only [B.whenLast, B.eq, E.eval, env_last]
     split
     · next hl =>
