@@ -720,18 +720,15 @@ fn verify(p: &PPublic, proof: &PProof) -> Result<(), String> {
 
 /// `ski-air compp-prove PUBLIC WITNESS PROOF`: prove the statement for the
 /// prover's bits and region, write the proof, and check it verifies.
-pub fn compp_prove(public: &std::path::Path, wit: &std::path::Path, proof_out: &std::path::Path, forge: Forge,
-    table_out: Option<&std::path::Path>) -> Result<(), String> {
-    let text = std::fs::read_to_string(public).map_err(|e| format!("{}: {e}", public.display()))?;
-    lean_statement("composed", &["statement-p2", "-"], text.as_bytes()).map_err(|e| format!("statement: {e}"))?;
-    let p = parse_public_p(&text)?;
+/// The witness file's private cells: the bits (`1`, `0`, or a cell), then
+/// the region's cells.
+fn private_of(p: &PPublic, wit: &std::path::Path) -> Result<Vec<Cell>, String> {
     let wtext = std::fs::read_to_string(wit).map_err(|e| format!("{}: {e}", wit.display()))?;
     let ls: Vec<&str> = wtext.lines().filter(|l| !l.is_empty()).collect();
     if ls.len() != (p.nbits + p.w) as usize {
         return Err(format!("{}: {} lines, not {}", wit.display(), ls.len(), p.nbits + p.w));
     }
-    let private: Vec<Cell> = ls
-        .iter()
+    ls.iter()
         .enumerate()
         .map(|(i, l)| {
             if (i as u32) < p.nbits {
@@ -744,7 +741,49 @@ pub fn compp_prove(public: &std::path::Path, wit: &std::path::Path, proof_out: &
                 parse_cell(l)
             }
         })
-        .collect::<Result<_, _>>()?;
+        .collect()
+}
+
+/// `ski-air compp-dump PUBLIC WITNESS DIR`: the honest run's table
+/// (`DIR/run.txt`, `compp-prove --table`'s format) and the unblinded
+/// traces it proves, one file per table (`DIR/{cpu,p2in,p2out,p2,wit}.txt`:
+/// `H W`, then `H` rows of `W` canonical values), for Lean's comparison
+/// with its model of the honest tables (`lake exe composed check-p2-tables`).
+pub fn compp_dump(public: &std::path::Path, wit: &std::path::Path, dir: &std::path::Path) -> Result<(), String> {
+    let text = std::fs::read_to_string(public).map_err(|e| format!("{}: {e}", public.display()))?;
+    lean_statement("composed", &["statement-p2", "-"], text.as_bytes()).map_err(|e| format!("statement: {e}"))?;
+    let p = parse_public_p(&text)?;
+    let private = private_of(&p, wit)?;
+    let heap: Vec<Cell> = p.cells.iter().enumerate().map(|(i, c)| c.unwrap_or_else(|| private[i - 3])).collect();
+    let tb = table(&p, heap, Forge::None)?;
+    let [hd, stk, _] = tb.rows[tb.run_rows - 1];
+    if (tb.mem[hd as usize], tb.mem[stk as usize]) != (Cell::K, Cell::Nil) {
+        return Err("the run does not end at K over a nil: the witness does not satisfy the statement".into());
+    }
+    std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    std::fs::write(dir.join("run.txt"), lean_table(&p, &tb)).map_err(|e| format!("run.txt: {e}"))?;
+    let (bs, _) = ProverSeed::fresh().split();
+    let tr = traces(&p, &tb, false, bs);
+    for (name, k) in [("cpu", 0usize), ("wit", 3), ("p2in", 5), ("p2out", 6), ("p2", 7)] {
+        let m = &tr[k];
+        let mut s = format!("{} {}\n", p3_matrix::Matrix::height(m), m.width);
+        for r in 0..p3_matrix::Matrix::height(m) {
+            let row: Vec<String> = m.values[r * m.width..(r + 1) * m.width].iter().map(|v| v.as_canonical_u32().to_string()).collect();
+            s.push_str(&row.join(" "));
+            s.push('\n');
+        }
+        std::fs::write(dir.join(format!("{name}.txt")), s).map_err(|e| format!("{name}.txt: {e}"))?;
+    }
+    println!("{}: run of {} rows, {} jet calls -> {}", p.header, tb.run_rows, tb.calls.len(), dir.display());
+    Ok(())
+}
+
+pub fn compp_prove(public: &std::path::Path, wit: &std::path::Path, proof_out: &std::path::Path, forge: Forge,
+    table_out: Option<&std::path::Path>) -> Result<(), String> {
+    let text = std::fs::read_to_string(public).map_err(|e| format!("{}: {e}", public.display()))?;
+    lean_statement("composed", &["statement-p2", "-"], text.as_bytes()).map_err(|e| format!("statement: {e}"))?;
+    let p = parse_public_p(&text)?;
+    let private = private_of(&p, wit)?;
     let heap: Vec<Cell> = p.cells.iter().enumerate().map(|(i, c)| c.unwrap_or_else(|| private[i - 3])).collect();
     let tb = match table(&p, heap, forge) {
         Ok(t) => t,
@@ -828,7 +867,11 @@ fn verify_text(text: &str, bytes: &[u8]) -> Result<(), String> {
     let text = text.to_string();
     lean_statement("composed", &["statement-p2", "-"], text.as_bytes()).map_err(|e| format!("statement: {e}"))?;
     let p = parse_public_p(&text)?;
-    let proof: PProof = postcard::from_bytes(bytes).map_err(|e| format!("deserialize: {e}"))?;
+    // The proof is the whole file: trailing bytes are refused.
+    let (proof, rest): (PProof, &[u8]) = postcard::take_from_bytes(bytes).map_err(|e| format!("deserialize: {e}"))?;
+    if !rest.is_empty() {
+        return Err(format!("{} bytes after the proof", rest.len()));
+    }
     let t0 = Instant::now();
     verify(&p, &proof)?;
     println!("{}: VERIFIED in {:.3} s", p.header, t0.elapsed().as_secs_f64());

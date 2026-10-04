@@ -6,8 +6,9 @@ import Ski.Circuit.CompJComplete
 
 From a run the AIR with segments and the Poseidon2 jet accepts
 (`CompM.AcceptsCP`), padded to `K` rows by repeating its last, a Lean model
-of the tables `bench/plonky3/src/compp.rs`'s `traces` builds (the
-correspondence to the Rust is not checked here):
+of the tables `bench/plonky3/src/compp.rs`'s `traces` builds (`lake exe
+composed check-p2-tables` compares them, cell for cell, on a run that
+`ski-air compp-dump` writes; gate 5 runs it on `p2pre`):
 
 - the CPU (`P2Run.cpuTableP`): the composed CPU's honest row
   (`cpuTableC`), and on a jet row the selector `P2SEL`, the kinds cleared,
@@ -22,9 +23,8 @@ correspondence to the Rust is not checked here):
 
 Every blinding flag is clear.  These tables balance on every bus and
 carry clear flags (`P2Run.balancedP`, `P2Run.honest_zkP`); that each
-satisfies its AIR's constraints (`Sat`) is not proved.  Columns that no
-constraint or message reads (an inactive read's fields) may differ from
-`compp.rs`'s; the Poseidon2 table pads as `p2air.rs` does (`p2Pad`).
+satisfies its AIR's constraints (`Sat`) is not proved.  The Poseidon2 table pads as `p2air.rs` does
+(`p2Pad`).
 
 The files: this one (the definitions and the run's rows) → `CompPBal` (the
 CPU's messages) → `CompPBits` (P2IN's and P2OUT's) → `CompPTrace` (the

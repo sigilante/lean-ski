@@ -1004,6 +1004,22 @@ fn cpu_trace(rows: &[[u32; 3]], memory: &[Cell], mult: &mut [u32]) -> RowMajorMa
                 mult[*addr as usize] += 1;
             }
         }
+        // An inactive read's fields, as Lean's honest row has them
+        // (`Circuit.cpuCol`, `fieldsAt`): the cell at its address
+        // (`addrAt`) below the counter, else none.  No constraint or message
+        // reads them; filling them makes the trace Lean's model, column for
+        // column.
+        let rd = |a: u32| if a < ctr { memory.get(a as usize).copied() } else { None };
+        let fld = |a: u32| rd(a).map_or((0, 0), |c| c.fields());
+        let a2 = fld(stk).1;
+        let addr = [hd, stk, a2, fld(a2).1];
+        for (j, read) in reads.iter().enumerate() {
+            if read.is_none() {
+                let (a, b) = fld(addr[j]);
+                row[FLD + 2 * j] = f(a);
+                row[FLD + 2 * j + 1] = f(b);
+            }
+        }
         match kind {
             Kind::App => mult[ctr as usize] += 1,
             Kind::S => {
@@ -1317,6 +1333,15 @@ fn main() {
             }
         }
     }
+    if args.len() == 5 && args[1] == "compp-dump" {
+        match compp::compp_dump(std::path::Path::new(&args[2]), std::path::Path::new(&args[3]), std::path::Path::new(&args[4])) {
+            Ok(()) => return,
+            Err(e) => {
+                eprintln!("compp-dump: {e}");
+                std::process::exit(1);
+            }
+        }
+    }
     if args.len() == 6 && args[1] == "compp-chain" {
         let p = |i: usize| std::path::Path::new(&args[i]);
         match compp::compp_chain(p(2), p(3), p(4), p(5)) {
@@ -1613,7 +1638,7 @@ fn main() {
              ski-air compj-verify PUBLIC JETS SRC PROOF | ski-air compj-tamper PUBLIC JETS SRC WITNESS\n       \
              ski-air compj-prove-table PUBLIC JETS SRC TABLE PROOF\n       \
              ski-air sudoku-prove PUBLIC WITNESS PROOF [TABLE] | ski-air sudoku-verify PUBLIC PROOF\n       \
-             ski-air fs-budget VERIFY-COMMAND ARGS... | ski-air poseidon2-lean | ski-air export-p2 | ski-air p2-bench N [tamper] | ski-air compp-prove PUBLIC WITNESS PROOF [--table=PATH|forge-w|forge-v] | ski-air compp-prove-table PUBLIC TABLE PROOF | ski-air compp-verify PUBLIC PROOF | ski-air compp-chain PUBLIC1 PROOF1 PUBLIC2 PROOF2 | ski-air compp-guess PUBLIC WITNESS | ski-air export-compp PUBLIC"
+             ski-air fs-budget VERIFY-COMMAND ARGS... | ski-air poseidon2-lean | ski-air export-p2 | ski-air p2-bench N [tamper] | ski-air compp-prove PUBLIC WITNESS PROOF [--table=PATH|forge-w|forge-v] | ski-air compp-prove-table PUBLIC TABLE PROOF | ski-air compp-verify PUBLIC PROOF | ski-air compp-chain PUBLIC1 PROOF1 PUBLIC2 PROOF2 | ski-air compp-dump PUBLIC WITNESS DIR | ski-air compp-guess PUBLIC WITNESS | ski-air export-compp PUBLIC"
         );
         std::process::exit(2);
     }

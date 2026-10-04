@@ -52,7 +52,7 @@
 #      Avon's table under hiding and compj-verify checks the proof.
 #
 # Stages: `release/produce.sh [STAGE…]` runs the named ones, of sumto,
-# composed, split8, csplit8, sudoku, jets; all by default.  The proofs are
+# composed, split8, csplit8, sudoku, jets, p2; all by default.  The proofs are
 # randomized, so a stage rewrites its own and leaves the others' bytes.
 # Run from anywhere; writes release/sumto/.  One job at a time.
 
@@ -62,10 +62,10 @@ AVON_DIR=${AVON_DIR:-$HOME/avon}
 R=release/sumto
 tmp=$(mktemp -d)
 trap '/bin/rm -rf "$tmp"' EXIT
-STAGES=" ${*:-sumto composed split8 csplit8 sudoku jets} "
+STAGES=" ${*:-sumto composed split8 csplit8 sudoku jets p2} "
 want() { case "$STAGES" in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
 for st in $STAGES; do
-    case " sumto composed split8 csplit8 sudoku jets " in *" $st "*) ;; *) echo "no stage $st" >&2; exit 2 ;; esac
+    case " sumto composed split8 csplit8 sudoku jets p2 " in *" $st "*) ;; *) echo "no stage $st" >&2; exit 2 ;; esac
 done
 (cd bench/plonky3 && cargo build --release --quiet)
 A=bench/plonky3/target/release/ski-air
@@ -205,4 +205,18 @@ for c in "split8:emit:8 200 123 77:17 18:14 14" "csplit8:cemit:8 8 1 200 123 77 
         "$S/jets/$name.proof"
     "$A" compj-verify "$S/jets/public.txt" "$S/jets/$name.jets" "$S/source.ski" "$S/jets/$name.proof" | cut -c1-80
 done
+fi
+
+if want p2; then
+echo "--- the Poseidon2 jet: a preimage, and a hidden hand-off over a commitment"
+lake build composed > /dev/null
+P=release/p2
+mkdir -p "$P" "$tmp/p2"
+lake exe composed emit-p2 "$tmp/p2" > /dev/null
+lake exe composed emit-handoff "$tmp/p2" > /dev/null
+for n in p2pre handoff1 handoff2; do /bin/cp "$tmp/p2/$n.public.txt" "$P/$n.public.txt"; done
+"$A" compp-prove "$P/p2pre.public.txt" "$tmp/p2/p2pre.witness.txt" "$P/p2pre.proof" | cut -c1-100
+"$A" compp-prove "$P/handoff1.public.txt" "$tmp/p2/handoff.witness.txt" "$P/handoff1.proof" | cut -c1-100
+"$A" compp-prove "$P/handoff2.public.txt" "$tmp/p2/handoff.witness.txt" "$P/handoff2.proof" | cut -c1-100
+"$A" compp-chain "$P/handoff1.public.txt" "$P/handoff1.proof" "$P/handoff2.public.txt" "$P/handoff2.proof" | tail -n 1
 fi

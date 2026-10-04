@@ -154,6 +154,14 @@ if command -v cargo >/dev/null 2>&1 \
   else
     bad "the hand-off's two statements fail P2Commit.chainB"
   fi
+  # compp.rs's traces of the p2pre run are Lean's model of the honest
+  # tables (Ski/Circuit/CompPHonest.lean), cell for cell.
+  if "$ski" compp-dump "$gen/p2/p2pre.public.txt" "$gen/p2/p2pre.witness.txt" "$gen/p2/dump" > /dev/null \
+     && lake exe composed check-p2-tables "$gen/p2/p2pre.public.txt" "$gen/p2/dump" | grep -q '^OK'; then
+    note "ok — p2pre: compp.rs's traces are Lean's model of the honest tables"
+  else
+    bad "p2pre: compp.rs's traces differ from Lean's model of the honest tables"
+  fi
   if lake exe composed chain-p2 "$gen/p2/handoff1.public.txt" "$gen/p2/p2pre.public.txt" | grep -q '^CHAIN OK'; then
     bad "P2Commit.chainB accepts a p2commit statement paired with a p2pre statement"
   else
