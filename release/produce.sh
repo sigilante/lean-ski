@@ -67,7 +67,7 @@ want() { case "$STAGES" in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
 for st in $STAGES; do
     case " sumto composed split8 csplit8 sudoku jets p2 " in *" $st "*) ;; *) echo "no stage $st" >&2; exit 2 ;; esac
 done
-(cd bench/plonky3 && cargo build --release --quiet)
+(cd bench/plonky3 && cargo build --release --locked --quiet)
 A=bench/plonky3/target/release/ski-air
 PY=${SKILARK_PY:-$HOME/SKIlark/.venv/bin/python}
 
@@ -90,7 +90,7 @@ echo "--- Lean: Avon's table against the AIR with instantiation rows"
 lake exe jets check --row sumto_us "$R/sumto_us.table"
 
 echo "--- ski-air: prove Avon's table; verify the proof alone"
-(cd bench/plonky3 && cargo build --release --quiet)
+(cd bench/plonky3 && cargo build --release --locked --quiet)
 bench/plonky3/target/release/ski-air jet-prove "$R/sumto_us.term" "$R/jets/sumto_us.jets" \
     "$R/sumto_us.table" "$R/sumto_us.proof"
 bench/plonky3/target/release/ski-air jet-verify "$R/corpus.txt" "$R/jets" sumto_us "$R/sumto_us.proof"
@@ -214,9 +214,12 @@ P=release/p2
 mkdir -p "$P" "$tmp/p2"
 lake exe composed emit-p2 "$tmp/p2" > /dev/null
 lake exe composed emit-handoff "$tmp/p2" > /dev/null
-for n in p2pre handoff1 handoff2; do /bin/cp "$tmp/p2/$n.public.txt" "$P/$n.public.txt"; done
-"$A" compp-prove "$P/p2pre.public.txt" "$tmp/p2/p2pre.witness.txt" "$P/p2pre.proof" | cut -c1-100
-"$A" compp-prove "$P/handoff1.public.txt" "$tmp/p2/handoff.witness.txt" "$P/handoff1.proof" | cut -c1-100
-"$A" compp-prove "$P/handoff2.public.txt" "$tmp/p2/handoff.witness.txt" "$P/handoff2.proof" | cut -c1-100
-"$A" compp-chain "$P/handoff1.public.txt" "$P/handoff1.proof" "$P/handoff2.public.txt" "$P/handoff2.proof" | tail -n 1
+# Proved and chained beside the statements first; each statement and its
+# proof reach release/p2 together, or neither does.
+T="$tmp/p2"
+"$A" compp-prove "$T/p2pre.public.txt" "$T/p2pre.witness.txt" "$T/p2pre.proof" | cut -c1-100
+"$A" compp-prove "$T/handoff1.public.txt" "$T/handoff.witness.txt" "$T/handoff1.proof" | cut -c1-100
+"$A" compp-prove "$T/handoff2.public.txt" "$T/handoff.witness.txt" "$T/handoff2.proof" | cut -c1-100
+"$A" compp-chain "$T/handoff1.public.txt" "$T/handoff1.proof" "$T/handoff2.public.txt" "$T/handoff2.proof" | tail -n 1
+for n in p2pre handoff1 handoff2; do /bin/cp "$T/$n.public.txt" "$T/$n.proof" "$P/"; done
 fi

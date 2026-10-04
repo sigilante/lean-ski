@@ -1211,6 +1211,18 @@ fn lean_statement(exe: &str, args: &[&str], input: &[u8]) -> Result<String, Stri
         .find(|d| d.join("lakefile.toml").exists() && d.join("bench/Jets.lean").exists())
         .ok_or_else(|| "no lean-ski checkout found (set LEAN_SKI)".to_string())?
         .to_path_buf();
+    // The time limit, read before anything runs: a positive number of
+    // seconds, or 600 when unset.
+    let limit = match std::env::var("LEAN_TIMEOUT") {
+        Err(_) => 600,
+        Ok(t) => match t.parse::<u64>() {
+            Ok(n) if n > 0 => n,
+            _ => return Err(format!("LEAN_TIMEOUT={t:?}: not a positive number of seconds")),
+        },
+    };
+    // The child leads its own process group, so a timeout kills Lean
+    // itself, not only `lake`.
+    use std::os::unix::process::CommandExt;
     let mut child = std::process::Command::new("lake")
         .args(["exe", exe])
         .args(args)
@@ -1218,11 +1230,14 @@ fn lean_statement(exe: &str, args: &[&str], input: &[u8]) -> Result<String, Stri
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
+        .process_group(0)
         .spawn()
         .map_err(|e| format!("lake: {e}"))?;
-    // Drain both pipes on their own threads, so neither fills while the
-    // child runs, and bound the child's wall-clock time: a wedged check
-    // fails rather than hanging the verifier.
+    // Write stdin and drain both pipes on their own threads, so no pipe
+    // fills while the child runs, and bound the child's wall-clock time
+    // from the spawn: a wedged check fails rather than hanging the
+    // verifier, whether it stops reading or stops answering.
+    let start = Instant::now();
     let read = |p: Option<Box<dyn std::io::Read + Send>>| {
         std::thread::spawn(move || {
             let mut buf = Vec::new();
@@ -1234,17 +1249,19 @@ fn lean_statement(exe: &str, args: &[&str], input: &[u8]) -> Result<String, Stri
     };
     let out_t = read(child.stdout.take().map(|p| Box::new(p) as Box<dyn std::io::Read + Send>));
     let err_t = read(child.stderr.take().map(|p| Box::new(p) as Box<dyn std::io::Read + Send>));
-    let written = child
-        .stdin
-        .take()
-        .ok_or_else(|| "lake: no stdin".to_string())
-        .and_then(|mut w| w.write_all(input).map_err(|e| format!("lake stdin: {e}")));
-    let limit = std::env::var("LEAN_TIMEOUT").ok().and_then(|t| t.parse::<u64>().ok()).unwrap_or(600);
-    let start = Instant::now();
+    let stdin = child.stdin.take();
+    let input = input.to_vec();
+    let in_t = std::thread::spawn(move || match stdin {
+        Some(mut w) => w.write_all(&input).map_err(|e| format!("lake stdin: {e}")),
+        None => Err("lake: no stdin".to_string()),
+    });
     let status = loop {
         match child.try_wait().map_err(|e| format!("lake: {e}"))? {
             Some(st) => break st,
             None if start.elapsed().as_secs() >= limit => {
+                let _ = std::process::Command::new("kill")
+                    .args(["-KILL", &format!("-{}", child.id())])
+                    .status();
                 let _ = child.kill();
                 let _ = child.wait();
                 return Err(format!("lake exe {exe}: no answer within {limit} s (LEAN_TIMEOUT)"));
@@ -1252,10 +1269,13 @@ fn lean_statement(exe: &str, args: &[&str], input: &[u8]) -> Result<String, Stri
             None => std::thread::sleep(std::time::Duration::from_millis(20)),
         }
     };
+    let written = in_t.join().map_err(|_| "lake: stdin writer panicked".to_string())?;
     let stdout = out_t.join().map_err(|_| "lake: stdout reader panicked".to_string())?;
     let stderr = err_t.join().map_err(|_| "lake: stderr reader panicked".to_string())?;
-    written?;
     if status.success() {
+        // A check that answered without reading all of its input did not
+        // check it.
+        written?;
         Ok(String::from_utf8_lossy(&stdout).into_owned())
     } else {
         let msg = String::from_utf8_lossy(&stdout).lines().filter(|l| !l.starts_with("STATEMENT")).collect::<Vec<_>>().join("; ");

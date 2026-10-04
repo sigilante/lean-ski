@@ -386,14 +386,19 @@ def cmpRows (name : String) (m : Array (Array Nat)) (rs : List Nat) (model : Nat
 /-- `composed check-p2-tables PUBLIC DIR`: compare the traces `compp.rs`
     proves (`ski-air compp-dump PUBLIC WITNESS DIR`) with Lean's model of
     the honest tables (`Ski/Circuit/CompPHonest.lean`), built from the
-    same run (`DIR/run.txt`): every row of P2IN, P2OUT, the Poseidon2 table
-    and the witness table; of the CPU, every moving row (before the run's
-    first halt) of a run of at most 2048, else every 16th, and its jet
-    rows, segment ends, the halt and the rows after it, and every 64th row
-    past it.  `OK` when every cell agrees. -/
+    same run (`DIR/run.txt`).  Each table's height must be the statement's,
+    and the run's the CPU's; the Poseidon2 tables must be at least as wide
+    as Lean's rows, the columns past them compared with 0.
+    Then every row of P2IN, P2OUT, the Poseidon2 table and the witness
+    table; of the CPU, every moving row (before the run's first halt) of a
+    run of at most 2048, else every 16th, and its jet rows, segment ends,
+    the halt and the rows after it, and every 64th row past it.  `OK` when
+    every cell compared agrees.  The traces compared are unblinded
+    (`blind = false`), as Lean's model is; the blinded traces the proofs
+    commit to are not compared. -/
 def checkP2Tables (pub dir : String) : IO UInt32 := do
   let text ← IO.FS.readFile pub
-  let some (st, _) := ComposedPText.statementOfTextG text | do IO.println "NOT A STATEMENT"; return 1
+  let some (st, lg) := ComposedPText.statementOfTextG text | do IO.println "NOT A STATEMENT"; return 1
   let runText ← IO.FS.readFile (dir ++ "/run.txt")
   let ls := (runText.splitOn "\n").filter (fun l => !l.trimAscii.toString.isEmpty)
   let some (hl, rest) := (match ls with | l :: r => some (l, r) | [] => none) | do IO.println "MALFORMED run.txt"; return 1
@@ -428,6 +433,19 @@ def checkP2Tables (pub dir : String) : IO UInt32 := do
   let p2L := R.p2Rows K ++ List.replicate (p2.size - (R.p2Rows K).length) Circuit.p2Pad
   let N := BT.nleaves ComposedPText.shpP
   let W := ComposedPText.regionP.length
+  -- Each dump's height is the statement's, and the Poseidon2 tables are at
+  -- least as wide as the model's rows (the columns past them compared with
+  -- 0): a short, empty or narrow dump agrees with nothing.
+  let width := fun (rs : List (List Circuit.F)) (pad : Nat) => if rs.isEmpty then pad else (rs.headD []).length
+  let shape := [("cpu", cpu.size, 2 ^ lg.rows), ("p2in", pin.size, 2 ^ lg.pin),
+    ("p2out", pout.size, 2 ^ lg.pout), ("p2", p2.size, 2 ^ lg.p2),
+    ("wit", wit.size, (Circuit.witRowsP N W).length), ("run", runRows, K)]
+  let widths := [("p2in", pin, width pinL ((pin.getD 0 #[]).size)),
+    ("p2out", pout, width poutL ((pout.getD 0 #[]).size)), ("p2", p2, Circuit.p2Pad.length)]
+  for (n, got, want) in shape do
+    if got != want then IO.println s!"MALFORMED: {n} has {got} rows, the statement {want}"; return 1
+  for (n, m, w) in widths do
+    if (m.getD 0 #[]).size < w then IO.println s!"MALFORMED: {n} is {(m.getD 0 #[]).size} wide, Lean's {w}"; return 1
   let b1 ← cmpRows "cpu" cpu cpuRows fun r c => (R.cpuColP r c).val
   let b2 ← cmpRows "p2in" pin (List.range pin.size) fun r c => ((pinL.getD r []).getD c 0).val
   let b3 ← cmpRows "p2out" pout (List.range pout.size) fun r c => ((poutL.getD r []).getD c 0).val
