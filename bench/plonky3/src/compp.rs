@@ -745,10 +745,12 @@ fn private_of(p: &PPublic, wit: &std::path::Path) -> Result<Vec<Cell>, String> {
 }
 
 /// `ski-air compp-dump PUBLIC WITNESS DIR`: the honest run's table
-/// (`DIR/run.txt`, `compp-prove --table`'s format) and the unblinded
-/// traces it proves, one file per table (`DIR/{cpu,p2in,p2out,p2,wit}.txt`:
-/// `H W`, then `H` rows of `W` canonical values), for Lean's comparison
-/// with its model of the honest tables (`lake exe composed check-p2-tables`).
+/// (`DIR/run.txt`, `compp-prove --table`'s format) and the private traces
+/// it proves, one file per table (`DIR/{cpu,mem,wit,p2in,p2out,p2}.txt`:
+/// `H W`, then `H` rows of `W` canonical values), unblinded and blinded
+/// (`NAME.blind.txt`), for Lean's comparisons: the unblinded with its model
+/// of the honest tables (`lake exe composed check-p2-tables`), the blinded
+/// with that model blinded as `compPViewN` blinds it (`check-p2-blind`).
 pub fn compp_dump(public: &std::path::Path, wit: &std::path::Path, dir: &std::path::Path) -> Result<(), String> {
     let text = std::fs::read_to_string(public).map_err(|e| format!("{}: {e}", public.display()))?;
     lean_statement("composed", &["statement-p2", "-"], text.as_bytes()).map_err(|e| format!("statement: {e}"))?;
@@ -762,17 +764,23 @@ pub fn compp_dump(public: &std::path::Path, wit: &std::path::Path, dir: &std::pa
     }
     std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     std::fs::write(dir.join("run.txt"), lean_table(&p, &tb)).map_err(|e| format!("run.txt: {e}"))?;
-    let (bs, _) = ProverSeed::fresh().split();
-    let tr = traces(&p, &tb, false, bs);
-    for (name, k) in [("cpu", 0usize), ("wit", 3), ("p2in", 5), ("p2out", 6), ("p2", 7)] {
-        let m = &tr[k];
-        let mut s = format!("{} {}\n", p3_matrix::Matrix::height(m), m.width);
-        for r in 0..p3_matrix::Matrix::height(m) {
-            let row: Vec<String> = m.values[r * m.width..(r + 1) * m.width].iter().map(|v| v.as_canonical_u32().to_string()).collect();
-            s.push_str(&row.join(" "));
-            s.push('\n');
+    // The private tables, unblinded (`NAME.txt`), and blinded as a proof
+    // blinds them (`NAME.blind.txt`), under a fresh seed of their own.
+    for (blind, suffix) in [(false, ""), (true, ".blind")] {
+        let (bs, _) = ProverSeed::fresh().split();
+        let tr = traces(&p, &tb, blind, bs);
+        for (k, name) in PRIVATE.iter().map(|&(k, n)| (k, n.to_lowercase())) {
+            let m = &tr[k];
+            let mut s = format!("{} {}\n", p3_matrix::Matrix::height(m), m.width);
+            for r in 0..p3_matrix::Matrix::height(m) {
+                let row: Vec<String> =
+                    m.values[r * m.width..(r + 1) * m.width].iter().map(|v| v.as_canonical_u32().to_string()).collect();
+                s.push_str(&row.join(" "));
+                s.push('\n');
+            }
+            let file = format!("{name}{suffix}.txt");
+            std::fs::write(dir.join(&file), s).map_err(|e| format!("{file}: {e}"))?;
         }
-        std::fs::write(dir.join(format!("{name}.txt")), s).map_err(|e| format!("{name}.txt: {e}"))?;
     }
     println!("{}: run of {} rows, {} jet calls -> {}", p.header, tb.run_rows, tb.calls.len(), dir.display());
     Ok(())

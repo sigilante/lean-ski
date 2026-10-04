@@ -156,8 +156,9 @@ if command -v cargo >/dev/null 2>&1 \
   fi
   # compp.rs's unblinded traces of each run agree with Lean's model of the
   # honest tables (Ski/Circuit/CompPHonest.lean): the shapes, every row of
-  # the Poseidon2 and witness tables, and sampled CPU rows.  The hand-off's
-  # two runs share one witness.
+  # the Poseidon2 and witness tables, and sampled CPU rows; its blinded
+  # traces are those blinded as Circuit.compPViewN blinds them.  The
+  # hand-off's two runs share one witness.
   for f in p2pre:p2pre handoff1:handoff handoff2:handoff; do
     n=${f%%:*} w=${f#*:}
     if "$ski" compp-dump "$gen/p2/$n.public.txt" "$gen/p2/$w.witness.txt" "$gen/p2/dump-$n" > /dev/null \
@@ -165,6 +166,13 @@ if command -v cargo >/dev/null 2>&1 \
       note "ok — $n: compp.rs's traces are Lean's model of the honest tables"
     else
       bad "$n: compp.rs's traces differ from Lean's model of the honest tables"
+    fi
+    # Its blinded traces are those blinded as compPViewN blinds them.
+    if [ -d "$gen/p2/dump-$n" ] \
+       && lake exe composed check-p2-blind "$gen/p2/dump-$n" | grep -q '^OK'; then
+      note "ok — $n: compp.rs's blinded traces are its honest ones blinded as compPViewN blinds them"
+    else
+      bad "$n: compp.rs's blinded traces are not compPViewN's blinding"
     fi
     # The guess test: no private table's published terminal matches a
     # guess from the true witness, and each does unblinded.
