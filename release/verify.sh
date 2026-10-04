@@ -59,7 +59,9 @@
 #      two minutes, nearly all Lean's check of the jet table.  QUICK=1
 #      skips it;
 #  12. the Poseidon2 jet (release/p2): the statements are Lean's (`lake exe
-#      composed emit-p2`, `emit-handoff`); ski-air compp-verify checks the
+#      composed emit-p2`; the hand-off's, which commit to a fresh secret
+#      value with fresh randomness, by `check-handoff`); ski-air
+#      compp-verify checks the
 #      proof of `p2pre h`, and refuses it with one byte changed, a byte
 #      appended, a doctored statement, for Lean's statement of another `h`
 #      at the same heights, or for another statement; the hidden
@@ -467,12 +469,22 @@ echo "--- 12. the Poseidon2 jet: a preimage, and a hidden hand-off over a commit
 P=release/p2
 mkdir -p "$tmp/p2"
 lake exe composed emit-p2 "$tmp/p2" > /dev/null
+cmp -s "$tmp/p2/p2pre.public.txt" "$P/p2pre.public.txt" \
+    && ok "release/p2/p2pre.public.txt is Lean's statement" \
+    || no "release/p2/p2pre.public.txt is not Lean's statement"
+# The hand-off commits to a fresh, secret value with fresh randomness, so
+# Lean cannot re-emit its statements; it checks that they are exactly its
+# two statements for the commitment they name, with the documented
+# patterns and heights.
+lake exe composed check-handoff "$P/handoff1.public.txt" "$P/handoff2.public.txt" > "$tmp/hc.log" \
+    && grep -q '^OK HANDOFF' "$tmp/hc.log" \
+    && ok "release/p2/handoff1 and handoff2 are Lean's hand-off statements for their commitment" \
+    || no "release/p2/handoff1 and handoff2 are not Lean's hand-off statements ($(tail -n 1 "$tmp/hc.log"))"
+# The commitment is not the tests' fixed value and randomness's.
 lake exe composed emit-handoff "$tmp/p2" > /dev/null
-for n in p2pre handoff1 handoff2; do
-    cmp -s "$tmp/p2/$n.public.txt" "$P/$n.public.txt" \
-        && ok "release/p2/$n.public.txt is Lean's statement" \
-        || no "release/p2/$n.public.txt is not Lean's statement"
-done
+cmp -s "$tmp/p2/handoff1.public.txt" "$P/handoff1.public.txt" \
+    && no "release/p2's hand-off commits with the fixed test randomness" \
+    || ok "release/p2's hand-off does not commit with the fixed test randomness"
 "$SKI_AIR" compp-verify "$P/p2pre.public.txt" "$P/p2pre.proof" > "$tmp/pv.log" \
     && ok "the p2pre proof verifies ($(head -c 60 "$tmp/pv.log"))" \
     || no "the p2pre proof does not verify ($(head -c 80 "$tmp/pv.log"))"

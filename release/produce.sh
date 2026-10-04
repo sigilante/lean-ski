@@ -213,7 +213,11 @@ lake build composed > /dev/null
 P=release/p2
 mkdir -p "$P" "$tmp/p2"
 lake exe composed emit-p2 "$tmp/p2" > /dev/null
-lake exe composed emit-handoff "$tmp/p2" > /dev/null
+# The hand-off commits to a fresh value with fresh randomness, both from
+# the system's entropy.  Its witness, the value and the randomness, stays
+# in $tmp, which the exit removes: it is the prover's secret, and nothing
+# keeps it.
+lake exe composed emit-handoff "$tmp/p2" --fresh > /dev/null
 # Proved and chained beside the statements first; each statement and its
 # proof reach release/p2 together, or neither does.
 T="$tmp/p2"

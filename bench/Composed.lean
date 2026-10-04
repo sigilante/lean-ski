@@ -288,8 +288,11 @@ def emitP2 (dir : String) (k : Nat := 1) : IO UInt32 := do
   IO.println s!"wrote {dir}/p2pre.public.txt (h = {h}) and its witness"
   return 0
 
-/-- The hand-off's value: eight elements below `2^30` (a credential: an
-    age, a country code, six more fields), and its randomness. -/
+/-- The hand-off's value for tests: eight elements below `2^30` (a
+    credential: an age, a country code, six more fields), and its fixed
+    randomness.  A commitment to them hides nothing, since both are in this
+    source.  The released statements take a fresh value and fresh
+    randomness (`emit-handoff DIR --fresh`). -/
 def handoffValue : List Nat := [21, 840, 1, 2, 3, 4, 5, 6]
 def handoffRand : List Nat :=
   [1384390411, 278963108, 1807244539, 1259281112, 925470542, 1663934283, 1027398213, 1536893713]
@@ -310,18 +313,73 @@ def handoffPat1 : List (Option Bool) :=
 /-- Stage 2 shows the value's element 0 is odd: its bit 0. -/
 def handoffPat2 : List (Option Bool) := handoffPat fun e j => if e == 0 && j == 0 then some true else none
 
-/-- `composed emit-handoff DIR`: the hidden hand-off's two statements, each
-    `p2commit c pat` with the commitment `c` of `handoffValue` and
-    `handoffRand`, and their witness, the same for both. -/
-def emitHandoff (dir : String) : IO UInt32 := do
-  let c := (Poseidon2.permute (handoffValue ++ handoffRand)).take 8
-  let lg : ComposedPText.PLogs := ⟨14, 16, 9, 9, 8⟩
-  IO.FS.writeFile s!"{dir}/handoff1.public.txt" (ComposedPText.publicTextG (.commit c handoffPat1) lg)
-  IO.FS.writeFile s!"{dir}/handoff2.public.txt" (ComposedPText.publicTextG (.commit c handoffPat2) lg)
-  let bits := (handoffValue ++ handoffRand).flatMap (BitArith.bitsOf 31)
+/-- The hand-off statements' heights. -/
+def handoffLogs : ComposedPText.PLogs := ⟨14, 16, 9, 9, 8⟩
+
+/-- A number below `2^k`, `k ≤ 32`, uniform, from the system's entropy
+    (Lean's runtime reads `/dev/urandom`). -/
+def freshBits (k : Nat) : IO Nat := do
+  let b ← IO.getRandomBytes 4
+  return ((b[0]!.toNat <<< 24) ||| (b[1]!.toNat <<< 16) ||| (b[2]!.toNat <<< 8) ||| b[3]!.toNat) % 2 ^ k
+
+/-- A fresh value that meets both patterns, its undisclosed elements
+    uniform: element 0 odd, element 1 840, the other six below `2^30`. -/
+def freshValue : IO (List Nat) := do
+  let e0 := 2 * (← freshBits 29) + 1
+  let mut rest : Array Nat := #[]
+  for _ in [0:6] do rest := rest.push (← freshBits 30)
+  return e0 :: 840 :: rest.toList
+
+/-- Eight elements below `p`, uniform, from the system's entropy: 31-bit
+    draws, each redrawn while `≥ p`. -/
+def freshRand : IO (List Nat) := do
+  let mut out : Array Nat := #[]
+  for _ in [0:1000] do
+    if out.size == 8 then break
+    let v ← freshBits 31
+    if v < Poseidon2.p then out := out.push v
+  if out.size != 8 then throw (IO.userError "too few draws below p")
+  return out.toList
+
+/-- Eight elements below `p`, read from a file, separated by white space. -/
+def readRand (path : String) : IO (List Nat) := do
+  let ws := words ((← IO.FS.readFile path).map fun ch => if ch.isWhitespace then ' ' else ch)
+  let some vs := ws.mapM String.toNat? | throw (IO.userError s!"{path}: not numbers")
+  if vs.length != 8 || vs.any (· ≥ Poseidon2.p) then
+    throw (IO.userError s!"{path}: not eight elements below p")
+  return vs
+
+/-- `composed emit-handoff DIR [--fresh | --rand=FILE]`: the hidden
+    hand-off's two statements, each `p2commit c pat` with the commitment `c`
+    of a value and randomness, and their witness, the same for both.  By
+    default the value and randomness are the tests' (`handoffValue`,
+    `handoffRand`); `--fresh` draws both from the system's entropy, the
+    value's undisclosed parts with it (`freshValue`); `--rand=FILE` reads
+    the randomness, with the tests' value.  The witness holds the value and
+    the randomness: it is the prover's secret, and neither is printed. -/
+def emitHandoff (dir : String) (value : List Nat := handoffValue) (rand : List Nat := handoffRand) :
+    IO UInt32 := do
+  let c := (Poseidon2.permute (value ++ rand)).take 8
+  IO.FS.writeFile s!"{dir}/handoff1.public.txt" (ComposedPText.publicTextG (.commit c handoffPat1) handoffLogs)
+  IO.FS.writeFile s!"{dir}/handoff2.public.txt" (ComposedPText.publicTextG (.commit c handoffPat2) handoffLogs)
+  let bits := (value ++ rand).flatMap (BitArith.bitsOf 31)
   IO.FS.writeFile s!"{dir}/handoff.witness.txt" (witnessText bits ComposedPText.regionP)
   IO.println s!"wrote the hand-off's two statements (c = {c}) and their witness in {dir}"
   return 0
+
+/-- `composed check-handoff PUBLIC1 PUBLIC2`: `OK HANDOFF c` when the files
+    are exactly Lean's two hand-off statements for the commitment `c` they
+    name: `p2commit c pat` with the documented patterns (`handoffPat1`,
+    `handoffPat2`) and heights.  The release's statements commit with fresh
+    randomness, which the check does not know, so it takes `c` from the
+    files; everything else it fixes. -/
+def checkHandoff (p1 p2 : String) : IO UInt32 := do
+  match ComposedPText.statementOfTextG (← IO.FS.readFile p1), ComposedPText.statementOfTextG (← IO.FS.readFile p2) with
+  | some (.commit c₁ pat₁, lg₁), some (.commit c₂ pat₂, lg₂) =>
+    if c₁ == c₂ && pat₁ == handoffPat1 && pat₂ == handoffPat2 && lg₁ == handoffLogs && lg₂ == handoffLogs then
+      IO.println s!"OK HANDOFF {c₁}"; return 0
+    else IO.println "NOT THE HAND-OFF"; return 1
+  | _, _ => IO.println "NOT THE HAND-OFF"; return 1
 
 /-- `composed statement-p2 PUBLIC`: `OK` when the file is exactly a
     statement with the Poseidon2 jet. -/
@@ -463,6 +521,11 @@ def main (args : List String) : IO UInt32 := do
   | ["emit-p2", dir] => emitP2 dir
   | ["emit-p2", dir, k] => emitP2 dir k.toNat!
   | ["emit-handoff", dir] => emitHandoff dir
+  | ["emit-handoff", dir, "--fresh"] => emitHandoff dir (← freshValue) (← freshRand)
+  | ["emit-handoff", dir, r] =>
+    if r.startsWith "--rand=" then emitHandoff dir handoffValue (← readRand (r.drop 7).toString)
+    else IO.eprintln "usage: composed emit-handoff DIR [--fresh | --rand=FILE]"; return 2
+  | ["check-handoff", p1, p2] => checkHandoff p1 p2
   | ["statement-p2", pub] => statementP2 pub
   | ["chain-p2", "-"] => chainP2In
   | ["check-p2-tables", pub, dir] => checkP2Tables pub dir
@@ -473,5 +536,5 @@ def main (args : List String) : IO UInt32 := do
   | "check" :: pub :: paths => check pub paths
   | "check-cj" :: src :: pub :: paths => checkCJ src pub paths
   | _ =>
-    IO.eprintln "usage: composed emit DIR | composed emit-p2 DIR [K] | composed emit-handoff DIR | composed statement-p2 PUBLIC | composed chain-p2 PUBLIC1 PUBLIC2|- | composed check-p2-tables PUBLIC DIR\n       composed statement PUBLIC | composed statement-jets PUBLIC\n       composed budget PUBLIC LP LI OUT | composed check PUBLIC TABLE... | composed check-cj SRC PUBLIC TABLE..."
+    IO.eprintln "usage: composed emit DIR | composed emit-p2 DIR [K] | composed emit-handoff DIR [--fresh | --rand=FILE] | composed check-handoff PUBLIC1 PUBLIC2 | composed statement-p2 PUBLIC | composed chain-p2 PUBLIC1 PUBLIC2|- | composed check-p2-tables PUBLIC DIR\n       composed statement PUBLIC | composed statement-jets PUBLIC\n       composed budget PUBLIC LP LI OUT | composed check PUBLIC TABLE... | composed check-cj SRC PUBLIC TABLE..."
     return 2
