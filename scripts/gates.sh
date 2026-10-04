@@ -154,8 +154,9 @@ if command -v cargo >/dev/null 2>&1 \
   else
     bad "the hand-off's two statements fail P2Commit.chainB"
   fi
-  # compp.rs's traces of the p2pre run are Lean's model of the honest
-  # tables (Ski/Circuit/CompPHonest.lean), cell for cell.
+  # compp.rs's unblinded traces of the p2pre run agree with Lean's model of
+  # the honest tables (Ski/Circuit/CompPHonest.lean): the shapes, every row
+  # of the Poseidon2 and witness tables, and sampled CPU rows.
   if "$ski" compp-dump "$gen/p2/p2pre.public.txt" "$gen/p2/p2pre.witness.txt" "$gen/p2/dump" > /dev/null \
      && lake exe composed check-p2-tables "$gen/p2/p2pre.public.txt" "$gen/p2/dump" | grep -q '^OK'; then
     note "ok — p2pre: compp.rs's traces are Lean's model of the honest tables"
@@ -209,6 +210,8 @@ if command -v cargo >/dev/null 2>&1 \
     note "ok — a doctored export is refused"
   fi
   /bin/rm -f "$exp" "$exp.bad"
+elif [ -n "${CI:-}" ]; then
+  bad "cargo or the circuit exe failed to build, so the circuit gates did not run"
 else
   note "skipped — cargo or the circuit exe unavailable"
 fi

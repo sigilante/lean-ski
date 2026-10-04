@@ -417,16 +417,28 @@ statement file once and hands the same text to both checks. From
 two accepted proofs, the second's memory holds bits that meet both
 patterns, or the two memories' openings collide (`p2commit_chainB`).
 
-The traces `compp.rs` proves are Lean's model of the honest tables
-(`Ski/Circuit/CompPHonest.lean`, whose balance and clear flags
-`P2Run.honest_zkP` proves), cell for cell. `ski-air compp-dump PUBLIC
-WITNESS DIR` writes the run and the unblinded traces; `lake exe composed
-check-p2-tables PUBLIC DIR` rebuilds the model from the run and compares:
-every row of P2IN, P2OUT, the Poseidon2 table (its padding the zero input's
-inactive trace) and the witness table; of the CPU, every moving row of a
-run of at most 2048 (every 16th of a longer one), its jet rows, ends and
-halt, and every 64th row after it. For `p2pre` it compares 1,543 of 16,384
-CPU rows in about 50 s, and gate 5 runs it. The comparison made the CPU
+`compp.rs`'s unblinded traces agree with Lean's model of the honest
+tables (`Ski/Circuit/CompPHonest.lean`, whose balance and clear flags
+`P2Run.honest_zkP` proves) on every cell compared. `ski-air compp-dump
+PUBLIC WITNESS DIR` writes the run and the unblinded traces. `lake exe
+composed check-p2-tables PUBLIC DIR` rebuilds the model from the run and
+first checks the dump's shape: each table's height is the statement's,
+the run's is the CPU's, and the Poseidon2 tables are at least as wide as
+Lean's rows. It
+then compares:
+
+- every row of P2IN, P2OUT, the Poseidon2 table (its padding the zero
+  input's inactive trace) and the witness table;
+- of the CPU, every moving row of a run of at most 2048 (every 16th of a
+  longer one), its jet rows, ends and halt, and every 64th row after it.
+
+For `p2pre` it compares 1,543 of 16,384 CPU rows in about 50 s, and gate
+5 runs it. Its limits:
+
+- it compares the run both sides read, so it does not check the run;
+  the AIRs and the proof do;
+- it skips the blinded traces the proofs commit to, the hand-off runs,
+  and the CPU padding rows between samples. The comparison made the CPU
 trace fill an inactive read's fields as Lean's honest row does
 (`fieldsAt`); no constraint or message reads them.
 
@@ -491,7 +503,8 @@ permutations   rows    prove     verify    proof
 4,096          4,096   0.16 s    0.011 s   410 KB
 ```
 
-The table is not yet joined to the CPU: nothing receives on `p2`.
+`src/compp.rs` joins the table to the CPU through P2IN and P2OUT, on the
+buses `p2v` and `p2w` (`Ski/Circuit/CompPAir.lean`).
 
 ## A SKIlark predicate in zero knowledge
 

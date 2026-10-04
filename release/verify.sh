@@ -73,7 +73,20 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 R=release/sumto
 tmp=$(mktemp -d)
-trap '/bin/rm -rf "$tmp"' EXIT
+# FIFO writers (the subshells below), stopped on every exit: each is frozen
+# first, so it cannot start its next cat, then its cat and itself killed.
+writers=""
+stop_writers() {
+    for w in $writers; do
+        kill -STOP "$w" 2>/dev/null || true
+        pkill -P "$w" 2>/dev/null || true
+        kill -KILL "$w" 2>/dev/null || true
+        wait "$w" 2>/dev/null || true
+    done
+    writers=""
+}
+trap 'stop_writers; /bin/rm -rf "$tmp"' EXIT
+trap 'exit 130' INT TERM
 failed=0
 ok() { printf 'ok   %s\n' "$*"; }
 # With VERIFY_ALL=1 every check runs and the exit comes at the end.
@@ -158,17 +171,12 @@ mkfifo "$tmp/fifo/omega.jets"
 ( exec > /dev/null 2>&1
   cat "$F/honest.jets" > "$tmp/fifo/omega.jets"
   cat "$F/forged.jets" > "$tmp/fifo/omega.jets" ) &
-writer=$!
-stop_writer() {
-    pkill -P "$writer" 2>/dev/null || true
-    kill "$writer" 2>/dev/null || true
-    wait "$writer" 2>/dev/null || true
-}
+writers=$!
 if "$SKI_AIR" jet-verify "$F/corpus.txt" "$tmp/fifo" omega "$F/omega.proof" > "$tmp/fifo.log"; then
-    stop_writer
+    stop_writers
     no "the Omega forgery verified through a FIFO (honest table, then forged)"
 else
-    stop_writer
+    stop_writers
     ok "the Omega forgery through a FIFO is refused ($(head -c 60 "$tmp/fifo.log"))"
 fi
 
@@ -500,18 +508,15 @@ fi
 mkfifo "$tmp/p2/f1" "$tmp/p2/f2"
 ( exec > /dev/null 2>&1
   cat "$P/handoff1.public.txt" > "$tmp/p2/f1"; cat "$P/p2pre.public.txt" > "$tmp/p2/f1" ) &
-w1=$!
+writers=$!
 ( exec > /dev/null 2>&1
   cat "$P/handoff2.public.txt" > "$tmp/p2/f2"; cat "$P/p2pre.public.txt" > "$tmp/p2/f2" ) &
-w2=$!
-stop_fifos() {
-    for w in "$w1" "$w2"; do pkill -P "$w" 2>/dev/null || true; kill "$w" 2>/dev/null || true; wait "$w" 2>/dev/null || true; done
-}
+writers="$writers $!"
 if "$SKI_AIR" compp-chain "$tmp/p2/f1" "$P/p2pre.proof" "$tmp/p2/f2" "$P/p2pre.proof" > "$tmp/chf.log" 2>&1; then
-    stop_fifos
+    stop_writers
     no "the chain verified through FIFOs (a hand-off to Lean, p2pre to the verifier)"
 else
-    stop_fifos
+    stop_writers
     ok "the chain through FIFOs is refused ($(tail -n 1 "$tmp/chf.log" | head -c 60))"
 fi
 
