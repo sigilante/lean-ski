@@ -130,6 +130,9 @@ import Ski.Circuit.CompPred
 import Ski.ZK.Transcript
 import Ski.ZK.Tree
 import Ski.ZK.TranscriptN
+import Ski.ZK.Poseidon2Grain
+import Ski.ZK.Poseidon2Generic
+import Ski.ZK.Poseidon2Inv
 
 /-!
 # The audit manifest — build-enforced
@@ -816,6 +819,18 @@ open Ski.Audit
 #audit_clean DataJet.JStep.close DataJet.JSteps.close DataJet.real_of_jet DataJet.respects_of_inj
   DataJet.notP_implements DataJet.bitsT_inj DataJet.stateT_inj DataJet.poseidon2_respects
   DataJet.hidden_chain Poseidon2.permute_matches
+
+-- Poseidon2's specification: the paper's construction with Plonky3's parameters, its constants
+-- the Grain LFSR's, its S-box and linear layers invertible
+#audit_clean Poseidon2.Grain.rc_grain Poseidon2.Lin.dotF_unitL Poseidon2.Lin.dotF_addL
+  Poseidon2.Lin.dotF_scaleL Poseidon2.Lin.lin_length Poseidon2.Lin.lin_sound Poseidon2.Lin.linRow_sound
+  Poseidon2.Lin.linRows_sound Poseidon2.Lin.dot_dotF Poseidon2.Lin.matVec_rows Poseidon2.Lin.matVec_eval
+  Poseidon2.Generic.plonky3_ok Poseidon2.Generic.linRows_ext Poseidon2.Generic.linRows_int
+  Poseidon2.Generic.extLinear_eq Poseidon2.Generic.intLinear_eq Poseidon2.Generic.foldl_full
+  Poseidon2.Generic.foldl_partial Poseidon2.Generic.permute_plonky3
+  Poseidon2.Inv.gcd_7 Poseidon2.Inv.seven_e Poseidon2.Inv.pow_cycles Poseidon2.Inv.sboxInv_sbox
+  Poseidon2.Inv.sbox_sboxInv Poseidon2.Inv.sbox_bijective Poseidon2.Inv.inv_of_rows
+  Poseidon2.Inv.ext_inv Poseidon2.Inv.int_inv Poseidon2.Inv.extLinear_inv Poseidon2.Inv.intLinear_inv
 
 -- Binary arithmetic in SKI, and Poseidon2 in SKI implementing the data jet
 #audit_clean BitArith.wnf_sound BitArith.run BitArith.theta_unfold BitArith.add_spec BitArith.mul_spec

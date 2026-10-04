@@ -25,6 +25,10 @@ import Ski.ChainExamples
 import Ski.DataJet
 import Ski.BitArith
 import Ski.ZK.Poseidon2SKI
+import Ski.ZK.Poseidon2Grain
+import Ski.ZK.Poseidon2Lin
+import Ski.ZK.Poseidon2Generic
+import Ski.ZK.Poseidon2Inv
 import Ski.P2Jet
 import Ski.ComposedP
 import Ski.ComposedPText
