@@ -295,8 +295,8 @@ def compareP2 (path : String) : IO UInt32 := do
 
 /-- The composed circuit with the Poseidon2 jet: `public N`, the
     statement's `N` lines, then the nine AIRs.  The statement must be exactly
-    `ComposedPText.publicTextP` of its `h` and heights, as `lake exe composed
-    statement-p2` checks. -/
+    `ComposedPText.publicTextG` of a statement and heights, as `lake exe
+    composed statement-p2` checks. -/
 def compareCompP (path : String) : IO UInt32 := do
   let text ← readInput path
   let ls := text.splitOn "\n"
@@ -306,10 +306,10 @@ def compareCompP (path : String) : IO UInt32 := do
         | _ => none
       | [] => none) | do IO.println "MALFORMED: no statement"; return 1
   let stmt := "\n".intercalate ((ls.drop 1).take n) ++ "\n"
-  let some (h, _) := ComposedPText.statementOfTextP stmt | do IO.println "NOT A STATEMENT"; return 1
+  let some (st, _) := ComposedPText.statementOfTextG stmt | do IO.println "NOT A STATEMENT"; return 1
   let rest := ((ls.drop (n + 1)).filter (fun l => !l.trimAscii.toString.isEmpty))
   let some rust := parseAirs (rest.length + 1) rest | do IO.println "MALFORMED AIRS"; return 1
-  compareAirs rust (compPAirs h)
+  compareAirs rust (compPAirsG st.Vs)
 
 /-- The probe circuit: `term T`, `outcome …`, then the ten AIRs.  The jet
     table is Lean's for the term, as for `compare-jets`; the plan is Lean's

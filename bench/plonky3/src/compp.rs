@@ -304,7 +304,6 @@ pub fn p2_step(heap: &[Cell], hd: u32, stk: u32, pp: &P2Pub, forge: Forge) -> Op
 
 pub struct PPublic {
     header: String,
-    h: u32,
     pp: P2Pub,
     w: u32,
     logs: [usize; 5],
@@ -326,9 +325,14 @@ pub fn parse_public_p(text: &str) -> Result<PPublic, String> {
     let header = next()?.to_string();
     let hw: Vec<&str> = header.split(' ').collect();
     let num = |x: &str| x.parse::<u32>().map_err(|_| "a bad header".to_string());
-    let (h, pp) = match hw[..] {
-        ["p2pre", h, j, root] => (num(h)?, P2Pub { j: num(j)?, root: num(root)? }),
-        _ => return Err("expected `p2pre h J ROOT`".into()),
+    // `p2pre h J ROOT` or `p2commit c₀ … c₇ PATTERN J ROOT`: the statement's
+    // kind and data, then the jet's atom and the comb's root.  Lean checks
+    // the whole text (`statement-p2`).
+    let pp = match (hw.first(), hw.len()) {
+        (Some(&"p2pre"), 4) | (Some(&"p2commit"), 12) => {
+            P2Pub { j: num(hw[hw.len() - 2])?, root: num(hw[hw.len() - 1])? }
+        }
+        _ => return Err("expected `p2pre h J ROOT` or `p2commit c₀ … c₇ PATTERN J ROOT`".into()),
     };
     let w = nums(next()?, "W")?;
     let lg = nums(next()?, "log")?;
@@ -359,7 +363,7 @@ pub fn parse_public_p(text: &str) -> Result<PPublic, String> {
         }
     }
     let logs = [lg[0] as usize, lg[1] as usize, lg[2] as usize, lg[3] as usize, lg[4] as usize];
-    Ok(PPublic { header, h, pp, w, logs, nbits, roots, nil, hd0: regs[0], stk0: regs[1], ctr0: regs[2], cells, text: text.to_string() })
+    Ok(PPublic { header, pp, w, logs, nbits, roots, nil, hd0: regs[0], stk0: regs[1], ctr0: regs[2], cells, text: text.to_string() })
 }
 
 fn program_of(p: &PPublic) -> Vec<[u32; 5]> {
@@ -805,7 +809,6 @@ pub fn compp_prove(public: &std::path::Path, wit: &std::path::Path, proof_out: &
         bytes.len(),
         proof_out.display()
     );
-    let _ = p.h;
     Ok(())
 }
 
@@ -813,13 +816,46 @@ pub fn compp_prove(public: &std::path::Path, wit: &std::path::Path, proof_out: &
 /// against the AIRs built from it alone.
 pub fn compp_verify(public: &std::path::Path, proof: &std::path::Path) -> Result<(), String> {
     let text = std::fs::read_to_string(public).map_err(|e| format!("{}: {e}", public.display()))?;
+    let bytes = std::fs::read(proof).map_err(|e| format!("{}: {e}", proof.display()))?;
+    verify_text(&text, &bytes)
+}
+
+/// Check a statement's text, then the proof's bytes against the AIRs built
+/// from that same text.
+fn verify_text(text: &str, bytes: &[u8]) -> Result<(), String> {
+    let text = text.to_string();
     lean_statement("composed", &["statement-p2", "-"], text.as_bytes()).map_err(|e| format!("statement: {e}"))?;
     let p = parse_public_p(&text)?;
-    let bytes = std::fs::read(proof).map_err(|e| format!("{}: {e}", proof.display()))?;
-    let proof: PProof = postcard::from_bytes(&bytes).map_err(|e| format!("deserialize: {e}"))?;
+    let proof: PProof = postcard::from_bytes(bytes).map_err(|e| format!("deserialize: {e}"))?;
     let t0 = Instant::now();
     verify(&p, &proof)?;
     println!("{}: VERIFIED in {:.3} s", p.header, t0.elapsed().as_secs_f64());
+    Ok(())
+}
+
+/// `ski-air compp-chain PUBLIC1 PROOF1 PUBLIC2 PROOF2`: the hidden hand-off.
+/// Lean checks that the two statements are `p2commit` statements with one
+/// commitment whose patterns meet the chain's conditions (`composed
+/// chain-p2`, `P2Commit.chainB`); then each proof verifies against its own
+/// statement.  `Circuit.p2commit_chainB` states what the two together prove.
+/// Each statement file is read once: Lean's chain check and the proof's
+/// verification see the same bytes, whatever the path yields on a later read.
+pub fn compp_chain(pub1: &std::path::Path, proof1: &std::path::Path, pub2: &std::path::Path, proof2: &std::path::Path)
+    -> Result<(), String> {
+    let read = |p: &std::path::Path| std::fs::read_to_string(p).map_err(|e| format!("{}: {e}", p.display()));
+    let (t1, t2) = (read(pub1)?, read(pub2)?);
+    let readb = |p: &std::path::Path| std::fs::read(p).map_err(|e| format!("{}: {e}", p.display()));
+    let (b1, b2) = (readb(proof1)?, readb(proof2)?);
+    // `chain-p2 -` reads the two texts from stdin, split at a NUL; no
+    // statement's text contains one.
+    if t1.contains('\0') || t2.contains('\0') {
+        return Err("a statement containing a NUL byte".into());
+    }
+    let ok = lean_statement("composed", &["chain-p2", "-"], format!("{t1}\0{t2}").as_bytes())
+        .map_err(|e| format!("chain: {e}"))?;
+    verify_text(&t1, &b1)?;
+    verify_text(&t2, &b2)?;
+    println!("{}", ok.trim_end());
     Ok(())
 }
 
