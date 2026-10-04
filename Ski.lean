@@ -32,6 +32,9 @@ import Ski.Circuit.CompPAir
 import Ski.Circuit.CompPFinal
 import Ski.P2PreSound
 import Ski.P2Commit
+import Ski.P2Complete
+import Ski.P2Once
+import Ski.ZK.CompPHonest
 import Ski.ZK.CompP
 import Ski.Composed
 import Ski.BoolProbe

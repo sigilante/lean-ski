@@ -334,9 +334,6 @@ def toF (x : Nat) : DataJet.F := ⟨x % Poseidon2.p, Nat.mod_lt _ (by decide)⟩
 def openB (bs : List Bool) : List DataJet.F × List DataJet.F :=
   (((valsB bs).take 8).map toF, ((valsB bs).drop 8).map toF)
 
-theorem valsB_length (bs : List Bool) : (valsB bs).length = 16 := by
-  rw [valsB, List.length_map, List.length_range]
-
 theorem val_append_false : ∀ l : List Bool, BitArith.val (l ++ [false]) = BitArith.val l
   | [] => rfl
   | b :: l => by

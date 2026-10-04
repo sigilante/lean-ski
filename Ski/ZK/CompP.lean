@@ -15,17 +15,20 @@ in the tree's order memory, CPU, witness, P2IN, P2OUT, P2: the composed
 circuit with jets' tree (`jetPar`, `jetBus`, `jetSg`) cut to its first
 six vertices.  The program, segment and level tables are public, their
 terminals the simulator's `tp`.  The level table's multiplicities count the
-jet's calls (`idxPub`), so the call count is public: for `p2pre h` it is one
-on every witness that satisfies the statement (the verifier calls the jet
-once, before `CHECK_h`; an argument, not a theorem), and ski-air refuses to
+jet's calls (`idxPub`), so the call count is public.  For `p2pre h` and
+`p2commit c pat` it is one: every accepted table has exactly one jet row
+(`Circuit.p2pre_once`, `Circuit.p2commit_once`), and ski-air refuses to
 prove a run with any other count.
 
 The prover's tables must balance with the public tables and carry clear
-blinding flags (`UnblindedCP`).  Neither is proved for the honest prover:
-balance of the committed tables follows, with high probability, from a
-proof that verifies; the clear flags and the public tables' multiplicities
-(`idxPub 1`) hold by construction in `compp.rs`'s `traces`.  The circuit
-with the jet has no completeness proof in Lean.
+blinding flags (`UnblindedCP`).  The honest prover's tables do
+(`P2Run.honest_zkP`, `Ski/ZK/CompPHonest.lean`): built from an accepted
+run, they balance with the public program, segment and level tables, the
+level table's multiplicities those of the run's calls, and their flags
+are clear; for `p2pre h` and `p2commit c pat` the run makes one call, so
+the level table is `idxPub 1` (`P2Run.honest_zk_p2pre`,
+`P2Run.honest_zk_p2commit`).  That
+they satisfy each AIR's constraints (`Sat`) is not proved.
 -/
 
 namespace Circuit
