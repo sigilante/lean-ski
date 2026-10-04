@@ -31,6 +31,7 @@ import Ski.ComposedPText
 import Ski.Circuit.CompPAir
 import Ski.Circuit.CompPFinal
 import Ski.P2PreSound
+import Ski.P2Commit
 import Ski.ZK.CompP
 import Ski.Composed
 import Ski.BoolProbe

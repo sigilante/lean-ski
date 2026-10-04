@@ -91,7 +91,8 @@ if command -v cargo >/dev/null 2>&1 \
   if ! { lake env lean --run bench/Dump.lean > "$gen/corpus.txt" \
          && lake exe sudoku emit "$gen/sudoku" >/dev/null \
          && lake exe witness emit "$gen/witness" >/dev/null \
-         && mkdir -p "$gen/p2" && lake exe composed emit-p2 "$gen/p2" >/dev/null; }; then
+         && mkdir -p "$gen/p2" && lake exe composed emit-p2 "$gen/p2" >/dev/null \
+         && lake exe composed emit-handoff "$gen/p2" >/dev/null; }; then
     bad "gate 5's inputs could not be generated"
   fi
   exp=$(mktemp)
@@ -139,6 +140,24 @@ if command -v cargo >/dev/null 2>&1 \
     note "ok — composed p2pre: the Rust circuit is Circuit.compPAirs"
   else
     bad "composed p2pre: the Rust circuit differs from Circuit.compPAirs"
+  fi
+  for f in handoff1 handoff2; do
+    if "$ski" export-compp "$gen/p2/$f.public.txt" > "$exp.c" \
+       && .lake/build/bin/circuit compare-compp "$exp.c" | tail -1 | grep -q '^MATCH'; then
+      note "ok — composed $f (p2commit): the Rust circuit is Circuit.compPAirsG"
+    else
+      bad "composed $f (p2commit): the Rust circuit differs from Circuit.compPAirsG"
+    fi
+  done
+  if lake exe composed chain-p2 "$gen/p2/handoff1.public.txt" "$gen/p2/handoff2.public.txt" | grep -q '^CHAIN OK'; then
+    note "ok — the hand-off's two statements meet P2Commit.chainB"
+  else
+    bad "the hand-off's two statements fail P2Commit.chainB"
+  fi
+  if lake exe composed chain-p2 "$gen/p2/handoff1.public.txt" "$gen/p2/p2pre.public.txt" | grep -q '^CHAIN OK'; then
+    bad "P2Commit.chainB accepts a p2commit statement paired with a p2pre statement"
+  else
+    note "ok — P2Commit.chainB refuses a p2commit statement paired with a p2pre statement"
   fi
   if "$ski" export-jets "$(cat release/sumto/sumto_us.term)" release/sumto/jets/sumto_us.jets > "$exp.c" \
      && .lake/build/bin/circuit compare-jets "$exp.c" | tail -1 | grep -q '^MATCH'; then

@@ -976,9 +976,15 @@ one row pushes the output bits as stack cells into the heap's `K` and
 `K I` slots (`P2Jet.p2Row`, read back as one jet step by
 `p2Row_cstep`); composed statements may leave `J` free, and an accepted
 table with jet rows proves the statement with `J` closed to `Pbits`
-(`CompM.composedP_sound`). Open: the circuit's jet rows (the CPU's jet
-row, the bit tables and the bus to the Poseidon2 table), and the binding
-and hiding assumptions, which are computational and stated in prose.
+(`CompM.composedP_sound`). The circuit's jet rows exist and are proved
+sound (`Circuit.compPExportG_sound`) and zero knowledge
+(`Circuit.compP_transcript`). The hidden hand-off runs in the circuit:
+two accepted `p2commit` proofs over one commitment, the first pattern
+fixing value bits only and both keeping the value canonical, give one
+value that meets both stages' patterns, or a collision read from the two
+proofs' tables
+(`Circuit.p2commit_chainB`, `ski-air compp-chain`). Open: the binding and
+hiding assumptions, which are computational and stated in prose.
 
 Fiat–Shamir, round by round (`Ski/ZK/FSRound.lean`, `ski-air fs-budget`).
 Lean proves the counting step: `q` adaptive hash calls hit a round of bad

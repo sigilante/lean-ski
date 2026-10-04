@@ -162,15 +162,19 @@ def p2inAirB : AirD := withBlocks p2inAir [("blind_c", false), ("blind_d", true)
 def p2outAirB : AirD := withBlocks p2outAir [("blind_d", false), ("blind_e", true)]
 def p2AirB : AirD := withBlocks P2Air.p2Air [("blind_e", false)]
 
-/-- **The composed circuit with the Poseidon2 jet for `p2pre h`**: what its
-    verifier builds. -/
-def compPAirs (h : Nat) : List AirD :=
+/-- **The composed circuit with the Poseidon2 jet** for verifiers `Vs`, open
+    in the jet's atom, over the comb of 496 bits and the one-cell region:
+    what its verifier builds. -/
+def compPAirsG (Vs : List OTerm) : List AirD :=
   let N := BT.nleaves ComposedPText.shpP
   let W := ComposedPText.regionP.length
   let ρ0 : Nat → Bool := fun _ => false
-  let m := cMachineO ρ0 ComposedPText.shpP ComposedPText.regionP (ComposedPText.VsP h)
-  let roots := (cHeapO ρ0 ComposedPText.shpP ComposedPText.regionP (ComposedPText.VsP h)).2
+  let m := cMachineO ρ0 ComposedPText.shpP ComposedPText.regionP Vs
+  let roots := (cHeapO ρ0 ComposedPText.shpP ComposedPText.regionP Vs).2
   [cpuAirP2 m.hd m.stk m.heap.length roots.length m.stk ComposedPText.JP2 ComposedPText.rootP, memAirC,
    progAirC m.heap N W, witAirP N W, segsAir roots, p2inAirB, p2outAirB, p2AirB, p2idxAir]
+
+/-- The circuit for `p2pre h`. -/
+def compPAirs (h : Nat) : List AirD := compPAirsG (ComposedPText.VsP h)
 
 end Circuit

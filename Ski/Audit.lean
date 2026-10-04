@@ -33,6 +33,7 @@ import Ski.P2Jet
 import Ski.ComposedP
 import Ski.Circuit.CompPFinal
 import Ski.P2PreSound
+import Ski.P2Commit
 import Ski.ZK.CompP
 import Ski.Composed
 import Ski.Circuit.BaseSound
@@ -852,12 +853,19 @@ open Ski.Audit
   Circuit.CompPOK.p2vCount Circuit.CompPOK.p2Unique Circuit.CompPOK.p2wMatch Circuit.CompPOK.pinVals
   Circuit.CompPOK.poutVals Circuit.CompPOK.poutCells Circuit.CompPOK.jetOut Circuit.CompPOK.jetRow
   Circuit.cMachineO_fitsB Circuit.CompPOK.heap0 Circuit.CompPOK.regionWF Circuit.CompPOK.restart
-  Circuit.CompPOK.normRow Circuit.CompPOK.acceptsCP Circuit.compPOK_of Circuit.verifierO_occ
+  Circuit.CompPOK.normRow Circuit.CompPOK.acceptsCP Circuit.compPOK_ofG Circuit.verifierO_occ Circuit.compPExportG_sound
   Circuit.compPExport_sound
 
 -- What a proof of p2pre h proves: a Poseidon2 preimage
 #audit_clean P2Pre.thetaK_absorbs P2Pre.thetaK_not_K P2Pre.chk_sound P2Pre.env_J P2Pre.p2pre_meaning
   Circuit.p2preExport_sound
+
+-- What a proof of p2commit c pat proves, and the hidden hand-off over one commitment
+#audit_clean P2Commit.chkX_sound P2Commit.absorbX_steps P2Commit.selT_sound P2Commit.patO_sound
+  P2Commit.cbits_inj P2Commit.p2commit_meaning P2Commit.verifierC_occ P2Commit.value_bits P2Commit.value_lt
+  P2Commit.openB_commit P2Commit.handoff Circuit.p2commitExport_sound Circuit.p2commit_chain
+  P2Commit.valueOnlyB_sound P2Commit.canonicalB_sound P2Commit.ok_commit P2Commit.chainB_sound
+  Circuit.p2commit_chainB
 
 -- Zero knowledge of the circuit with the Poseidon2 jet: the blinding tree CPU —c— P2IN —d— P2OUT —e— P2
 #audit_clean Circuit.viewT_p2 Circuit.terminal_cpuP2 Circuit.p2_avoids Circuit.compP_chain Circuit.compP_sum

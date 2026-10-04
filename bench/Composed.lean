@@ -5,6 +5,7 @@ import Ski.ComposeExamples
 import Ski.ComposeXExamples
 import Ski.ChainExamples
 import Ski.ComposedPText
+import Ski.P2Commit
 open Term
 
 /-!
@@ -277,24 +278,86 @@ def emitP2 (dir : String) : IO UInt32 := do
   IO.println s!"wrote {dir}/p2pre.public.txt (h = {h}) and its witness"
   return 0
 
+/-- The hand-off's value: eight elements below `2^30` (a credential: an
+    age, a country code, six more fields), and its randomness. -/
+def handoffValue : List Nat := [21, 840, 1, 2, 3, 4, 5, 6]
+def handoffRand : List Nat :=
+  [1384390411, 278963108, 1807244539, 1259281112, 925470542, 1663934283, 1027398213, 1536893713]
+
+/-- A pattern over the 496 bits: bit `j` of element `e` per `fix`, and the
+    top bit of each of the value's eight elements clear, so its elements are
+    below `2^30`, canonical. -/
+def handoffPat (fix : Nat → Nat → Option Bool) : List (Option Bool) :=
+  (List.range 496).map fun i =>
+    let e := i / 31
+    let j := i % 31
+    if e < 8 && j == 30 then some false else if e < 8 then fix e j else none
+
+/-- Stage 1 discloses the value's element 1: all its bits. -/
+def handoffPat1 : List (Option Bool) :=
+  handoffPat fun e j => if e == 1 then some ((BitArith.bitsOf 31 840).getD j false) else none
+
+/-- Stage 2 shows the value's element 0 is odd: its bit 0. -/
+def handoffPat2 : List (Option Bool) := handoffPat fun e j => if e == 0 && j == 0 then some true else none
+
+/-- `composed emit-handoff DIR`: the hidden hand-off's two statements, each
+    `p2commit c pat` with the commitment `c` of `handoffValue` and
+    `handoffRand`, and their witness, the same for both. -/
+def emitHandoff (dir : String) : IO UInt32 := do
+  let c := (Poseidon2.permute (handoffValue ++ handoffRand)).take 8
+  let lg : ComposedPText.PLogs := ⟨14, 16, 9, 9, 8⟩
+  IO.FS.writeFile s!"{dir}/handoff1.public.txt" (ComposedPText.publicTextG (.commit c handoffPat1) lg)
+  IO.FS.writeFile s!"{dir}/handoff2.public.txt" (ComposedPText.publicTextG (.commit c handoffPat2) lg)
+  let bits := (handoffValue ++ handoffRand).flatMap (BitArith.bitsOf 31)
+  IO.FS.writeFile s!"{dir}/handoff.witness.txt" (witnessText bits ComposedPText.regionP)
+  IO.println s!"wrote the hand-off's two statements (c = {c}) and their witness in {dir}"
+  return 0
+
 /-- `composed statement-p2 PUBLIC`: `OK` when the file is exactly a
-    Poseidon2 preimage statement. -/
+    statement with the Poseidon2 jet. -/
 def statementP2 (path : String) : IO UInt32 := do
   let text ← if path == "-" then (← IO.getStdin).readToEnd else IO.FS.readFile path
-  match ComposedPText.statementOfTextP text with
-  | some (h, _) => IO.println s!"OK p2pre {h}"; return 0
+  match ComposedPText.statementOfTextG text with
+  | some (.pre h, _) => IO.println s!"OK p2pre {h}"; return 0
+  | some (.commit c _, _) => IO.println s!"OK p2commit {c}"; return 0
   | none => IO.println "NOT A STATEMENT"; return 1
+
+/-- `composed chain-p2 PUBLIC1 PUBLIC2`: `CHAIN OK` when both files are
+    statements with the Poseidon2 jet that `P2Commit.chainB` accepts: two
+    valid `p2commit` statements with one commitment, both patterns fixing
+    value bits only and keeping the value canonical
+    (`Circuit.p2commit_chainB`). -/
+def chainTexts (t1 t2 : String) : IO UInt32 := do
+  match ComposedPText.statementOfTextG t1, ComposedPText.statementOfTextG t2 with
+  | some (st₁, _), some (st₂, _) =>
+    if P2Commit.chainB st₁ st₂ then
+      match st₁ with
+      | .commit c _ => IO.println s!"CHAIN OK p2commit {c}"; return 0
+      | _ => IO.println "NOT A CHAIN"; return 1
+    else IO.println "NOT A CHAIN"; return 1
+  | _, _ => IO.println "NOT A STATEMENT"; return 1
+
+/-- The two files' texts, or with `-` both from stdin, split at a NUL. -/
+def chainP2 (p1 p2 : String) : IO UInt32 := do chainTexts (← IO.FS.readFile p1) (← IO.FS.readFile p2)
+
+def chainP2In : IO UInt32 := do
+  match ((← (← IO.getStdin).readToEnd).splitOn "\u0000") with
+  | [t1, t2] => chainTexts t1 t2
+  | _ => IO.println "NOT TWO STATEMENTS"; return 1
 
 def main (args : List String) : IO UInt32 := do
   match args with
   | ["emit", dir] => emit dir
   | ["emit-p2", dir] => emitP2 dir
+  | ["emit-handoff", dir] => emitHandoff dir
   | ["statement-p2", pub] => statementP2 pub
+  | ["chain-p2", "-"] => chainP2In
+  | ["chain-p2", p1, p2] => chainP2 p1 p2
   | ["statement", pub] => statement pub
   | ["statement-jets", pub] => statementJ pub
   | ["budget", pub, lp, li, out] => budget pub lp li out
   | "check" :: pub :: paths => check pub paths
   | "check-cj" :: src :: pub :: paths => checkCJ src pub paths
   | _ =>
-    IO.eprintln "usage: composed emit DIR | composed statement PUBLIC | composed statement-jets PUBLIC\n       composed budget PUBLIC LP LI OUT | composed check PUBLIC TABLE... | composed check-cj SRC PUBLIC TABLE..."
+    IO.eprintln "usage: composed emit DIR | composed emit-p2 DIR | composed emit-handoff DIR | composed statement-p2 PUBLIC | composed chain-p2 PUBLIC1 PUBLIC2|-\n       composed statement PUBLIC | composed statement-jets PUBLIC\n       composed budget PUBLIC LP LI OUT | composed check PUBLIC TABLE... | composed check-cj SRC PUBLIC TABLE..."
     return 2

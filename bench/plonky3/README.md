@@ -391,8 +391,25 @@ grows with the chain. A hidden hand-off puts a commitment in place of
 `o`: Plonky3's compression of `o` and eight random elements, as
 specified in Lean (tested against Plonky3, not proved equal). The chain's
 knowledge soundness then reduces to the compression's collision
-resistance (`hidden_chain`, `Ski/DataJet.lean`). Computing the commitment inside a stage's proof needs a
-Poseidon2 precompile in the circuit, which is open.
+resistance (`hidden_chain`, `Ski/DataJet.lean`).
+
+The circuit with the Poseidon2 jet computes the commitment inside each
+stage's proof (`Ski/P2Commit.lean`). `lake exe composed emit-handoff DIR`
+writes two `p2commit c pat` statements over one commitment and their
+shared witness:
+
+```
+handoff1   value element 1 is 840        13,991 rows   2.2 s   verified
+handoff2   value element 0 is odd        13,156 rows   2.2 s   verified
+```
+
+`ski-air compp-chain PUBLIC1 PROOF1 PUBLIC2 PROOF2` asks Lean whether the
+two statements form a chain (`composed chain-p2`: one commitment, both
+patterns fixing value bits only and bit 30 of each value element to 0),
+then verifies each proof against its own statement. It reads each
+statement file once and hands the same text to both checks. From
+two accepted proofs, the second's memory holds bits that meet both
+patterns, or the two memories' openings collide (`p2commit_chainB`).
 
 The permutation's specification (`Ski/ZK/Poseidon2.lean`) uses Plonky3's
 own constants and test vectors, which `ski-air poseidon2-lean` prints as

@@ -1214,7 +1214,13 @@ fn lean_statement(exe: &str, args: &[&str], input: &[u8]) -> Result<String, Stri
     if out.status.success() {
         Ok(String::from_utf8_lossy(&out.stdout).into_owned())
     } else {
-        Err(String::from_utf8_lossy(&out.stdout).lines().filter(|l| !l.starts_with("STATEMENT")).collect::<Vec<_>>().join("; "))
+        let msg = String::from_utf8_lossy(&out.stdout).lines().filter(|l| !l.starts_with("STATEMENT")).collect::<Vec<_>>().join("; ");
+        if msg.is_empty() {
+            // A Lean exception prints to stderr only.
+            Err(format!("{}: {}", out.status, String::from_utf8_lossy(&out.stderr).trim_end()))
+        } else {
+            Err(msg)
+        }
     }
 }
 
@@ -1279,6 +1285,16 @@ fn main() {
             Ok(()) => return,
             Err(e) => {
                 eprintln!("compp-guess: {e}");
+                std::process::exit(1);
+            }
+        }
+    }
+    if args.len() == 6 && args[1] == "compp-chain" {
+        let p = |i: usize| std::path::Path::new(&args[i]);
+        match compp::compp_chain(p(2), p(3), p(4), p(5)) {
+            Ok(()) => return,
+            Err(e) => {
+                eprintln!("compp-chain: {e}");
                 std::process::exit(1);
             }
         }
@@ -1569,7 +1585,7 @@ fn main() {
              ski-air compj-verify PUBLIC JETS SRC PROOF | ski-air compj-tamper PUBLIC JETS SRC WITNESS\n       \
              ski-air compj-prove-table PUBLIC JETS SRC TABLE PROOF\n       \
              ski-air sudoku-prove PUBLIC WITNESS PROOF [TABLE] | ski-air sudoku-verify PUBLIC PROOF\n       \
-             ski-air fs-budget VERIFY-COMMAND ARGS... | ski-air poseidon2-lean | ski-air export-p2 | ski-air p2-bench N [tamper] | ski-air compp-prove PUBLIC WITNESS PROOF [--table=PATH|forge-w|forge-v] | ski-air compp-prove-table PUBLIC TABLE PROOF | ski-air compp-verify PUBLIC PROOF | ski-air compp-guess PUBLIC WITNESS | ski-air export-compp PUBLIC"
+             ski-air fs-budget VERIFY-COMMAND ARGS... | ski-air poseidon2-lean | ski-air export-p2 | ski-air p2-bench N [tamper] | ski-air compp-prove PUBLIC WITNESS PROOF [--table=PATH|forge-w|forge-v] | ski-air compp-prove-table PUBLIC TABLE PROOF | ski-air compp-verify PUBLIC PROOF | ski-air compp-chain PUBLIC1 PROOF1 PUBLIC2 PROOF2 | ski-air compp-guess PUBLIC WITNESS | ski-air export-compp PUBLIC"
         );
         std::process::exit(2);
     }
