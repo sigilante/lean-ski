@@ -154,15 +154,27 @@ if command -v cargo >/dev/null 2>&1 \
   else
     bad "the hand-off's two statements fail P2Commit.chainB"
   fi
-  # compp.rs's unblinded traces of the p2pre run agree with Lean's model of
-  # the honest tables (Ski/Circuit/CompPHonest.lean): the shapes, every row
-  # of the Poseidon2 and witness tables, and sampled CPU rows.
-  if "$ski" compp-dump "$gen/p2/p2pre.public.txt" "$gen/p2/p2pre.witness.txt" "$gen/p2/dump" > /dev/null \
-     && lake exe composed check-p2-tables "$gen/p2/p2pre.public.txt" "$gen/p2/dump" | grep -q '^OK'; then
-    note "ok — p2pre: compp.rs's traces are Lean's model of the honest tables"
-  else
-    bad "p2pre: compp.rs's traces differ from Lean's model of the honest tables"
-  fi
+  # compp.rs's unblinded traces of each run agree with Lean's model of the
+  # honest tables (Ski/Circuit/CompPHonest.lean): the shapes, every row of
+  # the Poseidon2 and witness tables, and sampled CPU rows.  The hand-off's
+  # two runs share one witness.
+  for f in p2pre:p2pre handoff1:handoff handoff2:handoff; do
+    n=${f%%:*} w=${f#*:}
+    if "$ski" compp-dump "$gen/p2/$n.public.txt" "$gen/p2/$w.witness.txt" "$gen/p2/dump-$n" > /dev/null \
+       && lake exe composed check-p2-tables "$gen/p2/$n.public.txt" "$gen/p2/dump-$n" | grep -q '^OK'; then
+      note "ok — $n: compp.rs's traces are Lean's model of the honest tables"
+    else
+      bad "$n: compp.rs's traces differ from Lean's model of the honest tables"
+    fi
+    # The guess test: no private table's published terminal matches a
+    # guess from the true witness, and each does unblinded.
+    if "$ski" compp-guess "$gen/p2/$n.public.txt" "$gen/p2/$w.witness.txt" 2>&1 \
+         | grep -q '^the guess test passes'; then
+      note "ok — $n: every private table's terminal hides the witness (compp-guess)"
+    else
+      bad "$n: the guess test fails"
+    fi
+  done
   if lake exe composed chain-p2 "$gen/p2/handoff1.public.txt" "$gen/p2/p2pre.public.txt" | grep -q '^CHAIN OK'; then
     bad "P2Commit.chainB accepts a p2commit statement paired with a p2pre statement"
   else

@@ -1043,12 +1043,16 @@ pub fn compp_prove_table(public: &std::path::Path, table: &std::path::Path, proo
     Ok(())
 }
 
-/// The guess test for the jet's private tables: P2IN's, P2OUT's and P2's
-/// published terminals, against the terminals recomputed from the true
-/// witness's tables, unblinded, under the proof's own challenges.  None
-/// matches when the proof is blinded; each matches when it is not (the
-/// dictionary attack the blinding stops).
-fn guess_matches(p: &PPublic, tb: &PTable, blind: bool) -> [bool; 3] {
+/// The private tables, by index among the nine: CPU, MEM, WIT, P2IN,
+/// P2OUT and the Poseidon2 table, the blinding tree's nodes.
+const PRIVATE: [(usize, &str); 6] = [(0, "CPU"), (1, "MEM"), (3, "WIT"), (5, "P2IN"), (6, "P2OUT"), (7, "P2")];
+
+/// The guess test for the private tables: each one's published terminal,
+/// against the terminal recomputed from the true witness's table,
+/// unblinded, under the proof's own challenges.  None matches when the
+/// proof is blinded; each matches when it is not (the dictionary attack the
+/// blinding stops).
+fn guess_matches(p: &PPublic, tb: &PTable, blind: bool) -> [bool; 6] {
     use p3_batch_stark::{BatchShape, BatchVerifierTranscript};
     use p3_lookup::{LogUpGadget, LookupProtocol};
     let (bs, ps) = ProverSeed::fresh().split();
@@ -1088,10 +1092,11 @@ fn guess_matches(p: &PPublic, tb: &PTable, blind: bool) -> [bool; 3] {
     let (gs, _) = ProverSeed::fresh().split();
     let guess_tr = traces(p, tb, false, gs);
     std::array::from_fn(|i| {
-        let k = 5 + i;
-        let published = proof.lookup_terminals[k].as_ref().expect("a jet table's terminal").0;
+        let k = PRIVATE[i].0;
+        let published = proof.lookup_terminals[k].as_ref().expect("a private table's terminal").0;
+        let pre = <SkiAir as BaseAir<Val>>::preprocessed_trace(&v_airs[k]);
         let guess = LogUpGadget::new()
-            .generate_permutation::<Val, Challenge>(&guess_tr[k], &None, &[], &common.lookups[k], &chs[k])
+            .generate_permutation::<Val, Challenge>(&guess_tr[k], &pre, &[], &common.lookups[k], &chs[k])
             .1
             .expect("a terminal")
             .0;
@@ -1123,13 +1128,12 @@ pub fn compp_guess(public: &std::path::Path, wit: &std::path::Path) -> Result<()
     let tb = table(&p, heap, Forge::None)?;
     let blinded = guess_matches(&p, &tb, true);
     let control = guess_matches(&p, &tb, false);
-    let names = ["P2IN", "P2OUT", "P2"];
-    for i in 0..3 {
-        println!("{}: guess matches the blinded terminal: {}; the unblinded control: {}", names[i], blinded[i], control[i]);
+    for (i, (_, name)) in PRIVATE.iter().enumerate() {
+        println!("{name}: guess matches the blinded terminal: {}; the unblinded control: {}", blinded[i], control[i]);
     }
     if blinded.iter().any(|&b| b) || !control.iter().all(|&b| b) {
         return Err("the guess test fails".into());
     }
-    println!("the guess test passes: the jet tables' terminals hide the witness");
+    println!("the guess test passes: every private table's terminal hides the witness");
     Ok(())
 }
