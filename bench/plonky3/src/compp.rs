@@ -796,16 +796,18 @@ pub fn compp_prove(public: &std::path::Path, wit: &std::path::Path, proof_out: &
     let (bs, ps) = ProverSeed::fresh().split();
     let (proof, prove_s) = prove(&p, &traces(&p, &tb, true, bs), ps)?;
     let bytes = postcard::to_allocvec(&proof).map_err(|e| format!("serialize: {e}"))?;
-    std::fs::write(proof_out, &bytes).map_err(|e| format!("{}: {e}", proof_out.display()))?;
+    // Verify before writing: a proof that does not verify is never written.
     let t1 = Instant::now();
     verify(&p, &proof)?;
+    let verify_s = t1.elapsed().as_secs_f64();
+    std::fs::write(proof_out, &bytes).map_err(|e| format!("{}: {e}", proof_out.display()))?;
     println!(
         "{}: proved {} rows ({} jet calls), {} memory cells, in {prove_s:.2} s; verified in {:.3} s; proof {} bytes -> {}",
         p.header,
         tb.run_rows,
         tb.calls.len(),
         tb.run_mem,
-        t1.elapsed().as_secs_f64(),
+        verify_s,
         bytes.len(),
         proof_out.display()
     );
@@ -982,6 +984,7 @@ pub fn compp_prove_table(public: &std::path::Path, table: &std::path::Path, proo
     let bytes = postcard::to_allocvec(&proof).map_err(|e| format!("serialize: {e}"))?;
     let t1 = Instant::now();
     verify(&p, &proof)?;
+    let verify_s = t1.elapsed().as_secs_f64();
     // Only a proof that verifies is written.
     std::fs::write(proof_out, &bytes).map_err(|e| format!("{}: {e}", proof_out.display()))?;
     println!(
@@ -990,7 +993,7 @@ pub fn compp_prove_table(public: &std::path::Path, table: &std::path::Path, proo
         tb.run_rows,
         tb.calls.len(),
         tb.run_mem,
-        t1.elapsed().as_secs_f64(),
+        verify_s,
         bytes.len(),
         proof_out.display()
     );

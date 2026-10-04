@@ -1204,20 +1204,48 @@ fn lean_statement(exe: &str, args: &[&str], input: &[u8]) -> Result<String, Stri
         .stderr(std::process::Stdio::piped())
         .spawn()
         .map_err(|e| format!("lake: {e}"))?;
-    child
+    // Drain both pipes on their own threads, so neither fills while the
+    // child runs, and bound the child's wall-clock time: a wedged check
+    // fails rather than hanging the verifier.
+    let read = |p: Option<Box<dyn std::io::Read + Send>>| {
+        std::thread::spawn(move || {
+            let mut buf = Vec::new();
+            if let Some(mut p) = p {
+                let _ = std::io::Read::read_to_end(&mut p, &mut buf);
+            }
+            buf
+        })
+    };
+    let out_t = read(child.stdout.take().map(|p| Box::new(p) as Box<dyn std::io::Read + Send>));
+    let err_t = read(child.stderr.take().map(|p| Box::new(p) as Box<dyn std::io::Read + Send>));
+    let written = child
         .stdin
         .take()
-        .ok_or_else(|| "lake: no stdin".to_string())?
-        .write_all(input)
-        .map_err(|e| format!("lake stdin: {e}"))?;
-    let out = child.wait_with_output().map_err(|e| format!("lake: {e}"))?;
-    if out.status.success() {
-        Ok(String::from_utf8_lossy(&out.stdout).into_owned())
+        .ok_or_else(|| "lake: no stdin".to_string())
+        .and_then(|mut w| w.write_all(input).map_err(|e| format!("lake stdin: {e}")));
+    let limit = std::env::var("LEAN_TIMEOUT").ok().and_then(|t| t.parse::<u64>().ok()).unwrap_or(600);
+    let start = Instant::now();
+    let status = loop {
+        match child.try_wait().map_err(|e| format!("lake: {e}"))? {
+            Some(st) => break st,
+            None if start.elapsed().as_secs() >= limit => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(format!("lake exe {exe}: no answer within {limit} s (LEAN_TIMEOUT)"));
+            }
+            None => std::thread::sleep(std::time::Duration::from_millis(20)),
+        }
+    };
+    let stdout = out_t.join().map_err(|_| "lake: stdout reader panicked".to_string())?;
+    let stderr = err_t.join().map_err(|_| "lake: stderr reader panicked".to_string())?;
+    written?;
+    if status.success() {
+        Ok(String::from_utf8_lossy(&stdout).into_owned())
     } else {
-        let msg = String::from_utf8_lossy(&out.stdout).lines().filter(|l| !l.starts_with("STATEMENT")).collect::<Vec<_>>().join("; ");
+        let msg = String::from_utf8_lossy(&stdout).lines().filter(|l| !l.starts_with("STATEMENT")).collect::<Vec<_>>().join("; ");
         if msg.is_empty() {
             // A Lean exception prints to stderr only.
-            Err(format!("{}: {}", out.status, String::from_utf8_lossy(&out.stderr).trim_end()))
+            Err(format!("{}: {}", status, String::from_utf8_lossy(&stderr).trim_end()))
         } else {
             Err(msg)
         }
