@@ -8,7 +8,9 @@ import Std.Data.HashMap
 test vector `K` (0, 1 or 2) in Avon's DAG form (`OUTDIR/p2.dag`), each
 distinct subterm once, and the normal form `P_spec` proves it reaches,
 `stateN (permute x)` with Plonky3's output (`OUTDIR/p2.expected`), in
-Avon's printed form.  `avon reduce OUTDIR/p2.dag` reduces it.
+Avon's printed form.  `avon reduce OUTDIR/p2.dag` reduces it.  It also
+writes `P` alone (`OUTDIR/P.dag`), the term `avon reduce --p2=OUTDIR/P.dag`
+runs natively.
 -/
 
 open Term
@@ -62,6 +64,8 @@ def main (args : List String) : IO UInt32 := do
     let (root, st) := (dagOf t).run {}
     IO.FS.writeFile s!"{out}/p2.dag" ("dag " ++ " ".intercalate st.lines.toList ++ s!" @{root}\n")
     IO.FS.writeFile s!"{out}/p2.expected" (pretty (DataJet.stateN outp) ++ "\n")
+    let (proot, pst) := (dagOf Poseidon2SKI.P).run {}
+    IO.FS.writeFile s!"{out}/P.dag" ("dag " ++ " ".intercalate pst.lines.toList ++ s!" @{proot}\n")
     IO.println s!"{st.ids.size} distinct subterms; input {inp}"
     return 0
   | ["part", name, out] =>
