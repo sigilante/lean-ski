@@ -51,6 +51,76 @@ checkout it was built in, else in `$LEAN_SKI`. A Lean check that has not
 answered within `$LEAN_TIMEOUT` seconds (default 600) fails the
 verification; its stderr is reported when it prints nothing.
 
+### The traces against Lean's honest tables
+
+Each zero-knowledge circuit's completeness proof builds honest tables
+from a run, and its zero-knowledge theorem simulates their terminals
+blinded at its view's blocks. For each circuit the prover dumps the
+private traces it proves, unblinded and blinded, with the run (`ski-air
+*-dump`). Lean then checks that the unblinded traces are its honest tables
+built from that run, and that the blinded ones are those tables blinded
+exactly at the view's blocks (`Ski/ZK/Blocks.lean` lists each view's
+blocks as data, proved its view's by `rfl`). Gate 5 runs every one:
+
+```
+circuit       dump                       tables                     blinding               runs
+composed      ski-air composed-dump      composed check-c-tables    composed check-c-blind    or, and
+hidden term   ski-air witness-dump       witness check-tables       witness check-blind       neg, sat
+Sudoku        ski-air sudoku-dump        sudoku check-tables        sudoku check-blind        Wikipedia's
+with jets     ski-air compj-dump         composed check-cj-tables   composed check-cj-blind   split8
+Poseidon2     ski-air compp-dump         composed check-p2-tables   composed check-p2-blind   p2pre, handoff1, handoff2
+```
+
+- Every row of the witness and memory tables is compared, and of the
+  jet tables (POP, INSTW, HDR, TMPL, P2IN, P2OUT, P2). A memory row's
+  multiplicity is `memTableC`'s or `memTable5`'s count of the messages
+  the dumped sender tables and Lean's own program table send it, counted
+  in one pass and proved equal to the definition
+  (`Circuit.memTableC_mult`, `memTable5_mult`). Where the CPU is compared
+  on every row (the hidden term) that is the honest multiplicity; where
+  it is sampled, it shows the memory consistent with the dumped CPU.
+- The CPU is compared on every row where Lean's model is cheap (the
+  hidden term), else on samples: every moving row of a short run, every
+  16th of a long one, segment ends, jet rows, the halt, the two rows
+  after it and the run's last, and every 64th row past the halt.
+  With jets Lean's CPU row reads its memory as a list and costs seconds,
+  so `split8`'s sample is 21 rows of every kind.
+- The jet providers' counts are the run's lookups, counted over its
+  instantiations listed once (`JRun.cntRoots_eq` and its kin); ROOTS is
+  compared on its first 256 rows, every 64th and its last 64.
+- The blinding check also requires every unblinded block column clear on
+  every row, the theorems' clear-flags hypothesis, and refuses an
+  all-zero tuple, which the theorems allow but a uniform draw makes
+  vanishingly rare (`p^-4`).
+- Each table's height must be the statement's (or the proof's fixed
+  height) and its width its AIR's.
+- With jets, the run read back from its table (`ski-air compj-dump-table`,
+  the path `compj-prove-table` takes for Avon's tables) gives the same
+  traces, byte for byte, as the run from the witness.
+
+The comparisons found three differences, each a cell no constraint or
+published sum depends on, or a choice between two valid runs, and each now
+follows Lean's honest table:
+
+- an inactive read's fields hold the cell at its address (`fieldsAt`);
+- a segment's next root is on every row (`cpuColC`, `cpuColCJ`), not only
+  on the restart row whose message reads it;
+- with jets, an instantiation the machine's own step reproduces (a
+  projection jet, which writes no cell) runs as that step, as the honest
+  run's `jetOf` has it. The rows are the same either way, so Avon's
+  tables are unchanged; `split8` now runs 1,952 instantiations and 8,018
+  POP rows (was 2,250 and 8,614), `csplit8` 44,427 and 101,300 (was
+  46,549 and 105,544). The released proofs, made before, keep the earlier
+  counts and verify as before.
+
+Each check takes seconds, except Sudoku (about a minute), `p2pre` (about
+50 s), the hand-off's runs (about 80 s each) and `split8` with jets
+(about 2½ minutes). What they leave out: the rows sampled out, and so,
+where the CPU is sampled, the honesty of the memory's multiplicities
+beyond the dumped CPU's; the runs themselves, which both sides read, so
+that checking them is the AIRs' and the proof's job; and the tuples'
+randomness.
+
 ## Measured, 2026-09-27, Apple M4 Max, release build
 
 ```
@@ -436,9 +506,10 @@ then compares:
 
 - every row of P2IN, P2OUT, the Poseidon2 table (its padding the zero
   input's inactive trace) and the witness table;
-- of the memory, every row's address, tag and fields (`memTable5`'s
-  first four columns); its multiplicities, a count over the other tables'
-  messages, are not compared: the memory bus enforces them in every proof;
+- of the memory, every row: its address, tag and fields, and its
+  multiplicity, `memTable5`'s count of the messages the dumped sender
+  tables and Lean's program table send it, counted in one pass
+  (`Circuit.memTable5_mult`);
 - of the CPU, every moving row of a run of at most 2048 (every 16th of a
   longer one), its jet rows, ends and halt, and every 64th row after it.
 
@@ -457,7 +528,8 @@ Its limits:
 
 - it compares the run both sides read, so it does not check the run;
   the AIRs and the proof do;
-- it skips the CPU rows between samples and the memory's multiplicities;
+- it skips the CPU rows between samples, and so checks the memory's
+  multiplicities only against the dumped CPU's messages;
   the blinded traces the proofs commit to `check-p2-blind` compares
   (below).
 
@@ -843,6 +915,12 @@ csplit8 at log 18 19  157,681 (46,549) 105,544   76,037   330,512   2^18 2^19 2^
 and (3 segments)          404 (69)         116       17       889   2^11 2^11 2^8  2^8         0.14 s   0.78 MB
 or (3 segments)           220 (41)          67       10       673   2^11 2^11 2^8  2^8         0.16 s   0.78 MB
 ```
+
+Since 2026-10-04 the prover runs a projection jet's instantiation as the
+machine's step, as Lean's honest run does ("The traces against Lean's
+honest tables", above): `split8` takes 1,952 instantiations and 8,018 POP
+rows, `csplit8` 44,427 and 101,300; INSTW, memory and heights are
+unchanged. The released proofs were made before and verify as before.
 
 `and` and `or` take `split8`'s source's templates, so their segments
 restart between instantiations. Without jets `csplit8` needs `2^19` rows

@@ -383,6 +383,9 @@ fn traces(p: &Public, tb: &CTable, blind: bool, bs: BlindStream) -> [RowMajorMat
     for i in 0..tb.rows.len() {
         let r = &mut cpu.values[i * w..(i + 1) * w];
         r[base + 1] = f(cnt);
+        // The next segment's root, on every row as Lean's honest row has it
+        // (`Circuit.cpuColC`); only a restart row's message reads it.
+        r[base + 2] = f(p.roots.get(cnt as usize + 1).copied().unwrap_or(0));
         if tb.restarts.contains(&i) {
             for k in 0..NKINDS {
                 r[SEL + k] = Val::ZERO;
@@ -570,6 +573,31 @@ pub fn composed_prove(public: &std::path::Path, wit: &std::path::Path, proof_out
         bytes.len(),
         proof_out.display()
     );
+    Ok(())
+}
+
+/// `ski-air composed-dump PUBLIC WITNESS DIR`: the honest run's table
+/// (`DIR/run.txt`, `lake exe composed check`'s format) and its private
+/// traces, CPU, memory and witness (`DIR/{cpu,mem,wit}.txt`), unblinded and
+/// blinded (`NAME.blind.txt`, under a fresh seed), for Lean's comparisons
+/// (`lake exe composed check-c-tables`, `check-c-blind`).
+pub fn composed_dump(public: &std::path::Path, wit: &std::path::Path, dir: &std::path::Path) -> Result<(), String> {
+    let p = checked_public(public)?;
+    let private = read_witness(&p, wit)?;
+    let tb = table(&p, heap_of(&p, &private)).ok_or("the run does not fit the statement's heights")?;
+    if let Some(j) = ends(&tb).iter().position(|&x| x != (Cell::K, Cell::Nil)) {
+        return Err(format!("segment {j} does not end at K over a nil: the witness does not satisfy the statement"));
+    }
+    std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    std::fs::write(dir.join("run.txt"), lean_table(&p, &tb)).map_err(|e| format!("run.txt: {e}"))?;
+    for (blind, suffix) in [(false, ""), (true, ".blind")] {
+        let (bs, _) = ProverSeed::fresh().split();
+        let tr = traces(&p, &tb, blind, bs);
+        for (k, name) in [(0usize, "cpu"), (1, "mem"), (3, "wit")] {
+            crate::write_trace(dir, &format!("{name}{suffix}"), &tr[k])?;
+        }
+    }
+    println!("{} rows, {} memory cells -> {}", tb.run_rows, tb.run_mem, dir.display());
     Ok(())
 }
 

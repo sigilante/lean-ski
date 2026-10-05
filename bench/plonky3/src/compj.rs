@@ -122,9 +122,58 @@ struct CJRun {
     insts: usize,
 }
 
+/// Lean's `Air.short`: the stack at `s`, read below the counter, ends
+/// within `n` cells.
+fn short(below: &[Cell], n: u32, s: u32) -> bool {
+    if n == 0 {
+        return false;
+    }
+    match below.get(s as usize) {
+        Some(Cell::Nil) => true,
+        Some(Cell::Cons(_, s1)) => short(below, n - 1, *s1),
+        _ => false,
+    }
+}
+
+/// **The honest run's choice, Lean's `jetOf`**: a row is an instantiation
+/// only when the next row is not what the plain machine gives, a step whose
+/// writes the memory holds (`Air.stepRow`) or a halt that stays
+/// (`Air.haltRow`).  A jet whose instantiation the machine's own step
+/// reproduces (a projection: it writes no cell) runs as that step, as Lean's
+/// honest tables have it (`CRun.cpuTableCJ`); the rows themselves are the
+/// same either way.
+fn decline_steps(rows: &mut [([u32; 3], Option<InstInfo>)], mem: &[Cell], insts: &mut usize) {
+    for i in 0..rows.len().saturating_sub(1) {
+        if rows[i].1.is_none() {
+            continue;
+        }
+        let [hd, stk, ctr] = rows[i].0;
+        let next = rows[i + 1].0;
+        let below = &mem[..(ctr as usize).min(mem.len())];
+        let stepped = crate::step(below, hd, stk).is_some_and(|(h, s, ws)| {
+            let at = ctr as usize;
+            mem.get(at..at + ws.len()) == Some(&ws[..]) && next == [h, s, ctr + ws.len() as u32]
+        });
+        let halted = next == rows[i].0
+            && match below.get(hd as usize) {
+                Some(Cell::I) => short(below, 1, stk),
+                Some(Cell::K) => short(below, 2, stk),
+                Some(Cell::S) => short(below, 3, stk),
+                Some(Cell::Atom(_)) => true,
+                _ => false,
+            };
+        if stepped || halted {
+            rows[i].1 = None;
+            *insts -= 1;
+        }
+    }
+}
+
 /// The run from the statement's heap, segment by segment, each to a halt
 /// at `K` over a nil, instantiating at every licensed root with enough
-/// arguments; the halted row of each segment but the last starts the next.
+/// arguments, but where the machine's own step gives the same next row
+/// (`decline_steps`); the halted row of each segment but the last starts
+/// the next.
 fn run(p: &Public, jt: &JetTable, mut heap: Vec<Cell>) -> Result<CJRun, String> {
     let roots: std::collections::HashMap<u32, u32> = jt.roots.iter().copied().collect();
     let mut rows = Vec::new();
@@ -150,6 +199,7 @@ fn run(p: &Public, jt: &JetTable, mut heap: Vec<Cell>) -> Result<CJRun, String> 
     if heap.len() > 1 << p.log_mem {
         return Err(format!("{} memory cells, over the statement's 2^{}", heap.len(), p.log_mem));
     }
+    decline_steps(&mut rows, &heap, &mut insts);
     Ok(CJRun { rows, restarts, heap, insts })
 }
 
@@ -270,8 +320,9 @@ fn traces(p: &Public, jt: &JetTable, r: &CJRun, lg: JLogs, blind: bool, bs: Blin
         }
         row.extend(jc);
         row.extend(vec![Val::ZERO; 3 * BLIND_WIDTH]);
-        // The restart columns: as `composed::traces`.
-        let mut rc = [Val::ZERO, f(cnt), Val::ZERO];
+        // The restart columns: as `composed::traces`, the next segment's
+        // root on every row as Lean's honest row has it (`cpuColCJ`).
+        let mut rc = [Val::ZERO, f(cnt), f(p.roots.get(cnt as usize + 1).copied().unwrap_or(0))];
         if restarts.contains(&clk) {
             for q in 0..NKINDS {
                 row[SEL + q] = Val::ZERO;
@@ -485,6 +536,52 @@ pub fn compj_prove(public: &std::path::Path, jets_path: &std::path::Path, src: &
     Ok(())
 }
 
+/// `ski-air compj-dump PUBLIC JETS SRC WITNESS DIR`: the honest run's table
+/// (`DIR/run.txt`, `lake exe composed check-cj`'s format) and its private
+/// traces, in the blinding tree's order (`DIR/{mem,cpu,wit,pop,instw,tmpl,
+/// hdr,roots}.txt`), unblinded and blinded (`NAME.blind.txt`, under a fresh
+/// seed), for Lean's comparisons (`lake exe composed check-cj-tables`,
+/// `check-cj-blind`).
+pub fn compj_dump(public: &std::path::Path, jets_path: &std::path::Path, _src: &str, wit: &std::path::Path,
+    dir: &std::path::Path) -> Result<(), String> {
+    let (p, lg) = checked_public_j(public)?;
+    let jtext = read(jets_path)?;
+    let jt = parse_jets(&jtext);
+    let private = read_witness(&p, wit)?;
+    let r = run(&p, &jt, heap_of(&p, &private))?;
+    std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    std::fs::write(dir.join("run.txt"), lean_table(&p, &r)).map_err(|e| format!("run.txt: {e}"))?;
+    for (blind, suffix) in [(false, ""), (true, ".blind")] {
+        let (bs, _) = ProverSeed::fresh().split();
+        let tr = traces(&p, &jt, &r, lg, blind, bs)?;
+        for (k, name) in [(1usize, "mem"), (0, "cpu"), (3, "wit"), (8, "pop"), (9, "instw"), (7, "tmpl"), (6, "hdr"), (5, "roots")] {
+            crate::write_trace(dir, &format!("{name}{suffix}"), &tr[k])?;
+        }
+    }
+    println!("{} rows ({} instantiations) -> {}", r.rows.len(), r.insts, dir.display());
+    Ok(())
+}
+
+/// `ski-air compj-dump-table PUBLIC JETS SRC TABLE DIR`: as `compj-dump`,
+/// the run read from a table (`run_of_table_cj`, the path `compj-prove-table`
+/// takes for Avon's tables) instead of run from a witness.  Gate 5 checks
+/// that both paths give the same traces.
+pub fn compj_dump_table(public: &std::path::Path, jets_path: &std::path::Path, _src: &str,
+    table: &std::path::Path, dir: &std::path::Path) -> Result<(), String> {
+    let (p, lg) = checked_public_j(public)?;
+    let jt = parse_jets(&read(jets_path)?);
+    let r = run_of_table_cj(&p, &jt, &read(table)?)?;
+    std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    std::fs::write(dir.join("run.txt"), lean_table(&p, &r)).map_err(|e| format!("run.txt: {e}"))?;
+    let (bs, _) = ProverSeed::fresh().split();
+    let tr = traces(&p, &jt, &r, lg, false, bs)?;
+    for (k, name) in [(1usize, "mem"), (0, "cpu"), (3, "wit"), (8, "pop"), (9, "instw"), (7, "tmpl"), (6, "hdr"), (5, "roots")] {
+        crate::write_trace(dir, name, &tr[k])?;
+    }
+    println!("{} rows ({} instantiations) -> {}", r.rows.len(), r.insts, dir.display());
+    Ok(())
+}
+
 /// A run from a table another producer wrote (Avon's composed witness), in
 /// `lean_table`'s format: the statement's header and region size, the memory
 /// at the statement's height beginning with its public cells, the segments'
@@ -549,6 +646,7 @@ fn run_of_table_cj(p: &Public, jt: &JetTable, text: &str) -> Result<CJRun, Strin
         }
         out.push((rows[i], info));
     }
+    decline_steps(&mut out, &mem, &mut insts);
     Ok(CJRun { rows: out, restarts: restarts.to_vec(), heap: mem, insts })
 }
 

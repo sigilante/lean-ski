@@ -1,5 +1,8 @@
 import Ski.WitnessExamples
 import Ski.WitnessText
+import Ski.Circuit.WitComplete
+import Ski.Circuit.TraceCheck
+import Ski.ZK.Blocks
 open Term
 
 /-!
@@ -118,11 +121,62 @@ def check (pub : String) (paths : List String) : IO UInt32 := do
         bad := bad + 1
   return (if bad == 0 then 0 else 1)
 
+/-- `witness check-tables PUBLIC DIR`: compare the traces `witness.rs`
+    proves (`ski-air witness-dump PUBLIC REGION DIR`) with Lean's honest
+    tables, as `Circuit.wit_complete` builds them from the same run
+    (`DIR/run.txt`): the CPU (`cpuTableW`), the witness table
+    (`witTableG 0 A 0 W`) and the memory (`memTableC`, its multiplicities
+    counted over the dumped tables, `Circuit.memTableC_mult`), every row.
+    `OK` when every cell agrees. -/
+def checkTables (pub dir : String) : IO UInt32 := do
+  let some (V, x, W) := statementOfText (← IO.FS.readFile pub) | do IO.println "NOT A STATEMENT"; return 1
+  let ls := ((← IO.FS.readFile (dir ++ "/run.txt")).splitOn "\n").filter (fun l => !l.trimAscii.toString.isEmpty)
+  let some (V', x', W', cells, rows) := parseTable ls | do IO.println "MALFORMED run.txt"; return 1
+  if V' != V || x' != x || W' != W then IO.println "run.txt is not a run of the statement"; return 1
+  let A := cells.toList
+  let blank := wMachine (List.replicate W .S) (V ⬝ x)
+  let airs := Circuit.witAirs V x W
+  let air := fun (i : Nat) => airs.getD i ⟨"", 0, 0, [], [], []⟩
+  let cpu ← Circuit.TraceCheck.loadTrace dir "cpu"
+  let mem ← Circuit.TraceCheck.loadTrace dir "mem"
+  let wit ← Circuit.TraceCheck.loadTrace dir "wit"
+  let rowA := rows.toArray
+  let C := Circuit.cpuTableW A (fun i => rowA.getD i ⟨0, 0, 0⟩) rowA.size cpu.size
+  let Wt := Circuit.witTableG 0 A 0 W
+  -- The proof's heights (`Circuit.wit_complete`): 2^10 rows and memory, the
+  -- witness table's own.
+  if !(← Circuit.TraceCheck.shapesOK
+      [("cpu", cpu.size, 2 ^ 10), ("run", rows.length, cpu.size), ("mem", mem.size, 2 ^ 10),
+       ("memory", cells.size, 2 ^ 10), ("wit", wit.size, Wt.h)]
+      [("cpu", cpu, air 0), ("mem", mem, air 1), ("wit", wit, air 3)] cells.size) then return 1
+  let who := "witness.rs"
+  let b1 ← Circuit.TraceCheck.cmpRows who "cpu" cpu (List.range cpu.size) fun r c => (C.main r c).val
+  let b2 ← Circuit.TraceCheck.cmpRows who "wit" wit (List.range wit.size) fun r c => (Wt.main r c).val
+  let msgs := Circuit.sendsOn (air 0) (Circuit.TraceCheck.asTable (air 0) cpu) "mem" ++
+    Circuit.sendsOn (air 2) (Circuit.progTableW blank.heap W) "mem" ++
+    Circuit.sendsOn (air 3) (Circuit.TraceCheck.asTable (air 3) wit) "mem"
+  let mult := Circuit.multArr A msgs
+  let b3 ← Circuit.TraceCheck.cmpRows who "mem" (mem.map (·.extract 0 5)) (List.range mem.size)
+    (Circuit.TraceCheck.memModel cells mult)
+  IO.println s!"cpu {cpu.size}, wit {wit.size}, mem {mem.size} rows; cells differing: {b1}, {b2}, {b3}"
+  if b1 + b2 + b3 == 0 then
+    IO.println "OK: witness.rs's traces are Lean's model of the honest tables"; return 0
+  else
+    IO.println "DIFFER"; return 1
+
+/-- `witness check-blind DIR`: the blinded traces `witness.rs` commits to
+    are its unblinded ones blinded as `Circuit.witView` blinds them, at
+    `Circuit.witBlocks`. -/
+def checkBlind (dir : String) : IO UInt32 :=
+  Circuit.TraceCheck.checkBlind "witness.rs" "witView" dir ["mem", "cpu", "wit"] Circuit.witBlocks 2
+
 def main (args : List String) : IO UInt32 := do
   match args with
   | ["emit", dir] => emit dir
   | ["statement", pub] => statement pub
   | "check" :: pub :: paths => check pub paths
+  | ["check-tables", pub, dir] => checkTables pub dir
+  | ["check-blind", dir] => checkBlind dir
   | _ =>
-    IO.eprintln "usage: witness emit DIR | witness statement PUBLIC | witness check PUBLIC TABLE..."
+    IO.eprintln "usage: witness emit DIR | witness statement PUBLIC | witness check PUBLIC TABLE... | witness check-tables PUBLIC DIR | witness check-blind DIR"
     return 2
