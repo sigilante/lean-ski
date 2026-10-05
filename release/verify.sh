@@ -69,6 +69,14 @@
 #      (`compp-chain`, Circuit.p2commit_chainB), and the chain is refused
 #      with the proofs swapped, paired with `p2pre`, or through FIFOs that
 #      give Lean's check one statement and the verifier another.
+#  13. a poke whose event is an entropy reply, its bits private
+#      (release/entropy): Lean compiles the kernel and the checks from
+#      source.ski and checks each statement (`lake exe entropy statement`,
+#      Circuit.entropyExport_sound): some 128 literal bits, given to the
+#      kernel as the reply [0 [0 bits]], make `bootok` (and `firstset`)
+#      accept the poke; each statement is refused read as the other's;
+#      ski-air composed-verify checks both proofs, and refuses one with a
+#      byte changed and each offered for the other's statement.
 #
 # Each refusal must give its expected reason (`refused`): a proof refused
 # by the statement check where the proof check should refuse it fails.
@@ -112,7 +120,7 @@ refused() {   # LOG PATTERN WHAT
 }
 
 echo "--- building the Lean checkers and the verifier (first run: minutes)"
-lake build jets circuit composed skilark sudoku > /dev/null
+lake build jets circuit composed skilark sudoku entropy > /dev/null
 (cd bench/plonky3 && cargo build --release --locked --quiet)
 SKI_AIR=${SKI_AIR:-bench/plonky3/target/release/ski-air}
 
@@ -564,5 +572,37 @@ else
     refused "$tmp/chf.log" 'heights \[' "the chain through FIFOs is refused"
 fi
 
+echo "--- 13. a poke whose event is an entropy reply, its 128 bits private"
+E=release/entropy
+for n in bootok firstset; do
+    lake exe entropy statement "$E/source.ski" "$n" "$E/$n.public.txt" > "$tmp/es.log" 2> /dev/null \
+        && ok "$(head -c 100 "$tmp/es.log")" \
+        || no "release/entropy/$n.public.txt is not the $n statement of its source ($(head -c 80 "$tmp/es.log"))"
+    "$SKI_AIR" composed-verify "$E/$n.public.txt" "$E/$n.proof" > "$tmp/ev.log" \
+        && ok "the $n proof verifies from its file" \
+        || no "the $n proof does not verify ($(head -c 80 "$tmp/ev.log"))"
+done
+if lake exe entropy statement "$E/source.ski" firstset "$E/bootok.public.txt" > "$tmp/ex.log" 2> /dev/null; then
+    no "the bootok statement read as firstset's"
+else
+    refused "$tmp/ex.log" 'NOT THIS STATEMENT' "the bootok statement is not firstset's"
+fi
+if "$SKI_AIR" composed-verify "$E/firstset.public.txt" "$E/bootok.proof" > "$tmp/ex2.log"; then
+    no "the bootok proof verified for the firstset statement"
+else
+    refused "$tmp/ex2.log" 'verify: [A-Z]|deserialize: ' "the bootok proof offered for the firstset statement is refused"
+fi
+/bin/cp "$E/firstset.proof" "$tmp/eflip.proof"
+size=$(wc -c < "$tmp/eflip.proof")
+off=$((size / 2))
+byte=$(dd if="$tmp/eflip.proof" bs=1 skip=$off count=1 2>/dev/null | od -An -tu1 | tr -d ' ')
+printf '%b' "$(printf '\\0%03o' $(( (byte + 1) % 256 )))" \
+    | dd of="$tmp/eflip.proof" bs=1 seek=$off count=1 conv=notrunc 2>/dev/null
+if "$SKI_AIR" composed-verify "$E/firstset.public.txt" "$tmp/eflip.proof" > "$tmp/ef.log"; then
+    no "the firstset proof with one byte changed verified"
+else
+    refused "$tmp/ef.log" 'verify: [A-Z]|deserialize: |bytes after the proof' "the firstset proof with one byte changed is refused"
+fi
+
 [ "$failed" = 0 ] || { echo "NOT VERIFIED: release"; exit 1; }
-echo "VERIFIED: release/sumto, release/composed, release/skilark (with jets${QUICK:+, csplit8 skipped}), release/sudoku and release/p2"
+echo "VERIFIED: release/sumto, release/composed, release/skilark (with jets${QUICK:+, csplit8 skipped}), release/sudoku, release/p2 and release/entropy"

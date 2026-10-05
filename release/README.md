@@ -161,6 +161,21 @@ part of CI.
       prints `CHAIN OK`. It refuses the chain with the proofs swapped, paired
       with `p2pre`, or through FIFOs that answer Lean's read with the
       hand-off and the verifier's with `p2pre`.
+14. **A poke whose event is an entropy reply.** `entropy` holds two
+    statements and their proofs. `source.ski` is Avon's entropy kernel
+    (avon `tests/kernel/entropy.ascii.ski`, which Lean's front end and
+    SKIjack's compile to the same term) with two checks. `verify.sh`
+    compiles it in Lean and checks that each statement is the predicate
+    `entropyV 128` on `[kernel [0 check]]` (`lake exe entropy statement`):
+    some 128 literal bits, given to the kernel as the reply `[0 [0 bits]]`,
+    make the check accept the poke. `ski-air composed-verify` checks each
+    proof. Each statement is refused read as the other's; the `bootok`
+    proof is refused for the `firstset` statement, and the `firstset` proof
+    with one byte changed.
+    - `bootok.public.txt`: the poke emits no effects and the new kernel's
+      peek 0 counts one reply. It reads no bit.
+    - `firstset.public.txt`: the same, and the new kernel's peek 3, the
+      reply's first bit, is 1. Its proof discloses that bit.
 
 ## What the proofs mean, and what they do not
 
@@ -295,6 +310,22 @@ These rest on the stated assumptions:
 Each proof publishes one jet call, the same for every witness
 (`Circuit.p2pre_once`, `P2Run.honest_zk_p2pre`).
 
+**The entropy proofs.** An accepted proof of either entropy statement
+holds in its memory 128 Booleans `bs` for which the check accepts the
+kernel's poke with the reply `[0 [0 (listT bs)]]`, Avon's encoding of the
+event its pier logs (`Circuit.entropyExport_sound`, `Ski/Entropy.lean`).
+The bits are the composed circuit's slot cells, hidden as every composed
+witness is (`Circuit.comp_zk`, `transcript_zk`). `produce.sh` took them
+from fresh Avon piers' boot replies, drawn from `getentropy`, and kept
+neither pier nor witness; Lean checked first that the piers' pill is `K`
+applied to the kernel it compiles (`lake exe entropy pill`). For
+`firstset` it booted piers until one's first bit was set, which that
+statement discloses anyway; the other 127 bits are as drawn. What the statements disclose is the check's
+verdict: nothing about the bits for `bootok`, the first bit for
+`firstset`. The proof does not show that the bits came from a pier; a
+prover may choose them. It shows what the kernel does with some bits it
+cannot see into, which is what a proved poke of a reply needs.
+
 **The hand-off's commitment hides the value.** `produce.sh` drew the
 value and the randomness fresh from the system's entropy (`emit-handoff
 --fresh`; Lean's runtime reads `/dev/urandom`): the randomness eight
@@ -383,9 +414,15 @@ instantiation writes only the cells that depend on its arguments
     discarded);
     `ski-air compp-prove` proves each, and `ski-air compp-chain` checks the
     hand-off.
+13. The entropy proofs: Avon boots fresh piers of its entropy kernel with
+    `--entropy`, and Lean emits each statement and its witness from a
+    pier's logged boot reply (`lake exe entropy emit`); `ski-air
+    composed-prove` proves each, at heights 2^11 and 2^14 (about 1,900
+    CPU rows and 13,600 memory cells, half a second). The piers and the
+    witnesses stay in a temporary directory.
 
 `release/produce.sh STAGE…` runs some of these: `sumto`, `composed`,
-`split8`, `csplit8`, `sudoku`, `jets`, `p2`.
+`split8`, `csplit8`, `sudoku`, `jets`, `p2`, `entropy`.
 
 Avon's witnesses are byte-identical to the tables lean-ski's own prover
 writes for the same term, jet table and plan (Avon's `make

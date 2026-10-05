@@ -87,7 +87,7 @@ ski=bench/plonky3/target/release/ski-air
 gen=$(mktemp -d)
 if command -v cargo >/dev/null 2>&1 \
    && (cd bench/plonky3 && cargo build --release >/dev/null 2>&1) \
-   && lake build circuit sudoku witness jets composed skilark >/dev/null 2>&1; then
+   && lake build circuit sudoku witness jets composed skilark entropy >/dev/null 2>&1; then
   if ! { lake env lean --run bench/Dump.lean > "$gen/corpus.txt" \
          && lake exe sudoku emit "$gen/sudoku" >/dev/null \
          && lake exe witness emit "$gen/witness" >/dev/null \
