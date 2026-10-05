@@ -82,6 +82,9 @@
 #      byte changed and each offered for the other's statement; and
 #      `composed-digest-bound` refuses bootok's with the digest of its
 #      statement with a CPU constant changed.
+#  14. the masking margin (`ski-air mask-margin`): every zero-knowledge
+#      proof's smallest table has the random rows `masks_hide` needs,
+#      |S| + 4|Z| <= n, and Plonky3's HidingFriPcs's 2 (queries + 8).
 #
 # Each refusal must give its expected reason (`refused`): a proof refused
 # by the statement check where the proof check should refuse it fails.
@@ -624,6 +627,16 @@ for pair in "bootok firstset" "firstset bootok"; do
         refused "$tmp/ef.log" 'verify: [A-Z]|deserialize: |bytes after the proof' "the $1 proof with one byte changed is refused"
     fi
 done
+
+echo "--- 14. the masking margin of every zero-knowledge proof"
+# Random rows hide a table's openings when |S| + 4|Z| <= n (masks_hide);
+# the margin reads each proof's heights, which the steps above pin to its
+# statement's.
+zk=$(find release/composed release/skilark release/sudoku release/p2 release/entropy -name '*.proof' | sort)
+# shellcheck disable=SC2086
+"$SKI_AIR" mask-margin $zk > "$tmp/mm.log" \
+    && ok "every zero-knowledge proof meets the masking margin ($(grep -c 'margin met' "$tmp/mm.log") proofs; $(grep -o '[0-9]* to spare' "$tmp/mm.log" | sort -n | head -n 1) at the least)" \
+    || no "a proof misses the masking margin ($(grep -m 1 'NOT MET' "$tmp/mm.log" | head -c 100))"
 
 [ "$failed" = 0 ] || { echo "NOT VERIFIED: release"; exit 1; }
 echo "VERIFIED: release/sumto, release/composed, release/skilark (with jets${QUICK:+, csplit8 skipped}), release/sudoku, release/p2 and release/entropy"

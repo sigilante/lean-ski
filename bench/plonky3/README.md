@@ -990,11 +990,16 @@ What the theorem rests on:
   permutation traces, the quotient, FRI and the openings. The theorem's
   own content is the eight terminals' tree argument, with its error terms
   for non-generic challenges and aborts.
-- **The `2^8` floor has a margin of about 50 values.** With 100 FRI queries
-  at arity 2 a table opens about 200 points against its 256 random values
-  under hiding. The witness table and the providers sit at `2^8`, and POP
-  and INSTW do too at a budget of 8. More queries or a wider fold would
-  need a higher floor.
+- **The `2^8` floor has a margin of 48 values, 40 by Plonky3's count.**
+  With 100 FRI queries at arity 2 a table opens 200 base-field points and
+  two out-of-domain points, `|S| + 4 |Z| = 208`, against its 256 random
+  rows (`masks_hide`); Plonky3's `HidingFriPcs` asks `2 (100 + 8) = 216`.
+  The witness table and the providers sit at `2^8`, and POP and INSTW do
+  too at a budget of 8. `ski-air mask-margin PROOF…` prints each proof's
+  margin from its heights, and `release/verify.sh` (step 14) checks every
+  released zero-knowledge proof; `ski-air fs-budget` prints it after each
+  hiding verification. More queries or a wider fold would need a higher
+  floor.
 
 ## Jets: instantiation rows
 

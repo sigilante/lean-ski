@@ -1585,6 +1585,13 @@ fn main() {
         }
         return;
     }
+    if args.len() >= 3 && args[1] == "mask-margin" {
+        if let Err(e) = fsbudget::mask_margin(&args[2..]) {
+            println!("{e}");
+            std::process::exit(1);
+        }
+        return;
+    }
     if args.len() == 4 && args[1] == "composed-digest-bound" {
         std::panic::set_hook(Box::new(|_| {}));
         let p = |i: usize| std::path::Path::new(&args[i]);
@@ -1712,7 +1719,7 @@ fn main() {
     if args.len() != 3 {
         eprintln!(
             "usage: ski-air CORPUS OUTDIR | ski-air sudoku DIR OUTDIR | ski-air witness DIR OUTDIR | ski-air composed DIR OUTDIR |\n       \
-             ski-air composed-prove PUBLIC WITNESS PROOF [TABLE] | ski-air composed-verify PUBLIC PROOF | ski-air composed-digest-bound PUBLIC PROOF | ski-air jets CORPUS JETSDIR OUTDIR\n       \
+             ski-air composed-prove PUBLIC WITNESS PROOF [TABLE] | ski-air composed-verify PUBLIC PROOF | ski-air composed-digest-bound PUBLIC PROOF | ski-air mask-margin PROOF... | ski-air jets CORPUS JETSDIR OUTDIR\n       \
              ski-air jet-prove TERM JETS TABLE PROOF | ski-air jet-verify CORPUS JETSDIR NAME PROOF\n       \
              ski-air probes CORPUS JETSDIR OUTDIR | ski-air probe-prove TERM JETS TABLE PROOF OUTCOME...\n       \
              ski-air probe-prove-table TERM JETS TABLE PROOF OUTCOME...\n       \
