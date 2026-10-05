@@ -45,6 +45,7 @@ forgeries the sections below list.
 | A Poseidon2 preimage of `h` | `p2/` | 12 | `p2preExport_sound` |
 | A hidden hand-off over one commitment | `p2/` | 12 | `p2commitExport_sound`, `p2commit_chainB` |
 | A kernel's poke with a private entropy reply | `entropy/` | 13 | `entropyExport_sound` |
+| Every zero-knowledge proof has the random rows its hiding needs | all but `sumto/` | 14 | `masks_hide`'s hypothesis, `\|S\| + 4\|Z\| ≤ n`, 48 to spare |
 
 The theorems are in namespace `Circuit` unless prefixed.
 

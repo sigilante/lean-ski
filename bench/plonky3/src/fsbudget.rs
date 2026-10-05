@@ -283,6 +283,9 @@ where
         s.grinding.out_of_domain,
         s.grinding.lookup_challenge,
     );
+    if s.openings.is_zk() {
+        println!("  {}", margin_text(s.degree_bits, s.fri.num_queries).1);
+    }
     let regimes = evaluate(&insts, s, &s.fri, &s.grinding);
     for (title, rounds) in &regimes {
         let (bind, bits) = weakest(rounds);
@@ -336,6 +339,50 @@ where
 /// proof's per-round budget.  Both configurations build their FRI
 /// parameters with `crate::fri_params`; the out-of-domain and
 /// lookup grinding are read from the configuration.
+/// **The masking margin** (`masks_hide`, `Ski/ZK/MaskOOD.lean`): a table
+/// of `n` rows, masked by `n` random rows, hides its openings when
+/// `|S| + 4 |Z| <= n`, `S` the base-field points FRI opens (two a query at
+/// arity 2) and `Z` the two out-of-domain points, four coordinates each.
+/// Plonky3's `HidingFriPcs` asks `2 (queries + 4 · opening points)`, a
+/// little more.  Under hiding a table's degree bits count its rows and as
+/// many random rows: the trace has half.  Whether the smallest table meets
+/// both, and the line saying so.
+pub(crate) fn margin_text(degree_bits: &[usize], queries: usize) -> (bool, String) {
+    let lean = 2 * queries + 4 * 2;
+    let p3 = 2 * (queries + 4 * 2);
+    let min_log = degree_bits.iter().copied().min().unwrap_or(1).saturating_sub(1);
+    let n = 1usize << min_log;
+    let need = lean.max(p3);
+    if n >= need {
+        (true, format!(
+            "masking margin met: the smallest table 2^{min_log} = {n} rows; masks_hide needs {lean}, \
+             HidingFriPcs {p3}; {} to spare",
+            n - need
+        ))
+    } else {
+        (false, format!(
+            "masking margin NOT MET: the smallest table 2^{min_log} = {n} rows; masks_hide needs {lean}, HidingFriPcs {p3}"
+        ))
+    }
+}
+
+/// `ski-air mask-margin PROOF...`: the masking margin of hiding proofs,
+/// from their tables' heights alone, which each verifier pins to its
+/// statement's.  Fails if any proof misses it.
+pub fn mask_margin(paths: &[String]) -> Result<(), String> {
+    let queries = crate::fri_params(()).num_queries;
+    let mut ok = true;
+    for path in paths {
+        let bytes = std::fs::read(path).map_err(|e| format!("{path}: {e}"))?;
+        let (proof, _): (p3_batch_stark::BatchProof<crate::sudoku::ZkConfig>, &[u8]) =
+            postcard::take_from_bytes(&bytes).map_err(|e| format!("{path}: deserialize: {e}"))?;
+        let (met, line) = margin_text(&proof.degree_bits, queries);
+        println!("{path}: {line}");
+        ok &= met;
+    }
+    if ok { Ok(()) } else { Err("a proof misses the masking margin".into()) }
+}
+
 macro_rules! budget {
     ($name:expr, $airs:expr, $proof:expr, $common:expr, $config:expr, $openings:expr) => {
         if crate::fs_budget_on() {
@@ -375,3 +422,19 @@ macro_rules! budget {
     };
 }
 pub(crate) use budget;
+
+#[cfg(test)]
+mod margin_tests {
+    use super::margin_text;
+
+    /// At 100 queries the bound is 216 rows: 2^8 meets it, 2^7 does not;
+    /// the degree bits count the random rows too.
+    #[test]
+    fn the_margin_is_the_smallest_tables() {
+        assert!(margin_text(&[12, 9, 11], 100).0);
+        assert!(!margin_text(&[12, 8, 11], 100).0);
+        assert!(margin_text(&[9], 100).1.contains("40 to spare"));
+        assert!(margin_text(&[9], 120).0);
+        assert!(!margin_text(&[9], 121).0);
+    }
+}
