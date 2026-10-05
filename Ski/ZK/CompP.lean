@@ -27,8 +27,8 @@ run, they balance with the public program, segment and level tables, the
 level table's multiplicities those of the run's calls, and their flags
 are clear; for `p2pre h` and `p2commit c pat` the run makes one call, so
 the level table is `idxPub 1` (`P2Run.honest_zk_p2pre`,
-`P2Run.honest_zk_p2commit`).  That
-they satisfy each AIR's constraints (`Sat`) is not proved.
+`P2Run.honest_zk_p2commit`).  The
+same tables satisfy each AIR's constraints (`compPG_complete_log`).
 -/
 
 namespace Circuit

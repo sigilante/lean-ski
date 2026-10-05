@@ -977,7 +977,8 @@ one row pushes the output bits as stack cells into the heap's `K` and
 `p2Row_cstep`); composed statements may leave `J` free, and an accepted
 table with jet rows proves the statement with `J` closed to `Pbits`
 (`CompM.composedP_sound`). The circuit's jet rows exist and are proved
-sound (`Circuit.compPExportG_sound`) and zero knowledge
+sound (`Circuit.compPExportG_sound`), complete
+(`Circuit.compPG_complete_log`) and zero knowledge
 (`Circuit.compP_transcript`). The hidden hand-off runs in the circuit:
 two accepted `p2commit` proofs over one commitment, the first pattern
 fixing value bits only and both keeping the value canonical, give one

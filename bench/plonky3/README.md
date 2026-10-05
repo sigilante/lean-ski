@@ -558,7 +558,8 @@ knowledge:
   masked by random rows (`masks_hide`);
 - for this circuit, Lean's honest model is these tables, and
   `P2Run.honest_zkP` proves its balance and clear flags, the hypotheses of
-  `compP_transcript`.
+  `compP_transcript`; `compPG_complete_log` proves the circuit accepts
+  them.
 
 `ski-air compp-guess PUBLIC WITNESS` tests the published terminals of all
 six private tables: CPU, MEM, WIT, P2IN, P2OUT and the Poseidon2 table. A

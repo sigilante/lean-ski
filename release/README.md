@@ -331,7 +331,10 @@ These rest on the stated assumptions:
   proved.
 
 Each proof publishes one jet call, the same for every witness
-(`Circuit.p2pre_once`, `P2Run.honest_zk_p2pre`).
+(`Circuit.p2pre_once`, `P2Run.honest_zk_p2pre`). The honest tables of every
+run within `2^20` rows are accepted, with the published level table
+(`Circuit.compP_complete_log`, `Circuit.compPC_complete_log`); that an
+evaluation yields such a run is tested, not proved.
 
 **The entropy proofs.** An accepted proof of either entropy statement
 holds in its memory 128 Booleans `bs` for which the check accepts the

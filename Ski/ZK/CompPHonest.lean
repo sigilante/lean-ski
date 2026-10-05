@@ -12,8 +12,9 @@ multiplicities those of the run's jet calls (`balancedP`), and carry clear
 blinding flags: `compP_transcript`'s hypotheses.  An honest run of one
 verifier in the frame, as `p2pre h` and `p2commit c pat` are, calls the jet
 once (`calls_one`), so its tables meet them with the level table `idxPub 1`
-(`honest_zk_p2pre`, `honest_zk_p2commit`).  That the honest tables satisfy
-each AIR's constraints (`Sat`) is not proved.
+(`honest_zk_p2pre`, `honest_zk_p2commit`).  The same tables satisfy each
+AIR's constraints, so the circuit accepts them (`compPG_complete_log`,
+`Ski/Circuit/CompPCompleteFinal.lean`).
 -/
 
 namespace Circuit
