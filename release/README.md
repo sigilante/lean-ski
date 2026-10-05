@@ -25,6 +25,29 @@ refusal counts only with its expected reason: a forgery meant for the proof
 check that the statement check refuses instead is a failure. It is not
 part of CI.
 
+## Each claim and its check
+
+Each released claim, where it lives, the step of `verify.sh` that checks
+it, and the theorem an accepted check yields. The steps also refuse the
+forgeries the sections below list.
+
+| Claim | Release files | Step | Lean |
+|---|---|---|---|
+| `3 sumto` halts, its jets licensed | `sumto/`, `sumto/jets/` | 1–4 | `jetExport_sound`, `Air.checkJA_sound` |
+| `3 sumto` decodes to `[6]` | `sumto/` | 5 | `probeExport_sound`, `Air.checkPA_decodes` |
+| A forged jet table proves nothing | `forgeries/omega/` | 3 | the statement check refuses it |
+| The ∨ and the ∧ of two atoms, hidden | `composed/` | 6 | `compExportG_sound` |
+| Each proof binds its CPU constants (start registers, acceptance), which no committed table holds | `composed/`, `entropy/` | 6, 13 | none: the statement digest, tested by `ski-air composed-digest-bound` |
+| Some 16 bits make `split` accept `x = 200` | `skilark/split8/` | 7 | `predExport_sound` |
+| The same, with a toy commitment | `skilark/csplit8/` | 8 | `predExport_sound` |
+| Wikipedia's Sudoku has a hidden solution | `sudoku/` | 9 | `sudExport_sound` |
+| `split` and `csplit` with jets, hidden | `skilark/*/jets/` | 10–11 | `compJExport_sound`, `Air.jetStmtC_sound` |
+| A Poseidon2 preimage of `h` | `p2/` | 12 | `p2preExport_sound` |
+| A hidden hand-off over one commitment | `p2/` | 12 | `p2commitExport_sound`, `p2commit_chainB` |
+| A kernel's poke with a private entropy reply | `entropy/` | 13 | `entropyExport_sound` |
+
+The theorems are in namespace `Circuit` unless prefixed.
+
 ## What is verified
 
 1. **The term.** `sumto/corpus.txt` holds lean-ski's corpus row `sumto_us`:
