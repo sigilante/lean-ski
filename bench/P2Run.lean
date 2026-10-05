@@ -11,6 +11,11 @@ distinct subterm once, and the normal form `P_spec` proves it reaches,
 Avon's printed form.  `avon reduce OUTDIR/p2.dag` reduces it.  It also
 writes `P` alone (`OUTDIR/P.dag`), the term `avon reduce --p2=OUTDIR/P.dag`
 runs natively.
+
+`lake exe p2run chain K N OUTDIR` writes the chain `P ⬝ (P ⬝ … (P ⬝ stateN
+x))`, `N` calls of one shared `P` (`OUTDIR/chain.dag`), and its normal form
+`stateN (permute^N x)` (`OUTDIR/chain.expected`).  `P_specN` gives each
+call, since `permute`'s output is below `p`, so 31 bits.
 -/
 
 open Term
@@ -68,6 +73,16 @@ def main (args : List String) : IO UInt32 := do
     IO.FS.writeFile s!"{out}/P.dag" ("dag " ++ " ".intercalate pst.lines.toList ++ s!" @{proot}\n")
     IO.println s!"{st.ids.size} distinct subterms; input {inp}"
     return 0
+  | ["chain", k, n, out] =>
+    let some (inp, _) := Poseidon2.vectors[k.toNat!]? | IO.eprintln "no such vector"; return 1
+    let t := (List.range n.toNat!).foldl (fun t _ => Poseidon2SKI.P ⬝ t) (DataJet.stateN inp)
+    let outp := (List.range n.toNat!).foldl (fun s _ => Poseidon2.permute s) inp
+    let (root, st) := (dagOf t).run {}
+    IO.FS.writeFile s!"{out}/chain.dag" ("dag " ++ " ".intercalate st.lines.toList ++ s!" @{root}\n")
+    IO.FS.writeFile s!"{out}/chain.expected" (pretty (DataJet.stateN outp) ++ "\n")
+    let (proot, pst) := (dagOf Poseidon2SKI.P).run {}
+    IO.FS.writeFile s!"{out}/P.dag" ("dag " ++ " ".intercalate pst.lines.toList ++ s!" @{proot}\n")
+    return 0
   | ["part", name, out] =>
     -- One piece alone, for its cost: `mul`, `mod`, `sbox`, `ext`, `int`.
     let a := BitArith.litT 1234567890
@@ -87,4 +102,4 @@ def main (args : List String) : IO UInt32 := do
     let (root, d) := (dagOf t).run {}
     IO.FS.writeFile s!"{out}/{name}.dag" ("dag " ++ " ".intercalate d.lines.toList ++ s!" @{root}\n")
     return 0
-  | _ => IO.eprintln "usage: p2run K OUTDIR | p2run part NAME OUTDIR"; return 1
+  | _ => IO.eprintln "usage: p2run K OUTDIR | p2run chain K N OUTDIR | p2run part NAME OUTDIR"; return 1
