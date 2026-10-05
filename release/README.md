@@ -219,7 +219,9 @@ formula's run reaches the accepting marker: a solution of the puzzle
 **The proofs with jets** (`skilark/*/jets`). The same predicates, proved
 with the composed circuit with jets: a licensed template's instantiation
 takes one CPU row where the machine took many. `split8` runs in 11,599 CPU
-rows (2,250 instantiations, 8,614 POP and 12,363 INSTW rows) against
+rows (2,250 instantiations, 8,614 POP and 12,363 INSTW rows; the prover
+now runs a projection jet as a machine step, 1,952 and 8,018, and these
+proofs, made before, verify as before) against
 129,964 without jets; `csplit8` fits `2^18` rows and `2^19` memory
 cells against the plain proof's `2^19` and `2^20`. Avon wrote each
 witness table (`avon witness --statement`, Avon's `docs/ZK-JETS.md`

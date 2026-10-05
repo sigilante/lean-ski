@@ -349,6 +349,11 @@ pub(crate) fn set_blind(m: &mut RowMajorMatrix<Val>, col: usize, tuple: [Val; BL
 /// the blinding messages: fresh tuples `A` (witness to CPU) and `B` (CPU to
 /// memory).
 fn sudoku_traces(p: &Public, tb: &SudokuTable, bs: BlindStream) -> [RowMajorMatrix<Val>; 4] {
+    sudoku_traces_b(p, tb, true, bs)
+}
+
+/// The four traces, blinded or, for Lean's comparison, not.
+fn sudoku_traces_b(p: &Public, tb: &SudokuTable, blind: bool, bs: BlindStream) -> [RowMajorMatrix<Val>; 4] {
     let mut mult = vec![0u32; tb.mem.len()];
     let mut cpu = widen(cpu_trace(&tb.rows, &tb.mem, &mut mult), 2 * BLIND_WIDTH);
     let pre = program_of(p);
@@ -371,18 +376,48 @@ fn sudoku_traces(p: &Public, tb: &SudokuTable, bs: BlindStream) -> [RowMajorMatr
         mem.extend([f(i as u32), f(cell.tag()), f(a), f(b), f(mult[i])]);
     }
     let mut mem = widen(RowMajorMatrix::new(mem, 5), BLIND_WIDTH);
-    let mut rng = bs;
-    let (ba, bb) = (blind_tuple(&mut rng), blind_tuple(&mut rng));
-    set_blind(&mut wit, 1, ba);
-    set_blind(&mut cpu, CPU_BLA, ba);
-    set_blind(&mut cpu, CPU_BLB, bb);
-    set_blind(&mut mem, 5, bb);
+    if blind {
+        let mut rng = bs;
+        let (ba, bb) = (blind_tuple(&mut rng), blind_tuple(&mut rng));
+        set_blind(&mut wit, 1, ba);
+        set_blind(&mut cpu, CPU_BLA, ba);
+        set_blind(&mut cpu, CPU_BLB, bb);
+        set_blind(&mut mem, 5, bb);
+    }
     [
         cpu,
         mem,
         RowMajorMatrix::new(vec![Val::ZERO; pre.len()], 1),
         wit,
     ]
+}
+
+/// `ski-air sudoku-dump PUBLIC BITS DIR`: the honest run's table
+/// (`DIR/run.txt`, `lake exe sudoku check`'s format) and its private
+/// traces, CPU, memory and witness, unblinded and blinded
+/// (`NAME.blind.txt`, under a fresh seed), for Lean's comparisons (`lake
+/// exe sudoku check-tables`, `check-blind`).
+pub fn sudoku_dump(public: &std::path::Path, wit: &std::path::Path, dir: &std::path::Path) -> Result<(), String> {
+    let p = checked_public(public)?;
+    let bits = read_bits(wit);
+    if bits.len() != p.wit_n as usize {
+        return Err(format!("{}: {} inputs, not {}", wit.display(), bits.len(), p.wit_n));
+    }
+    let tb = table(&p, heap_of(&p, &bits)).ok_or("the run does not fit the statement's heights")?;
+    if last_head(&tb) != Cell::Atom(p.acc) {
+        return Err("the run does not reach the accepting marker: the grid is no solution".into());
+    }
+    std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    std::fs::write(dir.join("run.txt"), lean_table(&p, &tb)).map_err(|e| format!("run.txt: {e}"))?;
+    for (blind, suffix) in [(false, ""), (true, ".blind")] {
+        let (bs, _) = ProverSeed::fresh().split();
+        let tr = sudoku_traces_b(&p, &tb, blind, bs);
+        for (k, name) in [(0usize, "cpu"), (1, "mem"), (3, "wit")] {
+            crate::write_trace(dir, &format!("{name}{suffix}"), &tr[k])?;
+        }
+    }
+    println!("{} rows -> {}", tb.rows.len(), dir.display());
+    Ok(())
 }
 
 /// The table in `lake exe sudoku check`'s format.

@@ -243,7 +243,7 @@ fn load(t: &Term) -> (Vec<Cell>, u32, u32) {
 }
 
 /// `Air.stepG` over the machine's own heap, counter the heap's length.
-fn step(heap: &[Cell], hd: u32, stk: u32) -> Option<(u32, u32, Vec<Cell>)> {
+pub(crate) fn step(heap: &[Cell], hd: u32, stk: u32) -> Option<(u32, u32, Vec<Cell>)> {
     let c = heap.len() as u32;
     let g = |a: u32| heap.get(a as usize).copied();
     match g(hd)? {
@@ -1034,6 +1034,20 @@ fn cpu_trace(rows: &[[u32; 3]], memory: &[Cell], mult: &mut [u32]) -> RowMajorMa
     RowMajorMatrix::new(cpu, CPU_WIDTH)
 }
 
+/// A trace as `lake exe composed check-*` reads it: `H W`, then `H` rows of
+/// `W` canonical values, into `DIR/NAME.txt`.
+pub(crate) fn write_trace(dir: &std::path::Path, name: &str, m: &RowMajorMatrix<Val>) -> Result<(), String> {
+    let h = p3_matrix::Matrix::height(m);
+    let mut s = format!("{h} {}\n", m.width);
+    for r in 0..h {
+        let row: Vec<String> = m.values[r * m.width..(r + 1) * m.width].iter().map(|v| p3_field::PrimeField32::as_canonical_u32(v).to_string()).collect();
+        s.push_str(&row.join(" "));
+        s.push('\n');
+    }
+    let file = format!("{name}.txt");
+    std::fs::write(dir.join(&file), s).map_err(|e| format!("{file}: {e}"))
+}
+
 /// The three traces, with the memory multiplicities counted from the rows.
 fn traces(tb: &Table, min_log: usize) -> (RowMajorMatrix<Val>, RowMajorMatrix<Val>, RowMajorMatrix<Val>, Vec<[u32; 5]>) {
     let mut mult = vec![0u32; tb.mem.len()];
@@ -1353,6 +1367,46 @@ fn main() {
             }
         }
     }
+    if args.len() == 5 && args[1] == "composed-dump" {
+        let p = |i: usize| std::path::Path::new(&args[i]);
+        if let Err(e) = composed::composed_dump(p(2), p(3), p(4)) {
+            eprintln!("composed-dump: {e}");
+            std::process::exit(1);
+        }
+        return;
+    }
+    if args.len() == 5 && args[1] == "witness-dump" {
+        let p = |i: usize| std::path::Path::new(&args[i]);
+        if let Err(e) = witness::witness_dump(p(2), p(3), p(4)) {
+            eprintln!("witness-dump: {e}");
+            std::process::exit(1);
+        }
+        return;
+    }
+    if args.len() == 5 && args[1] == "sudoku-dump" {
+        let p = |i: usize| std::path::Path::new(&args[i]);
+        if let Err(e) = sudoku::sudoku_dump(p(2), p(3), p(4)) {
+            eprintln!("sudoku-dump: {e}");
+            std::process::exit(1);
+        }
+        return;
+    }
+    if args.len() == 7 && args[1] == "compj-dump-table" {
+        let p = |i: usize| std::path::Path::new(&args[i]);
+        if let Err(e) = compj::compj_dump_table(p(2), p(3), &args[4], p(5), p(6)) {
+            eprintln!("compj-dump-table: {e}");
+            std::process::exit(1);
+        }
+        return;
+    }
+    if args.len() == 7 && args[1] == "compj-dump" {
+        let p = |i: usize| std::path::Path::new(&args[i]);
+        if let Err(e) = compj::compj_dump(p(2), p(3), &args[4], p(5), p(6)) {
+            eprintln!("compj-dump: {e}");
+            std::process::exit(1);
+        }
+        return;
+    }
     if args.len() == 5 && args[1] == "compp-dump" {
         match compp::compp_dump(std::path::Path::new(&args[2]), std::path::Path::new(&args[3]), std::path::Path::new(&args[4])) {
             Ok(()) => return,
@@ -1658,7 +1712,7 @@ fn main() {
              ski-air compj-verify PUBLIC JETS SRC PROOF | ski-air compj-tamper PUBLIC JETS SRC WITNESS\n       \
              ski-air compj-prove-table PUBLIC JETS SRC TABLE PROOF\n       \
              ski-air sudoku-prove PUBLIC WITNESS PROOF [TABLE] | ski-air sudoku-verify PUBLIC PROOF\n       \
-             ski-air fs-budget VERIFY-COMMAND ARGS... | ski-air poseidon2-lean | ski-air export-p2 | ski-air p2-bench N [tamper] | ski-air compp-prove PUBLIC WITNESS PROOF [--table=PATH|forge-w|forge-v] | ski-air compp-prove-table PUBLIC TABLE PROOF | ski-air compp-verify PUBLIC PROOF | ski-air compp-chain PUBLIC1 PROOF1 PUBLIC2 PROOF2 | ski-air compp-dump PUBLIC WITNESS DIR | ski-air compp-guess PUBLIC WITNESS | ski-air export-compp PUBLIC"
+             ski-air fs-budget VERIFY-COMMAND ARGS... | ski-air poseidon2-lean | ski-air export-p2 | ski-air p2-bench N [tamper] | ski-air compp-prove PUBLIC WITNESS PROOF [--table=PATH|forge-w|forge-v] | ski-air compp-prove-table PUBLIC TABLE PROOF | ski-air compp-verify PUBLIC PROOF | ski-air compp-chain PUBLIC1 PROOF1 PUBLIC2 PROOF2 | ski-air compp-dump PUBLIC WITNESS DIR | ski-air compp-guess PUBLIC WITNESS | ski-air composed-dump PUBLIC WITNESS DIR | ski-air witness-dump PUBLIC REGION DIR | ski-air sudoku-dump PUBLIC BITS DIR | ski-air compj-dump PUBLIC JETS SRC WITNESS DIR | ski-air compj-dump-table PUBLIC JETS SRC TABLE DIR | ski-air export-compp PUBLIC"
         );
         std::process::exit(2);
     }

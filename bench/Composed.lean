@@ -7,6 +7,10 @@ import Ski.ChainExamples
 import Ski.ComposedPText
 import Ski.P2Commit
 import Ski.Circuit.CompPHonest
+import Ski.ZK.Blocks
+import Ski.Circuit.SendsFast
+import Ski.Circuit.TraceCheck
+import Ski.Circuit.JetCntFast
 open Term
 
 /-!
@@ -414,33 +418,6 @@ def chainP2In : IO UInt32 := do
   | _ => IO.println "NOT TWO STATEMENTS"; return 1
 
 
-/-- A trace dump: `H W`, then `H` rows of `W` numbers. -/
-def parseMatrix (text : String) : Option (Array (Array Nat)) := do
-  let ls := (text.splitOn "\n").filter (fun l => !l.trimAscii.toString.isEmpty)
-  match ls with
-  | hl :: rest =>
-    let (h, w) ← match words hl with
-      | [a, b] => do some (← a.toNat?, ← b.toNat?)
-      | _ => none
-    let rows ← rest.mapM (fun l => (words l).mapM String.toNat?)
-    if rows.length != h || rows.any (·.length != w) then none
-    some (rows.map List.toArray).toArray
-  | [] => none
-
-/-- The cells of a dump's rows `rs` that differ from the model, the first
-    few printed. -/
-def cmpRows (name : String) (m : Array (Array Nat)) (rs : List Nat) (model : Nat → Nat → Nat) : IO Nat := do
-  let mut bad := 0
-  for r in rs do
-    let row := m.getD r #[]
-    for c in [0:row.size] do
-      let x := row.getD c 0
-      let y := model r c
-      if x != y then
-        if bad < 5 then IO.println s!"  {name} row {r} column {c}: compp.rs {x}, Lean {y}"
-        bad := bad + 1
-  return bad
-
 /-- `composed check-p2-tables PUBLIC DIR`: compare the traces `compp.rs`
     proves (`ski-air compp-dump PUBLIC WITNESS DIR`) with Lean's model of
     the honest tables (`Ski/Circuit/CompPHonest.lean`), built from the
@@ -451,8 +428,9 @@ def cmpRows (name : String) (m : Array (Array Nat)) (rs : List Nat) (model : Nat
     table; of the CPU, every moving row (before the run's first halt) of a
     run of at most 2048, else every 16th, and its jet rows, segment ends,
     the halt and the rows after it, and every 64th row past it.  `OK` when
-    every cell compared agrees; of the memory, every row's address, tag and
-    fields (its multiplicities the memory bus enforces in every proof).
+    every cell compared agrees; of the memory, every row: its address, tag
+    and fields, and its multiplicity, `memTable5`'s count of the messages
+    the dumped tables send with its tuple (`Circuit.memTable5_mult`).
     The traces compared are unblinded (`blind = false`), as Lean's model
     is; `check-p2-blind` compares the blinded traces with these. -/
 def checkP2Tables (pub dir : String) : IO UInt32 := do
@@ -468,9 +446,7 @@ def checkP2Tables (pub dir : String) : IO UInt32 := do
   let R : Circuit.P2Run := ⟨cells.toList, ComposedPText.JP2, ComposedPText.rootP, roots,
     fun j => ends.getD j 0, ends.size, fun i => rows.getD i ⟨0, 0, 0⟩⟩
   let load := fun (n : String) => do
-    match parseMatrix (← IO.FS.readFile s!"{dir}/{n}.txt") with
-    | some m => pure m
-    | none => throw (IO.userError s!"MALFORMED {n}.txt")
+    Circuit.TraceCheck.loadTrace dir n
   let cpu ← load "cpu"
   let pin ← load "p2in"
   let pout ← load "p2out"
@@ -507,94 +483,219 @@ def checkP2Tables (pub dir : String) : IO UInt32 := do
     if got != want then IO.println s!"MALFORMED: {n} has {got} rows, the statement {want}"; return 1
   for (n, m, w) in widths do
     if (m.getD 0 #[]).size < w then IO.println s!"MALFORMED: {n} is {(m.getD 0 #[]).size} wide, Lean's {w}"; return 1
-  let b1 ← cmpRows "cpu" cpu cpuRows fun r c => (R.cpuColP r c).val
-  let b2 ← cmpRows "p2in" pin (List.range pin.size) fun r c => ((pinL.getD r []).getD c 0).val
-  let b3 ← cmpRows "p2out" pout (List.range pout.size) fun r c => ((poutL.getD r []).getD c 0).val
-  let b4 ← cmpRows "p2" p2 (List.range p2.size) fun r c => ((p2L.getD r []).getD c 0).val
-  let b5 ← cmpRows "wit" wit (List.range wit.size) fun r c => (Circuit.witColG 3 R.A N W r c).val
-  -- The memory's address, tag and fields, as `memTable5` has them; its
-  -- multiplicity column (4), a count over the other tables' messages, and
-  -- its blinding block are not compared here.
-  let memModel := fun r c =>
-    let cl := R.A.getD r .nil
-    if c = 0 then (Circuit.ofN r).val else if c = 1 then (Circuit.ofN (Circuit.cellTag cl)).val
-    else if c = 2 then (Circuit.ofN (Circuit.cellFields cl).1).val
-    else if c = 3 then (Circuit.ofN (Circuit.cellFields cl).2).val else 0
-  let memCut := mem.map (·.extract 0 4)
-  let b6 ← cmpRows "mem" memCut (List.range mem.size) memModel
+  let airsP := Circuit.compPAirsG st.Vs
+  let airP := fun (i : Nat) => airsP.getD i ⟨"", 0, 0, [], [], []⟩
+  if !(← Circuit.TraceCheck.shapesOK []
+      [("cpu", cpu, airP 0), ("mem", mem, airP 1), ("wit", wit, airP 3), ("p2in", pin, airP 5),
+       ("p2out", pout, airP 6), ("p2", p2, airP 7)] cells.size) then return 1
+  let b1 ← Circuit.TraceCheck.cmpRows "compp.rs" "cpu" cpu cpuRows fun r c => (R.cpuColP r c).val
+  let b2 ← Circuit.TraceCheck.cmpRows "compp.rs" "p2in" pin (List.range pin.size) fun r c => ((pinL.getD r []).getD c 0).val
+  let b3 ← Circuit.TraceCheck.cmpRows "compp.rs" "p2out" pout (List.range pout.size) fun r c => ((poutL.getD r []).getD c 0).val
+  let b4 ← Circuit.TraceCheck.cmpRows "compp.rs" "p2" p2 (List.range p2.size) fun r c => ((p2L.getD r []).getD c 0).val
+  let b5 ← Circuit.TraceCheck.cmpRows "compp.rs" "wit" wit (List.range wit.size) fun r c => (Circuit.witColG 3 R.A N W r c).val
+  -- The memory, as `memTable5` has it in `P2Run.honest_zkP`: each row's
+  -- address, tag and fields, and its multiplicity, the counts the other
+  -- tables send on `mem` with that row's tuple, here those the dumped
+  -- tables send under the verifier's AIRs (`compPAirsG`), the program
+  -- table public, counted in one pass (`Circuit.memTable5_mult`).  Its
+  -- blinding block `check-p2-blind` compares.
+  let airs := Circuit.compPAirsG st.Vs
+  let air := fun (i : Nat) => airs.getD i ⟨"", 0, 0, [], [], []⟩
+  let asTable := fun (A : Circuit.AirD) (m : Array (Array Nat)) => (⟨m.size,
+    fun r c => Circuit.ofN ((m.getD r #[]).getD c 0),
+    fun r i => (A.pretrace.getD r []).getD i 0⟩ : Circuit.Table)
+  let m0 := CompM.cMachineO (fun _ => false) ComposedPText.shpP ComposedPText.regionP st.Vs
+  let msgs := Circuit.sendsOn (air 0) (asTable (air 0) cpu) "mem" ++
+    Circuit.sendsOn (air 2) (Circuit.progTableC m0.heap N W) "mem" ++
+    Circuit.sendsOn (air 5) (asTable (air 5) pin) "mem" ++ Circuit.sendsOn (air 6) (asTable (air 6) pout) "mem" ++
+    Circuit.sendsOn (air 3) (asTable (air 3) wit) "mem"
+  let mult := Circuit.multArr R.A msgs
+  let memCut := mem.map (·.extract 0 5)
+  let b6 ← Circuit.TraceCheck.cmpRows "compp.rs" "mem" memCut (List.range mem.size)
+    (Circuit.TraceCheck.memModel cells mult)
   IO.println s!"cpu: {cpuRows.length} of {K} rows ({moving} moving, {jets.length} jet calls); p2in {pin.size}, p2out {pout.size}, p2 {p2.size}, wit {wit.size} rows; cells differing: {b1}, {b2}, {b3}, {b4}, {b5}, mem {b6}"
   if b1 + b2 + b3 + b4 + b5 + b6 == 0 then
     IO.println "OK: compp.rs's traces are Lean's model of the honest tables"; return 0
   else
     IO.println "DIFFER"; return 1
 
-/-- The blinding blocks of `Circuit.compPViewN`: each private table's, as
-    `(table, column, edge)`, the block `Table.setBlind column (t edge)`
-    writes. -/
-def blindBlocks : List (String × Nat × Nat) :=
-  [("mem", 5, 0), ("cpu", Circuit.BLA, 1), ("cpu", Circuit.BLB, 0), ("cpu", Circuit.P2SEL + 1, 2),
-   ("wit", Circuit.WT_BLIND, 1), ("p2in", Circuit.p2inAir.width, 2), ("p2in", Circuit.p2inAir.width + 5, 3),
-   ("p2out", Circuit.p2outAir.width, 3), ("p2out", Circuit.p2outAir.width + 5, 4), ("p2", P2Air.p2Air.width, 4)]
-
 /-- `composed check-p2-blind DIR`: the blinded traces `compp.rs` commits to
     (`DIR/NAME.blind.txt`, from `ski-air compp-dump`) are its unblinded
     ones (`DIR/NAME.txt`, which `check-p2-tables` compares with Lean's model
-    of the honest tables) blinded as `Circuit.compPViewN` blinds them,
-    `Table.setBlind c (t k)` at each of `blindBlocks`: every cell agrees but
-    row 0's block cells; there each block holds a tuple and the flag 1,
-    where the unblinded table holds zeros on every row, its flags clear
-    (`UnblindedCP`);
-    and the two blocks of each edge `k` hold one tuple, not all zero.
-    `OK` when all of it holds. -/
-def checkP2Blind (dir : String) : IO UInt32 := do
-  let load := fun (n : String) => do
-    match parseMatrix (← IO.FS.readFile s!"{dir}/{n}.txt") with
-    | some m => pure m
-    | none => throw (IO.userError s!"MALFORMED {n}.txt")
-  let names := ["cpu", "mem", "wit", "p2in", "p2out", "p2"]
-  let mut bad : Nat := 0
-  let mut tuples : Array (Option (List Nat)) := Array.replicate 5 none
-  for n in names do
-    let u ← load n
-    let b ← load s!"{n}.blind"
-    if u.size != b.size || u.size == 0 || (u.getD 0 #[]).size != (b.getD 0 #[]).size then
-      IO.println s!"MALFORMED: {n}.blind.txt is not {n}.txt's shape"; return 1
-    let blocks := (blindBlocks.filter (·.1 == n)).map (·.2)
-    let w := (u.getD 0 #[]).size
-    if blocks.any (fun (c, _) => c + 5 > w) then
-      IO.println s!"MALFORMED: {n} is {w} wide, narrower than its blinding blocks"; return 1
-    let inBlock := fun (c : Nat) => blocks.any fun (c₀, _) => c₀ ≤ c && c < c₀ + 5
-    -- The unblinded table's blocks are clear on every row (`UnblindedCP`).
-    for r in [0:u.size] do
-      for (c₀, _) in blocks do
-        if (List.range 5).any (fun i => (u.getD r #[]).getD (c₀ + i) 0 != 0) then
-          if bad < 5 then IO.println s!"  {n} row {r}: the unblinded block at {c₀} is not clear"
-          bad := bad + 1
-    -- Off row 0's blocks, every cell is the unblinded one.
-    for r in [0:u.size] do
-      let ur := u.getD r #[]
-      let br := b.getD r #[]
-      for c in [0:w] do
-        if !(r == 0 && inBlock c) && ur.getD c 0 != br.getD c 0 then
-          if bad < 5 then IO.println s!"  {n} row {r} column {c}: unblinded {ur.getD c 0}, blinded {br.getD c 0}"
-          bad := bad + 1
-    -- On them: the unblinded zeros, the blinded tuple and flag 1.
-    for (c₀, k) in blocks do
-      let u0 := (List.range 5).map fun i => (u.getD 0 #[]).getD (c₀ + i) 0
-      let b0 := (List.range 5).map fun i => (b.getD 0 #[]).getD (c₀ + i) 0
-      if u0.any (· != 0) then IO.println s!"  {n} block at {c₀}: the unblinded table's is not clear"; bad := bad + 1
-      if b0.getD 4 0 != 1 then IO.println s!"  {n} block at {c₀}: the flag is not 1"; bad := bad + 1
-      let tup := b0.take 4
-      if tup.all (· == 0) then IO.println s!"  {n} block at {c₀}: an all-zero tuple"; bad := bad + 1
-      match tuples[k]! with
-      | none => tuples := tuples.set! k (some tup)
-      | some t => if t != tup then IO.println s!"  edge {k}: its two blocks hold different tuples"; bad := bad + 1
-  if tuples.any (·.isNone) then IO.println "MALFORMED: an edge without its blocks"; return 1
-  IO.println s!"blinding: {blindBlocks.length} blocks on 5 edges over 6 tables; cells differing outside them or wrong in them: {bad}"
-  if bad == 0 then
-    IO.println "OK: compp.rs's blinded traces are its honest ones blinded as compPViewN blinds them"; return 0
+    of the honest tables) blinded as `Circuit.compPViewN` blinds them, at
+    its blocks `Circuit.compPBlocks` (`Circuit.TraceCheck.checkBlind`). -/
+def checkP2Blind (dir : String) : IO UInt32 :=
+  Circuit.TraceCheck.checkBlind "compp.rs" "compPViewN" dir ["mem", "cpu", "wit", "p2in", "p2out", "p2"]
+    Circuit.compPBlocks 5
+
+/-- `composed check-c-tables PUBLIC DIR`: compare the traces `composed.rs`
+    proves for a composed statement (`ski-air composed-dump PUBLIC WITNESS
+    DIR`) with Lean's honest tables, as `Circuit.comp_completeG_log` builds
+    them from the same run (`DIR/run.txt`): the CPU (`cpuTableC`) on the
+    rows `cpuSample` picks, the witness table (`witTable`) and the memory
+    (`memTableC`, its multiplicities counted over the dumped tables by
+    `multArr`, `Circuit.memTableC_mult`) on every row.  Each table's height
+    must be the run's.  `OK` when every cell compared agrees. -/
+def checkCTables (pub dir : String) : IO UInt32 := do
+  let some (c, W, (lr, lm)) := statementOfText (← IO.FS.readFile pub) | do IO.println "NOT A STATEMENT"; return 1
+  let ls := ((← IO.FS.readFile (dir ++ "/run.txt")).splitOn "\n").filter (fun l => !l.trimAscii.toString.isEmpty)
+  let some (M', W', cells, ends, rows) := parseTable ls | do IO.println "MALFORMED run.txt"; return 1
+  if !stmtEq M' c || W' != W then IO.println "run.txt is not a run of the statement"; return 1
+  let shp := c.shp
+  let Ps := c.Ps
+  let N := BT.nleaves shp
+  let A := cells.toList
+  let roots := Circuit.blankRoots shp W Ps
+  let blank := Circuit.blankM shp W Ps
+  let airs := Circuit.compAirsG shp Ps W
+  let air := fun (i : Nat) => airs.getD i ⟨"", 0, 0, [], [], []⟩
+  let cpu ← Circuit.TraceCheck.loadTrace dir "cpu"
+  let mem ← Circuit.TraceCheck.loadTrace dir "mem"
+  let wit ← Circuit.TraceCheck.loadTrace dir "wit"
+  let K := cpu.size
+  let Wt := Circuit.witTable A N W
+  if !(← Circuit.TraceCheck.shapesOK
+      [("cpu", K, 2 ^ lr), ("run", rows.size, K), ("mem", mem.size, 2 ^ lm), ("memory", cells.size, 2 ^ lm),
+       ("wit", wit.size, Wt.h), ("ends", ends.size, Ps.length)]
+      [("cpu", cpu, air 0), ("mem", mem, air 1), ("wit", wit, air 3)] cells.size) then return 1
+  let rowAt := fun i => rows.getD i ⟨0, 0, 0⟩
+  let e := fun j => ends.getD j 0
+  let moving := ((List.range rows.size).find? (fun r => rowAt r == rowAt (r + 1))).getD rows.size
+  let cpuRows := Circuit.TraceCheck.cpuSample moving rows.size K ends.toList
+  let who := "composed.rs"
+  let b1 ← Circuit.TraceCheck.cmpRows who "cpu" cpu cpuRows fun r col => (Circuit.cpuColC A rowAt e Ps.length roots r col).val
+  let b2 ← Circuit.TraceCheck.cmpRows who "wit" wit (List.range wit.size) fun r col => (Wt.main r col).val
+  let msgs := Circuit.sendsOn (air 0) (Circuit.TraceCheck.asTable (air 0) cpu) "mem" ++
+    Circuit.sendsOn (air 2) (Circuit.progTableC blank.heap N W) "mem" ++
+    Circuit.sendsOn (air 3) (Circuit.TraceCheck.asTable (air 3) wit) "mem"
+  let mult := Circuit.multArr A msgs
+  let b3 ← Circuit.TraceCheck.cmpRows who "mem" (mem.map (·.extract 0 5)) (List.range mem.size)
+    (Circuit.TraceCheck.memModel cells mult)
+  IO.println s!"cpu: {cpuRows.length} of {K} rows ({moving} moving, {ends.size} segments); wit {wit.size}, mem {mem.size} rows; cells differing: {b1}, {b2}, {b3}"
+  if b1 + b2 + b3 == 0 then
+    IO.println "OK: composed.rs's traces are Lean's model of the honest tables"; return 0
   else
     IO.println "DIFFER"; return 1
+
+/-- `composed check-c-blind DIR`: the blinded traces `composed.rs` commits
+    to are its unblinded ones blinded as `Circuit.compViewN` blinds them, at
+    `Circuit.compBlocks`. -/
+def checkCBlind (dir : String) : IO UInt32 :=
+  Circuit.TraceCheck.checkBlind "composed.rs" "compViewN" dir ["mem", "cpu", "wit"] Circuit.compBlocks 2
+
+/-- `composed check-cj-tables SRC PUBLIC DIR`: compare the traces
+    `compj.rs` proves for a composed statement with jets (`ski-air compj-dump
+    PUBLIC JETS SRC WITNESS DIR`) with Lean's honest tables, as
+    `Circuit.compJ_complete_log` builds them from the same run
+    (`DIR/run.txt`) and the jet table Lean computes from the source:
+
+    - the CPU (`CRun.cpuColCJ`) on the segment ends, every 256th
+      instantiation row, the halt and the rows after it, every 2048th
+      moving row and every 32768th after (Lean's row reads its memory as a
+      list, seconds a row);
+    - the witness table (`witTable`), POP and INSTW (`JRun.popRows`,
+      `instwRows`, read as `ofRows` reads them) on every row;
+    - the providers ROOTS, HDR and TMPL (`provTableCJ`: each tuple's count on
+      its first row, the counts over the run's instantiations listed once,
+      `JRun.cntRoots_eq` and its kin, `firstOcc` from an array,
+      `firstOcc_arr`): HDR and TMPL on every row, ROOTS on its first 256,
+      every 64th and its last 64;
+    - the memory (`memTable5`, its multiplicities counted over the dumped
+      tables, `Circuit.memTable5_mult`) on every row.
+
+    Each table's height must be the run's or the statement's.  `OK` when
+    every cell compared agrees. -/
+def checkCJTables (src pub dir : String) : IO UInt32 := do
+  let some (c, W, (lr, lm), some (lp, li)) := statementOfTextAny (← IO.FS.readFile pub)
+    | do IO.println "NOT A STATEMENT WITH JETS"; return 1
+  let tmpls := JetTable.fileTemplates ((← IO.FS.readFile src).toList.map Char.toNat)
+  let (jroots, jets) := Air.jetTableC c.shp W c.Ps tmpls
+  let ls := ((← IO.FS.readFile (dir ++ "/run.txt")).splitOn "\n").filter (fun l => !l.trimAscii.toString.isEmpty)
+  let some (M', W', cells, ends, rows) := parseTable ls | do IO.println "MALFORMED run.txt"; return 1
+  if !stmtEq M' c || W' != W then IO.println "run.txt is not a run of the statement"; return 1
+  let shp := c.shp
+  let Ps := c.Ps
+  let N := BT.nleaves shp
+  let A := cells.toList
+  let blank := Circuit.blankM shp W Ps
+  let rowAt := fun i => rows.getD i ⟨0, 0, 0⟩
+  let e := fun j => ends.getD j 0
+  let Rn : Circuit.CRun := ⟨A, jroots, jets, Circuit.blankRoots shp W Ps, e, Ps.length, rowAt⟩
+  let airs := Circuit.compJAirs shp Ps W jroots jets
+  let air := fun (i : Nat) => airs.getD i ⟨"", 0, 0, [], [], []⟩
+  let ld := Circuit.TraceCheck.loadTrace dir
+  let mem ← ld "mem"
+  let cpu ← ld "cpu"
+  let wit ← ld "wit"
+  let pop ← ld "pop"
+  let instw ← ld "instw"
+  let tmpl ← ld "tmpl"
+  let hdr ← ld "hdr"
+  let roots ← ld "roots"
+  let K := cpu.size
+  let Wt := Circuit.witTable A N W
+  let rootsRows := (Circuit.rootsRowsCJ jroots).toArray
+  let hdrRows := (Circuit.hdrRowsCJ jets).toArray
+  let tmplRows := (Circuit.tmplRowsCJ jets).toArray
+  if !(← Circuit.TraceCheck.shapesOK
+      [("cpu", K, 2 ^ lr), ("run", rows.size, K), ("mem", mem.size, 2 ^ lm), ("memory", cells.size, 2 ^ lm),
+       ("wit", wit.size, Wt.h), ("pop", pop.size, 2 ^ lp), ("instw", instw.size, 2 ^ li),
+       ("roots", roots.size, rootsRows.size), ("hdr", hdr.size, hdrRows.size), ("tmpl", tmpl.size, tmplRows.size),
+       ("ends", ends.size, Ps.length)]
+      [("cpu", cpu, air 0), ("mem", mem, air 1), ("wit", wit, air 3), ("roots", roots, air 5), ("hdr", hdr, air 6),
+       ("tmpl", tmpl, air 7), ("pop", pop, air 8), ("instw", instw, air 9)] cells.size) then return 1
+  let J := Rn.J
+  let insts := J.insts K
+  let moving := ((List.range rows.size).find? (fun r => rowAt r == rowAt (r + 1))).getD rows.size
+  -- Lean's CPU row reads its memory as a list, so a row costs seconds
+  -- here: the segment ends, every 256th instantiation, the halt and the
+  -- rows after it, every 2048th moving row and every 32768th after.
+  let instRows := (insts.map (·.1)).zipIdx.filterMap fun (i, j) => if j % 256 = 0 then some i else none
+  let cpuRows := ((ends.toList ++ instRows ++ [moving, moving + 1, moving + 2, rows.size - 1] ++
+    (List.range moving).filter (· % 2048 = 0) ++ (List.range K).filter (fun r => moving < r ∧ r % 32768 = 0)).filter
+      (· < K)).eraseDups
+  let who := "compj.rs"
+  let cmp := Circuit.TraceCheck.cmpRows who
+  let all := fun (m : Array (Array Nat)) => List.range m.size
+  let b1 ← cmp "cpu" cpu cpuRows fun r col => (Rn.cpuColCJ r col).val
+  let b2 ← cmp "wit" wit (all wit) fun r col => (Wt.main r col).val
+  let popA := (J.popRows K).toArray
+  let instwA := (J.instwRows K).toArray
+  let b3 ← cmp "pop" pop (all pop) fun r col => ((popA.getD r []).getD col 0).val
+  let b4 ← cmp "instw" instw (all instw) fun r col => ((instwA.getD r []).getD col 0).val
+  -- A provider's model row: its count on a tuple's first row, in column 0.
+  let prov := fun (rs : Array (List Circuit.F)) (cnt : List Circuit.F → Nat) (q col : Nat) =>
+    if col = 0 && (List.range q).all (fun q' => !(decide (rs.getD q' [] = rs.getD q []))) then
+      (Circuit.ofN (cnt (rs.getD q []))).val else 0
+  let cntRoots := fun v => insts.foldr (fun p acc =>
+    (if [Circuit.ofN (J.row p.1).hd, Circuit.ofN p.2.1] = v then 1 else 0) + acc) 0
+  let cntHdr := fun v => insts.foldr (fun p acc => (if Circuit.hdrRow p.2.2 p.2.1 = v then 1 else 0) + acc) 0
+  let cntTmpl := fun v => insts.foldr (fun p acc =>
+    ((JetTable.symCells p.2.2 p.2.2.body 0).1.zipIdx.map fun x =>
+      if Circuit.tmplRow p.2.1 x.2 x.1 = v then 1 else 0).sum + acc) 0
+  let rootsSample := (all roots).filter fun q => q < 256 || q % 64 = 0 || q + 64 ≥ roots.size
+  let b5 ← cmp "roots" roots rootsSample (prov rootsRows cntRoots)
+  let b6 ← cmp "hdr" hdr (all hdr) (prov hdrRows cntHdr)
+  let b7 ← cmp "tmpl" tmpl (all tmpl) (prov tmplRows cntTmpl)
+  let msgs := Circuit.sendsOn (air 0) (Circuit.TraceCheck.asTable (air 0) cpu) "mem" ++
+    Circuit.sendsOn (air 2) (Circuit.progTableC blank.heap N W) "mem" ++
+    Circuit.sendsOn (air 8) (Circuit.TraceCheck.asTable (air 8) pop) "mem" ++
+    Circuit.sendsOn (air 9) (Circuit.TraceCheck.asTable (air 9) instw) "mem" ++
+    Circuit.sendsOn (air 3) (Circuit.TraceCheck.asTable (air 3) wit) "mem"
+  let mult := Circuit.multArr A msgs
+  let b8 ← cmp "mem" (mem.map (·.extract 0 5)) (all mem) (Circuit.TraceCheck.memModel cells mult)
+  IO.println s!"cpu: {cpuRows.length} of {K} rows ({moving} moving, {insts.length} instantiations); roots {rootsSample.length} of {roots.size}; cells differing: cpu {b1}, wit {b2}, pop {b3}, instw {b4}, roots {b5}, hdr {b6}, tmpl {b7}, mem {b8}"
+  if b1 + b2 + b3 + b4 + b5 + b6 + b7 + b8 == 0 then
+    IO.println "OK: compj.rs's traces are Lean's model of the honest tables"; return 0
+  else
+    IO.println "DIFFER"; return 1
+
+/-- `composed check-cj-blind DIR`: the blinded traces `compj.rs` commits to
+    are its unblinded ones blinded as `Circuit.compJViewN` blinds them, at
+    `Circuit.compJBlocks`. -/
+def checkCJBlind (dir : String) : IO UInt32 :=
+  Circuit.TraceCheck.checkBlind "compj.rs" "compJViewN" dir
+    ["mem", "cpu", "wit", "pop", "instw", "tmpl", "hdr", "roots"] Circuit.compJBlocks 7
 
 def main (args : List String) : IO UInt32 := do
   match args with
@@ -611,6 +712,10 @@ def main (args : List String) : IO UInt32 := do
   | ["chain-p2", "-"] => chainP2In
   | ["check-p2-tables", pub, dir] => checkP2Tables pub dir
   | ["check-p2-blind", dir] => checkP2Blind dir
+  | ["check-c-tables", pub, dir] => checkCTables pub dir
+  | ["check-c-blind", dir] => checkCBlind dir
+  | ["check-cj-tables", src, pub, dir] => checkCJTables src pub dir
+  | ["check-cj-blind", dir] => checkCJBlind dir
   | ["chain-p2", p1, p2] => chainP2 p1 p2
   | ["statement", pub] => statement pub
   | ["statement-jets", pub] => statementJ pub
@@ -618,5 +723,5 @@ def main (args : List String) : IO UInt32 := do
   | "check" :: pub :: paths => check pub paths
   | "check-cj" :: src :: pub :: paths => checkCJ src pub paths
   | _ =>
-    IO.eprintln "usage: composed emit DIR | composed emit-p2 DIR [K] | composed emit-handoff DIR [--fresh | --rand=FILE] | composed check-handoff PUBLIC1 PUBLIC2 | composed statement-p2 PUBLIC | composed chain-p2 PUBLIC1 PUBLIC2|- | composed check-p2-tables PUBLIC DIR | composed check-p2-blind DIR\n       composed statement PUBLIC | composed statement-jets PUBLIC\n       composed budget PUBLIC LP LI OUT | composed check PUBLIC TABLE... | composed check-cj SRC PUBLIC TABLE..."
+    IO.eprintln "usage: composed emit DIR | composed emit-p2 DIR [K] | composed emit-handoff DIR [--fresh | --rand=FILE] | composed check-handoff PUBLIC1 PUBLIC2 | composed statement-p2 PUBLIC | composed chain-p2 PUBLIC1 PUBLIC2|- | composed check-p2-tables PUBLIC DIR | composed check-p2-blind DIR\n       composed check-c-tables PUBLIC DIR | composed check-c-blind DIR\n       composed check-cj-tables SRC PUBLIC DIR | composed check-cj-blind DIR\n       composed statement PUBLIC | composed statement-jets PUBLIC\n       composed budget PUBLIC LP LI OUT | composed check PUBLIC TABLE... | composed check-cj SRC PUBLIC TABLE..."
     return 2

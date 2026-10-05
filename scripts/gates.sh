@@ -87,12 +87,14 @@ ski=bench/plonky3/target/release/ski-air
 gen=$(mktemp -d)
 if command -v cargo >/dev/null 2>&1 \
    && (cd bench/plonky3 && cargo build --release >/dev/null 2>&1) \
-   && lake build circuit sudoku witness jets composed >/dev/null 2>&1; then
+   && lake build circuit sudoku witness jets composed skilark >/dev/null 2>&1; then
   if ! { lake env lean --run bench/Dump.lean > "$gen/corpus.txt" \
          && lake exe sudoku emit "$gen/sudoku" >/dev/null \
          && lake exe witness emit "$gen/witness" >/dev/null \
          && mkdir -p "$gen/p2" && lake exe composed emit-p2 "$gen/p2" >/dev/null \
-         && lake exe composed emit-handoff "$gen/p2" >/dev/null; }; then
+         && lake exe composed emit-handoff "$gen/p2" >/dev/null \
+         && mkdir -p "$gen/c" && lake exe composed emit "$gen/c" >/dev/null \
+         && lake exe skilark emit release/skilark/split8/source.ski 8 200 123 77 17 18 "$gen/sk" >/dev/null; }; then
     bad "gate 5's inputs could not be generated"
   fi
   exp=$(mktemp)
@@ -183,6 +185,52 @@ if command -v cargo >/dev/null 2>&1 \
       bad "$n: the guess test fails"
     fi
   done
+  # The other provers' traces against Lean's honest tables, as each
+  # circuit's completeness proof builds them, and their blinding against
+  # each transcript theorem's view (Ski/ZK/Blocks.lean): the composed
+  # circuit, the hidden-term circuit, Sudoku, and split8 with jets.
+  for f in or and; do
+    if "$ski" composed-dump "$gen/c/$f/public.txt" "$gen/c/$f/witness.txt" "$gen/dump-c-$f" > /dev/null \
+       && lake exe composed check-c-tables "$gen/c/$f/public.txt" "$gen/dump-c-$f" | grep -q '^OK' \
+       && lake exe composed check-c-blind "$gen/dump-c-$f" | grep -q '^OK'; then
+      note "ok — composed $f: composed.rs's traces agree with Lean's honest tables, blinded as compViewN blinds them"
+    else
+      bad "composed $f: composed.rs's traces or blinding differ from Lean's"
+    fi
+  done
+  for f in neg sat; do
+    if "$ski" witness-dump "$gen/witness/$f/public.txt" "$gen/witness/$f/witness.txt" "$gen/dump-w-$f" > /dev/null \
+       && lake exe witness check-tables "$gen/witness/$f/public.txt" "$gen/dump-w-$f" | grep -q '^OK' \
+       && lake exe witness check-blind "$gen/dump-w-$f" | grep -q '^OK'; then
+      note "ok — witness $f: witness.rs's traces agree with Lean's honest tables, blinded as witView blinds them"
+    else
+      bad "witness $f: witness.rs's traces or blinding differ from Lean's"
+    fi
+  done
+  if "$ski" sudoku-dump "$gen/sudoku/public.txt" "$gen/sudoku/witness.txt" "$gen/dump-s" > /dev/null \
+     && lake exe sudoku check-tables "$gen/sudoku/public.txt" "$gen/dump-s" | grep -q '^OK' \
+     && lake exe sudoku check-blind "$gen/dump-s" | grep -q '^OK'; then
+    note "ok — sudoku: sudoku.rs's traces agree with Lean's honest tables, blinded as sudView blinds them"
+  else
+    bad "sudoku: sudoku.rs's traces or blinding differ from Lean's"
+  fi
+  j=release/skilark/split8
+  if "$ski" compj-dump "$j/jets/public.txt" "$j/jets/split8.jets" "$j/source.ski" "$gen/sk/witness.txt" "$gen/dump-j" > /dev/null \
+     && lake exe composed check-cj-tables "$j/source.ski" "$j/jets/public.txt" "$gen/dump-j" | grep -q '^OK' \
+     && lake exe composed check-cj-blind "$gen/dump-j" | grep -q '^OK'; then
+    note "ok — split8 with jets: compj.rs's traces agree with Lean's honest tables, blinded as compJViewN blinds them"
+  else
+    bad "split8 with jets: compj.rs's traces or blinding differ from Lean's"
+  fi
+  # The same traces from the run read back from its table, the path
+  # compj-prove-table takes for Avon's tables.
+  if "$ski" compj-dump-table "$j/jets/public.txt" "$j/jets/split8.jets" "$j/source.ski" "$gen/dump-j/run.txt" \
+       "$gen/dump-jt" > /dev/null \
+     && (for n in run mem cpu wit pop instw tmpl hdr roots; do cmp -s "$gen/dump-j/$n.txt" "$gen/dump-jt/$n.txt" || exit 1; done); then
+    note "ok — split8 with jets: the run read from its table gives the same traces"
+  else
+    bad "split8 with jets: the run read from its table gives other traces"
+  fi
   if lake exe composed chain-p2 "$gen/p2/handoff1.public.txt" "$gen/p2/p2pre.public.txt" | grep -q '^CHAIN OK'; then
     bad "P2Commit.chainB accepts a p2commit statement paired with a p2pre statement"
   else

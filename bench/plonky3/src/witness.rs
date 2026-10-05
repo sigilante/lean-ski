@@ -378,6 +378,33 @@ fn traces_b(p: &Public, tb: &WitTable, blind: bool, bs: BlindStream) -> [RowMajo
     [cpu, mem, RowMajorMatrix::new(vec![Val::ZERO; pre.len()], 1), wit]
 }
 
+/// `ski-air witness-dump PUBLIC REGION DIR`: the honest run's table
+/// (`DIR/run.txt`, `lake exe witness check`'s format) and its private
+/// traces, CPU, memory and witness, unblinded and blinded
+/// (`NAME.blind.txt`, under a fresh seed), for Lean's comparisons (`lake
+/// exe witness check-tables`, `check-blind`).
+pub fn witness_dump(public: &std::path::Path, region: &std::path::Path, dir: &std::path::Path) -> Result<(), String> {
+    let text = std::fs::read_to_string(public).map_err(|e| format!("{}: {e}", public.display()))?;
+    lean_statement("witness", &["statement", "-"], text.as_bytes()).map_err(|e| format!("statement: {e}"))?;
+    let p = parse_public(&text)?;
+    let reg = read_region(region)?;
+    let tb = table(&p, heap_of(&p, &reg)).ok_or("the run does not fit the statement's heights")?;
+    if last_cells(&tb) != (Cell::K, Cell::Nil) {
+        return Err(format!("the run ends at {:?}, not K over a nil", last_cells(&tb)));
+    }
+    std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    std::fs::write(dir.join("run.txt"), lean_table(&p, &tb)).map_err(|e| format!("run.txt: {e}"))?;
+    for (blind, suffix) in [(false, ""), (true, ".blind")] {
+        let (bs, _) = ProverSeed::fresh().split();
+        let tr = traces_b(&p, &tb, blind, bs);
+        for (k, name) in [(0usize, "cpu"), (1, "mem"), (3, "wit")] {
+            crate::write_trace(dir, &format!("{name}{suffix}"), &tr[k])?;
+        }
+    }
+    println!("{} rows, {} memory cells -> {}", tb.run_rows, tb.run_mem, dir.display());
+    Ok(())
+}
+
 /// The table in `lake exe witness check`'s format.
 fn lean_table(p: &Public, tb: &WitTable) -> String {
     let mut s = format!("V {}\nx {}\nW {}\n{}\n", p.v, p.x, p.w, tb.mem.len());

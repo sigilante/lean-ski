@@ -770,16 +770,7 @@ pub fn compp_dump(public: &std::path::Path, wit: &std::path::Path, dir: &std::pa
         let (bs, _) = ProverSeed::fresh().split();
         let tr = traces(&p, &tb, blind, bs);
         for (k, name) in PRIVATE.iter().map(|&(k, n)| (k, n.to_lowercase())) {
-            let m = &tr[k];
-            let mut s = format!("{} {}\n", p3_matrix::Matrix::height(m), m.width);
-            for r in 0..p3_matrix::Matrix::height(m) {
-                let row: Vec<String> =
-                    m.values[r * m.width..(r + 1) * m.width].iter().map(|v| v.as_canonical_u32().to_string()).collect();
-                s.push_str(&row.join(" "));
-                s.push('\n');
-            }
-            let file = format!("{name}{suffix}.txt");
-            std::fs::write(dir.join(&file), s).map_err(|e| format!("{file}: {e}"))?;
+            crate::write_trace(dir, &format!("{name}{suffix}"), &tr[k])?;
         }
     }
     println!("{}: run of {} rows, {} jet calls -> {}", p.header, tb.run_rows, tb.calls.len(), dir.display());

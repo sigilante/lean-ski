@@ -133,6 +133,10 @@ import Ski.ZK.TranscriptN
 import Ski.ZK.Poseidon2Grain
 import Ski.ZK.Poseidon2Generic
 import Ski.ZK.Poseidon2Inv
+import Ski.ZK.Blocks
+import Ski.Circuit.SendsFast
+import Ski.Circuit.JetCntFast
+import Ski.Circuit.TraceCheck
 
 /-!
 # The audit manifest — build-enforced
@@ -819,6 +823,14 @@ open Ski.Audit
 #audit_clean DataJet.JStep.close DataJet.JSteps.close DataJet.real_of_jet DataJet.respects_of_inj
   DataJet.notP_implements DataJet.bitsT_inj DataJet.stateT_inj DataJet.poseidon2_respects
   DataJet.hidden_chain Poseidon2.permute_matches
+
+-- The checks of the provers' traces against Lean's tables: each view's blinding blocks as data,
+-- a bus's counts in one pass, a jet run's lookup counts from its instantiations listed once
+#audit_clean Circuit.compViewN_blocks Circuit.sudView_blocks Circuit.witView_blocks Circuit.compJViewN_blocks
+  Circuit.compPViewN_blocks Circuit.sumMatch_append Circuit.tableSends_eq Circuit.multStep_get Circuit.multArr_go
+  Circuit.multArr_get Circuit.memTable5_mult Circuit.memTableC_mult Circuit.sumTo_filterMap Circuit.sumTo_filterMap'
+  Circuit.JRun.cntRoots_eq Circuit.JRun.cntHdr_eq Circuit.JRun.cntTmpl_eq Circuit.firstOcc_arr
+  Circuit.TraceCheck.getD_toList
 
 -- Poseidon2's specification: the paper's construction with Plonky3's parameters, its constants
 -- the Grain LFSR's, its S-box and linear layers invertible
