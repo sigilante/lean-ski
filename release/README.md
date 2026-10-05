@@ -43,7 +43,7 @@ part of CI.
    The verifier then uses those same bytes, so what Lean checked is what
    it proves over. Corpus lines are split as Lean splits them, on spaces.
 3. **The halting proof.** `sumto/sumto_us.proof` is a Plonky3 batch STARK
-   over BabyBear, 378,776 bytes, over the eight tables of
+   over BabyBear, 373,912 bytes, over the eight tables of
    `bench/plonky3/src/jets.rs`. `ski-air jet-verify` checks it against the
    term and the jet table alone.
 4. **Forgeries are refused:**
@@ -72,7 +72,7 @@ part of CI.
    certifies its own term, on its first line. `verify.sh` binds it to the
    corpus row twice: it compares that line with the row's term, and runs
    Lean's checks with `--row sumto_us`, which refuse any other term.
-6. **The output proof.** `sumto/sumto_us.probe.proof`, 434,238 bytes, is
+6. **The output proof.** `sumto/sumto_us.probe.proof`, 440,350 bytes, is
    over the same eight tables and two more, PLAN and PW
    (`bench/plonky3/src/probe.rs`). `ski-air probe-verify … val 6` checks
    the jet file as in item 2, takes the plan of `[6]` from Lean (`lake exe
@@ -169,9 +169,9 @@ part of CI.
     `entropyV 128` on `[kernel [0 check]]` (`lake exe entropy statement`):
     some 128 literal bits, given to the kernel as the reply `[0 [0 bits]]`,
     make the check accept the poke. `ski-air composed-verify` checks each
-    proof. Each statement is refused read as the other's; the `bootok`
-    proof is refused for the `firstset` statement, and the `firstset` proof
-    with one byte changed.
+    proof. Each statement is refused read as the other's, and each proof
+    offered for the other's statement; each proof is refused with one byte
+    changed.
     - `bootok.public.txt`: the poke emits no effects and the new kernel's
       peek 0 counts one reply. It reads no bit.
     - `firstset.public.txt`: the same, and the new kernel's peek 3, the
@@ -315,7 +315,13 @@ holds in its memory 128 Booleans `bs` for which the check accepts the
 kernel's poke with the reply `[0 [0 (listT bs)]]`, Avon's encoding of the
 event its pier logs (`Circuit.entropyExport_sound`, `Ski/Entropy.lean`).
 The bits are the composed circuit's slot cells, hidden as every composed
-witness is (`Circuit.comp_zk`, `transcript_zk`). `produce.sh` took them
+witness is: the transcript is simulated given a hiding PCS
+(`Circuit.comp_transcript`), Fiat–Shamir assumed. The proof binds the
+bits to nothing else: not to a pier, a log, or the kernel the poke
+leaves. `bootok` holds for every 128 bits, so a reader can decide it by
+running the public kernel; it shows the shape of a proved poke, and a
+commitment to the new kernel, as in the hand-off, would bind the hidden
+state. `produce.sh` took them
 from fresh Avon piers' boot replies, drawn from `getentropy`, and kept
 neither pier nor witness; Lean checked first that the piers' pill is `K`
 applied to the kernel it compiles (`lake exe entropy pill`). For
@@ -358,14 +364,14 @@ Avon's, the one proved here.
 | padded heights (CPU / memory) | 32,768 / 65,536 | 4,096 / 16,384 |
 | prove, setup included (Apple M4 Max) | about 0.5 s | about 0.16 s |
 | verify | about 0.015 s | about 0.02 s |
-| proof | — | 378,776 bytes |
+| proof | — | 373,912 bytes |
 
 The output proof runs 11 probe segments in 4,144 CPU rows: 1,045
 instantiations, 11 probe rows, and the machine's transitions. It writes
 5,876 cells past the loaded heap, and one PW row per marker, 23 in all.
 The first segment, the term applied to its three markers, takes 3,674
 rows; the other ten, which read the value, take 470. It proves in about
-0.24 s and verifies in about 0.02 s; the proof is 434,238 bytes.
+0.24 s and verifies in about 0.02 s; the proof is 440,350 bytes.
 
 **The jet table** has 78 jets with 235 body cells in all, averaging 3.3
 formals, and 2,768 roots in a 7,062-cell loaded heap. A jet is one
@@ -417,8 +423,10 @@ instantiation writes only the cells that depend on its arguments
 13. The entropy proofs: Avon boots fresh piers of its entropy kernel with
     `--entropy`, and Lean emits each statement and its witness from a
     pier's logged boot reply (`lake exe entropy emit`); `ski-air
-    composed-prove` proves each, at heights 2^11 and 2^14 (about 1,900
-    CPU rows and 13,600 memory cells, half a second). The piers and the
+    composed-prove` proves each, at heights 2^11 and 2^14: `bootok` in
+    1,831 CPU rows and 13,450 memory cells, `firstset` in 1,921 and
+    13,602, each in about 0.55 s (Apple M4 Max, 2026-10-05), proofs of
+    about 617 KB. The piers and the
     witnesses stay in a temporary directory.
 
 `release/produce.sh STAGE…` runs some of these: `sumto`, `composed`,

@@ -75,7 +75,7 @@
 #      Circuit.entropyExport_sound): some 128 literal bits, given to the
 #      kernel as the reply [0 [0 bits]], make `bootok` (and `firstset`)
 #      accept the poke; each statement is refused read as the other's;
-#      ski-air composed-verify checks both proofs, and refuses one with a
+#      ski-air composed-verify checks both proofs, and refuses each with a
 #      byte changed and each offered for the other's statement.
 #
 # Each refusal must give its expected reason (`refused`): a proof refused
@@ -582,27 +582,30 @@ for n in bootok firstset; do
         && ok "the $n proof verifies from its file" \
         || no "the $n proof does not verify ($(head -c 80 "$tmp/ev.log"))"
 done
-if lake exe entropy statement "$E/source.ski" firstset "$E/bootok.public.txt" > "$tmp/ex.log" 2> /dev/null; then
-    no "the bootok statement read as firstset's"
-else
-    refused "$tmp/ex.log" 'NOT THIS STATEMENT' "the bootok statement is not firstset's"
-fi
-if "$SKI_AIR" composed-verify "$E/firstset.public.txt" "$E/bootok.proof" > "$tmp/ex2.log"; then
-    no "the bootok proof verified for the firstset statement"
-else
-    refused "$tmp/ex2.log" 'verify: [A-Z]|deserialize: ' "the bootok proof offered for the firstset statement is refused"
-fi
-/bin/cp "$E/firstset.proof" "$tmp/eflip.proof"
-size=$(wc -c < "$tmp/eflip.proof")
-off=$((size / 2))
-byte=$(dd if="$tmp/eflip.proof" bs=1 skip=$off count=1 2>/dev/null | od -An -tu1 | tr -d ' ')
-printf '%b' "$(printf '\\0%03o' $(( (byte + 1) % 256 )))" \
-    | dd of="$tmp/eflip.proof" bs=1 seek=$off count=1 conv=notrunc 2>/dev/null
-if "$SKI_AIR" composed-verify "$E/firstset.public.txt" "$tmp/eflip.proof" > "$tmp/ef.log"; then
-    no "the firstset proof with one byte changed verified"
-else
-    refused "$tmp/ef.log" 'verify: [A-Z]|deserialize: |bytes after the proof' "the firstset proof with one byte changed is refused"
-fi
+for pair in "bootok firstset" "firstset bootok"; do
+    set -- $pair
+    if lake exe entropy statement "$E/source.ski" "$2" "$E/$1.public.txt" > "$tmp/ex.log" 2> /dev/null; then
+        no "the $1 statement read as $2's"
+    else
+        refused "$tmp/ex.log" 'NOT THIS STATEMENT' "the $1 statement is not $2's"
+    fi
+    if "$SKI_AIR" composed-verify "$E/$2.public.txt" "$E/$1.proof" > "$tmp/ex2.log"; then
+        no "the $1 proof verified for the $2 statement"
+    else
+        refused "$tmp/ex2.log" 'verify: [A-Z]|deserialize: ' "the $1 proof offered for the $2 statement is refused"
+    fi
+    /bin/cp "$E/$1.proof" "$tmp/eflip.proof"
+    size=$(wc -c < "$tmp/eflip.proof")
+    off=$((size / 2))
+    byte=$(dd if="$tmp/eflip.proof" bs=1 skip=$off count=1 2>/dev/null | od -An -tu1 | tr -d ' ')
+    printf '%b' "$(printf '\\0%03o' $(( (byte + 1) % 256 )))" \
+        | dd of="$tmp/eflip.proof" bs=1 seek=$off count=1 conv=notrunc 2>/dev/null
+    if "$SKI_AIR" composed-verify "$E/$1.public.txt" "$tmp/eflip.proof" > "$tmp/ef.log"; then
+        no "the $1 proof with one byte changed verified"
+    else
+        refused "$tmp/ef.log" 'verify: [A-Z]|deserialize: |bytes after the proof' "the $1 proof with one byte changed is refused"
+    fi
+done
 
 [ "$failed" = 0 ] || { echo "NOT VERIFIED: release"; exit 1; }
 echo "VERIFIED: release/sumto, release/composed, release/skilark (with jets${QUICK:+, csplit8 skipped}), release/sudoku, release/p2 and release/entropy"

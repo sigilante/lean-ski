@@ -25,8 +25,8 @@ it, and hands the result `[effects k']` to the public check `chk`.
   `chk (pokeT k (replyT id (listT bs)))`, so by Church–Rosser one accepts
   exactly when the other does (`entropyV_iff`).
 - **`entropyExport_sound`**: an accepted proof of the predicate circuit for
-  `entropyV n` and `x` has `n` bits `bs` in its memory on which `chk`
-  accepts the poke of `k` with the reply `[0 [id (listT bs)]]`.
+  `entropyV n` and `x` has `n` bits in its memory, its slot cells, on
+  which `chk` accepts the poke of `k` with the reply `[0 [id bits]]`.
 
 The bits stay private as every composed statement's witness does: they are
 the circuit's slot cells, and `Circuit.comp_zk` (with `transcript_zk`)
@@ -169,16 +169,19 @@ open B Air Compose CompM Stmt Mach Wit Entropy
     of the kernel `k` with the reply `[0 [id (listT bs)]]`. -/
 theorem entropyExport_sound {k id chk : Term} {n W : Nat} (hn : 0 < n) {Rs : List AirD} {ts : List Table}
     (hs : sameAirsB Rs (predAirs (entropyV n) (xOf k id chk) n W) = true) (h : AcceptedP Rs ts) :
-    ∃ bs : List Bool, bs.length = n ∧ Eval (chk ⬝ pokeT k (replyT id (listT bs))) K := by
-  obtain ⟨_, _, _, _, _, _, hl, hP⟩ := predExport_sound hn hs h
-  exact ⟨_, hl, (entropyV_iff' k id chk _ hl hn).1 hP⟩
+    ∃ C Mm Pg Wt Sg, ts = [C, Mm, Pg, Wt, Sg] ∧
+      (slotBits (bitsM (memOf Mm)) 0 n).length = n ∧
+      Eval (chk ⬝ pokeT k (replyT id (listT (slotBits (bitsM (memOf Mm)) 0 n)))) K := by
+  obtain ⟨C, Mm, Pg, Wt, Sg, rfl, hl, hP⟩ := predExport_sound hn hs h
+  exact ⟨C, Mm, Pg, Wt, Sg, rfl, hl, (entropyV_iff' k id chk _ hl hn).1 hP⟩
 
 /-- **A checked table proves the entropy poke**, as `checkPred_sound`. -/
 theorem checkEntropy_sound {k id chk : Term} {n W : Nat} (hn : 0 < n) {A : Array Cell} {ends : Array Nat}
     {R : Array Air.Row} (h : checkC (combBT n) W [predStmt (entropyV n) (xOf k id chk)] A ends R = true) :
-    ∃ bs : List Bool, bs.length = n ∧ Eval (chk ⬝ pokeT k (replyT id (listT bs))) K := by
+    (slotBits (bitsOf A) 0 n).length = n ∧
+      Eval (chk ⬝ pokeT k (replyT id (listT (slotBits (bitsOf A) 0 n)))) K := by
   have hP := checkPred_sound hn h
   have hl := slotBits_length (bitsOf A) 0 n
-  exact ⟨_, hl, (entropyV_iff' k id chk _ hl hn).1 hP⟩
+  exact ⟨hl, (entropyV_iff' k id chk _ hl hn).1 hP⟩
 
 end Circuit
