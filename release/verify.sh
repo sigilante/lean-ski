@@ -28,7 +28,10 @@
 #      and the ∧ of two atoms, the statement is Lean's, and ski-air
 #      composed-verify checks the proof from its file; with one byte
 #      changed, a byte appended, a doctored statement, or offered for the
-#      other formula, it is refused;
+#      other formula, it is refused; and with the digest of its statement
+#      with one CPU constant changed, every AIR as given, it is refused
+#      (`composed-digest-bound`): the CPU's start registers and acceptance
+#      flag sit in no committed table, so the digest is what binds them;
 #   7. a SKIlark predicate in zero knowledge (release/skilark/split8): Lean
 #      compiles the SKIjack source of `split` and checks that the statement
 #      is the predicate `vsplitB` for x = 200 over 16 literal bits (`lake
@@ -76,7 +79,9 @@
 #      kernel as the reply [0 [0 bits]], make `bootok` (and `firstset`)
 #      accept the poke; each statement is refused read as the other's;
 #      ski-air composed-verify checks both proofs, and refuses each with a
-#      byte changed and each offered for the other's statement.
+#      byte changed and each offered for the other's statement; and
+#      `composed-digest-bound` refuses bootok's with the digest of its
+#      statement with a CPU constant changed.
 #
 # Each refusal must give its expected reason (`refused`): a proof refused
 # by the statement check where the proof check should refuse it fails.
@@ -316,6 +321,15 @@ if "$SKI_AIR" composed-verify release/composed/and/public.txt release/composed/o
 else
     refused "$tmp/cx.log" 'verify: [A-Z]|deserialize: ' "the ∨ proof offered for the ∧ statement is refused"
 fi
+# The CPU's start head, stack and counter and its acceptance flag sit in no
+# committed table; the statement's digest carries them.  Every AIR as given,
+# the digest of the statement with one of them changed: refused.
+for n in or and; do
+    "$SKI_AIR" composed-digest-bound "release/composed/$n/public.txt" "release/composed/$n/$n.proof" > "$tmp/db.log" \
+        && grep -q '^BOUND' "$tmp/db.log" \
+        && ok "the $n proof is refused with the digest of its statement with any CPU constant changed" \
+        || no "the $n proof is not bound to its CPU constants ($(tail -n 1 "$tmp/db.log" | head -c 80))"
+done
 
 echo "--- 7. a SKIlark predicate in zero knowledge: vsplitB, x = 200 over 16 literal bits"
 lake build skilark > /dev/null
@@ -582,6 +596,10 @@ for n in bootok firstset; do
         && ok "the $n proof verifies from its file" \
         || no "the $n proof does not verify ($(head -c 80 "$tmp/ev.log"))"
 done
+"$SKI_AIR" composed-digest-bound "$E/bootok.public.txt" "$E/bootok.proof" > "$tmp/edb.log" \
+    && grep -q '^BOUND' "$tmp/edb.log" \
+    && ok "the bootok proof is refused with the digest of its statement with any CPU constant changed" \
+    || no "the bootok proof is not bound to its CPU constants ($(tail -n 1 "$tmp/edb.log" | head -c 80))"
 for pair in "bootok firstset" "firstset bootok"; do
     set -- $pair
     if lake exe entropy statement "$E/source.ski" "$2" "$E/$1.public.txt" > "$tmp/ex.log" 2> /dev/null; then

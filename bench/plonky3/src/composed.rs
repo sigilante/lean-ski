@@ -622,6 +622,61 @@ pub fn composed_verify(public: &std::path::Path, proof_in: &std::path::Path) -> 
     Ok(())
 }
 
+/// **The digest binds the statement's CPU constants**, the release's
+/// forgery for them (`release/verify.sh`, step 6).  The CPU's start head,
+/// stack and counter and its acceptance flag sit in no preprocessed table
+/// the transcript absorbs; the statement's digest, the CPU instance's
+/// public values, carries them (`src/stmt.rs`).  This verifies the proof
+/// against the statement with its own digest, and then, every AIR exactly
+/// as the statement gives it, with the digest of the same statement with
+/// one CPU constant changed: each must be refused, and only the digest
+/// differs, so the refusal is the digest's.
+pub fn composed_digest_bound(public: &std::path::Path, proof_in: &std::path::Path) -> Result<(), String> {
+    let p = checked_public(public)?;
+    let bytes = std::fs::read(proof_in).map_err(|e| format!("{}: {e}", proof_in.display()))?;
+    let (proof, rest): (CProof, &[u8]) = postcard::take_from_bytes(&bytes).map_err(|e| format!("deserialize: {e}"))?;
+    if !rest.is_empty() {
+        return Err(format!("{} bytes after the proof", rest.len()));
+    }
+    let v_config = public_zk_config();
+    let v_airs = airs(&p);
+    let want = heights(&p, v_config.is_zk());
+    let v_data = ProverData::<ZkConfig>::from_airs_and_degrees(&v_config, &v_airs, &want)
+        .map_err(|e| format!("verifier setup: {e:?}"))?;
+    let run = |pvs: &Vec<Vec<Val>>| -> Result<(), String> {
+        match catch_unwind(AssertUnwindSafe(|| verify_batch(&v_config, &v_airs, &proof, pvs, &v_data.common))) {
+            Ok(r) => r.map_err(|e| format!("verify: {e:?}")),
+            Err(e) => Err(format!("verifier panic: {}", panic_text(&e))),
+        }
+    };
+    let own = crate::stmt::public_values(&v_airs);
+    run(&own).map_err(|e| format!("the proof does not verify with its own statement's digest: {e}"))?;
+    println!("the proof verifies with its own statement's digest");
+    let changes: [(&str, fn(&mut crate::CpuAir)); 4] = [
+        ("start head", |c| c.hd0 += 1),
+        ("start stack", |c| c.stk0 += 1),
+        ("start counter", |c| c.ctr0 += 1),
+        ("acceptance flag", |c| c.accept_k = !c.accept_k),
+    ];
+    for (name, change) in changes {
+        let mut moved = v_airs.clone();
+        match moved.first_mut() {
+            Some(crate::SkiAir::Cpu(c)) => change(c),
+            _ => return Err("the CPU instance is not first".into()),
+        }
+        let pvs = crate::stmt::public_values(&moved);
+        if pvs == own {
+            return Err(format!("NOT BOUND: the digest does not move with the {name}"));
+        }
+        match run(&pvs) {
+            Ok(()) => return Err(format!("NOT BOUND: the proof verified with the digest of the statement with its {name} changed")),
+            Err(e) => println!("refused with the digest of the statement with its {name} changed, every AIR as given: {e}"),
+        }
+    }
+    println!("BOUND: the proof checks with its own statement's digest only; each CPU constant changed, it is refused");
+    Ok(())
+}
+
 /// The guess test: the witness table's published terminal, against a replay
 /// with the true bits and region, unblinded.  Must not match when the
 /// proof is blinded, and must match when it is not.

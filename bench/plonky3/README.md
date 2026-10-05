@@ -402,6 +402,16 @@ the heights, and verifies against the statement alone. `release/composed`
 ships the two example proofs, and `release/verify.sh` checks them and
 their forgeries.
 
+**The digest binds the CPU's constants.** The CPU's start head, stack
+and counter and its acceptance flag sit in no committed table; the
+statement's digest, the CPU instance's public values (`src/stmt.rs`),
+carries them. `ski-air composed-digest-bound PUBLIC PROOF` checks the
+proof with its own statement's digest, then, every AIR exactly as the
+statement gives it, with the digest of the same statement with one of
+those constants changed: each must be refused, and since only the digest
+differs, the refusal is the digest's. It prints `BOUND` when all four
+are. `release/verify.sh` runs it on the composed and entropy proofs.
+
 `lake exe composed check` accepts both honest tables and rejects the
 eight tampered ones and a table offered under the other formula's
 statement; `lake exe composed statement` rejects a `public.txt` with a
