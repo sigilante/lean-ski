@@ -24,14 +24,18 @@ hand-off's two runs with the tests' witness):
 - the witness table (`witTableP`), on the circuit's own preprocessed rows.
 
 Every blinding flag is clear.  These tables balance on every bus and
-carry clear flags (`P2Run.balancedP`, `P2Run.honest_zkP`); that each
-satisfies its AIR's constraints (`Sat`) is not proved.  The Poseidon2 table pads as `p2air.rs` does
+carry clear flags (`P2Run.balancedP`, `P2Run.honest_zkP`), and each
+satisfies its AIR's constraints (`Ski/Circuit/CompPSat.lean`,
+`Ski/Circuit/CompPCpuSat.lean`), so the circuit accepts them
+(`compPG_complete_log`).  The Poseidon2 table pads as `p2air.rs` does
 (`p2Pad`).
 
 The files: this one (the definitions and the run's rows) → `CompPBal` (the
 CPU's messages) → `CompPBits` (P2IN's and P2OUT's) → `CompPTrace` (the
 Poseidon2 row's) → `CompPComplete` (the tables' sends, bus by bus) →
-`Ski/ZK/CompPHonest.lean` (`balancedP`, `honest_zkP`, `calls_one`).
+`Ski/ZK/CompPHonest.lean` (`balancedP`, `honest_zkP`, `calls_one`) →
+`CompPSat` and `CompPCpuSat` (each table's `Sat`) → `CompPCompleteFinal`
+(`compPG_complete_log`).
 -/
 
 namespace Circuit

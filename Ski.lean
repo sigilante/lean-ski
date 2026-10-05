@@ -43,6 +43,7 @@ import Ski.P2Commit
 import Ski.P2Complete
 import Ski.P2Once
 import Ski.ZK.CompPHonest
+import Ski.Circuit.CompPCompleteFinal
 import Ski.ZK.CompP
 import Ski.Composed
 import Ski.BoolProbe
