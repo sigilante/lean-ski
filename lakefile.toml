@@ -42,6 +42,10 @@ name = "skilark"
 root = "bench.Skilark"
 
 [[lean_exe]]
+name = "entropy"
+root = "bench.Entropy"
+
+[[lean_exe]]
 name = "circuit"
 root = "bench.Circuit"
 

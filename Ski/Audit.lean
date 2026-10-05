@@ -127,6 +127,7 @@ import Ski.ZK.Circuits
 import Ski.ZK.Generic
 import Ski.ZK.Abort
 import Ski.Circuit.CompPred
+import Ski.Entropy
 import Ski.ZK.Transcript
 import Ski.ZK.Tree
 import Ski.ZK.TranscriptN
@@ -922,3 +923,9 @@ open Ski.Audit
 -- Zero knowledge of the circuit with the Poseidon2 jet: the blinding tree CPU —c— P2IN —d— P2OUT —e— P2
 #audit_clean Circuit.viewT_p2 Circuit.terminal_cpuP2 Circuit.p2_avoids Circuit.compP_chain Circuit.compP_sum
   Circuit.compP_transcript Circuit.pinB_sends Circuit.poutB_sends Circuit.p2B_sends Circuit.tableSends_withBlocks
+
+-- A poke whose event is an entropy reply, its bits private: the predicate circuit's bits
+-- become Avon's reply [0 [id bits]], and the kernel is poked with it
+#audit_clean Entropy.hd_red Entropy.tl_red Entropy.pairT_cong Entropy.consT_cong Entropy.convT_one
+  Entropy.convT_succ Entropy.convT_red Entropy.entropyV_red Entropy.entropyV_iff Entropy.entropyV_iff'
+  Circuit.entropyExport_sound Circuit.checkEntropy_sound

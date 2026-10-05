@@ -50,9 +50,21 @@
 #      witness --statement`, Avon's milestone 8); Lean's `composed check-cj`
 #      accepts it (CompM.checkCJ_sound); ski-air compj-prove-table proves
 #      Avon's table under hiding and compj-verify checks the proof.
+#  13. a poke whose event is an entropy reply, its bits private
+#      (release/entropy): Avon boots a fresh pier of its entropy kernel
+#      with --entropy, which answers the kernel's boot request with the
+#      event [0 [0 bits]], 128 bits from getentropy, logged as `eny 1`;
+#      Lean emits the statement of the kernel's poke with that reply
+#      (`lake exe entropy emit`, Ski/Entropy.lean) for two checks, `bootok`
+#      and `firstset`, and the witness, the logged bits; ski-air
+#      composed-prove proves each.  `firstset` needs the first bit set, so
+#      piers are booted until one has it.  The piers and witnesses stay in
+#      a temporary directory: the bits are the prover's secret.  Lean first
+#      checks that the piers' pill is K applied to the kernel it compiles
+#      (`lake exe entropy pill`, against `avon prefix`).
 #
 # Stages: `release/produce.sh [STAGE…]` runs the named ones, of sumto,
-# composed, split8, csplit8, sudoku, jets, p2; all by default.  The proofs are
+# composed, split8, csplit8, sudoku, jets, p2, entropy; all by default.  The proofs are
 # randomized, so a stage rewrites its own and leaves the others' bytes.
 # Run from anywhere; writes release/sumto/.  One job at a time.
 
@@ -62,10 +74,10 @@ AVON_DIR=${AVON_DIR:-$HOME/avon}
 R=release/sumto
 tmp=$(mktemp -d)
 trap '/bin/rm -rf "$tmp"' EXIT
-STAGES=" ${*:-sumto composed split8 csplit8 sudoku jets p2} "
+STAGES=" ${*:-sumto composed split8 csplit8 sudoku jets p2 entropy} "
 want() { case "$STAGES" in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
 for st in $STAGES; do
-    case " sumto composed split8 csplit8 sudoku jets p2 " in *" $st "*) ;; *) echo "no stage $st" >&2; exit 2 ;; esac
+    case " sumto composed split8 csplit8 sudoku jets p2 entropy " in *" $st "*) ;; *) echo "no stage $st" >&2; exit 2 ;; esac
 done
 (cd bench/plonky3 && cargo build --release --locked --quiet)
 A=bench/plonky3/target/release/ski-air
@@ -226,4 +238,30 @@ T="$tmp/p2"
 "$A" compp-prove "$T/handoff2.public.txt" "$T/handoff.witness.txt" "$T/handoff2.proof" | cut -c1-100
 "$A" compp-chain "$T/handoff1.public.txt" "$T/handoff1.proof" "$T/handoff2.public.txt" "$T/handoff2.proof" | tail -n 1
 for n in p2pre handoff1 handoff2; do /bin/cp "$T/$n.public.txt" "$T/$n.proof" "$P/"; done
+fi
+
+if want entropy; then
+echo "--- a poke whose event is an entropy reply, its 128 bits private"
+lake build entropy > /dev/null
+make -C "$AVON_DIR" > /dev/null
+E=release/entropy
+T="$tmp/entropy"
+mkdir -p "$E" "$T"
+# The piers boot Avon's pill; Lean checks it is K applied to the kernel it
+# compiles from source.ski, so the witnesses' bits reach the statement's kernel.
+"$AVON_DIR/build/avon" prefix "$AVON_DIR/tests/kernel/entropy.pill.skit" > "$T/pill.prefix"
+lake exe entropy pill "$E/source.ski" "$T/pill.prefix"
+# bootok reads no bit: any pier's boot reply proves it.
+"$AVON_DIR/build/avon" boot --pier="$T/pier" --entropy "$AVON_DIR/tests/kernel/entropy.pill.skit" > /dev/null
+lake exe entropy emit "$E/source.ski" bootok "$T/pier/events.log" 11 14 "$T/bootok" | cut -c1-40
+"$A" composed-prove "$T/bootok/public.txt" "$T/bootok/witness.txt" "$T/bootok.proof" | cut -c1-80
+# firstset needs the reply's first bit: boot piers until one has it.
+for i in $(seq 1 64); do
+    /bin/rm -rf "$T/fpier"
+    "$AVON_DIR/build/avon" boot --pier="$T/fpier" --entropy "$AVON_DIR/tests/kernel/entropy.pill.skit" > /dev/null
+    lake exe entropy emit "$E/source.ski" firstset "$T/fpier/events.log" 11 14 "$T/firstset" > /dev/null
+    [ "$(head -n 1 "$T/firstset/witness.txt")" = 1 ] && break
+done
+"$A" composed-prove "$T/firstset/public.txt" "$T/firstset/witness.txt" "$T/firstset.proof" | cut -c1-80
+for n in bootok firstset; do /bin/cp "$T/$n/public.txt" "$E/$n.public.txt"; /bin/cp "$T/$n.proof" "$E/$n.proof"; done
 fi
