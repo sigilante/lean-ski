@@ -1,7 +1,7 @@
 # Worklist
 
 What remains, in the order we mean to take it. `PLAN.md` records the design and what
-is built; this file records what is next. Last revised 2026-10-05.
+is built; this file records what is next. Last revised 2026-10-09.
 
 ## Done since the last revision
 
@@ -20,25 +20,22 @@ is built; this file records what is next. Last revised 2026-10-05.
   (`compP_complete_log`, `compPC_complete_log`). Every table's constraints hold on its
   honest table (`Ski/Circuit/CompPSat.lean`, `CompPCpuSat.lean`). The paper, the trust
   table and the READMEs cite it.
+- **`split8` and `csplit8` with jets, re-released**: proved again with the prover that
+  declines projection jets as Lean's `jetOf` does, 1,952 and 44,427 instantiations
+  (were 2,250 and 46,549). Statements and jet tables are unchanged, byte for byte;
+  `verify.sh` passes.
 - **The paper, reviewed by wizard, chevalier and angel**, its findings fixed; a table
   from each released claim to its check, in the paper and in `release/README.md`.
 
 ## Next
 
-### 1. Re-release `split8` and `csplit8` with jets
-
-The released proofs predate the prover's fix that declines projection jets as Lean's
-`jetOf` does (1,952 instantiations against 2,250 for `split8`; 44,427 against 46,549 for
-`csplit8`). They verify, and the paper flags them. `release/produce.sh`'s jets stage
-builds and runs Avon, so this waits until Avon's active work allows it.
-
-### 2. Every CPU row compared
+### 1. Every CPU row compared
 
 The trace checks compare sampled CPU rows, because Lean's CPU model reads memory as a
 list. An array-backed model, proved equal to the list one, would compare every row and
 make the memory's multiplicities checked against the full CPU.
 
-### 3. The paper's remaining sourcing
+### 2. The paper's remaining sourcing
 
 A pointer for the third-party reproduction; repository URLs or commits in the data
 statement; a source for the "629 programs" differential test. In the final version the
