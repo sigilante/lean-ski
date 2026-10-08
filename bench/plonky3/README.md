@@ -110,8 +110,8 @@ follows Lean's honest table:
   run's `jetOf` has it. The rows are the same either way, so Avon's
   tables are unchanged; `split8` now runs 1,952 instantiations and 8,018
   POP rows (was 2,250 and 8,614), `csplit8` 44,427 and 101,300 (was
-  46,549 and 105,544). The released proofs, made before, keep the earlier
-  counts and verify as before.
+  46,549 and 105,544). The released proofs were remade with these counts
+  on 2026-10-09.
 
 Each check takes seconds, except Sudoku (about a minute), `p2pre` (about
 50 s), the hand-off's runs (about 80 s each) and `split8` with jets
@@ -917,21 +917,20 @@ byte the one `compj-prove … TABLE` writes; `compj-prove-table` proves it,
 reading each instantiation row from the table as `jet-prove` does. Avon's
 `make zk-jet-witness-check` runs `and`, `or` and `split8` through both.
 
-Measured, 2026-09-30:
+Measured, `and` and `or` 2026-09-30, `split8` and `csplit8` 2026-10-09:
 
 ```
 statement             CPU rows (INST)   POP      INSTW    memory    heights CPU mem POP INSTW   prove     proof
-split8                 11,599 (2,250)    8,614   12,363    74,246   2^17 2^18 2^14 2^14       11.1 s    1.11 MB
-csplit8 at log 18 19  157,681 (46,549) 105,544   76,037   330,512   2^18 2^19 2^17 2^17       25.9 s    1.17 MB
+split8                 11,599 (1,952)    8,018   12,363    74,246   2^17 2^18 2^14 2^14       11.9 s    1.11 MB
+csplit8 at log 18 19  157,681 (44,427) 101,300   76,037   330,512   2^18 2^19 2^17 2^17       29.2 s    1.17 MB
 and (3 segments)          404 (69)         116       17       889   2^11 2^11 2^8  2^8         0.14 s   0.78 MB
 or (3 segments)           220 (41)          67       10       673   2^11 2^11 2^8  2^8         0.16 s   0.78 MB
 ```
 
-Since 2026-10-04 the prover runs a projection jet's instantiation as the
-machine's step, as Lean's honest run does ("The traces against Lean's
-honest tables", above): `split8` takes 1,952 instantiations and 8,018 POP
-rows, `csplit8` 44,427 and 101,300; INSTW, memory and heights are
-unchanged. The released proofs were made before and verify as before.
+The prover runs a projection jet's instantiation as the machine's step,
+as Lean's honest run does ("The traces against Lean's honest tables",
+above). Avon's witness table still counts it an instantiation (2,250 for
+`split8`, 46,549 for `csplit8`); the rows are the same.
 
 `and` and `or` take `split8`'s source's templates, so their segments
 restart between instantiations. Without jets `csplit8` needs `2^19` rows
