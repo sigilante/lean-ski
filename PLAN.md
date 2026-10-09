@@ -560,10 +560,12 @@ every file and lexicon, that the front end's checker passes exactly where
 `skijack`'s does (`*_checks`, `*_check_refuses`), and thirty programs,
 twenty-two the checker refuses (`refuses_checked_*`, sixteen at Stage A
 and six at Stage B) and eight it accepts (`checks_*`). A differential
-test (every corpus and script file with each line deleted in turn, 629
-programs) finds the front end and `skijack` agreeing on every
-compilation, every term, every checked compilation and every verdict of
-the checker.
+test (`scripts/differential.py`, over `lake exe front`) runs every corpus
+and script file, in both lexicons, as written and with each line deleted
+in turn: 1,260 programs, against `skijack` `e978e58`. The front end and
+`skijack` agree on every compilation, every term, every checked
+compilation and every verdict of the checker. (An earlier, uncommitted
+run counted 629 programs on the corpus of 2026-09-26.)
 
 **What is still per table and per program.** Every theorem is stated for
 every valid table and every program. Three facts about each generated

@@ -56,3 +56,7 @@ root = "bench.GraphCost"
 [[lean_exe]]
 name = "p2run"
 root = "bench.P2Run"
+
+[[lean_exe]]
+name = "front"
+root = "bench.Front"

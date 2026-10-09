@@ -28,16 +28,17 @@ is built; this file records what is next. Last revised 2026-10-09.
   copies of each CPU model proved equal to the list models (`Ski/Circuit/CpuFast.lean`),
   so the memory's multiplicities are checked against the full CPU. `split8` with jets
   compares all 131,072 CPU rows in about 2 minutes, Sudoku 65,536 in 25 s.
+- **The paper's sources**: the third-party reproduction cited by its commits; the
+  repositories and commits in the data statement, at the tag `paper-v1`; the
+  differential test committed (`scripts/differential.py`, `lake exe front`), 1,260
+  programs with no disagreement.
 - **The paper, reviewed by wizard, chevalier and angel**, its findings fixed; a table
   from each released claim to its check, in the paper and in `release/README.md`.
 
 ## Next
 
-### 1. The paper's remaining sourcing
-
-A pointer for the third-party reproduction; repository URLs or commits in the data
-statement; a source for the "629 programs" differential test. In the final version the
-claim table moves to the docs, where `release/README.md` already holds it.
+Nothing queued. For the final version, the paper cites a Zenodo DOI in place of the tag,
+and its claim table moves to the docs, where `release/README.md` already holds it.
 
 ## Later
 
