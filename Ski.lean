@@ -32,6 +32,7 @@ import Ski.ZK.Poseidon2Inv
 import Ski.ZK.Blocks
 import Ski.Circuit.SendsFast
 import Ski.Circuit.JetCntFast
+import Ski.Circuit.CpuFast
 import Ski.Circuit.TraceCheck
 import Ski.P2Jet
 import Ski.ComposedP

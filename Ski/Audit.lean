@@ -138,6 +138,7 @@ import Ski.ZK.Poseidon2Inv
 import Ski.ZK.Blocks
 import Ski.Circuit.SendsFast
 import Ski.Circuit.JetCntFast
+import Ski.Circuit.CpuFast
 import Ski.Circuit.TraceCheck
 
 /-!
@@ -833,6 +834,13 @@ open Ski.Audit
   Circuit.multArr_get Circuit.memTable5_mult Circuit.memTableC_mult Circuit.sumTo_filterMap Circuit.sumTo_filterMap'
   Circuit.JRun.cntRoots_eq Circuit.JRun.cntHdr_eq Circuit.JRun.cntTmpl_eq Circuit.firstOcc_arr
   Circuit.TraceCheck.getD_toList
+
+-- Every CPU row compared: each circuit's honest CPU row, its memory read from an array
+#audit_clean Circuit.kindOf_G Circuit.addrAt_G Circuit.fieldsAt_G Circuit.rangeValue_G Circuit.cpuCol_G
+  Circuit.foldl_cntS Circuit.cntArr_get Circuit.cpuColW_arr Circuit.cpuColC_G Circuit.cpuColC_arr
+  Circuit.jetOf_G Circuit.JRun.instAt_G Circuit.JRun.cpuCol_G Circuit.JRun.insts_arr Circuit.CRun.cpuColCJ_arr
+  P2Jet.boolAt_G P2Jet.bitsAt_G P2Jet.slotsOK_G P2Jet.popN_G P2Jet.take_G P2Jet.p2Row_G
+  Circuit.P2Run.jetAt_G Circuit.P2Run.jetRange_G Circuit.P2Run.cpuColP_arr
 
 -- Poseidon2's specification: the paper's construction with Plonky3's parameters, its constants
 -- the Grain LFSR's, its S-box and linear layers invertible

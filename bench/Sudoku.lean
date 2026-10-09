@@ -2,6 +2,7 @@ import Ski.SudokuCheck
 import Ski.SudokuText
 import Ski.Circuit.SudComplete
 import Ski.Circuit.TraceCheck
+import Ski.Circuit.CpuFast
 import Ski.ZK.Blocks
 open Term
 
@@ -136,10 +137,10 @@ def check (pub : String) (paths : List String) : IO UInt32 := do
 /-- `sudoku check-tables PUBLIC DIR`: compare the traces `sudoku.rs`
     proves (`ski-air sudoku-dump PUBLIC BITS DIR`) with Lean's honest
     tables, as `Circuit.sud_complete` builds them from the same run
-    (`DIR/run.txt`): the CPU (`cpuTableW`) on the rows `cpuSample` picks, the
-    input table (`witTableS`) and the memory (`memTableC`, its
-    multiplicities counted over the dumped tables,
-    `Circuit.memTableC_mult`) on every row.  `OK` when every cell compared
+    (`DIR/run.txt`): the CPU (`cpuTableW`, read through
+    `Circuit.cpuColW_arr`), the input table (`witTableS`) and the memory
+    (`memTableC`, its multiplicities counted over the dumped tables,
+    `Circuit.memTableC_mult`), each on every row.  `OK` when every cell compared
     agrees. -/
 def checkTables (pub dir : String) : IO UInt32 := do
   let some puzzle ← statementOf pub | do IO.println "NOT A STATEMENT"; return 1
@@ -155,7 +156,6 @@ def checkTables (pub dir : String) : IO UInt32 := do
   let wit ← Circuit.TraceCheck.loadTrace dir "wit"
   let rowA := rows.toArray
   let rowAt := fun i => rowA.getD i ⟨0, 0, 0⟩
-  let C := Circuit.cpuTableW A rowAt rowA.size cpu.size
   let Wt := Circuit.witTableS A
   -- The proof's heights (`Circuit.sud_complete`): 2^16 rows and memory, the
   -- input table's 2^10.
@@ -164,9 +164,10 @@ def checkTables (pub dir : String) : IO UInt32 := do
        ("memory", cells.size, 2 ^ 16), ("wit", wit.size, 2 ^ 10)]
       [("cpu", cpu, air 0), ("mem", mem, air 1), ("wit", wit, air 3)] cells.size) then return 1
   let moving := ((List.range rowA.size).find? (fun r => rowAt r == rowAt (r + 1))).getD rowA.size
-  let cpuRows := Circuit.TraceCheck.cpuSample moving rowA.size cpu.size []
   let who := "sudoku.rs"
-  let b1 ← Circuit.TraceCheck.cmpRows who "cpu" cpu cpuRows fun r c => (C.main r c).val
+  -- Every CPU row, its memory read from the array (`Circuit.cpuColW_arr`).
+  let b1 ← Circuit.TraceCheck.cmpRows who "cpu" cpu (List.range cpu.size) fun r c =>
+    (Circuit.cpuColWG (fun a => cells[a]?) rowAt rowA.size r c).val
   let b2 ← Circuit.TraceCheck.cmpRows who "wit" wit (List.range wit.size) fun r c => (Wt.main r c).val
   let msgs := Circuit.sendsOn (air 0) (Circuit.TraceCheck.asTable (air 0) cpu) "mem" ++
     Circuit.sendsOn (air 2) (Circuit.progTableS blank.heap) "mem" ++
@@ -174,7 +175,7 @@ def checkTables (pub dir : String) : IO UInt32 := do
   let mult := Circuit.multArr A msgs
   let b3 ← Circuit.TraceCheck.cmpRows who "mem" (mem.map (·.extract 0 5)) (List.range mem.size)
     (Circuit.TraceCheck.memModel cells mult)
-  IO.println s!"cpu: {cpuRows.length} of {cpu.size} rows ({moving} moving); wit {wit.size}, mem {mem.size} rows; cells differing: {b1}, {b2}, {b3}"
+  IO.println s!"cpu: all {cpu.size} rows ({moving} moving); wit {wit.size}, mem {mem.size} rows; cells differing: {b1}, {b2}, {b3}"
   if b1 + b2 + b3 == 0 then
     IO.println "OK: sudoku.rs's traces are Lean's model of the honest tables"; return 0
   else
