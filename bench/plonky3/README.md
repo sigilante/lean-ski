@@ -71,20 +71,21 @@ with jets     ski-air compj-dump         composed check-cj-tables   composed che
 Poseidon2     ski-air compp-dump         composed check-p2-tables   composed check-p2-blind   p2pre, handoff1, handoff2
 ```
 
-- Every row of the witness and memory tables is compared, and of the
-  jet tables (POP, INSTW, HDR, TMPL, P2IN, P2OUT, P2). A memory row's
-  multiplicity is `memTableC`'s or `memTable5`'s count of the messages
-  the dumped sender tables and Lean's own program table send it, counted
-  in one pass and proved equal to the definition
-  (`Circuit.memTableC_mult`, `memTable5_mult`). Where the CPU is compared
-  on every row (the hidden term) that is the honest multiplicity; where
-  it is sampled, it shows the memory consistent with the dumped CPU.
-- The CPU is compared on every row where Lean's model is cheap (the
-  hidden term), else on samples: every moving row of a short run, every
-  16th of a long one, segment ends, jet rows, the halt, the two rows
-  after it and the run's last, and every 64th row past the halt.
-  With jets Lean's CPU row reads its memory as a list and costs seconds,
-  so `split8`'s sample is 21 rows of every kind.
+- Every row of the CPU, witness and memory tables is compared, and of the
+  jet tables (POP, INSTW, HDR, TMPL, P2IN, P2OUT, P2).
+- The CPU's honest row reads its memory as a list, so a read costs its
+  address. The checks read it from an array instead, through copies of
+  each CPU model over a reader, proved equal to the list models
+  (`Ski/Circuit/CpuFast.lean`: `cpuColW_arr`, `cpuColC_arr`,
+  `CRun.cpuColCJ_arr`, `P2Run.cpuColP_arr`). A row's restart count comes
+  from a prefix sum (`cntArr_get`), and its jet is found once a row.
+- A memory row's multiplicity is `memTableC`'s or `memTable5`'s count of
+  the messages the dumped sender tables and Lean's own program table send
+  it, counted in one pass and proved equal to the definition
+  (`Circuit.memTableC_mult`, `memTable5_mult`). Every dumped sender
+  table agrees with its honest table on every cell, and the program
+  table is Lean's, so that count is the honest multiplicity of the run
+  both sides read.
 - The jet providers' counts are the run's lookups, counted over its
   instantiations listed once (`JRun.cntRoots_eq` and its kin); ROOTS is
   compared on its first 256 rows, every 64th and its last 64.
@@ -113,13 +114,12 @@ follows Lean's honest table:
   46,549 and 105,544). The released proofs were remade with these counts
   on 2026-10-09.
 
-Each check takes seconds, except Sudoku (about a minute), `p2pre` (about
-50 s), the hand-off's runs (about 80 s each) and `split8` with jets
-(about 2½ minutes). What they leave out: the rows sampled out, and so,
-where the CPU is sampled, the honesty of the memory's multiplicities
-beyond the dumped CPU's; the runs themselves, which both sides read, so
-that checking them is the AIRs' and the proof's job; and the tuples'
-randomness.
+Each check takes seconds, except Sudoku (25 s over 65,536 CPU rows),
+`p2pre` (11 s), the hand-off's runs (about 30 s each) and `split8` with
+jets (about 2 minutes over 131,072 CPU rows), measured 2026-10-09. What
+they leave out: the ROOTS rows between samples; the runs themselves,
+which both sides read, so that checking them is the AIRs' and the
+proof's job; and the tuples' randomness.
 
 ## Measured, 2026-09-27, Apple M4 Max, release build
 
@@ -514,34 +514,29 @@ the run's is the CPU's, and the Poseidon2 tables are at least as wide as
 Lean's rows. It
 then compares:
 
+- every row of the CPU, read from an array (`Circuit.P2Run.cpuColP_arr`);
 - every row of P2IN, P2OUT, the Poseidon2 table (its padding the zero
   input's inactive trace) and the witness table;
 - of the memory, every row: its address, tag and fields, and its
   multiplicity, `memTable5`'s count of the messages the dumped sender
   tables and Lean's program table send it, counted in one pass
-  (`Circuit.memTable5_mult`);
-- of the CPU, every moving row of a run of at most 2048 (every 16th of a
-  longer one), its jet rows, ends and halt, and every 64th row after it.
+  (`Circuit.memTable5_mult`). Every dumped sender table agrees with its
+  honest table on every cell, so this count is the run's honest one.
 
 Gate 5 runs it on `p2pre`'s run and on the hand-off's two runs with the
 tests' value and randomness (the release's hand-off witness is
-discarded), each with 0 cells differing (rows and times from runs by
-hand):
+discarded), each with 0 cells differing (times from runs by hand,
+2026-10-09):
 
 ```
-p2pre      1,543 of 16,384 CPU rows   about 50 s
-handoff1     918 of 16,384 CPU rows   about 90 s
-handoff2     879 of 16,384 CPU rows   about 80 s
+p2pre      16,384 CPU rows,  1,302 moving   11 s
+handoff1   16,384 CPU rows, 13,990 moving   31 s
+handoff2   16,384 CPU rows, 13,155 moving   30 s
 ```
 
-Its limits:
-
-- it compares the run both sides read, so it does not check the run;
-  the AIRs and the proof do;
-- it skips the CPU rows between samples, and so checks the memory's
-  multiplicities only against the dumped CPU's messages;
-  the blinded traces the proofs commit to `check-p2-blind` compares
-  (below).
+It compares the run both sides read, so it does not check the run; the
+AIRs and the proof do. `check-p2-blind` compares the blinded traces the
+proofs commit to (below).
 
 The comparison made the CPU trace fill an inactive read's fields as Lean's
 honest row does (`fieldsAt`), with the cell at the read's address where

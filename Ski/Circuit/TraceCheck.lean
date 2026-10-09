@@ -11,7 +11,7 @@ prover writes as `H W` and then `H` rows of `W` canonical values
 - `parseMatrix`, `loadTrace`, and `asTable`, a dump as a `Table` under an
   AIR's preprocessed columns;
 - `cmpRows`, the cells of chosen rows that differ from a model;
-- `cpuSample`, the CPU rows compared when a run is long;
+- `cmpRowsBy`, the same with a value computed once a row;
 - `memModel`, a memory row as the honest memory tables have it, its
   multiplicity from `multArr` (`memTable5_mult`, `memTableC_mult`);
 - `checkBlind`, the blinded traces against the unblinded ones blinded at a
@@ -74,14 +74,21 @@ def cmpRows (who name : String) (m : Array (Array Nat)) (rs : List Nat) (model :
         bad := bad + 1
   return bad
 
-/-- The CPU rows compared: of a run whose rows move until `moving` (its
-    first row equal to its successor), every moving row of a run of at most
-    2048, else every 16th; the rows in `extra` (jet rows, segment ends); the
-    halt and the rows after it; and every 64th row past it, below `K`. -/
-def cpuSample (moving runRows K : Nat) (extra : List Nat) : List Nat :=
-  let step := if moving ≤ 2048 then 1 else 16
-  (extra ++ [moving, moving + 1, moving + 2, runRows - 1] ++ (List.range moving).filter (· % step = 0) ++
-    (List.range K).filter (fun r => moving < r ∧ r % 64 = 0)).filter (· < K)
+/-- `cmpRows`, the model given `pre r`, computed once for row `r`: what a
+    row's every column asks, such as the jet it instantiates. -/
+def cmpRowsBy {α : Type} (who name : String) (m : Array (Array Nat)) (rs : List Nat) (pre : Nat → α)
+    (model : α → Nat → Nat → Nat) : IO Nat := do
+  let mut bad := 0
+  for r in rs do
+    let row := m.getD r #[]
+    let p := pre r
+    for c in [0:row.size] do
+      let x := row.getD c 0
+      let y := model p r c
+      if x != y then
+        if bad < 5 then IO.println s!"  {name} row {r} column {c}: {who} {x}, Lean {y}"
+        bad := bad + 1
+  return bad
 
 /-- A memory row as `memTableC` and `memTable5` have it, for the memory
     `A.toList`: address, tag, fields, and the multiplicity `mult` holds for

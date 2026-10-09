@@ -157,8 +157,8 @@ if command -v cargo >/dev/null 2>&1 \
     bad "the hand-off's two statements fail P2Commit.chainB"
   fi
   # compp.rs's unblinded traces of each run agree with Lean's model of the
-  # honest tables (Ski/Circuit/CompPHonest.lean): the shapes, every row of
-  # the Poseidon2 and witness tables, and sampled CPU rows; its blinded
+  # honest tables (Ski/Circuit/CompPHonest.lean): the shapes, and every row
+  # of the CPU, the Poseidon2, witness and memory tables; its blinded
   # traces are those blinded as Circuit.compPViewN blinds them.  The
   # hand-off's two runs share one witness.
   for f in p2pre:p2pre handoff1:handoff handoff2:handoff; do

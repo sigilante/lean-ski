@@ -11,6 +11,7 @@ import Ski.ZK.Blocks
 import Ski.Circuit.SendsFast
 import Ski.Circuit.TraceCheck
 import Ski.Circuit.JetCntFast
+import Ski.Circuit.CpuFast
 open Term
 
 /-!
@@ -424,13 +425,12 @@ def chainP2In : IO UInt32 := do
     same run (`DIR/run.txt`).  Each table's height must be the statement's,
     and the run's the CPU's; the Poseidon2 tables must be at least as wide
     as Lean's rows, the columns past them compared with 0.
-    Then every row of P2IN, P2OUT, the Poseidon2 table and the witness
-    table; of the CPU, every moving row (before the run's first halt) of a
-    run of at most 2048, else every 16th, and its jet rows, segment ends,
-    the halt and the rows after it, and every 64th row past it.  `OK` when
-    every cell compared agrees; of the memory, every row: its address, tag
-    and fields, and its multiplicity, `memTable5`'s count of the messages
-    the dumped tables send with its tuple (`Circuit.memTable5_mult`).
+    Then every row of P2IN, P2OUT, the Poseidon2 table, the witness table
+    and the CPU (read through `Circuit.P2Run.cpuColP_arr`); of the memory,
+    every row: its address, tag and fields, and its multiplicity,
+    `memTable5`'s count of the messages the dumped tables send with its
+    tuple (`Circuit.memTable5_mult`).  `OK` when every cell compared
+    agrees.
     The traces compared are unblinded (`blind = false`), as Lean's model
     is; `check-p2-blind` compares the blinded traces with these. -/
 def checkP2Tables (pub dir : String) : IO UInt32 := do
@@ -455,15 +455,13 @@ def checkP2Tables (pub dir : String) : IO UInt32 := do
   let mem ← load "mem"
   let K := cpu.size
   let runRows := rows.size
-  let jets := (List.range runRows).filter R.jetAt
-  -- The run's moving rows end at its first halt, which repeats until the
-  -- table's height: every moving row of a run of at most 2048, else every
-  -- 16th; the jet rows, the segments' ends, the halt and the rows after
-  -- it; then every 64th row.
+  -- Every CPU row, its memory read from the array, whether it takes the
+  -- jet's step found once and its restart count from a prefix sum
+  -- (`Circuit.P2Run.cpuColP_arr`).
+  let get := fun (a : Nat) => cells[a]?
+  let jets := (List.range runRows).filter (R.jetAtG get)
   let moving := ((List.range runRows).find? (fun r => rows.getD r ⟨0, 0, 0⟩ == rows.getD (r + 1) ⟨0, 0, 0⟩)).getD runRows
-  let step := if moving ≤ 2048 then 1 else 16
-  let cpuRows := (jets ++ ends.toList ++ [moving, moving + 1, moving + 2, runRows - 1] ++
-    (List.range moving).filter (· % step = 0) ++ (List.range K).filter (fun r => moving < r ∧ r % 64 = 0)).filter (· < K)
+  let cnts := Circuit.cntArr (Circuit.rsI R.e R.n) K
   let pinL := R.pinRows K
   let poutL := R.poutRows K
   let p2L := R.p2Rows K ++ List.replicate (p2.size - (R.p2Rows K).length) Circuit.p2Pad
@@ -488,7 +486,8 @@ def checkP2Tables (pub dir : String) : IO UInt32 := do
   if !(← Circuit.TraceCheck.shapesOK []
       [("cpu", cpu, airP 0), ("mem", mem, airP 1), ("wit", wit, airP 3), ("p2in", pin, airP 5),
        ("p2out", pout, airP 6), ("p2", p2, airP 7)] cells.size) then return 1
-  let b1 ← Circuit.TraceCheck.cmpRows "compp.rs" "cpu" cpu cpuRows fun r c => (R.cpuColP r c).val
+  let b1 ← Circuit.TraceCheck.cmpRowsBy "compp.rs" "cpu" cpu (List.range K) (R.jetAtG get) fun jet r c =>
+    (R.cpuColPG get jet (cnts.getD r 0) r c).val
   let b2 ← Circuit.TraceCheck.cmpRows "compp.rs" "p2in" pin (List.range pin.size) fun r c => ((pinL.getD r []).getD c 0).val
   let b3 ← Circuit.TraceCheck.cmpRows "compp.rs" "p2out" pout (List.range pout.size) fun r c => ((poutL.getD r []).getD c 0).val
   let b4 ← Circuit.TraceCheck.cmpRows "compp.rs" "p2" p2 (List.range p2.size) fun r c => ((p2L.getD r []).getD c 0).val
@@ -513,7 +512,7 @@ def checkP2Tables (pub dir : String) : IO UInt32 := do
   let memCut := mem.map (·.extract 0 5)
   let b6 ← Circuit.TraceCheck.cmpRows "compp.rs" "mem" memCut (List.range mem.size)
     (Circuit.TraceCheck.memModel cells mult)
-  IO.println s!"cpu: {cpuRows.length} of {K} rows ({moving} moving, {jets.length} jet calls); p2in {pin.size}, p2out {pout.size}, p2 {p2.size}, wit {wit.size} rows; cells differing: {b1}, {b2}, {b3}, {b4}, {b5}, mem {b6}"
+  IO.println s!"cpu: all {K} rows ({moving} moving, {jets.length} jet calls); p2in {pin.size}, p2out {pout.size}, p2 {p2.size}, wit {wit.size} rows; cells differing: {b1}, {b2}, {b3}, {b4}, {b5}, mem {b6}"
   if b1 + b2 + b3 + b4 + b5 + b6 == 0 then
     IO.println "OK: compp.rs's traces are Lean's model of the honest tables"; return 0
   else
@@ -531,10 +530,10 @@ def checkP2Blind (dir : String) : IO UInt32 :=
 /-- `composed check-c-tables PUBLIC DIR`: compare the traces `composed.rs`
     proves for a composed statement (`ski-air composed-dump PUBLIC WITNESS
     DIR`) with Lean's honest tables, as `Circuit.comp_completeG_log` builds
-    them from the same run (`DIR/run.txt`): the CPU (`cpuTableC`) on the
-    rows `cpuSample` picks, the witness table (`witTable`) and the memory
-    (`memTableC`, its multiplicities counted over the dumped tables by
-    `multArr`, `Circuit.memTableC_mult`) on every row.  Each table's height
+    them from the same run (`DIR/run.txt`): the CPU (`cpuTableC`, read
+    through `Circuit.cpuColC_arr`), the witness table (`witTable`) and the
+    memory (`memTableC`, its multiplicities counted over the dumped tables
+    by `multArr`, `Circuit.memTableC_mult`), each on every row.  Each table's height
     must be the run's.  `OK` when every cell compared agrees. -/
 def checkCTables (pub dir : String) : IO UInt32 := do
   let some (c, W, (lr, lm)) := statementOfText (← IO.FS.readFile pub) | do IO.println "NOT A STATEMENT"; return 1
@@ -561,9 +560,12 @@ def checkCTables (pub dir : String) : IO UInt32 := do
   let rowAt := fun i => rows.getD i ⟨0, 0, 0⟩
   let e := fun j => ends.getD j 0
   let moving := ((List.range rows.size).find? (fun r => rowAt r == rowAt (r + 1))).getD rows.size
-  let cpuRows := Circuit.TraceCheck.cpuSample moving rows.size K ends.toList
+  -- Every CPU row, its memory read from the array and its restart count
+  -- from a prefix sum (`Circuit.cpuColC_arr`).
+  let cnts := Circuit.cntArr (Circuit.rsI e Ps.length) K
   let who := "composed.rs"
-  let b1 ← Circuit.TraceCheck.cmpRows who "cpu" cpu cpuRows fun r col => (Circuit.cpuColC A rowAt e Ps.length roots r col).val
+  let b1 ← Circuit.TraceCheck.cmpRows who "cpu" cpu (List.range K) fun r col =>
+    (Circuit.cpuColCG (fun a => cells[a]?) rowAt e Ps.length roots (cnts.getD r 0) r col).val
   let b2 ← Circuit.TraceCheck.cmpRows who "wit" wit (List.range wit.size) fun r col => (Wt.main r col).val
   let msgs := Circuit.sendsOn (air 0) (Circuit.TraceCheck.asTable (air 0) cpu) "mem" ++
     Circuit.sendsOn (air 2) (Circuit.progTableC blank.heap N W) "mem" ++
@@ -571,7 +573,7 @@ def checkCTables (pub dir : String) : IO UInt32 := do
   let mult := Circuit.multArr A msgs
   let b3 ← Circuit.TraceCheck.cmpRows who "mem" (mem.map (·.extract 0 5)) (List.range mem.size)
     (Circuit.TraceCheck.memModel cells mult)
-  IO.println s!"cpu: {cpuRows.length} of {K} rows ({moving} moving, {ends.size} segments); wit {wit.size}, mem {mem.size} rows; cells differing: {b1}, {b2}, {b3}"
+  IO.println s!"cpu: all {K} rows ({moving} moving, {ends.size} segments); wit {wit.size}, mem {mem.size} rows; cells differing: {b1}, {b2}, {b3}"
   if b1 + b2 + b3 == 0 then
     IO.println "OK: composed.rs's traces are Lean's model of the honest tables"; return 0
   else
@@ -589,10 +591,8 @@ def checkCBlind (dir : String) : IO UInt32 :=
     `Circuit.compJ_complete_log` builds them from the same run
     (`DIR/run.txt`) and the jet table Lean computes from the source:
 
-    - the CPU (`CRun.cpuColCJ`) on the segment ends, every 256th
-      instantiation row, the halt and the rows after it, every 2048th
-      moving row and every 32768th after (Lean's row reads its memory as a
-      list, seconds a row);
+    - the CPU (`CRun.cpuColCJ`, read through `CRun.cpuColCJ_arr`) on
+      every row;
     - the witness table (`witTable`), POP and INSTW (`JRun.popRows`,
       `instwRows`, read as `ofRows` reads them) on every row;
     - the providers ROOTS, HDR and TMPL (`provTableCJ`: each tuple's count on
@@ -645,19 +645,19 @@ def checkCJTables (src pub dir : String) : IO UInt32 := do
       [("cpu", cpu, air 0), ("mem", mem, air 1), ("wit", wit, air 3), ("roots", roots, air 5), ("hdr", hdr, air 6),
        ("tmpl", tmpl, air 7), ("pop", pop, air 8), ("instw", instw, air 9)] cells.size) then return 1
   let J := Rn.J
-  let insts := J.insts K
+  -- The memory read from the array: the instantiations
+  -- (`Circuit.JRun.insts_arr`), and every CPU row, each row's
+  -- instantiation found once and its restart count from a prefix sum
+  -- (`Circuit.CRun.cpuColCJ_arr`).
+  let get := fun (a : Nat) => cells[a]?
+  let insts := J.instsG get K
   let moving := ((List.range rows.size).find? (fun r => rowAt r == rowAt (r + 1))).getD rows.size
-  -- Lean's CPU row reads its memory as a list, so a row costs seconds
-  -- here: the segment ends, every 256th instantiation, the halt and the
-  -- rows after it, every 2048th moving row and every 32768th after.
-  let instRows := (insts.map (·.1)).zipIdx.filterMap fun (i, j) => if j % 256 = 0 then some i else none
-  let cpuRows := ((ends.toList ++ instRows ++ [moving, moving + 1, moving + 2, rows.size - 1] ++
-    (List.range moving).filter (· % 2048 = 0) ++ (List.range K).filter (fun r => moving < r ∧ r % 32768 = 0)).filter
-      (· < K)).eraseDups
+  let cnts := Circuit.cntArr (Circuit.rsI e Ps.length) K
   let who := "compj.rs"
   let cmp := Circuit.TraceCheck.cmpRows who
   let all := fun (m : Array (Array Nat)) => List.range m.size
-  let b1 ← cmp "cpu" cpu cpuRows fun r col => (Rn.cpuColCJ r col).val
+  let b1 ← Circuit.TraceCheck.cmpRowsBy who "cpu" cpu (List.range K) (J.instAtG get) fun inst r col =>
+    (Rn.cpuColCJG get inst (cnts.getD r 0) r col).val
   let b2 ← cmp "wit" wit (all wit) fun r col => (Wt.main r col).val
   let popA := (J.popRows K).toArray
   let instwA := (J.instwRows K).toArray
@@ -684,7 +684,7 @@ def checkCJTables (src pub dir : String) : IO UInt32 := do
     Circuit.sendsOn (air 3) (Circuit.TraceCheck.asTable (air 3) wit) "mem"
   let mult := Circuit.multArr A msgs
   let b8 ← cmp "mem" (mem.map (·.extract 0 5)) (all mem) (Circuit.TraceCheck.memModel cells mult)
-  IO.println s!"cpu: {cpuRows.length} of {K} rows ({moving} moving, {insts.length} instantiations); roots {rootsSample.length} of {roots.size}; cells differing: cpu {b1}, wit {b2}, pop {b3}, instw {b4}, roots {b5}, hdr {b6}, tmpl {b7}, mem {b8}"
+  IO.println s!"cpu: all {K} rows ({moving} moving, {insts.length} instantiations); roots {rootsSample.length} of {roots.size}; cells differing: cpu {b1}, wit {b2}, pop {b3}, instw {b4}, roots {b5}, hdr {b6}, tmpl {b7}, mem {b8}"
   if b1 + b2 + b3 + b4 + b5 + b6 + b7 + b8 == 0 then
     IO.println "OK: compj.rs's traces are Lean's model of the honest tables"; return 0
   else

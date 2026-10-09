@@ -24,18 +24,16 @@ is built; this file records what is next. Last revised 2026-10-09.
   declines projection jets as Lean's `jetOf` does, 1,952 and 44,427 instantiations
   (were 2,250 and 46,549). Statements and jet tables are unchanged, byte for byte;
   `verify.sh` passes.
+- **Every CPU row compared**: the trace checks read the memory from an array, through
+  copies of each CPU model proved equal to the list models (`Ski/Circuit/CpuFast.lean`),
+  so the memory's multiplicities are checked against the full CPU. `split8` with jets
+  compares all 131,072 CPU rows in about 2 minutes, Sudoku 65,536 in 25 s.
 - **The paper, reviewed by wizard, chevalier and angel**, its findings fixed; a table
   from each released claim to its check, in the paper and in `release/README.md`.
 
 ## Next
 
-### 1. Every CPU row compared
-
-The trace checks compare sampled CPU rows, because Lean's CPU model reads memory as a
-list. An array-backed model, proved equal to the list one, would compare every row and
-make the memory's multiplicities checked against the full CPU.
-
-### 2. The paper's remaining sourcing
+### 1. The paper's remaining sourcing
 
 A pointer for the third-party reproduction; repository URLs or commits in the data
 statement; a source for the "629 programs" differential test. In the final version the
