@@ -934,10 +934,10 @@ or (3 segments)           220 (41)          67       10       673   2^11 2^11 2^
 
 The prover runs a projection jet's instantiation as the machine's step,
 as Lean's honest run does ("The traces against Lean's honest tables",
-above). Avon's witness table still counts it an instantiation; the rows
-are the same. ski-air wrote the current release's witness tables
-(`WITNESS=ski-air release/produce.sh`); Avon has not yet run this jet
-table.
+above). Avon's witness table counted it an instantiation, with the same
+rows. With no jets at bare combinators no such instantiation occurs, and
+the counts agree: Avon writes the released tables (1,520 and 4,968
+instantiations), byte for byte the prover's.
 
 `and` and `or` take `split8`'s source's templates, so their segments
 restart between instantiations. Without jets `csplit8` needs `2^19` rows

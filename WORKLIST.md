@@ -47,6 +47,13 @@ is built; this file records what is next. Last revised 2026-10-10.
   in 11,167; `3 sumto` in 3,304 (3,678). The interpreted corpus rows went from 110–112%
   of the plain rows to 86–87%. Every released jet table, witness table and proof with
   jets was remade; ski-air wrote the witness tables (`WITNESS=ski-air`).
+- **Avon writes the released witnesses again**: Avon at `e2905bb` (`origin/master`,
+  built in a clean worktree) writes `3 sumto`'s jetted and probe tables and the
+  `split8` and `csplit8` jetted tables byte for byte as ski-air does, and
+  `release/produce.sh sumto jets` remade the release from them; only the two
+  randomized proofs with jets changed. Its counts equal the prover's (1,520 and 4,968
+  instantiations), since no projection jet remains. Tagged `paper-v2` at PR #21's
+  merge, `79c7026`.
 - **The paper at PR #21's figures**: `3 sumto` in 3,304 CPU rows, `split8` and
   `csplit8` with jets at their new counts and heights, verify times after the fast jet
   check (2.4 s and 3.2 s; `release/verify.sh` in about two minutes, built), and who
@@ -55,13 +62,6 @@ is built; this file records what is next. Last revised 2026-10-10.
   from each released claim to its check, in the paper and in `release/README.md`.
 
 ## Next
-
-Tag `paper-v2` on PR #21's merge commit: the paper now describes that state (its data
-statement names the tag).
-
-When Avon is free: rerun `release/produce.sh sumto jets` with Avon writing the
-witness tables, which `produce.sh` and Avon's `make jet-witness-check` compare with
-ski-air's; update `docs/ZK-JETS.md`'s figures (`csplit8` at `2^17 2^18 2^15 2^16`).
 
 For the final version, the paper cites a Zenodo DOI in place of the tag,
 and its claim table moves to the docs, where `release/README.md` already holds it.

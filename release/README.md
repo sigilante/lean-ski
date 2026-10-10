@@ -265,10 +265,10 @@ rows (1,520 instantiations, 7,154 POP and 11,931 INSTW rows) against
 129,964 without jets. `csplit8` runs in 118,222 (4,968 instantiations,
 22,382 POP and 36,578 INSTW rows) against 471,887, and fits `2^17` rows
 and `2^18` memory cells against the plain proof's `2^19` and `2^20`.
-ski-air wrote each witness table (`compj-prove … TABLE`) and proved it
-(`compj-prove-table`); Avon writes the same table (`avon witness
---statement`, Avon's `docs/ZK-JETS.md` milestone 8) and will rewrite
-these when it next runs. What an accepted proof shows is
+Avon wrote each witness table (`avon witness --statement`, Avon's
+`docs/ZK-JETS.md` milestone 8), byte for byte the table lean-ski's prover
+writes, and ski-air proved it (`compj-prove-table`). What an accepted
+proof shows is
 the plain proof's: some literal bits on which the predicate accepts
 (`Circuit.predJExport_sound`, for the jet table Lean checked). An
 instantiation is weak reduction, so a jetted run proves evaluation up to
@@ -468,13 +468,12 @@ Dropping them took the table from 2,768 roots to 759 and the run from
 `split8`, `csplit8`, `sudoku`, `jets`, `p2`, `entropy`.
 
 `WITNESS=ski-air release/produce.sh STAGE…` has ski-air write the
-jetted witness tables in Avon's place. The current jetted tables
-(`sumto`, its probe, and `skilark/*/jets`) were written so, for the jet
-table without bare combinators, which Avon has not yet run; Avon wrote
-the same bytes for the previous table. Avon's witnesses are
+jetted witness tables in Avon's place, for a jet table Avon has not yet
+run. Avon (`e2905bb`) wrote the released ones. Avon's witnesses are
 byte-identical to the tables lean-ski's own prover writes for the same
 term, jet table and plan (Avon's `make
 jet-witness-check` and `make probe-witness-check`, over the corpus), and
 `produce.sh` compares the probe table and its proof with ski-air's own;
-with `WITNESS=ski-air` the table comparison holds trivially. The verifier does not depend on Avon: it checks
+with `WITNESS=ski-air` the table comparison holds trivially. The
+verifier does not depend on Avon: it checks
 the proof, not the producer.
