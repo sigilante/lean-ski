@@ -112,7 +112,8 @@ follows Lean's honest table:
   tables are unchanged; `split8` now runs 1,952 instantiations and 8,018
   POP rows (was 2,250 and 8,614), `csplit8` 44,427 and 101,300 (was
   46,549 and 105,544). The released proofs were remade with these counts
-  on 2026-10-09.
+  on 2026-10-09, and again on 2026-10-11 without jets at bare combinators
+  ("The composed circuit with jets", below).
 
 Each check takes seconds, except Sudoku (25 s over 65,536 CPU rows),
 `p2pre` (11 s), the hand-off's runs (about 30 s each) and `split8` with
@@ -789,7 +790,7 @@ so a zero denominator aborts it with probability below `2^-100`.
 (boolsT bits)`, the predicate's verifier applied to its public `x = 200`
 and the bits of `a = 123`, `b = 77`, run plain and with supercombinator
 jets whose table comes from the SKIjack source's own templates
-(`JetTable.fileTemplates`): 178 templates give 130 jets and 21,049
+(`JetTable.fileTemplates`): 178 templates give 128 jets and 5,638
 licensed roots in the 51,842-cell loaded heap.
 
 ```
@@ -798,12 +799,12 @@ bench/plonky3/target/release/ski-air jets-measure DIR/split.term DIR/split.jets 
 lake exe jets check-src release/skilark/split8/source.ski DIR/jet_split.txt  # ACCEPT: Air.checkJA_sound
 ```
 
-Measured, 2026-09-29:
+Measured, 2026-10-11:
 
 ```
 plain    129,957 rows, 215,393 cells                      (padded CPU 2^17)
-jetted    11,483 rows,  74,116 cells, 2,237 instantiations (padded CPU, POP, INSTW 2^14)
-          8.8% of the plain rows; the run ends at K over the empty stack
+jetted    11,072 rows,  73,294 cells, 1,541 instantiations (padded CPU 2^14, POP 2^13, INSTW 2^14)
+          8.5% of the plain rows; the run ends at K over the empty stack
 ```
 
 Lean accepts the jetted table (`jets check-src`: `checkJA` with the
@@ -815,9 +816,9 @@ source's.
 
 `skilark jets` also applies the closure rule of Avon's `ZK-JETS.md` §4
 with the bits' cells `[51646, 51839)` private (`split_pub.jets`): it drops
-the 104 roots that reach them, and no global, and the run (`JetRun.runJ`,
-the counts `ski-air jets-measure` makes) is 11,570 CPU rows and the halt
-row, 11,571, still 8.9%; `Air.checkJA` accepts both runs. This is a
+the 37 roots that reach them, and one jet, and the run (`JetRun.runJ`,
+the counts `ski-air jets-measure` makes) is 11,159 CPU rows and the halt
+row, 11,160, still 8.6%; `Air.checkJA` accepts both runs. This is a
 measurement in the clear, over the heap of these bits, not the
 verifier's table, which `cjets` computes over the blank composed heap
 (below).
@@ -842,19 +843,19 @@ lake exe skilark cjets-statement SRC PUBLIC OUT        # ACCEPT: Air.jetStmtC_so
 lake exe skilark cjets-measure SRC PUBLIC WITNESS      # runs over the filled heap
 ```
 
-Measured, 2026-09-30, on `bench/plonky3/skilark/{split8,csplit8}`:
+Measured, 2026-10-11, on `bench/plonky3/skilark/{split8,csplit8}`:
 
 ```
 split8   blank heap 51,841 cells, private [3, 20)
-         without the rule 21,043 roots: 47 roots and 3 globals reach a private cell
-         the rule  20,996 roots, 129 jets; cjets-statement ACCEPT
+         without the rule 5,650 roots: 47 roots and 3 globals reach a private cell
+         the rule   5,603 roots, 127 jets; cjets-statement ACCEPT
          plain     129,964 CPU rows
-         the rule   11,598 CPU (8.9%), 8,614 POP, 12,363 INSTW; halts at K over the nil; checkJA ACCEPT
+         the rule   11,166 CPU (8.6%), 7,154 POP, 11,931 INSTW; halts at K over the nil; checkJA ACCEPT
 csplit8  blank heap 137,817 cells, private [3, 28)
-         without the rule 57,245 roots: 71 roots and 5 globals reach a private cell
-         the rule  57,174 roots, 182 jets; cjets-statement ACCEPT
+         without the rule 15,658 roots: 71 roots and 5 globals reach a private cell
+         the rule  15,587 roots, 180 jets; cjets-statement ACCEPT
          plain     471,887 CPU rows
-         the rule  157,680 CPU (33.4%), 105,544 POP, 76,037 INSTW; halts at K over the nil; checkJA ACCEPT
+         the rule  118,221 CPU (25.1%), 22,382 POP, 36,578 INSTW; halts at K over the nil; checkJA ACCEPT
 ```
 
 **The hazard is real.** The table without the rule passes `rootsOKB`
@@ -867,8 +868,12 @@ statement check refuses it (`--no-rule`), and a hand-edited table, by
 text: Lean's recomputed table is the only one accepted, and `rootsOKB`
 and `publicB` re-check it, since the table generator is not trusted.
 `cjets-measure` measures; it does not check the witness. `checkJA` checks each run from the filled machine,
-which also checks the statement's table licensed there. The saving on
-`csplit8` is a third, against `split8`'s tenth. On `csplit8`, `cjets`
+which also checks the statement's table licensed there. `csplit8`'s
+jetted run takes a quarter of its plain rows, against `split8`'s twelfth.
+It took a third until templates compiling to a bare `S`, `K` or `I`
+stopped making jets (`JetTable.isComb`): `seq`'s handler `λg t. g t`
+compiles to `I`, and each of its 39,459 instantiations on `csplit8` took
+one CPU, two POP and one INSTW row more than the machine's step. On `csplit8`, `cjets`
 takes 0.5 s (it computes the table with the rule and without) and
 `cjets-statement` 0.4 s, each in under 80 MB. Two faults made them take
 151 s and 70 s. The heap builders (`buildA`, `obuildA`, `pbuildA`) read
@@ -917,26 +922,28 @@ byte the one `compj-prove … TABLE` writes; `compj-prove-table` proves it,
 reading each instantiation row from the table as `jet-prove` does. Avon's
 `make zk-jet-witness-check` runs `and`, `or` and `split8` through both.
 
-Measured, `and` and `or` 2026-09-30, `split8` and `csplit8` 2026-10-09:
+Measured, `and` and `or` 2026-09-30, `split8` and `csplit8` 2026-10-11:
 
 ```
 statement             CPU rows (INST)   POP      INSTW    memory    heights CPU mem POP INSTW   prove     proof
-split8                 11,599 (1,952)    8,018   12,363    74,246   2^17 2^18 2^14 2^14       11.9 s    1.11 MB
-csplit8 at log 18 19  157,681 (44,427) 101,300   76,037   330,512   2^18 2^19 2^17 2^17       29.2 s    1.17 MB
+split8                 11,167 (1,520)    7,154   11,931    73,382   2^17 2^18 2^14 2^14       11.8 s    1.10 MB
+csplit8 at log 17 18  118,222 (4,968)    22,382   36,578   251,594   2^17 2^18 2^15 2^16       15.8 s    1.11 MB
 and (3 segments)          404 (69)         116       17       889   2^11 2^11 2^8  2^8         0.14 s   0.78 MB
 or (3 segments)           220 (41)          67       10       673   2^11 2^11 2^8  2^8         0.16 s   0.78 MB
 ```
 
 The prover runs a projection jet's instantiation as the machine's step,
 as Lean's honest run does ("The traces against Lean's honest tables",
-above). Avon's witness table still counts it an instantiation (2,250 for
-`split8`, 46,549 for `csplit8`); the rows are the same.
+above). Avon's witness table still counts it an instantiation; the rows
+are the same. ski-air wrote the current release's witness tables
+(`WITNESS=ski-air release/produce.sh`); Avon has not yet run this jet
+table.
 
 `and` and `or` take `split8`'s source's templates, so their segments
 restart between instantiations. Without jets `csplit8` needs `2^19` rows
-and `2^20` memory and proves in 42 s; with them it fits `2^18` and
-`2^19`. Verifying takes 17 s on `split8` and 112 s on `csplit8`, nearly
-all of it Lean's check of the jet table. On `split8`, `and` and `or`
+and `2^20` memory and proves in 42 s; with them it fits `2^17` and
+`2^18`. Verifying takes 2.4 s on `split8` and 3.2 s on `csplit8`, Lean's
+checks included. On `split8`, `and` and `or`
 the wrong, clear and non-Boolean witnesses are refused (a segment does not
 end at `K` over the nil) and the forged region is rejected (the witness
 table). A proof checked against a statement with another budget is
@@ -1011,8 +1018,8 @@ the roots recomputed and licensed in Lean. Before it builds anything from
 the jet files, the verifier runs `lake exe jets statement` with its own
 corpus: each file must be Lean's for the term the verifier will prove,
 with roots that pass `Air.rootsOKB` over that term's heap. `DESIGN.md` §2 gives the
-tables, the argument and the measurements: `3 sumto` takes 3,678 CPU rows
-instead of 25,074, and proves in 0.15 s.
+tables, the argument and the measurements: `3 sumto` takes 3,304 CPU rows
+instead of 25,074, and proves in 0.17 s.
 
 ```
 lake build jets && lake exe jets emit bench/plonky3/jets

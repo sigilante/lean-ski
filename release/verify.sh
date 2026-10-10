@@ -15,7 +15,7 @@
 #      name that is a path, and a proof that Omega halts, made over a forged
 #      jet table, offered directly and through a FIFO that answers Lean's
 #      read and the verifier's differently;
-#   4. Lean's own check of Avon's witness table (Air.checkJA_sound);
+#   4. Lean's own check of the witness table (Air.checkJA_sound);
 #   5. the output: ski-air probe-verify checks the probe proof against the
 #      term, the jet file and Lean's plan of `[6]`, its AIRs Lean's
 #      Circuit.probeAirs (`compare-probe`, so Circuit.probeExport_sound
@@ -190,7 +190,11 @@ fi
 # table it is refused by Lean's statement check; offered through a FIFO
 # that gives the honest table first and the forged one second, it must be
 # refused too: the verifier reads each file once, and Lean checks a copy of
-# those bytes.
+# those bytes.  The honest table licenses nothing (Omega's only templates
+# are bare combinators, which make no jet), and ski-air refuses a table
+# with no rows, so the refusal alone would not tell one read from two.
+# The writer marks each table read: the honest one must be, and the
+# forged one must not.
 F=release/forgeries/omega
 mkdir -p "$tmp/fj"
 /bin/cp "$F/forged.jets" "$tmp/fj/omega.jets"
@@ -205,14 +209,22 @@ mkfifo "$tmp/fifo/omega.jets"
 # may be blocked in (a verifier that reads once never opens the FIFO again).
 ( exec > /dev/null 2>&1
   cat "$F/honest.jets" > "$tmp/fifo/omega.jets"
-  cat "$F/forged.jets" > "$tmp/fifo/omega.jets" ) &
+  : > "$tmp/fifo.honest"
+  cat "$F/forged.jets" > "$tmp/fifo/omega.jets"
+  : > "$tmp/fifo.forged" ) &
 writers=$!
 if "$SKI_AIR" jet-verify "$F/corpus.txt" "$tmp/fifo" omega "$F/omega.proof" > "$tmp/fifo.log"; then
     stop_writers
     no "the Omega forgery verified through a FIFO (honest table, then forged)"
 else
+    sleep 1   # time for the writer to mark a second read, had there been one
     stop_writers
-    refused "$tmp/fifo.log" 'verify: [A-Z]|deserialize: ' "the Omega forgery through a FIFO is refused"
+    refused "$tmp/fifo.log" 'verify: [A-Z]|deserialize: |a jet table with no rows' "the Omega forgery through a FIFO is refused"
+fi
+if [ -e "$tmp/fifo.honest" ] && [ ! -e "$tmp/fifo.forged" ]; then
+    ok "the verifier read the FIFO once: the honest table, never the forged one"
+else
+    no "the verifier did not read the FIFO exactly once (honest read: $([ -e "$tmp/fifo.honest" ] && echo yes || echo no), forged read: $([ -e "$tmp/fifo.forged" ] && echo yes || echo no))"
 fi
 
 # A table's first line is the term Lean's checks read; it must be the
@@ -221,7 +233,7 @@ term_is_sumto() {
     head -n 1 "$1" | cmp -s - <(awk '{print $3}' "$R/corpus.txt")
 }
 
-echo "--- 4. Lean's check of Avon's witness table"
+echo "--- 4. Lean's check of the witness table"
 term_is_sumto "$R/sumto_us.table" \
     && ok "the witness table's term is the corpus row's" \
     || no "the witness table's term is not the corpus row's"

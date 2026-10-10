@@ -704,7 +704,7 @@ term evaluates to a value that weakly reduces to the table's, with its
 head and arity (`air_sound_jet`). Every corpus row proves jetted, and
 `lake exe jets check` accepts each table. The verifier runs `lake exe jets
 statement` on its own terms first, which checks each jet file against its
-term and licenses its roots (`rootsOKB`): `3 sumto` takes 3,678 CPU rows
+term and licenses its roots (`rootsOKB`): `3 sumto` takes 3,304 CPU rows
 instead of 25,074. Jets combine with probes: a jetted run from a state
 with atoms is open weak reduction (`ojsteps_owsteps`, `Ski/InstOpen.lean`),
 which reaches a marker's spine by head reduction (`owsteps_spine`,
@@ -867,10 +867,16 @@ now computes a composed statement's table under the rule (roots and
 globals only at cells whose closure is public, `jetTableC`), and the
 verifier's check (`jetStmtC`: the recomputed table, `rootsOKB`, `publicB`)
 licenses its roots over every filled heap (`jetStmtC_sound`, by
-`termAt_public`). Under the rule `split8` runs in 11,598 CPU rows against
+`termAt_public`). Under the rule `split8` ran in 11,598 CPU rows against
 129,964 plain (8.9%), `csplit8` in 157,680 against 471,887 (33.4%), both
 checked by `checkJA` from the filled heap (`lake exe skilark cjets`,
-`cjets-statement`, `cjets-measure`).
+`cjets-statement`, `cjets-measure`). Most of `csplit8`'s cost was jets at
+bare combinators: `seq`'s handler `λg t. g t` compiles to `I`, and each
+of its 39,459 instantiations took six rows (three CPU, two POP, one
+INSTW) where the machine took two. Templates that compile to `S`, `K` or `I` now make no jet
+(`JetTable.isComb`, 2026-10-11): `split8` runs in 11,166 CPU rows
+(8.6%) and `csplit8` in 118,221 (25.1%), proved at `2^17` and `2^18` in
+16 s.
 The circuit as data, milestone 4: `Ski/Circuit/CompJAir.lean`
 (`compJAirs`) and `bench/plonky3/src/compj.rs`, ten tables and a blinding
 tree of seven tuples, the same constraint for constraint
@@ -1027,7 +1033,9 @@ with `apply`, every leaf in the manifest — done for every valid table
 a third party, with its jet table and per-contraction cost reported —
 done for `3 sumto` (`release/`). Avon's jetted witness is proved by
 `ski-air`, 3,678 CPU rows where the plain run takes 25,074 (0.36 per
-contraction, against 2.44), with 78 jets and 2,768 roots. A reviewer that
+contraction, against 2.44), with 78 jets and 2,768 roots; without jets
+at bare combinators, 3,304 rows (0.32) with 76 jets and 759 roots, its
+witness written by ski-air until Avon reruns. A reviewer that
 had not seen the work cloned the repository, ran `release/verify.sh`, and
 reproduced the proof byte for byte. Its attacks found that the
 verifier's Lean check and its own reads could disagree, first through a
