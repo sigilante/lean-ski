@@ -368,7 +368,7 @@ def compareCompJ (src path : String) : IO UInt32 := do
         | _ => none
       | [] => none) | do IO.println "MALFORMED: no jet table"; return 1
   let jtext := "\n".intercalate ((ls2.drop 1).take m) ++ "\n"
-  let tmpls := JetTable.fileTemplates ((← IO.FS.readFile src).toList.map Char.toNat)
+  let tmpls := JetTable.fileTemplatesEta ((← IO.FS.readFile src).toList.map Char.toNat)
   if !Air.jetStmtC jtext c.shp W c.Ps tmpls then
     IO.println "NOT THE STATEMENT'S JET TABLE"; return 1
   let (roots, jets) := Air.jetTableC c.shp W c.Ps tmpls

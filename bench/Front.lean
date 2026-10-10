@@ -5,9 +5,10 @@ open Term Front
 The front end on one source file, for the differential test against
 `skijack` (`scripts/differential.py`).
 
-`front FILE LEXICON` reads `FILE` as UTF-8, its code points the source
-`Front.compileWith` takes, in the lexicon `ascii` or `unicode`, and prints
-three things:
+`front FILE LEXICON [eta]` reads `FILE` as UTF-8, its code points the
+source `Front.compileWith` takes, in the lexicon `ascii` or `unicode`, and
+prints three things (with `eta`, both compilations η-lift, as
+`skijack.compile(eta=True)` does):
 
 ```
 compile refused | compile ok N      -- compileWith, then its N terms
@@ -39,14 +40,18 @@ def printFile (label : String) : Option (List (Nm × Term)) → IO Unit
 
 def main (args : List String) : IO UInt32 := do
   match args with
-  | [file, lex] =>
+  | file :: lex :: rest =>
+    let eta ← match rest with
+      | [] => pure false
+      | ["eta"] => pure true
+      | _ => do IO.eprintln "usage: front FILE ascii|unicode [eta]"; return 2
     let u ← match lex with
       | "ascii" => pure false
       | "unicode" => pure true
       | _ => do IO.eprintln s!"front: unknown lexicon {lex}"; return 2
     let src := (← IO.FS.readFile file).toList.map Char.toNat
-    printFile "compile" (compileWith u src)
+    printFile "compile" (compileWith u src eta)
     IO.println s!"check {if checkPass u src then "pass" else "fail"}"
-    printFile "checked" (checkedWith u src)
+    printFile "checked" (checkedWith u src eta)
     return 0
-  | _ => IO.eprintln "usage: front FILE ascii|unicode"; return 2
+  | _ => IO.eprintln "usage: front FILE ascii|unicode [eta]"; return 2

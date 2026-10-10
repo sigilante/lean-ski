@@ -13,7 +13,8 @@ The predicate `split`, from `skilark.zk` (the SKIlark repository): its
 verifier `vsplitB x r` decodes `r`, `2k` literal bits, into the bits of two
 numbers `a` and `b` (interleaved, least significant first), and accepts
 when they add up to `x` in `k` bits.  Lean compiles it here from its
-SKIjack source (`Front.compileFile`), so a statement is checked against
+SKIjack source with η-lifting (`Front.compileFileEta`,
+`skijack.compile(eta=True)`), so a statement is checked against
 the source, not the Python that wrote it; that the source is
 `skilark.zk`'s `split` for width `k` is the producer's word.  `x` is one
 quotation of its bits, least significant outermost.
@@ -55,7 +56,7 @@ structure Src where
 def Src.get (s : Src) (n : String) : Option Term := s.terms.lookup (nm n)
 
 def compile (text : String) : Option Src :=
-  (Front.compileFile (text.toList.map Char.toNat)).map (⟨·⟩)
+  (Front.compileFileEta (text.toList.map Char.toNat)).map (⟨·⟩)
 
 def apps (f : Term) : List Term → Term
   | [] => f
@@ -254,7 +255,7 @@ def jets (src : String) (k x a b : Nat) (dir : String) : IO UInt32 := do
   let text ← IO.FS.readFile src
   let some (V, E) ← readB src | do IO.println s!"{src}: not a SKIlark predicate source"; return 1
   let t := V ⬝ xTerm E (bitsOf k x) ⬝ CompM.boolsT (splitBits k a b)
-  let tmpls := JetTable.fileTemplates (text.toList.map Char.toNat)
+  let tmpls := JetTable.fileTemplatesEta (text.toList.map Char.toNat)
   let (roots, js) := JetTable.jetTable (Mach.load t).heap tmpls
   let s := JetTable.tableText roots js
   IO.FS.createDirAll dir
@@ -295,7 +296,7 @@ def readStmt (pub : String) : IO (Option (CStmt × Nat)) := do
   | none => return none
 
 def srcTemplates (src : String) : IO (List (List Nat × OTerm)) := do
-  return JetTable.fileTemplates ((← IO.FS.readFile src).toList.map Char.toNat)
+  return JetTable.fileTemplatesEta ((← IO.FS.readFile src).toList.map Char.toNat)
 
 /-- `skilark cjets SRC PUBLIC OUT [--no-rule]`: the jet table of the
     composed statement `PUBLIC` over its blank heap, from the templates of

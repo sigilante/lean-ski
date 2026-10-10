@@ -64,12 +64,14 @@ mutual
 end
 
 /-- The templates of a source file: equations, the λ chains they lift, and
-    constructors, each with at least one formal. -/
-def fileTemplates (src : List Nat) : List (List Nat × OTerm) :=
+    constructors, each with at least one formal.  With `eta`, of the file
+    compiled with η-lifting (`Front.compileFileEta`): a chain η-lifting
+    removes lifts nothing, so it is no template. -/
+def fileTemplates (src : List Nat) (eta : Bool := false) : List (List Nat × OTerm) :=
   match readFile src with
   | none => []
   | some ds =>
-    match fileFEqns ds, compileDecls ds with
+    match etaFEqns eta (fileFEqns ds), compileDecls ds eta with
     | some fes, some (_, done) =>
       let env := fun g => (resolveIn done g).getD K
       let eqs := fes.flatMap fun (_, e) =>
@@ -83,6 +85,10 @@ def fileTemplates (src : List Nat) : List (List Nat × OTerm) :=
           (List.range (a + d.ctors.length), appL (.var (a + j)) ((List.range a).map .var))
       (eqs ++ ctors).filter fun (xs, _) => !xs.isEmpty
     | _, _ => []
+
+/-- The templates of a SKIlark predicate's source, compiled with
+    η-lifting as its statement's term is (`Front.compileFileEta`). -/
+def fileTemplatesEta (src : List Nat) : List (List Nat × OTerm) := fileTemplates src true
 
 /-- The templates of every source the corpus compiles from. -/
 def allTemplates : List (List Nat × OTerm) :=

@@ -1169,6 +1169,61 @@ def CSrc.globs : CSrc → List Nm
   | .app f a => f.globs ++ a.globs
   | .lam _ b => b.globs
 
+-- ---------------------------------------------------------------------------
+-- η-lifting (`skijack.compile(eta=True)`)
+-- ---------------------------------------------------------------------------
+
+/-- Free occurrence, before resolution. -/
+def CSrc.occurs (x : Nat) : CSrc → Bool
+  | .glob _ => false
+  | .var y => y == x
+  | .app f a => f.occurs x || a.occurs x
+  | .lam y b => y != x && b.occurs x
+
+/-- Nodes, a bound on the η pass's recursion. -/
+def CSrc.size : CSrc → Nat
+  | .app f a => f.size + a.size + 1
+  | .lam _ b => b.size + 1
+  | _ => 1
+
+/-- A λ chain's parameters, outermost first, and its body. -/
+def CSrc.peel : CSrc → List Nat × CSrc
+  | .lam x b => (x :: b.peel.1, b.peel.2)
+  | e => ([], e)
+
+/-- `e` η-reduced over the parameters `ps`, last parameter first: `e' p`
+    with `p` not free in `e'` gives `e'`, and so on; `none` when some
+    parameter does not reduce away. -/
+def etaStrip : List Nat → CSrc → Option CSrc
+  | [], e => some e
+  | p :: ps, .app f (.var q) => if q == p && !f.occurs p then etaStrip ps f else none
+  | _ :: _, _ => none
+
+/-- A λ chain over `ps`. -/
+def CSrc.lams : List Nat → CSrc → CSrc
+  | [], b => b
+  | x :: xs, b => .lam x (CSrc.lams xs b)
+
+/-- The η pass, with fuel: every recursive call is on a proper subterm, so
+    `e.size` suffices (`CSrc.eta`). -/
+def CSrc.etaN : Nat → CSrc → CSrc
+  | 0, e => e
+  | n + 1, .app f a => .app (f.etaN n) (a.etaN n)
+  | n + 1, e@(.lam _ _) =>
+    match etaStrip e.peel.1.reverse e.peel.2 with
+    | some r => r.etaN n
+    | none => CSrc.lams e.peel.1 (e.peel.2.etaN n)
+  | _ + 1, e => e
+
+/-- **η-lifting**, `skijack`'s `_Codegen.lift` with `eta=True`: a λ chain
+    whose body η-reduces over all its parameters, `λ p₁ … pₙ. e p₁ … pₙ`
+    with no `pᵢ` free in `e`, is `e`, compiled where the chain stood.
+    Lifted, it would be a combinator applied to the binders `e` captures:
+    `λ g t. g t` is `I`, so case lowering's `λ t. g t` became `I ⬝ g`.  A
+    chain that does not reduce whole is lifted as before (abstraction
+    η-reduces its tail anyway). -/
+def CSrc.eta (e : CSrc) : CSrc := e.etaN e.size
+
 /-- Binders numbered from `i`, innermost first. -/
 def bindFrom : List Nm → Nat → List (Nm × Nat) → List (Nm × Nat)
   | [], _, sc => sc
@@ -1291,6 +1346,9 @@ structure FEqn where
   self : Option Nat
   body : CSrc
   deriving DecidableEq, Repr
+
+/-- An equation, η-lifted. -/
+def FEqn.eta (e : FEqn) : FEqn := { e with body := e.body.eta }
 
 /-- **Lower an equation.**  Parameters are `0 … n-1`; if the body names the
     equation, it is recursive, its self-reference is `0` and its
@@ -1472,6 +1530,8 @@ structure QCtx where
   leaves : List (Nm × Term)
   appT : Term
   path : Option (Nm × Nm × Nm)
+  /-- η-lifting (`CSrc.eta`) on. -/
+  eta : Bool
 
 /-- A segment's constructor: its tag with the first letter capitalized. -/
 def capital : Nm → Nm
@@ -1585,6 +1645,7 @@ def quoteAt (q : QCtx) (done : List (Nm × Term)) : Nat → Expr → Option Term
         match dExpr q.tys id [] b 0 with
         | none => none
         | some (cs, k) =>
+          let cs := if q.eta then cs.eta else cs
           match cs.resolveQ subs (fun n => q.leaves.findIdx? (·.1 == n)) k done with
           | none => none
           | some src => encodeO q.leaves q.appT k (compDefF [] src)
@@ -1649,7 +1710,7 @@ def allCtorTerms (tys : List TypeDecl) : List (Nm × Term) := (tys.map ctorTerms
 /-- Passes 6a and 6b over the file's level-1 declarations `qs`, which need
     an object type, and the loop, answer and path types well formed. -/
 def level1 (ds : List Decl) (tys : List TypeDecl) (pend : List (Nm × FEqn))
-    (done : List (Nm × Term)) (qs : List (Nm × Expr)) :
+    (done : List (Nm × Term)) (qs : List (Nm × Expr)) (eta : Bool := false) :
     Option (List (Nm × FEqn) × List (Nm × Term) × List Run) :=
   match findObject tys with
   | some (some o) =>
@@ -1660,7 +1721,7 @@ def level1 (ds : List Decl) (tys : List TypeDecl) (pend : List (Nm × FEqn))
       | some ans, some pt =>
         let cts := ctorTerms o.decl
         let leaves := o.leaves.map fun c => (c.1, (cts.lookup c.1).getD K)
-        let q : QCtx := ⟨tys, macrosOf ds, leaves, (cts.lookup o.app).getD K, pt⟩
+        let q : QCtx := ⟨tys, macrosOf ds, leaves, (cts.lookup o.app).getD K, pt, eta⟩
         let hitNt := ans.bind fun (h, n) =>
           match (allCtorTerms tys).lookup h, (allCtorTerms tys).lookup n with
           | some ht, some nt => some (ht, nt)
@@ -1694,8 +1755,8 @@ def assemble (ds : List Decl) (done : List (Nm × Term)) : List (Nm × Term) :=
     applied to the core's arguments, the fuel numeral and the datum; a
     run without an interpreter uses the core `whnfF`.  A run under the
     runtime's policy has no term. -/
-def packageRuns (ds : List Decl) (tys : List TypeDecl) (done : List (Nm × Term)) :
-    List (Nm × Term) → List Run → Option (List (Nm × Term))
+def packageRuns (ds : List Decl) (tys : List TypeDecl) (done : List (Nm × Term))
+    (eta : Bool := false) : List (Nm × Term) → List Run → Option (List (Nm × Term))
   | out, [] => some out
   | out, r :: rs =>
     let cores := ds.filterMap fun d =>
@@ -1719,6 +1780,7 @@ def packageRuns (ds : List Decl) (tys : List TypeDecl) (done : List (Nm × Term)
         match dExpr tys id [] b 0 with
         | none => none
         | some (cs, _) =>
+          let cs := if eta then cs.eta else cs
           if cs.globs.all fun g => (resolveIn done g).isSome then
             some (toTerm (compDefF [] (cs.resolve fun g => (resolveIn done g).getD K)))
           else none
@@ -1734,33 +1796,41 @@ def packageRuns (ds : List Decl) (tys : List TypeDecl) (done : List (Nm × Term)
             match out.lookup (nm! "zero"), out.lookup (nm! "suc") with
             | some z, some sc =>
               let numeral := (List.range n).foldl (fun t _ => sc ⬝ t) z
-              packageRuns ds tys done (dset out (r.name, ps.foldl (· ⬝ ·) it ⬝ numeral ⬝ r.datum)) rs
+              packageRuns ds tys done eta (dset out (r.name, ps.foldl (· ⬝ ·) it ⬝ numeral ⬝ r.datum)) rs
             | _, _ => none
-          | _ => packageRuns ds tys done out rs
+          | _ => packageRuns ds tys done eta out rs
         | _, _ => none
 
+/-- The lowered equations, η-lifted when `eta` is on. -/
+def etaFEqns : Bool → Option (List (Nm × FEqn)) → Option (List (Nm × FEqn))
+  | false, o => o
+  | true, o => o.map fun fes => fes.map fun p => (p.1, p.2.eta)
+
 /-- A file's compiled output and the environment its equations were
-    compiled in, or `none` when it is refused. -/
-def compileDecls (ds : List Decl) : Option (List (Nm × Term) × List (Nm × Term)) :=
-  match fileFEqns ds with
+    compiled in, or `none` when it is refused.  With `eta`, every λ chain
+    is η-lifted (`CSrc.eta`): equations, quotations and runs' arguments,
+    each place `skijack` compiles code. -/
+def compileDecls (ds : List Decl) (eta : Bool := false) :
+    Option (List (Nm × Term) × List (Nm × Term)) :=
+  match etaFEqns eta (fileFEqns ds) with
   | none => none
   | some fes =>
     let tys := types ds
     let r := passes (fes.length + 1) (allCtorTerms tys) fes
     let qs := ds.filterMap fun d => match d with | .qdef n e => some (n, e) | _ => none
-    let l1 := if qs.isEmpty then some (r.1, r.2, []) else level1 ds tys r.1 r.2 qs
+    let l1 := if qs.isEmpty then some (r.1, r.2, []) else level1 ds tys r.1 r.2 qs eta
     match l1 with
     | none => none
     | some (pend, done, runs) =>
-      if pend.isEmpty then (packageRuns ds tys done (assemble ds done) runs).map (·, done)
+      if pend.isEmpty then (packageRuns ds tys done eta (assemble ds done) runs).map (·, done)
       else none
 
 /-- **Compile a file**, in the ASCII (`u = false`) or Unicode lexicon:
     every constructor, equation and level-1 declaration to the closed term
     `skijack` emits, a core's equation also under its bare name when no
     other core defines it.  A file `skijack` refuses is refused. -/
-def compileWith (u : Bool) (src : List Nat) : Option (List (Nm × Term)) :=
-  (readWith u src).bind fun ds => (compileDecls ds).map (·.1)
+def compileWith (u : Bool) (src : List Nat) (eta : Bool := false) : Option (List (Nm × Term)) :=
+  (readWith u src).bind fun ds => (compileDecls ds eta).map (·.1)
 
 /-- The environment a file's equations were compiled in: its compiled
     program-level names, `core.eq`s and level-1 data, without the bare
@@ -1771,6 +1841,10 @@ def compiledEnv (u : Bool) (src : List Nat) : List (Nm × Term) :=
   | none => []
 
 def compileFile (src : List Nat) : Option (List (Nm × Term)) := compileWith false src
+
+/-- `compileFile` with η-lifting (`skijack.compile(eta=True)`), the
+    compilation of a SKIlark predicate's source. -/
+def compileFileEta (src : List Nat) : Option (List (Nm × Term)) := compileWith false src true
 
 /-- A term's postfix codes before `rest`: `0 1 2` for `S K I`, and `3` for
     an application, after its function's and its argument's codes. -/

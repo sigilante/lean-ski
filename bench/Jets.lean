@@ -224,13 +224,14 @@ def check (row : Option String) (paths : List String) : IO UInt32 := do
         bad := bad + 1
   return (if bad == 0 then 0 else 1)
 
-/-- `jets check-src SRC TABLE…`: `check`, with the jets the templates of the
-    SKIjack source `SRC` license (`JetTable.fileTemplates`), for a term
-    compiled from a source outside the corpus.  `ACCEPT` means what it means
+/-- `jets check-src [--eta] SRC TABLE…`: `check`, with the jets the
+    templates of the SKIjack source `SRC` license (`JetTable.fileTemplates`;
+    with `--eta`, of the source compiled with η-lifting, as a SKIlark
+    predicate's is), for a term compiled from a source outside the corpus.  `ACCEPT` means what it means
     for `check` (`Air.checkJA_sound`): the roots are licensed by `rootOKB`,
     whichever templates proposed them. -/
-def checkSrc (src : String) (paths : List String) : IO UInt32 := do
-  let tmpls := fileTemplates ((← IO.FS.readFile src).toList.map Char.toNat)
+def checkSrc (src : String) (paths : List String) (eta : Bool := false) : IO UInt32 := do
+  let tmpls := fileTemplates ((← IO.FS.readFile src).toList.map Char.toNat) eta
   let mut bad := 0
   for path in paths do
     let text ← match ← (IO.FS.readFile path).toBaseIO with
@@ -340,6 +341,7 @@ def checkProbe (row : Option String) (path : String) (ws : List String) : IO UIn
 def main (args : List String) : IO UInt32 := do
   match args with
   | ["emit", dir] => emit dir
+  | "check-src" :: "--eta" :: src :: paths => checkSrc src paths true
   | "check-src" :: src :: paths => checkSrc src paths
   | ["statement", corpus, dir] => statement corpus dir
   | ["statement-stdin"] => statementStdin
@@ -349,5 +351,5 @@ def main (args : List String) : IO UInt32 := do
   | "check-probe" :: "--row" :: name :: path :: ws => checkProbe (some name) path ws
   | "check-probe" :: path :: ws => checkProbe none path ws
   | _ =>
-    IO.eprintln "usage: jets emit DIR | jets statement CORPUS DIR | jets statement-stdin | jets check [--row NAME] TABLE...\n       jets plan OUTCOME | jets check-probe [--row NAME] TABLE OUTCOME"
+    IO.eprintln "usage: jets emit DIR | jets statement CORPUS DIR | jets statement-stdin | jets check [--row NAME] TABLE... | jets check-src [--eta] SRC TABLE...\n       jets plan OUTCOME | jets check-probe [--row NAME] TABLE OUTCOME"
     return 2

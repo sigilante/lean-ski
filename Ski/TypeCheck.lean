@@ -745,8 +745,9 @@ def checkPass (u : Bool) (src : List Nat) : Bool :=
 
 /-- **The checked compilation**: `skijack` with its checker on.  A program
     passes Stage A before generation and Stage B after, and compiles; the
-    terms are those of `compileWith`, since the checker only refuses. -/
-def checkedWith (u : Bool) (src : List Nat) : Option (List (Nm × Term)) :=
+    terms are those of `compileWith`, since the checker only refuses.
+    With `eta`, the compilation η-lifts (`CSrc.eta`). -/
+def checkedWith (u : Bool) (src : List Nat) (eta : Bool := false) : Option (List (Nm × Term)) :=
   match parseWith u src with
   | none => none
   | some ds =>
@@ -754,12 +755,12 @@ def checkedWith (u : Bool) (src : List Nat) : Option (List (Nm × Term)) :=
     else
       match generate ds with
       | none => none
-      | some gs => if stageB gs then none else (compileDecls gs).map (·.1)
+      | some gs => if stageB gs then none else (compileDecls gs eta).map (·.1)
 
 /-- The checker only refuses: where it passes, the checked compilation is
     the unchecked one. -/
-theorem checkedWith_of_pass {u : Bool} {src : List Nat} (h : checkPass u src = true) :
-    checkedWith u src = compileWith u src := by
+theorem checkedWith_of_pass {u : Bool} {src : List Nat} {eta : Bool} (h : checkPass u src = true) :
+    checkedWith u src eta = compileWith u src eta := by
   unfold checkPass at h
   unfold checkedWith compileWith readWith
   cases hp : parseWith u src with
@@ -783,8 +784,8 @@ theorem checkedWith_of_pass {u : Bool} {src : List Nat} (h : checkPass u src = t
         | false => rw [if_neg Bool.false_ne_true]
 
 /-- Where the checker refuses, the checked compilation refuses. -/
-theorem checkedWith_of_fail {u : Bool} {src : List Nat} (h : checkPass u src = false) :
-    checkedWith u src = none := by
+theorem checkedWith_of_fail {u : Bool} {src : List Nat} {eta : Bool} (h : checkPass u src = false) :
+    checkedWith u src eta = none := by
   unfold checkPass at h
   unfold checkedWith
   cases hp : parseWith u src with

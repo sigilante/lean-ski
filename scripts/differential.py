@@ -24,6 +24,11 @@ disagreement.  From the repository root:
 At `skijack` `e978e58`: 1,260 programs (630 a lexicon), 0 disagreements,
 about 60 s on an M4 Max.
 
+`--eta` compiles with η-lifting on both sides (`skijack.compile(eta=True)`,
+`Front.compileWith … true`), over the same files and the released sources
+η-lifting compiles: `release/skilark/{split8,csplit8}/source.ski` and
+`release/entropy/source.ski`, in the ASCII lexicon.
+
 `--skijack DIR` names another `skijack` checkout (its `python` directory),
 `--limit N` sets Python's recursion limit (default 1000, Python's own, which
 `Front.walkDepth` models), and `-v` prints every disagreement in full.  The
@@ -37,6 +42,7 @@ ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
 ap.add_argument("--skijack", default=str(pathlib.Path.home() / "skijack/python"))
 ap.add_argument("--limit", type=int, default=1000)
 ap.add_argument("-v", action="store_true")
+ap.add_argument("--eta", action="store_true")
 args = ap.parse_args()
 sys.path.insert(0, args.skijack)
 import skijack
@@ -52,6 +58,8 @@ STEMS = ["sec1-nat", "kernel-events", "ascii-digits", "sec2-c", "sec3-swap", "in
          "words-to-numbers",
          # the four skijack refuses
          "misc-forms", "sec4-interp", "sec5-lookup", "syntax3-resolver"]
+RELEASED = ["release/skilark/split8/source.ski", "release/skilark/csplit8/source.ski",
+            "release/entropy/source.ski"]
 
 
 def to_unicode(t):
@@ -75,6 +83,9 @@ def inputs():
     for s in STEMS:
         for lex in ("ascii", "unicode"):
             yield f"corpus/{s}.{lex}.ski", lex, (CORPUS / f"{s}.{lex}.ski").read_text(encoding="utf-8")
+    if args.eta:
+        for s in RELEASED:
+            yield s, "ascii", (ROOT / s).read_text(encoding="utf-8")
 
 
 def prefix(t):
@@ -117,7 +128,7 @@ def verdict(text, lex):
 
 def terms(text, lex, check):
     try:
-        return skijack.compile(text, lexicon=lex, check=check).terms
+        return skijack.compile(text, lexicon=lex, check=check, eta=args.eta).terms
     except Exception:
         return None
 
@@ -129,7 +140,8 @@ def python_side(text, lex):
 
 
 def lean_side(path, lex):
-    r = subprocess.run([str(FRONT), path, lex], capture_output=True, text=True, timeout=600)
+    r = subprocess.run([str(FRONT), path, lex] + (["eta"] if args.eta else []),
+                       capture_output=True, text=True, timeout=600)
     if r.returncode != 0:
         return [f"front exited {r.returncode}: {r.stderr.strip()}"]
     return r.stdout.splitlines()
