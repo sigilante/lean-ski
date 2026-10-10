@@ -59,8 +59,7 @@
 #      another budget, or with the jet table Lean computes without the
 #      closure rule, it is refused;
 #  11. csplit8 with jets (release/skilark/csplit8/jets), the same; about
-#      two minutes, nearly all Lean's check of the jet table.  QUICK=1
-#      skips it;
+#      8 s.  QUICK=1 skips it;
 #  12. the Poseidon2 jet (release/p2): the statements are Lean's (`lake exe
 #      composed emit-p2`; the hand-off's, which commit to a fresh secret
 #      value with fresh randomness, by `check-handoff`); ski-air
@@ -483,7 +482,7 @@ else
 fi
 
 if [ -z "${QUICK:-}" ]; then
-echo "--- 11. csplit8 with jets, under hiding (about two minutes; QUICK=1 skips it)"
+echo "--- 11. csplit8 with jets, under hiding (about 8 s; QUICK=1 skips it)"
 S=release/skilark/csplit8
 J=$S/jets
 lake exe skilark cstatement "$S/source.ski" 8 8 1 200 255 "$J/public.txt" > "$tmp/jcs.log" \

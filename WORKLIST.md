@@ -47,10 +47,17 @@ is built; this file records what is next. Last revised 2026-10-10.
   in 11,167; `3 sumto` in 3,304 (3,678). The interpreted corpus rows went from 110–112%
   of the plain rows to 86–87%. Every released jet table, witness table and proof with
   jets was remade; ski-air wrote the witness tables (`WITNESS=ski-air`).
+- **The paper at PR #21's figures**: `3 sumto` in 3,304 CPU rows, `split8` and
+  `csplit8` with jets at their new counts and heights, verify times after the fast jet
+  check (2.4 s and 3.2 s; `release/verify.sh` in about two minutes, built), and who
+  wrote which witness tables; fact-checked against the artifacts by angel.
 - **The paper, reviewed by wizard, chevalier and angel**, its findings fixed; a table
   from each released claim to its check, in the paper and in `release/README.md`.
 
 ## Next
+
+Tag `paper-v2` on PR #21's merge commit: the paper now describes that state (its data
+statement names the tag).
 
 When Avon is free: rerun `release/produce.sh sumto jets` with Avon writing the
 witness tables, which `produce.sh` and Avon's `make jet-witness-check` compare with

@@ -17,9 +17,9 @@ release/verify.sh
 
 It needs elan (Lean) and cargo (Rust), and nothing from Avon. The first
 run builds Lean's checkers and the verifier, which takes minutes. After
-that it runs in about fourteen minutes on an Apple M4 Max, most of it Lean's
-checks of the statements and jet tables; `QUICK=1 release/verify.sh` skips
-`csplit8`'s proof with jets, about two of them. It prints one `ok` line
+that it runs in about two minutes on an Apple M4 Max; `QUICK=1
+release/verify.sh` skips `csplit8`'s proof with jets, about 8 seconds of
+them. It prints one `ok` line
 per check, then `VERIFIED: …`, and exits nonzero if any check fails. A
 refusal counts only with its expected reason: a forgery meant for the proof
 check that the statement check refuses instead is a failure. It is not
