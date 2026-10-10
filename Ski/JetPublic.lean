@@ -98,7 +98,7 @@ def pubJetB (g : Nat → Option Cell) (priv : Nat → Bool) (F : Nat) (jets : Li
     copy of the heap, lies outside `priv`. -/
 def publicB (h0 : List Cell) (priv : Nat → Bool) (roots : List (Nat × Nat)) (jets : List Jet) : Bool :=
   let A := h0.toArray
-  roots.all fun (a, j) => pubJetB (fun i => A[i]?) priv (h0.length + 1) jets a j
+  roots.all fun (a, j) => pubJetB (fun i => A[i]?) priv (A.size + 1) jets a j
 
 /-- **Public closures**: the root and each global its jet's body uses. -/
 def PublicJ (priv : Nat → Bool) (h0 : List Cell) (roots : List (Nat × Nat)) (jets : List Jet) : Prop :=

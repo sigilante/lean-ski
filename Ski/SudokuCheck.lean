@@ -56,16 +56,17 @@ namespace Stmt
 
 open Mach
 
-/-- `pbuild` over an array. -/
+/-- `pbuild` over an array (the size read before the push, as in `buildA`). -/
 def pbuildA (bound : Nat) : Array Cell → OTerm → Array Cell × Nat
-  | h, .S => (h.push .S, h.size)
-  | h, .K => (h.push .K, h.size)
-  | h, .I => (h.push .I, h.size)
-  | h, .var x => if x < bound then (h, slotPtr x) else (h.push (.atom x), h.size)
+  | h, .S => let n := h.size; (h.push .S, n)
+  | h, .K => let n := h.size; (h.push .K, n)
+  | h, .I => let n := h.size; (h.push .I, n)
+  | h, .var x => if x < bound then (h, slotPtr x) else (let n := h.size; (h.push (.atom x), n))
   | h, .app f a =>
     let (h1, pf) := pbuildA bound h f
     let (h2, pa) := pbuildA bound h1 a
-    (h2.push (.app pf pa), h2.size)
+    let n := h2.size
+    (h2.push (.app pf pa), n)
 
 theorem pbuildA_eq (bound : Nat) : ∀ (t : OTerm) (h : Array Cell),
     ((pbuildA bound h t).1.toList, (pbuildA bound h t).2) = pbuild bound h.toList t
