@@ -44,7 +44,7 @@
 #  11. split8 and csplit8 with jets, under hiding (release/skilark/*/jets):
 #      Lean writes the statement with jets, its heights and POP's and
 #      INSTW's budgets public (`lake exe composed budget`: log R M Lp Li;
-#      split8 at 2^17 2^18 2^14 2^14, csplit8 at 2^18 2^19 2^17 2^17), and
+#      split8 at 2^17 2^18 2^14 2^14, csplit8 at 2^17 2^18 2^15 2^16), and
 #      its jet table from the source's templates (`lake exe skilark
 #      cjets`, Air.jetTableC); Avon writes the witness table (`avon
 #      witness --statement`, Avon's milestone 8); Lean's `composed check-cj`
@@ -67,10 +67,17 @@
 # composed, split8, csplit8, sudoku, jets, p2, entropy; all by default.  The proofs are
 # randomized, so a stage rewrites its own and leaves the others' bytes.
 # Run from anywhere; writes release/sumto/.  One job at a time.
+#
+# WITNESS=ski-air has ski-air write the jetted witness tables of the sumto
+# and jets stages in Avon's place (`jets-measure`, `probe-prove`,
+# `compj-prove … TABLE`): the same tables, byte for byte, for a jet table
+# Avon has not yet run.  The default is Avon.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
 AVON_DIR=${AVON_DIR:-$HOME/avon}
+WITNESS=${WITNESS:-avon}
+case "$WITNESS" in avon|ski-air) ;; *) echo "WITNESS is avon or ski-air" >&2; exit 2 ;; esac
 R=release/sumto
 tmp=$(mktemp -d)
 trap '/bin/rm -rf "$tmp"' EXIT
@@ -92,29 +99,42 @@ lake exe jets emit "$tmp/jets" > /dev/null
 mkdir -p "$R/jets"
 /bin/cp "$tmp/jets/sumto_us.jets" "$R/jets/sumto_us.jets"
 
+if [ "$WITNESS" = avon ]; then
 echo "--- Avon: the jetted witness"
 make -C "$AVON_DIR" > /dev/null
 "$AVON_DIR/build/avon" witness --jet-table="$R/jets/sumto_us.jets" "$R/sumto_us.term" \
     > "$R/sumto_us.table" 2> "$tmp/avon.err"
 cat "$tmp/avon.err"
+else
+echo "--- ski-air: the jetted witness"
+"$A" jets-measure "$R/sumto_us.term" "$R/jets/sumto_us.jets" "$R/sumto_us.table" > "$tmp/measure.log"
+head -n 1 "$tmp/measure.log"
+fi
 
-echo "--- Lean: Avon's table against the AIR with instantiation rows"
+echo "--- Lean: the witness table against the AIR with instantiation rows"
 lake exe jets check --row sumto_us "$R/sumto_us.table"
 
-echo "--- ski-air: prove Avon's table; verify the proof alone"
+echo "--- ski-air: prove the witness table; verify the proof alone"
 (cd bench/plonky3 && cargo build --release --locked --quiet)
 bench/plonky3/target/release/ski-air jet-prove "$R/sumto_us.term" "$R/jets/sumto_us.jets" \
     "$R/sumto_us.table" "$R/sumto_us.proof"
 bench/plonky3/target/release/ski-air jet-verify "$R/corpus.txt" "$R/jets" sumto_us "$R/sumto_us.proof"
 
-echo "--- Lean and Avon: the output, bound: probe segments for [6]"
+echo "--- Lean and the witness writer: the output, bound: probe segments for [6]"
 lake exe jets plan val 6 > "$tmp/plan.txt"
+if [ "$WITNESS" = avon ]; then
 "$AVON_DIR/build/avon" witness --jet-table="$R/jets/sumto_us.jets" --plan="$tmp/plan.txt" \
     "$R/sumto_us.term" > "$R/sumto_us.probe.table" 2> "$tmp/avon.err"
 cat "$tmp/avon.err"
+else
+"$A" probe-prove "$R/sumto_us.term" "$R/jets/sumto_us.jets" \
+    "$R/sumto_us.probe.table" "$tmp/first.proof" val 6 > /dev/null
+fi
 lake exe jets check-probe --row sumto_us "$R/sumto_us.probe.table" val 6
 
-echo "--- ski-air: its own probe run agrees with Avon's; prove Avon's table"
+echo "--- ski-air: its own probe run agrees with the witness table; prove the table"
+# With WITNESS=ski-air the same command wrote both tables, so their cmp
+# holds trivially; the proofs' cmp still checks probe-prove-table.
 bench/plonky3/target/release/ski-air probe-prove "$R/sumto_us.term" "$R/jets/sumto_us.jets" \
     "$tmp/own.table" "$tmp/own.proof" val 6 > /dev/null
 cmp "$tmp/own.table" "$R/sumto_us.probe.table"
@@ -195,12 +215,12 @@ mkdir -p release/sudoku
 fi
 
 if want jets; then
-echo "--- split8 and csplit8 with jets, under hiding: Avon writes the witness, ski-air proves it"
+echo "--- split8 and csplit8 with jets, under hiding: $WITNESS writes the witness, ski-air proves it"
 # Avon with milestone 8 (`avon witness --statement`): AVON_DIR's checkout
-make -C "$AVON_DIR" > /dev/null
+if [ "$WITNESS" = avon ]; then make -C "$AVON_DIR" > /dev/null; fi
 lake build skilark composed > /dev/null
 # name, its emit command's arguments and the plain statement's heights, the jet statement's heights and budgets
-for c in "split8:emit:8 200 123 77:17 18:14 14" "csplit8:cemit:8 8 1 200 123 77 181:18 19:17 17"; do
+for c in "split8:emit:8 200 123 77:17 18:14 14" "csplit8:cemit:8 8 1 200 123 77 181:17 18:15 16"; do
     IFS=: read -r name cmd args lg bud <<< "$c"
     S=release/skilark/$name
     mkdir -p "$S/jets"
@@ -209,9 +229,15 @@ for c in "split8:emit:8 200 123 77:17 18:14 14" "csplit8:cemit:8 8 1 200 123 77 
     # shellcheck disable=SC2086
     lake exe composed budget "$tmp/$name/public.txt" $bud "$S/jets/public.txt"
     lake exe skilark cjets "$S/source.ski" "$S/jets/public.txt" "$S/jets/$name.jets" | tail -n 1
-    "$AVON_DIR/build/avon" witness --statement="$S/jets/public.txt" --jet-table="$S/jets/$name.jets" \
-        "$tmp/$name/witness.txt" > "$tmp/$name.table" 2> "$tmp/avon.err"
-    cat "$tmp/avon.err"
+    if [ "$WITNESS" = avon ]; then
+        "$AVON_DIR/build/avon" witness --statement="$S/jets/public.txt" --jet-table="$S/jets/$name.jets" \
+            "$tmp/$name/witness.txt" > "$tmp/$name.table" 2> "$tmp/avon.err"
+        cat "$tmp/avon.err"
+    else
+        "$A" compj-prove "$S/jets/public.txt" "$S/jets/$name.jets" "$S/source.ski" "$tmp/$name/witness.txt" \
+            "$tmp/$name.first.proof" "$tmp/$name.table" > "$tmp/$name.prove.log"
+        cut -c1-200 "$tmp/$name.prove.log"
+    fi
     lake exe composed check-cj "$S/source.ski" "$S/jets/public.txt" "$tmp/$name.table" | grep -E '^(ACCEPT|REJECT)' | cut -c1-120
     "$A" compj-prove-table "$S/jets/public.txt" "$S/jets/$name.jets" "$S/source.ski" "$tmp/$name.table" \
         "$S/jets/$name.proof"

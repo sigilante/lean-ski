@@ -20,10 +20,12 @@ constructor's `ctorO`, over the sources of `Ski/Source.lean`.
 subterms with no formal, leaves included) as globals, each pointing to a
 cell of the loaded heap that holds it, so an instantiation writes only
 the cells that depend on its arguments and a nested template's root stays
-a root.  Two kinds of template are left out: an open one (a variable
-outside the formals), and an η-template, `λ xs. G xs` with `G` closed,
+a root.  Three kinds of template are left out: an open one (a variable
+outside the formals); an η-template, `λ xs. G xs` with `G` closed,
 which compiles to `G` itself, so that instantiating it rewrites `G xs` to
-`G xs` and a jetted run could repeat it forever.
+`G xs` and a jetted run could repeat it forever; and one that compiles to
+a bare `S`, `K` or `I` (`isComb`), whose jet costs more rows than the
+machine's step.
 
 **The roots** are found by hash-consing the loaded heap against the
 templates' compiled forms, and kept only when `Air.rootOKB` licenses
@@ -181,11 +183,27 @@ def pubCells (A : Array Cell) (priv : Nat → Bool) : Array Bool := Id.run do
     pub := pub.push ok
   return pub
 
+/-- A bare combinator.  A template that compiles to one, with `n` formals,
+    reaches its body by the combinator's own contraction, its formals
+    beyond the combinator's arity left on the stack.  That step costs one
+    CPU row and no POP or INSTW row.  The jet costs one CPU row too, then
+    a POP row per formal, an INSTW row per body cell, and CPU rows to
+    unwind the cells it wrote.  On csplit8, `seq`'s handler `λg t. g t`
+    compiles to `I`; each of its 39,459 instantiations took one CPU, two
+    POP and one INSTW row more than the machine's step. -/
+def isComb : Term → Bool
+  | .S => true
+  | .K => true
+  | .I => true
+  | _ => false
+
 /-- **The jet table of a loaded heap**: the licensed roots and the jets they
-    name.  Every returned root passes `Air.rootOKB`.  With `globals` off, a
-    body keeps its closed subterms, and an instantiation writes them.  With
-    private addresses `priv`, a root or a global is only a cell whose
-    closure avoids them (`pubCells`; the rule of `Air.publicB`). -/
+    name.  Every returned root passes `Air.rootOKB`.  A template whose
+    compiled root is a bare combinator (`isComb`) makes no jet.  With
+    `globals` off, a body keeps its closed subterms, and an instantiation
+    writes them.  With private addresses `priv`, a root or a global is only
+    a cell whose closure avoids them (`pubCells`; the rule of
+    `Air.publicB`). -/
 def jetTable (h0 : List Cell) (tmpls : List (List Nat × OTerm)) (globals : Bool := true)
     (priv : Nat → Bool := fun _ => false) :
     List (Nat × Nat) × List Jet :=
@@ -205,7 +223,7 @@ def jetTable (h0 : List Cell) (tmpls : List (List Nat × OTerm)) (globals : Bool
       let root := toTerm (absNF xs body)
       let isEta := body == appL root.toO (xs.map .var)
       let closedIn := body.vars.all fun v => xs.contains v
-      if isEta || !closedIn then continue
+      if isEta || isComb root || !closedIn then continue
       let (hc1, rk) := hc.term root
       hc := hc1
       if jetOf.contains rk || !firstAt.contains rk then continue

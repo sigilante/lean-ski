@@ -3,9 +3,9 @@
 This directory holds two proofs about the SKIlark program `3 sumto`,
 compiled to SKI:
 
-- **It halts.** A proof of the jetted run Avon produced: the term
-  evaluates to weak head normal form.
-- **It decodes to `[6]`.** A proof of the probe segments Avon ran:
+- **It halts.** A proof of the jetted run: the term evaluates to weak
+  head normal form.
+- **It decodes to `[6]`.** A proof of the probe segments:
   applied to marker atoms, the term reads, constructor by constructor, as
   the result `RVal [6]` (`Decodes sumto_us (.val [.num 6])`).
 
@@ -17,9 +17,9 @@ release/verify.sh
 
 It needs elan (Lean) and cargo (Rust), and nothing from Avon. The first
 run builds Lean's checkers and the verifier, which takes minutes. After
-that it runs in about fourteen minutes on an Apple M4 Max, most of it Lean's
-checks of the statements and jet tables; `QUICK=1 release/verify.sh` skips
-`csplit8`'s proof with jets, about two of them. It prints one `ok` line
+that it runs in about two minutes on an Apple M4 Max; `QUICK=1
+release/verify.sh` skips `csplit8`'s proof with jets, about 8 seconds of
+them. It prints one `ok` line
 per check, then `VERIFIED: …`, and exits nonzero if any check fails. A
 refusal counts only with its expected reason: a forgery meant for the proof
 check that the statement check refuses instead is a failure. It is not
@@ -58,8 +58,8 @@ The theorems are in namespace `Circuit` unless prefixed.
    contraction count skijack's reducer reports, is informational: the
    proof claims nothing about it, and only step 1's comparison checks it. `verify.sh` checks the file against what
    `bench/Dump.lean` prints.
-2. **The jet table.** `sumto/jets/sumto_us.jets` lists 2,768 licensed
-   roots and 78 jets. The verifier reads the corpus line and the jet file
+2. **The jet table.** `sumto/jets/sumto_us.jets` lists 759 licensed
+   roots and 76 jets. The verifier reads the corpus line and the jet file
    once and pipes those bytes to Lean's `lake exe jets statement-stdin`,
    which reads no file. It confirms that the jet file is exactly the jet
    table of the term, and that every root passes `Air.rootsOKB` over the
@@ -67,7 +67,7 @@ The theorems are in namespace `Circuit` unless prefixed.
    The verifier then uses those same bytes, so what Lean checked is what
    it proves over. Corpus lines are split as Lean splits them, on spaces.
 3. **The halting proof.** `sumto/sumto_us.proof` is a Plonky3 batch STARK
-   over BabyBear, 373,912 bytes, over the eight tables of
+   over BabyBear, 376,024 bytes, over the eight tables of
    `bench/plonky3/src/jets.rs`. `ski-air jet-verify` checks it against the
    term and the jet table alone.
 4. **Forgeries are refused:**
@@ -78,7 +78,10 @@ The theorems are in namespace `Circuit` unless prefixed.
    - a proof that Ω, which diverges, halts, made over a forged jet table
      (`forgeries/omega`). It is offered once with the forged table, and
      once through a FIFO that answers the first read with the honest table
-     and the second with the forged one.
+     and the second with the forged one. The honest table licenses
+     nothing, since Ω's only templates are bare combinators, and ski-air
+     refuses a table with no rows. So `verify.sh` also checks that the
+     verifier read the honest table and never the forged one.
 
    An independent check from a clean clone found these holes. First, an
    absolute name let Lean check one file while the verifier read another.
@@ -92,11 +95,11 @@ The theorems are in namespace `Circuit` unless prefixed.
    gained the probe kinds, and the Ω proof was remade for it: the old
    builds now reject it for its layout, so they no longer show the holes.
 5. **Lean's own check of the witness.** `lake exe jets check` accepts
-   Avon's table, `sumto/sumto_us.table` (`Air.checkJA_sound`). A table
+   the witness table, `sumto/sumto_us.table` (`Air.checkJA_sound`). A table
    certifies its own term, on its first line. `verify.sh` binds it to the
    corpus row twice: it compares that line with the row's term, and runs
    Lean's checks with `--row sumto_us`, which refuse any other term.
-6. **The output proof.** `sumto/sumto_us.probe.proof`, 440,350 bytes, is
+6. **The output proof.** `sumto/sumto_us.probe.proof`, 430,334 bytes, is
    over the same eight tables and two more, PLAN and PW
    (`bench/plonky3/src/probe.rs`). `ski-air probe-verify … val 6` checks
    the jet file as in item 2, takes the plan of `[6]` from Lean (`lake exe
@@ -257,13 +260,15 @@ formula's run reaches the accepting marker: a solution of the puzzle
 
 **The proofs with jets** (`skilark/*/jets`). The same predicates, proved
 with the composed circuit with jets: a licensed template's instantiation
-takes one CPU row where the machine took many. `split8` runs in 11,599 CPU
-rows (1,952 instantiations, 8,018 POP and 12,363 INSTW rows) against
-129,964 without jets; `csplit8` fits `2^18` rows and `2^19` memory
-cells against the plain proof's `2^19` and `2^20`. Avon wrote each
-witness table (`avon witness --statement`, Avon's `docs/ZK-JETS.md`
-milestone 8), byte for byte the table lean-ski's prover writes, and
-ski-air proved it (`compj-prove-table`). What an accepted proof shows is
+takes one CPU row where the machine took many. `split8` runs in 11,167 CPU
+rows (1,520 instantiations, 7,154 POP and 11,931 INSTW rows) against
+129,964 without jets. `csplit8` runs in 118,222 (4,968 instantiations,
+22,382 POP and 36,578 INSTW rows) against 471,887, and fits `2^17` rows
+and `2^18` memory cells against the plain proof's `2^19` and `2^20`.
+ski-air wrote each witness table (`compj-prove … TABLE`) and proved it
+(`compj-prove-table`); Avon writes the same table (`avon witness
+--statement`, Avon's `docs/ZK-JETS.md` milestone 8) and will rewrite
+these when it next runs. What an accepted proof shows is
 the plain proof's: some literal bits on which the predicate accepts
 (`Circuit.predJExport_sound`, for the jet table Lean checked). An
 instantiation is weak reduction, so a jetted run proves evaluation up to
@@ -376,34 +381,39 @@ randomness in `bench/Composed.lean`, whose commitment hides nothing.
 ## Cost
 
 The plain run is the machine alone (`bench/plonky3`); the jetted run is
-Avon's, the one proved here.
+the one proved here.
 
 | | plain | jetted |
 |---|---|---|
-| contractions | 10,297 | 110, plus 939 instantiations |
-| CPU rows (states) | 25,074 | 3,678 |
-| CPU rows per plain contraction | 2.44 | 0.36 |
-| all table rows (CPU, POP, INSTW) | 25,074 | 8,477 |
-| rows per plain contraction | 2.44 | 0.82 |
-| cells written | 30,244 | 5,242 |
+| contractions | 10,297 | 567, plus 482 instantiations |
+| CPU rows (states) | 25,074 | 3,304 |
+| CPU rows per plain contraction | 2.44 | 0.32 |
+| all table rows (CPU, POP, INSTW) | 25,074 | 6,816 |
+| rows per plain contraction | 2.44 | 0.66 |
+| cells written | 30,244 | 4,494 |
 | padded heights (CPU / memory) | 32,768 / 65,536 | 4,096 / 16,384 |
-| prove, setup included (Apple M4 Max) | about 0.5 s | about 0.16 s |
+| prove, setup included (Apple M4 Max) | about 0.5 s | about 0.17 s |
 | verify | about 0.015 s | about 0.02 s |
-| proof | — | 373,912 bytes |
+| proof | — | 376,024 bytes |
 
-The output proof runs 11 probe segments in 4,144 CPU rows: 1,045
+The output proof runs 11 probe segments in 3,746 CPU rows: 518
 instantiations, 11 probe rows, and the machine's transitions. It writes
-5,876 cells past the loaded heap, and one PW row per marker, 23 in all.
-The first segment, the term applied to its three markers, takes 3,674
-rows; the other ten, which read the value, take 470. It proves in about
-0.24 s and verifies in about 0.02 s; the proof is 440,350 bytes.
+5,080 cells past the loaded heap, and one PW row per marker, 23 in all.
+The first segment, the term applied to its three markers, takes 3,300
+rows; the other ten, which read the value, take 446. It proves in about
+0.18 s and verifies in about 0.02 s; the proof is 430,334 bytes.
 
-**The jet table** has 78 jets with 235 body cells in all, averaging 3.3
-formals, and 2,768 roots in a 7,062-cell loaded heap. A jet is one
+**The jet table** has 76 jets with 234 body cells in all, averaging 3.4
+formals, and 759 roots in a 7,062-cell loaded heap. A jet is one
 supercombinator the compiler lifted: an equation, a λ chain or a
 constructor. Its body names its closed subterms as globals, so an
 instantiation writes only the cells that depend on its arguments
-(`bench/plonky3/DESIGN.md` §2).
+(`bench/plonky3/DESIGN.md` §2). A template that compiles to a bare `S`,
+`K` or `I` makes no jet (`JetTable.isComb`): the machine's step for that
+combinator takes one CPU row, and the jet takes one too, then a POP row
+per formal, an INSTW row per cell, and CPU rows to unwind those cells.
+Dropping them took the table from 2,768 roots to 759 and the run from
+3,678 CPU rows to 3,304.
 
 ## How it was produced
 
@@ -457,8 +467,14 @@ instantiation writes only the cells that depend on its arguments
 `release/produce.sh STAGE…` runs some of these: `sumto`, `composed`,
 `split8`, `csplit8`, `sudoku`, `jets`, `p2`, `entropy`.
 
-Avon's witnesses are byte-identical to the tables lean-ski's own prover
-writes for the same term, jet table and plan (Avon's `make
+`WITNESS=ski-air release/produce.sh STAGE…` has ski-air write the
+jetted witness tables in Avon's place. The current jetted tables
+(`sumto`, its probe, and `skilark/*/jets`) were written so, for the jet
+table without bare combinators, which Avon has not yet run; Avon wrote
+the same bytes for the previous table. Avon's witnesses are
+byte-identical to the tables lean-ski's own prover writes for the same
+term, jet table and plan (Avon's `make
 jet-witness-check` and `make probe-witness-check`, over the corpus), and
-`produce.sh` compares the probe table and its proof with ski-air's own. The verifier does not depend on Avon: it checks
+`produce.sh` compares the probe table and its proof with ski-air's own;
+with `WITNESS=ski-air` the table comparison holds trivially. The verifier does not depend on Avon: it checks
 the proof, not the producer.

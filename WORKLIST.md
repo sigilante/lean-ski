@@ -37,22 +37,49 @@ is built; this file records what is next. Last revised 2026-10-10.
   builders (`buildA`, `obuildA`, `pbuildA`) read the size before the push, so the array
   stays unshared and each push writes in place; `rootsOKB`, `publicB` and `jetTable`
   read the fuel as the array's size, not the list's length at every root.
+- **Only the jets that help**: a template whose compiled root is `S`, `K` or `I` makes
+  no jet (`JetTable.isComb`). Each such jet took a POP row per formal, an INSTW row per
+  cell and CPU rows to unwind them, for a step the machine takes in one CPU row. `seq`'s handler `λg t. g t`
+  compiles to `I`, with 39,459 instantiations on `csplit8`. An ablation of every other
+  frequent jet on `csplit8` found each one saving rows, or neutral. `csplit8` now runs
+  in 118,222 CPU rows (was 157,681), 22,382 POP (101,300) and 36,578 INSTW (76,037),
+  proved at `2^17 2^18 2^15 2^16` (was `2^18 2^19 2^17 2^17`) in 16 s (29 s); `split8`
+  in 11,167; `3 sumto` in 3,304 (3,678). The interpreted corpus rows went from 110–112%
+  of the plain rows to 86–87%. Every released jet table, witness table and proof with
+  jets was remade; ski-air wrote the witness tables (`WITNESS=ski-air`).
+- **The paper at PR #21's figures**: `3 sumto` in 3,304 CPU rows, `split8` and
+  `csplit8` with jets at their new counts and heights, verify times after the fast jet
+  check (2.4 s and 3.2 s; `release/verify.sh` in about two minutes, built), and who
+  wrote which witness tables; fact-checked against the artifacts by angel.
 - **The paper, reviewed by wizard, chevalier and angel**, its findings fixed; a table
   from each released claim to its check, in the paper and in `release/README.md`.
 
 ## Next
 
-Nothing queued. For the final version, the paper cites a Zenodo DOI in place of the tag,
+Tag `paper-v2` on PR #21's merge commit: the paper now describes that state (its data
+statement names the tag).
+
+When Avon is free: rerun `release/produce.sh sumto jets` with Avon writing the
+witness tables, which `produce.sh` and Avon's `make jet-witness-check` compare with
+ski-air's; update `docs/ZK-JETS.md`'s figures (`csplit8` at `2^17 2^18 2^15 2^16`).
+
+For the final version, the paper cites a Zenodo DOI in place of the tag,
 and its claim table moves to the docs, where `release/README.md` already holds it.
 
 ## Later
 
-- The jets' saving on `csplit8`: a third of the plain rows, against `split8`'s tenth.
-  Count the jetted run's CPU rows by the term at the stack's head, and see which hot
-  subterms no template covers. A measurement; it may change SKIlark's templates or how
-  `jetTable` picks them, and nothing in the proofs.
+- `csplit8` still takes a quarter of its plain rows, against `split8`'s twelfth. The
+  cost is `acceptEq`'s comparison of the commitment, `eqN` on unary numerals under `Y`:
+  256 levels of recursion at about 128 `I` steps each (32,896), plus the unwinds the `S`
+  steps build; `wAdd` adds 5,498 more. Comparing in binary, or a jet that covers the
+  `Y` unfolding, would cut it; either changes `csplit8`'s statement and proofs.
+- η-lifting, measured and shelved (branch `eta-lift` here and in skijack, local): a λ
+  chain that η-reduces whole compiles as what it reduces to, so `seq`'s `λt. g t` is
+  `g`, not `I ⬝ g`. Both compilers agree (the differential test with `--eta`, 1,490
+  programs, 0 disagreements), but it saves 1%: `csplit8` 118,221 → 117,115 jetted CPU
+  rows, `split8` 11,166 → 10,896.
 - `bench/plonky3/README.md`, "Jets on a SKIlark predicate, in the clear": say in one
-  sentence that its "104 roots" measure the loaded heap of one choice of bits, where the
+  sentence that its "37 roots" measure the loaded heap of one choice of bits, where the
   next section measures the verifier's table over the blank composed heap.
 - The closure rule counts a pointer that is not backward as private (`pubCells`), so a
   heap with forward pointers would lose jets it could keep. Today's heaps lose none to

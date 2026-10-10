@@ -73,11 +73,33 @@ Two findings changed the plan:
   and a jetted run loops. That is sound, as zero steps of weak
   reduction, but useless.
 
-On the interpreted rows jets do not pay. They have about 2,000
-licensed roots and instantiate 671 to 836 times, but each instantiation
-there is short, and the POP rows it adds outnumber the CPU rows it
-saves: 110–112% of the plain rows with globals, 114–118% with whole
+On the interpreted rows jets did not pay, until bare combinators
+stopped making jets (below). They had about 2,000
+licensed roots and instantiated 671 to 836 times, but each instantiation
+there was short, and the POP rows it added outnumbered the CPU rows it
+saved: 110–112% of the plain rows with globals, 114–118% with whole
 bodies. The savings above are for the compiled rows and `3 sumto`.
+
+**Bare combinators never pay** (2026-10-11). A template whose compiled
+root is `S`, `K` or `I` now makes no jet (`JetTable.isComb`). Its
+instantiation takes the CPU row the machine's own step would, then adds
+a POP row per formal, an INSTW row per written cell, and CPU rows to
+unwind those cells. Every program
+had such templates: `seq`'s handler `λg t. g t` compiles to `I`, and a
+two-constructor type's first constructor to `K`. `lake exe jetcost`,
+with globals, before and after:
+
+| row | plain | before | after |
+|---|---|---|---|
+| compiled_up | 1,206 | 340 (28%) | 322 (27%) |
+| compiled_uq | 1,077 | 342 (32%) | 318 (30%) |
+| compiled_ur | 1,296 | 389 (30%) | 361 (28%) |
+| interpreted_up | 4,908 | 5,517 (112%) | 4,293 (87%) |
+| interpreted_uq | 4,948 | 5,504 (111%) | 4,282 (87%) |
+| interpreted_ur | 6,307 | 6,932 (110%) | 5,412 (86%) |
+| sumto_us | 25,073 | 8,477 (34%) | 6,815 (27%) |
+
+The interpreted rows now pay too. The table below predates the change.
 
 ### What the circuit proves
 
