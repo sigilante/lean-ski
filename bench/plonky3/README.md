@@ -869,8 +869,13 @@ and `publicB` re-check it, since the table generator is not trusted.
 `cjets-measure` measures; it does not check the witness. `checkJA` checks each run from the filled machine,
 which also checks the statement's table licensed there. The saving on
 `csplit8` is a third, against `split8`'s tenth. On `csplit8`, `cjets`
-takes 151 s (it computes the table with the rule and without) and
-`cjets-statement` 70 s, each in under 80 MB.
+takes 0.5 s (it computes the table with the rule and without) and
+`cjets-statement` 0.4 s, each in under 80 MB. Two faults made them take
+151 s and 70 s. The heap builders (`buildA`, `obuildA`, `pbuildA`) read
+the array's size after the push, so the array was shared and copied at
+every cell: 13 s for each build of the 137,817-cell heap. The root checks
+(`rootsOKB`, `publicB`, `jetTable`) computed the heap list's length once
+a root, 57,174 times: about 8 s each.
 
 ### The composed circuit with jets, in zero knowledge
 

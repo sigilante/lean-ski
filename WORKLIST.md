@@ -1,7 +1,7 @@
 # Worklist
 
 What remains, in the order we mean to take it. `PLAN.md` records the design and what
-is built; this file records what is next. Last revised 2026-10-09.
+is built; this file records what is next. Last revised 2026-10-10.
 
 ## Done since the last revision
 
@@ -32,6 +32,11 @@ is built; this file records what is next. Last revised 2026-10-09.
   repositories and commits in the data statement, at the tag `paper-v1`; the
   differential test committed (`scripts/differential.py`, `lake exe front`), 1,260
   programs with no disagreement.
+- **The verifier's jet check in under a second**: `cjets-statement` on `csplit8` in
+  0.4 s (was 70 s), `cjets` in 0.5 s (was 151 s); the check is unchanged. The heap
+  builders (`buildA`, `obuildA`, `pbuildA`) read the size before the push, so the array
+  stays unshared and each push writes in place; `rootsOKB`, `publicB` and `jetTable`
+  read the fuel as the array's size, not the list's length at every root.
 - **The paper, reviewed by wizard, chevalier and angel**, its findings fixed; a table
   from each released claim to its check, in the paper and in `release/README.md`.
 
@@ -42,6 +47,18 @@ and its claim table moves to the docs, where `release/README.md` already holds i
 
 ## Later
 
+- The jets' saving on `csplit8`: a third of the plain rows, against `split8`'s tenth.
+  Count the jetted run's CPU rows by the term at the stack's head, and see which hot
+  subterms no template covers. A measurement; it may change SKIlark's templates or how
+  `jetTable` picks them, and nothing in the proofs.
+- `bench/plonky3/README.md`, "Jets on a SKIlark predicate, in the clear": say in one
+  sentence that its "104 roots" measure the loaded heap of one choice of bits, where the
+  next section measures the verifier's table over the blank composed heap.
+- The closure rule counts a pointer that is not backward as private (`pubCells`), so a
+  heap with forward pointers would lose jets it could keep. Today's heaps lose none to
+  it. Worth doing only if a heap builder starts sharing cells; then `rootsOKB` and
+  `publicB`, which walk each root's tree (`termAtG`, `pubAtG`), would also want one pass
+  over the heap, as `pubCells` makes.
 - Bind the entropy poke's hidden state: commit to the kernel the poke leaves, `c =
   P(state, r)`, so a later proof picks up from `c` as `p2commit_chainB`'s stages do. One
   commitment at boot fits today's circuit if the kernel is public code applied to a

@@ -311,8 +311,10 @@ def cjets (src pub out : String) (noRule : Bool := false) : IO UInt32 := do
   let N := BT.nleaves c.shp
   IO.println s!"{pub}: blank heap {blank.length} cells, private [3, {3 + N + W'}); {tmpls.length} templates"
   let priv := Air.privC N W'
-  let privGlobs := js0.foldl (fun n J => n + (J.glob.filter fun (_, a) => !Air.pubAtG (fun i => blank[i]?) priv (blank.length + 1) a).length) 0
-  IO.println s!"  without the rule: {js0.length} jets, {roots0.length} roots; rootsOKB {Air.rootsOKB blank roots0 js0}, publicB {Air.publicB blank priv roots0 js0}: {(roots0.filter fun (a, _) => !Air.pubAtG (fun i => blank[i]?) priv (blank.length + 1) a).length} roots and {privGlobs} globals reach a private cell"
+  let A := blank.toArray
+  let pubAt := fun a => Air.pubAtG (fun i => A[i]?) priv (A.size + 1) a
+  let privGlobs := js0.foldl (fun n J => n + (J.glob.filter fun (_, a) => !pubAt a).length) 0
+  IO.println s!"  without the rule: {js0.length} jets, {roots0.length} roots; rootsOKB {Air.rootsOKB blank roots0 js0}, publicB {Air.publicB blank priv roots0 js0}: {(roots0.filter fun (a, _) => !pubAt a).length} roots and {privGlobs} globals reach a private cell"
   IO.println s!"  the closure rule: {js.length} jets, {roots.length} roots ({roots0.length - roots.length} dropped); {if noRule then "the table without it" else "the table"} written to {out}"
   return 0
 

@@ -147,10 +147,12 @@ def rootOKB (g : Nat → Option Cell) (F : Nat) (jets : List Jet) (a j : Nat) : 
       termAtG g F a == some ((absNF J.xs J.body).close (globMeaning g F J))
   | none => false
 
-/-- **Licensed roots, decided**, over an array copy of the loaded heap. -/
+/-- **Licensed roots, decided**, over an array copy of the loaded heap.  The
+    fuel is the array's size, read in constant time: `h0.length` inside the
+    loop would walk the whole heap once a root. -/
 def rootsOKB (h0 : List Cell) (roots : List (Nat × Nat)) (jets : List Jet) : Bool :=
   let A := h0.toArray
-  roots.all fun (a, j) => rootOKB (fun i => A[i]?) (h0.length + 1) jets a j
+  roots.all fun (a, j) => rootOKB (fun i => A[i]?) (A.size + 1) jets a j
 
 theorem rootsOKB_sound {h0 : List Cell} {roots : List (Nat × Nat)} {jets : List Jet}
     (h : rootsOKB h0 roots jets = true) : RootsOK h0 roots jets := by

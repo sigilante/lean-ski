@@ -684,15 +684,18 @@ def build : List Cell → Term → List Cell × Nat
     let (h2, pa) := build h1 a
     alloc h2 (.app pf pa)
 
-/-- `build` over an array: the same cells, in time linear in the term. -/
+/-- `build` over an array: the same cells, in time linear in the term.  The
+    size is read before the push, so the array stays unshared and each push
+    writes in place; read after, it would copy the array at every cell. -/
 def buildA : Array Cell → Term → Array Cell × Nat
-  | h, .S => (h.push .S, h.size)
-  | h, .K => (h.push .K, h.size)
-  | h, .I => (h.push .I, h.size)
+  | h, .S => let n := h.size; (h.push .S, n)
+  | h, .K => let n := h.size; (h.push .K, n)
+  | h, .I => let n := h.size; (h.push .I, n)
   | h, .app f a =>
     let (h1, pf) := buildA h f
     let (h2, pa) := buildA h1 a
-    (h2.push (.app pf pa), h2.size)
+    let n := h2.size
+    (h2.push (.app pf pa), n)
 
 theorem buildA_eq : ∀ (t : Term) (h : Array Cell),
     ((buildA h t).1.toList, (buildA h t).2) = build h.toList t

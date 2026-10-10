@@ -231,7 +231,7 @@ def jetTable (h0 : List Cell) (tmpls : List (List Nat × OTerm)) (globals : Bool
         | some J =>
           let j := (jetIx[k]?).getD jets.size
           let jets' := if jetIx.contains k then jets else jets.push J
-          if rootOKB (fun a => A[a]?) (h0.length + 1) jets'.toList i j then
+          if rootOKB (fun a => A[a]?) (A.size + 1) jets'.toList i j then
             jets := jets'
             jetIx := jetIx.insert k j
             roots := roots.push (i, j)

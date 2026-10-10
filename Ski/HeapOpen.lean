@@ -443,16 +443,18 @@ def obuild : List Cell → OTerm → List Cell × Nat
     let (h2, pa) := obuild h1 a
     alloc h2 (.app pf pa)
 
-/-- `obuild` over an array: the same cells, in time linear in the term. -/
+/-- `obuild` over an array: the same cells, in time linear in the term
+    (the size read before the push, as in `buildA`). -/
 def obuildA : Array Cell → OTerm → Array Cell × Nat
-  | h, .S => (h.push .S, h.size)
-  | h, .K => (h.push .K, h.size)
-  | h, .I => (h.push .I, h.size)
-  | h, .var n => (h.push (.atom n), h.size)
+  | h, .S => let n := h.size; (h.push .S, n)
+  | h, .K => let n := h.size; (h.push .K, n)
+  | h, .I => let n := h.size; (h.push .I, n)
+  | h, .var n => let k := h.size; (h.push (.atom n), k)
   | h, .app f a =>
     let (h1, pf) := obuildA h f
     let (h2, pa) := obuildA h1 a
-    (h2.push (.app pf pa), h2.size)
+    let n := h2.size
+    (h2.push (.app pf pa), n)
 
 theorem obuildA_eq : ∀ (t : OTerm) (h : Array Cell),
     ((obuildA h t).1.toList, (obuildA h t).2) = obuild h.toList t
