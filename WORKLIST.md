@@ -61,13 +61,18 @@ and its claim table moves to the docs, where `release/README.md` already holds i
 
 ## Later
 
-- `csplit8` still takes a quarter of its plain rows, against `split8`'s tenth. The
-  compiler emits `I ⬝ g` for a captured, η-reducible handler (`seq`'s `λg t. g t`), and
-  the run walks chains of these wrappers: 39,459 `I` steps and as many unwinds, about
-  two-thirds of the 118,222 rows. Emitting `g` would remove them; it changes every
-  compiled term, so every statement and proof.
+- `csplit8` still takes a quarter of its plain rows, against `split8`'s twelfth. The
+  cost is `acceptEq`'s comparison of the commitment, `eqN` on unary numerals under `Y`:
+  256 levels of recursion at about 128 `I` steps each (32,896), plus the unwinds the `S`
+  steps build; `wAdd` adds 5,498 more. Comparing in binary, or a jet that covers the
+  `Y` unfolding, would cut it; either changes `csplit8`'s statement and proofs.
+- η-lifting, measured and shelved (branch `eta-lift` here and in skijack, local): a λ
+  chain that η-reduces whole compiles as what it reduces to, so `seq`'s `λt. g t` is
+  `g`, not `I ⬝ g`. Both compilers agree (the differential test with `--eta`, 1,490
+  programs, 0 disagreements), but it saves 1%: `csplit8` 118,221 → 117,115 jetted CPU
+  rows, `split8` 11,166 → 10,896.
 - `bench/plonky3/README.md`, "Jets on a SKIlark predicate, in the clear": say in one
-  sentence that its "104 roots" measure the loaded heap of one choice of bits, where the
+  sentence that its "37 roots" measure the loaded heap of one choice of bits, where the
   next section measures the verifier's table over the blank composed heap.
 - The closure rule counts a pointer that is not backward as private (`pubCells`), so a
   heap with forward pointers would lose jets it could keep. Today's heaps lose none to
