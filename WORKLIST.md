@@ -1,7 +1,7 @@
 # Worklist
 
 What remains, in the order we mean to take it. `PLAN.md` records the design and what
-is built; this file records what is next. Last revised 2026-10-10.
+is built; this file records what is next. Last revised 2026-10-11.
 
 ## Done since the last revision
 
@@ -50,10 +50,16 @@ is built; this file records what is next. Last revised 2026-10-10.
 - **Avon writes the released witnesses again**: Avon at `e2905bb` (`origin/master`,
   built in a clean worktree) writes `3 sumto`'s jetted and probe tables and the
   `split8` and `csplit8` jetted tables byte for byte as ski-air does, and
-  `release/produce.sh sumto jets` remade the release from them; only the two
+  `release/produce.sh sumto jets` remade the release from them (#22); only the two
   randomized proofs with jets changed. Its counts equal the prover's (1,520 and 4,968
-  instantiations), since no projection jet remains. Tagged `paper-v2` at PR #21's
-  merge, `79c7026`.
+  instantiations), since no projection jet remains. Avon pins lean-ski at `79c7026`,
+  tagged `paper-v2` (avon#45).
+- **Every table Avon writes, checked at release** (#23): in Avon's mode `produce.sh`
+  stops unless each of Avon's four jetted tables is ski-air's, byte for byte (`3
+  sumto`'s jetted and probe tables, `split8`'s and `csplit8`'s). Avon at `e2283b5`
+  passes the sumto stage with no release file changed. Tagged `paper-v3` at #22's
+  merge and `paper-v4` at #23's; the paper describes `paper-v4` and names Avon
+  `e2905bb` as the writer of its witness tables with jets.
 - **The paper at PR #21's figures**: `3 sumto` in 3,304 CPU rows, `split8` and
   `csplit8` with jets at their new counts and heights, verify times after the fast jet
   check (2.4 s and 3.2 s; `release/verify.sh` in about two minutes, built), and who
@@ -63,8 +69,14 @@ is built; this file records what is next. Last revised 2026-10-10.
 
 ## Next
 
-For the final version, the paper cites a Zenodo DOI in place of the tag,
-and its claim table moves to the docs, where `release/README.md` already holds it.
+Paused for finishing and submitting the papers.
+
+- For the final version, the paper cites a Zenodo DOI in place of the tag, and its
+  claim table moves to the docs, where `release/README.md` already holds it.
+- GitHub starts no CI job on lean-ski or Avon: the account's payments failed or its
+  spending limit was reached. lean-ski's runs since #19 failed unstarted, so CI checks
+  nothing until billing is fixed; `release/verify.sh` and Avon's `make check` were run
+  by hand for each merge.
 
 ## Later
 
@@ -98,7 +110,11 @@ and its claim table moves to the docs, where `release/README.md` already holds i
 - FRI, the quotient's hiding and round-by-round soundness, proved rather than assumed;
   Fiat–Shamir.
 - Probe segments under the hiding; ∀ over public inputs; aggregation.
-- Remote CI for lean-ski: waits on the public release.
+- A circuit that runs `accepts`, with the spine in memory (`PLAN.md`).
+- The `p2commit` chain's binding and hiding assumptions, computational and stated in
+  prose (`PLAN.md`), proved or reduced to Poseidon2's.
+- Avon's pin moves past `79c7026` when lean-ski next changes what Avon tests; the
+  paper names Avon `e2905bb`, though `e2283b5` writes the same tables.
 
 ## Handed to Avon
 
