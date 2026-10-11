@@ -1034,8 +1034,8 @@ a third party, with its jet table and per-contraction cost reported —
 done for `3 sumto` (`release/`). Avon's jetted witness is proved by
 `ski-air`, 3,678 CPU rows where the plain run takes 25,074 (0.36 per
 contraction, against 2.44), with 78 jets and 2,768 roots; without jets
-at bare combinators, 3,304 rows (0.32) with 76 jets and 759 roots, its
-witness written by ski-air until Avon reruns. A reviewer that
+at bare combinators, 3,304 rows (0.32) with 76 jets and 759 roots,
+Avon's witness again. A reviewer that
 had not seen the work cloned the repository, ran `release/verify.sh`, and
 reproduced the proof byte for byte. Its attacks found that the
 verifier's Lean check and its own reads could disagree, first through a

@@ -70,8 +70,9 @@
 #
 # WITNESS=ski-air has ski-air write the jetted witness tables of the sumto
 # and jets stages in Avon's place (`jets-measure`, `probe-prove`,
-# `compj-prove … TABLE`): the same tables, byte for byte, for a jet table
-# Avon has not yet run.  The default is Avon.
+# `compj-prove … TABLE`), the same tables byte for byte; for when Avon
+# cannot run.  The default is Avon, and the jets stage then checks that
+# Avon's table is ski-air's, byte for byte.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -233,6 +234,10 @@ for c in "split8:emit:8 200 123 77:17 18:14 14" "csplit8:cemit:8 8 1 200 123 77 
         "$AVON_DIR/build/avon" witness --statement="$S/jets/public.txt" --jet-table="$S/jets/$name.jets" \
             "$tmp/$name/witness.txt" > "$tmp/$name.table" 2> "$tmp/avon.err"
         cat "$tmp/avon.err"
+        # Avon's table is the one lean-ski's prover writes, byte for byte.
+        "$A" compj-prove "$S/jets/public.txt" "$S/jets/$name.jets" "$S/source.ski" "$tmp/$name/witness.txt" \
+            "$tmp/$name.own.proof" "$tmp/$name.own.table" > /dev/null
+        cmp "$tmp/$name.table" "$tmp/$name.own.table"
     else
         "$A" compj-prove "$S/jets/public.txt" "$S/jets/$name.jets" "$S/source.ski" "$tmp/$name/witness.txt" \
             "$tmp/$name.first.proof" "$tmp/$name.table" > "$tmp/$name.prove.log"
