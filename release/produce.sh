@@ -71,8 +71,8 @@
 # WITNESS=ski-air has ski-air write the jetted witness tables of the sumto
 # and jets stages in Avon's place (`jets-measure`, `probe-prove`,
 # `compj-prove … TABLE`), the same tables byte for byte; for when Avon
-# cannot run.  The default is Avon, and the jets stage then checks that
-# Avon's table is ski-air's, byte for byte.
+# cannot run.  The default is Avon, and the sumto and jets stages then
+# check that each of Avon's tables is ski-air's, byte for byte.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -106,6 +106,9 @@ make -C "$AVON_DIR" > /dev/null
 "$AVON_DIR/build/avon" witness --jet-table="$R/jets/sumto_us.jets" "$R/sumto_us.term" \
     > "$R/sumto_us.table" 2> "$tmp/avon.err"
 cat "$tmp/avon.err"
+# Avon's table is the one ski-air writes, byte for byte.
+"$A" jets-measure "$R/sumto_us.term" "$R/jets/sumto_us.jets" "$tmp/own.jetted.table" > /dev/null
+cmp "$tmp/own.jetted.table" "$R/sumto_us.table"
 else
 echo "--- ski-air: the jetted witness"
 "$A" jets-measure "$R/sumto_us.term" "$R/jets/sumto_us.jets" "$R/sumto_us.table" > "$tmp/measure.log"

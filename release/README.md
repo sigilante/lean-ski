@@ -470,7 +470,7 @@ Dropping them took the table from 2,768 roots to 759 and the run from
 `WITNESS=ski-air release/produce.sh STAGE…` has ski-air write the
 jetted witness tables in Avon's place, for when Avon cannot run. Avon
 (`e2905bb`) wrote the released ones, and `produce.sh` checks each of
-`split8`'s and `csplit8`'s against ski-air's, byte for byte. Avon's witnesses are
+the four against ski-air's, byte for byte. Avon's witnesses are
 byte-identical to the tables lean-ski's own prover writes for the same
 term, jet table and plan (Avon's `make
 jet-witness-check` and `make probe-witness-check`, over the corpus), and
