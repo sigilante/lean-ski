@@ -73,7 +73,7 @@ and its claim table moves to the docs, where `release/README.md` already holds i
   256 levels of recursion at about 128 `I` steps each (32,896), plus the unwinds the `S`
   steps build; `wAdd` adds 5,498 more. Comparing in binary, or a jet that covers the
   `Y` unfolding, would cut it; either changes `csplit8`'s statement and proofs.
-- η-lifting, measured and shelved (branch `eta-lift` here and in skijack, local): a λ
+- η-lifting, measured and shelved (draft reference PRs #24 here and SKIjack #9): a λ
   chain that η-reduces whole compiles as what it reduces to, so `seq`'s `λt. g t` is
   `g`, not `I ⬝ g`. Both compilers agree (the differential test with `--eta`, 1,490
   programs, 0 disagreements), but it saves 1%: `csplit8` 118,221 → 117,115 jetted CPU
