@@ -229,12 +229,16 @@ theorem split_member_nodup {shift ω : F} {L n k : Nat} (hs : shift ≠ 0) (hhal
   (List.pairwise_flatten.1 (split_nodup hs hhalf hN)).1 H hH
 
 /-- **The composed hiding PCS over BabyBear with Plonky3's chunks**:
-    `pcsCloseN_fri_air` with the trace domain `⟨bbGen (t+1)⟩` of
-    `2^(t+1)` rows, the masks on the interleaved coset, and Plonky3's
-    chunks of the quotient domain `31 · ⟨bbGen (k+1)⟩`, every domain and
-    weight hypothesis discharged.  Left: the group's shape, the AIR's
-    `Sat` at each trace, its guarded form and degree, and the query and
-    out-of-domain points. -/
+    `pcsCloseN_fri_air` with the trace domain `⟨bbGen (tb+1)⟩` of
+    `2^(tb+1)` rows, the masks on the interleaved coset, and Plonky3's
+    chunks of the quotient domain `31 · ⟨bbGen (k+1)⟩`, every hypothesis
+    on the chunks' domains, scales and weights discharged.  Left: the
+    group's trace and mask points and next row (`hT`, `hRq`, `hZq`,
+    `hnxt`), the AIR's `Sat` at each trace with its constraints in the
+    window, guarded, and of degree `D ≤ 2^lq` (`hsatT`, `hgd`, `hD`,
+    `hsd`), the preprocessed columns' length (`hpreL`), the field-size
+    bound (`hPsz`), the query points (off the trace, `|S| + 4 ≤ m + 1`)
+    and the out-of-domain point (`ζ` generating the extension). -/
 theorem pcsCloseN_fri_bb {V : Type} {qs : List QGroup} {ks : List Nat} {cols : (Nat → Tup) → EF → EF → List (List (List F))}
     {ncw : Nat} {αb : EF} {fri : EF → EF → List (EF → EF) → V}
     (hokq : ∀ q ∈ qs, q.OK) (hks : ks.length = qs.length)
