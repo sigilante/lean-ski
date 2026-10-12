@@ -66,11 +66,14 @@ use sudoku::{blind_tuple, public_zk_config, secret_zk_config, postcard_size, rep
 /// The heights of the CPU and memory tables, fixed for every statement.
 const LOG_ROWS: usize = 10;
 const LOG_MEM: usize = 10;
-/// The witness table's height, and the least height of any table: the
-/// hiding PCS refuses to commit a table shorter than
-/// `2 · (queries + 4 · opening points)`, 216 at the benchmark setting.
-const LOG_WIT: usize = 8;
-const LOG_MIN: usize = 8;
+/// The witness table's height, and the least height of any table, `2^9`:
+/// the quotient's openings need `3 · queries + 8` mask points, 308 at the
+/// benchmark setting, above the hiding PCS's own
+/// `2 · (queries + 4 · opening points)`, 216.
+const LOG_WIT: usize = 9;
+const LOG_MIN: usize = 9;
+/// The region's cells at most (`WitAir`'s `W ≤ 2^8`).
+const MAX_REGION: u32 = 1 << 8;
 
 /// The witness table's committed columns: four flags, the two pointers,
 /// four 24-bit decompositions, then the blinding message.
@@ -142,7 +145,7 @@ pub fn parse_public(text: &str) -> Result<Public, String> {
             return Err("the region is not exactly the blank cells".into());
         }
     }
-    if w == 0 || w > 1 << LOG_WIT {
+    if w == 0 || w > MAX_REGION {
         return Err(format!("a region of {w} cells"));
     }
     Ok(Public { v, x, w, hd0: regs[0], stk0: regs[1], ctr0: regs[2], cells, text: text.to_string() })

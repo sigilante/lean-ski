@@ -239,14 +239,14 @@ theorem CJOK.wchConserve {r0 : Nat} (hr0 : r0 < C.h) (hi : C.main r0 (SEL + 11) 
     omega
 
 omit h in
-theorem padCopies8_length_ge : ∀ rows : List (List F), rows.length ≤ (padCopies8 rows).length
+theorem padCopiesMin_length_ge : ∀ rows : List (List F), rows.length ≤ (padCopiesMin rows).length
   | [] => Nat.le_refl 0
   | r :: rs => by show _ ≤ ((r :: rs) ++ _).length; rw [List.length_append]; exact Nat.le_add_right _ _
 
 theorem CJOK.jets_le : jets.length ≤ 2 ^ 27 := by
   have e : Hd.h = (hdrRowsCJ jets).length := h.hdpre.1
   have hl : jets.length ≤ (hdrRowsCJ jets).length := by
-    have := padCopies8_length_ge (jets.zipIdx.map fun (J, g) => hdrRow J g)
+    have := padCopiesMin_length_ge (jets.zipIdx.map fun (J, g) => hdrRow J g)
     rw [List.length_map, List.length_zipIdx] at this
     exact this
   have : Hd.h ≤ 2 ^ 27 := h.two (hdrAirCJ jets, Hd) (by simp [compJTables])

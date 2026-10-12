@@ -124,7 +124,7 @@ theorem comp_honest_zk {R Lm : Nat} (hR : R ≤ 20) {shp : BT} {Ps : List Term} 
       (cpuC_blindZero (hA.runC hK)) (progC_honest hpubA) (witT_honest (a0 := 3) (fun _ => by decide) hbits hreg hlenW)
       witT_blindZero
   · exact {
-      hw := by show 0 < (witRows N W).length; rw [witRows_len hNW]; exact Nat.two_pow_pos 8
+      hw := by show 0 < (witRows N W).length; rw [witRows_len hNW]; exact Nat.two_pow_pos 9
       hc := Nat.two_pow_pos R
       hm := by show 0 < A.length; rw [hlen]; exact Nat.two_pow_pos Lm
       zw := fun r _ => witT_flag r
@@ -248,7 +248,7 @@ theorem wit_honest_zk {V x : Term} {W : Nat} {ws : List Cell} (hwf : WF ws) (hwl
     (witT_honest (a0 := 0) (N := 0) (fun h => absurd h (Nat.lt_irrefl 0)) (fun i hi => absurd hi (Nat.not_lt_zero _))
       hreg (by omega)) witT_blindZero, ?_⟩
   exact {
-    hw := by show 0 < (witRowsG 0 0 W).length; rw [witRowsG_len (by omega)]; exact Nat.two_pow_pos 8
+    hw := by show 0 < (witRowsG 0 0 W).length; rw [witRowsG_len (by omega)]; exact Nat.two_pow_pos 9
     hc := by show 0 < 2 ^ 10; decide
     hm := by show 0 < A.length; rw [hlen]; decide
     zw := fun r _ => witT_flag r

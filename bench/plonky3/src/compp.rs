@@ -336,7 +336,7 @@ pub fn parse_public_p(text: &str) -> Result<PPublic, String> {
     };
     let w = nums(next()?, "W")?;
     let lg = nums(next()?, "log")?;
-    if lg.len() != 5 || lg.iter().any(|&x| !(8..=20).contains(&x)) {
+    if lg.len() != 5 || lg.iter().any(|&x| !(9..=20).contains(&x)) {
         return Err("a bad `log` line".into());
     }
     let nbits = nums(next()?, "bits")?;
@@ -378,13 +378,13 @@ fn program_of(p: &PPublic) -> Vec<[u32; 5]> {
             })
         })
         .collect();
-    pre.resize(pow2_at_least(pre.len(), 8), [0, 0, 0, 0, 0]);
+    pre.resize(pow2_at_least(pre.len(), 9), [0, 0, 0, 0, 0]);
     pre
 }
 
-/// The witness table's height: the private cells, at least `2^8`.
+/// The witness table's height: the private cells, at least `2^9`.
 fn log_wit(p: &PPublic) -> usize {
-    p3_util::log2_strict_usize(pow2_at_least((p.nbits + p.w) as usize, 8))
+    p3_util::log2_strict_usize(pow2_at_least((p.nbits + p.w) as usize, 9))
 }
 
 fn wit_pre(p: &PPublic) -> Vec<[u32; 3]> {
@@ -397,7 +397,7 @@ fn wit_pre(p: &PPublic) -> Vec<[u32; 3]> {
 fn segs_pre(p: &PPublic) -> Vec<[u32; 2]> {
     let mut pre: Vec<[u32; 2]> = p.roots.iter().enumerate().map(|(j, &r)| [j as u32, r]).collect();
     let first = pre[0];
-    pre.resize(pow2_at_least(pre.len(), 8), first);
+    pre.resize(pow2_at_least(pre.len(), 9), first);
     pre
 }
 

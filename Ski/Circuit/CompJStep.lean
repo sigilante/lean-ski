@@ -71,7 +71,7 @@ theorem senderOn_withBlocks {A : AirD} {blocks : List (String × Bool)} {T : Tab
     · obtain ⟨b, hbm, hbus', _⟩ := withBlocks_block_bus hI
       exact absurd (hbus' ▸ hbus) (hb b hbm)
 
-theorem padCopies8_mem {x : List F} : ∀ {rows : List (List F)}, x ∈ padCopies8 rows → x ∈ rows
+theorem padCopiesMin_mem {x : List F} : ∀ {rows : List (List F)}, x ∈ padCopiesMin rows → x ∈ rows
   | [], h => nomatch h
   | r :: rs, h => by
     rcases List.mem_append.1 h with h | h
@@ -380,8 +380,8 @@ theorem CJOK.rootsHit {r : Nat} (hr : r < C.h) (hi : C.main r (SEL + 11) = 1) :
     rw [rowSends_withBlocks (A := providerAir "roots" 2 (rootsRowsCJ roots)) (blocks := [("blind_g", false)]) (by decide)] at hne
     have hm := provider_row (preIs_withBlocks h.rtpre)
       (fun x hx => by
-        obtain ⟨_, _, e⟩ := List.mem_map.1 (padCopies8_mem hx); rw [← e]; rfl) hq hne
-    obtain ⟨⟨a, g⟩, hm, e⟩ := List.mem_map.1 (padCopies8_mem hm)
+        obtain ⟨_, _, e⟩ := List.mem_map.1 (padCopiesMin_mem hx); rw [← e]; rfl) hq hne
+    obtain ⟨⟨a, g⟩, hm, e⟩ := List.mem_map.1 (padCopiesMin_mem hm)
     simp only [List.cons.injEq, and_true] at e
     exact ⟨a, g, hm, e.1.symm, e.2.symm⟩
   · exact absurd (notBus rfl) hne
@@ -415,9 +415,9 @@ theorem CJOK.hdrHit {r : Nat} (hr : r < C.h) (hi : C.main r (SEL + 11) = 1) :
     rw [rowSends_withBlocks (A := providerAir "hdr" 7 (hdrRowsCJ jets)) (blocks := [("blind_f", false), ("blind_g", true)]) (by decide)] at hne
     have hm := provider_row (preIs_withBlocks h.hdpre)
       (fun x hx => by
-        obtain ⟨⟨J, g⟩, _, e⟩ := List.mem_map.1 (padCopies8_mem hx)
+        obtain ⟨⟨J, g⟩, _, e⟩ := List.mem_map.1 (padCopiesMin_mem hx)
         rw [← e]; show (_ ++ opCols _).length = 7; rw [List.length_append, opCols_len]; rfl) hq hne
-    obtain ⟨⟨J, g⟩, hm, e⟩ := List.mem_map.1 (padCopies8_mem hm)
+    obtain ⟨⟨J, g⟩, hm, e⟩ := List.mem_map.1 (padCopiesMin_mem hm)
     obtain ⟨_, hg, hJ⟩ := List.mem_zipIdx hm
     simp only [Nat.zero_add, Nat.sub_zero] at hg hJ
     exact ⟨J, g, by rw [List.getElem?_eq_getElem hg, hJ], e.symm⟩
@@ -451,10 +451,10 @@ theorem CJOK.tmplHit {w : Nat} (hw : w < Iw.h) (ha : Iw.main w 17 = 1) :
     rw [rowSends_withBlocks (A := providerAir "tmpl" 11 (tmplRowsCJ jets)) (blocks := [("blind_e", false), ("blind_f", true)]) (by decide)] at hne
     have hm := provider_row (preIs_withBlocks h.tmpre)
       (fun x hx => by
-        obtain ⟨_, _, hv⟩ := List.mem_flatMap.1 (padCopies8_mem hx)
+        obtain ⟨_, _, hv⟩ := List.mem_flatMap.1 (padCopiesMin_mem hx)
         obtain ⟨⟨cl, j⟩, _, e⟩ := List.mem_map.1 hv
         rw [← e]; exact tmplRow_len _ _ _) hq hne
-    obtain ⟨⟨J, g⟩, hm, hv⟩ := List.mem_flatMap.1 (padCopies8_mem hm)
+    obtain ⟨⟨J, g⟩, hm, hv⟩ := List.mem_flatMap.1 (padCopiesMin_mem hm)
     obtain ⟨_, hg, hJ⟩ := List.mem_zipIdx hm
     simp only [Nat.zero_add, Nat.sub_zero] at hg hJ
     obtain ⟨⟨cl, j⟩, hm2, e⟩ := List.mem_map.1 hv

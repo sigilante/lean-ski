@@ -28,17 +28,17 @@ def cpuIntersW : List Inter :=
 def cpuAirW (hd0 stk0 ctr0 : Nat) : AirD := ⟨"cpu", CPU_WIDTH + 10, 0, cpuConsW hd0 stk0 ctr0, cpuIntersW, []⟩
 
 /-- The program table of the public cells: every cell outside the region
-    `[0, W)`, padded to `2^8`. -/
+    `[0, W)`, padded to at least `2^9`. -/
 def progRowsW (heap : List Cell) (W : Nat) : List (List F) :=
   let rows := (heap.zipIdx.filter fun (_, i) => !(i < W)).map
     fun (c, i) => [ofN i, ofN (cellTag c), ofN (cellFields c).1, ofN (cellFields c).2, ofN 1]
-  rows ++ List.replicate (pow2Min 8 rows.length - rows.length) [ofN 0, ofN 0, ofN 0, ofN 0, ofN 0]
+  rows ++ List.replicate (pow2Min 9 rows.length - rows.length) [ofN 0, ofN 0, ofN 0, ofN 0, ofN 0]
 
 def progAirW (heap : List Cell) (W : Nat) : AirD :=
   ⟨"prog", 1, 5, [col 0], [⟨"mem", 1, prec 4, [prec 0, prec 1, prec 2, prec 3]⟩], progRowsW heap W⟩
 
 /-- The witness table's rows: the region's addresses from `0`, active, not
-    in bit mode, padded to `2^8`. -/
+    in bit mode, padded to `2^9`. -/
 def witRowsW (W : Nat) : List (List F) := witRowsG 0 0 W
 
 def witAirW (W : Nat) : AirD := ⟨"wit", WT_BLIND + 5, 3, witCons, witInters, witRowsW W⟩

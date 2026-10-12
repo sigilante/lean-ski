@@ -45,7 +45,7 @@ forgeries the sections below list.
 | A Poseidon2 preimage of `h` | `p2/` | 12 | `p2preExport_sound` |
 | A hidden hand-off over one commitment | `p2/` | 12 | `p2commitExport_sound`, `p2commit_chainB` |
 | A kernel's poke with a private entropy reply | `entropy/` | 13 | `entropyExport_sound` |
-| Every zero-knowledge proof has the random rows its hiding needs | all but `sumto/` | 14 | `masks_hide`'s hypothesis, `\|S\| + 4\|Z\| ≤ n` with two points a query (the column openings need one), 48 to spare (40 by Plonky3's own count); simulating the quotient's openings, which Plonky3 commits at twice the trace's height, would need `3q + 8 = 308` points, more than the smallest tables' 256 rows |
+| Every zero-knowledge proof has the random rows its hiding needs | all but `sumto/` | 14 | `masks_hide`'s hypothesis, `\|S\| + 4\|Z\| ≤ n`, for the column openings, `q + 8 = 108`; the quotient's openings, three points a query, need more: Plonky3 commits the quotient at twice the trace's height, so they need `3q + 8 = 308`, and no theorem yet simulates them; every committed table has at least `2^9` rows, 204 to spare |
 | Every byte of a zero-knowledge proof lies in a field of the view the transcript theorems simulate | all but `sumto/` | 15 | `ski-air proof-shape`: the bytes are the fields' own encoding; the PCS's view, the terminals, the heights, and two proof-of-work witnesses unique given the transcript |
 
 The theorems are in namespace `Circuit` unless prefixed.
@@ -471,7 +471,7 @@ Dropping them took the table from 2,768 roots to 759 and the run from
     composed-prove` proves each, at heights 2^11 and 2^14: `bootok` in
     1,831 CPU rows and 13,450 memory cells, `firstset` in 1,921 and
     13,602, each in about 0.55 s (Apple M4 Max, 2026-10-05), proofs of
-    about 617 KB. The piers and the
+    about 621 KB. The piers and the
     witnesses stay in a temporary directory.
 
 `release/produce.sh STAGE…` runs some of these: `sumto`, `composed`,

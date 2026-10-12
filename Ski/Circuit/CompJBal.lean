@@ -4,7 +4,7 @@ import Ski.Circuit.CompJCpuSat
 # The composed circuit with jets: its buses balance on the honest tables
 
 The provider tables carry their counts in column 0 only (`provTableCJ`),
-so their blinding flags are clear; their rows are padded to `2^8`
+so their blinding flags are clear; their rows are padded to `2^9`
 (`bal_rootsCJ`, `bal_hdrCJ`, `bal_tmplCJ`, the jet circuit's `bal_roots`,
 `bal_hdr`, `bal_tmpl` for those rows).
 -/
@@ -13,24 +13,24 @@ namespace Circuit
 
 open B Air JetTable Compose CompM Mach
 
-theorem padCopies8_super {x : List F} : ∀ {rows : List (List F)}, x ∈ rows → x ∈ padCopies8 rows
+theorem padCopiesMin_super {x : List F} : ∀ {rows : List (List F)}, x ∈ rows → x ∈ padCopiesMin rows
   | [], h => nomatch h
   | _ :: _, h => List.mem_append_left _ h
 
-theorem padCopies8_len {w : Nat} : ∀ {rows : List (List F)}, (∀ x ∈ rows, x.length = w) →
-    ∀ x ∈ padCopies8 rows, x.length = w :=
-  fun h x hx => h x (padCopies8_mem hx)
+theorem padCopiesMin_len {w : Nat} : ∀ {rows : List (List F)}, (∀ x ∈ rows, x.length = w) →
+    ∀ x ∈ padCopiesMin rows, x.length = w :=
+  fun h x hx => h x (padCopiesMin_mem hx)
 
 theorem rootsRowsCJ_len (roots : List (Nat × Nat)) : ∀ x ∈ rootsRowsCJ roots, x.length = 2 :=
-  padCopies8_len (fun x hx => by obtain ⟨_, _, e⟩ := List.mem_map.1 hx; rw [← e]; rfl)
+  padCopiesMin_len (fun x hx => by obtain ⟨_, _, e⟩ := List.mem_map.1 hx; rw [← e]; rfl)
 
 theorem hdrRowsCJ_len (jets : List Air.Jet) : ∀ x ∈ hdrRowsCJ jets, x.length = 7 :=
-  padCopies8_len (fun x hx => by
+  padCopiesMin_len (fun x hx => by
     obtain ⟨⟨J, g⟩, _, e⟩ := List.mem_map.1 hx
     rw [← e]; show (_ ++ opCols _).length = 7; rw [List.length_append, opCols_len]; rfl)
 
 theorem tmplRowsCJ_len (jets : List Air.Jet) : ∀ x ∈ tmplRowsCJ jets, x.length = 11 :=
-  padCopies8_len (fun x hx => by
+  padCopiesMin_len (fun x hx => by
     obtain ⟨_, _, hv⟩ := List.mem_flatMap.1 hx
     obtain ⟨⟨cl, j⟩, _, e⟩ := List.mem_map.1 hv
     rw [← e]; exact tmplRow_len _ _ _)
@@ -68,7 +68,7 @@ namespace JRun
 
 variable (R : JRun)
 
-/-- **`ROOTS` balances, its rows padded to `2^8`.** -/
+/-- **`ROOTS` balances, its rows padded to `2^9`.** -/
 theorem bal_rootsCJ {K : Nat} (v : List F) :
     tableSends (cpuAirJ (R.row 0).hd (R.row 0).stk (R.row 0).ctr) (R.cpuTable K) "roots" v +
       tableSends (providerAir "roots" 2 (rootsRowsCJ R.roots)) (provTable (rootsRowsCJ R.roots) (R.cntRoots K)) "roots" v = 0 := by
@@ -105,10 +105,10 @@ theorem bal_rootsCJ {K : Nat} (v : List F) :
       split at hp
       · next e =>
         rw [← e]
-        exact padCopies8_super (List.mem_map.2 ⟨((R.row i).hd, g), (instAt_some hn).2.1, rfl⟩)
+        exact padCopiesMin_super (List.mem_map.2 ⟨((R.row i).hd, g), (instAt_some hn).2.1, rfl⟩)
       · exact absurd hp (Nat.lt_irrefl 0)
 
-/-- **`HDR` balances, its rows padded to `2^8`.** -/
+/-- **`HDR` balances, its rows padded to `2^9`.** -/
 theorem bal_hdrCJ {K : Nat} (v : List F) :
     tableSends (cpuAirJ (R.row 0).hd (R.row 0).stk (R.row 0).ctr) (R.cpuTable K) "hdr" v +
       tableSends (providerAir "hdr" 7 (hdrRowsCJ R.jets)) (provTable (hdrRowsCJ R.jets) (R.cntHdr K)) "hdr" v = 0 := by
@@ -155,12 +155,12 @@ theorem bal_hdrCJ {K : Nat} (v : List F) :
         rw [← e]
         have hJ := (instAt_some hn).2.2.1
         obtain ⟨hg, hJg⟩ := List.getElem?_eq_some_iff.1 hJ
-        exact padCopies8_super (List.mem_map.2 ⟨(J, g), List.mem_zipIdx_iff_getElem?.2 (by
+        exact padCopiesMin_super (List.mem_map.2 ⟨(J, g), List.mem_zipIdx_iff_getElem?.2 (by
           rw [List.getElem?_eq_getElem hg, hJg]), rfl⟩)
       · exact absurd hp (Nat.lt_irrefl 0)
 
 
-/-- **`TMPL` balances, its rows padded to `2^8`.** -/
+/-- **`TMPL` balances, its rows padded to `2^9`.** -/
 theorem bal_tmplCJ {K HW : Nat} (hHW : (R.instwRows K).length ≤ HW) (v : List F) :
     tableSends instwAir (R.instwTable K HW) "tmpl" v +
       tableSends (providerAir "tmpl" 11 (tmplRowsCJ R.jets)) (provTable (tmplRowsCJ R.jets) (R.cntTmpl K)) "tmpl" v = 0 := by
@@ -195,7 +195,7 @@ theorem bal_tmplCJ {K HW : Nat} (hHW : (R.instwRows K).length ≤ HW) (v : List 
         rw [← e]
         have hJ := (instAt_some hn).2.2.1
         obtain ⟨hg, hJg⟩ := List.getElem?_eq_some_iff.1 hJ
-        apply padCopies8_super
+        apply padCopiesMin_super
         refine List.mem_flatMap.2 ⟨(J, g), List.mem_zipIdx_iff_getElem?.2 (by
           rw [List.getElem?_eq_getElem hg, hJg]), ?_⟩
         refine List.mem_map.2 ⟨((symCells J J.body 0).1.getD j (0, none), j), List.mem_zipIdx_iff_getElem?.2 ?_, rfl⟩

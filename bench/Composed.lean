@@ -153,7 +153,7 @@ def budget (path lp li out : String) : IO UInt32 := do
     | do IO.println s!"NOT A STATEMENT {path}"; return 1
   let some bud := (do some (← lp.toNat?, ← li.toNat?) : Option (Nat × Nat))
     | do IO.println "LP and LI are numbers"; return 1
-  if !logOK bud then IO.println "LP and LI are in [8, 20]"; return 1
+  if !logOK bud then IO.println "LP and LI are in [9, 20]"; return 1
   IO.FS.writeFile out (publicTextC c W lg (some bud))
   IO.println s!"{out}: {c.header}, heights 2^{lg.1} and 2^{lg.2}, budgets 2^{bud.1} and 2^{bud.2}"
   return 0
@@ -281,7 +281,7 @@ def checkCJ (src pub : String) (paths : List String) : IO UInt32 := do
   return (if bad == 0 then 0 else 1)
 
 /-- The preimage statement's heights. -/
-def p2preLogs : ComposedPText.PLogs := ⟨14, 15, 9, 9, 8⟩
+def p2preLogs : ComposedPText.PLogs := ⟨14, 15, 9, 9, 9⟩
 
 /-- The preimage statement for the image `h` of the input `inp`, and its
     witness: the inputs' 496 bits, then the region's one cell. -/
@@ -325,7 +325,7 @@ def handoffPat1 : List (Option Bool) :=
 def handoffPat2 : List (Option Bool) := handoffPat fun e j => if e == 0 && j == 0 then some true else none
 
 /-- The hand-off statements' heights. -/
-def handoffLogs : ComposedPText.PLogs := ⟨14, 16, 9, 9, 8⟩
+def handoffLogs : ComposedPText.PLogs := ⟨14, 16, 9, 9, 9⟩
 
 /-- A number below `2^k`, `k ≤ 32`, uniform, from the system's entropy
     (Lean's runtime reads `/dev/urandom`). -/

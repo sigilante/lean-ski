@@ -537,7 +537,7 @@ theorem compJ_complete_log {R Lm Lp Li : Nat} (hR : R ≤ 20) (hLm : Lm ≤ 20) 
       2 ^ Li)
     (hNW : BT.nleaves shp + W ≤ 2 ^ 8) :
     ∃ C Mm Pg Wt Sg Rt Hd Tm Po Iw, AcceptedP Rs [C, Mm, Pg, Wt, Sg, Rt, Hd, Tm, Po, Iw] ∧
-      C.h = 2 ^ R ∧ Mm.h = 2 ^ Lm ∧ Wt.h = 2 ^ 8 ∧ Po.h = 2 ^ Lp ∧ Iw.h = 2 ^ Li ∧
+      C.h = 2 ^ R ∧ Mm.h = 2 ^ Lm ∧ Wt.h = 2 ^ 9 ∧ Po.h = 2 ^ Lp ∧ Iw.h = 2 ^ Li ∧
       Pg = progTableC (blankM shp W Ps).heap (BT.nleaves shp) W ∧ Sg = segsPub (blankRoots shp W Ps) ∧
       memOf Mm = A ∧ ∀ i, i ≤ e (Ps.length - 1) → rowOf C i = row i := by
   have hRb : 2 ^ R ≤ 1048576 := Nat.pow_le_pow_right (by decide) hR
@@ -663,7 +663,7 @@ theorem compJ_complete_log {R Lm Lp Li : Nat} (hR : R ≤ 20) (hLm : Lm ≤ 20) 
       rw [z0, hnR]
     have hPg : Pg.h ≤ 2 ^ 24 := progRowsC_le (by omega)
     have hSg : Sg.h ≤ 2 ^ 24 := segRows_le (by rw [hnR]; omega)
-    have hWt : Wt.h = 2 ^ 8 := witRows_len hNW
+    have hWt : Wt.h = 2 ^ 9 := witRows_len hNW
     refine ⟨rfl, ?_, ?_, ?_, ?_⟩
     · rw [z]
       intro p hp
@@ -766,7 +766,7 @@ theorem compJStmt_complete_log {R Lm Lp Li : Nat} (hR : R ≤ 20) (hLm : Lm ≤ 
       row, isRestart e Ps.length⟩ (2 ^ R)).length ≤ 2 ^ Li)
     (hNW : BT.nleaves shp + W ≤ 2 ^ 8) :
     ∃ C Mm Pg Wt Sg Rt Hd Tm Po Iw, AcceptedP Rs [C, Mm, Pg, Wt, Sg, Rt, Hd, Tm, Po, Iw] ∧
-      C.h = 2 ^ R ∧ Mm.h = 2 ^ Lm ∧ Wt.h = 2 ^ 8 ∧ Po.h = 2 ^ Lp ∧ Iw.h = 2 ^ Li ∧
+      C.h = 2 ^ R ∧ Mm.h = 2 ^ Lm ∧ Wt.h = 2 ^ 9 ∧ Po.h = 2 ^ Lp ∧ Iw.h = 2 ^ Li ∧
       Pg = progTableC (blankM shp W Ps).heap (BT.nleaves shp) W ∧ Sg = segsPub (blankRoots shp W Ps) ∧
       memOf Mm = A ∧ ∀ i, i ≤ e (Ps.length - 1) → rowOf C i = row i :=
   compJ_complete_log hR hLm hLp hLi hs hprov hprov27 hrl hr (jetStmtC_sound hj ρ region hrl) hA hfit hlen hK

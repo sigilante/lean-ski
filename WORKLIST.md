@@ -5,6 +5,13 @@ is built; this file records what is next. Last revised 2026-10-10.
 
 ## Done since the last revision
 
+- **Every hiding table has at least `2^9` rows**: Plonky3 commits the quotient at twice
+  the trace's height, so a query opens the trace at three points and the quotient's
+  openings need `3q + 8 = 308` mask points. The statement checks (`logOK`, `plogsOK`,
+  the Rust's `LOG_BOUNDS`) take heights `2^9` to `2^20`; the witness and provider tables
+  pad to `2^9`; bits and region stay capped at `2^8`. `ski-air mask-margin` tests the
+  quotient's count, and `verify.sh` step 6 refuses a statement at height `2^8`. The
+  release is remade at the new floor. `lake exe entropy` reads Avon's record checksum.
 - **Every zero-knowledge prover's traces against Lean's honest tables** (#9): all five
   circuits, memory multiplicities by a count proved equal to Lean's, blinding blocks read
   from Lean. The checks found two prover faults, both fixed.
@@ -14,7 +21,8 @@ is built; this file records what is next. Last revised 2026-10-10.
 - **The statement digest binds the CPU's constants, tested end to end** (#13):
   `ski-air composed-digest-bound`, `verify.sh` steps 6 and 13.
 - **The masking margin, checked**: `ski-air mask-margin`, `verify.sh` step 14. Every
-  released hiding proof has 48 random rows to spare over `masks_hide`'s `|S| + 4|Z| ≤ n`.
+  released hiding proof has 204 random rows to spare over the quotient's `3q + 8 = 308`
+  mask points, at tables of at least `2^9` rows.
 - **The Poseidon2 circuit is complete** (#15): `compPG_complete_log`, and for `p2pre h`
   and `p2commit c pat` with the published level table `idxPub 1`
   (`compP_complete_log`, `compPC_complete_log`). Every table's constraints hold on its
@@ -93,13 +101,11 @@ and its claim table moves to the docs, where `release/README.md` already holds i
   calls per proof over computed bits: a P2IN that walks a list, as P2OUT writes one.
   Arvo binds nothing here; it replays its log. Needed only to prove a kernel's history
   to someone who lacks the log.
-- The quotient's openings under hiding: Plonky3 commits the chunks at twice the trace's
-  height, so a query touches the trace at three points (`3q + 8 = 308` mask points at
-  `q = 100`), more than the released `2^8` tables' 256 rows (all hiding proofs but the
-  Sudoku's). Grow those tables to `2^9`, cut to 82 queries, or prove the quotient adds
-  nothing; part of proving the hiding PCS.
-- Proven 100-bit parameters: 203 queries at rate 1/2, and the `2^8` tables grown to
-  `2^9`, which changes statements' heights (`bench/plonky3/README.md`).
+- The quotient's openings under hiding: the `2^9` floor covers their mask points
+  (`3q + 8 = 308`); a simulator of the quotient's view is not yet proved, part of
+  proving the hiding PCS.
+- Proven 100-bit parameters: 203 queries at rate 1/2; the quotient's openings then need
+  `3q + 8 = 617` mask points, so a `2^10` floor (`bench/plonky3/README.md`).
 - FRI, the quotient's hiding and round-by-round soundness, proved rather than assumed;
   Fiat–Shamir.
 - Probe segments under the hiding; ∀ over public inputs; aggregation.

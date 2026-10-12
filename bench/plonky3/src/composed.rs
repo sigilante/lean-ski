@@ -131,10 +131,15 @@ pub fn eval_segs<AB: PermutationAirBuilder + InteractionBuilder>(b: &mut AB) {
 /// `LOG_BOUNDS`.
 const LOG_ROWS: usize = 11;
 const LOG_MEM: usize = 11;
-const LOG_BOUNDS: std::ops::RangeInclusive<usize> = 8..=20;
-pub(crate) const LOG_WIT: usize = 8;
-/// The least height the hiding PCS commits (`src/witness.rs`).
-pub(crate) const LOG_MIN: usize = 8;
+const LOG_BOUNDS: std::ops::RangeInclusive<usize> = 9..=20;
+pub(crate) const LOG_WIT: usize = 9;
+/// The least height of every committed table, `2^9` rows: the quotient's
+/// openings need `3 · queries + 8` mask points, 308 at the benchmark
+/// setting (`src/fsbudget.rs`, `margin_text`).
+pub(crate) const LOG_MIN: usize = 9;
+/// The private cells a statement may name, the bits and the region
+/// (`ComposedText.privateOK`).
+pub(crate) const MAX_PRIVATE: u32 = 1 << 8;
 
 pub struct Public {
     /// The statement's first line: `formula …` or `predicate V x n`.
@@ -221,7 +226,7 @@ pub fn parse_public(text: &str) -> Result<Public, String> {
             return Err("the bits and the region are not exactly the blank cells".into());
         }
     }
-    if nbits + w > 1 << LOG_WIT {
+    if nbits + w > MAX_PRIVATE {
         return Err("too many private cells".into());
     }
     Ok(Public { header, w, log_rows, log_mem, budgets, nbits, roots, nil, hd0: regs[0], stk0: regs[1], ctr0: regs[2], cells, text: text.to_string() })

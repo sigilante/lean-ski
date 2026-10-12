@@ -6,7 +6,7 @@ import Ski.ZK.Reject
 
 `masks_hide` and `pcsCloseN_masked` take columns of one height `n`.  A
 proof's tables have several (the CPU's `2^R` rows, the memory's `2^Lm`,
-the witness table's `2^8`), and Plonky3 masks each table's columns over
+the witness table's `2^9`), and Plonky3 masks each table's columns over
 its own trace domain.  Here the columns come in groups, one per height,
 each with its own trace points `T`, mask points `R`, query points `S` and
 out-of-domain points `Z` (`MGroup`), and each meeting `masks_hide`'s

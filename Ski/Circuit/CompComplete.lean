@@ -69,17 +69,17 @@ theorem pow2From_ge : ∀ (f p n : Nat), p ≤ pow2From f p n
     · exact Nat.le_refl _
 
 theorem progRowsC_pos (heap : List Cell) (N W : Nat) : 0 < (progRowsC heap N W).length := by
-  have := pow2From_ge 64 (2 ^ 8) ((heap.zipIdx.filter fun x => !(3 ≤ x.2 && x.2 < 3 + N + W)).length)
+  have := pow2From_ge 64 (2 ^ 9) ((heap.zipIdx.filter fun x => !(3 ≤ x.2 && x.2 < 3 + N + W)).length)
   unfold progRowsC pow2Min
   simp only [List.length_append, List.length_map, List.length_replicate]
-  have : (0 : Nat) < 2 ^ 8 := by decide
+  have : (0 : Nat) < 2 ^ 9 := by decide
   omega
 
 theorem segRows_pos (roots : List Nat) : 0 < (segRows roots).length := by
-  have := pow2From_ge 64 (2 ^ 8) (roots.zipIdx.map fun x => [ofN x.2, ofN x.1]).length
+  have := pow2From_ge 64 (2 ^ 9) (roots.zipIdx.map fun x => [ofN x.2, ofN x.1]).length
   unfold segRows pow2Min
   simp only [List.length_append, List.length_replicate]
-  have : (0 : Nat) < 2 ^ 8 := by decide
+  have : (0 : Nat) < 2 ^ 9 := by decide
   omega
 
 theorem progC_sat (heap : List Cell) (N W : Nat) :
@@ -105,7 +105,7 @@ theorem progC_honest {A heap : List Cell} {N W : Nat}
   let pub := heap.zipIdx.filter fun x => !(3 ≤ x.2 && x.2 < 3 + N + W)
   let rows := pub.map fun (x : Cell × Nat) =>
     [ofN x.2, ofN (cellTag x.1), ofN (cellFields x.1).1, ofN (cellFields x.1).2, ofN 1]
-  have hrows : progRowsC heap N W = rows ++ List.replicate (pow2Min 8 rows.length - rows.length)
+  have hrows : progRowsC heap N W = rows ++ List.replicate (pow2Min 9 rows.length - rows.length)
       [ofN 0, ofN 0, ofN 0, ofN 0, ofN 0] := rfl
   rcases Nat.lt_or_ge q rows.length with hl | hl
   · have hg : (progRowsC heap N W).getD q [] = rows[q] := by
@@ -129,7 +129,7 @@ theorem progC_honest {A heap : List Cell} {N W : Nat}
   · exfalso; apply hc
     show (prec 4).eval _ = 0
     rw [pv, hrows, List.getD_eq_getElem?_getD (a := ([] : List F))]
-    rcases Nat.lt_or_ge q (rows ++ List.replicate (pow2Min 8 rows.length - rows.length)
+    rcases Nat.lt_or_ge q (rows ++ List.replicate (pow2Min 9 rows.length - rows.length)
         [ofN 0, ofN 0, ofN 0, ofN 0, ofN 0]).length with h' | h'
     · rw [List.getElem?_append_right hl, List.getElem?_replicate]
       simp only [List.length_append, List.length_replicate] at h'
@@ -741,26 +741,26 @@ theorem progRowsC_le {heap : List Cell} {N W : Nat} (h : heap.length ≤ 2 ^ 24)
     (progRowsC heap N W).length ≤ 2 ^ 24 := by
   have hf := List.length_filter_le (fun x : Cell × Nat => !(3 ≤ x.2 && x.2 < 3 + N + W)) heap.zipIdx
   rw [List.length_zipIdx] at hf
-  have hp := pow2From_le (n := (heap.zipIdx.filter fun x => !(3 ≤ x.2 && x.2 < 3 + N + W)).length) (by omega) 64 8
+  have hp := pow2From_le (n := (heap.zipIdx.filter fun x => !(3 ≤ x.2 && x.2 < 3 + N + W)).length) (by omega) 64 9
     (by decide)
   unfold progRowsC pow2Min
   simp only [List.length_append, List.length_map, List.length_replicate]
   omega
 
 theorem segRows_le {roots : List Nat} (h : roots.length ≤ 2 ^ 24) : (segRows roots).length ≤ 2 ^ 24 := by
-  have hp := pow2From_le (n := (roots.zipIdx.map fun x => [ofN x.2, ofN x.1]).length) (by simp; omega) 64 8
+  have hp := pow2From_le (n := (roots.zipIdx.map fun x => [ofN x.2, ofN x.1]).length) (by simp; omega) 64 9
     (by decide)
   unfold segRows pow2Min
   simp only [List.length_append, List.length_replicate]
   simp only [List.length_map, List.length_zipIdx] at hp ⊢
   omega
 
-theorem witRowsG_len {a0 N W : Nat} (h : N + W ≤ 2 ^ 8) : (witRowsG a0 N W).length = 2 ^ 8 := by
+theorem witRowsG_len {a0 N W : Nat} (h : N + W ≤ 2 ^ 8) : (witRowsG a0 N W).length = 2 ^ 9 := by
   unfold witRowsG
   simp only [List.length_append, List.length_map, List.length_range, List.length_replicate]
   omega
 
-theorem witRows_len {N W : Nat} (h : N + W ≤ 2 ^ 8) : (witRows N W).length = 2 ^ 8 := witRowsG_len h
+theorem witRows_len {N W : Nat} (h : N + W ≤ 2 ^ 8) : (witRows N W).length = 2 ^ 9 := witRowsG_len h
 
 /-- **Completeness of the composed circuit**, for any evaluation statement
     (bits of a shape, terms), at the heights a statement names: a run the
@@ -778,7 +778,7 @@ theorem comp_completeG_log {R Lm : Nat} (hR : R ≤ 20) (hLm : Lm ≤ 20) {shp :
       (cHeap ρ shp region Ps).1.length Ps.length e row)
     (hfit : Fits A) (hlen : A.length = 2 ^ Lm) (hK : e (Ps.length - 1) < 2 ^ R)
     (hNW : BT.nleaves shp + W ≤ 2 ^ 8) :
-    ∃ C Mm Pg Wt Sg, AcceptedP Rs [C, Mm, Pg, Wt, Sg] ∧ C.h = 2 ^ R ∧ Mm.h = 2 ^ Lm ∧ Wt.h = 2 ^ 8 ∧
+    ∃ C Mm Pg Wt Sg, AcceptedP Rs [C, Mm, Pg, Wt, Sg] ∧ C.h = 2 ^ R ∧ Mm.h = 2 ^ Lm ∧ Wt.h = 2 ^ 9 ∧
       Pg = progTableC (blankM shp W Ps).heap (BT.nleaves shp) W ∧ Sg = segsPub (blankRoots shp W Ps) ∧
       memOf Mm = A ∧ ∀ i, i ≤ e (Ps.length - 1) → rowOf C i = row i := by
   have hRb : 2 ^ R ≤ 1048576 := Nat.pow_le_pow_right (by decide) hR
@@ -905,7 +905,7 @@ theorem comp_completeG_log {R Lm : Nat} (hR : R ≤ 20) (hLm : Lm ≤ 20) {shp :
       simp only [List.foldr_cons, List.foldr_nil]
       have hPg : Pg.h ≤ 2 ^ 24 := progRowsC_le (by omega)
       have hSg : Sg.h ≤ 2 ^ 24 := segRows_le (by omega)
-      have hWt : Wt.h = 2 ^ 8 := witRows_len hNW
+      have hWt : Wt.h = 2 ^ 9 := witRows_len hNW
       have hC : C.h = 2 ^ R := rfl
       have hMm : Mm.h = 2 ^ Lm := hlen
       show 11 * C.h + (1 * Mm.h + (1 * Pg.h + (2 * Wt.h + (0 * Sg.h + 0)))) < P
@@ -915,7 +915,7 @@ theorem comp_completeG_log {R Lm : Nat} (hR : R ≤ 20) (hLm : Lm ≤ 20) {shp :
       simp only [compTables, List.mem_cons, List.not_mem_nil, or_false] at hp
       have hPg : Pg.h ≤ 2 ^ 24 := progRowsC_le (by omega)
       have hSg : Sg.h ≤ 2 ^ 24 := segRows_le (by omega)
-      have hWt : Wt.h = 2 ^ 8 := witRows_len hNW
+      have hWt : Wt.h = 2 ^ 9 := witRows_len hNW
       rcases hp with rfl | rfl | rfl | rfl | rfl
       · show 2 ^ R ≤ 2 ^ 27; exact Nat.pow_le_pow_right (by decide) (by omega)
       · show A.length ≤ 2 ^ 27; omega
@@ -973,7 +973,7 @@ theorem comp_complete_log {R Lm : Nat} (hR : R ≤ 20) (hLm : Lm ≤ 20) {M : MF
       (cHeap ρ (clear M) region (stmtOf M)).1.length (stmtOf M).length e row)
     (hfit : Fits A) (hlen : A.length = 2 ^ Lm) (hK : e ((stmtOf M).length - 1) < 2 ^ R)
     (hNW : BT.nleaves (clear M) + W ≤ 2 ^ 8) :
-    ∃ C Mm Pg Wt Sg, AcceptedP Rs [C, Mm, Pg, Wt, Sg] ∧ C.h = 2 ^ R ∧ Mm.h = 2 ^ Lm ∧ Wt.h = 2 ^ 8 ∧
+    ∃ C Mm Pg Wt Sg, AcceptedP Rs [C, Mm, Pg, Wt, Sg] ∧ C.h = 2 ^ R ∧ Mm.h = 2 ^ Lm ∧ Wt.h = 2 ^ 9 ∧
       Pg = progTableC (blankM (clear M) W (stmtOf M)).heap (BT.nleaves (clear M)) W ∧
       Sg = segsPub (blankRoots (clear M) W (stmtOf M)) ∧
       memOf Mm = A ∧ ∀ i, i ≤ e ((stmtOf M).length - 1) → rowOf C i = row i :=
@@ -989,7 +989,7 @@ theorem comp_complete {M : MF} {W : Nat} {Rs : List AirD} (hs : sameAirsB Rs (co
       (cHeap ρ (clear M) region (stmtOf M)).1.length (stmtOf M).length e row)
     (hfit : Fits A) (hlen : A.length = 2 ^ 11) (hK : e ((stmtOf M).length - 1) < 2 ^ 11)
     (hNW : BT.nleaves (clear M) + W ≤ 2 ^ 8) :
-    ∃ C Mm Pg Wt Sg, AcceptedP Rs [C, Mm, Pg, Wt, Sg] ∧ C.h = 2 ^ 11 ∧ Mm.h = 2 ^ 11 ∧ Wt.h = 2 ^ 8 ∧
+    ∃ C Mm Pg Wt Sg, AcceptedP Rs [C, Mm, Pg, Wt, Sg] ∧ C.h = 2 ^ 11 ∧ Mm.h = 2 ^ 11 ∧ Wt.h = 2 ^ 9 ∧
       Pg = progTableC (blankM (clear M) W (stmtOf M)).heap (BT.nleaves (clear M)) W ∧
       Sg = segsPub (blankRoots (clear M) W (stmtOf M)) ∧
       memOf Mm = A ∧ ∀ i, i ≤ e ((stmtOf M).length - 1) → rowOf C i = row i :=

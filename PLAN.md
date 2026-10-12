@@ -842,7 +842,7 @@ verifier's case analysis however it likes. The first predicate, `split`
 `x`; at `k = 8`, 129,965 rows at `2^17`. The statement names its heights
 (`log R M`). The committed split `csplit` adds a knapsack commitment to
 `a` under public weights, checked in the same pass: 471,888 rows at
-`2^19`, proved in 42 s. At these sizes the commitment neither binds nor
+`2^19`, proved in 40 s. At these sizes the commitment neither binds nor
 hides (`2^16` openings, sums of at most 437); it is the statement's shape.
 Jets on SKIlark code, measured in the clear (`bench/plonky3/README.md`):
 `split8`'s verifier runs in 11,483 rows jetted against 129,957 plain,
@@ -873,14 +873,13 @@ simulator emits those (`transcript_zkGH`, `Ski/ZK/Heights.lean`) for the
 composed, Sudoku and hidden-term circuits; the jet circuits' honest
 heights are the budgets and public lengths (`compJ_honest_heights`,
 `compP_honest_heights`). The margin
-check counts two points a query, where the column openings need one. The
-quotient needs more: under hiding Plonky3 commits the quotient chunks at
-twice the trace's height, so a query also opens the quotient at `x_Q`, with
-`x_Q^2 = g_F x`, and `Q(x_Q)` depends on the trace at `x_Q` and `g x_Q`. The
-masks must cover `3q + 8 = 308` points, more than the 256 rows of the `2^8`
-tables every released hiding proof but the Sudoku's has: that step needs
-`2^9` rows, at most 82 queries, or an argument that the quotient adds
-nothing. The
+check tests the quotient's requirement. Under hiding Plonky3 commits the
+quotient chunks at twice the trace's height, so a query also opens the
+quotient at `x_Q`, with `x_Q^2 = g_F x`, and `Q(x_Q)` depends on the trace
+at `x_Q` and `g x_Q`: the masks must cover `3q + 8 = 308` points. Every
+committed table of a hiding proof has at least `2^9` rows: the heights a
+statement names by its checks (`logOK`, `plogsOK`), the others by public
+padding; 204 to spare. The
 masked column openings hide for tables of several heights, each over its
 own domain (`masks_hide_multi`, `pcsCloseN_multi` in
 `Ski/ZK/MaskMulti.lean`), and every hiding circuit's transcript theorem

@@ -7,7 +7,7 @@ open Term
 A poke whose event is an entropy reply, its bits private (`Ski/Entropy.lean`).
 
 Avon's pier, booted with `--entropy`, answers the kernel's boot request
-with the event `[0 [0 bits]]` and logs it as `eny 1 <id> <16 bytes>`
+with the event `[0 [0 bits]]` and logs it as `eny 1 <id> <16 bytes>`, perhaps with a checksum
 (avon `docs/DESIGN.md` §9.1).  The statement here is the predicate
 `entropyV 128` on `x = [k [0 chk]]`: some 128 literal bits, given to the
 kernel `k` as that reply, make the check `chk` accept the poke's result
@@ -72,20 +72,30 @@ def hexByte (s : String) : Option Nat :=
   | [a, b] => do some (16 * (← d a) + (← d b))
   | _ => none
 
+/-- A lowercase hex digit, as Avon writes them. -/
+def isHex (c : Char) : Bool := ('0' ≤ c && c ≤ '9') || ('a' ≤ c && c ≤ 'f')
+
 /-- Avon's SKIT jam of `K`, the id boot's reply carries, in hex. -/
 def jamK : String := "534b49540100000000000000020000000000000002"
 
 /-- The 16 bytes of the log's `eny 1` record, boot's reply: its id must be
-    `K`, as the statement says. -/
+    `K`, as the statement says.  Avon's records may end with a checksum
+    field, `=` and 8 hex digits (`SUM_HEX`, Avon's `src/pier.c`), which
+    the witness does not read and this reader does not recompute. -/
 def bootBytes (log : String) : Option (List Nat) := do
   let line ← (log.splitOn "\n").find? (·.startsWith "eny 1 ")
-  match (line.splitOn " ").filter (· ≠ "") with
-  | ["eny", "1", id, hex] =>
-    if id != jamK then none
-    let cs := hex.toList
-    if cs.length != 32 then none
-    (List.range 16).mapM fun i => hexByte (String.ofList [cs[2 * i]!, cs[2 * i + 1]!])
-  | _ => none
+  let fields := (line.splitOn " ").filter (· ≠ "")
+  let (id, hex) ← match fields with
+    | ["eny", "1", id, hex] => some (id, hex)
+    | ["eny", "1", id, hex, sum] =>
+      match sum.toList with
+      | '=' :: ds => if ds.length == 8 && ds.all isHex then some (id, hex) else none
+      | _ => none
+    | _ => none
+  if id != jamK then none
+  let cs := hex.toList
+  if cs.length != 32 then none
+  (List.range 16).mapM fun i => hexByte (String.ofList [cs[2 * i]!, cs[2 * i + 1]!])
 
 /-- Bit `8i + j` is bit `j` of byte `i`, least significant first. -/
 def bitsOfBytes (bs : List Nat) : List Bool :=

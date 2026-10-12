@@ -80,7 +80,7 @@ structure PLogs where
   deriving BEq, Repr
 
 def plogsOK (l : PLogs) : Bool :=
-  [l.rows, l.mem, l.pin, l.pout, l.p2].all fun x => 8 ≤ x && x ≤ 20
+  [l.rows, l.mem, l.pin, l.pout, l.p2].all fun x => 9 ≤ x && x ≤ 20
 
 -- ---------------------------------------------------------------------------
 -- A committed value: `p2commit c pat`

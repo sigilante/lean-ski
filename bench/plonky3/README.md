@@ -289,7 +289,7 @@ A table the verifier accepts has, by `Wit.wit_realizes`, a realizer of the
 atom in its region. `lake exe witness check` decides that
 (`Wit.witCheck_realizes`) on each table proved here. The hiding is the
 Sudoku proof's: a hiding PCS, fixed heights (`2^10` rows and memory,
-`2^8` witness rows, the least the hiding PCS masks), and two blinding
+`2^9` witness rows, the least every hiding table has), and two blinding
 messages. The guess test replays the transcript and recomputes the
 witness terminal for the true region: it does not match, and with the
 blinding off it does, so the test has the power to catch a leak.
@@ -702,7 +702,7 @@ needs a commitment binding the hidden number to something public.
   `skilark.zk`'s `split` for width `K` is the producer's word; `python -m
   skilark.zk 8` regenerates it byte for byte.
 - **The heights are the statement's.** `public.txt` may name the CPU and
-  memory log heights, `log R M` with each in `[8, 20]`; without the line
+  memory log heights, `log R M` with each in `[9, 20]`; without the line
   they are `2^11`, so earlier statements are unchanged.
 
 ```
@@ -892,13 +892,13 @@ columns at 121–130, three blinding blocks at 131–145, the restart columns
 at 146–148, so `INST` (selector 11) and the restart are distinct columns.
 Seven blinding tuples span the eight private tables as a tree,
 `WIT —a— CPU —b— MEM` and `CPU —c— POP —d— INSTW —e— TMPL —f— HDR —g—
-ROOTS`. The provider tables are padded to `2^8` rows, as the hiding PCS
-needs.
+ROOTS`. The provider tables are padded to `2^9` rows, as every hiding
+table is.
 
 The verifier holds the statement, its jet table (`skilark cjets`) and
 the SKIjack source the templates come from. The statement fixes all four
 free heights before the run: its line `log R M Lp Li` names the CPU's,
-the memory's, POP's and INSTW's, each in `[8, 20]` (`composed budget`
+the memory's, POP's and INSTW's, each in `[9, 20]` (`composed budget`
 writes it from a composed statement). A composed statement and one with
 jets are distinct: each checker refuses the other's. Lean checks the
 statement (`composed statement-jets`), then the jet table and the AIRs in
@@ -933,6 +933,9 @@ and (3 segments)          404 (69)         116       17       889   2^11 2^11 2^
 or (3 segments)           220 (41)          67       10       673   2^11 2^11 2^8  2^8         0.16 s   0.78 MB
 ```
 
+The `and` and `or` rows predate the `2^9` floor; their POP and INSTW
+budgets of `2^8` are now refused.
+
 The prover runs a projection jet's instantiation as the machine's step,
 as Lean's honest run does ("The traces against Lean's honest tables",
 above). Avon's witness table counted it an instantiation, with the same
@@ -942,7 +945,7 @@ instantiations), byte for byte the prover's.
 
 `and` and `or` take `split8`'s source's templates, so their segments
 restart between instantiations. Without jets `csplit8` needs `2^19` rows
-and `2^20` memory and proves in 42 s; with them it fits `2^17` and
+and `2^20` memory and proves in 40 s; with them it fits `2^17` and
 `2^18`. Verifying takes 2.4 s on `split8` and 3.2 s on `csplit8`, Lean's
 checks included. On `split8`, `and` and `or`
 the wrong, clear and non-Boolean witnesses are refused (a segment does not
@@ -997,12 +1000,17 @@ What the theorem rests on:
   permutation traces, the quotient, FRI and the openings. The theorem's
   own content is the eight terminals' tree argument, with its error terms
   for non-generic challenges and aborts.
-- **The `2^8` floor has a margin of 48 values, 40 by Plonky3's count.**
-  With 100 FRI queries at arity 2 a table opens 200 base-field points and
-  two out-of-domain points, `|S| + 4 |Z| = 208`, against its 256 random
-  rows (`masks_hide`); Plonky3's `HidingFriPcs` asks `2 (100 + 8) = 216`.
-  The witness table and the providers sit at `2^8`, and POP and INSTW do
-  too at a budget of 8. `ski-air mask-margin PROOF…` prints each proof's
+- **The `2^9` floor has a margin of 204 values.** A query opens each
+  committed column at one point, so the column openings need
+  `q + 8 = 108` (`masks_hide`). Under hiding Plonky3 commits the quotient
+  chunks at twice the trace's height, so a query also opens the quotient
+  at a point whose square is the trace's, where the chunks recombine to a
+  function of the trace there and at its next row: three points a query,
+  `3q + 8 = 308`. Plonky3's `HidingFriPcs` asks `2 (100 + 8) = 216`.
+  Every committed table has at least `2^9` rows, 512 random rows: the
+  witness table and the providers are padded to it, and the statement
+  checks refuse a height or budget below 9 (`ComposedText.logOK`,
+  `ComposedPText.plogsOK`, `composed.rs`'s `LOG_BOUNDS`). `ski-air mask-margin PROOF…` prints each proof's
   margin from its heights, and `release/verify.sh` (step 14) checks every
   released zero-knowledge proof; `ski-air fs-budget` prints it after each
   hiding verification. More queries or a wider fold would need a higher
@@ -1184,11 +1192,9 @@ The proven figures stay where the low-degree test holds them.
 for every released proof, with the same grinding. Two costs follow. The
 query part, most of a proof, roughly doubles. And the hiding PCS's masking
 budget, `2 (queries + 4 · opening points)` random rows a table, which
-`masks_hide` also needs, rises from 216 to 422: the tables of `2^8` rows
-(the composed and hidden-term circuits' witness and minimum heights) must
-grow to `2^9`, which changes their statements' heights. Simulating the
-quotient's openings needs `3q + 8 = 617` mask points at 203 queries, so
-`2^10` rows. Rate `1/4` (124
+`masks_hide` also needs, rises from 216 to 422. The quotient's openings
+rise further, to `3q + 8 = 617` mask points, beyond the `2^9` floor: 203
+queries need tables of at least `2^10` rows. Rate `1/4` (124
 queries) or `1/8` (102) shortens proofs but doubles or quadruples the
 low-degree extension, and does not reach 100 bits for `csplit8`. 128 bits
 needs a larger extension field and a wider digest, a change to every Lean

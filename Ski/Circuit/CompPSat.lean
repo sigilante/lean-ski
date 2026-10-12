@@ -68,7 +68,7 @@ theorem witP_sat : Sat (witAirP N W) (witTableP A N W) := by
   have hl := witRowsP_length N W
   refine ⟨show 0 < (witRowsP N W).length by
     unfold witRowsP; simp only [List.length_append, List.length_replicate]
-    have := pow2From_ge 64 (2 ^ 8) ((List.range N).map (fun i => [ofN (3 + i), ofN 1, ofN 1]) ++
+    have := pow2From_ge 64 (2 ^ 9) ((List.range N).map (fun i => [ofN (3 + i), ofN 1, ofN 1]) ++
       (List.range W).map (fun i => [ofN (3 + N + i), ofN 1, ofN 0])).length
     simp only [List.length_append] at this
     unfold pow2Min

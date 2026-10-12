@@ -194,8 +194,9 @@ def parseHeader (ws : List String) : Option CStmt :=
 /-- The CPU's and the memory's log heights when a statement names none. -/
 def defaultLog : Nat × Nat := (11, 11)
 
-/-- The log heights a statement may name: each in `[8, 20]`. -/
-def logOK (lg : Nat × Nat) : Bool := 8 ≤ lg.1 && lg.1 ≤ 20 && 8 ≤ lg.2 && lg.2 ≤ 20
+/-- The log heights a statement may name: each in `[9, 20]`, so every
+    committed table of a hiding proof has at least `2^9` rows. -/
+def logOK (lg : Nat × Nat) : Bool := 9 ≤ lg.1 && lg.1 ≤ 20 && 9 ≤ lg.2 && lg.2 ≤ 20
 
 /-- **The statement** of a formula, a region size and the log heights of
     the CPU and the memory: `public.txt`.  The heap is the composed
@@ -242,7 +243,7 @@ def statementOfText (text : String) : Option (CStmt × Nat × (Nat × Nat)) := d
 
 /-- **A statement for the circuit with jets**: a composed statement whose
     `log R M Lp Li` line also fixes POP's and INSTW's log heights, each in
-    `[8, 20]`; parsed back only when it is exactly `publicTextC`'s text. -/
+    `[9, 20]`; parsed back only when it is exactly `publicTextC`'s text. -/
 def statementOfTextJ (text : String) : Option (CStmt × Nat × (Nat × Nat) × (Nat × Nat)) := do
   let ls := text.splitOn "\n"
   let c ← parseHeader (words (ls.getD 0 ""))

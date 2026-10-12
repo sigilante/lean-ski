@@ -9,10 +9,10 @@ heights that are the statement's budgets or public lengths: the CPU's `K`
 rows, the memory's cells, the public program, segment and level tables',
 the witness table's fixed height, the provider tables' (rows of the public
 jet table), and POP's, INSTW's, P2IN's, P2OUT's and the Poseidon2 table's
-budgets.  With the memory at `2^Lm` cells and the witness table at `2^8`
+budgets.  With the memory at `2^Lm` cells and the witness table at `2^9`
 rows, as the statement fixes them, no height depends on the witness, so
 `transcript_zkGH` applies with those heights.  Lean's provider tables are
-the jet table's rows; the Rust pads them to at least `2^8`
+the jet table's rows; the Rust pads them to at least `2^9`
 (`bench/plonky3/src/compj.rs`), and both are public.
 -/
 
@@ -21,7 +21,7 @@ namespace Circuit
 open ZKF B Air JetTable Compose CompM Mach
 
 /-- **The honest heights of the circuit with jets**: `K` CPU rows, `2^Lm`
-    memory cells, the public tables', `2^8` witness rows, the provider
+    memory cells, the public tables', `2^9` witness rows, the provider
     tables' rows, and the POP and INSTW budgets. -/
 theorem compJ_honest_heights (R : CRun) (hd0 stk0 ctr0 nilA : Nat) (heap : List Cell) (N W K HP HW Lm : Nat)
     (hlen : R.A.length = 2 ^ Lm) (hNW : N + W ≤ 2 ^ 8) :
@@ -31,9 +31,9 @@ theorem compJ_honest_heights (R : CRun) (hd0 stk0 ctr0 nilA : Nat) (heap : List 
       (progTableC heap N W) (witTable R.A N W) (segsPub R.segRoots)
       (provTableCJ (rootsRowsCJ R.jroots) (R.J.cntRoots K)) (provTableCJ (hdrRowsCJ R.jets) (R.J.cntHdr K))
       (provTableCJ (tmplRowsCJ R.jets) (R.J.cntTmpl K)) (R.J.popTable K HP) (R.J.instwTable K HW)) =
-    [K, 2 ^ Lm, (progTableC heap N W).h, 2 ^ 8, (segsPub R.segRoots).h, (rootsRowsCJ R.jroots).length,
+    [K, 2 ^ Lm, (progTableC heap N W).h, 2 ^ 9, (segsPub R.segRoots).h, (rootsRowsCJ R.jroots).length,
       (hdrRowsCJ R.jets).length, (tmplRowsCJ R.jets).length, HP, HW] := by
-  have hW : (witTable R.A N W).h = 2 ^ 8 := witRows_len hNW
+  have hW : (witTable R.A N W).h = 2 ^ 9 := witRows_len hNW
   show [K, R.A.length, (progTableC heap N W).h, (witTable R.A N W).h, (segsPub R.segRoots).h,
     (rootsRowsCJ R.jroots).length, (hdrRowsCJ R.jets).length, (tmplRowsCJ R.jets).length, HP, HW] = _
   rw [hlen, hW]

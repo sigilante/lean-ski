@@ -23,7 +23,7 @@
 //! - **Heights** are public budgets, all four the statement's (`log R M Lp
 //!   Li`, checked by `lake exe composed statement-jets`): fixed before the
 //!   witness, so no height reveals the run's size.  The provider tables are
-//!   padded to `2^8`, as the hiding PCS needs.
+//!   padded to `2^9`, as the hiding PCS needs.
 //! - **The blinding tree** has eight private tables and seven tuples:
 //!   `WIT —a— CPU —b— MEM`, `CPU —c— POP —d— INSTW —e— TMPL —f— HDR —g—
 //!   ROOTS`, each tuple sent from one end and received at the other
@@ -47,7 +47,7 @@ use witness::{witness_rows, WitTAir, WT_BLIND};
 const NAMES: [&str; 10] = ["cpu", "mem", "prog", "wit", "segs", "roots", "hdr", "tmpl", "pop", "instw"];
 
 /// POP's and INSTW's log heights: public budgets, the statement's
-/// `log R M Lp Li`, each in `[8, 20]` (at least `2^8` for the hiding PCS, at
+/// `log R M Lp Li`, each in `[9, 20]` (at least `2^9` for the hiding PCS, at
 /// most `2^20` for the height bound, `ZK-JETS.md` §4).
 #[derive(Clone, Copy, Debug)]
 pub struct JLogs {
