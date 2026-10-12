@@ -838,7 +838,7 @@ open Ski.Audit
 #audit_clean Circuit.sumTo_lsum Circuit.sumN_lsum Circuit.lsum_tdraws Circuit.closeD_of_transcriptG Circuit.comp_closeD
 
 -- The composed circuit as a PSD, its zero knowledge proved; the jet circuits' honest heights public
-#audit_clean Circuit.comp_entries Circuit.assigns_ne Circuit.tdraws_ne Circuit.compPSD
+#audit_clean Circuit.comp_entries Circuit.assigns_ne Circuit.tdraws_ne Circuit.compPSD Circuit.composeC
   Circuit.compJ_honest_heights Circuit.compP_honest_heights
 
 -- Fiat–Shamir round by round: adaptive hash calls, grinding, and the LogUp round under them

@@ -981,8 +981,11 @@ zero knowledge within `err` and witness indistinguishability within
 `compPSD` (`Ski/ZK/CompPSD.lean`) is the composed circuit's instance: its
 relation an accepted run within the statement's heights, its zero
 knowledge proved within an error the statement fixes, completeness,
-knowledge soundness and the PCS's closeness assumed. Not yet derived: the
-run from an accepted evaluation witness, for `composeD`. Two composed statements over a public hand-off
+knowledge soundness and the PCS's closeness assumed; `composeC` gives
+Part II's conclusions over it, a verified proof read back as a realizer
+(`composed_sound`), zero knowledge within `err` and witness
+indistinguishability within `2 · err` between accepted runs. The circuit
+is budget-exact: a realizer gets a proof when its run fits the heights. Two composed statements over a public hand-off
 prove the conjunction; a two-stage example is proved in zero knowledge, a
 proof per stage.
 
