@@ -989,9 +989,14 @@ indistinguishability within `2 · err` between accepted runs. From a
 realizer, `composeC_realizer` (`Ski/ZK/CompRun.lean`): its accepted bits
 and witness, encoded (`regionOf'_spec`), drive the composed machine to
 `K` segment by segment, and the run is accepted (`acceptsC_of_eval`)
-within the budget (`CBudget`: halted within `2^R` steps on at most
-`2^Lm` cells, the witness within `W` cells), which running the machine
-decides. Two composed statements over a public hand-off
+within the budget (`CBudget`: halted within `2^R` rows on at most `2^Lm`
+cells) with the witness within the region's `W` cells (`regionOf'`);
+`accepted_run` and `composeC_accepted` state it for any accepted bits and
+witness. The budget is a bounded property of the run, which running the
+machine checks; for the released `∨` Lean checks it by kernel evaluation
+and derives the run (`or_budget`, `or_run`). Under the relation's caps
+(heights `2^20`, bits and region `2^8`) a realizer whose evaluation needs
+more has no run. Two composed statements over a public hand-off
 prove the conjunction; a two-stage example is proved in zero knowledge, a
 proof per stage.
 

@@ -20,8 +20,11 @@ reading back its term applied to the bits and the witness
 (`cMachine_decode`), which evaluates to `K`, so the machine reaches a
 halted state reading back `K` (`reach_of_evalF`).  **The budget**
 (`CBudget`) is that the run is in its last segment, halted, by a step
-`T < 2^R`, on a heap of at most `2^Lm` cells: a decidable property of the
-statement and the witness, which running the machine checks.  Under it the
+`T < 2^R`, on a heap of at most `2^Lm` cells: a bounded property of the
+run, which running the machine checks; `Ski/ZK/CompRunEx.lean` proves it
+by kernel evaluation for the released `∨` statement.  `CRel`'s caps
+(heights `2^20`, bits and region `2^8` cells) bound what any statement
+can fit: a realizer whose evaluation needs more has no run.  Under it the
 run's rows, over its last heap padded to `2^Lm` cells, are accepted
 (`acceptsC_of_eval`), and so are in `CRel` (`crel_of_eval`).
 -/
@@ -643,7 +646,8 @@ end
 
 /-- **The budget**: the composed run of the statement, from the bits and
     the region, is halted in its last segment by a step `T < 2^R`, on a
-    heap of at most `2^Lm` cells.  Running the machine decides it. -/
+    heap of at most `2^Lm` cells: a bounded property of the run, which
+    running the machine checks (`or_budget`, by kernel evaluation). -/
 def CBudget (s : CStmt) (ρ : Nat → Bool) (region : List Cell) : Prop :=
   ∃ T, T < 2 ^ s.R ∧ (crun ρ s.shp region s.Ps T).2 = s.Ps.length - 1 ∧
     mstep (crun ρ s.shp region s.Ps T).1 = none ∧ (crun ρ s.shp region s.Ps T).1.heap.length ≤ 2 ^ s.Lm
@@ -857,6 +861,27 @@ theorem regionOf'_spec {N W : Nat} {w : Term} {region : List Cell} (h : Composed
 -- From a realizer to a proof
 -- ---------------------------------------------------------------------------
 
+/-- **An accepted witness within the budget has a run**: accepted bits `β`
+    and witness `w`, with the bits read off `β` and the region `regionOf'`
+    builds of `w`, at region size `W`, give a run in `CRel` when the
+    composed machine's run fits the statement's heights (`CBudget`). -/
+theorem accepted_run (M : MF) (W R Lm : Nat) (hR : R ≤ 20) (hLm : Lm ≤ 20)
+    (hNW : BT.nleaves (clear M) + W ≤ 2 ^ 8) :
+    ∀ β w, Accepts M β w →
+      ∀ region, ComposedText.regionOf' (BT.nleaves (clear M)) W w = some region →
+        CBudget ⟨clear M, stmtOf M, W, R, Lm⟩ (leafAt β) region →
+        ∃ run : CRun', CRel ⟨clear M, stmtOf M, W, R, Lm⟩ run ∧ run.ρ = leafAt β ∧ run.region = region := by
+  intro β w hacc region hreg hB
+  have hsame := same_of_shape M β hacc.1
+  have hfill : fillB (clear M) (leafAt β) 0 = β :=
+    fillB_leafAt _ _ hsame _ 0 (fun i _ => by rw [Nat.zero_add])
+  have hev : EvalRel (stmtOf M, SameShape (clear M)) (fillB (clear M) (leafAt β) 0) w := by
+    rw [hfill]; exact ⟨hsame, hacc.2⟩
+  obtain ⟨hrl, hrok, hw⟩ := regionOf'_spec hreg
+  obtain ⟨A, e, row, hc⟩ := crel_of_eval ⟨clear M, stmtOf M, W, R, Lm⟩ hR hLm hNW hrl hrok (hw _) hev
+    (stmtOf_pos M) hB
+  exact ⟨_, hc, rfl, rfl⟩
+
 /-- **Every realizer has a run, within the budget**: a realizer of the
     formula has accepted bits `β` and a witness `w` (`accepted_of_real`);
     with the bits read off `β` and the region `regionOf'` builds of `w`, at
@@ -870,16 +895,33 @@ theorem realizer_run (M : MF) (W R Lm : Nat) (hR : R ≤ 20) (hLm : Lm ≤ 20)
         ∃ run : CRun', CRel ⟨clear M, stmtOf M, W, R, Lm⟩ run ∧ run.ρ = leafAt β ∧ run.region = region := by
   intro r hr
   obtain ⟨β, w, hacc⟩ := accepted_of_real hr
-  refine ⟨β, w, hacc, fun region hreg hB => ?_⟩
-  have hsame := same_of_shape M β hacc.1
-  have hfill : fillB (clear M) (leafAt β) 0 = β :=
-    fillB_leafAt _ _ hsame _ 0 (fun i _ => by rw [Nat.zero_add])
-  have hev : EvalRel (stmtOf M, SameShape (clear M)) (fillB (clear M) (leafAt β) 0) w := by
-    rw [hfill]; exact ⟨hsame, hacc.2⟩
-  obtain ⟨hrl, hrok, hw⟩ := regionOf'_spec hreg
-  obtain ⟨A, e, row, hc⟩ := crel_of_eval ⟨clear M, stmtOf M, W, R, Lm⟩ hR hLm hNW hrl hrok (hw _) hev
-    (stmtOf_pos M) hB
-  exact ⟨_, hc, rfl, rfl⟩
+  exact ⟨β, w, hacc, accepted_run M W R Lm hR hLm hNW β w hacc⟩
+
+/-- **The composed circuit's completeness from an accepted witness**: for
+    accepted bits and witness whose run fits the budget, the run is in
+    `CRel` and the prover proves it: its proofs verify (the assumed
+    completeness), it aborts on at most `err` draws, and its proofs are
+    within `err` of the simulator's. -/
+theorem composeC_accepted {PV : Type} (off : EF → String → EF) (NR ε : Nat) (hNR : 0 < NR)
+    (pcs : CStmt → CRun' → (Nat → Tup) → EF → EF → Nat → PV) (psim : CStmt → EF → EF → List EF → Nat → PV)
+    (hpcs : ∀ s w, CRel s w → PCSCloseN off NR (ctv s w) (pcs s w) (psim s) ε)
+    (verify : CStmt → PV × EF × EF × List EF × (EF × EF) → Prop)
+    (ext : CStmt → PV × EF × EF × List EF × (EF × EF) → CRun')
+    (complete : ∀ s w, CRel s w → ∀ (d : EF × EF × Nat × (Nat → Tup)) π,
+      realVN off (ctabs s w) (ctv s w) (cpb s) (pcs s w) d.1 d.2.1 d.2.2.1 d.2.2.2 = some π → verify s π)
+    (knowledge : ∀ s π, verify s π → CRel s (ext s π))
+    (M : MF) (W R Lm : Nat) (hR : R ≤ 20) (hLm : Lm ≤ 20) (hNW : BT.nleaves (clear M) + W ≤ 2 ^ 8) :
+    let ps := compPSD off NR ε hNR pcs psim hpcs verify ext complete knowledge
+    let s : CStmt := ⟨clear M, stmtOf M, W, R, Lm⟩
+    ∀ β w, Accepts M β w →
+      ∀ region, ComposedText.regionOf' (BT.nleaves (clear M)) W w = some region →
+        CBudget s (leafAt β) region → ∃ run : CRun', CRel s run ∧ run.ρ = leafAt β ∧ run.region = region ∧
+          (∀ d π, ps.prove s run d = some π → ps.verify s π) ∧
+          cnt ps.draws (ps.prove s run) (fun o => o.isNone) ≤ ps.err s ∧
+          CloseD ps.draws (ps.err s) (ps.prove s run) (ps.sim s) := by
+  intro ps s β w hacc region hreg hB
+  obtain ⟨run, hc, hρ, hreg'⟩ := accepted_run M W R Lm hR hLm hNW β w hacc region hreg hB
+  exact ⟨run, hc, hρ, hreg', ps.complete s run hc, ps.aborts_le hc, ps.zk s run hc⟩
 
 /-- **The composed circuit's completeness from a realizer** (`composeD`'s
     first clause, for the circuit): every realizer of the formula has

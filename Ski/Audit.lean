@@ -69,6 +69,7 @@ import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
 import Ski.ZK.HeightsJ
 import Ski.ZK.CompRun
+import Ski.ZK.CompRunEx
 import Ski.ZK.FSRound
 import Ski.ComposedJ
 import Ski.Circuit.Flow
@@ -847,7 +848,8 @@ open Ski.Audit
   Circuit.decode_K Circuit.seg_run Circuit.citer_seg_mono Circuit.citer_seg_lt Circuit.decode_start
   Circuit.crun_heap Circuit.seg_from Circuit.segs Circuit.cend_eq Circuit.acceptsC_of_eval Circuit.crun_fits
   Circuit.crel_of_eval Circuit.same_of_shape Circuit.fillB_leafAt Circuit.build_len Circuit.build_wf
-  Circuit.regionOf'_spec Circuit.realizer_run Circuit.composeC_realizer
+  Circuit.regionOf'_spec Circuit.accepted_run Circuit.realizer_run Circuit.composeC_accepted
+  Circuit.composeC_realizer Circuit.or_region Circuit.or_budget Circuit.or_run
 
 -- Fiat–Shamir round by round: adaptive hash calls, grinding, and the LogUp round under them
 #audit_clean Circuit.seqSum_const Circuit.seqSum_mono Circuit.seqSum_add Circuit.fs_attempts Circuit.sumTo_pair
