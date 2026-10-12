@@ -342,11 +342,12 @@ theorem recOK_airG {AF : EF → EF → List EF → AirD} {g : F} {m : Nat} {preP
 theorem tabsHonest_gen {AF : EF → EF → List EF → AirD} {g : F} {m : Nat} {preP : Nat → List F} {gis : List Nat} {κ : F} {cs : List Chunk}
     {Hl : List F} {cl : F} {S : List F} {ζ : EF} {ws : List (EF → EF → List F)}
     {qs : List QGroup} {cols : (Nat → Tup) → EF → EF → List (List (List F))} (vt : (Nat → Tup) → EF → EF → List EF)
+    (good : (Nat → Tup) → EF → EF → Prop)
     (hgrp : ∀ j ∈ gis, ∃ hj : j < qs.length, (qs[j]'hj).base.T = cosetL 1 g (m + 1) ∧ (qs[j]'hj).base.S = S ∧
       (qs[j]'hj).base.Z = [ζ, (EF.ofF g).mul ζ] ∧ (qs[j]'hj).nxt = (g * ·) ∧
       (cosetL 1 g (m + 1) ++ (qs[j]'hj).base.R).Nodup ∧ (qs[j]'hj).base.R.length ≤ m + 1)
     (hcl' : ∀ t α β, ∀ j ∈ gis, j < (cols t α β).length)
-    (hsatT : ∀ t α β, ∃ Tb : Table, Sat (AF α β (vt t α β)) Tb ∧ Tb.h = m + 1 ∧
+    (hsatT : ∀ t α β, good t α β → ∃ Tb : Table, Sat (AF α β (vt t α β)) Tb ∧ Tb.h = m + 1 ∧
       (∀ c ∈ (AF α β (vt t α β)).cons, c.win (catAt (cols t α β) gis).length = true) ∧
       (∀ col ∈ catAt (cols t α β) gis, col.length = m + 1) ∧
       (∀ i (hi : i < (catAt (cols t α β) gis).length) r (hr : r < ((catAt (cols t α β) gis)[i]).length),
@@ -366,17 +367,17 @@ theorem tabsHonest_gen {AF : EF → EF → List EF → AirD} {g : F} {m : Nat} {
       ((allL cs Hl cl qs ql)[j]'hj).2.2.1 = finv (opv s' (allL cs Hl cl qs ql) j) * finv κ)
     (hok : ∀ c ∈ (airQTabG AF g m preP gis κ cs Hl cl S ζ ws).sets, c.OK)
     (hHn : ∀ ch ∈ cs, ch.H.Nodup) (hHln : Hl.Nodup) :
-    ∀ t α β ms, TabsHonest
+    ∀ t α β ms, good t α β → TabsHonest
       (fun c => c.JS α β (vt t α β) (openMulti (qs.map QGroup.ext) (cols t α β) ms))
       (fun c => c.Jζ α β (vt t α β) (openMulti (qs.map QGroup.ext) (cols t α β) ms))
       [airQTabG AF g m preP gis κ cs Hl cl S ζ ws]
       [airData (AF α β (vt t α β)) g m preP cs Hl ws α β
         (catAt (mpolysMulti (qs.map QGroup.ext) (cols t α β) ms) gis)] := by
-  intro t α β ms
+  intro t α β ms hgood
   let v := vt t α β
   let o := openMulti (qs.map QGroup.ext) (cols t α β) ms
   let mp := mpolysMulti (qs.map QGroup.ext) (cols t α β) ms
-  obtain ⟨Tb, hsat, hh, hwin, hlen, hval, hpre⟩ := hsatT t α β
+  obtain ⟨Tb, hsat, hh, hwin, hlen, hval, hpre⟩ := hsatT t α β hgood
   have hHlen : (cosetL 1 g (m + 1)).length = m + 1 := cosetL_length 1 g (m + 1)
   -- each group: honest openings and interpolating masked columns, with one mask slice
   have hgroup : ∀ j ∈ gis, ∃ R : List F, R.length ≤ m + 1 ∧
@@ -444,12 +445,30 @@ theorem tabsHonest_gen {AF : EF → EF → List EF → AirD} {g : F} {m : Nat} {
       rw [hdl _ (List.mem_append_right _ List.mem_cons_self)] at this
       exact this
 
+/-- **The canonical data are honest**: at any challenges, transcript
+    values and openings, the canonical chunks built from a table's
+    targets (`canonData`) meet `TabsHonest`. -/
+theorem tabsHonest_canon {T : QTab} (α β : EF) (v : List EF) (o : List (List (List F × List EF)))
+    (hok : ∀ c ∈ T.sets, c.OK) (hH : ∀ ch ∈ T.cs, ch.H.length = T.h ∧ ch.H.Nodup) (hHl : T.Hl.length = T.h)
+    (hHln : T.Hl.Nodup) :
+    TabsHonest (fun c => c.JS α β v o) (fun c => c.Jζ α β v o) [T] [canonData T.sets α β v o] := by
+  obtain ⟨rc, sc⟩ := recOK_canon α β v o T.sets hok
+  refine ⟨⟨hok, hH, hHl, hHln, rc, fun d hd => ?_⟩, trivial⟩
+  obtain ⟨c, hc, h1, h2⟩ := sc d hd
+  have hch : c.h = T.h := by
+    unfold QTab.sets at hc; obtain ⟨_, _, rfl⟩ := List.mem_map.1 hc; rfl
+  rw [hch] at h1 h2
+  exact ⟨h1, h2⟩
+
 /-- **The composed hiding PCS with a table over several groups**:
     `pcsCloseN_fri` at `airQTabG`, its constraints taken at the
-    challenges and the transcript's values, `TabsHonest` discharged by
-    `tabsHonest_gen`. -/
+    challenges and the transcript's values.  Where `good` holds (no
+    message of nonzero count has a vanishing denominator) the data are
+    the honest chunks, `TabsHonest` by `tabsHonest_gen`; elsewhere, where
+    Plonky3's prover aborts, the canonical chunks (`tabsHonest_canon`). -/
 theorem pcsCloseN_fri_gen {V : Type} {ks : List Nat} {ncw : Nat} {αb : EF} {fri : EF → EF → List (EF → EF) → V}
     (off : EF → String → EF) (tv : (String → EF) → EF → (Nat → Tup) → List EF)
+    (good : (Nat → Tup) → EF → EF → Prop) [∀ t α β, Decidable (good t α β)]
     {AF : EF → EF → List EF → AirD} {g : F} {m : Nat} {preP : Nat → List F} {gis : List Nat} {κ : F} {cs : List Chunk}
     {Hl : List F} {cl : F} {S : List F} {ζ : EF} {ws : List (EF → EF → List F)}
     {qs : List QGroup} {cols : (Nat → Tup) → EF → EF → List (List (List F))}
@@ -457,7 +476,7 @@ theorem pcsCloseN_fri_gen {V : Type} {ks : List Nat} {ncw : Nat} {αb : EF} {fri
       (qs[j]'hj).base.Z = [ζ, (EF.ofF g).mul ζ] ∧ (qs[j]'hj).nxt = (g * ·) ∧
       (cosetL 1 g (m + 1) ++ (qs[j]'hj).base.R).Nodup ∧ (qs[j]'hj).base.R.length ≤ m + 1)
     (hcl' : ∀ t α β, ∀ j ∈ gis, j < (cols t α β).length)
-    (hsatT : ∀ t α β, ∃ Tb : Table, Sat (AF α β (tv (prefixOf α (off β)) β t)) Tb ∧ Tb.h = m + 1 ∧
+    (hsatT : ∀ t α β, good t α β → ∃ Tb : Table, Sat (AF α β (tv (prefixOf α (off β)) β t)) Tb ∧ Tb.h = m + 1 ∧
       (∀ c ∈ (AF α β (tv (prefixOf α (off β)) β t)).cons, c.win (catAt (cols t α β) gis).length = true) ∧
       (∀ col ∈ catAt (cols t α β) gis, col.length = m + 1) ∧
       (∀ i (hi : i < (catAt (cols t α β) gis).length) r (hr : r < ((catAt (cols t α β) gis)[i]).length),
@@ -482,12 +501,22 @@ theorem pcsCloseN_fri_gen {V : Type} {ks : List Nat} {ncw : Nat} {αb : EF} {fri
     PCSCloseN off (P ^ (friN1 qs ks [airQTabG AF g m preP gis κ cs Hl cl S ζ ws] +
         friN2 qs [airQTabG AF g m preP gis κ cs Hl cl S ζ ws] ncw)) tv
       (pcsFri off tv qs ks cols [airQTabG AF g m preP gis κ cs Hl cl S ζ ws]
-        (fun t α β ms => [airData (AF α β (tv (prefixOf α (off β)) β t)) g m preP cs Hl ws α β
-          (catAt (mpolysMulti (qs.map QGroup.ext) (cols t α β) ms) gis)])
+        (fun t α β ms => [if good t α β then airData (AF α β (tv (prefixOf α (off β)) β t)) g m preP cs Hl ws α β
+          (catAt (mpolysMulti (qs.map QGroup.ext) (cols t α β) ms) gis)
+          else canonData (airQTabG AF g m preP gis κ cs Hl cl S ζ ws).sets α β (tv (prefixOf α (off β)) β t)
+            (openMulti (qs.map QGroup.ext) (cols t α β) ms)])
         ncw αb fri)
       (psimFri qs ks [airQTabG AF g m preP gis κ cs Hl cl S ζ ws] ncw αb fri) 0 :=
-  pcsCloseN_fri hokq hks hcols hdet haw hncw off tv
-    (tabsHonest_gen (fun t α β => tv (prefixOf α (off β)) β t) hgrp hcl' hsatT hg hinj hgd hpreL hζ hS hc hcl hκ
-      hshift hhalf hN hdom hL hD hDlq hsd hs hPsz hw hok hHn hHln)
+  pcsCloseN_fri hokq hks hcols hdet haw hncw off tv (fun t α β ms => by
+    by_cases hg' : good t α β
+    · rw [if_pos hg']
+      exact tabsHonest_gen (fun t α β => tv (prefixOf α (off β)) β t) good hgrp hcl' hsatT hg hinj hgd hpreL hζ hS hc
+        hcl hκ hshift hhalf hN hdom hL hD hDlq hsd hs hPsz hw hok hHn hHln t α β ms hg'
+    · rw [if_neg hg']
+      have hdl : ∀ H ∈ cs.map (·.H) ++ [Hl], H.length = m + 1 := fun H hH => by
+        rw [hdom] at hH; exact split_length hH
+      exact tabsHonest_canon α β _ _ hok
+        (fun ch hch => ⟨hdl _ (List.mem_append_left _ (List.mem_map_of_mem hch)), hHn ch hch⟩)
+        (hdl _ (List.mem_append_right _ List.mem_cons_self)) hHln)
 
 end Circuit

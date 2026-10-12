@@ -922,7 +922,7 @@ open Ski.Audit
 -- Quotient tables over several groups (the main and permutation traces)
 #audit_clean Circuit.openAll_honest Circuit.honest_append Circuit.ρOpen_honest_gen Circuit.ρOpenE_honest_gen
   Circuit.airTg_open_gen Circuit.airTgE_open_gen Circuit.coord_shows_gen Circuit.colsOn_mpolys Circuit.honest_cat
-  Circuit.colsOn_cat Circuit.recOK_airG Circuit.tabsHonest_gen Circuit.pcsCloseN_fri_gen
+  Circuit.colsOn_cat Circuit.recOK_airG Circuit.tabsHonest_gen Circuit.tabsHonest_canon Circuit.pcsCloseN_fri_gen
 -- LogUp's constraints as constraints: completeness and shape
 #audit_clean Circuit.fracQ_eval Circuit.lup_rows Circuit.lup_sat Circuit.QP_mul Circuit.lup_shape
   Circuit.corpus_lup_ok Circuit.base_lup_shape Circuit.corpus_withLup_shape Circuit.combV_horner
