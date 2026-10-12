@@ -10,9 +10,10 @@ degree at most `D`, and with at most `s` transition factors.  For the
 corpus circuit (`baseAirs`) the kernel checks these for every term:
 `D = 2` and `s = 1`.  Plonky3's chunk count is then `lq = 1`, four
 chunks (`get_log_num_quotient_chunks` with `is_zk`: `log2_ceil 2`).
-Plonky3's degree also counts the LogUp constraints; for this circuit each
-has degree 2 (`1 + deg` of degree-1 tuples, p3-lookup's
-`constraint_degree`), which no theorem here checks.
+Plonky3's degree also counts the LogUp constraints.  p3-lookup's formula
+for one interaction, `max(1 + deg(elements), deg(multiplicity))`, is read
+from its source; the kernel checks that its value is at most 2 on every
+interaction (`base_lup`).
 -/
 
 namespace Circuit
@@ -108,5 +109,21 @@ theorem pcsCloseN_fri_base {V : Type} {qs : List QGroup} {ks : List Nat} {cols :
       obtain ⟨Tb, h1, h2, h3, h4, h5⟩ := hsatT t' α β
       exact ⟨Tb, h1, h2, fun c hc => by rw [h3]; exact hwin c hc, h4, h5⟩)
     hgd hpreL hζ hS hD (by decide) hsd (by omega) (by show 2 * (2 * (m + 1) - 1) + 1 + 1 ≤ 2013265921; omega) hdetζ hS4
+
+/-- **A LogUp interaction's constraint degree**, as p3-lookup's
+    `constraint_degree_with_transition` computes it for one interaction:
+    `max(1 + deg(elements), deg(multiplicity))`, the degrees Plonky3's
+    (`E.pdeg`). -/
+def Inter.lupDeg (I : Inter) : Nat := max (1 + (I.fields.map E.pdeg).foldl max 0) I.count.pdeg
+
+set_option maxRecDepth 100000 in
+/-- **The corpus circuit's LogUp interactions have degree at most 2**, for
+    every term, so with the constraints' degree 2 Plonky3's `lq` is 1.
+    p3-lookup's formula is read from its source; the kernel checks its
+    value on the interactions. -/
+theorem base_lup (t : Term) : ∀ A ∈ baseAirs t, A.inters.all (fun I => decide (I.lupDeg ≤ 2)) = true := by
+  intro A hA
+  simp only [baseAirs, List.mem_cons, List.not_mem_nil, or_false] at hA
+  rcases hA with rfl | rfl | rfl <;> rfl
 
 end Circuit
