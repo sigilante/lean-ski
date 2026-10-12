@@ -8,20 +8,25 @@ and the blinding tuples `t` (`transcript_zkN` and its instances).  The
 prover draws both from one 128-bit seed per proof, expanded by ChaCha20
 (`bench/plonky3/src/seed.rs`).  This file states what that costs.
 
-`PRGClose NS NR m G δ`: for every test `D` of `(r, t)`, the fraction of the
-`NS` seeds whose expansion `G s` passes `D` is within `δ / (NS · K)` of the
-fraction of the uniform `(r, t)` that do, `K = NR · Q4^m` (as counts,
-cross-multiplied).  A pseudorandom generator is one whose `δ / (NS · K)` is
-small for every efficient test; that is an assumption about ChaCha20, not
-a theorem.
+`PRGClose C NS NR m G δ`: for every test `D` of `(r, t)` in the class `C`,
+the fraction of the `NS` seeds whose expansion `G s` passes `D` is within
+`δ / (NS · K)` of the fraction of the uniform `(r, t)` that do,
+`K = NR · Q4^m` (as counts, cross-multiplied).
 
-`prg_transfer` moves any count over the transcript's draws from uniform
-randomness to the seed's, at a cost of `δ` for each pair of challenges, and
-`transcript_prg` composes it with a transcript theorem: the real
+The class matters.  Over every test the hypothesis fails for any generator
+with fewer seeds than draws: the test "`(r, t)` is some `G s`" passes every
+seed and almost no uniform draw.  A pseudorandom generator fools the
+efficient tests only, so the theorems here take the smallest class they
+use, `TTests real`: the real transcript's event at fixed challenges, one
+test per pair `(α, β)`.  Each runs the honest prover on the witness, so it
+is efficient when the event is.  That ChaCha20 fools these tests is an
+assumption, not a theorem.
+
+`prg_transfer` moves the count of any event in the class from uniform
+randomness to the seed's, at a cost of `δ` for each pair of challenges,
+and `transcript_prg` composes it with a transcript theorem: the real
 transcript under the seed is within the transcript theorem's error plus
-the generator's of the simulator's.  The test is the event `E` applied to
-the real transcript at fixed challenges, so the reduction needs no more
-than that the generator fools those tests.
+the generator's of the simulator's.
 -/
 
 namespace Circuit
@@ -33,10 +38,12 @@ open ZKF
 def tsumG (NS : Nat) (G : Nat → Nat × (Nat → Tup)) (f : EF → EF → Nat → (Nat → Tup) → Nat) : Nat :=
   sumTo Q4 fun i => sumTo Q4 fun j => sumTo NS fun s => f (efOf i) (efOf j) (G s).1 (G s).2
 
-/-- **The generator's closeness**: every test's count over the seeds,
-    scaled, within `δ` of its count over uniform draws. -/
-def PRGClose (NS NR m : Nat) (G : Nat → Nat × (Nat → Tup)) (δ : Nat) : Prop :=
-  ∀ D : Nat → (Nat → Tup) → Bool,
+/-- **The generator's closeness on a class of tests**: every test in `C`
+    has its count over the seeds, scaled, within `δ` of its count over
+    uniform draws. -/
+def PRGClose (C : (Nat → (Nat → Tup) → Bool) → Prop) (NS NR m : Nat)
+    (G : Nat → Nat × (Nat → Tup)) (δ : Nat) : Prop :=
+  ∀ D : Nat → (Nat → Tup) → Bool, C D →
     sumTo NS (fun s => indB (D (G s).1 (G s).2)) * (NR * Q4 ^ m) ≤
       sumTo NR (fun r => sumN m (fun t => indB (D r t))) * NS + δ ∧
     sumTo NR (fun r => sumN m (fun t => indB (D r t))) * NS ≤
@@ -56,11 +63,18 @@ theorem sumTo_bound {f g : Nat → Nat} {a d : Nat} : ∀ n, (∀ i, i < n → f
   rw [sumTo_add, sumTo_const, ← sumTo_mulR] at h1
   exact h1
 
-/-- **Seeded counts track uniform ones**: for any event of the challenges
-    and draws, its count under the seed, scaled, is within `Q4 · Q4 · δ`
-    of its count under uniform draws. -/
-theorem prg_transfer {NS NR m δ : Nat} {G : Nat → Nat × (Nat → Tup)} (hG : PRGClose NS NR m G δ)
-    (f : EF → EF → Nat → (Nat → Tup) → Bool) :
+/-- The tests a transcript theorem needs of the generator: the event
+    `real α β` of the draws, at each fixed pair of challenges. -/
+def TTests (real : EF → EF → Nat → (Nat → Tup) → Bool) (D : Nat → (Nat → Tup) → Bool) : Prop :=
+  ∃ α β, D = real α β
+
+/-- **Seeded counts track uniform ones**: for an event of the challenges
+    and draws whose every slice at fixed challenges is in the class, its
+    count under the seed, scaled, is within `Q4 · Q4 · δ` of its count
+    under uniform draws. -/
+theorem prg_transfer {C : (Nat → (Nat → Tup) → Bool) → Prop} {NS NR m δ : Nat}
+    {G : Nat → Nat × (Nat → Tup)} (hG : PRGClose C NS NR m G δ)
+    (f : EF → EF → Nat → (Nat → Tup) → Bool) (hC : ∀ α β, C (f α β)) :
     tsumG NS G (fun α β r t => indB (f α β r t)) * (NR * Q4 ^ m) ≤
       tsumN NR m (fun α β r t => indB (f α β r t)) * NS + Q4 * (Q4 * δ) ∧
     tsumN NR m (fun α β r t => indB (f α β r t)) * NS ≤
@@ -70,19 +84,21 @@ theorem prg_transfer {NS NR m δ : Nat} {G : Nat → Nat × (Nat → Tup)} (hG :
   · rw [sumTo_mulR]
     refine sumTo_bound Q4 fun i _ => ?_
     rw [sumTo_mulR]
-    exact sumTo_bound Q4 fun j _ => (hG (f (efOf i) (efOf j))).1
+    exact sumTo_bound Q4 fun j _ => (hG (f (efOf i) (efOf j)) (hC _ _)).1
   · rw [sumTo_mulR]
     refine sumTo_bound Q4 fun i _ => ?_
     rw [sumTo_mulR]
-    exact sumTo_bound Q4 fun j _ => (hG (f (efOf i) (efOf j))).2
+    exact sumTo_bound Q4 fun j _ => (hG (f (efOf i) (efOf j)) (hC _ _)).2
 
 /-- **The seeded transcript is simulatable**: a transcript theorem's bound
     between the real and the simulated counts under uniform draws carries
     to the real transcript under the seed, plus the generator's `δ` for
     each pair of challenges.  Both sides are scaled to the common
-    denominator `NS · NR · Q4^m`. -/
-theorem transcript_prg {NS NR m δ e : Nat} {G : Nat → Nat × (Nat → Tup)} (hG : PRGClose NS NR m G δ)
+    denominator `NS · NR · Q4^m`.  The generator need fool only the
+    transcript's own tests (`TTests real`). -/
+theorem transcript_prg {NS NR m δ e : Nat} {G : Nat → Nat × (Nat → Tup)}
     (real sim : EF → EF → Nat → (Nat → Tup) → Bool)
+    (hG : PRGClose (TTests real) NS NR m G δ)
     (hzk : tsumN NR m (fun α β r t => indB (real α β r t)) ≤
         tsumN NR m (fun α β r t => indB (sim α β r t)) + e ∧
       tsumN NR m (fun α β r t => indB (sim α β r t)) ≤
@@ -91,7 +107,7 @@ theorem transcript_prg {NS NR m δ e : Nat} {G : Nat → Nat × (Nat → Tup)} (
         tsumN NR m (fun α β r t => indB (sim α β r t)) * NS + e * NS + Q4 * (Q4 * δ) ∧
       tsumN NR m (fun α β r t => indB (sim α β r t)) * NS ≤
         tsumG NS G (fun α β r t => indB (real α β r t)) * (NR * Q4 ^ m) + e * NS + Q4 * (Q4 * δ) := by
-  obtain ⟨h1, h2⟩ := prg_transfer hG real
+  obtain ⟨h1, h2⟩ := prg_transfer hG real (fun α β => ⟨α, β, rfl⟩)
   constructor
   · refine Nat.le_trans h1 (Nat.add_le_add_right ?_ _)
     rw [← Nat.add_mul]
