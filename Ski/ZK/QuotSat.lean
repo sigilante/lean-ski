@@ -21,8 +21,10 @@ polynomials that interpolate the table on `⟨g⟩`, the leaves' values at
 `shows_sat` puts the pieces together: for a table that meets `Sat`, its honest
 quotient chunks, over Plonky3's selector polynomials, show the AIR's
 targets.  `quot_length_le` bounds the quotient by the constraints'
-degree, and `quot_fits` shows that bound fits Plonky3's ZK chunk count:
-`2^(lq+1)` chunks of `N` points, `D ≤ 2^lq`.
+degree.  `quot_fits` shows the quotient fits Plonky3's ZK chunk count,
+`2^(lq+1)` chunks of `N` points with `D ≤ 2^lq`, in Plonky3's own degree
+`E.pdeg`: the transition selector `X - g⁻¹` counts `0`, and each such
+factor adds one coefficient (`E.sdeg`).
 -/
 
 namespace Circuit
@@ -166,29 +168,103 @@ theorem shows_sat {A : AirD} {T : Table} {g : F} {m : Nat} (hsat : Sat A T) (hh 
   shows_air hζ hc hcl _ ws A.cons _ (cosetL_one_nodup hinj)
     (hvan_of_sat hsat hh hg hinj hgd main pre hmain hpre) hP hS hZ hq
 
+/-- **Plonky3's degree** of an expression, in units of the trace's
+    degree: columns and the first- and last-row selectors count `1`, the
+    transition selector `X - g⁻¹` counts `0` (`SymbolicExpression`'s
+    `degree_multiple`). -/
+def E.pdeg : E → Nat
+  | .atom .trans => 0
+  | .atom _ => 1
+  | .const _ => 0
+  | .add a b | .sub a b => max a.pdeg b.pdeg
+  | .mul a b => a.pdeg + b.pdeg
+  | .neg a => a.pdeg
+
+/-- The extra coefficients transition factors add: one each. -/
+def E.sdeg : E → Nat
+  | .atom .trans => 1
+  | .atom _ => 0
+  | .const _ => 0
+  | .add a b | .sub a b => max a.sdeg b.sdeg
+  | .mul a b => a.sdeg + b.sdeg
+  | .neg a => a.sdeg
+
+theorem len_max {la lb da db sa sb m : Nat} (ha : la ≤ da * m + sa + 1) (hb : lb ≤ db * m + sb + 1) :
+    max la lb ≤ max da db * m + max sa sb + 1 := by
+  have h1 : da * m ≤ max da db * m := Nat.mul_le_mul_right m (Nat.le_max_left da db)
+  have h2 : db * m ≤ max da db * m := Nat.mul_le_mul_right m (Nat.le_max_right da db)
+  have h3 := Nat.le_max_left sa sb
+  have h4 := Nat.le_max_right sa sb
+  exact Nat.max_le.2 ⟨by omega, by omega⟩
+
+/-- **The polynomial's size in Plonky3's degree**: at most
+    `pdeg · m + sdeg + 1` coefficients, leaves of at most `m + 1` and the
+    transition selector of at most `2`. -/
+theorem epoly_plen (ρ : Atom → List F) (m : Nat) (hρ : ∀ a, a ≠ .trans → (ρ a).length ≤ m + 1)
+    (ht : (ρ .trans).length ≤ 2) : ∀ e : E, (e.fpoly ρ).length ≤ e.pdeg * m + e.sdeg + 1
+  | .atom .trans => by show (ρ .trans).length ≤ 0 * m + 1 + 1; omega
+  | .atom .first => by show (ρ .first).length ≤ 1 * m + 0 + 1; have := hρ .first (by decide); omega
+  | .atom .last => by show (ρ .last).length ≤ 1 * m + 0 + 1; have := hρ .last (by decide); omega
+  | .atom (.main o i) => by show (ρ _).length ≤ 1 * m + 0 + 1; have := hρ (.main o i) Atom.noConfusion; omega
+  | .atom (.pre o i) => by show (ρ _).length ≤ 1 * m + 0 + 1; have := hρ (.pre o i) Atom.noConfusion; omega
+  | .const _ => by show 1 ≤ 0 * m + 0 + 1; omega
+  | .add a b => by
+    show (fcadd _ _).length ≤ max a.pdeg b.pdeg * m + max a.sdeg b.sdeg + 1
+    exact Nat.le_trans (fcadd_length _ _) (len_max (epoly_plen ρ m hρ ht a) (epoly_plen ρ m hρ ht b))
+  | .sub a b => by
+    show (fcadd _ (fcscale _ _)).length ≤ max a.pdeg b.pdeg * m + max a.sdeg b.sdeg + 1
+    have := fcadd_length (a.fpoly ρ) (fcscale (-1) (b.fpoly ρ))
+    rw [fcscale_length] at this
+    exact Nat.le_trans this (len_max (epoly_plen ρ m hρ ht a) (epoly_plen ρ m hρ ht b))
+  | .mul a b => by
+    have ha := epoly_plen ρ m hρ ht a; have hb := epoly_plen ρ m hρ ht b
+    show (fmul _ _).length ≤ (a.pdeg + b.pdeg) * m + (a.sdeg + b.sdeg) + 1
+    rw [Nat.add_mul]
+    by_cases hq : b.fpoly ρ = []
+    · have := fmul_len_le (a.fpoly ρ) (b.fpoly ρ)
+      rw [hq, List.length_nil] at this; rw [hq]
+      omega
+    · have := fmul_length (a.fpoly ρ) (b.fpoly ρ) hq
+      omega
+  | .neg a => by
+    show (fcscale _ _).length ≤ a.pdeg * m + a.sdeg + 1; rw [fcscale_length]; exact epoly_plen ρ m hρ ht a
+
+theorem cpoly_plen (ρ : Atom → List F) (m D s : Nat) (hρ : ∀ a, a ≠ .trans → (ρ a).length ≤ m + 1)
+    (ht : (ρ .trans).length ≤ 2) (ws : List F) (es : List E) (hD : ∀ e ∈ es, e.pdeg ≤ D) (hs : ∀ e ∈ es, e.sdeg ≤ s) :
+    (cpoly ρ ws es).length ≤ D * m + s + 1 :=
+  foldP_length _ ws _ (fun p hp => by
+    obtain ⟨e, he, rfl⟩ := List.mem_map.1 hp
+    have := epoly_plen ρ m hρ ht e
+    have := Nat.mul_le_mul_right m (hD e he)
+    have := hs e he
+    omega)
+
 /-- **Plonky3's chunk count fits the quotient** under ZK: a trace of `N`
-    rows has polynomials of `2N` coefficients, and `2^(lq+1)` chunks of
-    `N` points each with `D ≤ 2^lq` (`get_log_num_quotient_chunks`,
-    `num_quotient_chunks = 1 << (lq + is_zk)`).  Then, for `N ≥ 1`,
-    `D (2N - 1) + 1 - N ≤ 2^(lq+1) N`. -/
-theorem p3_deg (D N lq : Nat) (hN : 0 < N) (hD : D ≤ 2 ^ lq) : D * (2 * N - 1) + 1 - N ≤ 2 ^ (lq + 1) * N := by
+    rows has polynomials of `2N` coefficients, and there are `2^(lq+1)`
+    chunks of `N` points each, with `D ≤ 2^lq` for Plonky3's degree `D`
+    (`get_log_num_quotient_chunks`, `num_quotient_chunks = 1 << (lq +
+    is_zk)`).  Then `D (2N - 1) + s + 1 - N ≤ 2^(lq+1) N` when `s < N`. -/
+theorem p3_deg (D N lq s : Nat) (hs : s < N) (hD : D ≤ 2 ^ lq) : D * (2 * N - 1) + s + 1 - N ≤ 2 ^ (lq + 1) * N := by
   rcases N with _ | N
-  · exact absurd hN (Nat.lt_irrefl 0)
+  · exact absurd hs (Nat.not_lt_zero s)
   · have h1 : D * (2 * (N + 1) - 1) ≤ D * (2 * (N + 1)) := Nat.mul_le_mul_left D (by omega)
     have h2 : D * (2 * (N + 1)) ≤ 2 ^ lq * (2 * (N + 1)) := Nat.mul_le_mul_right _ hD
     have h3 : 2 ^ lq * (2 * (N + 1)) = 2 ^ (lq + 1) * (N + 1) := by
       rw [Nat.pow_succ, Nat.mul_assoc]
     omega
 
-/-- **The honest quotient fits Plonky3's chunks**: constraints of degree at
-    most `D ≤ 2^lq` over leaves of at most `2N` coefficients, divided by a
-    trace domain of `N` points, leave at most `2^(lq+1) N` coefficients,
-    the bound `QuotOK` asks of `2^(lq+1)` chunks of `N` points. -/
-theorem quot_fits (ρ : Atom → List F) (N D lq : Nat) (hN : 0 < N) (hρ : ∀ a, (ρ a).length ≤ 2 * N) (ws : List F)
-    (es : List E) (hD : ∀ e ∈ es, e.deg ≤ D) (hlq : D ≤ 2 ^ lq) (H : List F) (hH : H.length = N) :
+/-- **The honest quotient fits Plonky3's chunks**: constraints of Plonky3
+    degree at most `D ≤ 2^lq`, with at most `s < N` transition factors,
+    over leaves of at most `2N` coefficients and the transition selector
+    of `2`, divided by a trace domain of `N` points, leave at most
+    `2^(lq+1) N` coefficients, the bound `QuotOK` asks of `2^(lq+1)`
+    chunks of `N` points. -/
+theorem quot_fits (ρ : Atom → List F) (N D lq s : Nat) (hρ : ∀ a, a ≠ .trans → (ρ a).length ≤ 2 * N)
+    (ht : (ρ .trans).length ≤ 2) (ws : List F) (es : List E) (hD : ∀ e ∈ es, e.pdeg ≤ D)
+    (hsd : ∀ e ∈ es, e.sdeg ≤ s) (hs : s < N) (hlq : D ≤ 2 ^ lq) (H : List F) (hH : H.length = N) :
     (fdivH H (cpoly ρ ws es)).length ≤ 2 ^ (lq + 1) * N := by
-  have := quot_length_le ρ (2 * N - 1) D (fun a => by have := hρ a; omega) ws es hD H
-  rw [hH] at this
-  exact Nat.le_trans this (p3_deg D N lq hN hlq)
+  have := cpoly_plen ρ (2 * N - 1) D s (fun a ha => by have := hρ a ha; omega) ht ws es hD hsd
+  rw [fdivH_length, hH]
+  exact Nat.le_trans (Nat.sub_le_sub_right this N) (p3_deg D N lq s hs hlq)
 
 end Circuit

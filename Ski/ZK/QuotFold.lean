@@ -11,15 +11,21 @@ verifier recombines the four coordinates in the extension's basis
 `Z_H`.  `fold_back` shows the coordinates recombine to the full fold:
 `Σ_k e_k Σ_j (αʲ)_k c_j = Σ_j αʲ c_j`, for base values `c_j` read in the
 extension.  So the four per-coordinate targets at `ζ`, recombined, are
-the verifier's `Σ_j αʲ c_j(ζ) / Z_H(ζ)` (`airTgE_back`).
+`Σ_j αʲ c_j(ζ) / Z_H(ζ)`, the folded constraints the verifier divides
+by `Z_H(ζ)`, times the model's chunk normalization `1 / (κ ∏_j v_j(ζ))`
+(`airTgE_back`).
 
-A constraint over the extension, such as LogUp's, is a `Q`: four base
-expressions, one per coordinate.  Its coordinates enter the base fold
-with weights `αʲ X^m` (`wq`, `eq4`), and they fold back to `αʲ` times
-the constraint's value `Σ_m X^m q_m` (`fold_ext`, `airTgE_ext`).  A
-constraint whose value vanishes on `H` vanishes coordinate by
-coordinate (`hvan_eq4`).  Challenges enter such a constraint as
-constants, fixed before the quotient, in the public-coin model.
+Plonky3 folds a constraint over the extension, such as LogUp's, in the
+extension (`assert_zero_ext`, `ext_alpha_powers`).  Such a constraint is
+a `Q`, four base expressions `q_m`.  Since each `q_m` is a base value,
+coordinate `k` of `αʲ Σ_m X^m q_m` is `Σ_m (αʲ X^m)_k q_m`.  So the
+model folds the coordinates `eq4` with the weights `wq`, and they fold
+back to `αʲ` times the constraint's value (`fold_ext`, `airTgE_ext`).
+Base and extension constraints in one sequence of powers recombine to
+the sum of the two folds (`airTgE_mixed`).  A constraint whose value
+vanishes on `H` vanishes coordinate by coordinate (`hvan_eq4`).
+Challenges enter such a constraint as constants, fixed before the
+quotient, in the public-coin model.
 -/
 
 namespace Circuit
@@ -175,5 +181,30 @@ theorem hvan_eq4 (ρ : Atom → List F) (H : List F) :
     rcases List.mem_cons.1 he with rfl | he
     · exact h3
     exact hvan_eq4 ρ H cons (fun q' hq' => h q' (List.mem_cons_of_mem _ hq')) e he x hx
+
+theorem foldEE_append : ∀ (w1 v1 w2 v2 : List EF), w1.length = v1.length →
+    foldEE (w1 ++ w2) (v1 ++ v2) = (foldEE w1 v1).add (foldEE w2 v2)
+  | [], [], w2, v2, _ => by show foldEE w2 v2 = EF.zero.add _; rw [EF.zero_add]
+  | w :: w1, v :: v1, w2, v2, h => by
+    show (w.mul v).add (foldEE (w1 ++ w2) (v1 ++ v2)) = ((w.mul v).add (foldEE w1 v1)).add _
+    rw [foldEE_append w1 v1 w2 v2 (Nat.succ.inj h), EF.add_assoc]
+
+/-- **Base and extension constraints in one fold**: Plonky3 draws one
+    power of `α` for each constraint, base or extension.  With the base
+    constraints `esb` weighted by `αb` and the extension constraints
+    `cons` by `αe`, the four coordinates' targets recombine to the sum of
+    the two folds over the common denominator. -/
+theorem airTgE_mixed (ζ : EF) (cs : List Chunk) (Hl : List F) (cl : F) (qs : List (List F)) (ql : List F) (κ : F)
+    (H : List F) (αb αe : List EF) (esb : List E) (cons : List Q) (hb : αb.length = esb.length)
+    (he : αe.length = cons.length) (ρE : Atom → EF) :
+    recomb (airTgE ζ cs Hl cl qs ql κ H ((αb ++ wq αe).map (·.x0)) (esb ++ eq4 cons) ρE)
+      (airTgE ζ cs Hl cl qs ql κ H ((αb ++ wq αe).map (·.x1)) (esb ++ eq4 cons) ρE)
+      (airTgE ζ cs Hl cl qs ql κ H ((αb ++ wq αe).map (·.x2)) (esb ++ eq4 cons) ρE)
+      (airTgE ζ cs Hl cl qs ql κ H ((αb ++ wq αe).map (·.x3)) (esb ++ eq4 cons) ρE) =
+    ((foldEE αb (esb.map (·.evalE ρE))).add
+      (foldEE αe (cons.map fun q => recomb (q.q0.evalE ρE) (q.q1.evalE ρE) (q.q2.evalE ρE) (q.q3.evalE ρE)))).mul
+      ((fvalE ζ (fvan H)).mul ((EF.ofF κ).mul (fvalE ζ (rpoly.ppoly (allL cs Hl cl qs ql))))).inv := by
+  rw [airTgE_back, List.map_append, foldEE_append _ _ _ _ (by rw [List.length_map]; exact hb), ← vq_eq,
+    fold_ext ρE αe cons he]
 
 end Circuit
