@@ -8,16 +8,20 @@ A `Compose.PSD` instance for the composed circuit, its zero knowledge
 proved.  The relation is the circuit's: a statement (a shape of bits, the
 terms, the region size, the heights) and an accepted run of its composed
 machine within the heights, from literal bits and a well-formed region
-(`CRel`, `comp_completeG_log`'s hypotheses).  The prover's proof at a draw
+(`CRel`, `comp_completeG_log`'s hypotheses, `Fits A` among them).  The prover's proof at a draw
 is the real transcript of the honest tables the run gives (`comp_honest_zk`);
 the simulator's is `simVN`, from the statement alone.
 
 Zero knowledge is proved: `comp_honest_zk` and `transcript_zkG` give
 `CloseD` over the generic draws `tdraws NR 2`, with an error that depends
 on the statement alone, the message count `cM` its heights fix
-(`comp_entries`).  Completeness, knowledge soundness and the PCS's
-closeness are the STARK's, assumed: the constructor `compPSD` takes them
-as arguments.  What the relation does not give is the step from an
+(`comp_entries`): `M/P^4 + ε/NR` counted against all the draws, that over
+`1 - P^-2` over the generic ones.  Completeness, knowledge soundness and
+the PCS's closeness stand for the STARK's, assumed: the constructor
+`compPSD` takes them as arguments, and its type does not tie them to the
+STARK; zero knowledge uses only the PCS's closeness.  The proof view is
+`transcript_zkG`'s, without the heights, which the statement fixes
+(`R`, `Lm`; `transcript_zkGH` adds them).  What the relation does not give is the step from an
 accepted evaluation witness, bits and a term, to an accepted run within
 the heights.
 -/
@@ -52,7 +56,7 @@ def CRel (s : CStmt) (w : CRun') : Prop :=
     (∀ i c, w.region[i]? = some c → cellOK (BT.nleaves s.shp + 3 + i) c = true) ∧
     AcceptsC w.A (cMachine w.ρ s.shp w.region s.Ps) (cHeap w.ρ s.shp w.region s.Ps).2
       (cHeap w.ρ s.shp w.region s.Ps).1.length s.Ps.length w.e w.row ∧
-    w.A.length = 2 ^ s.Lm ∧ w.e (s.Ps.length - 1) < 2 ^ s.R
+    Fits w.A ∧ w.A.length = 2 ^ s.Lm ∧ w.e (s.Ps.length - 1) < 2 ^ s.R
 
 section
 variable (s : CStmt) (w : CRun')
@@ -96,7 +100,7 @@ end
     statement's. -/
 theorem comp_entries {s : CStmt} {w : CRun'} (h : CRel s w) (t : Nat → Tup) :
     (allEntries (ctabs s w t)).length = cM s := by
-  obtain ⟨_, _, hNW, _, _, _, hlen, _⟩ := h
+  obtain ⟨_, _, hNW, _, _, _, _, hlen, _⟩ := h
   have hW : (hWt s w).h = 2 ^ 8 := witRows_len hNW
   have hM : (hMm s w).h = 2 ^ s.Lm := hlen
   unfold ctabs cM
@@ -168,7 +172,7 @@ def compPSD {PV : Type} (off : EF → String → EF) (NR ε : Nat) (hNR : 0 < NR
   knowledge := knowledge
   zk s w h := by
     have h' := h
-    obtain ⟨hR, hLm, hNW, hrl, hr, hA, hlen, hK⟩ := h'
+    obtain ⟨hR, hLm, hNW, hrl, hr, hA, _, hlen, hK⟩ := h'
     obtain ⟨hb, hu⟩ := comp_honest_zk hR hrl hr hA hlen hLm hK hNW
     refine closeD_of_transcriptG (V := Option (PV × EF × EF × List EF × (EF × EF))) (NR := NR) (m := 2)
       (real := fun α β r t => realVN off (ctabs s w) (ctv s w) (cpb s) (pcs s w) α β r t)
