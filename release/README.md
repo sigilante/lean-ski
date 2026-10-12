@@ -164,7 +164,7 @@ The theorems are in namespace `Circuit` unless prefixed.
     budget `2^15`, or with the jet table Lean computes without the closure
     rule, it is refused.
 12. **`csplit8` with jets, under hiding.** `skilark/csplit8/jets`, the
-    same at `log 18 19 17 17`, a height below the plain proof's.
+    same at `log 17 18 15 16`, a height below the plain proof's.
 13. **The Poseidon2 jet.** `p2` holds three statements and their proofs.
     `verify.sh` checks that each statement is Lean's: `p2pre`'s, for a
     fresh secret input, by `lake exe composed check-p2pre`, which takes
