@@ -857,6 +857,8 @@ open Ski.Audit
 #audit_clean Circuit.chunks_shiftV Circuit.chunksView_eq Circuit.vanish_of_open_rel Circuit.vsum_dshift
   Circuit.wsumR_rcomb Circuit.lcv_chunkPoly Circuit.rows_rel Circuit.firstPolys_get Circuit.firstDiffs_get
   Circuit.rcomb_sl Circuit.cwShift_get Circuit.chunkDiffs_get Circuit.cw_entry Circuit.cw_rows
+#audit_clean Circuit.csets_shift Circuit.csView_sets Circuit.tab_rel Circuit.relAll_append Circuit.cwRel_append
+  Circuit.relAll_of_get Circuit.cwRel_of_get Circuit.pieces_vadd Circuit.tab_all
 
 -- Part II's interface with an additive distance: the errors add, the hybrid argument proved
 #audit_clean Compose.lsum_le Compose.lsum_add Compose.lsum_const Compose.lsum_comm Compose.lsum_prod
