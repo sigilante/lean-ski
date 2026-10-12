@@ -521,4 +521,28 @@ theorem tabsHonest_corpus (term : Term) {A : AirD} (hA : A ∈ baseAirs term) {g
     (fun α β v c hc => (shape α β v c hc).2.2.1) hDlq (fun α β v c hc => (shape α β v c hc).2.2.2) hs hPsz hw hok
     hHn hHln
 
+-- ---------------------------------------------------------------------------
+-- The abort: no abort, no vanishing denominator
+-- ---------------------------------------------------------------------------
+
+/-- **Where the proof does not abort, `goodLup` holds**: `Aborts` flags
+    any message, of any count, with a vanishing denominator, so on the
+    challenges where the transcript is shown (`realVN` is `none` on an
+    abort, and the transcript theorems charge those challenges by
+    `abort_count`) no message of nonzero count has one. -/
+theorem goodLup_of_noAbort {A : AirD} {off : EF → String → EF} {tab : (Nat → Tup) → EF → EF → Table}
+    {ts : (Nat → Tup) → EF → EF → List (AirD × Table)} {t : Nat → Tup} {α β : EF}
+    (hmem : (A, tab t α β) ∈ ts t α β) (h : Aborts (prefixOf α (off β)) β (ts t α β) = false) :
+    goodLup A (fun α β => prefixOf α (off β)) tab t α β := by
+  intro I hI r hr _ e
+  have hent : ((I.bus, I.fields.map (·.eval ((tab t α β).env r))), I.count.eval ((tab t α β).env r)) ∈
+      allEntries (ts t α β) := by
+    unfold allEntries
+    refine List.mem_flatMap.2 ⟨(A, tab t α β), hmem, ?_⟩
+    unfold entries
+    exact List.mem_flatMap.2 ⟨r, List.mem_range.2 hr, List.mem_map.2 ⟨I, hI, rfl⟩⟩
+  unfold Aborts at h
+  have := List.any_eq_false.1 h _ hent
+  exact this (decide_eq_true e)
+
 end Circuit

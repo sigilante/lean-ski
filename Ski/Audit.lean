@@ -927,7 +927,7 @@ open Ski.Audit
 #audit_clean Circuit.fracQ_eval Circuit.lup_rows Circuit.lup_sat Circuit.QP_mul Circuit.lup_shape
   Circuit.corpus_lup_ok Circuit.base_lup_shape Circuit.corpus_withLup_shape Circuit.combV_horner
   Circuit.accV_terminal Circuit.lup_sat_terminal Circuit.cols_withPerm Circuit.hsatT_lup Circuit.corpus_plain
-  Circuit.tabsHonest_corpus
+  Circuit.tabsHonest_corpus Circuit.goodLup_of_noAbort
 
 -- Part II's interface with an additive distance: the errors add, the hybrid argument proved
 #audit_clean Compose.lsum_le Compose.lsum_add Compose.lsum_const Compose.lsum_comm Compose.lsum_prod
