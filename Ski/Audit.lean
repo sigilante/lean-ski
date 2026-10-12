@@ -73,6 +73,7 @@ import Ski.ZK.MaskGen
 import Ski.ZK.MaskCom
 import Ski.ZK.MaskRec
 import Ski.ZK.MaskCoset
+import Ski.ZK.MaskSplit
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -877,6 +878,9 @@ open Ski.Audit
 #audit_clean Circuit.fval_coset Circuit.pr_rot Circuit.pr_inv Circuit.coset_const Circuit.opv_congr
   Circuit.sel_of_coset Circuit.quotOK_of_coset Circuit.cdiv Circuit.cdivE Circuit.qtg_ctg Circuit.qtgE_ctgE
   Circuit.chunkOf_eval Circuit.dis_of_nodup Circuit.quotOK_honest
+-- Plonky3's split domains: cosets of one subgroup, no repeated points (BabyBear's generators)
+#audit_clean Circuit.fpow_inj Circuit.split_nodup Circuit.split_pow Circuit.quotOK_split Circuit.bbGen_chain
+  Circuit.bbGen_half Circuit.bb_split
 
 -- Part II's interface with an additive distance: the errors add, the hybrid argument proved
 #audit_clean Compose.lsum_le Compose.lsum_add Compose.lsum_const Compose.lsum_comm Compose.lsum_prod
