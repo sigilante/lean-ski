@@ -341,8 +341,13 @@ where
 /// lookup grinding are read from the configuration.
 /// **The masking margin** (`masks_hide`, `Ski/ZK/MaskOOD.lean`): a table
 /// of `n` rows, masked by `n` random rows, hides its openings when
-/// `|S| + 4 |Z| <= n`, `S` the base-field points FRI opens (two a query at
-/// arity 2) and `Z` the two out-of-domain points, four coordinates each.
+/// `|S| + 4 |Z| <= n`, `S` the base-field points FRI opens and `Z` the two
+/// out-of-domain points, four coordinates each.  A query opens each column
+/// at one point; this counts two a query, conservatively.  Simulating the
+/// quotient's openings would need three a query (`3q + 8`): the chunks are
+/// committed at twice the trace's height, so a query opens them at a point
+/// whose square is the trace's, and they depend on the trace there and at
+/// its next row.
 /// Plonky3's `HidingFriPcs` asks `2 (queries + 4 · opening points)`, a
 /// little more.  Under hiding a table's degree bits count its rows and as
 /// many random rows: the trace has half.  Whether the smallest table meets

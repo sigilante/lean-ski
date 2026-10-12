@@ -873,9 +873,14 @@ simulator emits those (`transcript_zkGH`, `Ski/ZK/Heights.lean`) for the
 composed, Sudoku and hidden-term circuits; the jet circuits' honest
 heights are the budgets and public lengths (`compJ_honest_heights`,
 `compP_honest_heights`). The margin
-check counts two points a query; simulating the quotient's openings would
-need `S` closed under the shift, up to 408 points, more than the smallest
-tables' 256 rows. The
+check counts two points a query, where the column openings need one. The
+quotient needs more: under hiding Plonky3 commits the quotient chunks at
+twice the trace's height, so a query also opens the quotient at `x_Q`, with
+`x_Q^2 = g_F x`, and `Q(x_Q)` depends on the trace at `x_Q` and `g x_Q`. The
+masks must cover `3q + 8 = 308` points, more than the 256 rows of the `2^8`
+tables every released hiding proof but the Sudoku's has: that step needs
+`2^9` rows, at most 82 queries, or an argument that the quotient adds
+nothing. The
 masked column openings hide for tables of several heights, each over its
 own domain (`masks_hide_multi`, `pcsCloseN_multi` in
 `Ski/ZK/MaskMulti.lean`), and every hiding circuit's transcript theorem

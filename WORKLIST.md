@@ -93,6 +93,11 @@ and its claim table moves to the docs, where `release/README.md` already holds i
   calls per proof over computed bits: a P2IN that walks a list, as P2OUT writes one.
   Arvo binds nothing here; it replays its log. Needed only to prove a kernel's history
   to someone who lacks the log.
+- The quotient's openings under hiding: Plonky3 commits the chunks at twice the trace's
+  height, so a query touches the trace at three points (`3q + 8 = 308` mask points at
+  `q = 100`), more than the released `2^8` tables' 256 rows (all hiding proofs but the
+  Sudoku's). Grow those tables to `2^9`, cut to 82 queries, or prove the quotient adds
+  nothing; part of proving the hiding PCS.
 - Proven 100-bit parameters: 203 queries at rate 1/2, and the `2^8` tables grown to
   `2^9`, which changes statements' heights (`bench/plonky3/README.md`).
 - FRI, the quotient's hiding and round-by-round soundness, proved rather than assumed;

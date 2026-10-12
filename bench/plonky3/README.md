@@ -1186,7 +1186,9 @@ query part, most of a proof, roughly doubles. And the hiding PCS's masking
 budget, `2 (queries + 4 · opening points)` random rows a table, which
 `masks_hide` also needs, rises from 216 to 422: the tables of `2^8` rows
 (the composed and hidden-term circuits' witness and minimum heights) must
-grow to `2^9`, which changes their statements' heights. Rate `1/4` (124
+grow to `2^9`, which changes their statements' heights. Simulating the
+quotient's openings needs `3q + 8 = 617` mask points at 203 queries, so
+`2^10` rows. Rate `1/4` (124
 queries) or `1/8` (102) shortens proofs but doubles or quadruples the
 low-degree extension, and does not reach 100 bits for `csplit8`. 128 bits
 needs a larger extension field and a wider digest, a change to every Lean

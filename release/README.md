@@ -45,7 +45,7 @@ forgeries the sections below list.
 | A Poseidon2 preimage of `h` | `p2/` | 12 | `p2preExport_sound` |
 | A hidden hand-off over one commitment | `p2/` | 12 | `p2commitExport_sound`, `p2commit_chainB` |
 | A kernel's poke with a private entropy reply | `entropy/` | 13 | `entropyExport_sound` |
-| Every zero-knowledge proof has the random rows its hiding needs | all but `sumto/` | 14 | `masks_hide`'s hypothesis, `\|S\| + 4\|Z\| ≤ n` with two points a query, 48 to spare (40 by Plonky3's own count); simulating the quotient's openings would need `S` closed under the shift, up to 408 points, more than the smallest tables' 256 rows |
+| Every zero-knowledge proof has the random rows its hiding needs | all but `sumto/` | 14 | `masks_hide`'s hypothesis, `\|S\| + 4\|Z\| ≤ n` with two points a query (the column openings need one), 48 to spare (40 by Plonky3's own count); simulating the quotient's openings, which Plonky3 commits at twice the trace's height, would need `3q + 8 = 308` points, more than the smallest tables' 256 rows |
 | Every byte of a zero-knowledge proof lies in a field of the view the transcript theorems simulate | all but `sumto/` | 15 | `ski-air proof-shape`: the bytes are the fields' own encoding; the PCS's view, the terminals, the heights, and two proof-of-work witnesses unique given the transcript |
 
 The theorems are in namespace `Circuit` unless prefixed.
