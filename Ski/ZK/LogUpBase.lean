@@ -364,18 +364,21 @@ theorem accV_terminal (pre : String → EF) (β : EF) (A : AirD) (Tb : Table) :
     meets `Sat` for an AIR whose constraints and interactions lie in its
     columns, with the honest permutation columns appended, meets `Sat` for
     the AIR with LogUp's constraints at the terminal the transcript
-    publishes, when no message's denominator vanishes. -/
+    publishes, when no message of nonzero count has a vanishing
+    denominator. -/
 theorem lup_sat_terminal {A : AirD} {Tb : Table} (h : Sat A Tb) (pre : String → EF) (β : EF)
     (hA : ∀ c ∈ A.cons, c.win A.width = true)
     (hI : ∀ I ∈ A.inters, (∀ e ∈ I.fields, e.win A.width = true) ∧ I.count.win A.width = true)
-    (hden : ∀ I ∈ A.inters, ∀ r, r < Tb.h → den pre β I.bus (I.fields.map (·.eval (Tb.env r))) ≠ EF.zero) :
+    (hden : ∀ I ∈ A.inters, ∀ r, r < Tb.h → I.count.eval (Tb.env r) ≠ 0 →
+      den pre β I.bus (I.fields.map (·.eval (Tb.env r))) ≠ EF.zero) :
     Sat (withLup A (busAlphas pre A) β (terminal pre β A Tb) A.width (corpusLs A))
       (withPerm Tb (busAlphas pre A) β (corpusLs A) A.width) := by
   rw [← accV_terminal]
   refine lup_sat h _ β _ _ hA (fun L hL => ?_) (fun c hc r hr => ?_)
   · obtain ⟨I, hI', rfl⟩ := List.mem_map.1 hL
     exact hI I hI'
-  · have hlen : (corpusLs A).length = A.inters.length := by unfold corpusLs; rw [List.length_map]
+  · intro hm0
+    have hlen : (corpusLs A).length = A.inters.length := by unfold corpusLs; rw [List.length_map]
     rw [hlen] at hc
     have e1 : (corpusLs A).getD c ([], .const 0) = ((A.inters.getD c interD).fields, (A.inters.getD c interD).count) := by
       unfold corpusLs
@@ -383,8 +386,9 @@ theorem lup_sat_terminal {A : AirD} {Tb : Table} (h : Sat A Tb) (pre : String �
       rfl
     have hmem : A.inters.getD c interD ∈ A.inters := by
       rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hc, Option.getD_some]; exact List.getElem_mem hc
-    rw [e1, combV_horner]
-    exact hden _ hmem r hr
+    rw [e1] at hm0 ⊢
+    rw [combV_horner]
+    exact hden _ hmem r hr hm0
 
 theorem plain_wmono {w W d : Nat} {e : E} (h : Plain w d e) (hW : w ≤ W) : Plain W d e :=
   ⟨h.1, win_mono hW e h.2.1, h.2.2⟩
@@ -405,7 +409,8 @@ theorem hsatT_lup {A : AirD} {m gm gp k : Nat} (pre : EF → EF → String → E
       (cols t α β).getD gm [] = mainCols Tb A.width ∧
       (cols t α β).getD gp [] = permCols Tb (busAlphas (pre α β) A) β (corpusLs A) ∧
       (vt t α β).getD k EF.zero = terminal (pre α β) β A Tb ∧
-      (∀ I ∈ A.inters, ∀ r, r < Tb.h → den (pre α β) β I.bus (I.fields.map (·.eval (Tb.env r))) ≠ EF.zero) ∧
+      (∀ I ∈ A.inters, ∀ r, r < Tb.h → I.count.eval (Tb.env r) ≠ 0 →
+        den (pre α β) β I.bus (I.fields.map (·.eval (Tb.env r))) ≠ EF.zero) ∧
       (∀ r i, r < m + 1 → fval (fpow g r) (preP i) = Tb.pre r i)) :
     ∀ t α β, ∃ Tb : Table,
       Sat ((fun α β v => withLup A (busAlphas (pre α β) A) β (v.getD k EF.zero) A.width (corpusLs A)) α β (vt t α β)) Tb ∧
@@ -469,7 +474,8 @@ theorem tabsHonest_corpus (term : Term) {A : AirD} (hA : A ∈ baseAirs term) {g
       (cols t α β).getD gm [] = mainCols Tb A.width ∧
       (cols t α β).getD gp [] = permCols Tb (busAlphas (pre α β) A) β (corpusLs A) ∧
       (vt t α β).getD k EF.zero = terminal (pre α β) β A Tb ∧
-      (∀ I ∈ A.inters, ∀ r, r < Tb.h → den (pre α β) β I.bus (I.fields.map (·.eval (Tb.env r))) ≠ EF.zero) ∧
+      (∀ I ∈ A.inters, ∀ r, r < Tb.h → I.count.eval (Tb.env r) ≠ 0 →
+        den (pre α β) β I.bus (I.fields.map (·.eval (Tb.env r))) ≠ EF.zero) ∧
       (∀ r i, r < m + 1 → fval (fpow g r) (preP i) = Tb.pre r i))
     (hg : fpow g (m + 1) = 1) (hinj : ∀ a b, a < m + 1 → b < m + 1 → fpow g a = fpow g b → a = b)
     (hpreL : ∀ i, (preP i).length ≤ 2 * (m + 1))

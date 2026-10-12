@@ -21,8 +21,8 @@ are a family in `α, β` and the terminal (`lupCons`).  Their coordinates
 
 `lup_sat` is LogUp's completeness, row by row: the honest fractions
 `f_c = m_c / (α_c - comb_β)` and the running sum as the accumulator, with
-the terminal the total, meet every constraint on a table whose rows
-have no vanishing denominator.
+the terminal the total, meet every constraint on a table where no
+message of nonzero count has a vanishing denominator.
 
 Each lookup `c` has its own `α`, `αs c`: in p3-batch-stark its bus's
 prefix `α + (i + 1) β^W` (`permutation_challenges`), so AIRs with
@@ -204,7 +204,7 @@ theorem ofF1_mul (x : EF) : (EF.ofF 1).mul x = x := by rw [show EF.ofF 1 = EF.on
     denominator vanishes. -/
 theorem lup_rows (Tb : Table) (αs : Nat → EF) (β : EF) (Ls : List (List E × E)) (w : Nat)
     (hwin : ∀ L ∈ Ls, (∀ e ∈ L.1, e.win w = true) ∧ L.2.win w = true)
-    (hden : ∀ c, c < Ls.length → ∀ r, r < Tb.h →
+    (hden : ∀ c, c < Ls.length → ∀ r, r < Tb.h → (Ls.getD c ([], .const 0)).2.eval (Tb.env r) ≠ 0 →
       (αs c).sub (combV β ((Ls.getD c ([], .const 0)).1.map (·.eval (Tb.env r)))) ≠ EF.zero) :
     ∀ q ∈ lupCons αs β (accV Tb αs β Ls Tb.h) w Ls, ∀ r, r < Tb.h →
       q.eval ((withPerm Tb αs β Ls w).env r) = EF.zero := by
@@ -230,7 +230,9 @@ theorem lup_rows (Tb : Table) (αs : Nat → EF) (β : EF) (Ls : List (List E ×
     show _ = EF.zero
     unfold permV
     rw [if_neg (by omega), show c + 1 - 1 = c by omega]
-    exact frac_cancel _ _ (hden c hc r hr)
+    by_cases hm0 : (Ls.getD c ([], .const 0)).2.eval (Tb.env r) = 0
+    · unfold fV; rw [hm0, EF.ofF_zero_mul, EF.mul_zero]; exact EF.sub_self _
+    · exact frac_cancel _ _ (hden c hc r hr hm0)
   · have hfs : (sumQ 0 ((List.range Ls.length).map fun c => w + 4 * (c + 1))).eval
         ((withPerm Tb αs β Ls w).env r) = fsum Tb αs β Ls r (List.range Ls.length) := sumQ_eval Tb αs β Ls w r hr _
     have hacc : ∀ o, (QV w o).eval ((withPerm Tb αs β Ls w).env r) = accV Tb αs β Ls ((r + o) % Tb.h) := fun o => by
@@ -293,12 +295,12 @@ def withLup (A : AirD) (αs : Nat → EF) (β terminal : EF) (w : Nat) (Ls : Lis
 /-- **LogUp's completeness, row by row**: a table that meets `Sat` for an
     AIR whose `w` columns hold every constraint's and lookup's leaves,
     with the honest permutation columns appended, meets `Sat` for the AIR
-    with LogUp's constraints, the terminal the total, when no denominator
-    vanishes. -/
+    with LogUp's constraints, the terminal the total, when no message of
+    nonzero count has a vanishing denominator (as Plonky3's prover asks). -/
 theorem lup_sat {A : AirD} {Tb : Table} (h : Sat A Tb) (αs : Nat → EF) (β : EF) (Ls : List (List E × E)) (w : Nat)
     (hA : ∀ c ∈ A.cons, c.win w = true)
     (hwin : ∀ L ∈ Ls, (∀ e ∈ L.1, e.win w = true) ∧ L.2.win w = true)
-    (hden : ∀ c, c < Ls.length → ∀ r, r < Tb.h →
+    (hden : ∀ c, c < Ls.length → ∀ r, r < Tb.h → (Ls.getD c ([], .const 0)).2.eval (Tb.env r) ≠ 0 →
       (αs c).sub (combV β ((Ls.getD c ([], .const 0)).1.map (·.eval (Tb.env r)))) ≠ EF.zero) :
     Sat (withLup A αs β (accV Tb αs β Ls Tb.h) w Ls) (withPerm Tb αs β Ls w) := by
   refine ⟨h.1, fun c hc r hr => ?_⟩
