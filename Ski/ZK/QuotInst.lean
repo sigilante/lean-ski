@@ -17,7 +17,8 @@ The hypotheses are of three kinds.
   `PCSCloseN` quantifies over every tuple assignment `t` and every
   challenge pair, so this is stronger than completeness, which gives
   `Sat` only for accepted runs.  A trace builder meets it when it falls
-  back to one fixed accepting table on inputs it does not accept.
+  back to one fixed accepting table of the same shape on inputs it does
+  not accept.
 - **The group:** its trace points are `⟨g⟩` and its next-row map is
   `g ·`; its out-of-domain points are `ζ, g ζ`; its masks lie off the
   trace.

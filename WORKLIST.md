@@ -49,7 +49,7 @@ is built; this file records what is next. Last revised 2026-10-10.
   them (`Ski/ZK/QuotOpen.lean`, `shows_open`). An AIR's quotient table enters `pcsCloseN_fri` with
   `TabsHonest` discharged (`Ski/ZK/QuotInst.lean`, `tabsHonest_air`, `pcsCloseN_fri_air`).
   `hsatT` asks `Sat` at every tuple assignment, more than
-  completeness gives. Open: a trace builder that falls back to a fixed accepting table; the
+  completeness gives. Open: a trace builder that falls back to a fixed accepting table of the same shape; the
   composed statement for a multi-AIR circuit (each table discharges alone, `tabsHonest_cons`); the folding challenge sampled in the transcript
   rather than fixed; a named circuit's static facts checked by the kernel. The coordinates fold back to the
   verifier's fold times the model's chunk normalization, and extension constraints, folded by coordinates, agree with Plonky3's
