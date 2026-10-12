@@ -5,11 +5,14 @@ import Ski.Circuit.Selectors
 # The corpus circuit's AIR facts
 
 `pcsCloseN_fri_bb` asks of an AIR's constraints that they be guarded,
-within the window of offsets 0 and 1 over the AIR's width, of Plonky3
+with main leaves at offsets 0 and 1 below the AIR's width, of Plonky3
 degree at most `D`, and with at most `s` transition factors.  For the
 corpus circuit (`baseAirs`) the kernel checks these for every term:
 `D = 2` and `s = 1`.  Plonky3's chunk count is then `lq = 1`, four
 chunks (`get_log_num_quotient_chunks` with `is_zk`: `log2_ceil 2`).
+Plonky3's degree also counts the LogUp constraints; for this circuit each
+has degree 2 (`1 + deg` of degree-1 tuples, p3-lookup's
+`constraint_degree`), which no theorem here checks.
 -/
 
 namespace Circuit
@@ -43,11 +46,12 @@ theorem base_facts (t : Term) {A : AirD} (hA : A ∈ baseAirs t) :
 /-- **The composed hiding PCS for a corpus AIR over BabyBear**:
     `pcsCloseN_fri_bb` with the AIR facts checked by the kernel
     (`base_facts`): Plonky3 degree `2`, so `lq = 1` and four chunks on the
-    quotient domain of `2^(tb+3)` points, `31 · ⟨bbGen (tb+3)⟩`.  Left: the
-    group's shape, a table meeting `Sat` with the AIR's width at each
-    trace, the preprocessed columns' size, the query points (off the
-    trace, `|S| + 4 ≤ N`) and the out-of-domain point (`ζ` generating the
-    extension). -/
+    quotient domain of `2^(tb+3)` points, `31 · ⟨bbGen (tb+3)⟩`, for
+    `tb ≤ 24`.  Left: the group's trace and mask points and next row
+    (`hT`, `hRq`, `hZq`, `hnxt`, Plonky3's interleaving), a table meeting
+    `Sat` with the AIR's width at each trace, the preprocessed columns'
+    size, the query points (off the trace, `|S| + 4 ≤ m + 1`) and the
+    out-of-domain point (`ζ` generating the extension). -/
 theorem pcsCloseN_fri_base {V : Type} {qs : List QGroup} {ks : List Nat} {cols : (Nat → Tup) → EF → EF → List (List (List F))}
     {ncw : Nat} {αb : EF} {fri : EF → EF → List (EF → EF) → V}
     (hokq : ∀ q ∈ qs, q.OK) (hks : ks.length = qs.length)
