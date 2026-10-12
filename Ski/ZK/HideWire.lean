@@ -16,10 +16,10 @@ tables (`enc3`), so:
 
 Accepted tables give the unblinded `Sat` (`SudOK`, `WitOK`, `CompOK`).
 The preprocessed columns, interpolated on the trace domain, give `hb`'s
-preprocessed part for any table (`preInterp_spec`).  A circuit's private
-tables each meet `tabsHonest_corpus_ite`, and `pcsCloseN_fri_tabs`
-combines them into the `PCSCloseN` its transcript theorem takes as
-`hpcs`.
+preprocessed part for any table (`preInterp_spec`).  A private table
+meeting `hb` and the domain facts gives `tabsHonest_corpus_ite`, and
+`pcsCloseN_fri_tabs` combines a circuit's into the `PCSCloseN` its
+transcript theorem takes as `hpcs`; no circuit is instantiated yet.
 -/
 
 namespace Circuit
