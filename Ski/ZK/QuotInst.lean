@@ -30,7 +30,9 @@ The hypotheses are of three kinds.
 The weight lists `ws` are the base coordinates of the folding
 challenge's powers: a fixed folding challenge, independent of the masks.
 The theorem holds for each value, and the model does not sample it.
-The theorem covers one quotient table, that of the group `gi`.
+The theorem covers one quotient table, that of the group `gi`; a
+circuit with several AIRs discharges each table alone and combines them
+(`tabsHonest_cons`).
 Fiat–Shamir and the Merkle commitments' hiding stay assumed, as in
 `pcsCloseN_fri`.
 -/
@@ -346,5 +348,13 @@ theorem pcsCloseN_fri_air {V : Type} {qs : List QGroup} {ks : List Nat} {cols : 
   pcsCloseN_fri hokq hks hcols hdet haw hncw off tv (fun t α β ms =>
     tabsHonest_air hgi hcl' hT hRq hSq hZq hnq hnxt hsatT hg hinj hgd hR hnd hpreL hζ hS hc hcl hκ hshift hhalf hN
       hdom hL hD hDlq hsd hs hPsz hw hok hHn hHln t α β ms _)
+
+/-- **Tables combine**: `TabsHonest` for each table alone gives it for the
+    list, so a circuit with several AIRs discharges one `airQTab` per AIR,
+    each by `tabsHonest_air`. -/
+theorem tabsHonest_cons {JS : CSet → F → F} {JE : CSet → EF} {T : QTab} {d : List (List (List F) × List F)}
+    {Ts : List QTab} {ds : List (List (List (List F) × List F))} (h : TabsHonest JS JE [T] [d])
+    (hs : TabsHonest JS JE Ts ds) : TabsHonest JS JE (T :: Ts) (d :: ds) :=
+  ⟨h.1, hs⟩
 
 end Circuit
