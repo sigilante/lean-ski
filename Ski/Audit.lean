@@ -83,6 +83,7 @@ import Ski.ZK.QuotOpen
 import Ski.ZK.QuotInst
 import Ski.ZK.QuotP3
 import Ski.ZK.QuotBase
+import Ski.ZK.QuotTwo
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -916,6 +917,10 @@ open Ski.Audit
   Circuit.pcsCloseN_fri_bb
 -- The corpus circuit's AIR facts
 #audit_clean Circuit.base_p3ok Circuit.base_facts Circuit.pcsCloseN_fri_base Circuit.base_lup
+-- Quotient tables over several groups (the main and permutation traces)
+#audit_clean Circuit.openAll_honest Circuit.honest_append Circuit.ρOpen_honest_gen Circuit.ρOpenE_honest_gen
+  Circuit.airTg_open_gen Circuit.airTgE_open_gen Circuit.coord_shows_gen Circuit.colsOn_mpolys Circuit.honest_cat
+  Circuit.colsOn_cat Circuit.recOK_airG Circuit.tabsHonest_gen
 
 -- Part II's interface with an additive distance: the errors add, the hybrid argument proved
 #audit_clean Compose.lsum_le Compose.lsum_add Compose.lsum_const Compose.lsum_comm Compose.lsum_prod
