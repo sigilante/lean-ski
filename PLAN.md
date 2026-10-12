@@ -888,8 +888,12 @@ holds over that PCS with no PCS term (`*_transcriptG_masked`). With the
 quotient's recombined values at the query points in the view, functions
 of the terminals and the columns at `s` and `g s`, the same holds when the
 masks cover `2|S| + 4|Z|` points, `2q + 8` (`pcsCloseN_quot`,
-`*_transcriptG_quot`, `Ski/ZK/MaskQuot.lean`); the chunks' own values,
-their split and randomization stay assumed. Every
+`*_transcriptG_quot`, `Ski/ZK/MaskQuot.lean`). With every quotient
+column's opened chunks in the view too, randomized as Plonky3 does, the
+same holds when `|S| + 4 ≤ n`, `ζ` generates the extension (failing for a
+uniform `ζ` with probability `p^-2`, about `2^-62`) and the honest chunks
+show the quotient (`RecOK`, read from Plonky3's source)
+(`pcsCloseN_chunks`, `*_transcriptG_chunks`, `Ski/ZK/MaskChunk.lean`). Every
 byte of a released hiding proof lies in a field of that view: `ski-air
 proof-shape` (`release/verify.sh` step 15) refuses a proof whose bytes
 are not its fields' own encoding, and proofs of one statement differ in
@@ -952,8 +956,10 @@ column's openings at `|S|` points of `F` and `|Z|` of the extension
 independent of the trace when `|S| + 4|Z| ≤ n` (`masks_hide`), in the
 public-coin interactive model with the points independent of the masks.
 Applied with `S ++ gS`, since the quotient's recombined values couple to
-the next row (`pcsCloseN_quot`). The quotient's chunks, the randomization polynomial, the codeword
-columns, FRI, Merkle salts and
+the next row (`pcsCloseN_quot`), and its chunks hide all but what the
+verifier recombines (`pcsCloseN_chunks`), given that the honest chunks show
+the quotient (`RecOK`). The randomization polynomial, the
+codeword columns, FRI, Merkle salts and
 Fiat–Shamir stay assumed. For a PCS whose view is exactly these openings,
 `PCSCloseN` holds with `ε = 0` (`Ski/ZK/MaskPCS.lean`); for Plonky3's, it
 stays a hypothesis. The prover's secret randomness is one 128-bit seed per

@@ -5,6 +5,14 @@ is built; this file records what is next. Last revised 2026-10-10.
 
 ## Done since the last revision
 
+- **The quotient's chunks hide** (`Ski/ZK/MaskChunk.lean`, `Ski/ZK/Solve4.lean`): Plonky3's
+  chunk randomization, `q_i + v_i r_i` with the last chunk's `r` cancelling the others',
+  hides all but what the verifier sees: a chunk on its own domain (a query point can lie
+  there) and the normalized recombination elsewhere (`chunks_hide`, `chunks_sim`). The PCS
+  with every quotient column's opened chunks meets `PCSCloseN` exactly
+  (`pcsCloseN_chunks`, `*_transcriptG_chunks`), when `|S| + 4 ≤ n`, `ζ` generates the
+  extension (`solve_spec`, `mz_gen_det`; a uniform `ζ` fails with probability about
+  `2^-62`), and the honest chunks show the quotient (`RecOK`, read from Plonky3's source).
 - **The quotient's recombined values hide** (`Ski/ZK/MaskQuot.lean`): the chunks sit
   at the committed trace's height, so a query opens them at the trace's point `s`, where they
   recombine to a function of the terminals and the masked columns at `s` and `g s`.
@@ -111,12 +119,11 @@ and its claim table moves to the docs, where `release/README.md` already holds i
   calls per proof over computed bits: a P2IN that walks a list, as P2OUT writes one.
   Arvo binds nothing here; it replays its log. Needed only to prove a kernel's history
   to someone who lacks the log.
-- The quotient's chunks under hiding: their split and randomization, so that a
-  simulator can open each chunk, not only the recombined value `pcsCloseN_quot`
-  simulates; part of proving the hiding PCS.
+- The rest of the hiding PCS: the randomization polynomial and the random codeword
+  columns, simple next to the chunks; FRI's layers and Merkle salts.
 - Proven 100-bit parameters: 203 queries at rate 1/2; the masks then need 422 points,
   within the `2^9` floor (`bench/plonky3/README.md`).
-- FRI, the quotient chunks' hiding and round-by-round soundness, proved rather than assumed;
+- FRI and round-by-round soundness, proved rather than assumed;
   Fiat–Shamir.
 - Probe segments under the hiding; ∀ over public inputs; aggregation.
 - Remote CI for lean-ski: waits on the public release.
