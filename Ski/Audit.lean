@@ -102,6 +102,7 @@ import Ski.ZK.FSInst
 import Ski.ZK.FSOpen
 import Ski.ZK.FSOpenFri
 import Ski.ZK.FSOpenInst
+import Ski.ZK.FSRounds
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -1159,3 +1160,5 @@ open Ski.Audit
 -- Each circuit under Fiat–Shamir, the commitment opened
 #audit_clean Circuit.sudCols_main Circuit.witCols_main Circuit.compCols_main Circuit.sud_fs_open Circuit.wit_fs_open
   Circuit.comp_fs_open
+-- Fiat–Shamir over two rounds
+#audit_clean Circuit.fs_zkc Circuit.fs_zk2
