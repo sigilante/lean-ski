@@ -70,8 +70,11 @@ is built; this file records what is next. Last revised 2026-10-10.
   terminal, so completeness holds at the transcript's terminal of any table meeting `Sat`
   (`accV_terminal`, `lup_sat_terminal`). The committed main and permutation groups are that
   table's columns, so a corpus AIR's table with its LogUp constraints is honest from the
-  builder's facts (`cols_withPerm`, `hsatT_lup`, `tabsHonest_corpus`). Open: the transcript
-  view's terminal index and the builder's groups named for each circuit, with `Sat` and the
+  builder's facts (`cols_withPerm`, `hsatT_lup`, `tabsHonest_corpus`). Open: the
+  denominators at every challenge pair, which `hb` asks and a fixed fallback cannot meet
+  (some `α` makes a public message's denominator vanish): the composed theorem must quantify
+  over challenges outside the abort set and charge its mass to `ε`; the transcript view's
+  terminal index and the builder's groups named for each circuit, with `Sat` and the
   denominators at each circuit's blinded tables; a circuit's builder with its fixed
   accepting fallback table of the same shape (`fallback` combines them), and the group's
   trace and mask points tied to the committed matrices (`hT`, `hRq`).

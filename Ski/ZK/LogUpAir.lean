@@ -201,7 +201,7 @@ theorem ofF1_mul (x : EF) : (EF.ofF 1).mul x = x := by rw [show EF.ofF 1 = EF.on
 /-- **Every LogUp constraint holds on the honest table**: on every row, each
     constraint of `lupCons` with the terminal the total sum, when the
     lookups' tuples and multiplicities are in the AIR's window and no
-    denominator vanishes. -/
+    message of nonzero count has a vanishing denominator. -/
 theorem lup_rows (Tb : Table) (αs : Nat → EF) (β : EF) (Ls : List (List E × E)) (w : Nat)
     (hwin : ∀ L ∈ Ls, (∀ e ∈ L.1, e.win w = true) ∧ L.2.win w = true)
     (hden : ∀ c, c < Ls.length → ∀ r, r < Tb.h → (Ls.getD c ([], .const 0)).2.eval (Tb.env r) ≠ 0 →

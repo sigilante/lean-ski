@@ -17,8 +17,9 @@ the kernel checks the elements and multiplicities (`corpus_lup_ok`).
 
 With each lookup's `α` its bus prefix, the honest accumulator's total is
 the transcript's `terminal pre β A Tb` (`accV_terminal`), so LogUp's
-completeness holds at the terminal the transcript publishes, when no
-message's denominator vanishes (`lup_sat_terminal`).
+completeness holds at the transcript's terminal of any table meeting
+`Sat`, when no message of nonzero count has a vanishing denominator
+(`lup_sat_terminal`).
 
 The committed groups: the main group's columns and the permutation
 group's flattened columns, concatenated, are the table with its
@@ -397,7 +398,7 @@ theorem plain_wmono {w W d : Nat} {e : E} (h : Plain w d e) (hW : w ≤ W) : Pla
     at each trace and challenge pair, group `gm` holds a table `Tb` that
     meets `Sat` and group `gp` the honest permutation columns, the
     transcript's value at index `k` is the table's terminal, and no
-    message's denominator vanishes.  Then the two groups, concatenated,
+    message of nonzero count has a vanishing denominator.  Then the two groups, concatenated,
     are a table meeting `Sat` for the AIR with LogUp's constraints at the
     transcript's values, as `tabsHonest_gen` asks. -/
 theorem hsatT_lup {A : AirD} {m gm gp k : Nat} (pre : EF → EF → String → EF)
@@ -457,7 +458,9 @@ theorem corpus_plain (t : Term) {A : AirD} (hA : A ∈ baseAirs t) :
   obtain ⟨⟨⟨hes, hs⟩, hw⟩, hd⟩ := h
   exact ⟨fun e he => ⟨(hes e he).1.1, (hes e he).1.2, (hes e he).2⟩, hs, hw, hd⟩
 
-/-- **A corpus AIR's quotient table with its LogUp constraints is honest**:
+/-- **A corpus AIR's quotient table with its LogUp constraints is honest**
+    (for an AIR with at least one lookup, as p3 commits no permutation
+    trace for one without):
     `tabsHonest_gen` over its main group `gm` and permutation group `gp`,
     the constraints the AIR's and LogUp's at each lookup's bus prefix and
     the transcript's terminal, from the builder's facts (`hb`) and the
