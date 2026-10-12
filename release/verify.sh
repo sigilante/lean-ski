@@ -60,8 +60,9 @@
 #      closure rule, it is refused;
 #  11. csplit8 with jets (release/skilark/csplit8/jets), the same; about
 #      8 s.  QUICK=1 skips it;
-#  12. the Poseidon2 jet (release/p2): the statements are Lean's (`lake exe
-#      composed emit-p2`; the hand-off's, which commit to a fresh secret
+#  12. the Poseidon2 jet (release/p2): the statements are Lean's (the
+#      preimage statement, for a fresh secret input, by `lake exe composed
+#      check-p2pre`; the hand-off's, which commit to a fresh secret
 #      value with fresh randomness, by `check-handoff`); ski-air
 #      compp-verify checks the
 #      proof of `p2pre h`, and refuses it with one byte changed, a byte
@@ -507,10 +508,13 @@ fi
 echo "--- 12. the Poseidon2 jet: a preimage, and a hidden hand-off over a commitment"
 P=release/p2
 mkdir -p "$tmp/p2"
-lake exe composed emit-p2 "$tmp/p2" > /dev/null
-cmp -s "$tmp/p2/p2pre.public.txt" "$P/p2pre.public.txt" \
-    && ok "release/p2/p2pre.public.txt is Lean's statement" \
-    || no "release/p2/p2pre.public.txt is not Lean's statement"
+# The preimage statement is for a fresh, secret input, so Lean cannot
+# re-emit it; it checks that the file is exactly `p2pre h` at the
+# documented heights, for an h no test vector has.
+lake exe composed check-p2pre "$P/p2pre.public.txt" > "$tmp/pc.log" \
+    && grep -q '^OK P2PRE' "$tmp/pc.log" \
+    && ok "release/p2/p2pre.public.txt is Lean's preimage statement for its h, no test vector's" \
+    || no "release/p2/p2pre.public.txt is not Lean's preimage statement ($(head -c 80 "$tmp/pc.log"))"
 # The hand-off commits to a fresh, secret value with fresh randomness, so
 # Lean cannot re-emit its statements; it checks that they are exactly its
 # two statements for the commitment they name, with the documented

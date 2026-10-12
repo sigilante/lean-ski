@@ -19,8 +19,11 @@
 #   6. the Omega forgery (release/forgeries/omega): its hand-written table,
 #      proved over the forged jet table, which Lean's check refuses;
 #   7. composed statements (release/composed): Lean emits each example's
-#      statement and witness; ski-air composed-prove proves it in zero
-#      knowledge.  The witness stays in a temporary directory, and the
+#      statement and a witness drawn from the system's entropy, uniformly
+#      among its valid witnesses (`lake exe composed emit-fresh`: for the
+#      `∨`, which side holds; for the `∧`, which negation); ski-air
+#      composed-prove proves it in zero knowledge, printing no count of
+#      its run.  The witness stays in a temporary directory, and the
 #      proofs are randomized (hiding), so they do not regenerate byte for
 #      byte; any proof composed-verify accepts is as good.
 #   8. a SKIlark predicate (release/skilark/split8): the SKIjack source of
@@ -168,12 +171,16 @@ fi
 if want composed; then
 echo "--- composed statements in zero knowledge"
 lake build composed > /dev/null
-lake exe composed emit "$tmp/composed" > /dev/null
+# Each witness is drawn among the formula's valid ones; nothing prints
+# which, nor its run's length, which depends on it.
+lake exe composed emit-fresh "$tmp/composed" > /dev/null
 for n in or and; do
     mkdir -p "release/composed/$n"
     /bin/cp "$tmp/composed/$n/public.txt" "release/composed/$n/public.txt"
     bench/plonky3/target/release/ski-air composed-prove "release/composed/$n/public.txt" \
-        "$tmp/composed/$n/witness.txt" "release/composed/$n/$n.proof"
+        "$tmp/composed/$n/witness.txt" "release/composed/$n/$n.proof" > /dev/null
+    bench/plonky3/target/release/ski-air composed-verify "release/composed/$n/public.txt" \
+        "release/composed/$n/$n.proof" | cut -c1-80
 done
 
 fi
@@ -258,7 +265,10 @@ echo "--- the Poseidon2 jet: a preimage, and a hidden hand-off over a commitment
 lake build composed > /dev/null
 P=release/p2
 mkdir -p "$P" "$tmp/p2"
-lake exe composed emit-p2 "$tmp/p2" > /dev/null
+# The preimage statement is for a fresh input: sixteen elements from the
+# system's entropy, h the first of their permutation.  The input is the
+# witness; it stays in $tmp, and nothing prints its run's length.
+lake exe composed emit-p2 "$tmp/p2" --fresh > /dev/null
 # The hand-off commits to a fresh value with fresh randomness, both from
 # the system's entropy.  Its witness, the value and the randomness, stays
 # in $tmp, which the exit removes: it is the prover's secret, and nothing
@@ -267,9 +277,9 @@ lake exe composed emit-handoff "$tmp/p2" --fresh > /dev/null
 # Proved and chained beside the statements first; each statement and its
 # proof reach release/p2 together, or neither does.
 T="$tmp/p2"
-"$A" compp-prove "$T/p2pre.public.txt" "$T/p2pre.witness.txt" "$T/p2pre.proof" | cut -c1-100
-"$A" compp-prove "$T/handoff1.public.txt" "$T/handoff.witness.txt" "$T/handoff1.proof" | cut -c1-100
-"$A" compp-prove "$T/handoff2.public.txt" "$T/handoff.witness.txt" "$T/handoff2.proof" | cut -c1-100
+"$A" compp-prove "$T/p2pre.public.txt" "$T/p2pre.witness.txt" "$T/p2pre.proof" > /dev/null
+"$A" compp-prove "$T/handoff1.public.txt" "$T/handoff.witness.txt" "$T/handoff1.proof" > /dev/null
+"$A" compp-prove "$T/handoff2.public.txt" "$T/handoff.witness.txt" "$T/handoff2.proof" > /dev/null
 "$A" compp-chain "$T/handoff1.public.txt" "$T/handoff1.proof" "$T/handoff2.public.txt" "$T/handoff2.proof" | tail -n 1
 for n in p2pre handoff1 handoff2; do /bin/cp "$T/$n.public.txt" "$T/$n.proof" "$P/"; done
 fi

@@ -118,8 +118,9 @@ The theorems are in namespace `Circuit` unless prefixed.
    `composed/and` each hold a statement, `public.txt`, and a proof: that
    the prover holds bits and a witness realizing the `∨`, or the `∧`, of
    two atoms of Part II's logic (`Ski/WitnessExamples.lean`), the witness
-   hidden. `verify.sh` first checks that each `public.txt` is Lean's
-   statement of its formula (`lake exe composed emit`). `ski-air
+   hidden, drawn at production from the formula's valid witnesses.
+   `verify.sh` first checks that each `public.txt` is Lean's statement of
+   its formula (`lake exe composed emit`). `ski-air
    composed-verify PUBLIC PROOF` then pipes the statement's bytes to Lean's
    check (`lake exe composed statement -`) and verifies the proof, read
    from its file as one byte string, against the statement alone. A proof
@@ -165,8 +166,10 @@ The theorems are in namespace `Circuit` unless prefixed.
 12. **`csplit8` with jets, under hiding.** `skilark/csplit8/jets`, the
     same at `log 18 19 17 17`, a height below the plain proof's.
 13. **The Poseidon2 jet.** `p2` holds three statements and their proofs.
-    `verify.sh` checks that each statement is Lean's: `p2pre`'s by
-    re-emitting it (`lake exe composed emit-p2`); the hand-off's, which
+    `verify.sh` checks that each statement is Lean's: `p2pre`'s, for a
+    fresh secret input, by `lake exe composed check-p2pre`, which takes
+    `h` from the file, fixes the heights, and refuses every test vector's
+    `h`; the hand-off's, which
     commit to a fresh secret value with fresh randomness Lean does not
     know, by `lake exe
     composed check-handoff`, which takes the commitment from the files and
@@ -435,9 +438,13 @@ Dropping them took the table from 2,768 roots to 759 and the run from
 6. The Ω forgery's hand-written table (`forgeries/omega/omega.table`,
    which `lake exe jets check` rejects) is proved over the forged jet
    table.
-7. The composed proofs: Lean emits each statement and witness, and
-   `ski-air composed-prove` proves it; the witness stays in a temporary
-   directory.
+7. The composed proofs: Lean emits each statement and a witness drawn
+   from the system's entropy, uniformly among the formula's valid ones
+   (`lake exe composed emit-fresh`: for the `∨`, which side holds; for the
+   `∧`, which of two negations), and `ski-air composed-prove` proves it;
+   the witness stays in a temporary directory, and nothing prints its
+   run's length. Every valid witness's run fits the statement's heights
+   (`emit-fresh DIR --all` writes them all; each proves).
 8. The SKIlark proof: SKIlark writes `skilark/split8/source.ski`
    (`python -m skilark.zk 8`), Lean emits the statement and witness from
    it, and `ski-air composed-prove` proves it.
@@ -451,9 +458,10 @@ Dropping them took the table from 2,768 roots to 759 and the run from
     which `lake exe composed check-cj` accepts; `ski-air compj-prove-table`
     proves it, and `ski-air compj-verify` checks the proof.
 12. The Poseidon2 proofs: Lean emits the statements and witnesses (`lake
-    exe composed emit-p2`, `emit-handoff --fresh`, the hand-off's value
-    and randomness fresh from the system's entropy and its witness
-    discarded);
+    exe composed emit-p2 --fresh`, sixteen input elements fresh from the
+    system's entropy and `h` the first of their permutation;
+    `emit-handoff --fresh`, the hand-off's value and randomness fresh;
+    each witness discarded, and no run's length printed);
     `ski-air compp-prove` proves each, and `ski-air compp-chain` checks the
     hand-off.
 13. The entropy proofs: Avon boots fresh piers of its entropy kernel with
