@@ -7,14 +7,16 @@ Plonky3 splits the quotient domain `shift · ⟨ω⟩` of size `L n` into
 `L` chunk domains (`split_domains`): chunk `i` is the coset
 `shift · ωⁱ · ⟨ω^L⟩`, of size `n`.  `quotOK_honest` asks that these be
 cosets of one subgroup `⟨g⟩` with `gⁿ = 1` and no repeated points.  This
-file proves both from one fact about `ω`: `ω^(2^(k-1)) = -1` when
-`L n = 2^k`, which is what makes `ω` a primitive `2^k`-th root of unity.
+file proves both from one fact about `ω`: `ω^(2^k) = -1` when
+`L n = 2^(k+1)`, which is what makes `ω` a primitive `2^(k+1)`-th root of
+unity.
 
-`fpow_inj` derives that `e ↦ ωᵉ` is injective on `[0, 2^k)`.  The
-difference of two exponents is `2^j (2o + 1)` with `j < k`, and raising
-`ω^(2^j (2o+1)) = 1` to `2^(k-1-j)` would give `-1 = 1`.  `split_nodup`
+`fpow_inj` derives that `e ↦ ωᵉ` is injective on `[0, 2^(k+1))`.  The
+difference of two exponents is `2^j (2o + 1)` with `j ≤ k`, and raising
+`ω^(2^j (2o+1)) = 1` to `2^(k-j)` would give `-1 = 1`.  `split_nodup`
 then shows the chunk domains have no repeated points, and `split_pow`
-shows `(ω^L)ⁿ = 1`.
+shows `(ω^L)ⁿ = 1`.  Plonky3's quotient-domain shift is the field
+generator, `31` for BabyBear, so `shift ≠ 0` holds.
 -/
 
 namespace Circuit
