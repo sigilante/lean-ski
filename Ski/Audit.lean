@@ -930,7 +930,7 @@ open Ski.Audit
   Circuit.accV_terminal Circuit.lup_sat_terminal Circuit.cols_withPerm Circuit.hsatT_lup Circuit.corpus_plain
   Circuit.tabsHonest_corpus Circuit.goodLup_of_noAbort Circuit.pcsCloseN_fri_corpus Circuit.p3_facts Circuit.base_P3
 -- The hiding circuits' AIRs meet the composed PCS's checks
-#audit_clean Circuit.sud_P3 Circuit.wit_P3 Circuit.comp_P3
+#audit_clean Circuit.sud_P3 Circuit.wit_P3 Circuit.comp_P3 Circuit.sat_setBlind Circuit.blind_ok
 
 -- Part II's interface with an additive distance: the errors add, the hybrid argument proved
 #audit_clean Compose.lsum_le Compose.lsum_add Compose.lsum_const Compose.lsum_comm Compose.lsum_prod
