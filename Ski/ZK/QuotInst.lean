@@ -29,12 +29,13 @@ The hypotheses are of three kinds.
   - the weights are `cis_k / κ` (`hw`).
 
 The weights `ws` are functions of the challenges `α, β`: the base
-coordinates of the folding challenge's powers.  The theorem holds for
-every such choice, so for every value of a folding challenge drawn
-independently of the masks.  Plonky3 draws it independently of `α, β`
-as well.  `pcsCloseN_fri_air_draw` draws the weights by an index beside
-the PCS's randomness, all of one length, and the simulation stays exact
-(`PCSCloseN.family`).
+coordinates of the folding challenge's powers.  Plonky3 draws the
+folding challenge after `α, β`; with Fiat–Shamir assumed it is a fresh
+uniform coin, independent of the masks and of `α, β`.  The theorem
+holds for each of its values, so the simulator may take the public
+challenge as given.  `pcsCloseN_fri_air_draw` states the drawn form: the
+challenge's index drawn beside the PCS's randomness and published with
+the view, simulated exactly.
 The theorem covers one quotient table, that of the group `gi`; a
 circuit with several AIRs discharges each table alone and combines them
 (`tabsHonest_cons`).
@@ -364,10 +365,11 @@ theorem friN_air (qs : List QGroup) (ks : List Nat) (ncw : Nat) {A : AirD} {g : 
     mtotal _ ks + ((ws'.map _).length * _ + 0) + (traceCw ncw _ + (QTab.cws _ ncw + 0))
   rw [List.length_map, List.length_map, h]; rfl
 
-/-- **The folding challenge drawn independently**: with the weights `ws δ`
+/-- **The folding challenge drawn and published**: with the weights `ws δ`
     for a challenge index `δ < NR2` drawn beside the PCS's randomness,
-    all of one length, the composed hiding PCS still meets `PCSCloseN`
-    exactly (`PCSCloseN.family`). -/
+    all of one length, the view of the index `δ` together with the
+    composed hiding PCS is simulated exactly (`PCSCloseN.post`,
+    `PCSCloseN.family`): the simulator draws the public challenge itself. -/
 theorem pcsCloseN_fri_air_draw {V : Type} {qs : List QGroup} {ks : List Nat} {cols : (Nat → Tup) → EF → EF → List (List (List F))}
     {ncw : Nat} {αb : EF} {fri : EF → EF → List (EF → EF) → V}
     (hokq : ∀ q ∈ qs, q.OK) (hks : ks.length = qs.length)
@@ -404,28 +406,33 @@ theorem pcsCloseN_fri_air_draw {V : Type} {qs : List QGroup} {ks : List Nat} {co
     (hHn : ∀ ch ∈ cs, ch.H.Nodup) (hHln : Hl.Nodup) :
     PCSCloseN off (P ^ (friN1 qs ks [airQTab A g m preP gi κ cs Hl cl S ζ (ws 0)] +
         friN2 qs [airQTab A g m preP gi κ cs Hl cl S ζ (ws 0)] ncw) * NR2) tv
-      (fun t α β r => pcsFri off tv qs ks cols [airQTab A g m preP gi κ cs Hl cl S ζ (ws (r / P ^ (friN1 qs ks
+      (fun t α β r => (r / P ^ (friN1 qs ks [airQTab A g m preP gi κ cs Hl cl S ζ (ws 0)] +
+          friN2 qs [airQTab A g m preP gi κ cs Hl cl S ζ (ws 0)] ncw), pcsFri off tv qs ks cols
+        [airQTab A g m preP gi κ cs Hl cl S ζ (ws (r / P ^ (friN1 qs ks
           [airQTab A g m preP gi κ cs Hl cl S ζ (ws 0)] + friN2 qs [airQTab A g m preP gi κ cs Hl cl S ζ (ws 0)] ncw)))]
         (fun t α β ms => [airData A g m preP cs Hl (ws (r / P ^ (friN1 qs ks
           [airQTab A g m preP gi κ cs Hl cl S ζ (ws 0)] + friN2 qs [airQTab A g m preP gi κ cs Hl cl S ζ (ws 0)] ncw)))
           α β ((mpolysMulti (qs.map QGroup.ext) (cols t α β) ms).getD gi [])])
         ncw αb fri t α β (r % P ^ (friN1 qs ks [airQTab A g m preP gi κ cs Hl cl S ζ (ws 0)] +
-          friN2 qs [airQTab A g m preP gi κ cs Hl cl S ζ (ws 0)] ncw)))
-      (fun α β v r => psimFri qs ks [airQTab A g m preP gi κ cs Hl cl S ζ (ws (r / P ^ (friN1 qs ks
+          friN2 qs [airQTab A g m preP gi κ cs Hl cl S ζ (ws 0)] ncw))))
+      (fun α β v r => (r / P ^ (friN1 qs ks [airQTab A g m preP gi κ cs Hl cl S ζ (ws 0)] +
+          friN2 qs [airQTab A g m preP gi κ cs Hl cl S ζ (ws 0)] ncw), psimFri qs ks
+        [airQTab A g m preP gi κ cs Hl cl S ζ (ws (r / P ^ (friN1 qs ks
           [airQTab A g m preP gi κ cs Hl cl S ζ (ws 0)] + friN2 qs [airQTab A g m preP gi κ cs Hl cl S ζ (ws 0)] ncw)))]
         ncw αb fri α β v (r % P ^ (friN1 qs ks [airQTab A g m preP gi κ cs Hl cl S ζ (ws 0)] +
-          friN2 qs [airQTab A g m preP gi κ cs Hl cl S ζ (ws 0)] ncw))) 0 := by
+          friN2 qs [airQTab A g m preP gi κ cs Hl cl S ζ (ws 0)] ncw)))) 0 := by
   refine PCSCloseN.family (NR2 := NR2)
-    (pcs := fun δ t α β r => pcsFri off tv qs ks cols [airQTab A g m preP gi κ cs Hl cl S ζ (ws δ)]
+    (pcs := fun δ t α β r => (δ, pcsFri off tv qs ks cols [airQTab A g m preP gi κ cs Hl cl S ζ (ws δ)]
       (fun t α β ms => [airData A g m preP cs Hl (ws δ) α β ((mpolysMulti (qs.map QGroup.ext) (cols t α β) ms).getD gi [])])
-      ncw αb fri t α β r)
-    (psim := fun δ α β v r => psimFri qs ks [airQTab A g m preP gi κ cs Hl cl S ζ (ws δ)] ncw αb fri α β v r)
+      ncw αb fri t α β r))
+    (psim := fun δ α β v r => (δ, psimFri qs ks [airQTab A g m preP gi κ cs Hl cl S ζ (ws δ)] ncw αb fri α β v r))
     (fun δ => ?_)
   have e := friN_air qs ks ncw (A := A) (g := g) (m := m) (preP := preP) (gi := gi) (κ := κ) (cs := cs) (Hl := Hl)
     (cl := cl) (S := S) (ζ := ζ) (ws := ws δ) (ws' := ws 0) ((hws δ).trans (hws 0).symm)
   rw [← e]
-  exact pcsCloseN_fri_air hokq hks hcols hdet haw hncw off tv hgi hcl' hT hRq hSq hZq hnq hnxt hsatT hg hinj hgd hR
-    hnd hpreL hζ hS hc hcl hκ hshift hhalf hN hdom hL hD hDlq hsd hs hPsz hw (hok δ) hHn hHln
+  exact PCSCloseN.post (pcsCloseN_fri_air hokq hks hcols hdet haw hncw off tv hgi hcl' hT hRq hSq hZq hnq hnxt hsatT hg hinj hgd hR
+    hnd hpreL hζ hS hc hcl hκ hshift hhalf hN hdom hL hD hDlq hsd hs hPsz hw (hok δ) hHn hHln)
+    (fun _ _ _ w => (δ, w))
 
 /-- **Tables combine**: `TabsHonest` for each table alone gives it for the
     list, so a circuit with several AIRs discharges one `airQTab` per AIR,
@@ -436,10 +443,13 @@ theorem tabsHonest_cons {JS : CSet → F → F} {JE : CSet → EF} {T : QTab} {d
   ⟨h.1, hs⟩
 
 /-- **The fallback builder**: a builder that meets a per-trace property on
-    the inputs it accepts (`good`), and a fixed fallback that meets it,
-    combine into one that meets it at every input.  This is how a
+    the inputs it accepts (`good`, decidable), and a fixed fallback that
+    meets it, combine into one that meets it at every input.  With `Q`
+    stated on the columns together with their bound at `gi`, and the
+    fallback one accepting table of the group's shape, this is how a
     circuit's builder meets `hsatT` and `hcols`, which `PCSCloseN` asks at
-    every tuple assignment, from its completeness on accepted runs. -/
+    every tuple assignment.  The combined builder equals the honest one
+    on accepted inputs, the only ones zero knowledge is about. -/
 theorem fallback {X : Type} (Q : X → Prop) (good : (Nat → Tup) → EF → EF → Prop)
     [∀ t α β, Decidable (good t α β)] (b : (Nat → Tup) → EF → EF → X) (x0 : X)
     (hb : ∀ t α β, good t α β → Q (b t α β)) (h0 : Q x0) :
