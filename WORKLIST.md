@@ -52,10 +52,11 @@ is built; this file records what is next. Last revised 2026-10-10.
   gives. The coordinates fold back to the verifier's fold times the model's chunk
   normalization, and extension constraints, folded by coordinates, agree with Plonky3's fold
   in the extension (`Ski/ZK/QuotFold.lean`, `airTgE_back`, `airTgE_mixed`). The folding
-  challenge is drawn beside the PCS's randomness (`pcsCloseN_fri_air_draw`). Open: a
-  circuit's builder with its fixed accepting fallback table of the same shape (`fallback`
-  combines them); the composed statement for a multi-AIR circuit (each table discharges
-  alone, `tabsHonest_cons`); a named circuit's static facts checked by the kernel.
+  challenge, drawn and published with the view, is simulated exactly
+  (`pcsCloseN_fri_air_draw`). Open: a circuit's builder with its fixed accepting fallback
+  table of the same shape (`fallback` combines them); the composed statement for a multi-AIR
+  circuit (each table discharges alone, `tabsHonest_cons`); a named circuit's static facts
+  checked by the kernel.
 - **The quotient's recombined values hide** (`Ski/ZK/MaskQuot.lean`): the chunks sit
   at the committed trace's height, so a query opens them at the trace's point `s`, where they
   recombine to a function of the terminals and the masked columns at `s` and `g s`.
