@@ -592,6 +592,13 @@ theorem add_sub_cancel_f (a l : F) : a + (l - a) = l :=
 theorem mul_div_cancel3 (V d : F) (hV : V ≠ 0) : V * (d * finv V) = d := by
   rw [mul_comm' d, ← mul_assoc', mul_finv hV, one_mul']
 
+/-- **The explicit shift** of the chunks' random polynomials carrying
+    `qs` to `qs'` (`shiftK` with the targets of `chunks_shiftV`). -/
+def ckey (S : List F) (ζ : EF) (h : Nat) (cs : List Chunk) (Hl : List F) (cl : F) (qs qs' : List (List F))
+    (ql ql' : List F) : List F :=
+  shiftK S ζ h (fun x => jsumF x cs qs - jsumF x cs qs') (fun x => (fval x ql' - fval x ql) * finv (cl * fval x (fvan Hl)))
+    (fun _ => false) cs qs qs'
+
 /-- **The chunks' shift**: for two chunk data that agree where the
     verifier can see them, a shift of the random polynomials under which
     the second opens as the first. -/
@@ -600,15 +607,16 @@ theorem chunks_shiftV {S : List F} {ζ : EF} {h : Nat} (hζ : ∀ x : F, EF.ofF 
     (hok : ∀ ch ∈ cs, ch.c ≠ 0 ∧ ch.m ≠ 0) (hcl : cl ≠ 0)
     {qs qs' : List (List F)} {ql ql' : List F} (h1 : qs.length = cs.length) (h2 : qs'.length = cs.length)
     (hag : Agree S ζ cs Hl cl qs qs' ql ql') :
-    ∃ K : List F, K.length = cs.length * h ∧ ∀ rs : List F, rs.length = cs.length * h →
-      chunksView S [ζ] h cs Hl cl qs' ql' (vadd rs K) = chunksView S [ζ] h cs Hl cl qs ql rs := by
+    (ckey S ζ h cs Hl cl qs qs' ql ql').length = cs.length * h ∧ ∀ rs : List F, rs.length = cs.length * h →
+      chunksView S [ζ] h cs Hl cl qs' ql' (vadd rs (ckey S ζ h cs Hl cl qs qs' ql ql')) =
+        chunksView S [ζ] h cs Hl cl qs ql rs := by
   obtain ⟨hH, hHl, hJ, hJE⟩ := hag
   let A : F → F := fun x => jsumF x cs qs - jsumF x cs qs'
   let L : F → F := fun x => (fval x ql' - fval x ql) * finv (cl * fval x (fvan Hl))
   obtain ⟨hKl, hKv, hKS, hKZ⟩ := shiftK_spec hζ hd hn A L (fun _ => false) cs qs qs' hok h1 h2 hH
   let K := shiftK S ζ h A L (fun _ => false) cs qs qs'
-  refine ⟨K, hKl, fun rs hr => ?_⟩
-  unfold chunksView
+  refine ⟨hKl, fun rs hr => ?_⟩
+  unfold ckey chunksView
   rw [hKv rs hr]
   congr 3
   · refine List.map_congr_left (fun x hx => ?_)
@@ -644,7 +652,8 @@ theorem chunks_hide {S : List F} {ζ : EF} {h : Nat} (hζ : ∀ x : F, EF.ofF x 
     (hag : Agree S ζ cs Hl cl qs qs' ql ql') (E : List (List F × List EF) → Bool) :
     vsum (cs.length * h) (fun rs => if E (chunksView S [ζ] h cs Hl cl qs ql rs) then 1 else 0) =
       vsum (cs.length * h) (fun rs => if E (chunksView S [ζ] h cs Hl cl qs' ql' rs) then 1 else 0) := by
-  obtain ⟨K, hKl, he⟩ := chunks_shiftV hζ hd hn hok hcl h1 h2 hag
+  obtain ⟨hKl, he⟩ := chunks_shiftV hζ hd hn hok hcl h1 h2 hag
+  let K := ckey S ζ h cs Hl cl qs qs' ql ql'
   rw [← vsum_shift _ K hKl (fun rs => if E (chunksView S [ζ] h cs Hl cl qs' ql' rs) then 1 else 0)]
   refine vsum_congr _ (fun rs hr => ?_)
   show (if E (chunksView S [ζ] h cs Hl cl qs ql rs) = true then 1 else 0) =

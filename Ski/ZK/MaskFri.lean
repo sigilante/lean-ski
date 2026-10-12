@@ -1429,4 +1429,208 @@ theorem fri_hides {A V : Type} {α : EF} (hd : (mz α).det ≠ 0) (haw : ∀ w, 
   rw [hB ρ hρ, cwOpen_eq ms _ _ _ _ _ (hP ρ hρ) (hC ρ γ hρ hγ),
     batch_eq hd haw ms _ _ _ _ _ hn (hP ρ hρ) (hC ρ γ hρ hγ)]
 
+-- ---------------------------------------------------------------------------
+-- The quotient columns' shift, column by column
+-- ---------------------------------------------------------------------------
+
+/-- Every quotient column's explicit shift. -/
+def cKeys : List CSet → List (List (List F) × List F) → List (List (List F) × List F) → List (List F)
+  | c :: csets, d :: ds, d' :: ds' => ckey c.S c.ζ c.h c.cs c.Hl c.cl d.1 d'.1 d.2 d'.2 :: cKeys csets ds ds'
+  | _, _, _ => []
+
+/-- **Every quotient column's shift**: the per-column shifts, concatenated,
+    under which the chunk data `ds'` open as `ds`, when both show the same
+    targets. -/
+theorem csets_shift : ∀ (csets : List CSet) (ds ds' : List (List (List F) × List F)) (JS : CSet → F → F) (JE : CSet → EF),
+    (∀ c ∈ csets, c.OK) → RecOK csets ds JS JE → RecOK csets ds' JS JE →
+    (cKeys csets ds ds').length = csets.length ∧
+      (∀ k (hk : k < (cKeys csets ds ds').length) (hc : k < csets.length),
+        ((cKeys csets ds ds')[k]'hk).length = (csets[k]'hc).cs.length * (csets[k]'hc).h) ∧
+      ∀ cr : List F, cr.length = ctot csets → csView csets ds' (vadd cr (cKeys csets ds ds').flatten) = csView csets ds cr
+  | [], [], [], _, _, _, _, _ => ⟨rfl, fun k hk => absurd hk (Nat.not_lt_zero _), fun _ _ => rfl⟩
+  | c :: csets, d :: ds, d' :: ds', JS, JE, hok, ⟨⟨h1, hsh⟩, hrec⟩, ⟨⟨h1', hsh'⟩, hrec'⟩ => by
+    obtain ⟨hζ, hd, hn, hcs, hcl⟩ := hok c List.mem_cons_self
+    obtain ⟨hKl, hK⟩ := chunks_shiftV hζ hd hn hcs hcl h1 h1' (agree_of_shows hsh hsh')
+    obtain ⟨hKsl, hKs, hrest⟩ := csets_shift csets ds ds' JS JE (fun c' hc' => hok c' (List.mem_cons_of_mem _ hc'))
+      hrec hrec'
+    let K := ckey c.S c.ζ c.h c.cs c.Hl c.cl d.1 d'.1 d.2 d'.2
+    refine ⟨by show (cKeys csets ds ds').length + 1 = csets.length + 1; rw [hKsl], fun k hk hc => ?_, fun cr hcr => ?_⟩
+    · cases k with
+      | zero => exact hKl
+      | succ k => exact hKs k (by simp only [List.length_cons] at hk; omega) (by simp only [List.length_cons] at hc; omega)
+    · have hcr' : cr.length = c.cs.length * c.h + ctot csets := hcr
+      have hrn : c.cs.length * c.h ≤ cr.length := by omega
+      have hrt : (cr.take (c.cs.length * c.h)).length = c.cs.length * c.h := by rw [List.length_take]; omega
+      have hrd : (cr.drop (c.cs.length * c.h)).length = ctot csets := by rw [List.length_drop]; omega
+      have hvt : (vadd (cr.take (c.cs.length * c.h)) K).length = c.cs.length * c.h := by
+        rw [vadd_length, hrt, hKl, Nat.min_self]
+      rw [show (cKeys (c :: csets) (d :: ds) (d' :: ds')).flatten = K ++ (cKeys csets ds ds').flatten from rfl,
+        vadd_append_split hKl hrn]
+      show chunksView c.S [c.ζ] c.h c.cs c.Hl c.cl d'.1 d'.2
+          ((vadd (cr.take (c.cs.length * c.h)) K ++ vadd (cr.drop (c.cs.length * c.h)) (cKeys csets ds ds').flatten).take
+            (c.cs.length * c.h)) ::
+          csView csets ds' ((vadd (cr.take (c.cs.length * c.h)) K ++
+            vadd (cr.drop (c.cs.length * c.h)) (cKeys csets ds ds').flatten).drop (c.cs.length * c.h)) =
+        chunksView c.S [c.ζ] c.h c.cs c.Hl c.cl d.1 d.2 (cr.take (c.cs.length * c.h)) ::
+          csView csets ds (cr.drop (c.cs.length * c.h))
+      rw [List.take_left' hvt, List.drop_left' hvt, hK _ hrt, hrest _ hrd]
+  | [], _ :: _, _, _, _, _, h, _ => nomatch h
+  | _ :: _, [], _, _, _, _, h, _ => nomatch h
+  | [], [], _ :: _, _, _, _, _, h => nomatch h
+  | _ :: _, _ :: _, [], _, _, _, _, h => nomatch h
+
+-- ---------------------------------------------------------------------------
+-- A quotient table: its columns share one chunk structure
+-- ---------------------------------------------------------------------------
+
+/-- **A quotient table**: its columns' shared chunks, last domain and
+    scale, points, height, and each column's targets. -/
+structure QTab where
+  cs : List Chunk
+  Hl : List F
+  cl : F
+  S : List F
+  ζ : EF
+  h : Nat
+  tg : List ((EF → EF → List EF → List (List (List F × List EF)) → F → F) ×
+    (EF → EF → List EF → List (List (List F × List EF)) → EF))
+
+/-- The table's columns. -/
+def QTab.sets (T : QTab) : List CSet := T.tg.map fun p => ⟨T.cs, T.Hl, T.cl, T.S, T.ζ, T.h, p.1, p.2⟩
+
+/-- The random coefficients one column uses. -/
+def QTab.n (T : QTab) : Nat := T.cs.length * T.h
+
+theorem ctot_sets (T : QTab) : ctot T.sets = T.tg.length * T.n := by
+  unfold QTab.sets
+  induction T.tg with
+  | nil => show 0 = 0 * T.n; rw [Nat.zero_mul]
+  | cons p tg ih =>
+    show T.cs.length * T.h + ctot (tg.map _) = (tg.length + 1) * T.n
+    rw [ih, Nat.succ_mul, Nat.add_comm]; rfl
+
+theorem sl_flatten {n : Nat} : ∀ (Ks : List (List F)), (∀ K ∈ Ks, K.length = n) → ∀ k (hk : k < Ks.length),
+    sl n k Ks.flatten = Ks[k]'hk
+  | K :: Ks, hl, 0, _ => by
+    unfold sl; rw [Nat.zero_mul, List.drop_zero, show (K :: Ks).flatten = K ++ Ks.flatten from rfl,
+      List.take_left' (hl K List.mem_cons_self)]; rfl
+  | K :: Ks, hl, k + 1, hk => by
+    rw [sl_succ, show (K :: Ks).flatten = K ++ Ks.flatten from rfl, List.drop_left' (hl K List.mem_cons_self)]
+    exact sl_flatten Ks (fun K' hK' => hl K' (List.mem_cons_of_mem _ hK')) k (by simp only [List.length_cons] at hk; omega)
+  | [], _, _, hk => absurd hk (Nat.not_lt_zero _)
+
+theorem csView_length : ∀ (csets : List CSet) (ds : List (List (List F) × List F)) (cr : List F),
+    ds.length = csets.length → (csView csets ds cr).length = csets.length
+  | [], [], _, _ => rfl
+  | _ :: csets, _ :: ds, cr, h => by
+    show (csView csets ds _).length + 1 = csets.length + 1
+    rw [csView_length csets ds _ (by simp only [List.length_cons] at h; omega)]
+  | [], _ :: _, _, h => nomatch h
+  | _ :: _, [], _, h => nomatch h
+
+/-- The table's view, column by column, is each column's opened chunks at
+    its slice of the randomness. -/
+theorem csView_sets (T : QTab) : ∀ (tg : List ((EF → EF → List EF → List (List (List F × List EF)) → F → F) ×
+    (EF → EF → List EF → List (List (List F × List EF)) → EF))) (ds : List (List (List F) × List F)) (cr : List F)
+    (hl : ds.length = tg.length) (k : Nat) (hk : k < tg.length),
+    (csView (tg.map fun p => (⟨T.cs, T.Hl, T.cl, T.S, T.ζ, T.h, p.1, p.2⟩ : CSet)) ds cr)[k]'(by
+        rw [csView_length _ _ _ (by rw [List.length_map]; exact hl), List.length_map]; exact hk) =
+      chunksView T.S [T.ζ] T.h T.cs T.Hl T.cl (ds[k]'(by rw [hl]; exact hk)).1 (ds[k]'(by rw [hl]; exact hk)).2 (sl T.n k cr)
+  | _ :: tg, d :: ds, cr, _, 0, _ => by
+    show chunksView T.S [T.ζ] T.h T.cs T.Hl T.cl d.1 d.2 (cr.take (T.cs.length * T.h)) = _
+    unfold sl QTab.n; rw [Nat.zero_mul, List.drop_zero]; rfl
+  | _ :: tg, d :: ds, cr, hl, k + 1, hk => by
+    rw [sl_succ]
+    exact csView_sets T tg ds (cr.drop (T.cs.length * T.h)) (by simp only [List.length_cons] at hl; omega) k
+      (by simp only [List.length_cons] at hk; omega)
+  | [], _, _, _, _, hk => absurd hk (Nat.not_lt_zero _)
+  | _ :: _, [], _, hl, _, _ => nomatch hl
+
+/-- The table's columns, each its chunks' polynomials. -/
+def tCols (T : QTab) (ds : List (List (List F) × List F)) (cr : List F) : List (List (List F)) :=
+  (List.range ds.length).map fun k =>
+    chunkPolys T.h T.cs T.Hl T.cl (ds.getD k ([], [])).1 (ds.getD k ([], [])).2 (sl T.n k cr)
+
+/-- The table's columns' changes. -/
+def tDiffCols (T : QTab) (ds ds' : List (List (List F) × List F)) (Ks : List (List F)) : List (List (List F)) :=
+  (List.range ds.length).map fun k =>
+    chunkDiffs T.h T.cs T.Hl T.cl (ds.getD k ([], [])).1 (ds'.getD k ([], [])).1 (ds.getD k ([], [])).2
+      (ds'.getD k ([], [])).2 (Ks.getD k [])
+
+theorem getD_pair {ds : List (List (List F) × List F)} {k : Nat} (hk : k < ds.length) : ds.getD k ([], []) = ds[k]'hk := by
+  rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hk, Option.getD_some]
+
+theorem getD_list {Ks : List (List F)} {k : Nat} (hk : k < Ks.length) : Ks.getD k [] = Ks[k]'hk := by
+  rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hk, Option.getD_some]
+
+/-- **A table's chunk matrices change by its columns' changes, which
+    vanish at its points**: for data `ds`, `ds'` whose views agree under
+    the per-column shifts `Ks`. -/
+theorem tab_rel (T : QTab) (ds ds' : List (List (List F) × List F)) (Ks : List (List F))
+    (hl : ds.length = T.tg.length) (hl' : ds'.length = T.tg.length) (hKl : Ks.length = T.tg.length)
+    (hd : ∀ d ∈ ds, d.1.length = T.cs.length) (hd' : ∀ d ∈ ds', d.1.length = T.cs.length)
+    (hK : ∀ K ∈ Ks, K.length = T.n) (cr : List F) (hcr : cr.length = T.tg.length * T.n)
+    (hv : csView T.sets ds' (vadd cr Ks.flatten) = csView T.sets ds cr) :
+    (∀ k (h' : k < (tCols T ds' (vadd cr Ks.flatten)).length) (h0 : k < (tCols T ds cr).length)
+      (hD : k < (tDiffCols T ds ds' Ks).length),
+      RelAt ((tCols T ds' (vadd cr Ks.flatten))[k]'h') ((tCols T ds cr)[k]'h0) ((tDiffCols T ds ds' Ks)[k]'hD) ∧
+        ((tCols T ds cr)[k]'h0).length = T.cs.length + 1) ∧
+    ∀ k (hD : k < (tDiffCols T ds ds' Ks).length), ∀ D ∈ (tDiffCols T ds ds' Ks)[k]'hD, Vanish T.S [T.ζ] D := by
+  have hcol : ∀ k, k < T.tg.length →
+      PolyRel (chunkPolys T.h T.cs T.Hl T.cl (ds'.getD k ([], [])).1 (ds'.getD k ([], [])).2 (sl T.n k (vadd cr Ks.flatten)))
+        (chunkPolys T.h T.cs T.Hl T.cl (ds.getD k ([], [])).1 (ds.getD k ([], [])).2 (sl T.n k cr))
+        (chunkDiffs T.h T.cs T.Hl T.cl (ds.getD k ([], [])).1 (ds'.getD k ([], [])).1 (ds.getD k ([], [])).2
+          (ds'.getD k ([], [])).2 (Ks.getD k [])) := by
+    intro k hk
+    rw [sl_vadd, sl_flatten Ks hK k (by rw [hKl]; exact hk), ← getD_list (by rw [hKl]; exact hk)]
+    have hsl : (sl T.n k cr).length = T.cs.length * T.h := by
+      unfold sl; rw [List.length_take, List.length_drop, hcr]
+      have : k * T.n + T.n ≤ T.tg.length * T.n := by rw [← Nat.succ_mul]; exact Nat.mul_le_mul_right _ hk
+      unfold QTab.n at this ⊢; omega
+    refine chunkPolys_rel _ _ _ _ _ _ _ _ _ _ ?_ ?_ hsl ?_
+    · rw [getD_pair (by rw [hl]; exact hk)]; exact hd _ (List.getElem_mem _)
+    · rw [getD_pair (by rw [hl']; exact hk)]; exact hd' _ (List.getElem_mem _)
+    · rw [getD_list (by rw [hKl]; exact hk)]; exact hK _ (List.getElem_mem _)
+  have hlen0 : ∀ _k : Nat, (tCols T ds cr).length = T.tg.length := fun _ => by
+    unfold tCols; rw [List.length_map, List.length_range, hl]
+  have hlenD : (tDiffCols T ds ds' Ks).length = T.tg.length := by
+    unfold tDiffCols; rw [List.length_map, List.length_range, hl]
+  refine ⟨fun k h' h0 hD => ⟨?_, ?_⟩, fun k hD D hDm => ?_⟩
+  · have hk : k < T.tg.length := by rw [hlen0 0] at h0; exact h0
+    have e1 : (tCols T ds' (vadd cr Ks.flatten))[k]'h' = chunkPolys T.h T.cs T.Hl T.cl (ds'.getD k ([], [])).1
+        (ds'.getD k ([], [])).2 (sl T.n k (vadd cr Ks.flatten)) := by
+      unfold tCols; simp only [List.getElem_map, List.getElem_range]
+    have e0 : (tCols T ds cr)[k]'h0 = chunkPolys T.h T.cs T.Hl T.cl (ds.getD k ([], [])).1 (ds.getD k ([], [])).2
+        (sl T.n k cr) := by
+      unfold tCols; simp only [List.getElem_map, List.getElem_range]
+    have eD : (tDiffCols T ds ds' Ks)[k]'hD = chunkDiffs T.h T.cs T.Hl T.cl (ds.getD k ([], [])).1
+        (ds'.getD k ([], [])).1 (ds.getD k ([], [])).2 (ds'.getD k ([], [])).2 (Ks.getD k []) := by
+      unfold tDiffCols; simp only [List.getElem_map, List.getElem_range]
+    rw [e1, e0, eD]
+    exact relAt_of_polyRel (hcol k hk)
+  · have hk : k < T.tg.length := by rw [hlen0 0] at h0; exact h0
+    have e0 : (tCols T ds cr)[k]'h0 = chunkPolys T.h T.cs T.Hl T.cl (ds.getD k ([], [])).1 (ds.getD k ([], [])).2
+        (sl T.n k cr) := by
+      unfold tCols; simp only [List.getElem_map, List.getElem_range]
+    rw [e0]
+    unfold chunkPolys
+    rw [List.length_append, firstPolys_length _ _ _ _ (by rw [getD_pair (by rw [hl]; exact hk)]; exact hd _ (List.getElem_mem _))]
+    rfl
+  · have hk : k < T.tg.length := by rw [hlenD] at hD; exact hD
+    have eD : (tDiffCols T ds ds' Ks)[k]'hD = chunkDiffs T.h T.cs T.Hl T.cl (ds.getD k ([], [])).1
+        (ds'.getD k ([], [])).1 (ds.getD k ([], [])).2 (ds'.getD k ([], [])).2 (Ks.getD k []) := by
+      unfold tDiffCols; simp only [List.getElem_map, List.getElem_range]
+    rw [eD] at hDm
+    have hvk := congrArg (fun L => L.getD k []) hv
+    have hcl : ∀ (dd : List (List (List F) × List F)) (rr : List F), dd.length = T.tg.length →
+        (csView T.sets dd rr).getD k [] =
+          chunksView T.S [T.ζ] T.h T.cs T.Hl T.cl (dd.getD k ([], [])).1 (dd.getD k ([], [])).2 (sl T.n k rr) := by
+      intro dd rr hdd
+      unfold QTab.sets
+      rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem (by
+        rw [csView_length _ _ _ (by rw [List.length_map]; exact hdd), List.length_map]; exact hk), Option.getD_some,
+        csView_sets T T.tg dd rr hdd k hk, getD_pair (by rw [hdd]; exact hk)]
+    rw [hcl ds' _ hl', hcl ds cr hl, chunksView_eq, chunksView_eq] at hvk
+    exact vanish_of_open_rel T.S [T.ζ] _ _ _ (hcol k hk) hvk D hDm
+
 end Circuit
