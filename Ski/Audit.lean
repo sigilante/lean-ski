@@ -62,6 +62,7 @@ import Ski.ZK.MaskPCS
 import Ski.ZK.PRG
 import Ski.ZK.Reject
 import Ski.ZK.Honest
+import Ski.ZK.Heights
 import Ski.ZK.FSRound
 import Ski.ComposedJ
 import Ski.Circuit.Flow
@@ -812,6 +813,11 @@ open Ski.Audit
 
 -- The composed, Sudoku and hidden-term circuits' honest tables meet the transcript theorems' hypotheses
 #audit_clean Circuit.comp_honest_zk Circuit.sud_honest_zk Circuit.wit_honest_zk
+
+-- The trace heights in the view: fixed by the statement, emitted by the simulator
+#audit_clean Circuit.setBlind_h Circuit.transcript_zkGH Circuit.comp_heights Circuit.sud_heights
+  Circuit.wit_heights Circuit.compJ_heights Circuit.compP_heights Circuit.comp_honest_heights
+  Circuit.sud_honest_heights Circuit.wit_honest_heights
 
 -- Fiat–Shamir round by round: adaptive hash calls, grinding, and the LogUp round under them
 #audit_clean Circuit.seqSum_const Circuit.seqSum_mono Circuit.seqSum_add Circuit.fs_attempts Circuit.sumTo_pair

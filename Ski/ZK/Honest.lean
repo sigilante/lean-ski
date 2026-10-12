@@ -10,8 +10,10 @@ the public tables (`Balanced`), and their blinding flags are clear
 (`Unblinded`).  The circuits with jets discharge them for the honest
 prover (`CRun.honest_zk`, `honest_zkP`); this file does so for the
 composed, Sudoku and hidden-term circuits.  The tables are the ones each
-completeness theorem builds (`comp_completeG_log`, `sud_complete`,
-`wit_complete`), from the same hypotheses: the honest prover's.
+completeness theorem's proof builds (`comp_completeG_log`, `sud_complete`,
+`wit_complete`), from a subset of its hypotheses: the honest prover's.
+The completeness statements keep the tables existential, so the link is
+by construction, not a theorem.
 -/
 
 namespace Circuit

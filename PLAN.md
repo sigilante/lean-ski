@@ -867,7 +867,9 @@ draws, without the `P^2/P^4` term. The honest prover's tables meet the
 transcript theorems' hypotheses for every hiding circuit: balanced with
 the public tables, blinding flags clear (`comp_honest_zk`,
 `sud_honest_zk`, `wit_honest_zk` in `Ski/ZK/Honest.lean`;
-`CRun.honest_zk`; `honest_zkP`).
+`CRun.honest_zk`; `honest_zkP`). The view includes the trace heights:
+blinding keeps them, the honest tables' are the statement's, and the
+simulator emits those (`transcript_zkGH`, `Ski/ZK/Heights.lean`).
 The closure rule, the design's milestone 3 (`Ski/JetPublic.lean`): the
 composed heap's private cells, the bit slots and the region, are pointed
 into by public cells, so a jet table checked over the blank heap need not
