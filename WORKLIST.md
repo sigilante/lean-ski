@@ -105,15 +105,19 @@ is built; this file records what is next. Last revised 2026-10-13.
   FRI's input and the view, and each transcript theorem holds over that PCS
   (`Ski/ZK/PreOpen.lean`, `*_hidingX`). The challenges `ζ` and `αb` may be any `Generic`
   draws, all but `P²` of the `P⁴` (`*_hidingXG`, `nongeneric_count`). Under Fiat–Shamir, in
-  the programmable random-oracle model, each proof stays zero knowledge against a
-  distinguisher with the oracle's table, its LogUp challenges hashed from a hiding
-  commitment of the first message (`Ski/ZK/FSInst.lean`, `sud_fs`, `wit_fs`, `comp_fs`).
-  Open: the later rounds under the oracle (`ζ`, the FRI challenge, the query points).
-  Assumed: an ideal oracle and perfectly hiding commitments (`ComHides`), the Merkle salts'
-  idealization. The groups' trace and mask points (`hT`, `hRq`) are tied to the committed
-  matrices: the masked column is the interpolant of Plonky3's interleaved column over the
-  `2n`-point domain (`Ski/ZK/Interleave.lean`, `bb_ileave_mcol`); that Plonky3 interleaves,
-  trace rows even and random rows odd, is read from its source.
+  the programmable random-oracle model, each transcript keeps its simulation error against a
+  distinguisher with the oracle's table, its LogUp challenges hashed from a commitment of
+  the first message (`Ski/ZK/FSInst.lean`, `sud_fs`, `wit_fs`, `comp_fs`), for an idealized
+  proof: the commitment is never opened in the view and `Com` is a perfect primitive apart
+  from the oracle. Open: the commitment opened in the view (the simulator committing its own
+  masked data, hiding given the opened positions, Merkle paths); `Com` from the same oracle
+  (bounded queries, a ROM-hiding term); several proofs per oracle (a hybrid and a collision
+  term); the later rounds under the oracle (`ζ`, the FRI challenge, the query points, each
+  adding the non-generic mass); the lookup proof-of-work nonce. The groups' trace and mask
+  points (`hT`, `hRq`) are tied to the committed matrices: the masked column is the
+  interpolant of Plonky3's interleaved column over the `2n`-point domain
+  (`Ski/ZK/Interleave.lean`, `bb_ileave_mcol`); that Plonky3 interleaves, trace rows even
+  and random rows odd, is read from its source.
 - **The quotient's recombined values hide** (`Ski/ZK/MaskQuot.lean`): the chunks sit at the
   committed trace's height, so a query opens them at the trace's point `s`, where they
   recombine to a function of the terminals and the masked columns at `s` and `g s`. Masks

@@ -2,7 +2,7 @@ import Ski.ZK.Interleave
 import Ski.ZK.MaskCom
 
 /-!
-# Fiat–Shamir keeps the simulation, in the programmable random-oracle model
+# Fiat–Shamir keeps the simulation's error, in the programmable random-oracle model
 
 A non-interactive proof draws its challenge by hashing the message before
 it: `c = H(m)`.  Model the hash as a random oracle, a uniformly drawn
@@ -13,7 +13,7 @@ often as it likes.
 
 **Reprogramming keeps the oracle uniform** (`oracle_reprog`): drawing a
 table and then setting its digit `m` to each answer `c` covers every
-table `K` times.  **Fiat–Shamir keeps an exact simulation**
+table `K` times.  **Fiat–Shamir keeps the simulation's error**
 (`fs_zk`): when the public-coin view, the message `m` with it, has a
 simulator, the real non-interactive view `(H, m, view at c = H(m))` and
 the simulator's, which draws `c`, simulates, and programs `H(m) := c`,
@@ -35,10 +35,30 @@ PCS randomness `r`, its salt `σ` drawn apart.  A hiding commitment
 index `c < Q4²` reads as the pair `(α, β)` (`sumQ2`, `csum_tsumN`), and
 `fs_zk` does the rest.
 
-Scope.  The oracle is ideal (a uniform function, programmable) and the
-commitment perfectly hiding.  One round: the challenges drawn by hashing
-are the LogUp pair; `ζ`, the FRI challenge and the query points stay
-fixed parameters.
+Scope.  This is Fiat–Shamir for an idealized proof, and these are its
+limits:
+* **The commitment is never opened.**  The view does not depend on the
+  salt or the committed data, so nothing in it is checked against the
+  hashed `m`; the theorem holds even for a constant `main`.  In Plonky3
+  the main root is opened at the query points, with leaves, salts and
+  Merkle paths, and the simulator's commitment to `d0` would fail those
+  checks.  A faithful version needs the simulator to commit its own
+  masked data and hiding of the root given the opened positions.
+* **`Com` is a primitive apart from the oracle.**  It hides perfectly over
+  its salt and is not computed from `H`; in Plonky3 both are Poseidon2,
+  and an adversary with the hash's whole table could test commitments,
+  so a real instantiation needs bounded queries and a ROM-hiding term.
+* **One proof per oracle.**  Programming several proofs into one table
+  needs a hybrid argument and a collision term, not proved.
+* **One round, and only generic `β`.**  The hashed challenges are the
+  LogUp pair; `ζ`, the FRI challenge and the query points stay fixed.
+  The count is the guarded joint count (`genB β`), as in the transcript
+  theorems; a prover that resamples under a fixed table is not modeled.
+* **The sponge is a random oracle**, its fixed public absorptions (the
+  statement, the preprocessed commitment) folded into it, and the lookup
+  proof-of-work nonce, a public function of `m` and `H`, is left out.
+* The salts are drawn apart from the PCS randomness; Plonky3 draws both
+  from one ChaCha20 seed, so this rests on the PRG assumption.
 -/
 
 namespace Circuit

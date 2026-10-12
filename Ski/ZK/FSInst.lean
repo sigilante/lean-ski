@@ -12,10 +12,14 @@ data the prover computes from the witness, the blinding tuples and the
 PCS randomness.  Each bound is `fs_transcript`'s with the circuit's
 error, the aborting draws, times the salts.
 
-Scope.  One Fiat–Shamir round, the LogUp challenges'.  The later
-challenges, `ζ`, the FRI challenge and the query points, stay fixed
-(generic) parameters; drawing them by the oracle too is the multi-round
-step.  `ComHides` is perfect hiding, the Merkle salts' idealization.
+Scope: the idealized proof of `Ski/ZK/FSZK.lean`.  The hashed commitment
+is never opened in the view (no Merkle paths are checked against it),
+`Com` is a perfectly hiding primitive apart from the oracle, the bound
+covers one proof per oracle and one round (the LogUp challenges, at
+generic `β`), and the sponge is a random oracle.  These theorems do not
+show that a Plonky3 proof, with its openings, is zero knowledge under
+Fiat–Shamir; they show the transcript's simulation survives the hashing
+of the challenges when the commitment is idealized.
 -/
 
 namespace Circuit
@@ -68,12 +72,13 @@ theorem simVN_some {PV PB : Type} (off : EF → String → EF) (pb : (String →
     ∃ p x y, simVN off pb bus sg par n tp psim α β r t = some (p, α, β, x, y) := ⟨_, _, _, rfl⟩
 
 set_option maxRecDepth 100000 in
-/-- **The Sudoku proof is zero knowledge under Fiat–Shamir**, in the
+/-- **The Sudoku proof's transcript under Fiat–Shamir, idealized**, in the
     programmable random-oracle model: the LogUp challenges are the
     oracle's answer at the commitment of the prover's first message
     (`main`, under a hiding commitment), the distinguisher sees the
     oracle's whole table, and the simulator commits to a fixed datum,
     draws the challenges and programs the oracle (`fs_transcript`).  The
+    commitment is never opened in the view (module scope).  The
     other challenges stay generic and fixed, as in `sud_hidingXG`. -/
 theorem sud_fs {V Wv D : Type} (off : EF → String → EF) {puzzle : List Nat} (hc : CluesOK (cluesOf puzzle))
     {ρ : Nat → Bool} {A : List Cell} {k : Nat} {row : Nat → Air.Row}
@@ -133,12 +138,13 @@ theorem sud_fs {V Wv D : Type} (off : EF → String → EF) {puzzle : List Nat} 
     (fun α β r t => simVN_some _ _ _ _ _ _ _ _ α β r t) Com hcom hrange main d0 E
 
 set_option maxRecDepth 100000 in
-/-- **The hidden-term proof is zero knowledge under Fiat–Shamir**, in the
+/-- **The hidden-term proof's transcript under Fiat–Shamir, idealized**, in the
     programmable random-oracle model: the LogUp challenges are the
     oracle's answer at the commitment of the prover's first message
     (`main`, under a hiding commitment), the distinguisher sees the
     oracle's whole table, and the simulator commits to a fixed datum,
     draws the challenges and programs the oracle (`fs_transcript`).  The
+    commitment is never opened in the view (module scope).  The
     other challenges stay generic and fixed, as in `wit_hidingXG`. -/
 theorem wit_fs {V Wv D : Type} (off : EF → String → EF) {Vt x : Term} {W : Nat} {ws : List Cell} (hwf : WF ws)
     (hwl : ws.length = W) (hW8 : W ≤ 2 ^ 8) {A : List Cell} {k : Nat} {row : Nat → Air.Row}
@@ -200,12 +206,13 @@ theorem wit_fs {V Wv D : Type} (off : EF → String → EF) {Vt x : Term} {W : N
     (fun α β r t => simVN_some _ _ _ _ _ _ _ _ α β r t) Com hcom hrange main d0 E
 
 set_option maxRecDepth 100000 in
-/-- **The composed proof is zero knowledge under Fiat–Shamir**, in the
+/-- **The composed proof's transcript under Fiat–Shamir, idealized**, in the
     programmable random-oracle model: the LogUp challenges are the
     oracle's answer at the commitment of the prover's first message
     (`main`, under a hiding commitment), the distinguisher sees the
     oracle's whole table, and the simulator commits to a fixed datum,
     draws the challenges and programs the oracle (`fs_transcript`).  The
+    commitment is never opened in the view (module scope).  The
     other challenges stay generic and fixed, as in `comp_hidingXG`. -/
 theorem comp_fs {V Wv D : Type} (off : EF → String → EF) {R Lm : Nat} (hR : R ≤ 20) {shp : BT} {Ps : List Term}
     {W : Nat} {ρ : Nat → Bool} {region : List Cell} (hrl : region.length = W)
