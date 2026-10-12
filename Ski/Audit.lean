@@ -61,6 +61,7 @@ import Ski.ZK.MaskOOD
 import Ski.ZK.MaskPCS
 import Ski.ZK.PRG
 import Ski.ZK.Reject
+import Ski.ZK.Honest
 import Ski.ZK.FSRound
 import Ski.ComposedJ
 import Ski.Circuit.Flow
@@ -808,6 +809,9 @@ open Ski.Audit
 -- Rejecting the non-generic challenges: the transcript at every generic β, without the P^2/P^4 term
 #audit_clean Circuit.genB_iff Circuit.sumTo_sumN_zero Circuit.transcript_zkG Circuit.comp_transcriptG
   Circuit.sud_transcriptG Circuit.wit_transcriptG Circuit.compJ_transcriptG Circuit.compP_transcriptG
+
+-- The composed, Sudoku and hidden-term circuits' honest tables meet the transcript theorems' hypotheses
+#audit_clean Circuit.comp_honest_zk Circuit.sud_honest_zk Circuit.wit_honest_zk
 
 -- Fiat–Shamir round by round: adaptive hash calls, grinding, and the LogUp round under them
 #audit_clean Circuit.seqSum_const Circuit.seqSum_mono Circuit.seqSum_add Circuit.fs_attempts Circuit.sumTo_pair

@@ -820,7 +820,7 @@ of a statement (`sud_zk`, `wit_zk`, `comp_zk`; the composed ones sharing
 their segment table), for a fixed challenge whose combiner matrix is
 invertible. That fails exactly for the `P^2` challenges in `F(x^2)`, about
 `2^-62` (`generic_iff`, `nongeneric_count`). A zero denominator aborts the
-prover for at most one `α` per message (`abort_count`), below `2^-103`.
+prover for at most one `α` per message (`abort_count`), below `2^-100` for every released proof, whose `M` is at most 8,127,232 (`csplit8`'s, `ski-air fs-budget`).
 A simulator for the whole transcript (`transcript_zk`; the model in
 `Ski/ZK/Transcript.lean`, the proof in `Ski/ZK/TranscriptN.lean`): fixed by the statement, it matches the real transcript
 on every event within `P^2/P^4 + M/P^4 + ε/NR` of the draws, for
@@ -856,14 +856,18 @@ over any such tree is `transcript_zkN` (`Ski/ZK/TranscriptN.lean`), and
 the three-table `transcript_zk` is its instance: the chain's view is the
 tree's (`chain_viewT`), the tree's reference base the chain's reference
 triple (`viewT_xrefN`), and the sums over two tuples are the sums over two
-edges (`tsum_tsumN`). The non-generic `β`, `P^2` of `P^4`, are public,
-so every hiding verifier rejects them and the honest prover redraws its
-seed (`bench/plonky3/src/reject.rs`); `transcript_zkG`
-(`Ski/ZK/Reject.lean`) and each circuit's `*_transcriptG` simulate the
-transcripts at the generic `β` without the `P^2/P^4` term. So
-`comp_transcript`, `sud_transcript` and
+edges (`tsum_tsumN`). So `comp_transcript`, `sud_transcript` and
 `wit_transcript`, their statements unchanged, rest on the tree: the
-design's milestone 2.
+design's milestone 2. The non-generic `β`, `P^2` of `P^4`, are public, so
+every hiding verifier rejects them and every prover that writes a hiding
+proof redraws its seed (`bench/plonky3/src/reject.rs`); `transcript_zkG`
+(`Ski/ZK/Reject.lean`) and each circuit's `*_transcriptG` bound the real
+and simulated counts at the generic `β` within `M/P^4 + ε/NR` of all the
+draws, without the `P^2/P^4` term. The honest prover's tables meet the
+transcript theorems' hypotheses for every hiding circuit: balanced with
+the public tables, blinding flags clear (`comp_honest_zk`,
+`sud_honest_zk`, `wit_honest_zk` in `Ski/ZK/Honest.lean`;
+`CRun.honest_zk`; `honest_zkP`).
 The closure rule, the design's milestone 3 (`Ski/JetPublic.lean`): the
 composed heap's private cells, the bit slots and the region, are pointed
 into by public cells, so a jet table checked over the blank heap need not

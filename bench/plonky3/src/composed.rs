@@ -654,6 +654,7 @@ pub fn composed_digest_bound(public: &std::path::Path, proof_in: &std::path::Pat
     };
     let own = crate::stmt::public_values(&v_airs);
     run(&own).map_err(|e| format!("the proof does not verify with its own statement's digest: {e}"))?;
+    crate::reject::check_beta(&v_airs, &proof)?;
     println!("the proof verifies with its own statement's digest");
     let changes: [(&str, fn(&mut crate::CpuAir)); 4] = [
         ("start head", |c| c.hd0 += 1),
