@@ -109,16 +109,16 @@ is built; this file records what is next. Last revised 2026-10-13.
   distinguisher with the oracle's table, its LogUp challenges hashed from a commitment of
   the first message (`Ski/ZK/FSInst.lean`, `sud_fs`, `wit_fs`, `comp_fs`), for an idealized
   proof: the commitment is never opened in the view and `Com` is a perfect primitive apart
-  from the oracle. With the commitment opened, the view's opened values the committed main
-  matrices' (masked columns and random codewords) and the opening proof in the output, the
-  simulator committing interpolants through its own openings, the same holds under hiding
-  given the openings (`Ski/ZK/FSOpenInst.lean`, `*_fs_open`). Open: the later commitments in
-  the output (permutation, quotient, FRI layers) and hashed; `Com` from the same oracle
-  (bounded queries, a ROM-hiding term); several proofs per oracle (a hybrid and a collision
-  term); the later rounds under the oracle (`ζ`, the FRI challenge, the query points, each
-  adding the non-generic mass); the lookup proof-of-work nonce. The groups' trace and mask
-  points (`hT`, `hRq`) are tied to the committed matrices: the masked column is the
-  interpolant of Plonky3's interleaved column over the `2n`-point domain
+  from the oracle. With the commitment opened, the view's opened values being the committed
+  main matrices' (masked columns and random codewords) and the opening proof being in the
+  output, the simulator committing interpolants through its own openings, the same holds
+  under hiding given the openings (`Ski/ZK/FSOpenInst.lean`, `*_fs_open`). Open: the later
+  commitments in the output (permutation, quotient, FRI layers) and hashed; `Com` from the
+  same oracle (bounded queries, a ROM-hiding term); several proofs per oracle (a hybrid and
+  a collision term); the later rounds under the oracle (`ζ`, the FRI challenge, the query
+  points, each adding the non-generic mass); the lookup proof-of-work nonce. The groups'
+  trace and mask points (`hT`, `hRq`) are tied to the committed matrices: the masked column
+  is the interpolant of Plonky3's interleaved column over the `2n`-point domain
   (`Ski/ZK/Interleave.lean`, `bb_ileave_mcol`); that Plonky3 interleaves, trace rows even
   and random rows odd, is read from its source.
 - **The quotient's recombined values hide** (`Ski/ZK/MaskQuot.lean`): the chunks sit at the

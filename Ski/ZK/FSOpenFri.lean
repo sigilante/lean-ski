@@ -17,7 +17,13 @@ query points, and the simulator's own.  Here, for the PCS of
 * the simulator's openings are its zero columns' masked polynomials'
   values, which depend on nothing but its randomness (`psimFri_ov`);
 * data with given openings: interpolation through the query points
-  (`sdF`), exact when they are distinct (`opF_sdF`).
+  (`sdF`), exact, the points repeated or not (`finterp_eval_cons`,
+  `opF_sdF`);
+* with the random codewords Plonky3 commits in each main group's matrix:
+  the opened values `ovF2`, the codewords' openings at the query points
+  (`cw_open`), the committed data `mainF2`, `mainZ2` (`pcsFri_ov2`,
+  `psimFri_ov2`), and the simulator's opening verifying against its view
+  (`mainZ2_verifies`).
 -/
 
 namespace Circuit
@@ -288,16 +294,24 @@ theorem psimFri_ov2 (hmk : ∀ k ∈ mk, k < qs.length) (hks : ks.length = qs.le
     (msF qs ks tabs ncw ρ)) from rfl, q, List.map_append]
 end
 
-/-- **The simulator's opening verifies against its view's values**: its
-    data opens, at the query points, to exactly the values its simulated
-    view shows, so any check the scheme passes on honest openings passes
-    on the simulator's. -/
-theorem mainZ2_verifies {Pp : Type} (qs : List QGroup) (ks : List Nat) (tabs : List QTab) (ncw : Nat) (mk : List Nat)
+/-- **The simulator's opening verifies against its view's values**: the
+    values its simulated view shows at the query points are its data's
+    openings, so any check the scheme passes on every honest commitment
+    and opening passes on the simulator's against those values.  It says
+    nothing of checks against the quotient or FRI. -/
+theorem mainZ2_verifies {V Pp : Type} (qs : List QGroup) (ks : List Nat) (tabs : List QTab) (ncw : Nat) (αb : EF)
+    (fri : EF → EF → List (EF → EF) → V) (mk : List Nat) (hmk : ∀ k ∈ mk, k < qs.length)
+    (hks : ks.length = qs.length)
     (Com : List (List (List F)) → Nat → Nat) (Pf : List (List (List F)) → Nat → Pp)
     (Verify : Nat → List (List (List F)) → Pp → Bool)
-    (hver : ∀ d σ, Verify (Com d σ) (opF (qs.map (·.base.S)) mk d) (Pf d σ) = true) (ρ σ : Nat) :
-    let o := opF (qs.map (·.base.S)) mk (mainZ2 qs ks tabs ncw mk ρ)
-    Verify (Com (sdF (qs.map (·.base.S)) mk o) σ) o (Pf (sdF (qs.map (·.base.S)) mk o) σ) = true :=
-  sim_opening_verifies Com Pf _ _ Verify hver _ (opF_sdF _ mk _) σ
+    (hver : ∀ d σ, Verify (Com d σ) (opF (qs.map (·.base.S)) mk d) (Pf d σ) = true) (α β : EF) (v : List EF)
+    (ρ σ : Nat) :
+    let o := ovF2 (qs.map (·.base.S)) mk (psimFri qs ks tabs ncw αb fri α β v ρ)
+    Verify (Com (sdF (qs.map (·.base.S)) mk o) σ) o (Pf (sdF (qs.map (·.base.S)) mk o) σ) = true := by
+  intro o
+  have ho : o = opF (qs.map (·.base.S)) mk (mainZ2 qs ks tabs ncw mk ρ) :=
+    psimFri_ov2 qs ks tabs ncw αb fri mk hmk hks α β v ρ
+  rw [ho]
+  exact sim_opening_verifies Com Pf _ _ Verify hver _ (opF_sdF _ mk _) σ
 
 end Circuit

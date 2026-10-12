@@ -15,9 +15,14 @@ are the committed data's, and the opening proof is in the output.
 What the opening reveals (`op`): each main group's matrix at the query
 points, its masked columns' and its random codewords' values, as a
 Plonky3 Merkle opening reveals the queried rows of a matrix that carries
-both (`hiding_pcs.rs`).  The view's values at the next rows `g·S` enter
-only through the quotient values, and its values at `ζ` are evaluations,
-not leaves; neither is opened.  The query points may repeat
+both (`hiding_pcs.rs`).  The main columns' values at the next rows `g·S`
+enter the view only through the quotient values, and the values at `ζ`
+are evaluations, not leaves.  The model's view does show the codewords
+at `g·S` (each group's codeword matrix opens at its extended points,
+`traceInfo`); `op` leaves those out, so `ComPfHides` is assumed for an
+opening of the rows at `S` alone, as Plonky3's query phase opens them,
+and the codewords' values at `g·S` count as evaluations the view shows,
+a difference from Plonky3, which shows none.  The query points may repeat
 (`finterp_eval_cons`).
 
 Scope.  One proof per oracle; one round (the LogUp challenges, at
