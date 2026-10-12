@@ -93,11 +93,15 @@ is built; this file records what is next. Last revised 2026-10-10.
   (`Ski/ZK/SudInst.lean`, `sud_pcs`, `sud_hiding`), with each height opened at its own query
   points (`S16`, `S10`, `SP`) and the program table's height derived from the statement
   (`sud_prog_height`). Fixed, not sampled: `ζ`, the FRI challenge, the blinding blocks, the
-  quotient values, the weights `ws` and the query points; the four chunks per table follow from Plonky3's
-  `2^(log2_ceil 2 + 1)` at degree 2. Open: the hidden-term and composed circuits alike
-  (their `*_run_sats` and instances). Assumed: Fiat–Shamir, the Merkle salts' hiding, and
-  generic `ζ` and FRI challenge. The groups' trace and mask points tied to the committed
-  matrices (`hT`, `hRq`) stay modeled.
+  quotient values, the weights `ws` and the query points; the four chunks per table follow
+  from Plonky3's `2^(log2_ceil 2 + 1)` at degree 2. The hidden-term proof is too, by the
+  same construction (`Ski/ZK/WitInst.lean`, `wit_pcs`, `wit_hiding`, its run's `Sat` from
+  `wit_run_sats`). Each simulator reads the tables' preprocessed columns only
+  (`sudPsim_pre`, `wPsim_pre`); the preprocessed columns' own openings are argued, not
+  proved, to fold into FRI's view. Open: the composed circuit's `comp_run_sats` and
+  instance. Assumed: Fiat–Shamir, the Merkle salts' hiding, and generic `ζ` and FRI
+  challenge. The groups' trace and mask points tied to the committed matrices (`hT`, `hRq`)
+  stay modeled.
 - **The quotient's recombined values hide** (`Ski/ZK/MaskQuot.lean`): the chunks sit
   at the committed trace's height, so a query opens them at the trace's point `s`, where they
   recombine to a function of the terminals and the masked columns at `s` and `g s`.

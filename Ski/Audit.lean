@@ -92,6 +92,7 @@ import Ski.ZK.BbGroup
 import Ski.ZK.SudRun
 import Ski.ZK.SudInst
 import Ski.ZK.WitRun
+import Ski.ZK.WitInst
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -1124,3 +1125,6 @@ open Ski.Audit
   Circuit.entropyExport_sound Circuit.checkEntropy_sound
 -- One hidden-term run: Sat at the heights 2^10, 2^10, 2^9
 #audit_clean Circuit.wit_run_sats
+-- The hidden-term proof over its composed hiding PCS, end to end
+#audit_clean Circuit.padPow Circuit.progW_height Circuit.wit_prog_height Circuit.wCols_shaped Circuit.wit_airs_P3
+  Circuit.wit_pcs Circuit.wPsim_pre Circuit.wit_hiding
