@@ -11,14 +11,23 @@ permutation columns (`bbGroup`, `mainCols`, `permCols`): six groups,
 heights `2^16`, `2^16` and `2^10` (`sudGroups`, `sudCols`).  Each has a
 quotient table over its two groups (`airQTabG`) with Plonky3's chunks.
 
+Each height has its own query points, `S16` for the `2^16` tables and
+`S10` for the witness, as Plonky3 opens each matrix at its own height's
+points.  The AIRs have Plonky3 degree 2, so with `is_zk` Plonky3 makes
+`2^(log2_ceil 2 + 1) = 4` chunks per table, the count `bbTab` fixes.
+The public program table has no group and no quotient table here:
+Plonky3 commits its main, permutation and quotient matrices, which this
+view omits (open).
+
 `sud_pcs`: that PCS, its view every group's openings, every table's
 chunks, every codeword and FRI, meets `PCSCloseN` with `ε = 0` over the
 Sudoku transcript's values.  `sud_hiding`: for an accepting run of the
 Sudoku statement, `sud_transcriptG` over that PCS, its PCS term zero.
 
 Assumed: the query points off the trace domains (`lde_off_trace` gives
-it for Plonky3's), `2 |S| + 8 ≤ 2^10`, `ζ` and the FRI challenge `αb`
-generic, Fiat–Shamir, the Merkle commitments' hiding, and the modeling
+it for Plonky3's), `2 |S| + 8` within each height, `ζ` and the FRI
+challenge `αb` generic and fixed (with `ws`, `qv` and the query points,
+not sampled here), Fiat–Shamir, the Merkle commitments' hiding, and the modeling
 facts the earlier modules name (the groups' trace and mask points, the
 opened points `S ++ g S`).
 -/
@@ -34,8 +43,9 @@ def sudWitT (Wt : Table) (t : Nat → Tup) : Table := Wt.setBlind 1 (t 1)
 
 /-- The six trace groups: memory, CPU (`2^16` rows) and witness (`2^10`),
     main and permutation each. -/
-def sudGroups (S : List F) (ζ : EF) (qv : EF → EF → List EF → F → List F → List F → List EF) : List QGroup :=
-  [bbGroup 15 S ζ qv, bbGroup 15 S ζ qv, bbGroup 15 S ζ qv, bbGroup 15 S ζ qv, bbGroup 9 S ζ qv, bbGroup 9 S ζ qv]
+def sudGroups (S16 S10 : List F) (ζ : EF) (qv : EF → EF → List EF → F → List F → List F → List EF) : List QGroup :=
+  [bbGroup 15 S16 ζ qv, bbGroup 15 S16 ζ qv, bbGroup 15 S16 ζ qv, bbGroup 15 S16 ζ qv, bbGroup 9 S10 ζ qv,
+   bbGroup 9 S10 ζ qv]
 
 /-- The committed columns: each blinded table's main and permutation columns. -/
 def sudCols (off : EF → String → EF) (hd0 stk0 ctr0 : Nat) (C Mm Wt : Table) (t : Nat → Tup) (α β : EF) :
@@ -66,9 +76,9 @@ theorem permCols_shape (Tb : Table) (αs : Nat → EF) (β : EF) (Ls : List (Lis
 /-- **The committed columns fit the groups**, when the tables have the
     groups' heights. -/
 theorem sudCols_shaped (off : EF → String → EF) (hd0 stk0 ctr0 : Nat) {C Mm Wt : Table}
-    (hC : C.h = 2 ^ 16) (hM : Mm.h = 2 ^ 16) (hW : Wt.h = 2 ^ 10) (S : List F) (ζ : EF)
+    (hC : C.h = 2 ^ 16) (hM : Mm.h = 2 ^ 16) (hW : Wt.h = 2 ^ 10) (S16 S10 : List F) (ζ : EF)
     (qv : EF → EF → List EF → F → List F → List F → List EF) (t : Nat → Tup) (α β : EF) :
-    Shaped ((sudGroups S ζ qv).map QGroup.ext) (sudCols off hd0 stk0 ctr0 C Mm Wt t α β) ∧
+    Shaped ((sudGroups S16 S10 ζ qv).map QGroup.ext) (sudCols off hd0 stk0 ctr0 C Mm Wt t α β) ∧
       (sudCols off hd0 stk0 ctr0 C Mm Wt t α β).map List.length = sudKs hd0 stk0 ctr0 := by
   have m1 := mainCols_shape (sudMemT Mm t) memAirC.width
   have p1 := permCols_shape (sudMemT Mm t) (busAlphas (prefixOf α (off β)) memAirC) β (corpusLs memAirC)
@@ -124,19 +134,19 @@ def sudTabs (hd0 stk0 ctr0 : Nat) (heap : List Cell) (C Mm Wt : Table) (t : Nat 
 
 /-- **The Sudoku proof's three quotient tables**, memory, CPU and witness,
     with their data. -/
-def sudTs (off : EF → String → EF) (hd0 stk0 ctr0 : Nat) (heap : List Cell) (C Mm Wt : Table) (S : List F) (ζ : EF)
+def sudTs (off : EF → String → EF) (hd0 stk0 ctr0 : Nat) (heap : List Cell) (C Mm Wt : Table) (S16 S10 : List F) (ζ : EF)
     (qv : EF → EF → List EF → F → List F → List F → List EF) (wm wc ww : List (EF → EF → List F)) :
     List (QTab × ((Nat → Tup) → EF → EF → List F → List (List (List F) × List F))) :=
   let tv := fun pre β t => sudViewN pre β hd0 stk0 ctr0 C Mm Wt t
-  let qs := sudGroups S ζ qv
+  let qs := sudGroups S16 S10 ζ qv
   let cols := sudCols off hd0 stk0 ctr0 C Mm Wt
   let tabs := sudTabs hd0 stk0 ctr0 heap C Mm Wt
-  [(bbTab off memAirC 0 15 (2 ^ 16 - 1) Mm 0 1 S ζ wm,
-     bbData off tv memAirC 0 15 (2 ^ 16 - 1) Mm 0 1 S ζ wm qs cols tabs),
-   (bbTab off (cpuAirS hd0 stk0 ctr0 ACC) 1 15 (2 ^ 16 - 1) C 2 3 S ζ wc,
-     bbData off tv (cpuAirS hd0 stk0 ctr0 ACC) 1 15 (2 ^ 16 - 1) C 2 3 S ζ wc qs cols tabs),
-   (bbTab off witAirS 2 9 (2 ^ 10 - 1) Wt 4 5 S ζ ww,
-     bbData off tv witAirS 2 9 (2 ^ 10 - 1) Wt 4 5 S ζ ww qs cols tabs)]
+  [(bbTab off memAirC 0 15 (2 ^ 16 - 1) Mm 0 1 S16 ζ wm,
+     bbData off tv memAirC 0 15 (2 ^ 16 - 1) Mm 0 1 S16 ζ wm qs cols tabs),
+   (bbTab off (cpuAirS hd0 stk0 ctr0 ACC) 1 15 (2 ^ 16 - 1) C 2 3 S16 ζ wc,
+     bbData off tv (cpuAirS hd0 stk0 ctr0 ACC) 1 15 (2 ^ 16 - 1) C 2 3 S16 ζ wc qs cols tabs),
+   (bbTab off witAirS 2 9 (2 ^ 10 - 1) Wt 4 5 S10 ζ ww,
+     bbData off tv witAirS 2 9 (2 ^ 10 - 1) Wt 4 5 S10 ζ ww qs cols tabs)]
 
 -- ---------------------------------------------------------------------------
 -- The Sudoku proof's PCS hides
@@ -157,43 +167,39 @@ set_option maxRecDepth 100000 in
 theorem sud_pcs {V : Type} (off : EF → String → EF) {hd0 stk0 ctr0 : Nat} {heap : List Cell} {C Mm Wt : Table}
     (hsC : Sat (cpuAirS hd0 stk0 ctr0 ACC) C) (hsM : Sat memAirC Mm) (hsW : Sat witAirS Wt)
     (hC : C.h = 2 ^ 16) (hM : Mm.h = 2 ^ 16) (hW : Wt.h = 2 ^ 10)
-    {S : List F} {ζ : EF} (qv : EF → EF → List EF → F → List F → List F → List EF)
+    {S16 S10 : List F} {ζ : EF} (qv : EF → EF → List EF → F → List F → List F → List EF)
     (wm wc ww : List (EF → EF → List F))
-    (hS16 : ∀ x ∈ S, x ∉ cosetL 1 (bbGen 16) (2 ^ 16)) (hS10 : ∀ x ∈ S, x ∉ cosetL 1 (bbGen 10) (2 ^ 10))
-    (hsz : 2 * S.length + 8 ≤ 2 ^ 10) (hζ : ∀ x : F, EF.ofF x ≠ ζ) (hdet : (mz ζ).det ≠ 0)
-    {ncw : Nat} {αb : EF} {fri : EF → EF → List (EF → EF) → V}
+    (hS16 : ∀ x ∈ S16, x ∉ cosetL 1 (bbGen 16) (2 ^ 16)) (hS10 : ∀ x ∈ S10, x ∉ cosetL 1 (bbGen 10) (2 ^ 10))
+    (hsz16 : 2 * S16.length + 8 ≤ 2 ^ 16) (hsz : 2 * S10.length + 8 ≤ 2 ^ 10) (hζ : ∀ x : F, EF.ofF x ≠ ζ)
+    (hdet : (mz ζ).det ≠ 0) {ncw : Nat} {αb : EF} {fri : EF → EF → List (EF → EF) → V}
     (hdb : (mz αb).det ≠ 0) (haw : ∀ w, apow αb w ≠ EF.zero) (hncw : 4 ≤ ncw) :
     let tv := fun pre β t => sudViewN pre β hd0 stk0 ctr0 C Mm Wt t
-    let Ts := sudTs off hd0 stk0 ctr0 heap C Mm Wt S ζ qv wm wc ww
-    PCSCloseN off (P ^ (friN1 (sudGroups S ζ qv) (sudKs hd0 stk0 ctr0) (Ts.map Prod.fst) +
-        friN2 (sudGroups S ζ qv) (Ts.map Prod.fst) ncw)) tv
-      (pcsFri off tv (sudGroups S ζ qv) (sudKs hd0 stk0 ctr0) (sudCols off hd0 stk0 ctr0 C Mm Wt) (Ts.map Prod.fst)
+    let Ts := sudTs off hd0 stk0 ctr0 heap C Mm Wt S16 S10 ζ qv wm wc ww
+    PCSCloseN off (P ^ (friN1 (sudGroups S16 S10 ζ qv) (sudKs hd0 stk0 ctr0) (Ts.map Prod.fst) +
+        friN2 (sudGroups S16 S10 ζ qv) (Ts.map Prod.fst) ncw)) tv
+      (pcsFri off tv (sudGroups S16 S10 ζ qv) (sudKs hd0 stk0 ctr0) (sudCols off hd0 stk0 ctr0 C Mm Wt) (Ts.map Prod.fst)
         (fun t α β ms => Ts.map fun p => p.2 t α β ms) ncw αb fri)
-      (psimFri (sudGroups S ζ qv) (sudKs hd0 stk0 ctr0) (Ts.map Prod.fst) ncw αb fri) 0 := by
+      (psimFri (sudGroups S16 S10 ζ qv) (sudKs hd0 stk0 ctr0) (Ts.map Prod.fst) ncw αb fri) 0 := by
   intro tv Ts
   obtain ⟨b1, b2, _, _, _, _, b7, b8, _, _⟩ := blind_ok hd0 stk0 ctr0 0 0 0 0
   obtain ⟨pM, pC, pW⟩ := sud_airs_P3 hd0 stk0 ctr0
-  have hS4 : S.length + 4 ≤ 2 ^ 10 - 1 + 1 := by omega
-  have hS4' : S.length + 4 ≤ 2 ^ 16 - 1 + 1 := by
-    have : 2 ^ 10 ≤ 2 ^ 16 := Nat.pow_le_pow_right (by decide) (by decide)
-    omega
+  have hS4 : S10.length + 4 ≤ 2 ^ 10 - 1 + 1 := by omega
+  have hS4' : S16.length + 4 ≤ 2 ^ 16 - 1 + 1 := by omega
   have hm16 : 2 ^ 16 - 1 + 1 = 2 ^ (15 + 1) := by decide
   have hm10 : 2 ^ 10 - 1 + 1 = 2 ^ (9 + 1) := by decide
-  have hsz16 : 2 * S.length + 8 ≤ 2 ^ (15 + 1) := by
-    have : 2 ^ 10 ≤ 2 ^ (15 + 1) := Nat.pow_le_pow_right (by decide) (by decide)
-    omega
-  have hS16' : ∀ x ∈ S, x ∉ cosetL 1 (bbGen (15 + 1)) (2 ^ 16 - 1 + 1) := by rw [hm16]; exact hS16
-  have hS10' : ∀ x ∈ S, x ∉ cosetL 1 (bbGen (9 + 1)) (2 ^ 10 - 1 + 1) := by rw [hm10]; exact hS10
+  have hsz16' : 2 * S16.length + 8 ≤ 2 ^ (15 + 1) := hsz16
+  have hS16' : ∀ x ∈ S16, x ∉ cosetL 1 (bbGen (15 + 1)) (2 ^ 16 - 1 + 1) := by rw [hm16]; exact hS16
+  have hS10' : ∀ x ∈ S10, x ∉ cosetL 1 (bbGen (9 + 1)) (2 ^ 10 - 1 + 1) := by rw [hm10]; exact hS10
   have hcl : ∀ t α β, ∀ j ∈ [0, 1], j < (sudCols off hd0 stk0 ctr0 C Mm Wt t α β).length := fun _ _ _ j hj => by
     simp only [List.mem_cons, List.not_mem_nil, or_false] at hj; rcases hj with rfl | rfl <;> exact (by show _ < 6; decide)
   have hcl2 : ∀ t α β, ∀ j ∈ [2, 3], j < (sudCols off hd0 stk0 ctr0 C Mm Wt t α β).length := fun _ _ _ j hj => by
     simp only [List.mem_cons, List.not_mem_nil, or_false] at hj; rcases hj with rfl | rfl <;> exact (by show _ < 6; decide)
   have hcl3 : ∀ t α β, ∀ j ∈ [4, 5], j < (sudCols off hd0 stk0 ctr0 C Mm Wt t α β).length := fun _ _ _ j hj => by
     simp only [List.mem_cons, List.not_mem_nil, or_false] at hj; rcases hj with rfl | rfl <;> exact (by show _ < 6; decide)
-  refine pcsCloseN_fri_tabs (fun q hq => ?_) (by rfl) (fun t α β => sudCols_shaped off hd0 stk0 ctr0 hC hM hW S ζ qv t α β)
+  refine pcsCloseN_fri_tabs (fun q hq => ?_) (by rfl) (fun t α β => sudCols_shaped off hd0 stk0 ctr0 hC hM hW S16 S10 ζ qv t α β)
     hdb haw hncw off tv Ts (fun p hp => ?_)
   · simp only [sudGroups, List.mem_cons, List.not_mem_nil, or_false] at hq
-    have g16 := bbGroup_OK (tb := 15) (qv := qv) (by decide) hS16 hζ hsz16
+    have g16 := bbGroup_OK (tb := 15) (qv := qv) (by decide) hS16 hζ hsz16'
     have g10 := bbGroup_OK (tb := 9) (qv := qv) (by decide) hS10 hζ hsz
     rcases hq with rfl | rfl | rfl | rfl | rfl | rfl
     · exact g16
@@ -227,20 +233,20 @@ theorem sud_pcs {V : Type} (off : EF → String → EF) {hd0 stk0 ctr0 : Nat} {h
 
 section
 variable {V : Type} (off : EF → String → EF) (hd0 stk0 ctr0 : Nat) (heap : List Cell) (C Mm Wt : Table)
-  (S : List F) (ζ : EF) (qv : EF → EF → List EF → F → List F → List F → List EF) (wm wc ww : List (EF → EF → List F))
-  (ncw : Nat) (αb : EF) (fri : EF → EF → List (EF → EF) → V)
+  (S16 S10 : List F) (ζ : EF) (qv : EF → EF → List EF → F → List F → List F → List EF)
+  (wm wc ww : List (EF → EF → List F)) (ncw : Nat) (αb : EF) (fri : EF → EF → List (EF → EF) → V)
 
 /-- **The Sudoku proof's composed PCS**, its simulator and its randomness. -/
-def sudPcs := pcsFri off (fun pre β t => sudViewN pre β hd0 stk0 ctr0 C Mm Wt t) (sudGroups S ζ qv)
-  (sudKs hd0 stk0 ctr0) (sudCols off hd0 stk0 ctr0 C Mm Wt) ((sudTs off hd0 stk0 ctr0 heap C Mm Wt S ζ qv wm wc ww).map Prod.fst)
-  (fun t α β ms => (sudTs off hd0 stk0 ctr0 heap C Mm Wt S ζ qv wm wc ww).map fun p => p.2 t α β ms) ncw αb fri
+def sudPcs := pcsFri off (fun pre β t => sudViewN pre β hd0 stk0 ctr0 C Mm Wt t) (sudGroups S16 S10 ζ qv)
+  (sudKs hd0 stk0 ctr0) (sudCols off hd0 stk0 ctr0 C Mm Wt) ((sudTs off hd0 stk0 ctr0 heap C Mm Wt S16 S10 ζ qv wm wc ww).map Prod.fst)
+  (fun t α β ms => (sudTs off hd0 stk0 ctr0 heap C Mm Wt S16 S10 ζ qv wm wc ww).map fun p => p.2 t α β ms) ncw αb fri
 
-def sudPsim := psimFri (sudGroups S ζ qv) (sudKs hd0 stk0 ctr0)
-  ((sudTs off hd0 stk0 ctr0 heap C Mm Wt S ζ qv wm wc ww).map Prod.fst) ncw αb fri
+def sudPsim := psimFri (sudGroups S16 S10 ζ qv) (sudKs hd0 stk0 ctr0)
+  ((sudTs off hd0 stk0 ctr0 heap C Mm Wt S16 S10 ζ qv wm wc ww).map Prod.fst) ncw αb fri
 
-def sudNR : Nat := P ^ (friN1 (sudGroups S ζ qv) (sudKs hd0 stk0 ctr0)
-  ((sudTs off hd0 stk0 ctr0 heap C Mm Wt S ζ qv wm wc ww).map Prod.fst) +
-  friN2 (sudGroups S ζ qv) ((sudTs off hd0 stk0 ctr0 heap C Mm Wt S ζ qv wm wc ww).map Prod.fst) ncw)
+def sudNR : Nat := P ^ (friN1 (sudGroups S16 S10 ζ qv) (sudKs hd0 stk0 ctr0)
+  ((sudTs off hd0 stk0 ctr0 heap C Mm Wt S16 S10 ζ qv wm wc ww).map Prod.fst) +
+  friN2 (sudGroups S16 S10 ζ qv) ((sudTs off hd0 stk0 ctr0 heap C Mm Wt S16 S10 ζ qv wm wc ww).map Prod.fst) ncw)
 end
 
 /-- The composed PCS's view. -/
@@ -248,22 +254,23 @@ abbrev SudPV (V : Type) : Type :=
   (List (List (List F × List EF) × List (List EF)) × List (List (List (List F × List EF)))) ×
     List (List (List F × List EF)) × V
 
-/-- **The Sudoku proof is zero knowledge over its composed hiding PCS**: for
-    an accepting run of the Sudoku statement, query points off the trace
-    domains, `ζ` generating the extension and the FRI challenge generic,
-    the real transcript over the Sudoku proof's composed PCS and the
-    simulated one differ, at every generic `β`, by at most the aborting
-    draws: `sud_transcriptG` with its PCS term zero. -/
+/-- **The Sudoku proof's private tables are zero knowledge over their
+    composed hiding PCS**: for an accepting run of the Sudoku statement,
+    query points off the trace domains, `ζ` generating the extension and
+    the FRI challenge generic, the real transcript over that PCS and the
+    simulated one, summed over `α, β, r` and the tuples with `β` generic,
+    differ by at most the aborting draws: `sud_transcriptG` with its PCS
+    term zero. -/
 theorem sud_hiding {V : Type} (off : EF → String → EF) {puzzle : List Nat} (hc : CluesOK (cluesOf puzzle))
     {ρ : Nat → Bool} {A : List Cell} {k : Nat} {row : Nat → Air.Row}
     (hA : AcceptsFrom A (stmtMachine ρ 729 (sudokuExpr (cluesOf puzzle)) ACC REJ) k row)
     (hacc : rd A (row (k - 1)).ctr (row (k - 1)).hd = some (.atom ACC))
     (hlen : A.length = 2 ^ 16) (hk : k ≤ 2 ^ 16)
-    {S : List F} {ζ : EF} (qv : EF → EF → List EF → F → List F → List F → List EF)
+    {S16 S10 : List F} {ζ : EF} (qv : EF → EF → List EF → F → List F → List F → List EF)
     (wm wc ww : List (EF → EF → List F))
-    (hS16 : ∀ x ∈ S, x ∉ cosetL 1 (bbGen 16) (2 ^ 16)) (hS10 : ∀ x ∈ S, x ∉ cosetL 1 (bbGen 10) (2 ^ 10))
-    (hsz : 2 * S.length + 8 ≤ 2 ^ 10) (hζ : ∀ x : F, EF.ofF x ≠ ζ) (hdet : (mz ζ).det ≠ 0)
-    {ncw : Nat} {αb : EF} (fri : EF → EF → List (EF → EF) → V)
+    (hS16 : ∀ x ∈ S16, x ∉ cosetL 1 (bbGen 16) (2 ^ 16)) (hS10 : ∀ x ∈ S10, x ∉ cosetL 1 (bbGen 10) (2 ^ 10))
+    (hsz16 : 2 * S16.length + 8 ≤ 2 ^ 16) (hsz : 2 * S10.length + 8 ≤ 2 ^ 10) (hζ : ∀ x : F, EF.ofF x ≠ ζ)
+    (hdet : (mz ζ).det ≠ 0) {ncw : Nat} {αb : EF} (fri : EF → EF → List (EF → EF) → V)
     (hdb : (mz αb).det ≠ 0) (haw : ∀ w, apow αb w ≠ EF.zero) (hncw : 4 ≤ ncw)
     (E : TViewN (SudPV V) EF → Bool) :
     let blank := stmtMachine (fun _ => false) 729 (sudokuExpr (cluesOf puzzle)) ACC REJ
@@ -271,9 +278,9 @@ theorem sud_hiding {V : Type} (off : EF → String → EF) {puzzle : List Nat} (
     let Pg := progTableS blank.heap
     let Wt := witTableS A
     let Mm := memTableC A (cpuAirS blank.hd blank.stk blank.heap.length ACC) (progAirS blank.heap) witAirS C Pg Wt
-    let pcs := sudPcs off blank.hd blank.stk blank.heap.length blank.heap C Mm Wt S ζ qv wm wc ww ncw αb fri
-    let psim := sudPsim off blank.hd blank.stk blank.heap.length blank.heap C Mm Wt S ζ qv wm wc ww ncw αb fri
-    let NR := sudNR off blank.hd blank.stk blank.heap.length blank.heap C Mm Wt S ζ qv wm wc ww ncw
+    let pcs := sudPcs off blank.hd blank.stk blank.heap.length blank.heap C Mm Wt S16 S10 ζ qv wm wc ww ncw αb fri
+    let psim := sudPsim off blank.hd blank.stk blank.heap.length blank.heap C Mm Wt S16 S10 ζ qv wm wc ww ncw αb fri
+    let NR := sudNR off blank.hd blank.stk blank.heap.length blank.heap C Mm Wt S16 S10 ζ qv wm wc ww ncw
     let tabs := fun t : Nat → Tup => sudTables blank.hd blank.stk blank.heap.length blank.heap
       ((C.setBlind BLA (t 1)).setBlind BLB (t 0)) (Mm.setBlind 5 (t 0)) (progTableS blank.heap) (Wt.setBlind 1 (t 1))
     let tv := fun pre β t => sudViewN pre β blank.hd blank.stk blank.heap.length C Mm Wt t
@@ -289,7 +296,7 @@ theorem sud_hiding {V : Type} (off : EF → String → EF) {puzzle : List Nat} (
   obtain ⟨hbal, hun⟩ := sud_honest_zk hc hA hlen hk
   obtain ⟨sc, sm, sw⟩ := sud_run_sats hc hA hacc hlen hk
   have hpcs := sud_pcs (heap := blank.heap) off sc sm sw (rfl : C.h = 2 ^ 16) hlen (rfl : Wt.h = 2 ^ 10) qv wm wc ww
-    hS16 hS10 hsz hζ hdet (fri := fri) hdb haw hncw
+    hS16 hS10 hsz16 hsz hζ hdet (fri := fri) hdb haw hncw
   exact sud_transcriptG off NR 0 pcs psim hbal hun hpcs E
 
 end Circuit
