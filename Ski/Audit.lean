@@ -77,6 +77,7 @@ import Ski.ZK.MaskSplit
 import Ski.ZK.MaskCis
 import Ski.ZK.QuotPoly
 import Ski.ZK.VanishPow
+import Ski.ZK.QuotSat
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -892,6 +893,8 @@ open Ski.Audit
   Circuit.air_quot Circuit.fval_stdRho Circuit.fvalE_stdRho Circuit.shows_air
 -- A coset's vanishing polynomial is xⁿ - sⁿ; Plonky3's selectors
 #audit_clean Circuit.fval_lowv Circuit.fvan_coset_pow Circuit.sel_first Circuit.sel_last
+-- The constraints vanish on the trace domain, from Sat
+#audit_clean Circuit.p3Sels Circuit.hvan_of_sat Circuit.quot_length_le Circuit.shows_sat
 
 -- Part II's interface with an additive distance: the errors add, the hybrid argument proved
 #audit_clean Compose.lsum_le Compose.lsum_add Compose.lsum_const Compose.lsum_comm Compose.lsum_prod

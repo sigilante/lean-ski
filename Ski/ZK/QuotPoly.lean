@@ -5,15 +5,21 @@ import Ski.ZK.MaskCis
 
 `MaskRec` and `MaskCoset` reduce `RecOK` to two facts about the honest
 quotient `Qp`: its degree, and its values at the opened points.  This
-file builds `Qp` the way the prover does and proves both.
+file builds `Qp` by polynomial division, proves its values, and bounds
+its size (`|Qp| = |C| - |H|`, `|C| ≤ D m + 1`).  Plonky3 instead
+interpolates `C / Z_H` on the quotient domain, which gives the same
+polynomial when `|Qp|` fits that domain; `QuotOK`'s bound
+`|Qp| ≤ (|cs| + 1) n` still needs `D m + 1 - |H| ≤ (|cs| + 1) n`.
 
 An AIR constraint is an expression `e : E` over columns at row offsets
 and selectors.  Over column polynomials it is a polynomial `e.fpoly ρ`:
 a column at offset `o` is `p(gᵒ X)` (`fshift`), and a selector is the
 polynomial Plonky3 evaluates.  Its value at any point is the expression
 evaluated on the columns' values there (`fval_epoly`, `fvalE_epoly`).
-So at a query point `x` it reads the openings at `x` and `g x`, and at
-`ζ` the openings at `ζ` and `g ζ`.
+So at a point `x` it reads the columns at `gᵒ x`: with offsets 0 and 1,
+as Plonky3's two-row window has, at `x` and `g x`.  The verifier opens
+the trace at `ζ` and `g ζ`; at a query point it opens only `x`, and
+`g x` is in the hiding view (`MaskQuot`).
 
 The folded constraint polynomial `C` vanishes on the trace domain `H`
 for an honest trace.  Dividing by `∏_{a ∈ H} (X - a)` root by root
@@ -23,23 +29,29 @@ over columns of at most `m + 1` coefficients, `|C| ≤ D m + 1`
 (`cpoly_length`).
 
 `air_quot` gathers these facts.  The quotient's targets are `airTg` and
-`airTgE`, which read the leaves' values at each point and nothing else.
+`airTgE`, which read the leaves' values at each point, the public
+domain data, and `|qs|` (through `allL`).
 With the standard leaves (`stdRho`), those values are the openings at
 `gᵒ x` (`fval_stdRho`).  `shows_air` is the endpoint: honest chunks of
 an AIR's quotient show the AIR's targets.
 
 Scope.
-- **Folding.** The weights `ws` are one coordinate of the folding
-  challenge's powers.  The fold is per base-field coordinate, so a
-  constraint over the extension (LogUp's) must be written over its base
-  coordinates.
+- **Folding.** The fold is per base-field coordinate `k`.  A base
+  constraint's weight is coordinate `k` of its power of `α`; the base
+  coordinate `c_m` of an extension constraint takes coordinate `k` of
+  `αʲ Xᵐ`.  Folding the coordinates back, `Σ_k e_k Q_k`, is not modeled.
+- **Leaves.** `E` has no periodic columns, no auxiliary or permutation
+  columns and no extension-valued leaves; public values enter only as
+  constants.
 - **Selectors.** They are given polynomials.  Plonky3 evaluates them
   through `Z_H(x) = xⁿ - 1`; `Ski/ZK/VanishPow.lean` proves that formula
   equals `∏_{a ∈ H} (x - a)` and gives the first- and last-row
   selectors as products.
 - **Vanishing.** `hvan`, every constraint vanishing on `H` under
-  Plonky3's selectors, is the AIR's completeness in Plonky3's semantics.
-  It is a hypothesis here.
+  Plonky3's selectors, is a hypothesis here; `Ski/ZK/QuotSat.lean`
+  derives it from the circuit's `Sat` (`hvan_of_sat`).
+- **Targets.** No circuit's `CSet` targets `JS`, `Jζ` are yet tied to
+  `airTg`, `airTgE`.
 -/
 
 namespace Circuit
@@ -144,7 +156,7 @@ theorem fmul_len_le : ∀ p q : List F, (fmul p q).length ≤ p.length + q.lengt
     simp only [List.length_cons] at h1
     omega
 
-/-- **The polynomial's size**: below `deg · m + 1` coefficients when every
+/-- **The polynomial's size**: at most `deg · m + 1` coefficients when every
     leaf has at most `m + 1`. -/
 theorem epoly_length (ρ : Atom → List F) (m : Nat) (hρ : ∀ a, (ρ a).length ≤ m + 1) :
     ∀ e : E, (e.fpoly ρ).length ≤ e.deg * m + 1
@@ -339,7 +351,8 @@ theorem cpoly_length (ρ : Atom → List F) (m D : Nat) (hρ : ∀ a, (ρ a).len
 
 /-- **The targets an AIR's quotient asks**, from the leaves' values `ρv x`
     at each point: the folded constraints over `Z_H`, and off every chunk
-    domain over `Z_H κ ∏_j v_j` too. -/
+    domain over `Z_H κ ∏_j v_j` too.  They depend on the chunks only
+    through the public domain data and `|qs|`. -/
 def airTg (cs : List Chunk) (Hl : List F) (cl : F) (qs : List (List F)) (ql : List F) (κ : F) (H ws : List F)
     (es : List E) (ρv : F → Atom → F) (x : F) : F :=
   if x ∈ Hl ∨ inSome x cs = true then foldV ws (es.map (·.eval (ρv x))) * finv (fval x (fvan H))
@@ -354,8 +367,8 @@ def airTgE (ζ : EF) (cs : List Chunk) (Hl : List F) (cl : F) (qs : List (List F
     the trace domain `H` over the column polynomials `ρ`, the quotient
     `Qp = fdivH H C` of the folded constraints `C` meets `Qp · Z_H = C`,
     has `|C| - |H|` coefficients, and its targets are `airTg` and
-    `airTgE`: functions of the leaves' values at each point, the
-    openings. -/
+    `airTgE`: functions of the leaves' values at each point (with
+    `stdRho`, the columns at `gᵒ x`), the domain data and `|qs|`. -/
 theorem air_quot (ρ : Atom → List F) (ws : List F) (es : List E) (H : List F) (hnd : H.Nodup)
     (hvan : ∀ e ∈ es, ∀ x ∈ H, e.eval (fun a => fval x (ρ a)) = 0) (hP : (cpoly ρ ws es).length ≤ P) :
     FZero (fcdiff (fmul (fdivH H (cpoly ρ ws es)) (fvan H)) (cpoly ρ ws es)) ∧
