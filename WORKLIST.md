@@ -58,9 +58,11 @@ is built; this file records what is next. Last revised 2026-10-10.
   `p3_static`, `bb_trace`, `bb_masks`, `pcsCloseN_fri_bb`); the group's trace and mask
   points on them are assumed (`hT`, `hRq`). For the corpus circuit the kernel checks the AIR
   facts for every term, and the composed theorem is specialized to it
-  (`Ski/ZK/QuotBase.lean`, `pcsCloseN_fri_base`). Open: a circuit's builder with its fixed
-  accepting fallback table of the same shape (`fallback` combines them); the composed
-  statement for a multi-AIR circuit (each table discharges alone, `tabsHonest_cons`).
+  (`Ski/ZK/QuotBase.lean`, `pcsCloseN_fri_base`). Several AIRs enter with one table each
+  (`pcsCloseN_fri_tabs`), and the corpus LogUp interactions' degree is checked by the kernel
+  (`base_lup`). Open: a circuit's builder with its fixed accepting fallback table of the
+  same shape (`fallback` combines them), and the group's trace and mask points tied to the
+  committed matrices (`hT`, `hRq`).
 - **The quotient's recombined values hide** (`Ski/ZK/MaskQuot.lean`): the chunks sit
   at the committed trace's height, so a query opens them at the trace's point `s`, where they
   recombine to a function of the terminals and the masked columns at `s` and `g s`.

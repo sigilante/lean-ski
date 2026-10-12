@@ -38,7 +38,7 @@ challenge's index drawn beside the PCS's randomness and published with
 the view, simulated exactly.
 The theorem covers one quotient table, that of the group `gi`; a
 circuit with several AIRs discharges each table alone and combines them
-(`tabsHonest_cons`).
+(`tabsHonest_cons`, `pcsCloseN_fri_tabs`).
 Fiat–Shamir and the Merkle commitments' hiding stay assumed, as in
 `pcsCloseN_fri`.
 -/
@@ -457,5 +457,41 @@ theorem fallback {X : Type} (Q : X → Prop) (good : (Nat → Tup) → EF → EF
   by_cases h : good t α β
   · rw [if_pos h]; exact hb t α β h
   · rw [if_neg h]; exact h0
+
+/-- Every table honest alone gives the list honest. -/
+theorem tabsHonest_list {JS : CSet → F → F} {JE : CSet → EF} :
+    ∀ (Ts : List (QTab × List (List (List F) × List F))), (∀ p ∈ Ts, TabsHonest JS JE [p.1] [p.2]) →
+      TabsHonest JS JE (Ts.map Prod.fst) (Ts.map Prod.snd)
+  | [], _ => trivial
+  | p :: Ts, h => tabsHonest_cons (h p List.mem_cons_self)
+      (tabsHonest_list Ts (fun q hq => h q (List.mem_cons_of_mem _ hq)))
+
+/-- **The composed hiding PCS with several quotient tables**, one per
+    AIR: `pcsCloseN_fri` with the tables `Ts` and their data `dT`, when
+    each table is honest alone (for an AIR, `tabsHonest_air`). -/
+theorem pcsCloseN_fri_tabs {V : Type} {qs : List QGroup} {ks : List Nat} {cols : (Nat → Tup) → EF → EF → List (List (List F))}
+    {ncw : Nat} {αb : EF} {fri : EF → EF → List (EF → EF) → V}
+    (hokq : ∀ q ∈ qs, q.OK) (hks : ks.length = qs.length)
+    (hcols : ∀ t α β, Shaped (qs.map QGroup.ext) (cols t α β) ∧ (cols t α β).map List.length = ks)
+    (hdet : (mz αb).det ≠ 0) (haw : ∀ w, apow αb w ≠ EF.zero) (hncw : 4 ≤ ncw)
+    (off : EF → String → EF) (tv : (String → EF) → EF → (Nat → Tup) → List EF)
+    (Ts : List QTab) (dT : QTab → (Nat → Tup) → EF → EF → List F → List (List (List F) × List F))
+    (h : ∀ T ∈ Ts, ∀ t α β ms (v : List EF), TabsHonest
+      (fun c => c.JS α β v (openMulti (qs.map QGroup.ext) (cols t α β) ms))
+      (fun c => c.Jζ α β v (openMulti (qs.map QGroup.ext) (cols t α β) ms)) [T] [dT T t α β ms]) :
+    PCSCloseN off (P ^ (friN1 qs ks Ts + friN2 qs Ts ncw)) tv
+      (pcsFri off tv qs ks cols Ts (fun t α β ms => Ts.map fun T => dT T t α β ms) ncw αb fri)
+      (psimFri qs ks Ts ncw αb fri) 0 := by
+  refine pcsCloseN_fri hokq hks hcols hdet haw hncw off tv (fun t α β ms => ?_)
+  have e1 : (Ts.map fun T => (T, dT T t α β ms)).map Prod.fst = Ts := by rw [List.map_map]; exact List.map_id' Ts
+  have e2 : (Ts.map fun T => (T, dT T t α β ms)).map Prod.snd = Ts.map fun T => dT T t α β ms := by rw [List.map_map]; rfl
+  have := tabsHonest_list (JS := fun c => c.JS α β (tv (prefixOf α (off β)) β t)
+      (openMulti (qs.map QGroup.ext) (cols t α β) ms))
+    (JE := fun c => c.Jζ α β (tv (prefixOf α (off β)) β t) (openMulti (qs.map QGroup.ext) (cols t α β) ms))
+    (Ts.map fun T => (T, dT T t α β ms)) (fun p hp => by
+      obtain ⟨T, hT, rfl⟩ := List.mem_map.1 hp
+      exact h T hT t α β ms _)
+  rw [e1, e2] at this
+  exact this
 
 end Circuit
