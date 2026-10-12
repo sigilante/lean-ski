@@ -71,6 +71,7 @@ import Ski.ZK.Fri
 import Ski.ZK.MaskFri
 import Ski.ZK.MaskGen
 import Ski.ZK.MaskCom
+import Ski.ZK.MaskRec
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -867,6 +868,10 @@ open Ski.Audit
 #audit_clean Circuit.M4.det_rev Circuit.mz_det_eq Circuit.mz_generic Circuit.generic_ofF_ne Circuit.generic_apow_ne
   Circuit.pcsCloseN_fri_generic Circuit.cset_ok_of_generic Circuit.nongeneric_count
 #audit_clean Circuit.PCSCloseN.commit
+-- Honest chunks meet RecOK: the recombination is the quotient
+#audit_clean Circuit.rpoly_val Circuit.rpoly_on Circuit.rpoly_len Circuit.rpoly_quot Circuit.rpoly_valE
+  Circuit.nsum_allL Circuit.nsumE_allL Circuit.shows_of_quot Circuit.shows_of_honest Circuit.shows_congr
+  Circuit.recOK_of_honest
 
 -- Part II's interface with an additive distance: the errors add, the hybrid argument proved
 #audit_clean Compose.lsum_le Compose.lsum_add Compose.lsum_const Compose.lsum_comm Compose.lsum_prod

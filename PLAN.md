@@ -958,7 +958,8 @@ public-coin interactive model with the points independent of the masks.
 Applied with `S ++ gS`, since the quotient's recombined values couple to
 the next row (`pcsCloseN_quot`), and its chunks hide all but what the
 verifier recombines (`pcsCloseN_chunks`), given that the honest chunks show
-the quotient (`RecOK`). The codewords absorb every matrix's change, so FRI's
+the quotient (`RecOK`; `recOK_of_honest` derives it from chunks that interpolate the quotient
+with normalized selectors, `Ski/ZK/MaskRec.lean`). The codewords absorb every matrix's change, so FRI's
 view, a function of each matrix's batched polynomial, hides too
 (`pcsCloseN_fri`, `pcsCloseN_friR`, `Ski/ZK/MaskFri.lean`); the Merkle
 commitments' hiding and Fiat–Shamir stay assumed. For a PCS whose view is exactly these openings,

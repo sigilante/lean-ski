@@ -26,6 +26,12 @@ is built; this file records what is next. Last revised 2026-10-10.
   (`pcsCloseN_chunks`, `*_transcriptG_chunks`), when `|S| + 4 ≤ n`, `ζ` generates the
   extension (`solve_spec`, `mz_gen_det`; a uniform `ζ` fails with probability about
   `2^-62`), and the honest chunks show the quotient (`RecOK`, read from Plonky3's source).
+- **Honest chunks meet `RecOK`** (`Ski/ZK/MaskRec.lean`): chunks that equal the quotient
+  `Qp` on their own disjoint domains, below the degree bound, with normalized selectors,
+  recombine to `Qp` itself (`rpoly_quot`). They show `Qp / (κ ∏_j v_j)` off every domain
+  (`shows_of_quot`), so `RecOK` holds for every column (`recOK_of_honest`). Left as
+  hypotheses: the verifier's targets equal these values of `Qp`, and the selectors are
+  normalized.
 - **The quotient's recombined values hide** (`Ski/ZK/MaskQuot.lean`): the chunks sit
   at the committed trace's height, so a query opens them at the trace's point `s`, where they
   recombine to a function of the terminals and the masked columns at `s` and `g s`.
@@ -133,8 +139,8 @@ and its claim table moves to the docs, where `release/README.md` already holds i
   Arvo binds nothing here; it replays its log. Needed only to prove a kernel's history
   to someone who lacks the log.
 - Instantiate `pcsCloseN_fri` for each circuit with one group a committed matrix (main
-  and permutation traces apart) and `RecOK` discharged from a model of Plonky3's quotient
-  split; today both are read from Plonky3's source. The Merkle salts and Fiat–Shamir are
+  and permutation traces apart), and `recOK_of_honest`'s two hypotheses: the selector
+  normalization from the cosets' structure, and the targets from the constraint check. The Merkle salts and Fiat–Shamir are
   cryptographic assumptions (hiding hash, random oracle).
 - Proven 100-bit parameters: 203 queries at rate 1/2; the masks then need 422 points,
   within the `2^9` floor (`bench/plonky3/README.md`).
