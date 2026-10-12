@@ -22,9 +22,9 @@ the PCS's closeness stand for the STARK's, assumed: the constructor
 STARK; zero knowledge uses only the PCS's closeness.  The proof view is
 `transcript_zkG`'s, without the heights, which the statement fixes
 (`R`, `Lm`; `transcript_zkGH` adds them).  `composeC` gives Part II's
-conclusions over the instance, starting from a run.  Not derived: a run
-from a realizer's evaluation witness; under `CRel`'s caps on the heights
-and the region, a realizer whose evaluation needs more has none.
+conclusions over the instance, starting from a run;
+`Ski/ZK/CompRun.lean` builds the run from a realizer, within a budget
+(`realizer_run`, `composeC_realizer`).
 -/
 
 namespace Circuit
@@ -204,11 +204,9 @@ def compPSD {PV : Type} (off : EF → String → EF) (NR ε : Nat) (hNR : 0 < NR
     - **zero knowledge**: for every accepted run, within `err`;
     - **witness indistinguishability**: for any two accepted runs, for
       instance from the two sides of an `∨`, within `2 · err`.
-    Not derived: an accepted run from a realizer.  `composeD` starts from
-    a realizer; this starts from a run, and nothing here builds one from
-    an evaluation witness.  `CRel` caps the heights (`R`, `Lm ≤ 20`) and
-    the bits and region (`≤ 2^8`), so a realizer whose evaluation needs
-    more has no run under any statement. -/
+    This starts from a run; `composeC_realizer` (`Ski/ZK/CompRun.lean`)
+    starts from a realizer, whose run is built when it fits the
+    statement's heights and region (`CBudget`, `regionOf'`). -/
 theorem composeC {PV : Type} (off : EF → String → EF) (NR ε : Nat) (hNR : 0 < NR)
     (pcs : CStmt → CRun' → (Nat → Tup) → EF → EF → Nat → PV) (psim : CStmt → EF → EF → List EF → Nat → PV)
     (hpcs : ∀ s w, CRel s w → PCSCloseN off NR (ctv s w) (pcs s w) (psim s) ε)

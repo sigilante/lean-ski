@@ -985,10 +985,13 @@ knowledge soundness and the PCS's closeness assumed; `composeC` gives
 Part II's conclusions over it, starting from a run: a verified proof read
 back as a realizer (`composed_sound`), aborts at most `err` (the proofs'
 verifying assumed), zero knowledge within `err`, witness
-indistinguishability within `2 · err` between accepted runs. Not derived:
-a run from a realizer's evaluation witness; under the relation's caps
-(heights `2^20`, bits and region `2^8`) a realizer whose evaluation needs
-more has none. Two composed statements over a public hand-off
+indistinguishability within `2 · err` between accepted runs. From a
+realizer, `composeC_realizer` (`Ski/ZK/CompRun.lean`): its accepted bits
+and witness, encoded (`regionOf'_spec`), drive the composed machine to
+`K` segment by segment, and the run is accepted (`acceptsC_of_eval`)
+within the budget (`CBudget`: halted within `2^R` steps on at most
+`2^Lm` cells, the witness within `W` cells), which running the machine
+decides. Two composed statements over a public hand-off
 prove the conjunction; a two-stage example is proved in zero knowledge, a
 proof per stage.
 
