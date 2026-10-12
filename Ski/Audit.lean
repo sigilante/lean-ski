@@ -95,6 +95,7 @@ import Ski.ZK.WitRun
 import Ski.ZK.WitInst
 import Ski.ZK.CompRunSat
 import Ski.ZK.CompInst
+import Ski.ZK.PreOpen
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -1133,3 +1134,5 @@ open Ski.Audit
 -- The composed proof over its composed hiding PCS, end to end
 #audit_clean Circuit.comp_run_sats Circuit.progC_height Circuit.segsC_height Circuit.cCols_shaped Circuit.comp_airs_P3
   Circuit.comp_pcs Circuit.comp_pub_heights Circuit.cPsim_pre Circuit.comp_hiding
+-- The witness-free matrices: preprocessed columns and randomization
+#audit_clean Circuit.sud_pcsX Circuit.wit_pcsX Circuit.comp_pcsX Circuit.sud_hidingX Circuit.wit_hidingX Circuit.comp_hidingX

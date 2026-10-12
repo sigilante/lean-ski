@@ -97,12 +97,14 @@ is built; this file records what is next. Last revised 2026-10-10.
   from Plonky3's `2^(log2_ceil 2 + 1)` at degree 2. The hidden-term proof is too, by the
   same construction (`Ski/ZK/WitInst.lean`, `wit_pcs`, `wit_hiding`, its run's `Sat` from
   `wit_run_sats`). Each simulator reads the tables' preprocessed columns only
-  (`sudPsim_pre`, `wPsim_pre`); the preprocessed columns' own openings are argued, not
-  proved, to fold into FRI's view. So is the composed proof, its public program and segments
-  tables included (`Ski/ZK/CompInst.lean`, `comp_pcs`, `comp_hiding`, its run's `Sat` from
-  `comp_run_sats`), for a CPU table of `2^R` and a memory of `2^Lm` rows, `R, Lm ≥ 3`.
-  Assumed: Fiat–Shamir, the Merkle salts' hiding, and generic `ζ` and FRI challenge. The
-  groups' trace and mask points tied to the committed matrices (`hT`, `hRq`) stay modeled.
+  (`sudPsim_pre`, `wPsim_pre`); the preprocessed columns and the randomization polynomial,
+  matrices without witness, join FRI's input and the view from their own randomness, and
+  each transcript theorem holds over that PCS (`Ski/ZK/PreOpen.lean`, `*_hidingX`). So is
+  the composed proof, its public program and segments tables included
+  (`Ski/ZK/CompInst.lean`, `comp_pcs`, `comp_hiding`, its run's `Sat` from `comp_run_sats`),
+  for a CPU table of `2^R` and a memory of `2^Lm` rows, `R, Lm ≥ 3`. Assumed: Fiat–Shamir,
+  the Merkle salts' hiding, and generic `ζ` and FRI challenge. The groups' trace and mask
+  points tied to the committed matrices (`hT`, `hRq`) stay modeled.
 - **The quotient's recombined values hide** (`Ski/ZK/MaskQuot.lean`): the chunks sit
   at the committed trace's height, so a query opens them at the trace's point `s`, where they
   recombine to a function of the terminals and the masked columns at `s` and `g s`.

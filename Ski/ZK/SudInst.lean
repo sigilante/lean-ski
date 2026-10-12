@@ -30,12 +30,13 @@ chunks, every codeword and FRI, meets `PCSCloseN` with `ε = 0` over the
 Sudoku transcript's values.  `sud_hiding`: for an accepting run of the
 Sudoku statement, `sud_transcriptG` over that PCS, its PCS term zero.
 
-Left out of the view: the preprocessed columns.  They hold no witness
-(zero for the memory, CPU and program tables' `pre`, `witRowsS` for the
-witness's), and their openings at the fixed points are constants;
-folding them into FRI's input gives another `fri`, so `sud_pcs` covers
-it.  Argued, not proved; it also assumes Plonky3 commits them without
-hiding randomness.  The simulator reads the tables' preprocessed columns
+Left out of this view: the preprocessed columns and the randomization
+polynomial, matrices that hold no witness (zero for the memory, CPU and
+program tables' `pre`, `witRowsS` for the witness's).
+`Ski/ZK/PreOpen.lean` adds them, their batched polynomials to FRI's
+input and their openings to the view, drawn from their own randomness or
+none, and proves the transcript theorem over that PCS too
+(`sud_hidingX`).  The simulator reads the tables' preprocessed columns
 only (`sudPsim_pre`).  Assumed:
 the query points off the trace domains (`lde_off_trace` gives it for
 Plonky3's), `2 |S| + 8` within each height, `ζ` and the FRI challenge
