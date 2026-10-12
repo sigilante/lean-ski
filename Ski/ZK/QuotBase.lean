@@ -118,9 +118,13 @@ def Inter.lupDeg (I : Inter) : Nat := max (1 + (I.fields.map E.pdeg).foldl max 0
 
 set_option maxRecDepth 100000 in
 /-- **The corpus circuit's LogUp interactions have degree at most 2**, for
-    every term, so with the constraints' degree 2 Plonky3's `lq` is 1.
-    p3-lookup's formula is read from its source; the kernel checks its
-    value on the interactions. -/
+    every term.  Plonky3's degree is the maximum of the constraints'
+    (`base_p3ok`), the fraction pins' (this theorem), the accumulator's (2,
+    fixed by p3-lookup) and the AIR's declared hint (none).  At 2,
+    `lq = log2_ceil 2 = 1`, and same-bus packing keeps the degree within
+    that budget.  p3-lookup's formula, the accumulator's degree and the
+    absent hint are read from the source; assumed: each `Inter` is one
+    unflagged p3 `Lookup`. -/
 theorem base_lup (t : Term) : ∀ A ∈ baseAirs t, A.inters.all (fun I => decide (I.lupDeg ≤ 2)) = true := by
   intro A hA
   simp only [baseAirs, List.mem_cons, List.not_mem_nil, or_false] at hA
