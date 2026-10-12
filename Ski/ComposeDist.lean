@@ -10,11 +10,12 @@ explicit list of draws (`draws`); honest proving and simulating are
 functions of the draw, `none` when the prover aborts; and zero knowledge
 is `CloseD`: for every event of the view, the counts of the draws on which
 the real and the simulated views meet it differ by at most `err`, that is
-a statistical distance of `err / draws.length`.
+a statistical distance of at most `err / draws.length`.
 
 Knowledge soundness stays an assumed field, as it is the STARK's.  The
-zero-knowledge field is what the circuits' transcript theorems prove
-(`Ski/ZK/ComposeZK.lean` turns `transcript_zkG` into `CloseD`).
+zero-knowledge field has the form the circuits' transcript theorems prove
+(`Ski/ZK/ComposeZK.lean` turns `transcript_zkG` into `CloseD`); no `PSD`
+instance is built from them yet.
 
 - `composeD`: over such a system, a formula's statement is complete,
   knowledge-sound, zero knowledge within `err`, and witness
@@ -153,9 +154,11 @@ theorem closeD_prod {D₁ D₂ V₁ V₂ V : Type} {ds₁ : List D₁} {ds₂ : 
 
 /-- **The interface with a distance**: a proof system for a relation over
     statements `T` and witnesses `W`.  The prover and the simulator are
-    functions of a draw from `draws`, the prover's `none` an abort.
-    Completeness and knowledge soundness are assumed, the STARK's; zero
-    knowledge is `CloseD` within `err`. -/
+    functions of a draw from `draws`, a nonempty list, the prover's
+    `none` an abort; the simulator never aborts.  Completeness (every
+    proof the prover outputs verifies) and knowledge soundness are
+    assumed, the STARK's; zero knowledge is `CloseD` within `err`, so the
+    prover aborts on at most `err` draws (`PSD.aborts_le`). -/
 structure PSD (T W : Type) (R : T → W → Prop) where
   Proof : Type
   Draw : Type
@@ -165,9 +168,25 @@ structure PSD (T W : Type) (R : T → W → Prop) where
   verify : T → Proof → Prop
   ext : T → Proof → W
   err : T → Nat
+  draws_ne : draws ≠ []
+  sim_some : ∀ t d, (sim t d).isSome = true
   complete : ∀ t w, R t w → ∀ d π, prove t w d = some π → verify t π
   knowledge : ∀ t π, verify t π → R t (ext t π)
   zk : ∀ t w, R t w → CloseD draws (err t) (prove t w) (sim t)
+
+/-- **The prover aborts on at most `err` draws**: the simulator never
+    does, and the two views are within `err`. -/
+theorem PSD.aborts_le {T W : Type} {R : T → W → Prop} (ps : PSD T W R) {t : T} {w : W} (h : R t w) :
+    cnt ps.draws (ps.prove t w) (fun o => o.isNone) ≤ ps.err t := by
+  have hz := (ps.zk t w h (fun o => o.isNone)).1
+  have h0 : cnt ps.draws (ps.sim t) (fun o => o.isNone) = 0 := by
+    unfold cnt
+    rw [show (fun d => if (ps.sim t d).isNone = true then 1 else 0) = fun _ => 0 from funext fun d => by
+      have := ps.sim_some t d
+      cases hs : ps.sim t d with
+      | none => rw [hs] at this; cases this
+      | some _ => rfl, lsum_const, Nat.mul_zero]
+  omega
 
 /-- The interface for evaluation statements, the witness bits and a term. -/
 abbrev EvalPSD (Stmt : Type) (Rel : Stmt → BT → Term → Prop) := PSD Stmt (BT × Term) (fun s w => Rel s w.1 w.2)
@@ -180,7 +199,8 @@ abbrev EvalPSD (Stmt : Type) (Rel : Stmt → BT → Term → Prop) := PSD Stmt (
     the error. -/
 theorem composeD (ps : EvalPSD EvalStmt EvalRel) (M : MF) :
     (∀ r, Real M.toForm r → ∃ β w, Accepts M β w ∧
-      ∀ d π, ps.prove (evalStmtOf M) (β, w) d = some π → ps.verify (evalStmtOf M) π) ∧
+      (∀ d π, ps.prove (evalStmtOf M) (β, w) d = some π → ps.verify (evalStmtOf M) π) ∧
+      cnt ps.draws (ps.prove (evalStmtOf M) (β, w)) (fun o => o.isNone) ≤ ps.err (evalStmtOf M)) ∧
     (∀ π, ps.verify (evalStmtOf M) π →
       Real M.toForm (readBack M (ps.ext (evalStmtOf M) π).1 (ps.ext (evalStmtOf M) π).2 [])) ∧
     (∀ β w, Accepts M β w →
@@ -190,7 +210,7 @@ theorem composeD (ps : EvalPSD EvalStmt EvalRel) (M : MF) :
         (ps.prove (evalStmtOf M) (β', w'))) := by
   refine ⟨fun r hr => ?_, fun π hv => ?_, fun β w h => ps.zk _ (β, w) h, fun β w β' w' h h' => ?_⟩
   · obtain ⟨β, w, hacc⟩ := accepted_of_real hr
-    exact ⟨β, w, hacc, ps.complete _ (β, w) hacc⟩
+    exact ⟨β, w, hacc, ps.complete _ (β, w) hacc, ps.aborts_le hacc⟩
   · exact real_of_accepted (ps.knowledge _ π hv)
   · rw [Nat.two_mul]
     exact (ps.zk _ (β, w) h).trans (ps.zk _ (β', w') h').symm
@@ -215,6 +235,22 @@ def chain2D {T₁ T₂ W₁ W₂ : Type} {R₁ : T₁ → W₁ → Prop} {R₂ :
   verify t π := ps₁.verify t π.1 ∧ ps₂.verify (link t) π.2
   ext t π := (ps₁.ext t π.1, ps₂.ext (link t) π.2)
   err t := ps₂.draws.length * ps₁.err t + ps₁.draws.length * ps₂.err (link t)
+  draws_ne := by
+    cases h₁ : ps₁.draws with
+    | nil => exact absurd h₁ ps₁.draws_ne
+    | cons a l₁ =>
+      cases h₂ : ps₂.draws with
+      | nil => exact absurd h₂ ps₂.draws_ne
+      | cons b l₂ => simp [lprod]
+  sim_some t d := by
+    have h₁ := ps₁.sim_some t d.1
+    have h₂ := ps₂.sim_some (link t) d.2
+    cases e₁ : ps₁.sim t d.1 with
+    | none => rw [e₁] at h₁; cases h₁
+    | some x =>
+      cases e₂ : ps₂.sim (link t) d.2 with
+      | none => rw [e₂] at h₂; cases h₂
+      | some y => simp [pairO]
   complete t w h d π hp := by
     unfold pairO at hp
     split at hp

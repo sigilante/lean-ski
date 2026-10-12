@@ -11,11 +11,14 @@ non-generic `β` rejected, only the draws with `genB β` (`transcript_zkG`).
 Here those draws are a list (`tdraws`), its sums are the transcript's
 (`lsum_tdraws`), and a transcript bound is `CloseD` over it
 (`closeD_of_transcriptG`).  For the composed circuit's honest tables the
-bound is `comp_transcriptG`'s (`comp_closeD`): the zero-knowledge field of
-a `PSD` whose proofs are that circuit's transcripts, with error
-`M/P^4 + ε/NR` of all the draws.  What links an accepted witness to those
-tables is the run: `comp_honest_zk` takes an accepted run of the composed
-machine within the statement's heights.
+bound is `comp_transcriptG`'s (`comp_closeD`), in the form of a `PSD`'s
+zero-knowledge field, with error `M/P^4 + ε/NR` counted against all the
+`Q4 · Q4 · NR · Q4^2` draws; over the generic draws alone, `tdraws`, the
+distance is that over `1 - P^-2`.  No `PSD` instance is built from it
+yet.  That needs the honest tables from the witness, through an accepted
+run of the composed machine within the statement's heights
+(`comp_honest_zk` takes the run); the error a function of the statement,
+`M` fixed by its heights; and the PCS's closeness `ε`, assumed.
 -/
 
 namespace Circuit

@@ -830,7 +830,7 @@ open Ski.Audit
 -- Part II's interface with an additive distance: the errors add, the hybrid argument proved
 #audit_clean Compose.lsum_le Compose.lsum_add Compose.lsum_const Compose.lsum_comm Compose.lsum_prod
   Compose.lprod_length Compose.CloseD.refl Compose.CloseD.symm Compose.CloseD.trans Compose.CloseD.mono
-  Compose.closeD_prod Compose.composeD Compose.chain2D Compose.chain2D_draws
+  Compose.closeD_prod Compose.PSD.aborts_le Compose.composeD Compose.chain2D Compose.chain2D_draws
 
 -- The transcript theorems as the interface's zero knowledge
 #audit_clean Circuit.sumTo_lsum Circuit.sumN_lsum Circuit.lsum_tdraws Circuit.closeD_of_transcriptG Circuit.comp_closeD
