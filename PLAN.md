@@ -869,7 +869,11 @@ the public tables, blinding flags clear (`comp_honest_zk`,
 `sud_honest_zk`, `wit_honest_zk` in `Ski/ZK/Honest.lean`;
 `CRun.honest_zk`; `honest_zkP`). The view includes the trace heights:
 blinding keeps them, the honest tables' are the statement's, and the
-simulator emits those (`transcript_zkGH`, `Ski/ZK/Heights.lean`).
+simulator emits those (`transcript_zkGH`, `Ski/ZK/Heights.lean`). The
+masked column openings hide for tables of several heights, each over its
+own domain (`masks_hide_multi`, `pcsCloseN_multi` in
+`Ski/ZK/MaskMulti.lean`), and every hiding circuit's transcript theorem
+holds over that PCS with no PCS term (`*_transcriptG_masked`).
 The closure rule, the design's milestone 3 (`Ski/JetPublic.lean`): the
 composed heap's private cells, the bit slots and the region, are pointed
 into by public cells, so a jet table checked over the blank heap need not

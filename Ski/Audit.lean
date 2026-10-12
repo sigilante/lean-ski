@@ -63,6 +63,7 @@ import Ski.ZK.PRG
 import Ski.ZK.Reject
 import Ski.ZK.Honest
 import Ski.ZK.Heights
+import Ski.ZK.MaskMulti
 import Ski.ZK.FSRound
 import Ski.ComposedJ
 import Ski.Circuit.Flow
@@ -818,6 +819,11 @@ open Ski.Audit
 #audit_clean Circuit.setBlind_h Circuit.transcript_zkGH Circuit.comp_heights Circuit.sud_heights
   Circuit.wit_heights Circuit.compJ_heights Circuit.compP_heights Circuit.comp_honest_heights
   Circuit.sud_honest_heights Circuit.wit_honest_heights
+
+-- Masked columns of several heights: the openings hide, the PCS meets PCSCloseN exactly, every circuit's transcript has no PCS term
+#audit_clean Circuit.masks_hide_multi Circuit.shaped_zero Circuit.pcsCloseN_multi Circuit.transcript_zkG_masked
+  Circuit.comp_transcriptG_masked Circuit.sud_transcriptG_masked Circuit.wit_transcriptG_masked
+  Circuit.compJ_transcriptG_masked Circuit.compP_transcriptG_masked
 
 -- Fiat–Shamir round by round: adaptive hash calls, grinding, and the LogUp round under them
 #audit_clean Circuit.seqSum_const Circuit.seqSum_mono Circuit.seqSum_add Circuit.fs_attempts Circuit.sumTo_pair
