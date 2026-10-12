@@ -103,6 +103,7 @@ import Ski.ZK.FSOpen
 import Ski.ZK.FSOpenFri
 import Ski.ZK.FSOpenInst
 import Ski.ZK.FSRounds
+import Ski.ZK.FSRound2
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -1162,3 +1163,6 @@ open Ski.Audit
   Circuit.comp_fs_open
 -- Fiat–Shamir over two rounds
 #audit_clean Circuit.fs_zkc Circuit.fs_zk2
+-- The second round under Fiat–Shamir
+#audit_clean Circuit.pc_two_core Circuit.pc_two Circuit.mtotal_congr Circuit.traceCw_congr Circuit.tabsCr_congr
+  Circuit.tabsCw_congr Circuit.sudNR_zeta Circuit.sud_fs2

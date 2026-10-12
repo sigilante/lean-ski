@@ -112,13 +112,16 @@ is built; this file records what is next. Last revised 2026-10-13.
   from the oracle. With the commitment opened, the view's opened values being the committed
   main matrices' (masked columns and random codewords) and the opening proof being in the
   output, the simulator committing interpolants through its own openings, the same holds
-  under hiding given the openings (`Ski/ZK/FSOpenInst.lean`, `*_fs_open`). Open: the later
-  commitments in the output (permutation, quotient, FRI layers) and hashed; `Com` from the
-  same oracle (bounded queries, a ROM-hiding term); several proofs per oracle (a hybrid and
-  a collision term); the later rounds under the oracle (`ζ`, the FRI challenge, the query
-  points, each adding the non-generic mass); the lookup proof-of-work nonce. The groups'
-  trace and mask points (`hT`, `hRq`) are tied to the committed matrices: the masked column
-  is the interpolant of Plonky3's interleaved column over the `2n`-point domain
+  under hiding given the openings (`Ski/ZK/FSOpenInst.lean`, `*_fs_open`). Over two rounds,
+  `ζ` hashed from a second commitment, the Sudoku proof keeps its simulation error, summed
+  over generic `ζ` (`Ski/ZK/FSRound2.lean`, `sud_fs2`), both commitments unopened. Open: the
+  second commitment opened (the permutation and quotient matrices); the hidden-term and
+  composed proofs over two rounds; the FRI layers hashed; `Com` from the same oracle
+  (bounded queries, a ROM-hiding term); several proofs per oracle (a hybrid and a collision
+  term); the later rounds under the oracle (`ζ`, the FRI challenge, the query points, each
+  adding the non-generic mass); the lookup proof-of-work nonce. The groups' trace and mask
+  points (`hT`, `hRq`) are tied to the committed matrices: the masked column is the
+  interpolant of Plonky3's interleaved column over the `2n`-point domain
   (`Ski/ZK/Interleave.lean`, `bb_ileave_mcol`); that Plonky3 interleaves, trace rows even
   and random rows odd, is read from its source.
 - **The quotient's recombined values hide** (`Ski/ZK/MaskQuot.lean`): the chunks sit at the
