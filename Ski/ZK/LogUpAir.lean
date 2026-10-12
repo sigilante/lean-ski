@@ -9,7 +9,7 @@ does (`eval_fraction`, `eval_accumulator`).  The permutation trace's
 column 0 is the accumulator and column `c + 1` is lookup `c`'s fraction.
 Each is an extension column, flattened to four base columns after the
 AIR's own columns.
-- **fraction**, every row: `(α - comb_β(elements)) · f_c - m_c = 0`, with
+- **fraction**, every row: `(α_c - comb_β(elements)) · f_c - m_c = 0`, with
   `comb_β` Plonky3's fold `acc · β + e`;
 - **first row:** `acc = 0`;
 - **transition:** `acc' - acc - Σ_c f_c = 0`;
@@ -20,12 +20,18 @@ are a family in `α, β` and the terminal (`lupCons`).  Their coordinates
 (`eq4`) are base constraints.
 
 `lup_sat` is LogUp's completeness, row by row: the honest fractions
-`f_c = m_c / (α - comb_β)` and the running sum as the accumulator, with
+`f_c = m_c / (α_c - comb_β)` and the running sum as the accumulator, with
 the terminal the total, meet every constraint on a table whose rows
 have no vanishing denominator.
 
-Scope.  Each lookup has one tuple and no flags, and all lookups share
-one challenge pair, as the corpus's do.
+Each lookup `c` has its own `α`, `αs c`: in p3-batch-stark its bus's
+prefix `α + (i + 1) β^W` (`permutation_challenges`), so AIRs with
+lookups on several buses are covered; `β` is shared.
+
+Scope.  Each lookup has one tuple and no flags, as the corpus's do
+(same-bus packing cannot merge two tuples at degree 2).  With no
+lookups p3 emits no permutation trace, while `lupCons` still emits the
+accumulator's constraints.
 -/
 
 namespace Circuit
@@ -61,9 +67,9 @@ def fracQ (α β : EF) (es : List E) (m : E) (fi : Nat) : Q :=
 
 /-- **LogUp's constraints** for the lookups `Ls`, the accumulator at base
     column `w` and lookup `c`'s fraction at `w + 4 (c + 1)`. -/
-def lupCons (α β terminal : EF) (w : Nat) (Ls : List (List E × E)) : List Q :=
+def lupCons (αs : Nat → EF) (β terminal : EF) (w : Nat) (Ls : List (List E × E)) : List Q :=
   let fis := (List.range Ls.length).map fun c => w + 4 * (c + 1)
-  (List.range Ls.length).zipWith (fun c L => fracQ α β L.1 L.2 (w + 4 * (c + 1))) Ls ++
+  (List.range Ls.length).zipWith (fun c L => fracQ (αs c) β L.1 L.2 (w + 4 * (c + 1))) Ls ++
   [Q.sel .first (QV w 0),
    Q.sel .trans (((QV w 1).sub (QV w 0)).sub (sumQ 0 fis)),
    Q.sel .last (((QC terminal).sub (QV w 0)).sub (sumQ 0 fis))]
@@ -120,36 +126,36 @@ def coordOf (x : EF) : Nat → F
   | _ => x.x3
 
 section
-variable (Tb : Table) (α β : EF) (Ls : List (List E × E))
+variable (Tb : Table) (αs : Nat → EF) (β : EF) (Ls : List (List E × E))
 
 /-- **Lookup `c`'s honest fraction** at row `r`: `m / (α - comb_β)`. -/
 def fV (c r : Nat) : EF :=
   (EF.ofF ((Ls.getD c ([], .const 0)).2.eval (Tb.env r))).mul
-    (α.sub (combV β ((Ls.getD c ([], .const 0)).1.map (·.eval (Tb.env r))))).inv
+    ((αs c).sub (combV β ((Ls.getD c ([], .const 0)).1.map (·.eval (Tb.env r))))).inv
 
 /-- `Σ_c f_c` at row `r`, over the lookups `cs`. -/
 def fsum (r : Nat) : List Nat → EF
   | [] => EF.zero
-  | c :: cs => (fV Tb α β Ls c r).add (fsum r cs)
+  | c :: cs => (fV Tb αs β Ls c r).add (fsum r cs)
 
 /-- **The honest accumulator**: the running sum of the rows before. -/
 def accV : Nat → EF
   | 0 => EF.zero
-  | r + 1 => (accV r).add (fsum Tb α β Ls r (List.range Ls.length))
+  | r + 1 => (accV r).add (fsum Tb αs β Ls r (List.range Ls.length))
 
 /-- The permutation column `j` at row `r`: the accumulator, then each fraction. -/
-def permV (j r : Nat) : EF := if j = 0 then accV Tb α β Ls r else fV Tb α β Ls (j - 1) r
+def permV (j r : Nat) : EF := if j = 0 then accV Tb αs β Ls r else fV Tb αs β Ls (j - 1) r
 
 /-- **The table with its honest permutation columns** after the AIR's `w`
     columns, each extension column as four base columns. -/
 def withPerm (w : Nat) : Table :=
-  ⟨Tb.h, fun r i => if i < w then Tb.main r i else coordOf (permV Tb α β Ls ((i - w) / 4) r) ((i - w) % 4), Tb.pre⟩
+  ⟨Tb.h, fun r i => if i < w then Tb.main r i else coordOf (permV Tb αs β Ls ((i - w) / 4) r) ((i - w) % 4), Tb.pre⟩
 end
 
-theorem QV_eval_perm (Tb : Table) (α β : EF) (Ls : List (List E × E)) (w j o r : Nat) :
-    (QV (w + 4 * j) o).eval ((withPerm Tb α β Ls w).env r) = permV Tb α β Ls j ((r + o) % Tb.h) := by
-  have hc : ∀ kk, kk < 4 → (withPerm Tb α β Ls w).main ((r + o) % Tb.h) (w + 4 * j + kk) =
-      coordOf (permV Tb α β Ls j ((r + o) % Tb.h)) kk := fun kk hk => by
+theorem QV_eval_perm (Tb : Table) (αs : Nat → EF) (β : EF) (Ls : List (List E × E)) (w j o r : Nat) :
+    (QV (w + 4 * j) o).eval ((withPerm Tb αs β Ls w).env r) = permV Tb αs β Ls j ((r + o) % Tb.h) := by
+  have hc : ∀ kk, kk < 4 → (withPerm Tb αs β Ls w).main ((r + o) % Tb.h) (w + 4 * j + kk) =
+      coordOf (permV Tb αs β Ls j ((r + o) % Tb.h)) kk := fun kk hk => by
     show (if w + 4 * j + kk < w then _ else _) = _
     rw [if_neg (by omega), show (w + 4 * j + kk - w) / 4 = j by omega, show (w + 4 * j + kk - w) % 4 = kk by omega]
   refine EF.ext ?_ ?_ ?_ ?_
@@ -158,8 +164,8 @@ theorem QV_eval_perm (Tb : Table) (α β : EF) (Ls : List (List E × E)) (w j o 
   · exact hc 2 (by decide)
   · exact hc 3 (by decide)
 
-theorem env_perm_lt (Tb : Table) (α β : EF) (Ls : List (List E × E)) (w r : Nat) (e : E) (he : e.win w = true) :
-    e.eval ((withPerm Tb α β Ls w).env r) = e.eval (Tb.env r) :=
+theorem env_perm_lt (Tb : Table) (αs : Nat → EF) (β : EF) (Ls : List (List E × E)) (w r : Nat) (e : E) (he : e.win w = true) :
+    e.eval ((withPerm Tb αs β Ls w).env r) = e.eval (Tb.env r) :=
   eval_win (fun a ha => by
     cases a with
     | main o i =>
@@ -170,13 +176,13 @@ theorem env_perm_lt (Tb : Table) (α β : EF) (Ls : List (List E × E)) (w r : N
     | last => rfl
     | trans => rfl) e he
 
-theorem sumQ_eval (Tb : Table) (α β : EF) (Ls : List (List E × E)) (w r : Nat) (hr : r < Tb.h) :
-    ∀ cs : List Nat, (sumQ 0 (cs.map fun c => w + 4 * (c + 1))).eval ((withPerm Tb α β Ls w).env r) =
-      fsum Tb α β Ls r cs
+theorem sumQ_eval (Tb : Table) (αs : Nat → EF) (β : EF) (Ls : List (List E × E)) (w r : Nat) (hr : r < Tb.h) :
+    ∀ cs : List Nat, (sumQ 0 (cs.map fun c => w + 4 * (c + 1))).eval ((withPerm Tb αs β Ls w).env r) =
+      fsum Tb αs β Ls r cs
   | [] => rfl
   | c :: cs => by
-    show ((QV (w + 4 * (c + 1)) 0).eval _).add ((sumQ 0 (cs.map _)).eval _) = (fV Tb α β Ls c r).add (fsum Tb α β Ls r cs)
-    rw [QV_eval_perm, sumQ_eval Tb α β Ls w r hr cs]
+    show ((QV (w + 4 * (c + 1)) 0).eval _).add ((sumQ 0 (cs.map _)).eval _) = (fV Tb αs β Ls c r).add (fsum Tb αs β Ls r cs)
+    rw [QV_eval_perm, sumQ_eval Tb αs β Ls w r hr cs]
     simp only [Nat.add_zero, Nat.mod_eq_of_lt hr]
     unfold permV
     rw [if_neg (by omega), show c + 1 - 1 = c by omega]
@@ -196,18 +202,18 @@ theorem ofF1_mul (x : EF) : (EF.ofF 1).mul x = x := by rw [show EF.ofF 1 = EF.on
     constraint of `lupCons` with the terminal the total sum, when the
     lookups' tuples and multiplicities are in the AIR's window and no
     denominator vanishes. -/
-theorem lup_rows (Tb : Table) (α β : EF) (Ls : List (List E × E)) (w : Nat)
+theorem lup_rows (Tb : Table) (αs : Nat → EF) (β : EF) (Ls : List (List E × E)) (w : Nat)
     (hwin : ∀ L ∈ Ls, (∀ e ∈ L.1, e.win w = true) ∧ L.2.win w = true)
     (hden : ∀ c, c < Ls.length → ∀ r, r < Tb.h →
-      α.sub (combV β ((Ls.getD c ([], .const 0)).1.map (·.eval (Tb.env r)))) ≠ EF.zero) :
-    ∀ q ∈ lupCons α β (accV Tb α β Ls Tb.h) w Ls, ∀ r, r < Tb.h →
-      q.eval ((withPerm Tb α β Ls w).env r) = EF.zero := by
+      (αs c).sub (combV β ((Ls.getD c ([], .const 0)).1.map (·.eval (Tb.env r)))) ≠ EF.zero) :
+    ∀ q ∈ lupCons αs β (accV Tb αs β Ls Tb.h) w Ls, ∀ r, r < Tb.h →
+      q.eval ((withPerm Tb αs β Ls w).env r) = EF.zero := by
   intro q hq r hr
   have hmod : r % Tb.h = r := Nat.mod_eq_of_lt hr
   rcases List.mem_append.1 hq with hq | hq
   · -- a fraction
     obtain ⟨c, hc, L, hL, rfl⟩ : ∃ c, c < Ls.length ∧ ∃ L, Ls.getD c ([], .const 0) = L ∧
-        q = fracQ α β L.1 L.2 (w + 4 * (c + 1)) := by
+        q = fracQ (αs c) β L.1 L.2 (w + 4 * (c + 1)) := by
       obtain ⟨i, hi, rfl⟩ := List.getElem_of_mem hq
       rw [List.length_zipWith, List.length_range, Nat.min_self] at hi
       refine ⟨i, hi, Ls[i], ?_, ?_⟩
@@ -219,16 +225,16 @@ theorem lup_rows (Tb : Table) (α β : EF) (Ls : List (List E × E)) (w : Nat)
     obtain ⟨hes, hm⟩ := hwin _ hmem
     rw [fracQ_eval, QV_eval_perm]
     simp only [Nat.add_zero, hmod]
-    rw [env_perm_lt Tb α β Ls w r _ hm,
-      List.map_congr_left (fun e he => env_perm_lt Tb α β Ls w r e (hes e he))]
+    rw [env_perm_lt Tb αs β Ls w r _ hm,
+      List.map_congr_left (fun e he => env_perm_lt Tb αs β Ls w r e (hes e he))]
     show _ = EF.zero
     unfold permV
     rw [if_neg (by omega), show c + 1 - 1 = c by omega]
     exact frac_cancel _ _ (hden c hc r hr)
   · have hfs : (sumQ 0 ((List.range Ls.length).map fun c => w + 4 * (c + 1))).eval
-        ((withPerm Tb α β Ls w).env r) = fsum Tb α β Ls r (List.range Ls.length) := sumQ_eval Tb α β Ls w r hr _
-    have hacc : ∀ o, (QV w o).eval ((withPerm Tb α β Ls w).env r) = accV Tb α β Ls ((r + o) % Tb.h) := fun o => by
-      have := QV_eval_perm Tb α β Ls w 0 o r
+        ((withPerm Tb αs β Ls w).env r) = fsum Tb αs β Ls r (List.range Ls.length) := sumQ_eval Tb αs β Ls w r hr _
+    have hacc : ∀ o, (QV w o).eval ((withPerm Tb αs β Ls w).env r) = accV Tb αs β Ls ((r + o) % Tb.h) := fun o => by
+      have := QV_eval_perm Tb αs β Ls w 0 o r
       rw [Nat.mul_zero, Nat.add_zero] at this
       rw [this]; rfl
     rcases List.mem_cons.1 hq with rfl | hq
@@ -242,11 +248,11 @@ theorem lup_rows (Tb : Table) (α β : EF) (Ls : List (List E × E)) (w : Nat)
     rcases List.mem_cons.1 hq with rfl | hq
     · -- transition: the accumulator adds the row's fractions
       rw [sel_eval]
-      show (EF.ofF (if r + 1 = (withPerm Tb α β Ls w).h then 0 else 1)).mul _ = _
-      by_cases hl : r + 1 = (withPerm Tb α β Ls w).h
+      show (EF.ofF (if r + 1 = (withPerm Tb αs β Ls w).h then 0 else 1)).mul _ = _
+      by_cases hl : r + 1 = (withPerm Tb αs β Ls w).h
       · rw [if_pos hl]; exact EF.ofF_zero_mul _
       · rw [if_neg hl, ofF1_mul]
-        have hl' : r + 1 < Tb.h := by have : (withPerm Tb α β Ls w).h = Tb.h := rfl; omega
+        have hl' : r + 1 < Tb.h := by have : (withPerm Tb αs β Ls w).h = Tb.h := rfl; omega
         show (((QV w 1).eval _).sub ((QV w 0).eval _)).sub ((sumQ 0 _).eval _) = _
         rw [hacc, hacc, hfs]
         simp only [Nat.add_zero, hmod, Nat.mod_eq_of_lt hl']
@@ -254,8 +260,8 @@ theorem lup_rows (Tb : Table) (α β : EF) (Ls : List (List E × E)) (w : Nat)
     rcases List.mem_cons.1 hq with rfl | hq
     · -- last row: the terminal is the total
       rw [sel_eval]
-      show (EF.ofF (if r + 1 = (withPerm Tb α β Ls w).h then 1 else 0)).mul _ = _
-      by_cases hl : r + 1 = (withPerm Tb α β Ls w).h
+      show (EF.ofF (if r + 1 = (withPerm Tb αs β Ls w).h then 1 else 0)).mul _ = _
+      by_cases hl : r + 1 = (withPerm Tb αs β Ls w).h
       · rw [if_pos hl, ofF1_mul]
         have hl' : Tb.h = r + 1 := hl.symm
         show (((QC _).eval _).sub ((QV w 0).eval _)).sub ((sumQ 0 _).eval _) = _
@@ -281,25 +287,25 @@ theorem mem_eq4 {e : E} : ∀ {qs : List Q}, e ∈ eq4 qs → ∃ q ∈ qs, e = 
     exact ⟨q', List.mem_cons_of_mem _ hq', e'⟩
 
 /-- An AIR with LogUp's constraints over its permutation columns. -/
-def withLup (A : AirD) (α β terminal : EF) (w : Nat) (Ls : List (List E × E)) : AirD :=
-  { A with cons := A.cons ++ eq4 (lupCons α β terminal w Ls) }
+def withLup (A : AirD) (αs : Nat → EF) (β terminal : EF) (w : Nat) (Ls : List (List E × E)) : AirD :=
+  { A with cons := A.cons ++ eq4 (lupCons αs β terminal w Ls) }
 
 /-- **LogUp's completeness, row by row**: a table that meets `Sat` for an
     AIR whose `w` columns hold every constraint's and lookup's leaves,
     with the honest permutation columns appended, meets `Sat` for the AIR
     with LogUp's constraints, the terminal the total, when no denominator
     vanishes. -/
-theorem lup_sat {A : AirD} {Tb : Table} (h : Sat A Tb) (α β : EF) (Ls : List (List E × E)) (w : Nat)
+theorem lup_sat {A : AirD} {Tb : Table} (h : Sat A Tb) (αs : Nat → EF) (β : EF) (Ls : List (List E × E)) (w : Nat)
     (hA : ∀ c ∈ A.cons, c.win w = true)
     (hwin : ∀ L ∈ Ls, (∀ e ∈ L.1, e.win w = true) ∧ L.2.win w = true)
     (hden : ∀ c, c < Ls.length → ∀ r, r < Tb.h →
-      α.sub (combV β ((Ls.getD c ([], .const 0)).1.map (·.eval (Tb.env r)))) ≠ EF.zero) :
-    Sat (withLup A α β (accV Tb α β Ls Tb.h) w Ls) (withPerm Tb α β Ls w) := by
+      (αs c).sub (combV β ((Ls.getD c ([], .const 0)).1.map (·.eval (Tb.env r)))) ≠ EF.zero) :
+    Sat (withLup A αs β (accV Tb αs β Ls Tb.h) w Ls) (withPerm Tb αs β Ls w) := by
   refine ⟨h.1, fun c hc r hr => ?_⟩
   rcases List.mem_append.1 hc with hc | hc
-  · rw [env_perm_lt Tb α β Ls w r c (hA c hc)]; exact h.2 c hc r hr
+  · rw [env_perm_lt Tb αs β Ls w r c (hA c hc)]; exact h.2 c hc r hr
   · obtain ⟨q, hq, e⟩ := mem_eq4 hc
-    have := eq4_zero _ q (lup_rows Tb α β Ls w hwin hden q hq r hr)
+    have := eq4_zero _ q (lup_rows Tb αs β Ls w hwin hden q hq r hr)
     rcases e with rfl | rfl | rfl | rfl
     · exact this.1
     · exact this.2.1

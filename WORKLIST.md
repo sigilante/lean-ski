@@ -64,12 +64,13 @@ is built; this file records what is next. Last revised 2026-10-10.
   groups and take constraints that depend on the challenges and the transcript's values, as
   LogUp's do (`Ski/ZK/QuotTwo.lean`, `tabsHonest_gen`, `pcsCloseN_fri_gen`). LogUp's
   constraints are written as constraints, complete row by row on the honest permutation
-  trace, and of the shape `tabsHonest_gen` asks, for the corpus too (`Ski/ZK/LogUpAir.lean`,
-  `lup_sat`; `Ski/ZK/LogUpBase.lean`, `corpus_withLup_shape`). Open: the transcript's
-  terminal tied to the honest total, and the committed main and permutation groups tied to
-  `withPerm`'s columns; a circuit's builder with its fixed accepting fallback table of the
-  same shape (`fallback` combines them), and the group's trace and mask points tied to the
-  committed matrices (`hT`, `hRq`).
+  trace, and of the shape `tabsHonest_gen` asks, for the corpus too, each lookup with its
+  bus's prefix as its `α`, so multi-bus AIRs are covered (`Ski/ZK/LogUpAir.lean`, `lup_sat`;
+  `Ski/ZK/LogUpBase.lean`, `corpus_withLup_shape`). Open: the transcript's terminal tied to
+  the honest total, and the committed main and permutation groups tied to `withPerm`'s
+  columns; a circuit's builder with its fixed accepting fallback table of the same shape
+  (`fallback` combines them), and the group's trace and mask points tied to the committed
+  matrices (`hT`, `hRq`).
 - **The quotient's recombined values hide** (`Ski/ZK/MaskQuot.lean`): the chunks sit
   at the committed trace's height, so a query opens them at the trace's point `s`, where they
   recombine to a function of the terminals and the masked columns at `s` and `g s`.

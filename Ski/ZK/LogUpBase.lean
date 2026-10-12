@@ -15,9 +15,10 @@ each lookup's elements have degree at most 1, its multiplicity at most
 most 2 and at most one transition factor (`lup_shape`).  For the corpus
 the kernel checks the elements and multiplicities (`corpus_lup_ok`).
 
-Scope.  The map from an `Inter` to a p3 `Lookup` is assumed: one tuple,
-no flags, the fields as elements and the count as the multiplicity (a
-bus prefix, a constant, would not change the degree).
+Scope.  An `Inter` is one p3 `Lookup`: no flags, one tuple (same-bus
+packing cannot merge two tuples at degree 2), the fields as elements
+and the signed count as the multiplicity.  The bus enters only through
+the lookup's prefix, its `α_c`, a constant.
 -/
 
 namespace Circuit
@@ -180,9 +181,9 @@ theorem shape_mono {W D D' s s' : Nat} {e : E} (h : CShape W D s e) (hD : D ≤ 
     are selector-free of degree at most 1 and its multiplicity of degree
     at most 2, all in the AIR's `w` columns, and the window `W` holds the
     permutation columns. -/
-theorem lup_shape {W w : Nat} (α β T : EF) (Ls : List (List E × E))
+theorem lup_shape {W w : Nat} (αs : Nat → EF) (β T : EF) (Ls : List (List E × E))
     (hL : ∀ L ∈ Ls, (∀ e ∈ L.1, Plain W 1 e) ∧ Plain W 2 L.2) (hW : w + 4 * (Ls.length + 1) ≤ W) :
-    ∀ e ∈ eq4 (lupCons α β T w Ls), CShape W 2 1 e := by
+    ∀ e ∈ eq4 (lupCons αs β T w Ls), CShape W 2 1 e := by
   intro e he
   obtain ⟨q, hq, hcoord⟩ := mem_eq4 he
   have hfis : ∀ i ∈ (List.range Ls.length).map (fun c => w + 4 * (c + 1)), i + 3 < W := fun i hi => by
@@ -206,7 +207,7 @@ theorem lup_shape {W w : Nat} (α β T : EF) (Ls : List (List E × E))
     obtain ⟨hes, hm⟩ := hL _ (List.getElem_mem hi)
     have hc : QP W 1 (comb β Ls[i].1) := QP_comb β _ _ (QP_mono (QP_QC W _) (Nat.zero_le 1)) hes
     have hf : QP W 1 (QV (w + 4 * (i + 1)) 0) := QP_QV (i := w + 4 * (i + 1)) (o := 0) (Nat.zero_le 1) (by omega)
-    refine cplain (QP_sub (QP_mul (QP_sub (QP_QC W α) hc) hf) (QP_QE hm)) (by omega) hcoord
+    refine cplain (QP_sub (QP_mul (QP_sub (QP_QC W (αs i)) hc) hf) (QP_QE hm)) (by omega) hcoord
   · have selc : ∀ {s : Atom} {q : Q}, (s = .first ∨ s = .last ∨ s = .trans) → QP W 1 q →
         (e = (Q.sel s q).q0 ∨ e = (Q.sel s q).q1 ∨ e = (Q.sel s q).q2 ∨ e = (Q.sel s q).q3) → CShape W 2 1 e :=
       fun {s} {q} hs hq hc => by
@@ -264,10 +265,10 @@ theorem win_mono {w W : Nat} (hW : w ≤ W) : ∀ e : E, e.win w = true → e.wi
 
 /-- **The corpus LogUp constraints' shape**, for every term, challenge pair
     and terminal. -/
-theorem base_lup_shape (t : Term) {A : AirD} (hA : A ∈ baseAirs t) (α β T : EF) :
-    ∀ e ∈ eq4 (lupCons α β T A.width (corpusLs A)),
+theorem base_lup_shape (t : Term) {A : AirD} (hA : A ∈ baseAirs t) (αs : Nat → EF) (β T : EF) :
+    ∀ e ∈ eq4 (lupCons αs β T A.width (corpusLs A)),
       CShape (A.width + 4 * ((corpusLs A).length + 1)) 2 1 e := by
-  refine lup_shape α β T _ (fun L hL => ?_) (Nat.le_refl _)
+  refine lup_shape αs β T _ (fun L hL => ?_) (Nat.le_refl _)
   have h := List.all_eq_true.1 (corpus_lup_ok t A hA) L hL
   simp only [lupOkB, Bool.and_eq_true, List.all_eq_true, decide_eq_true_eq] at h
   obtain ⟨⟨⟨hes, hs⟩, hw⟩, hd⟩ := h
@@ -280,13 +281,13 @@ theorem base_lup_shape (t : Term) {A : AirD} (hA : A ∈ baseAirs t) (α β T : 
     constraint is guarded, in the window of the AIR's and the
     permutation trace's columns, of Plonky3 degree at most 2 and with at
     most one transition factor. -/
-theorem corpus_withLup_shape (t : Term) {A : AirD} (hA : A ∈ baseAirs t) (α β T : EF) :
-    ∀ c ∈ (withLup A α β T A.width (corpusLs A)).cons,
+theorem corpus_withLup_shape (t : Term) {A : AirD} (hA : A ∈ baseAirs t) (αs : Nat → EF) (β T : EF) :
+    ∀ c ∈ (withLup A αs β T A.width (corpusLs A)).cons,
       CShape (A.width + 4 * ((corpusLs A).length + 1)) 2 1 c := by
   intro c hc
   rcases List.mem_append.1 hc with hc | hc
   · obtain ⟨hgd, hwin, hD, hsd⟩ := base_facts t hA
     exact ⟨hgd c hc, win_mono (by omega) c (hwin c hc), hD c hc, hsd c hc⟩
-  · exact base_lup_shape t hA α β T c hc
+  · exact base_lup_shape t hA αs β T c hc
 
 end Circuit
