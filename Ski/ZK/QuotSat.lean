@@ -15,10 +15,10 @@ constraints, where a selector is only a factor of the whole constraint,
 `SatP` is `Sat` (`guarded_iff`), and the Rust AIRs are guarded.  This
 file builds the `Sels` of Plonky3's selector polynomials at the points
 `gʳ` (`p3Sels`).  The first- and last-row selectors are the products of
-`VanishPow`, and the transition selector is `X - gʰ⁻¹`.  With column
+`VanishPow`, and the transition selector is `X - gᵐ` with `m = h - 1`, so `gᵐ = g⁻¹`.  With column
 polynomials that interpolate the table on `⟨g⟩`, the leaves' values at
 `gʳ` are `envP` at row `r`, so `Sat` gives `hvan` (`hvan_of_sat`).
-`shows_sat` puts the pieces together: an accepted table's honest
+`shows_sat` puts the pieces together: for a table that meets `Sat`, its honest
 quotient chunks, over Plonky3's selector polynomials, show the AIR's
 targets.  `quot_length_le` bounds the quotient by the constraints'
 degree.
@@ -61,8 +61,8 @@ theorem not_mem_cosetL {g : F} {n a : Nat} (hinj : ∀ a b, a < n → b < n → 
   have := hinj a (k + t) ha (by omega) e'
   omega
 
-/-- **Plonky3's selectors as `Sels`**: their values at `gʳ` on the rows,
-    with the zero pattern `Sels` asks when the powers of `g` below `m + 1`
+/-- **Plonky3's selectors as `Sels`**: for `r < m + 1` their values at
+    `gʳ`, past the table constants with the same pattern; the zero pattern `Sels` asks when the powers of `g` below `m + 1`
     are distinct. -/
 def p3Sels (g : F) (m : Nat) (hinj : ∀ a b, a < m + 1 → b < m + 1 → fpow g a = fpow g b → a = b) : Sels (m + 1) where
   first r := if r < m + 1 then fval (fpow g r) (selF g m) else 0
@@ -143,7 +143,7 @@ theorem quot_length_le (ρ : Atom → List F) (m D : Nat) (hρ : ∀ a, (ρ a).l
     (hD : ∀ e ∈ es, e.deg ≤ D) (H : List F) : (fdivH H (cpoly ρ ws es)).length ≤ D * m + 1 - H.length := by
   rw [fdivH_length]; have := cpoly_length ρ m D hρ ws es hD; omega
 
-/-- **An accepted table's honest quotient chunks show the AIR's targets**:
+/-- **For a table that meets `Sat`, its honest quotient chunks show the AIR's targets**:
     `shows_air` with the vanishing from `Sat` (`hvan_of_sat`), the trace
     domain `⟨g⟩` and Plonky3's selector polynomials. -/
 theorem shows_sat {A : AirD} {T : Table} {g : F} {m : Nat} (hsat : Sat A T) (hh : T.h = m + 1)

@@ -125,15 +125,16 @@ theorem fval_fvan_snoc (x b : F) : ∀ L : List F, fval x (fvan (L ++ [b])) = fv
     rw [fval_fclin, fval_fclin, fval_fvan_snoc x b L, mul_assoc']
 
 /-- **Plonky3's first-row selector**: on the trace domain `⟨g⟩` of size
-    `m + 1`, `∏_{a ∈ H, a ≠ 1} (x - a) · (x - 1) = xᵐ⁺¹ - 1`, so the
-    product is `Z_H(x) / (x - 1)` (`is_first_row`). -/
+    `m + 1`, `∏_{a ∈ H, a ≠ 1} (x - a) · (x - 1) = xᵐ⁺¹ - 1`, so for
+    `x ≠ 1` the product is `Z_H(x) / (x - 1)` (`is_first_row`). -/
 theorem sel_first {g : F} {m : Nat} (hg : fpow g (m + 1) = 1) (hnd : (cosetL 1 g (m + 1)).Nodup) (x : F) :
     (x - 1) * fval x (fvan (cosetL (1 * g) g m)) = fpow x (m + 1) - 1 := by
   rw [← fval_fclin, show fclin 1 (fvan (cosetL (1 * g) g m)) = fvan (cosetL 1 g (m + 1)) from rfl,
     fvan_coset_pow (Nat.succ_pos m) hg hnd x, fpow_one']
 
 /-- **Plonky3's last-row selector**: `∏_{a ∈ H, a ≠ gᵐ} (x - a) · (x - gᵐ)
-    = xᵐ⁺¹ - 1`, and `gᵐ = g⁻¹` (`is_last_row`, `is_transition`). -/
+    = xᵐ⁺¹ - 1`, so for `x ≠ gᵐ` the product is `Z_H(x) / (x - g⁻¹)`, and
+    `gᵐ = g⁻¹` (`is_last_row`, `is_transition`). -/
 theorem sel_last {g : F} {m : Nat} (hg : fpow g (m + 1) = 1) (hnd : (cosetL 1 g (m + 1)).Nodup) (x : F) :
     fval x (fvan (cosetL 1 g m)) * (x - fpow g m) = fpow x (m + 1) - 1 ∧ fpow g m * g = 1 := by
   refine ⟨?_, hg⟩
