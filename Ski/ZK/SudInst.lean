@@ -30,9 +30,13 @@ chunks, every codeword and FRI, meets `PCSCloseN` with `ε = 0` over the
 Sudoku transcript's values.  `sud_hiding`: for an accepting run of the
 Sudoku statement, `sud_transcriptG` over that PCS, its PCS term zero.
 
-Left out of the view: the preprocessed columns, public and fixed, whose
-openings are functions of public data (FRI's view, any function of the
-batched polynomials, may fold their batched polynomials in).  Assumed:
+Left out of the view: the preprocessed columns.  They hold no witness
+(zero for the memory, CPU and program tables' `pre`, `witRowsS` for the
+witness's), and their openings at the fixed points are constants;
+folding them into FRI's input gives another `fri`, so `sud_pcs` covers
+it.  Argued, not proved; it also assumes Plonky3 commits them without
+hiding randomness.  The simulator reads the tables' preprocessed columns
+only (`sudPsim_pre`).  Assumed:
 the query points off the trace domains (`lde_off_trace` gives it for
 Plonky3's), `2 |S| + 8` within each height, `ζ` and the FRI challenge
 `αb` generic and fixed (with `ws`, `qv` and the query points, not
@@ -296,7 +300,8 @@ theorem sud_airs_P3 (hd0 stk0 ctr0 : Nat) (heap : List Cell) :
 set_option maxRecDepth 100000 in
 /-- **The Sudoku proof's composed hiding PCS hides exactly**: with the run's
     tables meeting `Sat` at the heights `2^16`, `2^16`, `2^10`, the
-    program table at `2^(tp+1)`, the query points off each trace domain,
+    program table at `2^(tp+1)` with `tp ≤ 24`, the query points off each
+    trace domain,
     `ζ` generating the extension and the FRI challenge `αb` generic, the
     PCS whose view is every group's openings, every quotient table's
     chunks, every codeword and FRI meets `PCSCloseN` with `ε = 0`, over
@@ -415,6 +420,23 @@ def sudNR : Nat := P ^ (friN1 (sudGroups tp S16 S10 SP ζ qv) (sudKs hd0 stk0 ct
     ncw)
 end
 
+theorem preInterp_pre {A B : Table} (h : A.pre = B.pre) : preInterp A = preInterp B := by
+  unfold preInterp; rw [h]
+
+/-- **The simulator reads the tables' preprocessed columns only**: two
+    sets of tables with the same preprocessed columns give the same
+    simulator.  The Sudoku tables' preprocessed columns are the public
+    rows (`witRowsS` for the witness, zero for the CPU and memory), so the
+    simulator uses no witness. -/
+theorem sudPsim_pre {V : Type} (off : EF → String → EF) (hd0 stk0 ctr0 : Nat) (heap : List Cell)
+    {C Mm Wt C' Mm' Wt' : Table} (hC : C.pre = C'.pre) (hM : Mm.pre = Mm'.pre) (hW : Wt.pre = Wt'.pre) (tp : Nat)
+    (S16 S10 SP : List F) (ζ : EF) (qv : EF → EF → List EF → F → List F → List F → List EF)
+    (wm wc ww wp : List (EF → EF → List F)) (ncw : Nat) (αb : EF) (fri : EF → EF → List (EF → EF) → V) :
+    sudPsim off hd0 stk0 ctr0 heap C Mm Wt tp S16 S10 SP ζ qv wm wc ww wp ncw αb fri =
+      sudPsim off hd0 stk0 ctr0 heap C' Mm' Wt' tp S16 S10 SP ζ qv wm wc ww wp ncw αb fri := by
+  simp only [sudPsim, sudTs, List.map_cons, List.map_nil, bbTab, preInterp_pre hC, preInterp_pre hM,
+    preInterp_pre hW]
+
 /-- The composed PCS's view. -/
 abbrev SudPV (V : Type) : Type :=
   (List (List (List F × List EF) × List (List EF)) × List (List (List (List F × List EF)))) ×
@@ -426,20 +448,21 @@ abbrev SudPV (V : Type) : Type :=
     extension and the FRI challenge generic, the real transcript over
     that PCS and the simulated one, summed over `α, β, r` and the tuples
     with `β` generic, differ by at most the aborting draws:
-    `sud_transcriptG` with its PCS term zero.  `tp` is the program
-    table's `progTp`. -/
+    `sud_transcriptG` with its PCS term zero.  `tP` is the program
+    table's `progTp`; the simulator reads the tables' preprocessed
+    columns only (`sudPsim_pre`). -/
 theorem sud_hiding {V : Type} (off : EF → String → EF) {puzzle : List Nat} (hc : CluesOK (cluesOf puzzle))
     {ρ : Nat → Bool} {A : List Cell} {k : Nat} {row : Nat → Air.Row}
     (hA : AcceptsFrom A (stmtMachine ρ 729 (sudokuExpr (cluesOf puzzle)) ACC REJ) k row)
     (hacc : rd A (row (k - 1)).ctr (row (k - 1)).hd = some (.atom ACC))
     (hlen : A.length = 2 ^ 16) (hk : k ≤ 2 ^ 16)
-    {tp : Nat} (htp : tp = progTp (stmtMachine (fun _ => false) 729 (sudokuExpr (cluesOf puzzle)) ACC REJ).heap)
+    {tP : Nat} (htp : tP = progTp (stmtMachine (fun _ => false) 729 (sudokuExpr (cluesOf puzzle)) ACC REJ).heap)
     {S16 S10 SP : List F} {ζ : EF} (qv : EF → EF → List EF → F → List F → List F → List EF)
     (wm wc ww wp : List (EF → EF → List F))
     (hS16 : ∀ x ∈ S16, x ∉ cosetL 1 (bbGen 16) (2 ^ 16)) (hS10 : ∀ x ∈ S10, x ∉ cosetL 1 (bbGen 10) (2 ^ 10))
-    (hSP : ∀ x ∈ SP, x ∉ cosetL 1 (bbGen (tp + 1)) (2 ^ (tp + 1)))
+    (hSP : ∀ x ∈ SP, x ∉ cosetL 1 (bbGen (tP + 1)) (2 ^ (tP + 1)))
     (hsz16 : 2 * S16.length + 8 ≤ 2 ^ 16) (hsz : 2 * S10.length + 8 ≤ 2 ^ 10)
-    (hszP : 2 * SP.length + 8 ≤ 2 ^ (tp + 1)) (hζ : ∀ x : F, EF.ofF x ≠ ζ)
+    (hszP : 2 * SP.length + 8 ≤ 2 ^ (tP + 1)) (hζ : ∀ x : F, EF.ofF x ≠ ζ)
     (hdet : (mz ζ).det ≠ 0) {ncw : Nat} {αb : EF} (fri : EF → EF → List (EF → EF) → V)
     (hdb : (mz αb).det ≠ 0) (haw : ∀ w, apow αb w ≠ EF.zero) (hncw : 4 ≤ ncw)
     (E : TViewN (SudPV V) EF → Bool) :
@@ -448,9 +471,9 @@ theorem sud_hiding {V : Type} (off : EF → String → EF) {puzzle : List Nat} (
     let Pg := progTableS blank.heap
     let Wt := witTableS A
     let Mm := memTableC A (cpuAirS blank.hd blank.stk blank.heap.length ACC) (progAirS blank.heap) witAirS C Pg Wt
-    let pcs := sudPcs off blank.hd blank.stk blank.heap.length blank.heap C Mm Wt tp S16 S10 SP ζ qv wm wc ww wp ncw αb fri
-    let psim := sudPsim off blank.hd blank.stk blank.heap.length blank.heap C Mm Wt tp S16 S10 SP ζ qv wm wc ww wp ncw αb fri
-    let NR := sudNR off blank.hd blank.stk blank.heap.length blank.heap C Mm Wt tp S16 S10 SP ζ qv wm wc ww wp ncw
+    let pcs := sudPcs off blank.hd blank.stk blank.heap.length blank.heap C Mm Wt tP S16 S10 SP ζ qv wm wc ww wp ncw αb fri
+    let psim := sudPsim off blank.hd blank.stk blank.heap.length blank.heap C Mm Wt tP S16 S10 SP ζ qv wm wc ww wp ncw αb fri
+    let NR := sudNR off blank.hd blank.stk blank.heap.length blank.heap C Mm Wt tP S16 S10 SP ζ qv wm wc ww wp ncw
     let tabs := fun t : Nat → Tup => sudTables blank.hd blank.stk blank.heap.length blank.heap
       ((C.setBlind BLA (t 1)).setBlind BLB (t 0)) (Mm.setBlind 5 (t 0)) (progTableS blank.heap) (Wt.setBlind 1 (t 1))
     let tv := fun pre β t => sudViewN pre β blank.hd blank.stk blank.heap.length C Mm Wt t

@@ -91,6 +91,7 @@ import Ski.ZK.HideWire
 import Ski.ZK.BbGroup
 import Ski.ZK.SudRun
 import Ski.ZK.SudInst
+import Ski.ZK.WitRun
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -942,7 +943,8 @@ open Ski.Audit
 -- One Sudoku run: Balanced, Unblinded, Sat, the blinded tables and the terminals
 #audit_clean Circuit.sud_run_sats Circuit.sud_run_wire
 -- The Sudoku proof over its composed hiding PCS, end to end
-#audit_clean Circuit.sudCols_shaped Circuit.sud_airs_P3 Circuit.sud_pcs Circuit.sud_hiding
+#audit_clean Circuit.sudCols_shaped Circuit.sud_airs_P3 Circuit.sud_pcs Circuit.sud_hiding Circuit.preInterp_pre
+  Circuit.sudPsim_pre
 #audit_clean Circuit.lgF_pow Circuit.pow2From_pow Circuit.pow2From_ge_n Circuit.progS_height Circuit.sud_prog_height
 
 -- Part II's interface with an additive distance: the errors add, the hybrid argument proved
@@ -1120,3 +1122,5 @@ open Ski.Audit
 #audit_clean Entropy.hd_red Entropy.tl_red Entropy.pairT_cong Entropy.consT_cong Entropy.convT_one
   Entropy.convT_succ Entropy.convT_red Entropy.entropyV_red Entropy.entropyV_iff Entropy.entropyV_iff'
   Circuit.entropyExport_sound Circuit.checkEntropy_sound
+-- One hidden-term run: Sat at the heights 2^10, 2^10, 2^9
+#audit_clean Circuit.wit_run_sats

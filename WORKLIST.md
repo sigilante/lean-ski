@@ -93,7 +93,7 @@ is built; this file records what is next. Last revised 2026-10-10.
   (`Ski/ZK/SudInst.lean`, `sud_pcs`, `sud_hiding`), with each height opened at its own query
   points (`S16`, `S10`, `SP`) and the program table's height derived from the statement
   (`sud_prog_height`). Fixed, not sampled: `ζ`, the FRI challenge, the blinding blocks, the
-  quotient values and the query points; the four chunks per table follow from Plonky3's
+  quotient values, the weights `ws` and the query points; the four chunks per table follow from Plonky3's
   `2^(log2_ceil 2 + 1)` at degree 2. Open: the hidden-term and composed circuits alike
   (their `*_run_sats` and instances). Assumed: Fiat–Shamir, the Merkle salts' hiding, and
   generic `ζ` and FRI challenge. The groups' trace and mask points tied to the committed
