@@ -435,4 +435,17 @@ theorem tabsHonest_cons {JS : CSet → F → F} {JE : CSet → EF} {T : QTab} {d
     (hs : TabsHonest JS JE Ts ds) : TabsHonest JS JE (T :: Ts) (d :: ds) :=
   ⟨h.1, hs⟩
 
+/-- **The fallback builder**: a builder that meets a per-trace property on
+    the inputs it accepts (`good`), and a fixed fallback that meets it,
+    combine into one that meets it at every input.  This is how a
+    circuit's builder meets `hsatT` and `hcols`, which `PCSCloseN` asks at
+    every tuple assignment, from its completeness on accepted runs. -/
+theorem fallback {X : Type} (Q : X → Prop) (good : (Nat → Tup) → EF → EF → Prop)
+    [∀ t α β, Decidable (good t α β)] (b : (Nat → Tup) → EF → EF → X) (x0 : X)
+    (hb : ∀ t α β, good t α β → Q (b t α β)) (h0 : Q x0) :
+    ∀ t α β, Q (if good t α β then b t α β else x0) := fun t α β => by
+  by_cases h : good t α β
+  · rw [if_pos h]; exact hb t α β h
+  · rw [if_neg h]; exact h0
+
 end Circuit

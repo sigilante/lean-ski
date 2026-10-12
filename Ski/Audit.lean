@@ -908,7 +908,7 @@ open Ski.Audit
 -- An AIR's quotient table in the composed hiding PCS
 #audit_clean Circuit.ppoly_allL Circuit.airTg_qs Circuit.airTgE_qs Circuit.openMulti_at Circuit.coord_shows
   Circuit.recOK_air Circuit.tabsHonest_air Circuit.pcsCloseN_fri_air Circuit.tabsHonest_cons
-  Circuit.friN_air Circuit.pcsCloseN_fri_air_draw
+  Circuit.friN_air Circuit.pcsCloseN_fri_air_draw Circuit.fallback
 
 -- Part II's interface with an additive distance: the errors add, the hybrid argument proved
 #audit_clean Compose.lsum_le Compose.lsum_add Compose.lsum_const Compose.lsum_comm Compose.lsum_prod
