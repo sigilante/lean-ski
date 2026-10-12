@@ -86,16 +86,17 @@ is built; this file records what is next. Last revised 2026-10-10.
   (`preInterp_spec`), and a private table meeting `hb` and the domain facts gives
   `tabsHonest_corpus_ite`, which `pcsCloseN_fri_tabs` combines into a transcript theorem's
   `hpcs`. Over BabyBear one private table's every domain, chunk and group fact is discharged
-  (`Ski/ZK/BbGroup.lean`, `tabsHonest_bb`). Open: a concrete instance per circuit, Sudoku
-  first: each private table's height, the groups list with `cols` and `Shaped`, the FRI
-  facts, `tabs` the transcript's own with `hmem`, and `SudOK`, `Balanced`, `Unblinded` from
-  one run; each circuit's `hb` beyond `Sat` and the terminal (the height `m + 1`, the
-  committed columns `mainCols`, `permCols` as the PCS's `cols`), with the circuit's `OK`
-  beside its transcript theorem's `Balanced` and `Unblinded`; each circuit's main table
-  shown among its `tabs t` and `pcsCloseN_fri_corpus` fed into its transcript theorem, as
-  the composed statement over its private tables; a circuit's builder with its fixed
-  accepting fallback table of the same shape (`fallback`); the group's trace and mask points
-  tied to the committed matrices (`hT`, `hRq`).
+  (`Ski/ZK/BbGroup.lean`, `tabsHonest_bb`). One Sudoku run gives `Balanced`, `Unblinded` and
+  `Sat` for the same tables, their blinded copies' `Sat` and the view's terminals
+  (`Ski/ZK/SudRun.lean`). Open: a concrete instance per circuit, Sudoku first: each private
+  table's height, the groups list with `cols` and `Shaped`, the FRI facts, `tabs` the
+  transcript's own with `hmem`; each circuit's `hb` beyond `Sat` and the terminal (the
+  height `m + 1`, the committed columns `mainCols`, `permCols` as the PCS's `cols`), with
+  the circuit's `OK` beside its transcript theorem's `Balanced` and `Unblinded`; each
+  circuit's main table shown among its `tabs t` and `pcsCloseN_fri_corpus` fed into its
+  transcript theorem, as the composed statement over its private tables; a circuit's builder
+  with its fixed accepting fallback table of the same shape (`fallback`); the group's trace
+  and mask points tied to the committed matrices (`hT`, `hRq`).
 - **The quotient's recombined values hide** (`Ski/ZK/MaskQuot.lean`): the chunks sit
   at the committed trace's height, so a query opens them at the trace's point `s`, where they
   recombine to a function of the terminals and the masked columns at `s` and `g s`.

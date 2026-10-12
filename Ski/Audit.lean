@@ -89,6 +89,7 @@ import Ski.ZK.LogUpBase
 import Ski.ZK.HideP3
 import Ski.ZK.HideWire
 import Ski.ZK.BbGroup
+import Ski.ZK.SudRun
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -937,6 +938,8 @@ open Ski.Audit
 -- A BabyBear trace group; one private table, every domain, chunk and group fact discharged
 #audit_clean Circuit.bbGroup_OK Circuit.bbGroup_hgrp Circuit.bb_chunks Circuit.airQTabG_ok Circuit.tabsHonest_bb
   Circuit.gen31_pow27 Circuit.lde_off_trace
+-- One Sudoku run: Balanced, Unblinded, Sat, the blinded tables and the terminals
+#audit_clean Circuit.sud_run_sats Circuit.sud_run_wire
 
 -- Part II's interface with an additive distance: the errors add, the hybrid argument proved
 #audit_clean Compose.lsum_le Compose.lsum_add Compose.lsum_const Compose.lsum_comm Compose.lsum_prod
