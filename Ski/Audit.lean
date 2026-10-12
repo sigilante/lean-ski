@@ -79,6 +79,7 @@ import Ski.ZK.QuotPoly
 import Ski.ZK.VanishPow
 import Ski.ZK.QuotSat
 import Ski.ZK.QuotFold
+import Ski.ZK.QuotOpen
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -900,6 +901,9 @@ open Ski.Audit
 -- The base coordinates fold back to the verifier's check
 #audit_clean Circuit.recomb_step Circuit.fold_back Circuit.recomb_mul Circuit.airTgE_back Circuit.wq_step
   Circuit.fold_ext Circuit.airTgE_ext Circuit.hvan_eq4 Circuit.foldEE_append Circuit.airTgE_mixed
+-- The targets from the opened values
+#audit_clean Circuit.idxIn_spec Circuit.eval_win Circuit.ρOpen_honest Circuit.ρOpenE_honest Circuit.airTg_open
+  Circuit.airTgE_open Circuit.mcol_on_T Circuit.mpolys_getD Circuit.sat_cut Circuit.shows_open
 
 -- Part II's interface with an additive distance: the errors add, the hybrid argument proved
 #audit_clean Compose.lsum_le Compose.lsum_add Compose.lsum_const Compose.lsum_comm Compose.lsum_prod

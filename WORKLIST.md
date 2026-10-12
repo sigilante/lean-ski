@@ -44,8 +44,10 @@ is built; this file records what is next. Last revised 2026-10-10.
   `air_quot`, `shows_air`); the selectors' products are Plonky3's `xⁿ - 1` formulas
   (`Ski/ZK/VanishPow.lean`); the vanishing follows from `Sat` for guarded constraints, and
   for a table that meets `Sat` its honest chunks show the AIR's targets (`Ski/ZK/QuotSat.lean`,
-  `hvan_of_sat`, `shows_sat`). The quotient fits Plonky3's ZK chunk count, in Plonky3's degree (`quot_fits`). Open: each
-  circuit's `CSet` targets tied to `airTg`/`airTgE`. The coordinates fold back to the
+  `hvan_of_sat`, `shows_sat`). The quotient fits Plonky3's ZK chunk count, in Plonky3's degree (`quot_fits`). The targets
+  read from the openings are the honest ones, and an opened table that meets `Sat` shows
+  them (`Ski/ZK/QuotOpen.lean`, `shows_open`). Open: instantiating a circuit's `CSet`s with
+  these targets inside `pcsCloseN_fri`. The coordinates fold back to the
   verifier's fold times the model's chunk normalization, and extension constraints, folded by coordinates, agree with Plonky3's
   fold in the extension (`Ski/ZK/QuotFold.lean`, `airTgE_back`, `airTgE_mixed`).
 - **The quotient's recombined values hide** (`Ski/ZK/MaskQuot.lean`): the chunks sit
