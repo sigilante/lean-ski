@@ -66,8 +66,9 @@ is built; this file records what is next. Last revised 2026-10-10.
   constraints are written as constraints, complete row by row on the honest permutation
   trace, and of the shape `tabsHonest_gen` asks, for the corpus too, each lookup with its
   bus's prefix as its `α`, so multi-bus AIRs are covered (`Ski/ZK/LogUpAir.lean`, `lup_sat`;
-  `Ski/ZK/LogUpBase.lean`, `corpus_withLup_shape`). Open: the transcript's terminal tied to
-  the honest total, and the committed main and permutation groups tied to `withPerm`'s
+  `Ski/ZK/LogUpBase.lean`, `corpus_withLup_shape`). The honest total is the transcript's
+  terminal, so completeness holds at the published terminal (`accV_terminal`,
+  `lup_sat_terminal`). Open: the committed main and permutation groups tied to `withPerm`'s
   columns; a circuit's builder with its fixed accepting fallback table of the same shape
   (`fallback` combines them), and the group's trace and mask points tied to the committed
   matrices (`hT`, `hRq`).

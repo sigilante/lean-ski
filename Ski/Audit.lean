@@ -925,7 +925,8 @@ open Ski.Audit
   Circuit.colsOn_cat Circuit.recOK_airG Circuit.tabsHonest_gen Circuit.pcsCloseN_fri_gen
 -- LogUp's constraints as constraints: completeness and shape
 #audit_clean Circuit.fracQ_eval Circuit.lup_rows Circuit.lup_sat Circuit.QP_mul Circuit.lup_shape
-  Circuit.corpus_lup_ok Circuit.base_lup_shape Circuit.corpus_withLup_shape
+  Circuit.corpus_lup_ok Circuit.base_lup_shape Circuit.corpus_withLup_shape Circuit.combV_horner
+  Circuit.accV_terminal Circuit.lup_sat_terminal
 
 -- Part II's interface with an additive distance: the errors add, the hybrid argument proved
 #audit_clean Compose.lsum_le Compose.lsum_add Compose.lsum_const Compose.lsum_comm Compose.lsum_prod

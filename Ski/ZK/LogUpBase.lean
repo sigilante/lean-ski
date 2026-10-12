@@ -15,6 +15,11 @@ each lookup's elements have degree at most 1, its multiplicity at most
 most 2 and at most one transition factor (`lup_shape`).  For the corpus
 the kernel checks the elements and multiplicities (`corpus_lup_ok`).
 
+With each lookup's `α` its bus prefix, the honest accumulator's total is
+the transcript's `terminal pre β A Tb` (`accV_terminal`), so LogUp's
+completeness holds at the terminal the transcript publishes, when no
+message's denominator vanishes (`lup_sat_terminal`).
+
 Scope.  An `Inter` is one p3 `Lookup`: no flags, one tuple (same-bus
 packing cannot merge two tuples at degree 2), the fields as elements
 and the signed count as the multiplicity.  The bus enters only through
@@ -289,5 +294,88 @@ theorem corpus_withLup_shape (t : Term) {A : AirD} (hA : A ∈ baseAirs t) (αs 
   · obtain ⟨hgd, hwin, hD, hsd⟩ := base_facts t hA
     exact ⟨hgd c hc, win_mono (by omega) c (hwin c hc), hD c hc, hsd c hc⟩
   · exact base_lup_shape t hA αs β T c hc
+
+-- ---------------------------------------------------------------------------
+-- The terminal is the transcript's
+-- ---------------------------------------------------------------------------
+
+theorem combV_horner (β : EF) (vs : List F) : combV β vs = hornerL β vs := by
+  unfold combV hornerL
+  have : (fun (acc : EF) (v : F) => (EF.ofF v).add (acc.mul β)) = fun acc v => (acc.mul β).add (EF.ofF v) := by
+    funext acc v; exact EF.add_comm _ _
+  rw [this]
+
+theorem fsum_sumL (Tb : Table) (αs : Nat → EF) (β : EF) (Ls : List (List E × E)) (r : Nat) :
+    ∀ cs : List Nat, fsum Tb αs β Ls r cs = sumL (fun c => fV Tb αs β Ls c r) cs
+  | [] => rfl
+  | c :: cs => by rw [sumL_cons, ← fsum_sumL Tb αs β Ls r cs]; rfl
+
+theorem sumL_range {α : Type} (g : α → EF) : ∀ (l : List α) (f : Nat → EF) (d : α),
+    (∀ c, c < l.length → f c = g (l.getD c d)) → sumL f (List.range l.length) = sumL g l
+  | [], _, _, _ => rfl
+  | a :: l, f, d, h => by
+    rw [List.length_cons, List.range_succ_eq_map, sumL_cons, sumL_map, sumL_cons]
+    rw [h 0 (Nat.succ_pos _), sumL_range g l (fun c => f (c + 1)) d (fun c hc => h (c + 1) (Nat.succ_lt_succ hc))]
+    rfl
+
+theorem accV_sumL (Tb : Table) (αs : Nat → EF) (β : EF) (Ls : List (List E × E)) : ∀ n,
+    accV Tb αs β Ls n = sumL (fun r => fsum Tb αs β Ls r (List.range Ls.length)) (List.range n)
+  | 0 => rfl
+  | n + 1 => by
+    rw [List.range_succ, sumL_append, sumL_cons, sumL_nil, EF.add_zero, ← accV_sumL Tb αs β Ls n]; rfl
+
+/-- A placeholder interaction. -/
+def interD : Inter := ⟨"", 0, .const 0, []⟩
+
+/-- Each lookup's `α`: its interaction's bus prefix. -/
+def busAlphas (pre : String → EF) (A : AirD) (c : Nat) : EF := pre (A.inters.getD c interD).bus
+
+/-- **The honest total is the transcript's terminal**: with each lookup's
+    `α` its bus's prefix, the honest accumulator's total over the table is
+    `terminal pre β A Tb`, the value the transcript publishes for it. -/
+theorem accV_terminal (pre : String → EF) (β : EF) (A : AirD) (Tb : Table) :
+    accV Tb (busAlphas pre A) β (corpusLs A) Tb.h = terminal pre β A Tb := by
+  rw [accV_sumL]
+  unfold terminal
+  congr 1
+  funext r
+  rw [fsum_sumL]
+  unfold rowTerm
+  have hlen : (corpusLs A).length = A.inters.length := by unfold corpusLs; rw [List.length_map]
+  rw [hlen]
+  refine sumL_range _ A.inters _ interD (fun c hc => ?_)
+  have e1 : (corpusLs A).getD c ([], .const 0) = ((A.inters.getD c interD).fields, (A.inters.getD c interD).count) := by
+    unfold corpusLs
+    rw [List.getD_eq_getElem?_getD, List.getElem?_map, List.getD_eq_getElem?_getD,
+      List.getElem?_eq_getElem hc]
+    rfl
+  unfold fV msgTerm den busAlphas
+  rw [e1, combV_horner]
+
+/-- **LogUp's completeness at the transcript's terminal**: a table that
+    meets `Sat` for an AIR whose constraints and interactions lie in its
+    columns, with the honest permutation columns appended, meets `Sat` for
+    the AIR with LogUp's constraints at the terminal the transcript
+    publishes, when no message's denominator vanishes. -/
+theorem lup_sat_terminal {A : AirD} {Tb : Table} (h : Sat A Tb) (pre : String → EF) (β : EF)
+    (hA : ∀ c ∈ A.cons, c.win A.width = true)
+    (hI : ∀ I ∈ A.inters, (∀ e ∈ I.fields, e.win A.width = true) ∧ I.count.win A.width = true)
+    (hden : ∀ I ∈ A.inters, ∀ r, r < Tb.h → den pre β I.bus (I.fields.map (·.eval (Tb.env r))) ≠ EF.zero) :
+    Sat (withLup A (busAlphas pre A) β (terminal pre β A Tb) A.width (corpusLs A))
+      (withPerm Tb (busAlphas pre A) β (corpusLs A) A.width) := by
+  rw [← accV_terminal]
+  refine lup_sat h _ β _ _ hA (fun L hL => ?_) (fun c hc r hr => ?_)
+  · obtain ⟨I, hI', rfl⟩ := List.mem_map.1 hL
+    exact hI I hI'
+  · have hlen : (corpusLs A).length = A.inters.length := by unfold corpusLs; rw [List.length_map]
+    rw [hlen] at hc
+    have e1 : (corpusLs A).getD c ([], .const 0) = ((A.inters.getD c interD).fields, (A.inters.getD c interD).count) := by
+      unfold corpusLs
+      rw [List.getD_eq_getElem?_getD, List.getElem?_map, List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hc]
+      rfl
+    have hmem : A.inters.getD c interD ∈ A.inters := by
+      rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hc, Option.getD_some]; exact List.getElem_mem hc
+    rw [e1, combV_horner]
+    exact hden _ hmem r hr
 
 end Circuit
