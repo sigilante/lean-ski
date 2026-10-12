@@ -75,6 +75,7 @@ import Ski.ZK.MaskRec
 import Ski.ZK.MaskCoset
 import Ski.ZK.MaskSplit
 import Ski.ZK.MaskCis
+import Ski.ZK.QuotPoly
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -884,6 +885,10 @@ open Ski.Audit
   Circuit.bbGen_half Circuit.bb_split
 -- Plonky3's selector weights normalize at each first point
 #audit_clean Circuit.opv_ne Circuit.first_of_cis
+-- The honest quotient of an AIR: its identity, its size, its targets from the openings
+#audit_clean Circuit.fval_fshift Circuit.fvalE_fshift Circuit.fval_epoly Circuit.fvalE_epoly Circuit.epoly_length
+  Circuit.fval_fdivH Circuit.fdivH_length Circuit.fdivH_rel Circuit.fval_cpoly Circuit.fvalE_cpoly Circuit.cpoly_length
+  Circuit.air_quot Circuit.fval_stdRho Circuit.fvalE_stdRho Circuit.shows_air
 
 -- Part II's interface with an additive distance: the errors add, the hybrid argument proved
 #audit_clean Compose.lsum_le Compose.lsum_add Compose.lsum_const Compose.lsum_comm Compose.lsum_prod
