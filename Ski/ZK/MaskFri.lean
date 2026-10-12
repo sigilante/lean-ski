@@ -41,14 +41,26 @@ values (`cΔ`, `cvals`) and of their random polynomials' shifts (`cR`,
 shifted codewords are the originals plus that chunk's `cwShift`
 (`cw_entry`, `cw_rows`).
 
-Scope.  `fri_hides` takes the base shift, the matrices' differences and
-the codewords' shift as hypotheses; this file proves each for its kind of
-matrix (`masks_shift_multi`, `chunkPolys_rel` with `vanish_of_open_rel`
-and `chunks_shiftV`, `cws_rel`, `cw_rows`) and the count-keeping
-dependent shift (`vsum_dshift`).  The instance for the composed PCS,
-`pcsChunk` with every matrix's codewords and FRI's view, assembling these
-through the tables' rows, is not written here.  Merkle salts and
-Fiat–Shamir stay assumed.
+**The composed PCS.**  `pcsCloseN_fri` assembles all of it for the PCS
+of `MaskChunk.lean` (`pcsChunk`) with every quotient table's chunk
+matrices (`QTab`, the columns sharing one chunk structure), at least four
+codewords for every matrix, and FRI's view as any function of every
+matrix's batched polynomial: the view meets `PCSCloseN` with `ε = 0`.
+`pcsCloseN_friR` adds the randomization polynomial's matrices, random
+columns alone, to FRI's input and their openings to the view
+(`PCSCloseN.family`), and every hiding circuit's transcript theorem holds
+over the PCS with no PCS term (`*_transcriptG_fri`).
+
+Scope.  Proved in the public-coin model: the points, `ζ`, the
+batching challenge `αb` and FRI's challenges fixed before the masks, as
+Fiat–Shamir with a random oracle makes them.  Assumed: Fiat–Shamir itself,
+and the Merkle commitments' hiding (salted hashes), since the view leaves
+out the commitments and the Merkle paths; that the honest chunks show the
+quotient (`RecOK`), read from Plonky3's source; that `1, αb, αb², αb³`
+and `1, ζ, ζ², ζ³` are independent over `F`, each failing for a uniform
+draw with probability about `2^-62`; and that FRI's view is a function of
+the batched polynomials and its challenges, which is how Plonky3 computes
+it.
 -/
 
 namespace Circuit
@@ -1997,5 +2009,777 @@ theorem tab_all {α : EF} (T : QTab) (ncw : Nat) (hok : ∀ c ∈ T.sets, c.OK)
       · refine Nat.le_trans (fcdiff_len _ _) (Nat.max_le.2 ⟨?_, ?_⟩)
         · rw [getD_pair hk']; exact (hsz' _ (List.getElem_mem _)).2
         · rw [getD_pair hk]; exact (hsz _ (List.getElem_mem _)).2
+
+-- ---------------------------------------------------------------------------
+-- Every table
+-- ---------------------------------------------------------------------------
+
+/-- What every table asks: its columns' conditions, its domains, and the
+    honest and canonical data showing the same targets, of small degree. -/
+def TabsOK (JS : CSet → F → F) (JE : CSet → EF) : List QTab → List (List (List (List F) × List F)) →
+    List (List (List (List F) × List F)) → Prop
+  | T :: tabs, ds :: dss, ds' :: dss' =>
+    ((∀ c ∈ T.sets, c.OK) ∧ (∀ ch ∈ T.cs, ch.H.length = T.h ∧ ch.H.Nodup) ∧ T.Hl.length = T.h ∧ T.Hl.Nodup ∧
+      RecOK T.sets ds JS JE ∧ RecOK T.sets ds' JS JE ∧
+      (∀ d ∈ ds, (∀ q ∈ d.1, q.length ≤ T.h) ∧ d.2.length ≤ T.h) ∧
+      (∀ d ∈ ds', (∀ q ∈ d.1, q.length ≤ T.h) ∧ d.2.length ≤ T.h)) ∧ TabsOK JS JE tabs dss dss'
+  | [], [], [] => True
+  | _, _, _ => False
+
+/-- The tables' shifts, concatenated. -/
+def tabsKflat (tabs : List QTab) (dss dss' : List (List (List (List F) × List F))) : List F :=
+  ((tabsKeys tabs dss dss').map List.flatten).flatten
+
+theorem flatten_len {n : Nat} : ∀ (Ks : List (List F)), (∀ K ∈ Ks, K.length = n) → Ks.flatten.length = Ks.length * n
+  | [], _ => (Nat.zero_mul n).symm
+  | K :: Ks, h => by
+    rw [List.flatten_cons, List.length_append, h K List.mem_cons_self, flatten_len Ks (fun K' hK' => h K' (List.mem_cons_of_mem _ hK')),
+      List.length_cons, Nat.succ_mul, Nat.add_comm]
+
+theorem tabsKey_len : ∀ (T : QTab) (ds ds' : List (List (List F) × List F)) (JS : CSet → F → F) (JE : CSet → EF),
+    (∀ c ∈ T.sets, c.OK) → RecOK T.sets ds JS JE → RecOK T.sets ds' JS JE →
+    (cKeys T.sets ds ds').flatten.length = T.crs := by
+  intro T ds ds' JS JE hok hr hr'
+  obtain ⟨hKl, hKs, _⟩ := csets_shift T.sets ds ds' JS JE hok hr hr'
+  have hK : ∀ K ∈ cKeys T.sets ds ds', K.length = T.n := fun K hK' => by
+    obtain ⟨k, hk, rfl⟩ := List.getElem_of_mem hK'
+    have hc : k < T.sets.length := by rw [← hKl]; exact hk
+    rw [hKs k hk hc, (sets_cs T _ (List.getElem_mem hc)).1, (sets_cs T _ (List.getElem_mem hc)).2]; rfl
+  unfold QTab.crs
+  rw [← sets_length, ← hKl]
+  exact flatten_len _ hK
+
+/-- **Every table, whole**: under the tables' shifts the canonical chunks
+    open as the honest ones, the tables' chunk matrices change by their
+    columns' changes, and their codewords absorb it. -/
+theorem tabs_all {α : EF} (ncw : Nat) (JS : CSet → F → F) (JE : CSet → EF) :
+    ∀ (tabs : List QTab) (dss dss' : List (List (List (List F) × List F))), TabsOK JS JE tabs dss dss' →
+    ∀ (cr cc : List F), cr.length = tabsCr tabs → cc.length = tabsCw ncw tabs →
+    tabsView tabs dss' (vadd cr (tabsKflat tabs dss dss')) = tabsView tabs dss cr ∧
+    RelAll (tabsInfo ncw tabs) (tabsMats tabs dss' (vadd cr (tabsKflat tabs dss dss'))) (tabsMats tabs dss cr)
+      (tabsDiffs tabs dss dss' (tabsKeys tabs dss dss')) ∧
+    CwRel α (tabsInfo ncw tabs) (tabsCws ncw tabs (vadd cc (tabsCwVec α ncw tabs dss dss' (tabsKeys tabs dss dss'))))
+      (tabsCws ncw tabs cc) (tabsDiffs tabs dss dss' (tabsKeys tabs dss dss'))
+  | [], [], [], _, _, _, _, _ => ⟨rfl, trivial, trivial⟩
+  | T :: tabs, ds :: dss, ds' :: dss', ⟨⟨hok, hH, hHl, hHn, hr, hr', hsz, hsz'⟩, hrest⟩, cr, cc, hcr, hcc => by
+    have hKl := tabsKey_len T ds ds' JS JE hok hr hr'
+    have hcr' : cr.length = T.crs + tabsCr tabs := hcr
+    have hcc' : cc.length = T.cws ncw + tabsCw ncw tabs := hcc
+    have hvl : (tCwVec α T ncw ds ds' (cKeys T.sets ds ds')).length = T.cws ncw := by
+      unfold tCwVec QTab.cws
+      rw [List.length_append, flatten_range_length _ _ (fun j => cvals_length _ _ _ (fun ch hc => (hH ch hc).1) hHl),
+        flatten_range_length T.n (fun j => cR (α := α) (h := T.h) (cs := T.cs) ds.length
+          (fun k => (cKeys T.sets ds ds').getD k []) j) (fun j => rcomb_length _ _ _ _)]
+    obtain ⟨h1, h2, h3⟩ := tab_all (α := α) T ncw hok hH hHl hHn ds ds' JS JE hr hr' hsz hsz' (cr.take T.crs)
+      (cc.take (T.cws ncw)) (by rw [List.length_take]; omega) (by rw [List.length_take]; omega)
+    obtain ⟨g1, g2, g3⟩ := tabs_all ncw JS JE tabs dss dss' hrest (cr.drop T.crs) (cc.drop (T.cws ncw))
+      (by rw [List.length_drop]; omega) (by rw [List.length_drop]; omega)
+    have hkf : tabsKflat (T :: tabs) (ds :: dss) (ds' :: dss') = (cKeys T.sets ds ds').flatten ++ tabsKflat tabs dss dss' := rfl
+    have hvec : tabsCwVec α ncw (T :: tabs) (ds :: dss) (ds' :: dss') (tabsKeys (T :: tabs) (ds :: dss) (ds' :: dss')) =
+        tCwVec α T ncw ds ds' (cKeys T.sets ds ds') ++ tabsCwVec α ncw tabs dss dss' (tabsKeys tabs dss dss') := rfl
+    have ecr : vadd cr (tabsKflat (T :: tabs) (ds :: dss) (ds' :: dss')) =
+        vadd (cr.take T.crs) (cKeys T.sets ds ds').flatten ++ vadd (cr.drop T.crs) (tabsKflat tabs dss dss') := by
+      rw [hkf]; exact vadd_append_split hKl (by omega)
+    have hvt : (vadd (cr.take T.crs) (cKeys T.sets ds ds').flatten).length = T.crs := by
+      rw [vadd_length, List.length_take, hKl]; omega
+    have ecc : vadd cc (tabsCwVec α ncw (T :: tabs) (ds :: dss) (ds' :: dss') (tabsKeys (T :: tabs) (ds :: dss) (ds' :: dss'))) =
+        vadd (cc.take (T.cws ncw)) (tCwVec α T ncw ds ds' (cKeys T.sets ds ds')) ++
+          vadd (cc.drop (T.cws ncw)) (tabsCwVec α ncw tabs dss dss' (tabsKeys tabs dss dss')) := by
+      rw [hvec]; exact vadd_append_split hvl (by omega)
+    have hct : (vadd (cc.take (T.cws ncw)) (tCwVec α T ncw ds ds' (cKeys T.sets ds ds'))).length = T.cws ncw := by
+      rw [vadd_length, List.length_take, hvl]; omega
+    refine ⟨?_, ?_, ?_⟩
+    · show csView T.sets ds' ((vadd cr _).take T.crs) :: tabsView tabs dss' ((vadd cr _).drop T.crs) =
+        csView T.sets ds (cr.take T.crs) :: tabsView tabs dss (cr.drop T.crs)
+      rw [ecr, List.take_left' hvt, List.drop_left' hvt, h1, g1]
+    · show RelAll (tInfo T ncw ++ tabsInfo ncw tabs)
+        (tMats T ds' ((vadd cr _).take T.crs) ++ tabsMats tabs dss' ((vadd cr _).drop T.crs))
+        (tMats T ds (cr.take T.crs) ++ tabsMats tabs dss (cr.drop T.crs))
+        (rows (T.cs.length + 1) (tDiffCols T ds ds' (cKeys T.sets ds ds')) ++ tabsDiffs tabs dss dss' (tabsKeys tabs dss dss'))
+      rw [ecr, List.take_left' hvt, List.drop_left' hvt]
+      exact relAll_append (α := α) h2 g2
+    · show CwRel α (tInfo T ncw ++ tabsInfo ncw tabs)
+        (tCws T ncw ((vadd cc _).take (T.cws ncw)) ++ tabsCws ncw tabs ((vadd cc _).drop (T.cws ncw)))
+        (tCws T ncw (cc.take (T.cws ncw)) ++ tabsCws ncw tabs (cc.drop (T.cws ncw)))
+        (rows (T.cs.length + 1) (tDiffCols T ds ds' (cKeys T.sets ds ds')) ++ tabsDiffs tabs dss dss' (tabsKeys tabs dss dss'))
+      rw [ecc, List.take_left' hct, List.drop_left' hct]
+      exact cwRel_append h3 g3
+  | [], _ :: _, _, h, _, _, _, _ => nomatch h
+  | [], [], _ :: _, h, _, _, _, _ => nomatch h
+  | _ :: _, [], _, h, _, _, _, _ => nomatch h
+  | _ :: _, _ :: _, [], h, _, _, _, _ => nomatch h
+
+-- ---------------------------------------------------------------------------
+-- The trace groups
+-- ---------------------------------------------------------------------------
+
+/-- A group's codeword domain: its trace and mask points. -/
+def MGroup.dom (g : MGroup) : List F := g.T ++ g.R
+
+def traceInfo (ncw : Nat) : List MGroup → List Nat → List Mat
+  | g :: gs, k :: ks => ⟨g.S, g.Z, k, ncw⟩ :: traceInfo ncw gs ks
+  | _, _ => []
+
+def traceCw (ncw : Nat) : List MGroup → Nat
+  | g :: gs => ncw * g.dom.length + traceCw ncw gs
+  | [] => 0
+
+def traceCws (ncw : Nat) : List MGroup → List F → List (List (List F))
+  | g :: gs, ct => cwPolys g.dom g.dom.length ncw (ct.take (ncw * g.dom.length)) ::
+      traceCws ncw gs (ct.drop (ncw * g.dom.length))
+  | [], _ => []
+
+def traceVec (α : EF) (ncw : Nat) : List MGroup → List Nat → List (List (List F)) → List F
+  | g :: gs, k :: ks, Ds :: Dss => cwVals g.dom (cwShift α k ncw Ds) ++ traceVec α ncw gs ks Dss
+  | _, _, _ => []
+
+theorem cwShift_len (α : EF) (w ncw : Nat) {B : Nat} (Ds : List (List F)) (h : ∀ D ∈ Ds, D.length ≤ B) :
+    ∀ G ∈ cwShift α w ncw Ds, G.length ≤ B := by
+  intro G hG
+  obtain ⟨j, _, rfl⟩ := List.mem_map.1 hG
+  split
+  · rw [fcscale_length, gam_lc]; exact lc_length _ 0 Ds h
+  · exact Nat.zero_le _
+
+theorem cwShift_length (α : EF) (w ncw : Nat) (Ds : List (List F)) : (cwShift α w ncw Ds).length = ncw := by
+  unfold cwShift; rw [List.length_map, List.length_range]
+
+theorem mpolys_length (T R : List F) (n : Nat) : ∀ (ts : List (List F)) (rs : List F), (mpolys T R n ts rs).length = ts.length
+  | [], _ => rfl
+  | _ :: ts, rs => by show (mpolys T R n ts _).length + 1 = ts.length + 1; rw [mpolys_length T R n ts]
+
+/-- **The trace groups' columns and codewords**. -/
+theorem trace_all {α : EF} (ncw : Nat) : ∀ (gs : List MGroup) (tss : List (List (List F))) (pss' pss Dss : List (List (List F))),
+    (∀ g ∈ gs, g.OK) → RelMulti gs pss' pss Dss → (∀ k (h1 : k < pss.length) (h2 : k < tss.length),
+      (pss[k]'h1).length = (tss[k]'h2).length) → pss.length = tss.length →
+    RelAll (traceInfo ncw gs (tss.map List.length)) pss' pss Dss ∧
+      ∀ ct : List F, ct.length = traceCw ncw gs →
+        CwRel α (traceInfo ncw gs (tss.map List.length)) (traceCws ncw gs (vadd ct (traceVec α ncw gs (tss.map List.length) Dss)))
+          (traceCws ncw gs ct) Dss
+  | [], _, [], [], [], _, _, _, _ => ⟨by cases ‹List (List (List F))› <;> trivial, fun _ _ => by cases ‹List (List (List F))› <;> trivial⟩
+  | g :: gs, ts :: tss, ps' :: pss', ps :: pss, Ds :: Dss, hok, ⟨⟨hr, hv⟩, hR⟩, hw, hl => by
+    obtain ⟨hT, hR', hTR, _, _, _⟩ := hok g List.mem_cons_self
+    obtain ⟨r1, r2⟩ := trace_all ncw gs tss pss' pss Dss (fun g' hg' => hok g' (List.mem_cons_of_mem _ hg')) hR
+      (fun k h1 h2 => hw (k + 1) (Nat.succ_lt_succ h1) (Nat.succ_lt_succ h2)) (by simp only [List.length_cons] at hl; omega)
+    refine ⟨⟨⟨hr, fun D hD => (hv D hD).1, hw 0 (Nat.succ_pos _) (Nat.succ_pos _)⟩, r1⟩, fun ct hct => ?_⟩
+    have hdl : g.dom.length = g.n + g.n := by unfold MGroup.dom; rw [List.length_append, hT, hR']
+    have hct' : ct.length = ncw * g.dom.length + traceCw ncw gs := hct
+    have hvl : (cwVals g.dom (cwShift α ts.length ncw Ds)).length = ncw * g.dom.length := by
+      rw [cwVals_length, cwShift_length]
+    have e : vadd ct (traceVec α ncw (g :: gs) ((ts :: tss).map List.length) (Ds :: Dss)) =
+        vadd (ct.take (ncw * g.dom.length)) (cwVals g.dom (cwShift α ts.length ncw Ds)) ++
+          vadd (ct.drop (ncw * g.dom.length)) (traceVec α ncw gs (tss.map List.length) Dss) :=
+      vadd_append_split hvl (by omega)
+    have hvt : (vadd (ct.take (ncw * g.dom.length)) (cwVals g.dom (cwShift α ts.length ncw Ds))).length =
+        ncw * g.dom.length := by rw [vadd_length, List.length_take, hvl]; omega
+    show PolyRel (cwPolys g.dom g.dom.length ncw ((vadd ct _).take (ncw * g.dom.length)))
+        (cwPolys g.dom g.dom.length ncw (ct.take (ncw * g.dom.length))) (cwShift α ts.length ncw Ds) ∧
+      CwRel α _ (traceCws ncw gs ((vadd ct _).drop (ncw * g.dom.length))) (traceCws ncw gs (ct.drop (ncw * g.dom.length))) Dss
+    rw [e, List.take_left' hvt, List.drop_left' hvt]
+    refine ⟨?_, r2 _ (by rw [List.length_drop]; omega)⟩
+    have hrel := cws_rel (Dom := g.dom) hTR (cwShift α ts.length ncw Ds) (ct.take (ncw * g.dom.length))
+      (cwShift_len α ts.length ncw Ds (fun D hD => by rw [hdl]; exact (hv D hD).2))
+      (by rw [cwShift_length, List.length_take]; omega)
+    rw [cwShift_length] at hrel
+    exact hrel
+  | [], _, _ :: _, _, _, _, h, _, _ => nomatch h
+  | [], _, [], _ :: _, _, _, h, _, _ => nomatch h
+  | [], _, [], [], _ :: _, _, h, _, _ => nomatch h
+  | _ :: _, _, [], _, _, _, h, _, _ => nomatch h
+  | _ :: _, _, _ :: _, [], _, _, h, _, _ => nomatch h
+  | _ :: _, _, _ :: _, _ :: _, [], _, h, _, _ => nomatch h
+  | _ :: _, [], _ :: _, _ :: _, _ :: _, _, _, _, hl => nomatch hl
+
+-- ---------------------------------------------------------------------------
+-- The canonical chunks of every table
+-- ---------------------------------------------------------------------------
+
+theorem recOK_canon (α β : EF) (v : List EF) (o : List (List (List F × List EF))) : ∀ (csets : List CSet),
+    (∀ c ∈ csets, c.OK) →
+    RecOK csets (canonData csets α β v o) (fun c => c.JS α β v o) (fun c => c.Jζ α β v o) ∧
+      ∀ d ∈ canonData csets α β v o, ∃ c ∈ csets, (∀ q ∈ d.1, q.length ≤ c.h) ∧ d.2.length ≤ c.h
+  | [], _ => ⟨trivial, fun _ h => absurd h List.not_mem_nil⟩
+  | c :: csets, hok => by
+    obtain ⟨hζ, hd, hn, hcs, hcl⟩ := hok c List.mem_cons_self
+    obtain ⟨r1, r2⟩ := recOK_canon α β v o csets (fun c' hc' => hok c' (List.mem_cons_of_mem _ hc'))
+    refine ⟨⟨⟨by unfold canonQs; rw [List.length_map], canon_shows hζ hd hcl c.cs c.Hl (c.JS α β v o) (c.Jζ α β v o)⟩, r1⟩,
+      fun d hd' => ?_⟩
+    rcases List.mem_cons.1 hd' with rfl | hd'
+    · refine ⟨c, List.mem_cons_self, fun q hq => ?_, ?_⟩
+      · unfold canonQs at hq
+        obtain ⟨ch, _, rfl⟩ := List.mem_map.1 hq
+        exact Nat.le_trans (interpSZ_spec _ _ _ _ hζ hd).1 hn
+      · exact Nat.le_trans (interpSZ_spec _ _ _ _ hζ hd).1 hn
+    · obtain ⟨c', hc', e⟩ := r2 d hd'
+      exact ⟨c', List.mem_cons_of_mem _ hc', e⟩
+
+/-- Every table's canonical chunks. -/
+def canonT (tabs : List QTab) (α β : EF) (v : List EF) (o : List (List (List F × List EF))) :
+    List (List (List (List F) × List F)) :=
+  tabs.map fun T => canonData T.sets α β v o
+
+/-- What every table's honest chunks ask. -/
+def TabsHonest (JS : CSet → F → F) (JE : CSet → EF) : List QTab → List (List (List (List F) × List F)) → Prop
+  | T :: tabs, ds :: dss =>
+    ((∀ c ∈ T.sets, c.OK) ∧ (∀ ch ∈ T.cs, ch.H.length = T.h ∧ ch.H.Nodup) ∧ T.Hl.length = T.h ∧ T.Hl.Nodup ∧
+      RecOK T.sets ds JS JE ∧ (∀ d ∈ ds, (∀ q ∈ d.1, q.length ≤ T.h) ∧ d.2.length ≤ T.h)) ∧ TabsHonest JS JE tabs dss
+  | [], [] => True
+  | _, _ => False
+
+theorem tabsOK_of (α β : EF) (v : List EF) (o : List (List (List F × List EF))) : ∀ (tabs : List QTab)
+    (dss : List (List (List (List F) × List F))),
+    TabsHonest (fun c => c.JS α β v o) (fun c => c.Jζ α β v o) tabs dss →
+    TabsOK (fun c => c.JS α β v o) (fun c => c.Jζ α β v o) tabs dss (canonT tabs α β v o)
+  | [], [], _ => trivial
+  | T :: tabs, ds :: dss, ⟨⟨hok, hH, hHl, hHn, hr, hsz⟩, hrest⟩ => by
+    obtain ⟨rc, sc⟩ := recOK_canon α β v o T.sets hok
+    refine ⟨⟨hok, hH, hHl, hHn, hr, rc, hsz, fun d hd => ?_⟩, tabsOK_of α β v o tabs dss hrest⟩
+    obtain ⟨c, hc, h1, h2⟩ := sc d hd
+    rw [(sets_cs T c hc).2] at h1 h2
+    exact ⟨h1, h2⟩
+  | [], _ :: _, h => nomatch h
+  | _ :: _, [], h => nomatch h
+
+-- ---------------------------------------------------------------------------
+-- The composed PCS with every matrix's codewords and FRI's view
+-- ---------------------------------------------------------------------------
+
+theorem tabsKflat_len (JS : CSet → F → F) (JE : CSet → EF) : ∀ (tabs : List QTab) (dss dss' : List (List (List (List F) × List F))),
+    TabsOK JS JE tabs dss dss' → (tabsKflat tabs dss dss').length = tabsCr tabs
+  | [], [], [], _ => rfl
+  | T :: tabs, ds :: dss, ds' :: dss', ⟨⟨hok, _, _, _, hr, hr', _, _⟩, hrest⟩ => by
+    show ((cKeys T.sets ds ds').flatten ++ tabsKflat tabs dss dss').length = T.crs + tabsCr tabs
+    rw [List.length_append, tabsKey_len T ds ds' JS JE hok hr hr', tabsKflat_len JS JE tabs dss dss' hrest]
+  | [], _ :: _, _, h => nomatch h
+  | [], [], _ :: _, h => nomatch h
+  | _ :: _, [], _, h => nomatch h
+  | _ :: _, _ :: _, [], h => nomatch h
+
+section
+variable {V : Type} (off : EF → String → EF) (tv : (String → EF) → EF → (Nat → Tup) → List EF)
+  (qs : List QGroup) (ks : List Nat) (cols : (Nat → Tup) → EF → EF → List (List (List F))) (tabs : List QTab)
+  (qdT : (Nat → Tup) → EF → EF → List F → List (List (List (List F) × List F))) (ncw : Nat) (αb : EF)
+  (fri : EF → EF → List (EF → EF) → V)
+
+/-- The randomness the column masks and the chunks use. -/
+def friN1 : Nat := mtotal (qs.map QGroup.ext) ks + tabsCr tabs
+
+/-- The randomness the codewords use. -/
+def friN2 : Nat := traceCw ncw (qs.map QGroup.ext) + tabsCw ncw tabs
+
+/-- **The composed PCS with every matrix's codewords and FRI's view**:
+    the column openings and quotient values, every quotient table's
+    opened chunks, every matrix's codewords' openings, and FRI's view of
+    every matrix batched by `αb`. -/
+def pcsFri (t : Nat → Tup) (α β : EF) (r : Nat) :
+    ((List (List (List F × List EF) × List (List EF)) × List (List (List (List F × List EF)))) ×
+      List (List (List F × List EF)) × V) :=
+  let gs := qs.map QGroup.ext
+  let M := mtotal gs ks
+  let N1 := friN1 qs ks tabs
+  let ds := digitsF (N1 + friN2 qs tabs ncw) r
+  let ms := (ds.take N1).take M
+  let cr := (ds.take N1).drop M
+  let ct := (ds.drop N1).take (traceCw ncw gs)
+  let cc := (ds.drop N1).drop (traceCw ncw gs)
+  let v := tv (prefixOf α (off β)) β t
+  ((quotPost qs α β v (openMulti gs (cols t α β) ms), tabsView tabs (qdT t α β ms) cr),
+    List.zipWith (fun (m : Mat) C => openPolys m.S m.Z C) (traceInfo ncw gs ks ++ tabsInfo ncw tabs)
+      (traceCws ncw gs ct ++ tabsCws ncw tabs cc),
+    fri α β (batch αb (mpolysMulti gs (cols t α β) ms ++ tabsMats tabs (qdT t α β ms) cr)
+      (traceCws ncw gs ct ++ tabsCws ncw tabs cc)))
+
+/-- **Its simulator**: zero columns, every table's canonical chunks from
+    the simulated openings, the same codeword randomness, and FRI's view
+    of what they batch to. -/
+def psimFri (α β : EF) (v : List EF) (r : Nat) :
+    ((List (List (List F × List EF) × List (List EF)) × List (List (List (List F × List EF)))) ×
+      List (List (List F × List EF)) × V) :=
+  let gs := qs.map QGroup.ext
+  let M := mtotal gs ks
+  let N1 := friN1 qs ks tabs
+  let ds := digitsF (N1 + friN2 qs tabs ncw) r
+  let ms := (ds.take N1).take M
+  let cr := (ds.take N1).drop M
+  let ct := (ds.drop N1).take (traceCw ncw gs)
+  let cc := (ds.drop N1).drop (traceCw ncw gs)
+  let zs := (gs.zip ks).map (fun p => List.replicate p.2 (List.replicate p.1.n (0 : F)))
+  let o := openMulti gs zs ms
+  ((quotPost qs α β v o, tabsView tabs (canonT tabs α β v o) cr),
+    List.zipWith (fun (m : Mat) C => openPolys m.S m.Z C) (traceInfo ncw gs ks ++ tabsInfo ncw tabs)
+      (traceCws ncw gs ct ++ tabsCws ncw tabs cc),
+    fri α β (batch αb (mpolysMulti gs zs ms ++ tabsMats tabs (canonT tabs α β v o) cr)
+      (traceCws ncw gs ct ++ tabsCws ncw tabs cc)))
+end
+
+theorem relMulti_length : ∀ {gs : List MGroup} {pss' pss Dss : List (List (List F))}, RelMulti gs pss' pss Dss →
+    Dss.length = gs.length
+  | [], [], [], [], _ => rfl
+  | _ :: _, _ :: _, _ :: _, _ :: _, ⟨_, h⟩ => by simp only [List.length_cons]; rw [relMulti_length h]
+  | [], _ :: _, _, _, h => nomatch h
+  | [], [], _ :: _, _, h => nomatch h
+  | [], [], [], _ :: _, h => nomatch h
+  | _ :: _, [], _, _, h => nomatch h
+  | _ :: _, _ :: _, [], _, h => nomatch h
+  | _ :: _, _ :: _, _ :: _, [], h => nomatch h
+
+theorem traceVec_len (α : EF) (ncw : Nat) : ∀ (gs : List MGroup) (ks : List Nat) (Dss : List (List (List F))),
+    ks.length = gs.length → Dss.length = gs.length → (traceVec α ncw gs ks Dss).length = traceCw ncw gs
+  | [], _, _, _, _ => by cases ‹List Nat› <;> cases ‹List (List (List F))› <;> rfl
+  | g :: gs, k :: ks, Ds :: Dss, h1, h2 => by
+    show (cwVals g.dom (cwShift α k ncw Ds) ++ traceVec α ncw gs ks Dss).length = ncw * g.dom.length + traceCw ncw gs
+    rw [List.length_append, cwVals_length, cwShift_length,
+      traceVec_len α ncw gs ks Dss (by simp only [List.length_cons] at h1; omega) (by simp only [List.length_cons] at h2; omega)]
+  | _ :: _, [], _, h1, _ => nomatch h1
+  | _ :: _, _ :: _, [], _, h2 => nomatch h2
+
+theorem tabsCwVec_len (α : EF) (ncw : Nat) (JS : CSet → F → F) (JE : CSet → EF) : ∀ (tabs : List QTab)
+    (dss dss' : List (List (List (List F) × List F))), TabsOK JS JE tabs dss dss' →
+    (tabsCwVec α ncw tabs dss dss' (tabsKeys tabs dss dss')).length = tabsCw ncw tabs
+  | [], [], [], _ => rfl
+  | T :: tabs, ds :: dss, ds' :: dss', ⟨⟨_, hH, hHl, _⟩, hrest⟩ => by
+    show (tCwVec α T ncw ds ds' (cKeys T.sets ds ds') ++ tabsCwVec α ncw tabs dss dss' (tabsKeys tabs dss dss')).length =
+      T.cws ncw + tabsCw ncw tabs
+    rw [List.length_append, tabsCwVec_len α ncw JS JE tabs dss dss' hrest]
+    congr 1
+    unfold tCwVec QTab.cws
+    rw [List.length_append, flatten_range_length _ _ (fun j => cvals_length _ _ _ (fun ch hc => (hH ch hc).1) hHl),
+      flatten_range_length T.n (fun j => cR (α := α) (h := T.h) (cs := T.cs) ds.length
+        (fun k => (cKeys T.sets ds ds').getD k []) j) (fun j => rcomb_length _ _ _ _)]
+  | [], _ :: _, _, h => nomatch h
+  | [], [], _ :: _, h => nomatch h
+  | _ :: _, [], _, h => nomatch h
+  | _ :: _, _ :: _, [], h => nomatch h
+
+theorem traceInfo_ncw (ncw : Nat) : ∀ (gs : List MGroup) (ks : List Nat), ∀ m ∈ traceInfo ncw gs ks, m.ncw = ncw
+  | [], _ => fun _ h => absurd h (by cases ‹List Nat› <;> exact List.not_mem_nil)
+  | _ :: _, [] => fun _ h => absurd h List.not_mem_nil
+  | g :: gs, k :: ks => fun m hm => by
+    rcases List.mem_cons.1 hm with rfl | hm
+    · rfl
+    · exact traceInfo_ncw ncw gs ks m hm
+
+theorem tabsInfo_ncw (ncw : Nat) : ∀ (tabs : List QTab), ∀ m ∈ tabsInfo ncw tabs, m.ncw = ncw
+  | [] => fun _ h => absurd h List.not_mem_nil
+  | T :: tabs => fun m hm => by
+    rcases List.mem_append.1 hm with hm | hm
+    · unfold tInfo at hm; rw [List.eq_of_mem_replicate hm]
+    · exact tabsInfo_ncw ncw tabs m hm
+
+theorem mpolysMulti_shape : ∀ (gs : List MGroup) (tss : List (List (List F))) (rs : List F), Shaped gs tss →
+    (mpolysMulti gs tss rs).length = tss.length ∧
+      ∀ k (h1 : k < (mpolysMulti gs tss rs).length) (h2 : k < tss.length),
+        ((mpolysMulti gs tss rs)[k]'h1).length = (tss[k]'h2).length
+  | [], [], _, _ => ⟨rfl, fun k h1 => absurd h1 (Nat.not_lt_zero _)⟩
+  | g :: gs, ts :: tss, rs, ⟨_, hs⟩ => by
+    obtain ⟨l1, l2⟩ := mpolysMulti_shape gs tss (rs.drop (ts.length * g.n)) hs
+    refine ⟨by show (mpolysMulti gs tss _).length + 1 = tss.length + 1; rw [l1], fun k h1 h2 => ?_⟩
+    cases k with
+    | zero => exact mpolys_length _ _ _ _ _
+    | succ k => exact l2 k (Nat.lt_of_succ_lt_succ h1) (Nat.lt_of_succ_lt_succ h2)
+  | [], _ :: _, _, h => nomatch h
+  | _ :: _, [], _, h => nomatch h
+
+/-- **The composed PCS hides, FRI's view and every codeword included**:
+    with the quotient groups' masks covering their points, every quotient
+    table meeting its conditions with honest chunks showing the quotient,
+    at least four codewords a matrix and `1, αb, αb², αb³` independent,
+    the view of the column openings, the quotient values, every table's
+    opened chunks, every matrix's codewords' openings and FRI's view of
+    every batched polynomial has the simulator's distribution:
+    `PCSCloseN` with `ε = 0`. -/
+theorem pcsCloseN_fri {V : Type} {qs : List QGroup} {ks : List Nat} {cols : (Nat → Tup) → EF → EF → List (List (List F))}
+    {tabs : List QTab} {qdT : (Nat → Tup) → EF → EF → List F → List (List (List (List F) × List F))} {ncw : Nat}
+    {αb : EF} {fri : EF → EF → List (EF → EF) → V}
+    (hok : ∀ q ∈ qs, q.OK) (hks : ks.length = qs.length)
+    (hcols : ∀ t α β, Shaped (qs.map QGroup.ext) (cols t α β) ∧ (cols t α β).map List.length = ks)
+    (hd : (mz αb).det ≠ 0) (haw : ∀ w, apow αb w ≠ EF.zero) (hncw : 4 ≤ ncw)
+    (off : EF → String → EF) (tv : (String → EF) → EF → (Nat → Tup) → List EF)
+    (htab : ∀ t α β ms, TabsHonest
+      (fun c => c.JS α β (tv (prefixOf α (off β)) β t) (openMulti (qs.map QGroup.ext) (cols t α β) ms))
+      (fun c => c.Jζ α β (tv (prefixOf α (off β)) β t) (openMulti (qs.map QGroup.ext) (cols t α β) ms)) tabs (qdT t α β ms)) :
+    PCSCloseN off (P ^ (friN1 qs ks tabs + friN2 qs tabs ncw)) tv
+      (pcsFri off tv qs ks cols tabs qdT ncw αb fri) (psimFri qs ks tabs ncw αb fri) 0 := by
+  intro t α β Ev
+  let gs := qs.map QGroup.ext
+  let M := mtotal gs ks
+  let N1 := friN1 qs ks tabs
+  let N2 := friN2 qs tabs ncw
+  let CT := traceCw ncw gs
+  let v := tv (prefixOf α (off β)) β t
+  let zs := (gs.zip ks).map (fun p => List.replicate p.2 (List.replicate p.1.n (0 : F)))
+  have hgs : ∀ g ∈ gs, g.OK := fun g hg => by
+    obtain ⟨q, hq, rfl⟩ := List.mem_map.1 hg
+    exact QGroup.ext_OK (hok q hq)
+  obtain ⟨hsh, hl⟩ := hcols t α β
+  obtain ⟨hz, hzl⟩ := shaped_zero gs ks (by rw [hks, List.length_map])
+  obtain ⟨C, DssT, hC, hrelT⟩ := masks_shift_multi gs (cols t α β) zs hgs hsh hz (by rw [hl, hzl])
+  rw [hl] at hC hrelT
+  have hN1 : N1 = M + tabsCr tabs := rfl
+  have hN2 : N2 = CT + tabsCw ncw tabs := rfl
+  let o : List F → List (List (List F × List EF)) := fun ms => openMulti gs (cols t α β) ms
+  let JS : List F → CSet → F → F := fun ms c => c.JS α β v (o ms)
+  let JE : List F → CSet → EF := fun ms c => c.Jζ α β v (o ms)
+  have hTO : ∀ ms, TabsOK (JS ms) (JE ms) tabs (qdT t α β ms) (canonT tabs α β v (o ms)) :=
+    fun ms => tabsOK_of α β v (o ms) tabs (qdT t α β ms) (htab t α β ms)
+  let Kf : List F → List F := fun ms => tabsKflat tabs (qdT t α β ms) (canonT tabs α β v (o ms))
+  let Keys : List F → List (List (List F)) := fun ms => tabsKeys tabs (qdT t α β ms) (canonT tabs α β v (o ms))
+  let φ : List F → List F := fun ρ => vadd (ρ.take M) C ++ vadd (ρ.drop M) (Kf (ρ.take M))
+  let Br : List F → _ := fun ρ => (quotPost qs α β v (o (ρ.take M)), tabsView tabs (qdT t α β (ρ.take M)) (ρ.drop M))
+  let Bs : List F → _ := fun ρ => (quotPost qs α β v (openMulti gs zs (ρ.take M)),
+    tabsView tabs (canonT tabs α β v (openMulti gs zs (ρ.take M))) (ρ.drop M))
+  let Pr : List F → List (List (List F)) := fun ρ =>
+    mpolysMulti gs (cols t α β) (ρ.take M) ++ tabsMats tabs (qdT t α β (ρ.take M)) (ρ.drop M)
+  let Ps : List F → List (List (List F)) := fun ρ =>
+    mpolysMulti gs zs (ρ.take M) ++ tabsMats tabs (canonT tabs α β v (openMulti gs zs (ρ.take M))) (ρ.drop M)
+  let Cw : List F → List (List (List F)) := fun γ => traceCws ncw gs (γ.take CT) ++ tabsCws ncw tabs (γ.drop CT)
+  let Dss : List F → List (List (List F)) := fun ρ =>
+    DssT ++ tabsDiffs tabs (qdT t α β (ρ.take M)) (canonT tabs α β v (o (ρ.take M))) (Keys (ρ.take M))
+  let vec : List F → List F := fun ρ =>
+    traceVec αb ncw gs ks DssT ++ tabsCwVec αb ncw tabs (qdT t α β (ρ.take M)) (canonT tabs α β v (o (ρ.take M)))
+      (Keys (ρ.take M))
+  let mats := traceInfo ncw gs ks ++ tabsInfo ncw tabs
+  have hn : ∀ m ∈ mats, 4 ≤ m.ncw := fun m hm => by
+    rcases List.mem_append.1 hm with hm | hm
+    · rw [traceInfo_ncw ncw gs ks m hm]; exact hncw
+    · rw [tabsInfo_ncw ncw tabs m hm]; exact hncw
+  -- the base shift keeps every count
+  have hφ : ∀ g : List F → Nat, vsum N1 (fun ρ => g (φ ρ)) = vsum N1 g := fun g =>
+    vsum_dshift M (tabsCr tabs) C hC Kf (fun x _ => tabsKflat_len _ _ tabs _ _ (hTO x)) g
+  -- the shifted openings are the real ones
+  have hop : ∀ ms : List F, ms.length = M → openMulti gs zs (vadd ms C) = o ms := fun ms hms => by
+    show openMulti gs zs (vadd ms C) = openMulti gs (cols t α β) ms
+    rw [openMulti_eq, openMulti_eq]
+    exact openMulti_of_rel gs _ _ _ (hrelT ms hms)
+  have hsplit : ∀ ρ : List F, ρ.length = N1 →
+      (φ ρ).take M = vadd (ρ.take M) C ∧ (φ ρ).drop M = vadd (ρ.drop M) (Kf (ρ.take M)) ∧
+        (ρ.take M).length = M ∧ (ρ.drop M).length = tabsCr tabs := fun ρ hρ => by
+    have h1 : (ρ.take M).length = M := by rw [List.length_take]; omega
+    have hvt : (vadd (ρ.take M) C).length = M := by rw [vadd_length, h1, hC, Nat.min_self]
+    exact ⟨List.take_left' hvt, List.drop_left' hvt, h1, by rw [List.length_drop]; omega⟩
+  let ccz : List F := List.replicate (tabsCw ncw tabs) 0
+  have hB : ∀ ρ : List F, ρ.length = N1 → Bs (φ ρ) = Br ρ := fun ρ hρ => by
+    obtain ⟨e1, e2, h1, h2⟩ := hsplit ρ hρ
+    show (quotPost qs α β v (openMulti gs zs ((φ ρ).take M)),
+        tabsView tabs (canonT tabs α β v (openMulti gs zs ((φ ρ).take M))) ((φ ρ).drop M)) = _
+    rw [e1, e2, hop _ h1, (tabs_all (α := αb) ncw (JS (ρ.take M)) (JE (ρ.take M)) tabs _ _ (hTO (ρ.take M)) (ρ.drop M) ccz h2
+      List.length_replicate).1]
+  have hP : ∀ ρ : List F, ρ.length = N1 → RelAll mats (Ps (φ ρ)) (Pr ρ) (Dss ρ) := fun ρ hρ => by
+    obtain ⟨e1, e2, h1, h2⟩ := hsplit ρ hρ
+    show RelAll mats (mpolysMulti gs zs ((φ ρ).take M) ++
+      tabsMats tabs (canonT tabs α β v (openMulti gs zs ((φ ρ).take M))) ((φ ρ).drop M)) (Pr ρ) (Dss ρ)
+    rw [e1, e2, hop _ h1]
+    obtain ⟨sh1, sh2⟩ := mpolysMulti_shape gs (cols t α β) (ρ.take M) hsh
+    have tr := (trace_all (α := αb) ncw gs (cols t α β) _ _ DssT hgs (hrelT _ h1) sh2 sh1).1
+    rw [hl] at tr
+    exact relAll_append (α := αb) tr (tabs_all (α := αb) ncw (JS (ρ.take M)) (JE (ρ.take M)) tabs _ _ (hTO (ρ.take M))
+      (ρ.drop M) ccz h2 List.length_replicate).2.1
+  have hDT : DssT.length = gs.length := by
+    have := relMulti_length (hrelT (List.replicate M 0) List.length_replicate); exact this
+  have hvec : ∀ ρ : List F, ρ.length = N1 → (vec ρ).length = N2 := fun ρ hρ => by
+    show (traceVec αb ncw gs ks DssT ++ _).length = CT + tabsCw ncw tabs
+    rw [List.length_append, traceVec_len αb ncw gs ks DssT (by rw [hks, List.length_map]) hDT,
+      tabsCwVec_len αb ncw _ _ tabs _ _ (hTO (ρ.take M))]
+  have hCw : ∀ ρ γ : List F, ρ.length = N1 → γ.length = N2 → CwRel αb mats (Cw (vadd γ (vec ρ))) (Cw γ) (Dss ρ) :=
+    fun ρ γ hρ hγ => by
+    obtain ⟨_, _, h1, _⟩ := hsplit ρ hρ
+    have hγ' : γ.length = CT + tabsCw ncw tabs := hγ
+    have htv : (traceVec αb ncw gs ks DssT).length = CT := traceVec_len αb ncw gs ks DssT (by rw [hks, List.length_map]) hDT
+    have e : vadd γ (vec ρ) = vadd (γ.take CT) (traceVec αb ncw gs ks DssT) ++
+        vadd (γ.drop CT) (tabsCwVec αb ncw tabs (qdT t α β (ρ.take M)) (canonT tabs α β v (o (ρ.take M))) (Keys (ρ.take M))) :=
+      vadd_append_split htv (by omega)
+    have hvt : (vadd (γ.take CT) (traceVec αb ncw gs ks DssT)).length = CT := by
+      rw [vadd_length, List.length_take, htv]; omega
+    show CwRel αb mats (traceCws ncw gs ((vadd γ (vec ρ)).take CT) ++ tabsCws ncw tabs ((vadd γ (vec ρ)).drop CT)) (Cw γ) (Dss ρ)
+    rw [e, List.take_left' hvt, List.drop_left' hvt]
+    obtain ⟨sh1, sh2⟩ := mpolysMulti_shape gs (cols t α β) (ρ.take M) hsh
+    have tr := (trace_all (α := αb) ncw gs (cols t α β) _ _ DssT hgs (hrelT _ h1) sh2 sh1).2 (γ.take CT)
+      (by rw [List.length_take]; omega)
+    rw [hl] at tr
+    exact cwRel_append tr (tabs_all (α := αb) ncw (JS (ρ.take M)) (JE (ρ.take M)) tabs _ _ (hTO (ρ.take M))
+      (ρ.drop M) (γ.drop CT) (by obtain ⟨_, _, _, h2⟩ := hsplit ρ hρ; exact h2) (by rw [List.length_drop]; omega)).2.2
+  have hfri := fri_hides hd haw mats hn Br Bs Pr Ps Cw (fri α β) φ hφ hB Dss hP vec hvec hCw
+    (fun b co fv => Ev (b, co, fv))
+  let GR : List F → Nat := fun ds => indB (Ev (Br (ds.take N1),
+    List.zipWith (fun (m : Mat) C => openPolys m.S m.Z C) mats (Cw (ds.drop N1)),
+    fri α β (batch αb (Pr (ds.take N1)) (Cw (ds.drop N1)))))
+  let GS : List F → Nat := fun ds => indB (Ev (Bs (ds.take N1),
+    List.zipWith (fun (m : Mat) C => openPolys m.S m.Z C) mats (Cw (ds.drop N1)),
+    fri α β (batch αb (Ps (ds.take N1)) (Cw (ds.drop N1)))))
+  have eR : (fun r => indB (Ev (pcsFri off tv qs ks cols tabs qdT ncw αb fri t α β r))) =
+      fun r => GR (digitsF (N1 + N2) r) := funext fun r => rfl
+  have eS : (fun r => indB (Ev (psimFri qs ks tabs ncw αb fri α β (tv (prefixOf α (off β)) β t) r))) =
+      fun r => GS (digitsF (N1 + N2) r) := funext fun r => rfl
+  have key : sumTo (P ^ (N1 + N2)) (fun r => indB (Ev (pcsFri off tv qs ks cols tabs qdT ncw αb fri t α β r))) =
+      sumTo (P ^ (N1 + N2)) (fun r => indB (Ev (psimFri qs ks tabs ncw αb fri α β (tv (prefixOf α (off β)) β t) r))) := by
+    rw [eR, eS, sumTo_digitsF, sumTo_digitsF, vsum_append, vsum_append]
+    have cR : vsum N1 (fun x => vsum N2 (fun y => GR (x ++ y))) =
+        vsum N1 (fun ρ => vsum N2 (fun γ => if Ev (Br ρ, List.zipWith (fun (m : Mat) C => openPolys m.S m.Z C) mats (Cw γ),
+          fri α β (batch αb (Pr ρ) (Cw γ))) then 1 else 0)) :=
+      vsum_congr N1 (fun x hx => vsum_congr N2 (fun y _ => by
+        show indB _ = _
+        rw [List.take_left' hx, List.drop_left' hx]; rfl))
+    have cS : vsum N1 (fun x => vsum N2 (fun y => GS (x ++ y))) =
+        vsum N1 (fun ρ => vsum N2 (fun γ => if Ev (Bs ρ, List.zipWith (fun (m : Mat) C => openPolys m.S m.Z C) mats (Cw γ),
+          fri α β (batch αb (Ps ρ) (Cw γ))) then 1 else 0)) :=
+      vsum_congr N1 (fun x hx => vsum_congr N2 (fun y _ => by
+        show indB _ = _
+        rw [List.take_left' hx, List.drop_left' hx]; rfl))
+    rw [cR, cS]
+    exact hfri
+  rw [key]
+  exact ⟨Nat.le_refl _, Nat.le_refl _⟩
+
+/-- **A family hiding exactly, drawn from independent randomness, hides
+    exactly**: when every member `pcs δ` meets `PCSCloseN` with `ε = 0`,
+    the PCS that draws `δ < NR2` beside its own randomness does too. -/
+theorem PCSCloseN.family {PV : Type} {off : EF → String → EF} {NR NR2 : Nat}
+    {tv : (String → EF) → EF → (Nat → Tup) → List EF} {pcs : Nat → (Nat → Tup) → EF → EF → Nat → PV}
+    {psim : Nat → EF → EF → List EF → Nat → PV} (h : ∀ δ, PCSCloseN off NR tv (pcs δ) (psim δ) 0) :
+    PCSCloseN off (NR * NR2) tv (fun t α β r => pcs (r / NR) t α β (r % NR))
+      (fun α β v r => psim (r / NR) α β v (r % NR)) 0 := by
+  intro t α β Ev
+  have hdiv : ∀ q r, r < NR → (r + NR * q) % NR = r ∧ (r + NR * q) / NR = q := fun q r hr => by
+    have hpos : 0 < NR := Nat.lt_of_le_of_lt (Nat.zero_le r) hr
+    refine ⟨?_, ?_⟩
+    · rw [Nat.add_mul_mod_self_left, Nat.mod_eq_of_lt hr]
+    · rw [Nat.add_mul_div_left _ _ hpos, Nat.div_eq_of_lt hr, Nat.zero_add]
+  have key : sumTo (NR * NR2) (fun r => indB (Ev (pcs (r / NR) t α β (r % NR)))) =
+      sumTo (NR * NR2) (fun r => indB (Ev (psim (r / NR) α β (tv (prefixOf α (off β)) β t) (r % NR)))) := by
+    rw [sumTo_split NR _ NR2, sumTo_split NR _ NR2]
+    refine sumTo_congr NR2 (fun q _ => ?_)
+    have e1 : sumTo NR (fun r => indB (Ev (pcs ((r + NR * q) / NR) t α β ((r + NR * q) % NR)))) =
+        sumTo NR (fun r => indB (Ev (pcs q t α β r))) :=
+      sumTo_congr NR (fun r hr => by rw [(hdiv q r hr).1, (hdiv q r hr).2])
+    have e2 : sumTo NR (fun r => indB (Ev (psim ((r + NR * q) / NR) α β (tv (prefixOf α (off β)) β t) ((r + NR * q) % NR)))) =
+        sumTo NR (fun r => indB (Ev (psim q α β (tv (prefixOf α (off β)) β t) r))) :=
+      sumTo_congr NR (fun r hr => by rw [(hdiv q r hr).1, (hdiv q r hr).2])
+    rw [e1, e2]
+    obtain ⟨h1, h2⟩ := h q t α β Ev
+    exact Nat.le_antisymm (by simpa using h1) (by simpa using h2)
+  rw [key]
+  exact ⟨Nat.le_refl _, Nat.le_refl _⟩
+
+/-- **With the randomization polynomial**: Plonky3 also commits, for every
+    table, a matrix of random columns alone (`get_opt_randomization_poly_commitment`),
+    opened and batched into FRI with the rest.  Drawn from its own
+    randomness `δ`, its batched polynomials `Rb δ` join FRI's input and its
+    openings `Ro δ` the view, and the PCS still hides exactly. -/
+theorem pcsCloseN_friR {V W : Type} {qs : List QGroup} {ks : List Nat} {cols : (Nat → Tup) → EF → EF → List (List (List F))}
+    {qtabs : List QTab} {qdT : (Nat → Tup) → EF → EF → List F → List (List (List (List F) × List F))} {ncw : Nat}
+    {αb : EF} {fri : EF → EF → List (EF → EF) → V} (NR2 : Nat) (Rb : Nat → List (EF → EF)) (Ro : Nat → W)
+    (hok : ∀ q ∈ qs, q.OK) (hks : ks.length = qs.length)
+    (hcols : ∀ t α β, Shaped (qs.map QGroup.ext) (cols t α β) ∧ (cols t α β).map List.length = ks)
+    (hd : (mz αb).det ≠ 0) (haw : ∀ w, apow αb w ≠ EF.zero) (hncw : 4 ≤ ncw)
+    (off : EF → String → EF) (tv : (String → EF) → EF → (Nat → Tup) → List EF)
+    (htab : ∀ t α β ms, TabsHonest
+      (fun c => c.JS α β (tv (prefixOf α (off β)) β t) (openMulti (qs.map QGroup.ext) (cols t α β) ms))
+      (fun c => c.Jζ α β (tv (prefixOf α (off β)) β t) (openMulti (qs.map QGroup.ext) (cols t α β) ms)) qtabs (qdT t α β ms)) :
+    PCSCloseN off (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw) * NR2) tv
+      (fun t α β r => pcsFri off tv qs ks cols qtabs qdT ncw αb
+        (fun a b Bs => (fri a b (Bs ++ Rb (r / P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw))),
+          Ro (r / P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw)))) t α β (r % P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw)))
+      (fun α β v r => psimFri qs ks qtabs ncw αb
+        (fun a b Bs => (fri a b (Bs ++ Rb (r / P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw))),
+          Ro (r / P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw)))) α β v (r % P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw))) 0 :=
+  PCSCloseN.family (pcs := fun δ => pcsFri off tv qs ks cols qtabs qdT ncw αb (fun a b Bs => (fri a b (Bs ++ Rb δ), Ro δ)))
+    (psim := fun δ => psimFri qs ks qtabs ncw αb (fun a b Bs => (fri a b (Bs ++ Rb δ), Ro δ)))
+    (fun _ => pcsCloseN_fri hok hks hcols hd haw hncw off tv htab)
+
+/-- **The transcript over the masked PCS with its quotients, their chunks, every codeword and FRI**:
+    `transcript_zkG` with the column openings and the quotient values of
+    every height as the PCS's view, which `pcsCloseN_fri` simulates
+    exactly; no PCS term remains. -/
+theorem transcript_zkG_fri {PB : Type} {off : EF → String → EF} {M m : Nat}
+    {bus : Nat → String} {sg : Nat → Bool} {par : Nat → Nat} (hpar : ∀ k, par (k + 1) ≤ k)
+    {tabs : (Nat → Tup) → List (AirD × Table)}
+    {tv : (String → EF) → EF → (Nat → Tup) → List EF} {tp : (String → EF) → EF → EF}
+    {pb : (String → EF) → EF → PB} {xu : (String → EF) → EF → Nat → EF}
+    (hchain : ∀ pre β t, tv pre β t = viewT β (fun k => pre (bus k)) sg par (m + 1) (xu pre β) t)
+    (hsum : ∀ pre β, sumL (xu pre β) (List.range (m + 1)) = EF.zero.sub (tp pre β))
+    (hM : ∀ t, (allEntries (tabs t)).length ≤ M)
+    {qs : List QGroup} {ks : List Nat} {cols : (Nat → Tup) → EF → EF → List (List (List F))}
+    (hok : ∀ q ∈ qs, q.OK) (hks : ks.length = qs.length)
+    (hcols : ∀ t α β, Shaped (qs.map QGroup.ext) (cols t α β) ∧ (cols t α β).map List.length = ks)
+    {V : Type} {qtabs : List QTab} {qdT : (Nat → Tup) → EF → EF → List F → List (List (List (List F) × List F))} {ncw : Nat}
+    {αb : EF} {fri : EF → EF → List (EF → EF) → V} (hd : (mz αb).det ≠ 0) (haw : ∀ w, apow αb w ≠ EF.zero) (hncw : 4 ≤ ncw)
+    (htab : ∀ t α β ms, TabsHonest
+      (fun c => c.JS α β (tv (prefixOf α (off β)) β t) (openMulti (qs.map QGroup.ext) (cols t α β) ms))
+      (fun c => c.Jζ α β (tv (prefixOf α (off β)) β t) (openMulti (qs.map QGroup.ext) (cols t α β) ms)) qtabs (qdT t α β ms))
+    (E : TViewN ((List (List (List F × List EF) × List (List EF)) × List (List (List (List F × List EF)))) × List (List (List F × List EF)) × V) PB → Bool) :
+    tsumN (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw)) m (fun α β r t =>
+        indB (genB β && E (realVN off tabs tv pb (pcsFri off tv qs ks cols qtabs qdT ncw αb fri) α β r t))) ≤
+      tsumN (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw)) m (fun α β r t =>
+        indB (genB β && E (simVN off pb bus sg par (m + 1) tp (psimFri qs ks qtabs ncw αb fri) α β r t))) +
+        Q4 * (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw) * (Q4 ^ m * M)) + Q4 * (Q4 * (Q4 ^ m * 0)) ∧
+    tsumN (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw)) m (fun α β r t =>
+        indB (genB β && E (simVN off pb bus sg par (m + 1) tp (psimFri qs ks qtabs ncw αb fri) α β r t))) ≤
+      tsumN (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw)) m (fun α β r t =>
+        indB (genB β && E (realVN off tabs tv pb (pcsFri off tv qs ks cols qtabs qdT ncw αb fri) α β r t))) +
+        Q4 * (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw) * (Q4 ^ m * M)) + Q4 * (Q4 * (Q4 ^ m * 0)) :=
+  transcript_zkG hpar hchain hsum hM (pcsCloseN_fri hok hks hcols hd haw hncw off tv htab) E
+
+/-- `comp_transcriptG` over the masked PCS with its quotients, their chunks, every codeword and FRI (`pcsCloseN_fri`): no PCS term. -/
+theorem comp_transcriptG_fri (off : EF → String → EF)
+    {qs : List QGroup} {ks : List Nat} {cols : (Nat → Tup) → EF → EF → List (List (List F))}
+    (hok : ∀ q ∈ qs, q.OK) (hks : ks.length = qs.length)
+    (hcols : ∀ t α β, Shaped (qs.map QGroup.ext) (cols t α β) ∧ (cols t α β).map List.length = ks)
+    {hd0 stk0 ctr0 n nilA : Nat} {heap : List Cell} {N W : Nat} {roots : List Nat} {C Mm Wt : Table}
+    (hb : Balanced (compTables hd0 stk0 ctr0 n nilA heap N W roots C Mm (progTableC heap N W) Wt (segsPub roots)))
+    (h : Unblinded WT_BLIND C Mm Wt)
+    {V : Type} {qtabs : List QTab} {qdT : (Nat → Tup) → EF → EF → List F → List (List (List (List F) × List F))} {ncw : Nat}
+    {αb : EF} {fri : EF → EF → List (EF → EF) → V} (hd : (mz αb).det ≠ 0) (haw : ∀ w, apow αb w ≠ EF.zero) (hncw : 4 ≤ ncw)
+    (htab : ∀ t α β ms, TabsHonest
+      (fun c => c.JS α β ((fun pre β t => compViewN pre β hd0 stk0 ctr0 n nilA N W C Mm Wt t) (prefixOf α (off β)) β t) (openMulti (qs.map QGroup.ext) (cols t α β) ms))
+      (fun c => c.Jζ α β ((fun pre β t => compViewN pre β hd0 stk0 ctr0 n nilA N W C Mm Wt t) (prefixOf α (off β)) β t) (openMulti (qs.map QGroup.ext) (cols t α β) ms)) qtabs (qdT t α β ms))
+    (E : TViewN ((List (List (List F × List EF) × List (List EF)) × List (List (List (List F × List EF)))) × List (List (List F × List EF)) × V) (EF × EF) → Bool) :
+    let tabs := fun t : Nat → Tup => compTables hd0 stk0 ctr0 n nilA heap N W roots
+      ((C.setBlind BLA (t 1)).setBlind BLB (t 0)) (Mm.setBlind 5 (t 0)) (progTableC heap N W)
+      (Wt.setBlind WT_BLIND (t 1)) (segsPub roots)
+    let tv := fun pre β t => compViewN pre β hd0 stk0 ctr0 n nilA N W C Mm Wt t
+    let pb := fun pre β => (terminal pre β (progAirC heap N W) (progTableC heap N W),
+      terminal pre β (segsAir roots) (segsPub roots))
+    let tp := fun pre β => (terminal pre β (progAirC heap N W) (progTableC heap N W)).add
+      (terminal pre β (segsAir roots) (segsPub roots))
+    let M := (allEntries (compTables hd0 stk0 ctr0 n nilA heap N W roots C Mm (progTableC heap N W) Wt
+      (segsPub roots))).length
+    tsumN (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw)) 2 (fun α β r t => indB (genB β && E (realVN off tabs tv pb (pcsFri off (fun pre β t => compViewN pre β hd0 stk0 ctr0 n nilA N W C Mm Wt t) qs ks cols qtabs qdT ncw αb fri) α β r t))) ≤
+      tsumN (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw)) 2 (fun α β r t => indB (genB β && E (simVN off pb chainBus (fun _ => false) chainPar 3 tp (psimFri qs ks qtabs ncw αb fri) α β r t))) +
+        Q4 * (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw) * (Q4 ^ 2 * M)) + Q4 * (Q4 * (Q4 ^ 2 * 0)) ∧
+    tsumN (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw)) 2 (fun α β r t => indB (genB β && E (simVN off pb chainBus (fun _ => false) chainPar 3 tp (psimFri qs ks qtabs ncw αb fri) α β r t))) ≤
+      tsumN (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw)) 2 (fun α β r t => indB (genB β && E (realVN off tabs tv pb (pcsFri off (fun pre β t => compViewN pre β hd0 stk0 ctr0 n nilA N W C Mm Wt t) qs ks cols qtabs qdT ncw αb fri) α β r t))) +
+        Q4 * (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw) * (Q4 ^ 2 * M)) + Q4 * (Q4 * (Q4 ^ 2 * 0)) :=
+  comp_transcriptG off (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw)) 0 (pcsFri off (fun pre β t => compViewN pre β hd0 stk0 ctr0 n nilA N W C Mm Wt t) qs ks cols qtabs qdT ncw αb fri) (psimFri qs ks qtabs ncw αb fri) hb h
+    (pcsCloseN_fri hok hks hcols hd haw hncw off (fun pre β t => compViewN pre β hd0 stk0 ctr0 n nilA N W C Mm Wt t) htab) E
+
+/-- `sud_transcriptG` over the masked PCS with its quotients, their chunks, every codeword and FRI (`pcsCloseN_fri`): no PCS term. -/
+theorem sud_transcriptG_fri (off : EF → String → EF)
+    {qs : List QGroup} {ks : List Nat} {cols : (Nat → Tup) → EF → EF → List (List (List F))}
+    (hok : ∀ q ∈ qs, q.OK) (hks : ks.length = qs.length)
+    (hcols : ∀ t α β, Shaped (qs.map QGroup.ext) (cols t α β) ∧ (cols t α β).map List.length = ks)
+    {hd0 stk0 ctr0 : Nat} {heap : List Cell} {C Mm Wt : Table}
+    (hb : Balanced (sudTables hd0 stk0 ctr0 heap C Mm (progTableS heap) Wt)) (h : Unblinded 1 C Mm Wt)
+    {V : Type} {qtabs : List QTab} {qdT : (Nat → Tup) → EF → EF → List F → List (List (List (List F) × List F))} {ncw : Nat}
+    {αb : EF} {fri : EF → EF → List (EF → EF) → V} (hd : (mz αb).det ≠ 0) (haw : ∀ w, apow αb w ≠ EF.zero) (hncw : 4 ≤ ncw)
+    (htab : ∀ t α β ms, TabsHonest
+      (fun c => c.JS α β ((fun pre β t => sudViewN pre β hd0 stk0 ctr0 C Mm Wt t) (prefixOf α (off β)) β t) (openMulti (qs.map QGroup.ext) (cols t α β) ms))
+      (fun c => c.Jζ α β ((fun pre β t => sudViewN pre β hd0 stk0 ctr0 C Mm Wt t) (prefixOf α (off β)) β t) (openMulti (qs.map QGroup.ext) (cols t α β) ms)) qtabs (qdT t α β ms))
+    (E : TViewN ((List (List (List F × List EF) × List (List EF)) × List (List (List (List F × List EF)))) × List (List (List F × List EF)) × V) EF → Bool) :
+    let tabs := fun t : Nat → Tup => sudTables hd0 stk0 ctr0 heap ((C.setBlind BLA (t 1)).setBlind BLB (t 0))
+      (Mm.setBlind 5 (t 0)) (progTableS heap) (Wt.setBlind 1 (t 1))
+    let tv := fun pre β t => sudViewN pre β hd0 stk0 ctr0 C Mm Wt t
+    let tp := fun pre β => terminal pre β (progAirS heap) (progTableS heap)
+    let M := (allEntries (sudTables hd0 stk0 ctr0 heap C Mm (progTableS heap) Wt)).length
+    tsumN (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw)) 2 (fun α β r t => indB (genB β && E (realVN off tabs tv tp (pcsFri off (fun pre β t => sudViewN pre β hd0 stk0 ctr0 C Mm Wt t) qs ks cols qtabs qdT ncw αb fri) α β r t))) ≤
+      tsumN (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw)) 2 (fun α β r t => indB (genB β && E (simVN off tp chainBus (fun _ => false) chainPar 3 tp (psimFri qs ks qtabs ncw αb fri) α β r t))) +
+        Q4 * (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw) * (Q4 ^ 2 * M)) + Q4 * (Q4 * (Q4 ^ 2 * 0)) ∧
+    tsumN (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw)) 2 (fun α β r t => indB (genB β && E (simVN off tp chainBus (fun _ => false) chainPar 3 tp (psimFri qs ks qtabs ncw αb fri) α β r t))) ≤
+      tsumN (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw)) 2 (fun α β r t => indB (genB β && E (realVN off tabs tv tp (pcsFri off (fun pre β t => sudViewN pre β hd0 stk0 ctr0 C Mm Wt t) qs ks cols qtabs qdT ncw αb fri) α β r t))) +
+        Q4 * (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw) * (Q4 ^ 2 * M)) + Q4 * (Q4 * (Q4 ^ 2 * 0)) :=
+  sud_transcriptG off (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw)) 0 (pcsFri off (fun pre β t => sudViewN pre β hd0 stk0 ctr0 C Mm Wt t) qs ks cols qtabs qdT ncw αb fri) (psimFri qs ks qtabs ncw αb fri) hb h
+    (pcsCloseN_fri hok hks hcols hd haw hncw off (fun pre β t => sudViewN pre β hd0 stk0 ctr0 C Mm Wt t) htab) E
+
+/-- `wit_transcriptG` over the masked PCS with its quotients, their chunks, every codeword and FRI (`pcsCloseN_fri`): no PCS term. -/
+theorem wit_transcriptG_fri (off : EF → String → EF)
+    {qs : List QGroup} {ks : List Nat} {cols : (Nat → Tup) → EF → EF → List (List (List F))}
+    (hok : ∀ q ∈ qs, q.OK) (hks : ks.length = qs.length)
+    (hcols : ∀ t α β, Shaped (qs.map QGroup.ext) (cols t α β) ∧ (cols t α β).map List.length = ks)
+    {hd0 stk0 ctr0 : Nat} {heap : List Cell} {W : Nat} {C Mm Wt : Table}
+    (hb : Balanced (witTables hd0 stk0 ctr0 heap W C Mm (progTableW heap W) Wt)) (h : Unblinded WT_BLIND C Mm Wt)
+    {V : Type} {qtabs : List QTab} {qdT : (Nat → Tup) → EF → EF → List F → List (List (List (List F) × List F))} {ncw : Nat}
+    {αb : EF} {fri : EF → EF → List (EF → EF) → V} (hd : (mz αb).det ≠ 0) (haw : ∀ w, apow αb w ≠ EF.zero) (hncw : 4 ≤ ncw)
+    (htab : ∀ t α β ms, TabsHonest
+      (fun c => c.JS α β ((fun pre β t => witViewN pre β hd0 stk0 ctr0 W C Mm Wt t) (prefixOf α (off β)) β t) (openMulti (qs.map QGroup.ext) (cols t α β) ms))
+      (fun c => c.Jζ α β ((fun pre β t => witViewN pre β hd0 stk0 ctr0 W C Mm Wt t) (prefixOf α (off β)) β t) (openMulti (qs.map QGroup.ext) (cols t α β) ms)) qtabs (qdT t α β ms))
+    (E : TViewN ((List (List (List F × List EF) × List (List EF)) × List (List (List (List F × List EF)))) × List (List (List F × List EF)) × V) EF → Bool) :
+    let tabs := fun t : Nat → Tup => witTables hd0 stk0 ctr0 heap W ((C.setBlind BLA (t 1)).setBlind BLB (t 0))
+      (Mm.setBlind 5 (t 0)) (progTableW heap W) (Wt.setBlind WT_BLIND (t 1))
+    let tv := fun pre β t => witViewN pre β hd0 stk0 ctr0 W C Mm Wt t
+    let tp := fun pre β => terminal pre β (progAirW heap W) (progTableW heap W)
+    let M := (allEntries (witTables hd0 stk0 ctr0 heap W C Mm (progTableW heap W) Wt)).length
+    tsumN (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw)) 2 (fun α β r t => indB (genB β && E (realVN off tabs tv tp (pcsFri off (fun pre β t => witViewN pre β hd0 stk0 ctr0 W C Mm Wt t) qs ks cols qtabs qdT ncw αb fri) α β r t))) ≤
+      tsumN (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw)) 2 (fun α β r t => indB (genB β && E (simVN off tp chainBus (fun _ => false) chainPar 3 tp (psimFri qs ks qtabs ncw αb fri) α β r t))) +
+        Q4 * (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw) * (Q4 ^ 2 * M)) + Q4 * (Q4 * (Q4 ^ 2 * 0)) ∧
+    tsumN (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw)) 2 (fun α β r t => indB (genB β && E (simVN off tp chainBus (fun _ => false) chainPar 3 tp (psimFri qs ks qtabs ncw αb fri) α β r t))) ≤
+      tsumN (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw)) 2 (fun α β r t => indB (genB β && E (realVN off tabs tv tp (pcsFri off (fun pre β t => witViewN pre β hd0 stk0 ctr0 W C Mm Wt t) qs ks cols qtabs qdT ncw αb fri) α β r t))) +
+        Q4 * (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw) * (Q4 ^ 2 * M)) + Q4 * (Q4 * (Q4 ^ 2 * 0)) :=
+  wit_transcriptG off (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw)) 0 (pcsFri off (fun pre β t => witViewN pre β hd0 stk0 ctr0 W C Mm Wt t) qs ks cols qtabs qdT ncw αb fri) (psimFri qs ks qtabs ncw αb fri) hb h
+    (pcsCloseN_fri hok hks hcols hd haw hncw off (fun pre β t => witViewN pre β hd0 stk0 ctr0 W C Mm Wt t) htab) E
+
+/-- `compJ_transcriptG` over the masked PCS with its quotients, their chunks, every codeword and FRI (`pcsCloseN_fri`): no PCS term. -/
+theorem compJ_transcriptG_fri (off : EF → String → EF)
+    {qs : List QGroup} {ks : List Nat} {cols : (Nat → Tup) → EF → EF → List (List (List F))}
+    (hok : ∀ q ∈ qs, q.OK) (hks : ks.length = qs.length)
+    (hcols : ∀ t α β, Shaped (qs.map QGroup.ext) (cols t α β) ∧ (cols t α β).map List.length = ks)
+    {hd0 stk0 ctr0 n nilA : Nat} {heap : List Cell} {N W : Nat} {segRoots : List Nat}
+    {roots : List (Nat × Nat)} {jets : List Air.Jet} {C Mm Wt Rt Hd Tm Po Iw : Table}
+    (hb : Balanced (compJTables hd0 stk0 ctr0 n nilA heap N W segRoots roots jets C Mm (progTableC heap N W) Wt
+      (segsPub segRoots) Rt Hd Tm Po Iw))
+    (h : UnblindedCJ roots jets C Mm Wt Rt Hd Tm Po Iw)
+    {V : Type} {qtabs : List QTab} {qdT : (Nat → Tup) → EF → EF → List F → List (List (List (List F) × List F))} {ncw : Nat}
+    {αb : EF} {fri : EF → EF → List (EF → EF) → V} (hd : (mz αb).det ≠ 0) (haw : ∀ w, apow αb w ≠ EF.zero) (hncw : 4 ≤ ncw)
+    (htab : ∀ t α β ms, TabsHonest
+      (fun c => c.JS α β ((fun pre β t => compJViewN pre β hd0 stk0 ctr0 n nilA N W roots jets C Mm Wt Rt Hd Tm Po Iw t) (prefixOf α (off β)) β t) (openMulti (qs.map QGroup.ext) (cols t α β) ms))
+      (fun c => c.Jζ α β ((fun pre β t => compJViewN pre β hd0 stk0 ctr0 n nilA N W roots jets C Mm Wt Rt Hd Tm Po Iw t) (prefixOf α (off β)) β t) (openMulti (qs.map QGroup.ext) (cols t α β) ms)) qtabs (qdT t α β ms))
+    (E : TViewN ((List (List (List F × List EF) × List (List EF)) × List (List (List (List F × List EF)))) × List (List (List F × List EF)) × V) (EF × EF) → Bool) :
+    let tabs := fun t : Nat → Tup => compJTables hd0 stk0 ctr0 n nilA heap N W segRoots roots jets
+      (((C.setBlind BLAJ (t 1)).setBlind BLBJ (t 0)).setBlind BLCJ (t 2)) (Mm.setBlind 5 (t 0))
+      (progTableC heap N W) (Wt.setBlind WT_BLIND (t 1)) (segsPub segRoots) (Rt.setBlind 1 (t 6))
+      ((Hd.setBlind 1 (t 5)).setBlind 6 (t 6)) ((Tm.setBlind 1 (t 4)).setBlind 6 (t 5))
+      ((Po.setBlind popAir.width (t 2)).setBlind (popAir.width + 5) (t 3))
+      ((Iw.setBlind instwAir.width (t 3)).setBlind (instwAir.width + 5) (t 4))
+    let tv := fun pre β t => compJViewN pre β hd0 stk0 ctr0 n nilA N W roots jets C Mm Wt Rt Hd Tm Po Iw t
+    let pb := fun pre β => (terminal pre β (progAirC heap N W) (progTableC heap N W),
+      terminal pre β (segsAir segRoots) (segsPub segRoots))
+    let tp := fun pre β => (terminal pre β (progAirC heap N W) (progTableC heap N W)).add
+      (terminal pre β (segsAir segRoots) (segsPub segRoots))
+    let M := (allEntries (compJTables hd0 stk0 ctr0 n nilA heap N W segRoots roots jets C Mm (progTableC heap N W)
+      Wt (segsPub segRoots) Rt Hd Tm Po Iw)).length
+    tsumN (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw)) 7 (fun α β r t => indB (genB β && E (realVN off tabs tv pb (pcsFri off (fun pre β t => compJViewN pre β hd0 stk0 ctr0 n nilA N W roots jets C Mm Wt Rt Hd Tm Po Iw t) qs ks cols qtabs qdT ncw αb fri) α β r t))) ≤
+      tsumN (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw)) 7 (fun α β r t => indB (genB β && E (simVN off pb jetBus jetSg jetPar 8 tp (psimFri qs ks qtabs ncw αb fri) α β r t))) +
+        Q4 * (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw) * (Q4 ^ 7 * M)) + Q4 * (Q4 * (Q4 ^ 7 * 0)) ∧
+    tsumN (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw)) 7 (fun α β r t => indB (genB β && E (simVN off pb jetBus jetSg jetPar 8 tp (psimFri qs ks qtabs ncw αb fri) α β r t))) ≤
+      tsumN (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw)) 7 (fun α β r t => indB (genB β && E (realVN off tabs tv pb (pcsFri off (fun pre β t => compJViewN pre β hd0 stk0 ctr0 n nilA N W roots jets C Mm Wt Rt Hd Tm Po Iw t) qs ks cols qtabs qdT ncw αb fri) α β r t))) +
+        Q4 * (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw) * (Q4 ^ 7 * M)) + Q4 * (Q4 * (Q4 ^ 7 * 0)) :=
+  compJ_transcriptG off (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw)) 0 (pcsFri off (fun pre β t => compJViewN pre β hd0 stk0 ctr0 n nilA N W roots jets C Mm Wt Rt Hd Tm Po Iw t) qs ks cols qtabs qdT ncw αb fri) (psimFri qs ks qtabs ncw αb fri) hb h
+    (pcsCloseN_fri hok hks hcols hd haw hncw off (fun pre β t => compJViewN pre β hd0 stk0 ctr0 n nilA N W roots jets C Mm Wt Rt Hd Tm Po Iw t) htab) E
+
+/-- `compP_transcriptG` over the masked PCS with its quotients, their chunks, every codeword and FRI (`pcsCloseN_fri`): no PCS term. -/
+theorem compP_transcriptG_fri (off : EF → String → EF) (calls : Nat)
+    {qs : List QGroup} {ks : List Nat} {cols : (Nat → Tup) → EF → EF → List (List (List F))}
+    (hok : ∀ q ∈ qs, q.OK) (hks : ks.length = qs.length)
+    (hcols : ∀ t α β, Shaped (qs.map QGroup.ext) (cols t α β) ∧ (cols t α β).map List.length = ks)
+    {hd0 stk0 ctr0 n nilA J root : Nat} {heap : List Cell} {N W : Nat} {roots : List Nat}
+    {C Mm Wt Pi Po Pp : Table}
+    (hb : Balanced (compPTables hd0 stk0 ctr0 n nilA J root heap N W roots C Mm (progTableC heap N W) Wt
+      (segsPub roots) Pi Po Pp (idxPub calls)))
+    (h : UnblindedCP C Mm Wt Pi Po Pp)
+    {V : Type} {qtabs : List QTab} {qdT : (Nat → Tup) → EF → EF → List F → List (List (List (List F) × List F))} {ncw : Nat}
+    {αb : EF} {fri : EF → EF → List (EF → EF) → V} (hd : (mz αb).det ≠ 0) (haw : ∀ w, apow αb w ≠ EF.zero) (hncw : 4 ≤ ncw)
+    (htab : ∀ t α β ms, TabsHonest
+      (fun c => c.JS α β ((fun pre β t => compPViewN pre β hd0 stk0 ctr0 n nilA J root N W C Mm Wt Pi Po Pp t) (prefixOf α (off β)) β t) (openMulti (qs.map QGroup.ext) (cols t α β) ms))
+      (fun c => c.Jζ α β ((fun pre β t => compPViewN pre β hd0 stk0 ctr0 n nilA J root N W C Mm Wt Pi Po Pp t) (prefixOf α (off β)) β t) (openMulti (qs.map QGroup.ext) (cols t α β) ms)) qtabs (qdT t α β ms))
+    (E : TViewN ((List (List (List F × List EF) × List (List EF)) × List (List (List (List F × List EF)))) × List (List (List F × List EF)) × V) ((EF × EF) × EF) → Bool) :
+    let tabs := fun t : Nat → Tup => compPTables hd0 stk0 ctr0 n nilA J root heap N W roots
+      (((C.setBlind BLA (t 1)).setBlind BLB (t 0)).setBlind (P2SEL + 1) (t 2)) (Mm.setBlind 5 (t 0))
+      (progTableC heap N W) (Wt.setBlind WT_BLIND (t 1)) (segsPub roots)
+      ((Pi.setBlind p2inAir.width (t 2)).setBlind (p2inAir.width + 5) (t 3))
+      ((Po.setBlind p2outAir.width (t 3)).setBlind (p2outAir.width + 5) (t 4))
+      (Pp.setBlind P2Air.p2Air.width (t 4)) (idxPub calls)
+    let tv := fun pre β t => compPViewN pre β hd0 stk0 ctr0 n nilA J root N W C Mm Wt Pi Po Pp t
+    let pb := fun pre β => ((terminal pre β (progAirC heap N W) (progTableC heap N W),
+      terminal pre β (segsAir roots) (segsPub roots)), terminal pre β p2idxAir (idxPub calls))
+    let tp := fun pre β => ((terminal pre β (progAirC heap N W) (progTableC heap N W)).add
+      (terminal pre β (segsAir roots) (segsPub roots))).add (terminal pre β p2idxAir (idxPub calls))
+    let M := (allEntries (compPTables hd0 stk0 ctr0 n nilA J root heap N W roots C Mm (progTableC heap N W)
+      Wt (segsPub roots) Pi Po Pp (idxPub calls))).length
+    tsumN (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw)) 5 (fun α β r t => indB (genB β && E (realVN off tabs tv pb (pcsFri off (fun pre β t => compPViewN pre β hd0 stk0 ctr0 n nilA J root N W C Mm Wt Pi Po Pp t) qs ks cols qtabs qdT ncw αb fri) α β r t))) ≤
+      tsumN (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw)) 5 (fun α β r t => indB (genB β && E (simVN off pb jetBus jetSg jetPar 6 tp (psimFri qs ks qtabs ncw αb fri) α β r t))) +
+        Q4 * (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw) * (Q4 ^ 5 * M)) + Q4 * (Q4 * (Q4 ^ 5 * 0)) ∧
+    tsumN (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw)) 5 (fun α β r t => indB (genB β && E (simVN off pb jetBus jetSg jetPar 6 tp (psimFri qs ks qtabs ncw αb fri) α β r t))) ≤
+      tsumN (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw)) 5 (fun α β r t => indB (genB β && E (realVN off tabs tv pb (pcsFri off (fun pre β t => compPViewN pre β hd0 stk0 ctr0 n nilA J root N W C Mm Wt Pi Po Pp t) qs ks cols qtabs qdT ncw αb fri) α β r t))) +
+        Q4 * (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw) * (Q4 ^ 5 * M)) + Q4 * (Q4 * (Q4 ^ 5 * 0)) :=
+  compP_transcriptG off (P ^ (friN1 qs ks qtabs + friN2 qs qtabs ncw)) 0 calls (pcsFri off (fun pre β t => compPViewN pre β hd0 stk0 ctr0 n nilA J root N W C Mm Wt Pi Po Pp t) qs ks cols qtabs qdT ncw αb fri) (psimFri qs ks qtabs ncw αb fri) hb h
+    (pcsCloseN_fri hok hks hcols hd haw hncw off (fun pre β t => compPViewN pre β hd0 stk0 ctr0 n nilA J root N W C Mm Wt Pi Po Pp t) htab) E
 
 end Circuit
