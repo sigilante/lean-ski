@@ -204,9 +204,10 @@ bits bound one key search at `2^128`, and a batch search over `N` proofs
 at about `2^128 / N`. The verifier rebuilds
 the preprocessed commitment, so both sides commit the public preprocessed
 tables under a fixed public seed; only the traces are committed under the
-secret one. The Lean theorems count over uniform randomness; that ChaCha20
-under the seed is indistinguishable from it is assumed
-(`Ski/ZK/PRG.lean`, `transcript_prg`). The CPU and memory heights are
+secret one. The Lean theorems count over uniform randomness. We assume
+that ChaCha20 under the seed fools the transcript's own tests for an
+efficient event, one test per pair of challenges, so the seeded guarantee
+is computational (`Ski/ZK/PRG.lean`, `transcript_prg`). The CPU and memory heights are
 constants of prover and verifier (`2^16` each), not the run's, so they say
 nothing about the witness: the run's length depends on where each digit's
 bit falls.
@@ -1006,6 +1007,23 @@ What the theorem rests on:
   released zero-knowledge proof; `ski-air fs-budget` prints it after each
   hiding verification. More queries or a wider fold would need a higher
   floor.
+- **Every byte of a hiding proof lies in the simulated view.** A released
+  proof is a postcard encoding of Plonky3's `BatchProof`. `ski-air
+  proof-shape PROOF` (`src/proofshape.rs`, `release/verify.sh` step 15)
+  reads it and refuses unless the bytes are exactly the proof's own
+  encoding, so no byte sits outside its fields. Each field is a part of
+  the view Lean's transcript theorems simulate: the commitments, the
+  opened values and the opening proof are the PCS's view; the terminals
+  are one per table; `degree_bits` are the heights, which the verifier
+  pins to the statement's (`Ski/ZK/Heights.lean`); the two proof-of-work
+  witnesses are the unique values the verifier accepts after the
+  transcript before them. The challenges are not in the bytes. Proofs of
+  one statement differ in size only in the Merkle digests of the opening
+  proof: Plonky3's multi-openings send each shared digest once, and how
+  many paths share one depends on the query positions, Fiat–Shamir
+  challenges the simulator draws too. `split8`'s proofs with jets before
+  and after the Avon remake have the same 488,085 bytes of opened values
+  and Merkle digests of 588,752 and 593,296 bytes, 142 digests apart.
 
 ## Jets: instantiation rows
 
@@ -1190,7 +1208,15 @@ theorem over `EF`.
   tree's `transcript_zkN`; per circuit `sud_transcript`, `wit_transcript`,
   `comp_transcript`): from public data it matches the real transcript on
   every event within a fraction `P^2 / P^4 + M / P^4 + ε / NR` of the
-  draws, `M` the LogUp messages. The model: public-coin challenges `α`
+  draws, `M` the LogUp messages. `β` is non-generic exactly when its `x`
+  and `x^3` coefficients are zero, which is public, so every hiding
+  verifier rejects such a proof and every prover that writes a hiding
+  proof proves again from a fresh seed (`src/reject.rs`, about once in
+  `2^62` proofs). Counted over the generic `β`, the real and simulated
+  transcripts differ by at most `M / P^4 + ε / NR` of all the draws, the
+  `P^2 / P^4` term gone (`Ski/ZK/Reject.lean`, `transcript_zkG` and each
+  circuit's `*_transcriptG`). The bench harnesses that prove without
+  writing a proof do not retry; a non-generic `β` there is a rejection. The model: public-coin challenges `α`
   and `β`, uniform and independent of the prover's randomness
   (honest-verifier zero knowledge; Fiat–Shamir in the random oracle model
   makes it non-interactive, a standard step not proved here); and one
@@ -1225,9 +1251,10 @@ theorem over `EF`.
   - The prover aborts on a zero LogUp denominator, and whether it does
     depends on the witness. Every bus prefix is `α` plus an offset free
     of `α`, so for any tables, `β` and blinding at most one `α` per
-    message aborts (`abort_count`, `Ski/ZK/Abort.lean`): at most `2^-103`
-    for Sudoku (under `2^20` messages), `2^-109` for the hidden term and
-    `2^-108` for the composed statement.
+    message aborts (`abort_count`, `Ski/ZK/Abort.lean`): `M/P^4`, below
+    `2^-99` for every released proof, whose `M` is under `2^24`
+    (`csplit8`'s is the largest, `ski-air fs-budget`); Sudoku's 821,248 messages give
+    below `2^-103`.
   - Everything committed and opened rests on Plonky3's hiding PCS,
     assumed (`PCSClose ε`), statistical and unaudited.
 - **Security is Plonky3's benchmark setting**: blowup 2, 100 queries and 16

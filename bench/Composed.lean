@@ -280,16 +280,22 @@ def checkCJ (src pub : String) (paths : List String) : IO UInt32 := do
         bad := bad + 1
   return (if bad == 0 then 0 else 1)
 
+/-- The preimage statement's heights. -/
+def p2preLogs : ComposedPText.PLogs := ⟨14, 15, 9, 9, 8⟩
+
+/-- The preimage statement for the image `h` of the input `inp`, and its
+    witness: the inputs' 496 bits, then the region's one cell. -/
+def emitP2With (dir : String) (inp : List Nat) (h : Nat) : IO Unit := do
+  IO.FS.writeFile s!"{dir}/p2pre.public.txt" (ComposedPText.publicTextP h p2preLogs)
+  let bits := inp.flatMap (BitArith.bitsOf 31)
+  IO.FS.writeFile s!"{dir}/p2pre.witness.txt" (witnessText bits ComposedPText.regionP)
+
 /-- `composed emit-p2 DIR`: the Poseidon2 preimage statement for Plonky3's
-    test vector 1 (`ComposedPText.publicTextP`), and its witness: the
-    inputs' 496 bits, then the region's one cell. -/
+    test vector 1 (`ComposedPText.publicTextP`), and its witness. -/
 def emitP2 (dir : String) (k : Nat := 1) : IO UInt32 := do
   let some (inp, outp) := Poseidon2.vectors[k]? | IO.eprintln "no such vector"; return 1
   let h := outp.headD 0
-  let lg : ComposedPText.PLogs := ⟨14, 15, 9, 9, 8⟩
-  IO.FS.writeFile s!"{dir}/p2pre.public.txt" (ComposedPText.publicTextP h lg)
-  let bits := inp.flatMap (BitArith.bitsOf 31)
-  IO.FS.writeFile s!"{dir}/p2pre.witness.txt" (witnessText bits ComposedPText.regionP)
+  emitP2With dir inp h
   IO.println s!"wrote {dir}/p2pre.public.txt (h = {h}) and its witness"
   return 0
 
@@ -346,6 +352,75 @@ def freshRand : IO (List Nat) := do
   if out.size != 8 then throw (IO.userError "too few draws below p")
   return out.toList
 
+/-- `k` elements below `p`, uniform, from the system's entropy: 31-bit
+    draws, each redrawn while `≥ p`. -/
+def freshElems (k : Nat) : IO (List Nat) := do
+  let mut out : Array Nat := #[]
+  for _ in [0:100 * k + 100] do
+    if out.size == k then break
+    let v ← freshBits 31
+    if v < Poseidon2.p then out := out.push v
+  if out.size != k then throw (IO.userError "too few draws below p")
+  return out.toList
+
+/-- `composed emit-p2 DIR --fresh`: the preimage statement for a fresh
+    input: sixteen elements below `p` from the system's entropy, and `h`
+    the first element of their permutation.  The input is the witness; it
+    stays with the prover, and nothing prints it. -/
+def emitP2Fresh (dir : String) : IO UInt32 := do
+  let inp ← freshElems 16
+  let h := (Poseidon2.permute inp).headD 0
+  emitP2With dir inp h
+  IO.println s!"wrote {dir}/p2pre.public.txt (h = {h}) and its witness"
+  return 0
+
+/-- A number below `n`, `0 < n ≤ 256`, uniform, from the system's entropy:
+    a byte, redrawn while it is past the last whole multiple of `n`. -/
+def freshBelow (n : Nat) : IO Nat := do
+  for _ in [0:1000] do
+    let v ← freshBits 8
+    if v < 256 / n * n then return v % n
+  throw (IO.userError "no draw below the bound")
+
+/-- **A fixed list of the released formulas' valid witnesses**, each the
+    bits and the
+    region's term.  `∨`: either side or both; the side not chosen gets `K`.
+    `∧`: both sides, the negation either `negW` or the term that passes
+    the negation tests while ignoring its argument (`neg_fake`); the
+    triple's satisfying assignment is unique (`satW`).  Other terms also
+    realize the atoms (`sat_fake`, other fakes of the negation); the list
+    leaves them out, so the secret is which listed witness. -/
+def freshChoices : List (String × MF × Nat × List (BT × Term)) :=
+  [("or", negOr, 64,
+     [(.node (.leaf true) (.leaf false), pairT negW K),
+      (.node (.leaf false) (.leaf true), pairT K satW),
+      (.node (.leaf true) (.leaf true), pairT negW satW)]),
+   ("and", .and (.atom negV x0) (.atom satV x0), 64,
+     [(.node (.leaf true) (.leaf true), pairT negW satW),
+      (.node (.leaf true) (.leaf true), pairT (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K))))) satW)])]
+
+/-- `composed emit-fresh DIR`: the released `∨` and `∧` statements, each
+    with a witness drawn uniformly from its list of valid witnesses
+    (`freshChoices`), from the system's entropy; nothing prints which.
+    `composed emit-fresh DIR --all` writes every listed witness instead, as
+    `DIR/NAME/I/witness.txt`, to check that each one's run fits the
+    statement's heights. -/
+def emitFresh (dir : String) (all : Bool := false) : IO UInt32 := do
+  for (name, M, W, choices) in freshChoices do
+    let d := s!"{dir}/{name}"
+    IO.FS.createDirAll d
+    let N := BT.nleaves (clear M)
+    IO.FS.writeFile s!"{d}/public.txt" (publicText M W)
+    let picks ← if all then pure (List.range choices.length) else do pure [← freshBelow choices.length]
+    for i in picks do
+      let some (β, w) := choices[i]? | return 1
+      let some good := regionOf' N W w | do IO.println s!"{name}: a witness does not fit"; return 1
+      let wd := if all then s!"{d}/{i}" else d
+      IO.FS.createDirAll wd
+      IO.FS.writeFile s!"{wd}/witness.txt" (witnessText (bitList β) good)
+    IO.println s!"{name}: {N} bits, region {W} cells, {if all then s!"{choices.length} witnesses" else "one witness"}"
+  return 0
+
 /-- Eight elements below `p`, read from a file, separated by white space. -/
 def readRand (path : String) : IO (List Nat) := do
   let ws := words ((← IO.FS.readFile path).map fun ch => if ch.isWhitespace then ' ' else ch)
@@ -385,6 +460,18 @@ def checkHandoff (p1 p2 : String) : IO UInt32 := do
       IO.println s!"OK HANDOFF {c₁}"; return 0
     else IO.println "NOT THE HAND-OFF"; return 1
   | _, _ => IO.println "NOT THE HAND-OFF"; return 1
+
+/-- `composed check-p2pre PUBLIC`: `OK P2PRE h` when the file is exactly
+    the preimage statement `p2pre h` at the documented heights, for an `h`
+    other than the test vectors' (`emit-p2 DIR --fresh` draws the input,
+    which Lean never sees). -/
+def checkP2pre (path : String) : IO UInt32 := do
+  match ComposedPText.statementOfTextG (← IO.FS.readFile path) with
+  | some (.pre h, lg) =>
+    if lg == p2preLogs && Poseidon2.vectors.all (fun io => io.2.headD 0 != h) then
+      IO.println s!"OK P2PRE {h}"; return 0
+    else IO.println "NOT THE PREIMAGE STATEMENT"; return 1
+  | _ => IO.println "NOT THE PREIMAGE STATEMENT"; return 1
 
 /-- `composed statement-p2 PUBLIC`: `OK` when the file is exactly a
     statement with the Poseidon2 jet. -/
@@ -700,7 +787,10 @@ def checkCJBlind (dir : String) : IO UInt32 :=
 def main (args : List String) : IO UInt32 := do
   match args with
   | ["emit", dir] => emit dir
+  | ["emit-fresh", dir] => emitFresh dir
+  | ["emit-fresh", dir, "--all"] => emitFresh dir true
   | ["emit-p2", dir] => emitP2 dir
+  | ["emit-p2", dir, "--fresh"] => emitP2Fresh dir
   | ["emit-p2", dir, k] => emitP2 dir k.toNat!
   | ["emit-handoff", dir] => emitHandoff dir
   | ["emit-handoff", dir, "--fresh"] => emitHandoff dir (← freshValue) (← freshRand)
@@ -708,6 +798,7 @@ def main (args : List String) : IO UInt32 := do
     if r.startsWith "--rand=" then emitHandoff dir handoffValue (← readRand (r.drop 7).toString)
     else IO.eprintln "usage: composed emit-handoff DIR [--fresh | --rand=FILE]"; return 2
   | ["check-handoff", p1, p2] => checkHandoff p1 p2
+  | ["check-p2pre", pub] => checkP2pre pub
   | ["statement-p2", pub] => statementP2 pub
   | ["chain-p2", "-"] => chainP2In
   | ["check-p2-tables", pub, dir] => checkP2Tables pub dir
@@ -723,5 +814,5 @@ def main (args : List String) : IO UInt32 := do
   | "check" :: pub :: paths => check pub paths
   | "check-cj" :: src :: pub :: paths => checkCJ src pub paths
   | _ =>
-    IO.eprintln "usage: composed emit DIR | composed emit-p2 DIR [K] | composed emit-handoff DIR [--fresh | --rand=FILE] | composed check-handoff PUBLIC1 PUBLIC2 | composed statement-p2 PUBLIC | composed chain-p2 PUBLIC1 PUBLIC2|- | composed check-p2-tables PUBLIC DIR | composed check-p2-blind DIR\n       composed check-c-tables PUBLIC DIR | composed check-c-blind DIR\n       composed check-cj-tables SRC PUBLIC DIR | composed check-cj-blind DIR\n       composed statement PUBLIC | composed statement-jets PUBLIC\n       composed budget PUBLIC LP LI OUT | composed check PUBLIC TABLE... | composed check-cj SRC PUBLIC TABLE..."
+    IO.eprintln "usage: composed emit DIR | composed emit-fresh DIR [--all] | composed emit-p2 DIR [K | --fresh] | composed emit-handoff DIR [--fresh | --rand=FILE] | composed check-handoff PUBLIC1 PUBLIC2 | composed check-p2pre PUBLIC | composed statement-p2 PUBLIC | composed chain-p2 PUBLIC1 PUBLIC2|- | composed check-p2-tables PUBLIC DIR | composed check-p2-blind DIR\n       composed check-c-tables PUBLIC DIR | composed check-c-blind DIR\n       composed check-cj-tables SRC PUBLIC DIR | composed check-cj-blind DIR\n       composed statement PUBLIC | composed statement-jets PUBLIC\n       composed budget PUBLIC LP LI OUT | composed check PUBLIC TABLE... | composed check-cj SRC PUBLIC TABLE..."
     return 2

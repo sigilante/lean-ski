@@ -820,7 +820,7 @@ of a statement (`sud_zk`, `wit_zk`, `comp_zk`; the composed ones sharing
 their segment table), for a fixed challenge whose combiner matrix is
 invertible. That fails exactly for the `P^2` challenges in `F(x^2)`, about
 `2^-62` (`generic_iff`, `nongeneric_count`). A zero denominator aborts the
-prover for at most one `α` per message (`abort_count`), below `2^-103`.
+prover for at most one `α` per message (`abort_count`), below `2^-99` for every released proof, whose `M` is under `2^24` (`csplit8`'s is the largest, `ski-air fs-budget`).
 A simulator for the whole transcript (`transcript_zk`; the model in
 `Ski/ZK/Transcript.lean`, the proof in `Ski/ZK/TranscriptN.lean`): fixed by the statement, it matches the real transcript
 on every event within `P^2/P^4 + M/P^4 + ε/NR` of the draws, for
@@ -858,7 +858,32 @@ tree's (`chain_viewT`), the tree's reference base the chain's reference
 triple (`viewT_xrefN`), and the sums over two tuples are the sums over two
 edges (`tsum_tsumN`). So `comp_transcript`, `sud_transcript` and
 `wit_transcript`, their statements unchanged, rest on the tree: the
-design's milestone 2.
+design's milestone 2. The non-generic `β`, `P^2` of `P^4`, are public, so
+every hiding verifier rejects them and every prover that writes a hiding
+proof redraws its seed (`bench/plonky3/src/reject.rs`); `transcript_zkG`
+(`Ski/ZK/Reject.lean`) and each circuit's `*_transcriptG` bound the real
+and simulated counts at the generic `β` within `M/P^4 + ε/NR` of all the
+draws, without the `P^2/P^4` term. The honest prover's tables meet the
+transcript theorems' hypotheses for every hiding circuit: balanced with
+the public tables, blinding flags clear (`comp_honest_zk`,
+`sud_honest_zk`, `wit_honest_zk` in `Ski/ZK/Honest.lean`;
+`CRun.honest_zk`; `honest_zkP`). The view includes the trace heights:
+blinding keeps them, the honest tables' are the statement's, and the
+simulator emits those (`transcript_zkGH`, `Ski/ZK/Heights.lean`) for the
+composed, Sudoku and hidden-term circuits; the jet circuits' honest
+heights are the budgets and public lengths (`compJ_honest_heights`,
+`compP_honest_heights`). The margin
+check counts two points a query; simulating the quotient's openings would
+need `S` closed under the shift, up to 408 points, more than the smallest
+tables' 256 rows. The
+masked column openings hide for tables of several heights, each over its
+own domain (`masks_hide_multi`, `pcsCloseN_multi` in
+`Ski/ZK/MaskMulti.lean`), and every hiding circuit's transcript theorem
+holds over that PCS with no PCS term (`*_transcriptG_masked`). Every
+byte of a released hiding proof lies in a field of that view: `ski-air
+proof-shape` (`release/verify.sh` step 15) refuses a proof whose bytes
+are not its fields' own encoding, and proofs of one statement differ in
+size only in the Merkle digests their query paths share.
 The closure rule, the design's milestone 3 (`Ski/JetPublic.lean`): the
 composed heap's private cells, the bit slots and the region, are pointed
 into by public cells, so a jet table checked over the blank heap need not
@@ -924,7 +949,11 @@ stays a hypothesis. The prover's secret randomness is one 128-bit seed per
 proof, expanded by ChaCha20 with a stream for each of the blinding
 tuples, the leaf salts and the codewords (`bench/plonky3/src/seed.rs`);
 `transcript_prg` carries the transcript theorems to it, assuming ChaCha20
-indistinguishable from uniform (`PRGClose`, `Ski/ZK/PRG.lean`).
+fools the transcript's own tests for an efficient event, its event at
+each pair of challenges (`PRGClose (TTests real)`, `Ski/ZK/PRG.lean`), so
+the seeded guarantee is computational. Over every test the assumption
+would fail for any generator with fewer seeds than draws: the test "is
+some `G s`" tells the seeds from uniform draws.
 
 Composed statements with `∃` and knowledge implication (`Ski/ComposeX.lean`).
 `∃ y. F` holds `y` once in the hidden witness and pairs it into the inputs
@@ -943,7 +972,31 @@ proofs, each stage its own statement and prover, later statements
 computed from earlier ones and the values they publish; `chain2` makes a
 proof system of the chain from the stages', complete, knowledge-sound and
 zero knowledge (componentwise, the proofs' randomness independent), and
-iterates to any length. Two composed statements over a public hand-off
+iterates to any length. With a distance (`Ski/ComposeDist.lean`): `PSD`
+states zero knowledge as `CloseD` over explicit draws, `composeD` gives
+zero knowledge within `err` and witness indistinguishability within
+`2 · err`, and `chain2D` proves the hybrid argument, the chain within
+`err₁/|D₁| + err₂/|D₂|`; the transcript theorems give the field's form
+(`closeD_of_transcriptG`, `comp_closeD` in `Ski/ZK/ComposeZK.lean`), and
+`compPSD` (`Ski/ZK/CompPSD.lean`) is the composed circuit's instance: its
+relation an accepted run within the statement's heights, its zero
+knowledge proved within an error the statement fixes, completeness,
+knowledge soundness and the PCS's closeness assumed; `composeC` gives
+Part II's conclusions over it, starting from a run: a verified proof read
+back as a realizer (`composed_sound`), aborts at most `err` (the proofs'
+verifying assumed), zero knowledge within `err`, witness
+indistinguishability within `2 · err` between accepted runs. From a
+realizer, `composeC_realizer` (`Ski/ZK/CompRun.lean`): its accepted bits
+and witness, encoded (`regionOf'_spec`), drive the composed machine to
+`K` segment by segment, and the run is accepted (`acceptsC_of_eval`)
+within the budget (`CBudget`: halted within `2^R` rows on at most `2^Lm`
+cells) with the witness within the region's `W` cells (`regionOf'`);
+`accepted_run` and `composeC_accepted` state it for any accepted bits and
+witness. The budget is a bounded property of the run, which running the
+machine checks; for the released `∨` Lean checks it by kernel evaluation
+and derives the run (`or_budget`, `or_run`). Under the relation's caps
+(heights `2^20`, bits and region `2^8`) a realizer whose evaluation needs
+more has no run. Two composed statements over a public hand-off
 prove the conjunction; a two-stage example is proved in zero knowledge, a
 proof per stage.
 

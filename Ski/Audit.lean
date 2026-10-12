@@ -60,6 +60,16 @@ import Ski.ZK.LogUpCJ
 import Ski.ZK.MaskOOD
 import Ski.ZK.MaskPCS
 import Ski.ZK.PRG
+import Ski.ZK.Reject
+import Ski.ZK.Honest
+import Ski.ZK.Heights
+import Ski.ZK.MaskMulti
+import Ski.ComposeDist
+import Ski.ZK.ComposeZK
+import Ski.ZK.CompPSD
+import Ski.ZK.HeightsJ
+import Ski.ZK.CompRun
+import Ski.ZK.CompRunEx
 import Ski.ZK.FSRound
 import Ski.ComposedJ
 import Ski.Circuit.Flow
@@ -803,6 +813,43 @@ open Ski.Audit
 
 -- The prover's randomness from one seed: counts move from uniform draws to the seed's at the generator's cost
 #audit_clean Circuit.sumTo_mulR Circuit.sumTo_bound Circuit.prg_transfer Circuit.transcript_prg
+
+-- Rejecting the non-generic challenges: the transcript at every generic β, without the P^2/P^4 term
+#audit_clean Circuit.genB_iff Circuit.sumTo_sumN_zero Circuit.transcript_zkG Circuit.comp_transcriptG
+  Circuit.sud_transcriptG Circuit.wit_transcriptG Circuit.compJ_transcriptG Circuit.compP_transcriptG
+
+-- The composed, Sudoku and hidden-term circuits' honest tables meet the transcript theorems' hypotheses
+#audit_clean Circuit.comp_honest_zk Circuit.sud_honest_zk Circuit.wit_honest_zk
+
+-- The trace heights in the view: fixed by the statement, emitted by the simulator
+#audit_clean Circuit.setBlind_h Circuit.transcript_zkGH Circuit.comp_heights Circuit.sud_heights
+  Circuit.wit_heights Circuit.compJ_heights Circuit.compP_heights Circuit.comp_honest_heights
+  Circuit.sud_honest_heights Circuit.wit_honest_heights
+
+-- Masked columns of several heights: the openings hide, the PCS meets PCSCloseN exactly, every circuit's transcript has no PCS term
+#audit_clean Circuit.masks_hide_multi Circuit.shaped_zero Circuit.pcsCloseN_multi Circuit.transcript_zkG_masked
+  Circuit.comp_transcriptG_masked Circuit.sud_transcriptG_masked Circuit.wit_transcriptG_masked
+  Circuit.compJ_transcriptG_masked Circuit.compP_transcriptG_masked
+
+-- Part II's interface with an additive distance: the errors add, the hybrid argument proved
+#audit_clean Compose.lsum_le Compose.lsum_add Compose.lsum_const Compose.lsum_comm Compose.lsum_prod
+  Compose.lprod_length Compose.CloseD.refl Compose.CloseD.symm Compose.CloseD.trans Compose.CloseD.mono
+  Compose.closeD_prod Compose.PSD.aborts_le Compose.composeD Compose.chain2D Compose.chain2D_draws
+
+-- The transcript theorems as the interface's zero knowledge
+#audit_clean Circuit.sumTo_lsum Circuit.sumN_lsum Circuit.lsum_tdraws Circuit.closeD_of_transcriptG Circuit.comp_closeD
+
+-- The composed circuit as a PSD, its zero knowledge proved; the jet circuits' honest heights public
+#audit_clean Circuit.comp_entries Circuit.assigns_ne Circuit.tdraws_ne Circuit.compPSD Circuit.composeC
+  Circuit.compJ_honest_heights Circuit.compP_honest_heights
+
+-- From an accepted witness to an accepted run, within the budget; from a realizer to a proof
+#audit_clean Circuit.termAt_of_otermAt Circuit.citer_add Circuit.citer_prefix Circuit.findIdx_least
+  Circuit.decode_K Circuit.seg_run Circuit.citer_seg_mono Circuit.citer_seg_lt Circuit.decode_start
+  Circuit.crun_heap Circuit.seg_from Circuit.segs Circuit.cend_eq Circuit.acceptsC_of_eval Circuit.crun_fits
+  Circuit.crel_of_eval Circuit.same_of_shape Circuit.fillB_leafAt Circuit.build_len Circuit.build_wf
+  Circuit.regionOf'_spec Circuit.accepted_run Circuit.realizer_run Circuit.composeC_accepted
+  Circuit.composeC_realizer Circuit.or_region Circuit.or_budget Circuit.or_run
 
 -- Fiat–Shamir round by round: adaptive hash calls, grinding, and the LogUp round under them
 #audit_clean Circuit.seqSum_const Circuit.seqSum_mono Circuit.seqSum_add Circuit.fs_attempts Circuit.sumTo_pair

@@ -93,6 +93,8 @@ mod sudoku;
 mod witness;
 mod p2air;
 mod compp;
+mod reject;
+mod proofshape;
 
 // ---------------------------------------------------------------------------
 // The STARK configuration
@@ -1426,6 +1428,15 @@ fn main() {
             }
         }
     }
+    if args.len() == 3 && args[1] == "proof-shape" {
+        match proofshape::proof_shape(std::path::Path::new(&args[2])) {
+            Ok(()) => return,
+            Err(e) => {
+                eprintln!("proof-shape: {e}");
+                std::process::exit(1);
+            }
+        }
+    }
     if args.len() == 4 && args[1] == "compp-verify" {
         match compp::compp_verify(std::path::Path::new(&args[2]), std::path::Path::new(&args[3])) {
             Ok(()) => return,
@@ -1728,7 +1739,7 @@ fn main() {
              ski-air compj-verify PUBLIC JETS SRC PROOF | ski-air compj-tamper PUBLIC JETS SRC WITNESS\n       \
              ski-air compj-prove-table PUBLIC JETS SRC TABLE PROOF\n       \
              ski-air sudoku-prove PUBLIC WITNESS PROOF [TABLE] | ski-air sudoku-verify PUBLIC PROOF\n       \
-             ski-air fs-budget VERIFY-COMMAND ARGS... | ski-air poseidon2-lean | ski-air export-p2 | ski-air p2-bench N [tamper] | ski-air compp-prove PUBLIC WITNESS PROOF [--table=PATH|forge-w|forge-v] | ski-air compp-prove-table PUBLIC TABLE PROOF | ski-air compp-verify PUBLIC PROOF | ski-air compp-chain PUBLIC1 PROOF1 PUBLIC2 PROOF2 | ski-air compp-dump PUBLIC WITNESS DIR | ski-air compp-guess PUBLIC WITNESS | ski-air composed-dump PUBLIC WITNESS DIR | ski-air witness-dump PUBLIC REGION DIR | ski-air sudoku-dump PUBLIC BITS DIR | ski-air compj-dump PUBLIC JETS SRC WITNESS DIR | ski-air compj-dump-table PUBLIC JETS SRC TABLE DIR | ski-air export-compp PUBLIC"
+             ski-air fs-budget VERIFY-COMMAND ARGS... | ski-air poseidon2-lean | ski-air export-p2 | ski-air p2-bench N [tamper] | ski-air compp-prove PUBLIC WITNESS PROOF [--table=PATH|forge-w|forge-v] | ski-air compp-prove-table PUBLIC TABLE PROOF | ski-air compp-verify PUBLIC PROOF | ski-air proof-shape PROOF | ski-air compp-chain PUBLIC1 PROOF1 PUBLIC2 PROOF2 | ski-air compp-dump PUBLIC WITNESS DIR | ski-air compp-guess PUBLIC WITNESS | ski-air composed-dump PUBLIC WITNESS DIR | ski-air witness-dump PUBLIC REGION DIR | ski-air sudoku-dump PUBLIC BITS DIR | ski-air compj-dump PUBLIC JETS SRC WITNESS DIR | ski-air compj-dump-table PUBLIC JETS SRC TABLE DIR | ski-air export-compp PUBLIC"
         );
         std::process::exit(2);
     }

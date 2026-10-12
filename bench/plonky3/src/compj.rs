@@ -443,10 +443,11 @@ fn verify(p: &Public, jtext: &str, src: &str, lg: JLogs, proof: &CJProof) -> Res
         let v_data = ProverData::<ZkConfig>::from_airs_and_degrees(&v_config, &v_airs, &want)
             .map_err(|e| format!("verifier setup: {e:?}"))?;
         let r = verify_batch(&v_config, &v_airs, proof, &crate::stmt::public_values(&v_airs), &v_data.common).map_err(|e| format!("verify: {e:?}"));
-        if r.is_ok() {
-            crate::fsbudget::budget!("compj", &v_airs, proof, &v_data.common, v_config, p3_uni_stark::OpeningShape::hiding(4));
-        }
-        r
+        r?;
+        // The challenge β must be generic (`Ski/ZK/Reject.lean`).
+        crate::reject::check_beta(&v_airs, proof)?;
+        crate::fsbudget::budget!("compj", &v_airs, proof, &v_data.common, v_config, p3_uni_stark::OpeningShape::hiding(4));
+        Ok(())
     }));
     match verified {
         Ok(r) => r,
@@ -508,9 +509,11 @@ pub fn compj_prove(public: &std::path::Path, jets_path: &std::path::Path, src: &
     if let Some(t) = table_out {
         std::fs::write(t, lean_table(&p, &r)).map_err(|e| format!("{}: {e}", t.display()))?;
     }
-    let (bs, ps) = ProverSeed::fresh().split();
-    let tr = traces(&p, &jt, &r, lg, true, bs)?;
-    let (proof, prove_s) = prove(&p, &jt, lg, &tr, ps)?;
+    let (proof, prove_s) = crate::reject::until_generic(&airs(&p, &jt), || {
+        let (bs, ps) = ProverSeed::fresh().split();
+        let tr = traces(&p, &jt, &r, lg, true, bs)?;
+        prove(&p, &jt, lg, &tr, ps)
+    })?;
     let bytes = postcard::to_allocvec(&proof).map_err(|e| format!("serialize: {e}"))?;
     std::fs::write(proof_out, &bytes).map_err(|e| format!("{}: {e}", proof_out.display()))?;
     let t1 = Instant::now();
@@ -659,14 +662,14 @@ pub fn compj_prove_table(public: &std::path::Path, jets_path: &std::path::Path, 
     let jt = parse_jets(&jtext);
     let text = read(table)?;
     // A malformed table may panic reading it or building the traces: no run.
-    let (bs, ps) = ProverSeed::fresh().split();
-    let (r, tr) = catch_unwind(AssertUnwindSafe(|| {
-        let r = run_of_table_cj(&p, &jt, &text)?;
-        let tr = traces(&p, &jt, &r, lg, true, bs)?;
-        Ok::<_, String>((r, tr))
-    }))
-    .map_err(|e| format!("the table is no run: {}", panic_text(&e)))??;
-    let (proof, prove_s) = prove(&p, &jt, lg, &tr, ps)?;
+    let r = catch_unwind(AssertUnwindSafe(|| run_of_table_cj(&p, &jt, &text)))
+        .map_err(|e| format!("the table is no run: {}", panic_text(&e)))??;
+    let (proof, prove_s) = crate::reject::until_generic(&airs(&p, &jt), || {
+        let (bs, ps) = ProverSeed::fresh().split();
+        let tr = catch_unwind(AssertUnwindSafe(|| traces(&p, &jt, &r, lg, true, bs)))
+            .map_err(|e| format!("the table is no run: {}", panic_text(&e)))??;
+        prove(&p, &jt, lg, &tr, ps)
+    })?;
     let bytes = postcard::to_allocvec(&proof).map_err(|e| format!("serialize: {e}"))?;
     std::fs::write(proof_out, &bytes).map_err(|e| format!("{}: {e}", proof_out.display()))?;
     verify(&p, &jtext, src, lg, &proof)?;
