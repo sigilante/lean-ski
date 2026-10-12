@@ -67,6 +67,7 @@ import Ski.ZK.MaskMulti
 import Ski.ZK.MaskQuot
 import Ski.ZK.MaskChunk
 import Ski.ZK.MaskRand
+import Ski.ZK.Fri
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -847,6 +848,8 @@ open Ski.Audit
   Circuit.sud_transcriptG_chunks Circuit.wit_transcriptG_chunks Circuit.compJ_transcriptG_chunks
   Circuit.compP_transcriptG_chunks
 #audit_clean Circuit.sumTo_split Circuit.PCSCloseN.indep Circuit.pcsCloseN_rand
+#audit_clean Circuit.ev_add Circuit.ev_smul Circuit.ev_split Circuit.ev_ffold Circuit.fold_formula Circuit.friPath_add
+  Circuit.friLast_add Circuit.friView_add Circuit.fri_hides_of_cancel
 
 -- Part II's interface with an additive distance: the errors add, the hybrid argument proved
 #audit_clean Compose.lsum_le Compose.lsum_add Compose.lsum_const Compose.lsum_comm Compose.lsum_prod
