@@ -566,6 +566,64 @@ theorem goodLup_of_noAbort {A : AirD} {off : EF → String → EF} {tab : (Nat �
   have := List.any_eq_false.1 h _ hent
   exact this (decide_eq_true e)
 
+/-- **A corpus AIR's table is honest at every challenge**: the honest
+    chunks where the proof does not abort, the canonical ones elsewhere. -/
+theorem tabsHonest_corpus_ite
+    (off : EF → String → EF) (tv : (String → EF) → EF → (Nat → Tup) → List EF)
+    {A : AirD} (hP : AirP3 A = true) {g : F} {m gm gp k : Nat}
+    {preP : Nat → List F} {κ : F} {cs : List Chunk} {Hl : List F} {cl : F} {S : List F} {ζ : EF}
+    {ws : List (EF → EF → List F)} {qs : List QGroup} {cols : (Nat → Tup) → EF → EF → List (List (List F))}
+    (tab : (Nat → Tup) → Table) (tabs : (Nat → Tup) → List (AirD × Table)) (hmem : ∀ t, (A, tab t) ∈ tabs t)
+    (hgrp : ∀ j ∈ [gm, gp], ∃ hj : j < qs.length, (qs[j]'hj).base.T = cosetL 1 g (m + 1) ∧ (qs[j]'hj).base.S = S ∧
+      (qs[j]'hj).base.Z = [ζ, (EF.ofF g).mul ζ] ∧ (qs[j]'hj).nxt = (g * ·) ∧
+      (cosetL 1 g (m + 1) ++ (qs[j]'hj).base.R).Nodup ∧ (qs[j]'hj).base.R.length ≤ m + 1)
+    (hcl' : ∀ t α β, ∀ j ∈ [gm, gp], j < (cols t α β).length)
+    (hb : ∀ t α β, Sat A (tab t) ∧ (tab t).h = m + 1 ∧
+      (cols t α β).getD gm [] = mainCols (tab t) A.width ∧
+      (cols t α β).getD gp [] = permCols (tab t) (busAlphas (prefixOf α (off β)) A) β (corpusLs A) ∧
+      (tv (prefixOf α (off β)) β t).getD k EF.zero = terminal (prefixOf α (off β)) β A (tab t) ∧
+      (∀ r i, r < m + 1 → fval (fpow g r) (preP i) = (tab t).pre r i))
+    (hg : fpow g (m + 1) = 1) (hinj : ∀ a b, a < m + 1 → b < m + 1 → fpow g a = fpow g b → a = b)
+    (hpreL : ∀ i, (preP i).length ≤ 2 * (m + 1))
+    (hζ : ∀ x : F, EF.ofF x ≠ ζ) (hS : ∀ x ∈ S, fval x (fvan (cosetL 1 g (m + 1))) ≠ 0)
+    (hc : ∀ ch ∈ cs, ch.c ≠ 0) (hcl : cl ≠ 0) (hκ : κ ≠ 0)
+    {shift ω : F} {kk lq : Nat} (hshift : shift ≠ 0) (hhalf : fpow ω (2 ^ kk) = -1)
+    (hN : (cs.length + 1) * (m + 1) = 2 ^ (kk + 1))
+    (hdom : cs.map (·.H) ++ [Hl] = splitD shift ω (cs.length + 1) (m + 1))
+    (hL : cs.length + 1 = 2 ^ (lq + 1)) (hDlq : 2 ≤ 2 ^ lq) (hs : 1 < m + 1)
+    (hPsz : 2 * (2 * (m + 1) - 1) + 1 + 1 ≤ P)
+    (hw : ∀ (qs : List (List F)) (ql : List F), qs.length = cs.length → ∀ j (hj : j < (allL cs Hl cl qs ql).length) s',
+      ((allL cs Hl cl qs ql)[j]'hj).1 = cosetL s' (fpow ω (cs.length + 1)) (m + 1) →
+      ((allL cs Hl cl qs ql)[j]'hj).2.2.1 = finv (opv s' (allL cs Hl cl qs ql) j) * finv κ)
+    (hok : ∀ c ∈ (airQTabG (fun α β v => withLup A (busAlphas (prefixOf α (off β)) A) β (v.getD k EF.zero) A.width
+      (corpusLs A)) g m preP [gm, gp] κ cs Hl cl S ζ ws).sets, c.OK)
+    (hHn : ∀ ch ∈ cs, ch.H.Nodup) (hHln : Hl.Nodup) :
+    ∀ t α β ms, TabsHonest
+      (fun c => c.JS α β (tv (prefixOf α (off β)) β t) (openMulti (qs.map QGroup.ext) (cols t α β) ms))
+      (fun c => c.Jζ α β (tv (prefixOf α (off β)) β t) (openMulti (qs.map QGroup.ext) (cols t α β) ms))
+      [airQTabG (fun α β v => withLup A (busAlphas (prefixOf α (off β)) A) β (v.getD k EF.zero) A.width
+        (corpusLs A)) g m preP [gm, gp] κ cs Hl cl S ζ ws]
+      [if Aborts (prefixOf α (off β)) β (tabs t) = false then
+          airData (withLup A (busAlphas (prefixOf α (off β)) A) β ((tv (prefixOf α (off β)) β t).getD k EF.zero)
+            A.width (corpusLs A)) g m preP cs Hl ws α β (catAt (mpolysMulti (qs.map QGroup.ext) (cols t α β) ms) [gm, gp])
+          else canonData (airQTabG (fun α β v => withLup A (busAlphas (prefixOf α (off β)) A) β (v.getD k EF.zero)
+            A.width (corpusLs A)) g m preP [gm, gp] κ cs Hl cl S ζ ws).sets α β (tv (prefixOf α (off β)) β t)
+            (openMulti (qs.map QGroup.ext) (cols t α β) ms)] := by
+  intro t α β ms
+  by_cases hab : Aborts (prefixOf α (off β)) β (tabs t) = false
+  · rw [if_pos hab]
+    exact tabsHonest_corpus hP (fun α β => prefixOf α (off β)) (fun t α β => tv (prefixOf α (off β)) β t)
+      (fun t _ _ => tab t) (fun t α β => Aborts (prefixOf α (off β)) β (tabs t) = false)
+      (fun t α β h => goodLup_of_noAbort (ts := fun t _ _ => tabs t) (hmem t) h)
+      hgrp hcl' hb hg hinj hpreL hζ hS hc hcl hκ hshift hhalf hN hdom hL hDlq hs hPsz hw hok hHn hHln t α β ms hab
+  · rw [if_neg hab]
+    have hdl : ∀ H ∈ cs.map (·.H) ++ [Hl], H.length = m + 1 := fun H hH => by
+      rw [hdom] at hH; exact split_length hH
+    exact tabsHonest_canon α β _ _ hok
+      (fun ch hch => ⟨hdl _ (List.mem_append_left _ (List.mem_map_of_mem hch)), hHn ch hch⟩)
+      (hdl _ (List.mem_append_right _ List.mem_cons_self)) hHln
+
+
 /-- **The composed hiding PCS for a corpus AIR with its LogUp constraints**:
     `pcsCloseN_fri` at the table over the AIR's main group `gm` and its
     permutation group `gp`, the constraints the AIR's and LogUp's at each
@@ -622,19 +680,8 @@ theorem pcsCloseN_fri_corpus {V : Type} {ks : List Nat} {ncw : Nat} {αb : EF} {
             (openMulti (qs.map QGroup.ext) (cols t α β) ms)])
         ncw αb fri)
       (psimFri qs ks [airQTabG (fun α β v => withLup A (busAlphas (prefixOf α (off β)) A) β (v.getD k EF.zero) A.width
-        (corpusLs A)) g m preP [gm, gp] κ cs Hl cl S ζ ws] ncw αb fri) 0 := by
-  refine pcsCloseN_fri hokq hks hcols hdet haw hncw off tv (fun t α β ms => ?_)
-  by_cases hab : Aborts (prefixOf α (off β)) β (tabs t) = false
-  · rw [if_pos hab]
-    exact tabsHonest_corpus hP (fun α β => prefixOf α (off β)) (fun t α β => tv (prefixOf α (off β)) β t)
-      (fun t _ _ => tab t) (fun t α β => Aborts (prefixOf α (off β)) β (tabs t) = false)
-      (fun t α β h => goodLup_of_noAbort (ts := fun t _ _ => tabs t) (hmem t) h)
-      hgrp hcl' hb hg hinj hpreL hζ hS hc hcl hκ hshift hhalf hN hdom hL hDlq hs hPsz hw hok hHn hHln t α β ms hab
-  · rw [if_neg hab]
-    have hdl : ∀ H ∈ cs.map (·.H) ++ [Hl], H.length = m + 1 := fun H hH => by
-      rw [hdom] at hH; exact split_length hH
-    exact tabsHonest_canon α β _ _ hok
-      (fun ch hch => ⟨hdl _ (List.mem_append_left _ (List.mem_map_of_mem hch)), hHn ch hch⟩)
-      (hdl _ (List.mem_append_right _ List.mem_cons_self)) hHln
+        (corpusLs A)) g m preP [gm, gp] κ cs Hl cl S ζ ws] ncw αb fri) 0 :=
+  pcsCloseN_fri hokq hks hcols hdet haw hncw off tv (tabsHonest_corpus_ite off tv hP tab tabs hmem hgrp hcl' hb hg hinj
+    hpreL hζ hS hc hcl hκ hshift hhalf hN hdom hL hDlq hs hPsz hw hok hHn hHln)
 
 end Circuit

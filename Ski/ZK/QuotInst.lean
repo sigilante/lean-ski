@@ -477,9 +477,10 @@ theorem pcsCloseN_fri_tabs {V : Type} {qs : List QGroup} {ks : List Nat} {cols :
     (hdet : (mz αb).det ≠ 0) (haw : ∀ w, apow αb w ≠ EF.zero) (hncw : 4 ≤ ncw)
     (off : EF → String → EF) (tv : (String → EF) → EF → (Nat → Tup) → List EF)
     (Ts : List (QTab × ((Nat → Tup) → EF → EF → List F → List (List (List F) × List F))))
-    (h : ∀ p ∈ Ts, ∀ t α β ms (v : List EF), TabsHonest
-      (fun c => c.JS α β v (openMulti (qs.map QGroup.ext) (cols t α β) ms))
-      (fun c => c.Jζ α β v (openMulti (qs.map QGroup.ext) (cols t α β) ms)) [p.1] [p.2 t α β ms]) :
+    (h : ∀ p ∈ Ts, ∀ t α β ms, TabsHonest
+      (fun c => c.JS α β (tv (prefixOf α (off β)) β t) (openMulti (qs.map QGroup.ext) (cols t α β) ms))
+      (fun c => c.Jζ α β (tv (prefixOf α (off β)) β t) (openMulti (qs.map QGroup.ext) (cols t α β) ms))
+      [p.1] [p.2 t α β ms]) :
     PCSCloseN off (P ^ (friN1 qs ks (Ts.map Prod.fst) + friN2 qs (Ts.map Prod.fst) ncw)) tv
       (pcsFri off tv qs ks cols (Ts.map Prod.fst) (fun t α β ms => Ts.map fun p => p.2 t α β ms) ncw αb fri)
       (psimFri qs ks (Ts.map Prod.fst) ncw αb fri) 0 := by
@@ -492,7 +493,7 @@ theorem pcsCloseN_fri_tabs {V : Type} {qs : List QGroup} {ks : List Nat} {cols :
     (JE := fun c => c.Jζ α β (tv (prefixOf α (off β)) β t) (openMulti (qs.map QGroup.ext) (cols t α β) ms))
     (Ts.map fun p => (p.1, p.2 t α β ms)) (fun q hq => by
       obtain ⟨p, hp, rfl⟩ := List.mem_map.1 hq
-      exact h p hp t α β ms _)
+      exact h p hp t α β ms)
   rw [e1, e2] at this
   exact this
 

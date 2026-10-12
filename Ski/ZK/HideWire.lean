@@ -15,6 +15,11 @@ tables (`enc3`), so:
   table's terminal (`sud_view_get`, `wit_view_get`, `comp_view_get`).
 
 Accepted tables give the unblinded `Sat` (`SudOK`, `WitOK`, `CompOK`).
+The preprocessed columns, interpolated on the trace domain, give `hb`'s
+preprocessed part for any table (`preInterp_spec`).  A circuit's private
+tables each meet `tabsHonest_corpus_ite`, and `pcsCloseN_fri_tabs`
+combines them into the `PCSCloseN` its transcript theorem takes as
+`hpcs`.
 -/
 
 namespace Circuit
@@ -62,5 +67,34 @@ theorem comp_wire {hd0 stk0 ctr0 n nilA : Nat} {heap : List Cell} {N W : Nat} {r
       terminal pre β (witAir N W) (Wt.setBlind WT_BLIND (t 1)) := by
   obtain ⟨_, _, _, _, b5, b6, b7, _, _, b10⟩ := blind_ok hd0 stk0 ctr0 n nilA N W
   exact ⟨sat_setBlind h.mem b7 _, sat_setBlind (sat_setBlind h.cpu b5 _) b6 _, sat_setBlind h.wit b10 _, rfl, rfl, rfl⟩
+
+-- ---------------------------------------------------------------------------
+-- The preprocessed columns, interpolated
+-- ---------------------------------------------------------------------------
+
+/-- **A table's preprocessed column `i`, interpolated on `⟨g⟩`.** -/
+def preInterp (Tb : Table) (g : F) (m i : Nat) : List F :=
+  finterp ((cosetL 1 g (m + 1)).zip ((List.range (m + 1)).map fun r => Tb.pre r i))
+
+/-- **The interpolated preprocessed columns** take the table's values at
+    `gʳ`, with at most `m + 1` coefficients. -/
+theorem preInterp_spec (Tb : Table) {g : F} {m : Nat}
+    (hinj : ∀ a b, a < m + 1 → b < m + 1 → fpow g a = fpow g b → a = b) (i : Nat) :
+    (preInterp Tb g m i).length ≤ m + 1 ∧
+    ∀ r, r < m + 1 → fval (fpow g r) (preInterp Tb g m i) = Tb.pre r i := by
+  have hT : (cosetL 1 g (m + 1)).length = m + 1 := cosetL_length 1 g (m + 1)
+  have hV : ((List.range (m + 1)).map fun r => Tb.pre r i).length = m + 1 := by
+    rw [List.length_map, List.length_range]
+  have hl : (cosetL 1 g (m + 1)).length = ((List.range (m + 1)).map fun r => Tb.pre r i).length := by rw [hT, hV]
+  refine ⟨?_, fun r hr => ?_⟩
+  · unfold preInterp
+    refine Nat.le_trans (finterp_length _) ?_
+    rw [List.length_zip, hT, hV, Nat.min_self]; exact Nat.le_refl _
+  · have hr' : r < (cosetL 1 g (m + 1)).length := by rw [hT]; exact hr
+    have hmem := zip_mem hr' hl
+    have := finterp_eval _ (by rw [map_fst_zip' hl]; exact cosetL_one_nodup hinj) _ hmem
+    rw [cosetL_getElem g (m + 1) 1 r hr', one_mul'] at this
+    unfold preInterp
+    rw [this, List.getElem_map, List.getElem_range]
 
 end Circuit

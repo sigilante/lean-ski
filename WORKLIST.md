@@ -82,8 +82,10 @@ is built; this file records what is next. Last revised 2026-10-10.
   composed circuits (`Ski/ZK/HideP3.lean`). Blinding keeps `Sat` for every blinding block of
   these circuits (`sat_setBlind`, `blind_ok`). For each hiding circuit the blinded private
   tables meet `Sat` and the view publishes their terminals at 0, 1, 2
-  (`Ski/ZK/HideWire.lean`). Open: each circuit's `hb` beyond `Sat` and the terminal (the
-  height `m + 1`, the preprocessed interpolation, the committed columns `mainCols`,
+  (`Ski/ZK/HideWire.lean`). The preprocessed columns interpolate on the trace domain
+  (`preInterp_spec`), and each private table meets `tabsHonest_corpus_ite`, which
+  `pcsCloseN_fri_tabs` combines into a transcript theorem's `hpcs`. Open: each circuit's
+  `hb` beyond `Sat` and the terminal (the height `m + 1`, the committed columns `mainCols`,
   `permCols` as the PCS's `cols`), with the circuit's `OK` beside its transcript theorem's
   `Balanced` and `Unblinded`; each circuit's main table shown among its `tabs t` and
   `pcsCloseN_fri_corpus` fed into its transcript theorem, as the composed statement over its
