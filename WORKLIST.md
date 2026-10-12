@@ -31,7 +31,9 @@ is built; this file records what is next. Last revised 2026-10-10.
   recombine to `Qp` itself (`rpoly_quot`). They show `Qp / (κ ∏_j v_j)` off every domain
   (`shows_of_quot`), so `RecOK` holds for every column (`recOK_of_honest`). Left as
   hypotheses: the verifier's targets equal these values of `Qp`, and the selectors are
-  normalized.
+  normalized. On cosets of one subgroup the normalization follows from each domain's first
+  point, as `get_zp_cis` computes it (`Ski/ZK/MaskCoset.lean`, `sel_of_coset`,
+  `quotOK_of_coset`).
 - **The quotient's recombined values hide** (`Ski/ZK/MaskQuot.lean`): the chunks sit
   at the committed trace's height, so a query opens them at the trace's point `s`, where they
   recombine to a function of the terminals and the masked columns at `s` and `g s`.
@@ -140,9 +142,8 @@ and its claim table moves to the docs, where `release/README.md` already holds i
   to someone who lacks the log.
 - Instantiate `pcsCloseN_fri` for each circuit with one group a committed matrix (main
   and permutation traces apart), and discharge `recOK_of_honest`'s hypotheses: `QuotOK`
-  for Plonky3's coset split (`κ = cis_l`, `m_i = cis_i / cis_l`; the normalization follows
-  because each `Z_j` is constant on another chunk's coset), and the targets from the
-  constraint check. The Merkle salts and Fiat–Shamir are cryptographic assumptions
+  for Plonky3's coset split (`κ = cis_l`, `m_i = cis_i / cis_l`; `quotOK_of_coset` reduces
+  the normalization to each first point), and the targets from the constraint check. The Merkle salts and Fiat–Shamir are cryptographic assumptions
   (hiding hash, random oracle).
 - Proven 100-bit parameters: 203 queries at rate 1/2; the masks then need 422 points,
   within the `2^9` floor (`bench/plonky3/README.md`).

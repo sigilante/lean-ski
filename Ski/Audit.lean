@@ -72,6 +72,7 @@ import Ski.ZK.MaskFri
 import Ski.ZK.MaskGen
 import Ski.ZK.MaskCom
 import Ski.ZK.MaskRec
+import Ski.ZK.MaskCoset
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -872,6 +873,9 @@ open Ski.Audit
 #audit_clean Circuit.rpoly_val Circuit.rpoly_on Circuit.rpoly_len Circuit.rpoly_quot Circuit.rpoly_valE
   Circuit.nsum_allL Circuit.nsumE_allL Circuit.shows_of_quot Circuit.shows_of_honest Circuit.shows_congr
   Circuit.recOK_of_honest
+-- On cosets the selectors are normalized from each first point
+#audit_clean Circuit.fval_coset Circuit.pr_rot Circuit.pr_inv Circuit.coset_const Circuit.opv_congr
+  Circuit.sel_of_coset Circuit.quotOK_of_coset
 
 -- Part II's interface with an additive distance: the errors add, the hybrid argument proved
 #audit_clean Compose.lsum_le Compose.lsum_add Compose.lsum_const Compose.lsum_comm Compose.lsum_prod
