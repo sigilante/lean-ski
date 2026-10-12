@@ -37,7 +37,9 @@ is built; this file records what is next. Last revised 2026-10-10.
   `quotOK_honest` discharges the interpolation, the chunks' degrees and the disjointness.
   On Plonky3's split domains over BabyBear the domains are cosets of one subgroup without
   repeated points (`Ski/ZK/MaskSplit.lean`, `quotOK_split`, `bb_split`); left are the
-  quotient's degree and the selectors at each first point.
+  quotient's degree and the selectors at each first point. Plonky3's weights,
+  `μ_k = cis_k / κ`, meet the first-point condition (`Ski/ZK/MaskCis.lean`,
+  `first_of_cis`).
 - **The quotient's recombined values hide** (`Ski/ZK/MaskQuot.lean`): the chunks sit
   at the committed trace's height, so a query opens them at the trace's point `s`, where they
   recombine to a function of the terminals and the masked columns at `s` and `g s`.
