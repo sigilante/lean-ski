@@ -46,7 +46,7 @@ is built; this file records what is next. Last revised 2026-10-10.
   for a table that meets `Sat` its honest chunks show the AIR's targets (`Ski/ZK/QuotSat.lean`,
   `hvan_of_sat`, `shows_sat`). The quotient fits Plonky3's ZK chunk count, in Plonky3's degree (`quot_fits`). Open: each
   circuit's `CSet` targets tied to `airTg`/`airTgE`. The coordinates fold back to the
-  verifier's fold, and extension constraints, folded by coordinates, agree with Plonky3's
+  verifier's fold times the model's chunk normalization, and extension constraints, folded by coordinates, agree with Plonky3's
   fold in the extension (`Ski/ZK/QuotFold.lean`, `airTgE_back`, `airTgE_mixed`).
 - **The quotient's recombined values hide** (`Ski/ZK/MaskQuot.lean`): the chunks sit
   at the committed trace's height, so a query opens them at the trace's point `s`, where they
