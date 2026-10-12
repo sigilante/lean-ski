@@ -34,8 +34,9 @@ Scope.
   constraint over the extension (LogUp's) must be written over its base
   coordinates.
 - **Selectors.** They are given polynomials.  Plonky3 evaluates them
-  through `Z_H(x) = xⁿ - 1`, and the identity of that formula with
-  `∏_{a ∈ H} (x - a)` is not proved here.
+  through `Z_H(x) = xⁿ - 1`; `Ski/ZK/VanishPow.lean` proves that formula
+  equals `∏_{a ∈ H} (x - a)` and gives the first- and last-row
+  selectors as products.
 - **Vanishing.** `hvan`, every constraint vanishing on `H` under
   Plonky3's selectors, is the AIR's completeness in Plonky3's semantics.
   It is a hypothesis here.

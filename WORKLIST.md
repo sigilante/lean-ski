@@ -41,8 +41,9 @@ is built; this file records what is next. Last revised 2026-10-10.
   `μ_k = cis_k / κ`, meet the first-point condition (`Ski/ZK/MaskCis.lean`,
   `first_of_cis`). The honest quotient of an AIR has the defining identity, its size
   `|C| - |H|`, and targets computed from the openings (`Ski/ZK/QuotPoly.lean`, `air_quot`,
-  `shows_air`); left as hypotheses: the selectors' polynomials against Plonky3's `xⁿ - 1`
-  formulas, and the constraints vanishing on the trace domain.
+  `shows_air`); the selectors' products equal Plonky3's `xⁿ - 1` formulas (`Ski/ZK/VanishPow.lean`,
+  `fvan_coset_pow`, `sel_first`, `sel_last`); left as a hypothesis: the constraints vanishing
+  on the trace domain, the AIR's completeness in Plonky3's semantics.
 - **The quotient's recombined values hide** (`Ski/ZK/MaskQuot.lean`): the chunks sit
   at the committed trace's height, so a query opens them at the trace's point `s`, where they
   recombine to a function of the terminals and the masked columns at `s` and `g s`.
