@@ -55,10 +55,11 @@ is built; this file records what is next. Last revised 2026-10-10.
   challenge, drawn and published with the view, is simulated exactly
   (`pcsCloseN_fri_air_draw`). Plonky3's chunks are built and their hypotheses proved, and
   over BabyBear the trace domain and masks too (`Ski/ZK/QuotP3.lean`, `p3_static`,
-  `pcsCloseN_fri_bb`). Open: a circuit's builder with its fixed accepting fallback table of
-  the same shape (`fallback` combines them); the composed statement for a multi-AIR circuit
-  (each table discharges alone, `tabsHonest_cons`); a named circuit's AIR facts (guarded,
-  window, degree) checked by the kernel.
+  `pcsCloseN_fri_bb`). For the corpus circuit the kernel checks the AIR facts for every
+  term, and the composed theorem is specialized to it (`Ski/ZK/QuotBase.lean`,
+  `pcsCloseN_fri_base`). Open: a circuit's builder with its fixed accepting fallback table
+  of the same shape (`fallback` combines them); the composed statement for a multi-AIR
+  circuit (each table discharges alone, `tabsHonest_cons`).
 - **The quotient's recombined values hide** (`Ski/ZK/MaskQuot.lean`): the chunks sit
   at the committed trace's height, so a query opens them at the trace's point `s`, where they
   recombine to a function of the terminals and the masked columns at `s` and `g s`.

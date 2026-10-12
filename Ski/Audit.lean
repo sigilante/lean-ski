@@ -82,6 +82,7 @@ import Ski.ZK.QuotFold
 import Ski.ZK.QuotOpen
 import Ski.ZK.QuotInst
 import Ski.ZK.QuotP3
+import Ski.ZK.QuotBase
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -913,6 +914,8 @@ open Ski.Audit
 -- Plonky3's chunks built; BabyBear's trace domain and masks
 #audit_clean Circuit.opv_hc Circuit.p3_doms Circuit.p3_allL Circuit.p3_static Circuit.bb_trace Circuit.bb_masks
   Circuit.pcsCloseN_fri_bb
+-- The corpus circuit's AIR facts
+#audit_clean Circuit.base_p3ok Circuit.base_facts Circuit.pcsCloseN_fri_base
 
 -- Part II's interface with an additive distance: the errors add, the hybrid argument proved
 #audit_clean Compose.lsum_le Compose.lsum_add Compose.lsum_const Compose.lsum_comm Compose.lsum_prod
