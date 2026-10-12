@@ -39,7 +39,8 @@ Scope.
 - **Folding.** The fold is per base-field coordinate `k`.  A base
   constraint's weight is coordinate `k` of its power of `α`; the base
   coordinate `c_m` of an extension constraint takes coordinate `k` of
-  `αʲ Xᵐ`.  Folding the coordinates back, `Σ_k e_k Q_k`, is not modeled.
+  `αʲ Xᵐ`.  `Ski/ZK/QuotFold.lean` folds the coordinates back
+  (`airTgE_back`).
 - **Leaves.** `E` has no periodic columns, no auxiliary or permutation
   columns and no extension-valued leaves; public values enter only as
   constants.

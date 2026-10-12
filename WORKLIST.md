@@ -45,8 +45,9 @@ is built; this file records what is next. Last revised 2026-10-10.
   (`Ski/ZK/VanishPow.lean`); the vanishing follows from `Sat` for guarded constraints, and
   an accepted table's honest chunks show the AIR's targets (`Ski/ZK/QuotSat.lean`,
   `hvan_of_sat`, `shows_sat`). Open: each circuit's degree bound `D m + 1 - |H| ≤
-  (|cs| + 1) n`, its `CSet` targets tied to `airTg`/`airTgE`, the coordinates folded back
-  (`Σ_k e_k Q_k`), and permutation and extension-valued columns.
+  (|cs| + 1) n`, its `CSet` targets tied to `airTg`/`airTgE`, and permutation and
+  extension-valued columns. The coordinates fold back to the verifier's check
+  (`Ski/ZK/QuotFold.lean`, `airTgE_back`).
 - **The quotient's recombined values hide** (`Ski/ZK/MaskQuot.lean`): the chunks sit
   at the committed trace's height, so a query opens them at the trace's point `s`, where they
   recombine to a function of the terminals and the masked columns at `s` and `g s`.

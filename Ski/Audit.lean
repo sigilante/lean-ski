@@ -78,6 +78,7 @@ import Ski.ZK.MaskCis
 import Ski.ZK.QuotPoly
 import Ski.ZK.VanishPow
 import Ski.ZK.QuotSat
+import Ski.ZK.QuotFold
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -895,6 +896,8 @@ open Ski.Audit
 #audit_clean Circuit.fval_lowv Circuit.fvan_coset_pow Circuit.sel_first Circuit.sel_last
 -- The constraints vanish on the trace domain, from Sat
 #audit_clean Circuit.p3Sels Circuit.hvan_of_sat Circuit.quot_length_le Circuit.shows_sat
+-- The base coordinates fold back to the verifier's check
+#audit_clean Circuit.recomb_step Circuit.fold_back Circuit.recomb_mul Circuit.airTgE_back
 
 -- Part II's interface with an additive distance: the errors add, the hybrid argument proved
 #audit_clean Compose.lsum_le Compose.lsum_add Compose.lsum_const Compose.lsum_comm Compose.lsum_prod
