@@ -33,7 +33,8 @@ is built; this file records what is next. Last revised 2026-10-10.
   hypotheses: the verifier's targets equal these values of `Qp`, and the selectors are
   normalized. On cosets of one subgroup the normalization follows from each domain's first
   point, as `get_zp_cis` computes it (`Ski/ZK/MaskCoset.lean`, `sel_of_coset`,
-  `quotOK_of_coset`).
+  `quotOK_of_coset`). With each chunk the quotient interpolated on its domain (`chunkOf`),
+  `quotOK_honest` discharges the interpolation, the chunks' degrees and the disjointness.
 - **The quotient's recombined values hide** (`Ski/ZK/MaskQuot.lean`): the chunks sit
   at the committed trace's height, so a query opens them at the trace's point `s`, where they
   recombine to a function of the terminals and the masked columns at `s` and `g s`.

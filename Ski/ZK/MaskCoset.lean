@@ -21,6 +21,12 @@ point `s_j = shift · gen^j` and vanishing polynomial `Z_j = (X / s_j)ⁿ -
 With that scale, `κ = cis_l` and `m_k = cis_k / cis_l`, the first-point
 hypothesis is `get_zp_cis`'s definition.
 
+The honest chunks.  `chunkOf H Qp` interpolates `Qp`'s values on `H`.
+With every chunk built this way, `quotOK_honest` discharges the
+interpolation, the chunks' degrees and the disjointness.  What is left
+is the domains' shape, the quotient's degree, and the selectors at each
+first point.
+
 The targets.  `qtg_ctg` and `qtgE_ctgE` rewrite the targets through the
 quotient's defining identity `Qp Z_H = C`: they become `C / Z_H` on a
 domain and `C / (Z_H κ ∏_j v_j)` off every domain.  `C`'s value at `ζ`
@@ -213,5 +219,73 @@ theorem qtgE_ctgE {ζ : EF} {cs : List Chunk} {Hl : List F} {cl : F} {qs : List 
   have hq : (fvalE ζ Qp).mul (fvalE ζ ZH) = fvalE ζ Cp := by
     rw [← fvalE_fmul]; exact (sub_eq_zero_iff _ _).1 (by rw [← fvalE_fcdiff]; exact fvalE_fzero ζ _ h)
   exact cdivE _ _ _ _ hq hz
+
+-- ---------------------------------------------------------------------------
+-- The honest chunks: the quotient interpolated on each domain
+-- ---------------------------------------------------------------------------
+
+/-- **The honest chunk** on `H`: `Qp`'s values on `H`, interpolated. -/
+def chunkOf (H Qp : List F) : List F := finterp (H.map fun x => (x, fval x Qp))
+
+theorem chunkOf_length (H Qp : List F) : (chunkOf H Qp).length ≤ H.length := by
+  have := finterp_length (H.map fun x => (x, fval x Qp)); rw [List.length_map] at this; exact this
+
+theorem chunkOf_eval {H : List F} (Qp : List F) (hnd : H.Nodup) {x : F} (hx : x ∈ H) :
+    fval x (chunkOf H Qp) = fval x Qp := by
+  have hfst : ((H.map fun x => (x, fval x Qp)).map Prod.fst) = H := by
+    rw [List.map_map]; exact List.map_id' H
+  exact finterp_eval _ (by rw [hfst]; exact hnd) (x, fval x Qp) (List.mem_map.2 ⟨x, hx, rfl⟩)
+
+/-- The honest data: every chunk the quotient's interpolant on its domain. -/
+theorem mem_honestL {Qp : List F} {p : List F × F × F × List F} : ∀ {cs : List Chunk},
+    p ∈ List.zipWith (fun (ch : Chunk) q => (ch.H, ch.c, ch.m, q)) cs (cs.map fun ch => chunkOf ch.H Qp) →
+    p.2.2.2 = chunkOf p.1 Qp
+  | [], hp => nomatch hp
+  | ch :: cs, hp => by
+    rcases List.mem_cons.1 hp with rfl | hp
+    · rfl
+    · exact mem_honestL hp
+
+theorem mem_allL_honest {cs : List Chunk} {Hl : List F} {cl : F} {Qp : List F} {p : List F × F × F × List F}
+    (hp : p ∈ allL cs Hl cl (cs.map fun ch => chunkOf ch.H Qp) (chunkOf Hl Qp)) : p.2.2.2 = chunkOf p.1 Qp := by
+  rcases List.mem_append.1 hp with hp | hp
+  · exact mem_honestL hp
+  · rcases List.mem_singleton.1 hp with rfl; rfl
+
+/-- Domains without repeats, together, are disjoint and each without repeats. -/
+theorem dis_of_nodup (L : List (List F × F × F × List F)) (hnd : (L.map (·.1)).flatten.Nodup) :
+    (∀ p ∈ L, p.1.Nodup) ∧
+    ∀ k j (hk : k < L.length) (hj : j < L.length), j ≠ k → ∀ x ∈ (L[k]'hk).1, x ∉ (L[j]'hj).1 := by
+  obtain ⟨h1, h2⟩ := List.pairwise_flatten.1 hnd
+  refine ⟨fun p hp => h1 p.1 (List.mem_map.2 ⟨p, hp, rfl⟩), fun k j hk hj hjk x hxk hxj => ?_⟩
+  have hp := List.pairwise_iff_getElem.1 h2
+  rcases Nat.lt_or_gt_of_ne hjk with h | h
+  · have := hp j k (by rw [List.length_map]; exact hj) (by rw [List.length_map]; exact hk) h
+    rw [List.getElem_map, List.getElem_map] at this
+    exact this x hxj x hxk rfl
+  · have := hp k j (by rw [List.length_map]; exact hk) (by rw [List.length_map]; exact hj) h
+    rw [List.getElem_map, List.getElem_map] at this
+    exact this x hxk x hxj rfl
+
+/-- **The honest chunks meet `QuotOK`**: with each chunk the quotient
+    interpolated on its domain, `QuotOK` asks only that the domains be
+    cosets of `⟨g⟩` of size `n`, `gⁿ = 1`, without repeats together, the
+    quotient below `(|cs| + 1) n` coefficients, and the selectors
+    normalized at each first point. -/
+theorem quotOK_honest {cs : List Chunk} {Hl : List F} {cl : F} {κ : F} {Qp : List F} (hκ : κ ≠ 0) (g : F) (n : Nat)
+    (hg : fpow g n = 1)
+    (hcos : ∀ p ∈ allL cs Hl cl (cs.map fun ch => chunkOf ch.H Qp) (chunkOf Hl Qp), ∃ s, p.1 = cosetL s g n)
+    (hlen : ∀ p ∈ allL cs Hl cl (cs.map fun ch => chunkOf ch.H Qp) (chunkOf Hl Qp), p.1.length = n)
+    (hQ : Qp.length ≤ (allL cs Hl cl (cs.map fun ch => chunkOf ch.H Qp) (chunkOf Hl Qp)).length * n)
+    (hnd : ((allL cs Hl cl (cs.map fun ch => chunkOf ch.H Qp) (chunkOf Hl Qp)).map (·.1)).flatten.Nodup)
+    (hfirst : ∀ k (hk : k < (allL cs Hl cl (cs.map fun ch => chunkOf ch.H Qp) (chunkOf Hl Qp)).length), ∀ s,
+      ((allL cs Hl cl (cs.map fun ch => chunkOf ch.H Qp) (chunkOf Hl Qp))[k]'hk).1 = cosetL s g n →
+      κ * ((allL cs Hl cl (cs.map fun ch => chunkOf ch.H Qp) (chunkOf Hl Qp))[k]'hk).2.2.1 *
+        opv s (allL cs Hl cl (cs.map fun ch => chunkOf ch.H Qp) (chunkOf Hl Qp)) k = 1) :
+    QuotOK cs Hl cl (cs.map fun ch => chunkOf ch.H Qp) (chunkOf Hl Qp) κ Qp := by
+  obtain ⟨hnd1, hdis⟩ := dis_of_nodup _ hnd
+  refine quotOK_of_coset hκ g n hg hcos (fun p hp => ⟨hlen p hp, ?_⟩) hQ hnd hdis
+    (fun p hp x hx => by rw [mem_allL_honest hp]; exact chunkOf_eval Qp (hnd1 p hp) hx) hfirst
+  rw [mem_allL_honest hp, ← hlen p hp]; exact chunkOf_length _ _
 
 end Circuit
