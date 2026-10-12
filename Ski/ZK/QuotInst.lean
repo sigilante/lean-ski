@@ -28,9 +28,12 @@ The hypotheses are of three kinds.
     `E.pdeg ≤ 2^lq`);
   - the weights are `cis_k / κ` (`hw`).
 
-The weight lists `ws` are the base coordinates of the folding
-challenge's powers: a fixed folding challenge, independent of the masks.
-The theorem holds for each value, and the model does not sample it.
+The weights `ws` are functions of the challenges `α, β`: the base
+coordinates of the folding challenge's powers.  The theorem holds for
+every such choice, so for every value of a folding challenge drawn
+independently of the masks.  Plonky3 draws it independently of `α, β`
+as well.  Averaging an exact simulation over that draw keeps it exact,
+but that step is not formalized here.
 The theorem covers one quotient table, that of the group `gi`; a
 circuit with several AIRs discharges each table alone and combines them
 (`tabsHonest_cons`).
@@ -197,18 +200,18 @@ theorem coord_shows {A : AirD} {Tb : Table} {g : F} {m : Nat} (hsat : Sat A Tb) 
     coordinates of the folding challenge's powers), each with targets read
     from group `gi`'s openings. -/
 def airQTab (A : AirD) (g : F) (m : Nat) (preP : Nat → List F) (gi : Nat) (κ : F) (cs : List Chunk) (Hl : List F)
-    (cl : F) (S : List F) (ζ : EF) (ws : List (List F)) : QTab :=
+    (cl : F) (S : List F) (ζ : EF) (ws : List (EF → EF → List F)) : QTab :=
   ⟨cs, Hl, cl, S, ζ, m + 1, ws.map fun w =>
-    (fun _ _ _ o x => airTg cs Hl cl (cs.map fun _ => []) [] κ (cosetL 1 g (m + 1)) w A.cons
+    (fun α β _ o x => airTg cs Hl cl (cs.map fun _ => []) [] κ (cosetL 1 g (m + 1)) (w α β) A.cons
         (ρOpen S (o.getD gi []) preP g m) x,
-     fun _ _ _ o => airTgE ζ cs Hl cl (cs.map fun _ => []) [] κ (cosetL 1 g (m + 1)) w A.cons
+     fun α β _ o => airTgE ζ cs Hl cl (cs.map fun _ => []) [] κ (cosetL 1 g (m + 1)) (w α β) A.cons
         (ρOpenE (o.getD gi []) preP g m ζ))⟩
 
 /-- **Its honest data**: each coordinate's quotient, interpolated on every
     chunk domain, over the group's masked columns `mp`. -/
-def airData (A : AirD) (g : F) (m : Nat) (preP : Nat → List F) (cs : List Chunk) (Hl : List F) (ws : List (List F))
-    (mp : List (List F)) : List (List (List F) × List F) :=
-  ws.map fun w =>
+def airData (A : AirD) (g : F) (m : Nat) (preP : Nat → List F) (cs : List Chunk) (Hl : List F)
+    (ws : List (EF → EF → List F)) (α β : EF) (mp : List (List F)) : List (List (List F) × List F) :=
+  ws.map fun w0 => let w := w0 α β
     let Qp := fdivH (cosetL 1 g (m + 1))
       (cpoly (stdRho g (fun i => mp.getD i []) preP (selF g m) (selL g m) (selT g m)) w A.cons)
     (cs.map fun ch => chunkOf ch.H Qp, chunkOf Hl Qp)
@@ -222,17 +225,17 @@ theorem recOK_air {A : AirD} {g : F} {m : Nat} {preP : Nat → List F} {gi : Nat
         (cpoly (stdRho g (fun i => mp.getD i []) preP (selF g m) (selL g m) (selT g m)) w A.cons)))
       (airTg cs Hl cl (cs.map fun _ => []) [] κ (cosetL 1 g (m + 1)) w A.cons (ρOpen S (o.getD gi []) preP g m))
       (airTgE ζ cs Hl cl (cs.map fun _ => []) [] κ (cosetL 1 g (m + 1)) w A.cons (ρOpenE (o.getD gi []) preP g m ζ))) :
-    ∀ ws : List (List F), RecOK (airQTab A g m preP gi κ cs Hl cl S ζ ws).sets (airData A g m preP cs Hl ws mp)
-      (fun c => c.JS α β v o) (fun c => c.Jζ α β v o)
+    ∀ ws : List (EF → EF → List F), RecOK (airQTab A g m preP gi κ cs Hl cl S ζ ws).sets
+      (airData A g m preP cs Hl ws α β mp) (fun c => c.JS α β v o) (fun c => c.Jζ α β v o)
   | [] => trivial
-  | w :: ws => ⟨⟨List.length_map _, h w⟩, recOK_air α β v o mp h ws⟩
+  | w :: ws => ⟨⟨List.length_map _, h (w α β)⟩, recOK_air α β v o mp h ws⟩
 
 /-- **An AIR's quotient table is honest**, at every trace, challenge and
     mask: `TabsHonest` for `airQTab` with the data `airData` of group
     `gi`'s masked columns, from the circuit's `Sat` at each trace and
     static facts about the group, the domains and the weights. -/
 theorem tabsHonest_air {A : AirD} {g : F} {m : Nat} {preP : Nat → List F} {gi : Nat} {κ : F} {cs : List Chunk}
-    {Hl : List F} {cl : F} {S : List F} {ζ : EF} {ws : List (List F)}
+    {Hl : List F} {cl : F} {S : List F} {ζ : EF} {ws : List (EF → EF → List F)}
     {qs : List QGroup} {cols : (Nat → Tup) → EF → EF → List (List (List F))} {R : List F} {nR : Nat}
     (hgi : gi < qs.length) (hcl' : ∀ t α β, gi < (cols t α β).length)
     (hT : (qs[gi]'hgi).base.T = cosetL 1 g (m + 1)) (hRq : (qs[gi]'hgi).base.R = R) (hSq : (qs[gi]'hgi).base.S = S)
@@ -264,7 +267,7 @@ theorem tabsHonest_air {A : AirD} {g : F} {m : Nat} {preP : Nat → List F} {gi 
       (fun c => c.JS α β v (openMulti (qs.map QGroup.ext) (cols t α β) ms))
       (fun c => c.Jζ α β v (openMulti (qs.map QGroup.ext) (cols t α β) ms))
       [airQTab A g m preP gi κ cs Hl cl S ζ ws]
-      [airData A g m preP cs Hl ws ((mpolysMulti (qs.map QGroup.ext) (cols t α β) ms).getD gi [])] := by
+      [airData A g m preP cs Hl ws α β ((mpolysMulti (qs.map QGroup.ext) (cols t α β) ms).getD gi [])] := by
   intro t α β ms v
   have hgi' : gi < (qs.map QGroup.ext).length := by rw [List.length_map]; exact hgi
   obtain ⟨r, ho, hm⟩ := openMulti_at (qs.map QGroup.ext) (cols t α β) ms gi hgi' (hcl' t α β)
@@ -294,12 +297,12 @@ theorem tabsHonest_air {A : AirD} {g : F} {m : Nat} {preP : Nat → List F} {gi 
     · obtain ⟨ch, hch, rfl⟩ := List.mem_map.1 hq
       have := chunkOf_length ch.H (fdivH (cosetL 1 g (m + 1)) (cpoly (stdRho g
         (fun i => ((mpolysMulti (qs.map QGroup.ext) (cols t α β) ms).getD gi []).getD i []) preP (selF g m) (selL g m)
-        (selT g m)) w A.cons))
+        (selT g m)) (w α β) A.cons))
       rw [hdl _ (List.mem_append_left _ (List.mem_map_of_mem hch))] at this
       exact this
     · have := chunkOf_length Hl (fdivH (cosetL 1 g (m + 1)) (cpoly (stdRho g
         (fun i => ((mpolysMulti (qs.map QGroup.ext) (cols t α β) ms).getD gi []).getD i []) preP (selF g m) (selL g m)
-        (selT g m)) w A.cons))
+        (selT g m)) (w α β) A.cons))
       rw [hdl _ (List.mem_append_right _ List.mem_cons_self)] at this
       exact this
 
@@ -313,7 +316,7 @@ theorem pcsCloseN_fri_air {V : Type} {qs : List QGroup} {ks : List Nat} {cols : 
     (hdet : (mz αb).det ≠ 0) (haw : ∀ w, apow αb w ≠ EF.zero) (hncw : 4 ≤ ncw)
     (off : EF → String → EF) (tv : (String → EF) → EF → (Nat → Tup) → List EF)
     {A : AirD} {g : F} {m : Nat} {preP : Nat → List F} {gi : Nat} {κ : F} {cs : List Chunk}
-    {Hl : List F} {cl : F} {S : List F} {ζ : EF} {ws : List (List F)} {R : List F} {nR : Nat}
+    {Hl : List F} {cl : F} {S : List F} {ζ : EF} {ws : List (EF → EF → List F)} {R : List F} {nR : Nat}
     (hgi : gi < qs.length) (hcl' : ∀ t α β, gi < (cols t α β).length)
     (hT : (qs[gi]'hgi).base.T = cosetL 1 g (m + 1)) (hRq : (qs[gi]'hgi).base.R = R) (hSq : (qs[gi]'hgi).base.S = S)
     (hZq : (qs[gi]'hgi).base.Z = [ζ, (EF.ofF g).mul ζ]) (hnq : (qs[gi]'hgi).base.n = nR)
@@ -343,7 +346,7 @@ theorem pcsCloseN_fri_air {V : Type} {qs : List QGroup} {ks : List Nat} {cols : 
     PCSCloseN off (P ^ (friN1 qs ks [airQTab A g m preP gi κ cs Hl cl S ζ ws] +
         friN2 qs [airQTab A g m preP gi κ cs Hl cl S ζ ws] ncw)) tv
       (pcsFri off tv qs ks cols [airQTab A g m preP gi κ cs Hl cl S ζ ws]
-        (fun t α β ms => [airData A g m preP cs Hl ws ((mpolysMulti (qs.map QGroup.ext) (cols t α β) ms).getD gi [])])
+        (fun t α β ms => [airData A g m preP cs Hl ws α β ((mpolysMulti (qs.map QGroup.ext) (cols t α β) ms).getD gi [])])
         ncw αb fri)
       (psimFri qs ks [airQTab A g m preP gi κ cs Hl cl S ζ ws] ncw αb fri) 0 :=
   pcsCloseN_fri hokq hks hcols hdet haw hncw off tv (fun t α β ms =>

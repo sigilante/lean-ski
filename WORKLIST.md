@@ -34,26 +34,28 @@ is built; this file records what is next. Last revised 2026-10-10.
   normalized. On cosets of one subgroup the normalization follows from each domain's first
   point, as `get_zp_cis` computes it (`Ski/ZK/MaskCoset.lean`, `sel_of_coset`,
   `quotOK_of_coset`). With each chunk the quotient interpolated on its domain (`chunkOf`),
-  `quotOK_honest` discharges the interpolation, the chunks' degrees and the disjointness.
-  On Plonky3's split domains over BabyBear the domains are cosets of one subgroup without
+  `quotOK_honest` discharges the interpolation, the chunks' degrees and the disjointness. On
+  Plonky3's split domains over BabyBear the domains are cosets of one subgroup without
   repeated points (`Ski/ZK/MaskSplit.lean`, `quotOK_split`, `bb_split`); left are the
-  quotient's degree and the selectors at each first point. Plonky3's weights,
-  `μ_k = cis_k / κ`, meet the first-point condition (`Ski/ZK/MaskCis.lean`,
-  `first_of_cis`). The honest quotient of an AIR has the defining identity, its size
-  `|C| - |H|`, and targets that read the columns at `gᵒ x` (`Ski/ZK/QuotPoly.lean`,
-  `air_quot`, `shows_air`); the selectors' products are Plonky3's `xⁿ - 1` formulas
-  (`Ski/ZK/VanishPow.lean`); the vanishing follows from `Sat` for guarded constraints, and
-  for a table that meets `Sat` its honest chunks show the AIR's targets (`Ski/ZK/QuotSat.lean`,
-  `hvan_of_sat`, `shows_sat`). The quotient fits Plonky3's ZK chunk count, in Plonky3's degree (`quot_fits`). The targets
-  read from the openings are the honest ones, and an opened table that meets `Sat` shows
-  them (`Ski/ZK/QuotOpen.lean`, `shows_open`). An AIR's quotient table enters `pcsCloseN_fri` with
-  `TabsHonest` discharged (`Ski/ZK/QuotInst.lean`, `tabsHonest_air`, `pcsCloseN_fri_air`).
-  `hsatT` asks `Sat` at every tuple assignment, more than
-  completeness gives. Open: a trace builder that falls back to a fixed accepting table of the same shape; the
-  composed statement for a multi-AIR circuit (each table discharges alone, `tabsHonest_cons`); the folding challenge sampled in the transcript
-  rather than fixed; a named circuit's static facts checked by the kernel. The coordinates fold back to the
-  verifier's fold times the model's chunk normalization, and extension constraints, folded by coordinates, agree with Plonky3's
-  fold in the extension (`Ski/ZK/QuotFold.lean`, `airTgE_back`, `airTgE_mixed`).
+  quotient's degree and the selectors at each first point. Plonky3's weights, `μ_k = cis_k /
+  κ`, meet the first-point condition (`Ski/ZK/MaskCis.lean`, `first_of_cis`). The honest
+  quotient of an AIR has the defining identity, its size `|C| - |H|`, and targets that read
+  the columns at `gᵒ x` (`Ski/ZK/QuotPoly.lean`, `air_quot`, `shows_air`); the selectors'
+  products are Plonky3's `xⁿ - 1` formulas (`Ski/ZK/VanishPow.lean`); the vanishing follows
+  from `Sat` for guarded constraints, and for a table that meets `Sat` its honest chunks
+  show the AIR's targets (`Ski/ZK/QuotSat.lean`, `hvan_of_sat`, `shows_sat`). The quotient
+  fits Plonky3's ZK chunk count, in Plonky3's degree (`quot_fits`). The targets read from
+  the openings are the honest ones, and an opened table that meets `Sat` shows them
+  (`Ski/ZK/QuotOpen.lean`, `shows_open`). An AIR's quotient table enters `pcsCloseN_fri`
+  with `TabsHonest` discharged (`Ski/ZK/QuotInst.lean`, `tabsHonest_air`,
+  `pcsCloseN_fri_air`). `hsatT` asks `Sat` at every tuple assignment, more than completeness
+  gives. The coordinates fold back to the verifier's fold times the model's chunk
+  normalization, and extension constraints, folded by coordinates, agree with Plonky3's fold
+  in the extension (`Ski/ZK/QuotFold.lean`, `airTgE_back`, `airTgE_mixed`). Open: a trace
+  builder that falls back to a fixed accepting table of the same shape; the composed
+  statement for a multi-AIR circuit (each table discharges alone, `tabsHonest_cons`);
+  averaging over an independently drawn folding challenge (the weights may now depend on the
+  challenges); a named circuit's static facts checked by the kernel.
 - **The quotient's recombined values hide** (`Ski/ZK/MaskQuot.lean`): the chunks sit
   at the committed trace's height, so a query opens them at the trace's point `s`, where they
   recombine to a function of the terminals and the masked columns at `s` and `g s`.
