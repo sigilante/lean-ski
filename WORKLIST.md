@@ -80,11 +80,13 @@ is built; this file records what is next. Last revised 2026-10-10.
   show nothing on an abort and charge it by `abort_count`. These theorems take any AIR
   meeting `AirP3`, which the kernel checks for every AIR of the Sudoku, hidden-term and
   composed circuits (`Ski/ZK/HideP3.lean`). Blinding keeps `Sat` for every blinding block of
-  these circuits (`sat_setBlind`, `blind_ok`). Open: each circuit's main table shown among
-  its `tabs t`, and `pcsCloseN_fri_corpus` fed into its transcript theorem; the transcript
-  view's terminal index and the builder's groups named for each circuit; a circuit's builder
-  with its fixed accepting fallback table of the same shape (`fallback` combines them), and
-  the group's trace and mask points tied to the committed matrices (`hT`, `hRq`).
+  these circuits (`sat_setBlind`, `blind_ok`). For each hiding circuit the blinded private
+  tables meet `Sat` and the view publishes their terminals at 0, 1, 2
+  (`Ski/ZK/HideWire.lean`). Open: each circuit's main table shown among its `tabs t`, and
+  `pcsCloseN_fri_corpus` fed into its transcript theorem; the transcript view's terminal
+  index and the builder's groups named for each circuit; a circuit's builder with its fixed
+  accepting fallback table of the same shape (`fallback` combines them), and the group's
+  trace and mask points tied to the committed matrices (`hT`, `hRq`).
 - **The quotient's recombined values hide** (`Ski/ZK/MaskQuot.lean`): the chunks sit
   at the committed trace's height, so a query opens them at the trace's point `s`, where they
   recombine to a function of the terminals and the masked columns at `s` and `g s`.
