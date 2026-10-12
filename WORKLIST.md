@@ -77,12 +77,14 @@ is built; this file records what is next. Last revised 2026-10-10.
   `tabsHonest_canon`, `pcsCloseN_fri_gen`, whose `good` is a parameter). Where the proof
   does not abort `goodLup` holds (`goodLup_of_noAbort`), and `pcsCloseN_fri_corpus` sends
   the honest chunks wherever the transcript's `Aborts` is false; the transcript theorems
-  show nothing on an abort and charge it by `abort_count`. Open: the corpus main table shown
-  among each circuit's `tabs t`; the transcript view's terminal index and the builder's
-  groups named for each circuit, with `Sat` and the denominators at each circuit's blinded
-  tables; a circuit's builder with its fixed accepting fallback table of the same shape
-  (`fallback` combines them), and the group's trace and mask points tied to the committed
-  matrices (`hT`, `hRq`).
+  show nothing on an abort and charge it by `abort_count`. These theorems take any AIR
+  meeting `AirP3`, which the kernel checks for every AIR of the Sudoku, hidden-term and
+  composed circuits (`Ski/ZK/HideP3.lean`). Open: each circuit's main table shown among its
+  `tabs t`, and `pcsCloseN_fri_corpus` fed into its transcript theorem; the transcript
+  view's terminal index and the builder's groups named for each circuit, with `Sat` and the
+  denominators at each circuit's blinded tables; a circuit's builder with its fixed
+  accepting fallback table of the same shape (`fallback` combines them), and the group's
+  trace and mask points tied to the committed matrices (`hT`, `hRq`).
 - **The quotient's recombined values hide** (`Ski/ZK/MaskQuot.lean`): the chunks sit
   at the committed trace's height, so a query opens them at the trace's point `s`, where they
   recombine to a function of the terminals and the masked columns at `s` and `g s`.

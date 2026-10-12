@@ -277,13 +277,33 @@ theorem win_mono {w W : Nat} (hW : w ≤ W) : ∀ e : E, e.win w = true → e.wi
     simp only [E.win, Bool.and_eq_true] at h ⊢; exact ⟨win_mono hW a h.1, win_mono hW b h.2⟩
   | .neg a, h => win_mono hW a h
 
+/-- **What the composed PCS asks of an AIR**, as one check: its
+    constraints guarded, in its window, of Plonky3 degree at most 2 with
+    at most one transition factor; its interactions' elements and
+    multiplicities selector-free in its columns, of degree at most 1 and 2. -/
+def AirP3 (A : AirD) : Bool := A.cons.all (E.p3ok A.width 2 1) && (corpusLs A).all (lupOkB A.width)
+
+theorem p3_facts {A : AirD} (h : AirP3 A = true) :
+    (∀ c ∈ A.cons, c.guarded = true) ∧ (∀ c ∈ A.cons, c.win A.width = true) ∧
+    (∀ e ∈ A.cons, e.pdeg ≤ 2) ∧ (∀ e ∈ A.cons, e.sdeg ≤ 1) := by
+  have h1 := List.all_eq_true.1 (Bool.and_eq_true_iff.1 h).1
+  exact ⟨fun c hc => (p3ok_spec (h1 c hc)).1, fun c hc => (p3ok_spec (h1 c hc)).2.1,
+    fun c hc => (p3ok_spec (h1 c hc)).2.2.1, fun c hc => (p3ok_spec (h1 c hc)).2.2.2⟩
+
+theorem lup_of_P3 {A : AirD} (h : AirP3 A = true) : (corpusLs A).all (lupOkB A.width) = true :=
+  (Bool.and_eq_true_iff.1 h).2
+
+theorem base_P3 (t : Term) {A : AirD} (hA : A ∈ baseAirs t) : AirP3 A = true := by
+  unfold AirP3
+  rw [base_p3ok t A hA, corpus_lup_ok t A hA]; rfl
+
 /-- **The corpus LogUp constraints' shape**, for every term, challenge pair
     and terminal. -/
-theorem base_lup_shape (t : Term) {A : AirD} (hA : A ∈ baseAirs t) (αs : Nat → EF) (β T : EF) :
+theorem base_lup_shape {A : AirD} (hP : AirP3 A = true) (αs : Nat → EF) (β T : EF) :
     ∀ e ∈ eq4 (lupCons αs β T A.width (corpusLs A)),
       CShape (A.width + 4 * ((corpusLs A).length + 1)) 2 1 e := by
   refine lup_shape αs β T _ (fun L hL => ?_) (Nat.le_refl _)
-  have h := List.all_eq_true.1 (corpus_lup_ok t A hA) L hL
+  have h := List.all_eq_true.1 (lup_of_P3 hP) L hL
   simp only [lupOkB, Bool.and_eq_true, List.all_eq_true, decide_eq_true_eq] at h
   obtain ⟨⟨⟨hes, hs⟩, hw⟩, hd⟩ := h
   refine ⟨fun e he => ?_, hs, win_mono (by omega) _ hw, hd⟩
@@ -295,14 +315,14 @@ theorem base_lup_shape (t : Term) {A : AirD} (hA : A ∈ baseAirs t) (αs : Nat 
     constraint is guarded, in the window of the AIR's and the
     permutation trace's columns, of Plonky3 degree at most 2 and with at
     most one transition factor. -/
-theorem corpus_withLup_shape (t : Term) {A : AirD} (hA : A ∈ baseAirs t) (αs : Nat → EF) (β T : EF) :
+theorem corpus_withLup_shape {A : AirD} (hP : AirP3 A = true) (αs : Nat → EF) (β T : EF) :
     ∀ c ∈ (withLup A αs β T A.width (corpusLs A)).cons,
       CShape (A.width + 4 * ((corpusLs A).length + 1)) 2 1 c := by
   intro c hc
   rcases List.mem_append.1 hc with hc | hc
-  · obtain ⟨hgd, hwin, hD, hsd⟩ := base_facts t hA
+  · obtain ⟨hgd, hwin, hD, hsd⟩ := p3_facts hP
     exact ⟨hgd c hc, win_mono (by omega) c (hwin c hc), hD c hc, hsd c hc⟩
-  · exact base_lup_shape t hA αs β T c hc
+  · exact base_lup_shape hP αs β T c hc
 
 -- ---------------------------------------------------------------------------
 -- The terminal is the transcript's
@@ -451,9 +471,9 @@ theorem hsatT_lup {A : AirD} {m gm gp k : Nat} (pre : EF → EF → String → E
     simp only [hcat]
     exact this
 
-theorem corpus_plain (t : Term) {A : AirD} (hA : A ∈ baseAirs t) :
+theorem corpus_plain {A : AirD} (hP : AirP3 A = true) :
     ∀ I ∈ A.inters, (∀ e ∈ I.fields, Plain A.width 1 e) ∧ Plain A.width 2 I.count := fun I hI => by
-  have h := List.all_eq_true.1 (corpus_lup_ok t A hA) (I.fields, I.count) (List.mem_map.2 ⟨I, hI, rfl⟩)
+  have h := List.all_eq_true.1 (lup_of_P3 hP) (I.fields, I.count) (List.mem_map.2 ⟨I, hI, rfl⟩)
   simp only [lupOkB, Bool.and_eq_true, List.all_eq_true, decide_eq_true_eq] at h
   obtain ⟨⟨⟨hes, hs⟩, hw⟩, hd⟩ := h
   exact ⟨fun e he => ⟨(hes e he).1.1, (hes e he).1.2, (hes e he).2⟩, hs, hw, hd⟩
@@ -475,7 +495,7 @@ def goodLup (A : AirD) (pre : EF → EF → String → EF) (tab : (Nat → Tup) 
     prover aborts, and `pcsCloseN_fri_gen` sends the canonical chunks),
     from the builder's facts (`hb`) and the static facts of the groups,
     the domains and the weights. -/
-theorem tabsHonest_corpus (term : Term) {A : AirD} (hA : A ∈ baseAirs term) {g : F} {m gm gp k : Nat}
+theorem tabsHonest_corpus {A : AirD} (hP : AirP3 A = true) {g : F} {m gm gp k : Nat}
     {preP : Nat → List F} {κ : F} {cs : List Chunk} {Hl : List F} {cl : F} {S : List F} {ζ : EF}
     {ws : List (EF → EF → List F)} {qs : List QGroup} {cols : (Nat → Tup) → EF → EF → List (List (List F))}
     (pre : EF → EF → String → EF) (vt : (Nat → Tup) → EF → EF → List EF) (tab : (Nat → Tup) → EF → EF → Table)
@@ -511,10 +531,10 @@ theorem tabsHonest_corpus (term : Term) {A : AirD} (hA : A ∈ baseAirs term) {g
         g m preP [gm, gp] κ cs Hl cl S ζ ws]
       [airData (withLup A (busAlphas (pre α β) A) β ((vt t α β).getD k EF.zero) A.width (corpusLs A)) g m preP cs Hl
         ws α β (catAt (mpolysMulti (qs.map QGroup.ext) (cols t α β) ms) [gm, gp])] := by
-  obtain ⟨hgd, hwin, _, _⟩ := base_facts term hA
-  have shape := fun α β (v : List EF) => corpus_withLup_shape term hA (busAlphas (pre α β) A) β (v.getD k EF.zero)
+  obtain ⟨hgd, hwin, _, _⟩ := p3_facts hP
+  have shape := fun α β (v : List EF) => corpus_withLup_shape hP (busAlphas (pre α β) A) β (v.getD k EF.zero)
   exact tabsHonest_gen (AF := fun α β v => withLup A (busAlphas (pre α β) A) β (v.getD k EF.zero) A.width (corpusLs A))
-    vt good hgrp hcl' (hsatT_lup pre cols vt preP g good hwin (corpus_plain term hA)
+    vt good hgrp hcl' (hsatT_lup pre cols vt preP g good hwin (corpus_plain hP)
       (fun t α β hgood => by
         obtain ⟨h1, h2, h3, h4, h5, h6⟩ := hb t α β
         exact ⟨tab t α β, h1, h2, h3, h4, h5, hgl t α β hgood, h6⟩)) hg hinj
@@ -557,7 +577,7 @@ theorem goodLup_of_noAbort {A : AirD} {off : EF → String → EF} {tab : (Nat �
     the transcript's tables `tabs t`. -/
 theorem pcsCloseN_fri_corpus {V : Type} {ks : List Nat} {ncw : Nat} {αb : EF} {fri : EF → EF → List (EF → EF) → V}
     (off : EF → String → EF) (tv : (String → EF) → EF → (Nat → Tup) → List EF)
-    (term : Term) {A : AirD} (hA : A ∈ baseAirs term) {g : F} {m gm gp k : Nat}
+    {A : AirD} (hP : AirP3 A = true) {g : F} {m gm gp k : Nat}
     {preP : Nat → List F} {κ : F} {cs : List Chunk} {Hl : List F} {cl : F} {S : List F} {ζ : EF}
     {ws : List (EF → EF → List F)} {qs : List QGroup} {cols : (Nat → Tup) → EF → EF → List (List (List F))}
     (tab : (Nat → Tup) → Table) (tabs : (Nat → Tup) → List (AirD × Table)) (hmem : ∀ t, (A, tab t) ∈ tabs t)
@@ -606,7 +626,7 @@ theorem pcsCloseN_fri_corpus {V : Type} {ks : List Nat} {ncw : Nat} {αb : EF} {
   refine pcsCloseN_fri hokq hks hcols hdet haw hncw off tv (fun t α β ms => ?_)
   by_cases hab : Aborts (prefixOf α (off β)) β (tabs t) = false
   · rw [if_pos hab]
-    exact tabsHonest_corpus term hA (fun α β => prefixOf α (off β)) (fun t α β => tv (prefixOf α (off β)) β t)
+    exact tabsHonest_corpus hP (fun α β => prefixOf α (off β)) (fun t α β => tv (prefixOf α (off β)) β t)
       (fun t _ _ => tab t) (fun t α β => Aborts (prefixOf α (off β)) β (tabs t) = false)
       (fun t α β h => goodLup_of_noAbort (ts := fun t _ _ => tabs t) (hmem t) h)
       hgrp hcl' hb hg hinj hpreL hζ hS hc hcl hκ hshift hhalf hN hdom hL hDlq hs hPsz hw hok hHn hHln t α β ms hab
