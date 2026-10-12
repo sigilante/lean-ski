@@ -10,8 +10,7 @@ in the region, gives its tables: `cpuTableW`, `memTableC`, `witTableG`.
 `wit_honest_zk` proves they are `Balanced` and `Unblinded`, which the
 transcript theorem asks.  `wit_run_sats` proves they meet `Sat`, at the
 heights `2^10`, `2^10` and `2^9`, which the composed PCS asks, for the
-same tables.  `wit_run_wire` then gives, at every edge tuple, the
-blinded tables' `Sat` and the view's terminals at 0, 1, 2.
+same tables.
 -/
 
 namespace Circuit

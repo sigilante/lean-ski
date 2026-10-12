@@ -32,7 +32,7 @@ open ZKF B Air Wit Mach
 -- ---------------------------------------------------------------------------
 
 /-- **Padding to `pow2From` gives a power of two**: rows padded from the
-    floor `2^e`, `1 ≤ e ≤ 24`, number `2^d` with `e ≤ d ≤ 24`, when there
+    floor `2^e`, `e ≤ 24`, number `2^d` with `e ≤ d ≤ 24`, when there
     are at most `2^24` of them. -/
 theorem padPow {α : Type} (rows : List α) (z : α) {e : Nat} (he24 : e ≤ 24) (hn : rows.length ≤ 2 ^ 24) :
     ∃ d, e ≤ d ∧ d ≤ 24 ∧
@@ -333,6 +333,9 @@ theorem wPsim_pre {V : Type} (off : EF → String → EF) (hd0 stk0 ctr0 : Nat) 
   simp only [wPsim, wTs, List.map_cons, List.map_nil, bbTab, preInterp_pre hC, preInterp_pre hM,
     preInterp_pre hW]
 
+/-- The composed PCS's view, for any circuit built as `SudInst` builds. -/
+abbrev PcsPV (V : Type) : Type := SudPV V
+
 /-- **The hidden-term proof is zero knowledge over its composed hiding
     PCS**, the program table included: for an accepting run of the
     hidden-term statement `V ⬝ x` with its witness `ws`, query points off
@@ -341,7 +344,8 @@ theorem wPsim_pre {V : Type} (off : EF → String → EF) (hd0 stk0 ctr0 : Nat) 
     summed over `α, β, r` and the tuples with `β` generic, differ by at
     most the aborting draws: `wit_transcriptG` with its PCS term zero.
     `tP` is the program table's `progTpW`; the simulator reads the tables'
-    preprocessed columns only (`wPsim_pre`). -/
+    preprocessed columns only (`wPsim_pre`).  It asks neither `0 < W` nor
+    `Fits A`, which `wit_complete` asks for its decoding. -/
 theorem wit_hiding {V : Type} (off : EF → String → EF) {Vt x : Term} {W : Nat} {ws : List Cell} (hwf : WF ws)
     (hwl : ws.length = W) (hW8 : W ≤ 2 ^ 8) {A : List Cell} {k : Nat} {row : Nat → Air.Row}
     (hA : AcceptsFrom A (wMachine ws (Vt ⬝ x)) k row)
@@ -356,7 +360,7 @@ theorem wit_hiding {V : Type} (off : EF → String → EF) {Vt x : Term} {W : Na
     (hszP : 2 * SP.length + 8 ≤ 2 ^ (tP + 1)) (hζ : ∀ x : F, EF.ofF x ≠ ζ)
     (hdet : (mz ζ).det ≠ 0) {ncw : Nat} {αb : EF} (fri : EF → EF → List (EF → EF) → V)
     (hdb : (mz αb).det ≠ 0) (haw : ∀ w, apow αb w ≠ EF.zero) (hncw : 4 ≤ ncw)
-    (E : TViewN (SudPV V) EF → Bool) :
+    (E : TViewN (PcsPV V) EF → Bool) :
     let blank := wMachine (List.replicate W .S) (Vt ⬝ x)
     let C := cpuTableW A row k (2 ^ 10)
     let Pg := progTableW blank.heap W
