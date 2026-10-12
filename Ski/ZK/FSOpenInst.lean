@@ -5,16 +5,27 @@ import Ski.ZK.FSOpenFri
 
 `fs_open` applied to each circuit (`sud_fs_open`, `wit_fs_open`,
 `comp_fs_open`): the hashed commitment
-is of the main groups' masked polynomials (`mainF`), the view opens them
-at the query points (`pcsFri_ov`), and the simulator commits
-interpolants through its own openings (`sdF`, `psimFri_ov`).  Unlike
+is of the main groups' matrices, their masked polynomials and random
+codewords (`mainF2`), the view opens them at the query points
+(`pcsFri_ov2`), and the simulator commits interpolants through its own
+openings (`sdF`, `psimFri_ov2`).  Unlike
 `Ski/ZK/FSInst.lean` the commitment is opened: the view's opened values
 are the committed data's, and the opening proof is in the output.
 
+What the opening reveals (`op`): each main group's matrix at the query
+points, its masked columns' and its random codewords' values, as a
+Plonky3 Merkle opening reveals the queried rows of a matrix that carries
+both (`hiding_pcs.rs`).  The view's values at the next rows `g·S` enter
+only through the quotient values, and its values at `ζ` are evaluations,
+not leaves; neither is opened.  The query points may repeat
+(`finterp_eval_cons`).
+
 Scope.  One proof per oracle; one round (the LogUp challenges, at
-generic `β`); the oracle ideal and `Com` a primitive apart from it;
-hiding perfect, alone and given the openings; the query points
-distinct (a repeated query reopens the same leaf).
+generic `β`; `ζ`, the FRI challenge and the query points stay fixed
+parameters, drawn per height independently where Plonky3 derives them
+from one index); the oracle ideal and `Com` a primitive apart from it;
+hiding perfect, alone and given the openings.  Only the main commitment
+is in the output; the later commitments are absent.
 -/
 
 namespace Circuit
@@ -35,8 +46,7 @@ set_option maxRecDepth 100000 in
     polynomials, the proof opens that commitment (`Pf`) beside the
     view, and the simulator commits and opens polynomials through the
     values its own view shows (`fs_open`).  Assumed: the commitment hides
-    given its openings (`ComPfHides`) and alone (`ComHides`), the query
-    points distinct; the other challenges stay generic and fixed. -/
+    given its openings (`ComPfHides`) and alone (`ComHides`); the other challenges stay generic and fixed. -/
 theorem sud_fs_open {V Wv Pp : Type} (off : EF → String → EF) {puzzle : List Nat} (hc : CluesOK (cluesOf puzzle))
     {ρ : Nat → Bool} {A : List Cell} {k : Nat} {row : Nat → Air.Row}
     (hA : AcceptsFrom A (stmtMachine ρ 729 (sudokuExpr (cluesOf puzzle)) ACC REJ) k row)
@@ -50,7 +60,6 @@ theorem sud_fs_open {V Wv Pp : Type} (off : EF → String → EF) {puzzle : List
     (hsz16 : 2 * S16.length + 8 ≤ 2 ^ 16) (hsz : 2 * S10.length + 8 ≤ 2 ^ 10)
     (hszP : 2 * SP.length + 8 ≤ 2 ^ (tP + 1)) {ncw : Nat} {αb : EF} (fri : EF → EF → List (EF → EF) → V) (hncw : 4 ≤ ncw) (hgζ : Generic ζ) (hgα : Generic αb)
     (NR2 : Nat) (Rb : EF → EF → Nat → List (EF → EF)) (Ro : EF → EF → Nat → Wv)
-    (hS16n : S16.Nodup) (hS10n : S10.Nodup) (hSPn : SP.Nodup)
     {NS n : Nat} (Com : List (List (List F)) → Nat → Nat) (Pf : List (List (List F)) → Nat → Pp)
     (hcom : ComHides NS Com) (hpf : ComPfHides NS Com Pf (opF ((sudGroups tP S16 S10 SP ζ qv).map (·.base.S)) [0, 2, 4, 6]))
     (hrange : ∀ d σ, Com d σ < n) (d0 : List (List (List F)))
@@ -77,10 +86,10 @@ theorem sud_fs_open {V Wv Pp : Type} (off : EF → String → EF) {puzzle : List
     let tq := (sudTs off blank.hd blank.stk blank.heap.length blank.heap C Mm Wt tP S16 S10 SP ζ qv wm wc ww wp).map Prod.fst
     let ks := sudKs blank.hd blank.stk blank.heap.length blank.heap
     let cols := sudCols off blank.hd blank.stk blank.heap.length blank.heap C Mm Wt
-    let main := fun (t : Nat → Tup) (r : Nat) => mainF qsG ks cols tq ncw mk t (r % NR0)
-    let sop := fun (r : Nat) (_ : Nat → Tup) => opF Ss mk (mainZ qsG ks tq ncw mk (r % NR0))
+    let main := fun (t : Nat → Tup) (r : Nat) => mainF2 qsG ks cols tq ncw mk t (r % NR0)
+    let sop := fun (r : Nat) (_ : Nat → Tup) => opF Ss mk (mainZ2 qsG ks tq ncw mk (r % NR0))
     let ov : TViewN (SudPV (V × Wv)) EF → Option (List (List (List F))) := fun v => match v with
-      | some (pv, _) => some (ovF mk pv)
+      | some (pv, _) => some (ovF2 Ss mk pv)
       | none => none
     (Q4 * Q4) * sumTo ((Q4 * Q4) ^ n) (fun H => sumTo NS (fun σ => sumTo NR (fun r => sumN 2 (fun t =>
       indB (genB (efOf (rget (Q4 * Q4) (Com (main t r) σ) H % Q4)) && E H (Com (main t r) σ)
@@ -116,24 +125,16 @@ theorem sud_fs_open {V Wv Pp : Type} (off : EF → String → EF) {puzzle : List
     exact ⟨hkn, fun t α β => ⟨hkn, sudCols_main off blank.hd blank.stk blank.heap.length blank.heap C Mm Wt t α β EF.zero EF.zero k hk⟩⟩
   have hlen : ∀ t α β, (cols t α β).map List.length = (cols t EF.zero EF.zero).map List.length := fun t α β => by
     rw [(sudCols_shaped off blank.hd blank.stk blank.heap.length (rfl : C.h = 2 ^ 16) hlen (rfl : Wt.h = 2 ^ 10) hPg S16 S10 SP ζ qv t α β).2, (sudCols_shaped off blank.hd blank.stk blank.heap.length (rfl : C.h = 2 ^ 16) hlen (rfl : Wt.h = 2 ^ 10) hPg S16 S10 SP ζ qv t EF.zero EF.zero).2]
-  have hnd : ∀ k ∈ mk, (Ss.getD k []).Nodup := by
-    intro k hk
-    simp only [mk, List.mem_cons, List.not_mem_nil, or_false] at hk
-    rcases hk with rfl | rfl | rfl | rfl
-    · exact hS16n
-    · exact hS16n
-    · exact hS10n
-    · exact hSPn
   have hrvo : ∀ α β r t, realVN off tabs tv tp pcs α β r t = none ∨ ov (realVN off tabs tv tp pcs α β r t) = some (opF Ss mk (main t r)) := by
     intro α β r t
     unfold realVN
     split
     · exact .inl rfl
-    · exact .inr (congrArg some (pcsFri_ov off _ qsG ks cols tq _ ncw αb _ mk hmk hlen t α β (r % NR0)))
+    · exact .inr (congrArg some (pcsFri_ov2 off _ qsG ks cols tq _ ncw αb _ mk hmk hlen rfl t α β (r % NR0)))
   have hsvo : ∀ α β r t, ov (simVN off tp chainBus (fun _ => false) chainPar 3 tp psim α β r t) = some (sop r t) := fun α β r t =>
-    congrArg some (psimFri_ov qsG ks tq ncw αb _ mk (fun k hk => (hmk k hk).1) rfl α β _ (r % NR0))
+    congrArg some (psimFri_ov2 qsG ks tq ncw αb _ mk (fun k hk => (hmk k hk).1) rfl α β _ (r % NR0))
   have hsd : ∀ t r, opF Ss mk (sdF Ss mk (opF Ss mk (main t r))) = opF Ss mk (main t r) := fun t r =>
-    opF_sdF Ss mk hnd _
+    opF_sdF Ss mk _
   exact fs_open Com Pf (opF Ss mk) (sdF Ss mk) d0 hcom hpf hrange ov rfl main hsd sop h1 h2
     (fun α β r t => realVN_cases _ _ _ _ _ α β r t) (fun α β r t => simVN_some _ _ _ _ _ _ _ _ α β r t) hrvo hsvo E
 
@@ -151,8 +152,7 @@ set_option maxRecDepth 100000 in
     polynomials, the proof opens that commitment (`Pf`) beside the
     view, and the simulator commits and opens polynomials through the
     values its own view shows (`fs_open`).  Assumed: the commitment hides
-    given its openings (`ComPfHides`) and alone (`ComHides`), the query
-    points distinct; the other challenges stay generic and fixed. -/
+    given its openings (`ComPfHides`) and alone (`ComHides`); the other challenges stay generic and fixed. -/
 theorem wit_fs_open {V Wv Pp : Type} (off : EF → String → EF) {Vt x : Term} {W : Nat} {ws : List Cell} (hwf : WF ws)
     (hwl : ws.length = W) (hW8 : W ≤ 2 ^ 8) {A : List Cell} {k : Nat} {row : Nat → Air.Row}
     (hA : AcceptsFrom A (wMachine ws (Vt ⬝ x)) k row)
@@ -166,7 +166,6 @@ theorem wit_fs_open {V Wv Pp : Type} (off : EF → String → EF) {Vt x : Term} 
     (hsz10 : 2 * S10.length + 8 ≤ 2 ^ 10) (hsz9 : 2 * S9.length + 8 ≤ 2 ^ 9)
     (hszP : 2 * SP.length + 8 ≤ 2 ^ (tP + 1)) {ncw : Nat} {αb : EF} (fri : EF → EF → List (EF → EF) → V) (hncw : 4 ≤ ncw) (hgζ : Generic ζ) (hgα : Generic αb)
     (NR2 : Nat) (Rb : EF → EF → Nat → List (EF → EF)) (Ro : EF → EF → Nat → Wv)
-    (hS10n : S10.Nodup) (hS9n : S9.Nodup) (hSPn : SP.Nodup)
     {NS n : Nat} (Com : List (List (List F)) → Nat → Nat) (Pf : List (List (List F)) → Nat → Pp)
     (hcom : ComHides NS Com) (hpf : ComPfHides NS Com Pf (opF ((wGroups tP S10 S9 SP ζ qv).map (·.base.S)) [0, 2, 4, 6]))
     (hrange : ∀ d σ, Com d σ < n) (d0 : List (List (List F)))
@@ -195,10 +194,10 @@ theorem wit_fs_open {V Wv Pp : Type} (off : EF → String → EF) {Vt x : Term} 
     let tq := (wTs off blank.hd blank.stk blank.heap.length blank.heap W C Mm Wt tP S10 S9 SP ζ qv wm wc ww wp).map Prod.fst
     let ks := wKs blank.hd blank.stk blank.heap.length blank.heap W
     let cols := wCols off blank.hd blank.stk blank.heap.length blank.heap W C Mm Wt
-    let main := fun (t : Nat → Tup) (r : Nat) => mainF qsG ks cols tq ncw mk t (r % NR0)
-    let sop := fun (r : Nat) (_ : Nat → Tup) => opF Ss mk (mainZ qsG ks tq ncw mk (r % NR0))
+    let main := fun (t : Nat → Tup) (r : Nat) => mainF2 qsG ks cols tq ncw mk t (r % NR0)
+    let sop := fun (r : Nat) (_ : Nat → Tup) => opF Ss mk (mainZ2 qsG ks tq ncw mk (r % NR0))
     let ov : TViewN (PcsPV (V × Wv)) EF → Option (List (List (List F))) := fun v => match v with
-      | some (pv, _) => some (ovF mk pv)
+      | some (pv, _) => some (ovF2 Ss mk pv)
       | none => none
     (Q4 * Q4) * sumTo ((Q4 * Q4) ^ n) (fun H => sumTo NS (fun σ => sumTo NR (fun r => sumN 2 (fun t =>
       indB (genB (efOf (rget (Q4 * Q4) (Com (main t r) σ) H % Q4)) && E H (Com (main t r) σ)
@@ -234,24 +233,16 @@ theorem wit_fs_open {V Wv Pp : Type} (off : EF → String → EF) {Vt x : Term} 
     exact ⟨hkn, fun t α β => ⟨hkn, witCols_main off blank.hd blank.stk blank.heap.length blank.heap W C Mm Wt t α β EF.zero EF.zero k hk⟩⟩
   have hlen : ∀ t α β, (cols t α β).map List.length = (cols t EF.zero EF.zero).map List.length := fun t α β => by
     rw [(wCols_shaped off blank.hd blank.stk blank.heap.length (rfl : C.h = 2 ^ 10) hlen hWh hPg S10 S9 SP ζ qv t α β).2, (wCols_shaped off blank.hd blank.stk blank.heap.length (rfl : C.h = 2 ^ 10) hlen hWh hPg S10 S9 SP ζ qv t EF.zero EF.zero).2]
-  have hnd : ∀ k ∈ mk, (Ss.getD k []).Nodup := by
-    intro k hk
-    simp only [mk, List.mem_cons, List.not_mem_nil, or_false] at hk
-    rcases hk with rfl | rfl | rfl | rfl
-    · exact hS10n
-    · exact hS10n
-    · exact hS9n
-    · exact hSPn
   have hrvo : ∀ α β r t, realVN off tabs tv ptm pcs α β r t = none ∨ ov (realVN off tabs tv ptm pcs α β r t) = some (opF Ss mk (main t r)) := by
     intro α β r t
     unfold realVN
     split
     · exact .inl rfl
-    · exact .inr (congrArg some (pcsFri_ov off _ qsG ks cols tq _ ncw αb _ mk hmk hlen t α β (r % NR0)))
+    · exact .inr (congrArg some (pcsFri_ov2 off _ qsG ks cols tq _ ncw αb _ mk hmk hlen rfl t α β (r % NR0)))
   have hsvo : ∀ α β r t, ov (simVN off ptm chainBus (fun _ => false) chainPar 3 ptm psim α β r t) = some (sop r t) := fun α β r t =>
-    congrArg some (psimFri_ov qsG ks tq ncw αb _ mk (fun k hk => (hmk k hk).1) rfl α β _ (r % NR0))
+    congrArg some (psimFri_ov2 qsG ks tq ncw αb _ mk (fun k hk => (hmk k hk).1) rfl α β _ (r % NR0))
   have hsd : ∀ t r, opF Ss mk (sdF Ss mk (opF Ss mk (main t r))) = opF Ss mk (main t r) := fun t r =>
-    opF_sdF Ss mk hnd _
+    opF_sdF Ss mk _
   exact fs_open Com Pf (opF Ss mk) (sdF Ss mk) d0 hcom hpf hrange ov rfl main hsd sop h1 h2
     (fun α β r t => realVN_cases _ _ _ _ _ α β r t) (fun α β r t => simVN_some _ _ _ _ _ _ _ _ α β r t) hrvo hsvo E
 
@@ -269,8 +260,7 @@ set_option maxRecDepth 100000 in
     polynomials, the proof opens that commitment (`Pf`) beside the
     view, and the simulator commits and opens polynomials through the
     values its own view shows (`fs_open`).  Assumed: the commitment hides
-    given its openings (`ComPfHides`) and alone (`ComHides`), the query
-    points distinct; the other challenges stay generic and fixed. -/
+    given its openings (`ComPfHides`) and alone (`ComHides`); the other challenges stay generic and fixed. -/
 theorem comp_fs_open {V Wv Pp : Type} (off : EF → String → EF) {R Lm : Nat} (hR : R ≤ 20) {shp : BT} {Ps : List Term}
     {W : Nat} {ρ : Nat → Bool} {region : List Cell} (hrl : region.length = W)
     (hr : ∀ i c, region[i]? = some c → cellOK (BT.nleaves shp + 3 + i) c = true)
@@ -292,7 +282,6 @@ theorem comp_fs_open {V Wv Pp : Type} (off : EF → String → EF) {R Lm : Nat} 
     (hsz9 : 2 * S9.length + 8 ≤ 2 ^ 9) (hszP : 2 * SP.length + 8 ≤ 2 ^ (tpP + 1))
     (hszS : 2 * SS.length + 8 ≤ 2 ^ (tpS + 1)) {ncw : Nat} {αb : EF} (fri : EF → EF → List (EF → EF) → V) (hncw : 4 ≤ ncw) (hgζ : Generic ζ) (hgα : Generic αb)
     (NR2 : Nat) (Rb : EF → EF → Nat → List (EF → EF)) (Ro : EF → EF → Nat → Wv)
-    (hSMn : SM.Nodup) (hSCn : SC.Nodup) (hS9n : S9.Nodup) (hSPn : SP.Nodup) (hSSn : SS.Nodup)
     {NS n : Nat} (Com : List (List (List F)) → Nat → Nat) (Pf : List (List (List F)) → Nat → Pp)
     (hcom : ComHides NS Com) (hpf : ComPfHides NS Com Pf (opF ((cGroups tbM tbC tpP tpS SM SC S9 SP SS ζ qv).map (·.base.S)) [0, 2, 4, 6, 8]))
     (hrange : ∀ d σ, Com d σ < n) (d0 : List (List (List F)))
@@ -330,10 +319,10 @@ theorem comp_fs_open {V Wv Pp : Type} (off : EF → String → EF) {R Lm : Nat} 
     let tq := (cTs off m.hd m.stk m.heap.length roots.length m.stk m.heap N W roots C Mm Wt tbM tbC tpP tpS SM SC S9 SP SS ζ qv wm wc ww wp wsg).map Prod.fst
     let ks := cKs m.hd m.stk m.heap.length roots.length m.stk m.heap N W roots
     let cols := cCols off m.hd m.stk m.heap.length roots.length m.stk m.heap N W roots C Mm Wt
-    let main := fun (t : Nat → Tup) (r : Nat) => mainF qsG ks cols tq ncw mk t (r % NR0)
-    let sop := fun (r : Nat) (_ : Nat → Tup) => opF Ss mk (mainZ qsG ks tq ncw mk (r % NR0))
+    let main := fun (t : Nat → Tup) (r : Nat) => mainF2 qsG ks cols tq ncw mk t (r % NR0)
+    let sop := fun (r : Nat) (_ : Nat → Tup) => opF Ss mk (mainZ2 qsG ks tq ncw mk (r % NR0))
     let ov : TViewN (PcsPV (V × Wv)) (EF × EF) → Option (List (List (List F))) := fun v => match v with
-      | some (pv, _) => some (ovF mk pv)
+      | some (pv, _) => some (ovF2 Ss mk pv)
       | none => none
     (Q4 * Q4) * sumTo ((Q4 * Q4) ^ n) (fun H => sumTo NS (fun σ => sumTo NR (fun r => sumN 2 (fun t =>
       indB (genB (efOf (rget (Q4 * Q4) (Com (main t r) σ) H % Q4)) && E H (Com (main t r) σ)
@@ -372,25 +361,16 @@ theorem comp_fs_open {V Wv Pp : Type} (off : EF → String → EF) {R Lm : Nat} 
     exact ⟨hkn, fun t α β => ⟨hkn, compCols_main off m.hd m.stk m.heap.length roots.length m.stk m.heap N W roots C Mm Wt t α β EF.zero EF.zero k hk⟩⟩
   have hlen : ∀ t α β, (cols t α β).map List.length = (cols t EF.zero EF.zero).map List.length := fun t α β => by
     rw [(cCols_shaped off m.hd m.stk m.heap.length roots.length m.stk hM hC hWh p2 s2 SM SC S9 SP SS ζ qv t α β).2, (cCols_shaped off m.hd m.stk m.heap.length roots.length m.stk hM hC hWh p2 s2 SM SC S9 SP SS ζ qv t EF.zero EF.zero).2]
-  have hnd : ∀ k ∈ mk, (Ss.getD k []).Nodup := by
-    intro k hk
-    simp only [mk, List.mem_cons, List.not_mem_nil, or_false] at hk
-    rcases hk with rfl | rfl | rfl | rfl | rfl
-    · exact hSMn
-    · exact hSCn
-    · exact hS9n
-    · exact hSPn
-    · exact hSSn
   have hrvo : ∀ α β r t, realVN off tabs tv pb pcs α β r t = none ∨ ov (realVN off tabs tv pb pcs α β r t) = some (opF Ss mk (main t r)) := by
     intro α β r t
     unfold realVN
     split
     · exact .inl rfl
-    · exact .inr (congrArg some (pcsFri_ov off _ qsG ks cols tq _ ncw αb _ mk hmk hlen t α β (r % NR0)))
+    · exact .inr (congrArg some (pcsFri_ov2 off _ qsG ks cols tq _ ncw αb _ mk hmk hlen rfl t α β (r % NR0)))
   have hsvo : ∀ α β r t, ov (simVN off pb chainBus (fun _ => false) chainPar 3 ptm psim α β r t) = some (sop r t) := fun α β r t =>
-    congrArg some (psimFri_ov qsG ks tq ncw αb _ mk (fun k hk => (hmk k hk).1) rfl α β _ (r % NR0))
+    congrArg some (psimFri_ov2 qsG ks tq ncw αb _ mk (fun k hk => (hmk k hk).1) rfl α β _ (r % NR0))
   have hsd : ∀ t r, opF Ss mk (sdF Ss mk (opF Ss mk (main t r))) = opF Ss mk (main t r) := fun t r =>
-    opF_sdF Ss mk hnd _
+    opF_sdF Ss mk _
   exact fs_open Com Pf (opF Ss mk) (sdF Ss mk) d0 hcom hpf hrange ov rfl main hsd sop h1 h2
     (fun α β r t => realVN_cases _ _ _ _ _ α β r t) (fun α β r t => simVN_some _ _ _ _ _ _ _ _ α β r t) hrvo hsvo E
 

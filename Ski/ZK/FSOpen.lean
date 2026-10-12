@@ -10,8 +10,11 @@ and the view shows the opened values `op d`.
 
 **Hiding given the openings** (`ComPfHides`): over the salt, the
 commitment with its opening has one distribution for any two data with
-the same opened values.  This is what a hiding Merkle commitment with
-salted leaves gives at the unopened positions, assumed perfect.
+the same opened values `op d`.  `op` must be exactly what the opening
+reveals: for a Merkle tree with salted leaves, the opened leaves' values,
+which the view shows too.  Assumed perfect.  `Pf` is abstract; for any
+check the scheme passes on honest openings, the simulator's opening
+passes it against its view's values (`sim_opening_verifies`).
 
 **The simulator commits its own data** (`fs_open`): it reads the opened
 values its simulated view shows (`sop`, the masked columns at the query
@@ -24,8 +27,12 @@ the real non-interactive proof, `(H, m, opening, view)`, and the
 simulator's keep the transcript's error, as in `fs_transcript`.
 
 Scope.  One proof per oracle; one round (the LogUp challenges, at
-generic `β`); the oracle ideal and `Com` a primitive apart from it; the
-hiding perfect.  The view's openings must be the committed data's
+generic `β`; `ζ`, the FRI challenge and the query points stay fixed
+parameters); the oracle ideal and `Com` a primitive apart from it; the
+hiding perfect.  Only the first commitment is in the proof's output: the
+later ones (the permutation and quotient matrices, the quotient's
+codewords, FRI's layers) are absent, their roots neither output nor
+hashed.  The view's openings must be the committed data's
 (`hrvo`, `hsvo`): for an instance, the main groups' openings at the
 query points.
 -/
@@ -217,5 +224,16 @@ theorem fs_open {PV PB D O Pp : Type} {NR m NS n e1 e2 : Nat} (Com : D → Nat �
       rv (efOf (c / Q4)) (efOf (c % Q4)) x.2.1 x.2.2))
     (fun c x => (some (Pf (sd (sop x.2.1 x.2.2)) x.1), sv (efOf (c / Q4)) (efOf (c % Q4)) x.2.1 x.2.2))
     (fun c => genB (efOf (c % Q4))) (fun F => (core F).2) (fun H mm _ w => E H mm w)⟩
+
+/-- **The simulator's opening verifies**: for any check `Verify` the scheme
+    passes on honest commitments and openings, the simulator's
+    commitment and opening of `sd o` pass it against the opened values
+    `o` its view shows, whenever `sd o` opens to `o`. -/
+theorem sim_opening_verifies {D O Pp : Type} (Com : D → Nat → Nat) (Pf : D → Nat → Pp) (op : D → O) (sd : O → D)
+    (Verify : Nat → O → Pp → Bool) (hver : ∀ d σ, Verify (Com d σ) (op d) (Pf d σ) = true)
+    (o : O) (h : op (sd o) = o) (σ : Nat) : Verify (Com (sd o) σ) o (Pf (sd o) σ) = true := by
+  have := hver (sd o) σ
+  rw [h] at this
+  exact this
 
 end Circuit

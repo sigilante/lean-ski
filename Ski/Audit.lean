@@ -1154,6 +1154,8 @@ open Ski.Audit
 #audit_clean Circuit.sig_in Circuit.open_real Circuit.openEv_and Circuit.open_real_t Circuit.open_sim_t Circuit.fs_open
 -- The opened main columns of the composed PCS
 #audit_clean Circuit.quot_open Circuit.mpolysMulti_getD Circuit.zip_map_self Circuit.pcsFri_ov Circuit.psimFri_ov Circuit.opF_sdF
+  Circuit.finterp_eval_cons Circuit.cw_open Circuit.pcsFri_ov2 Circuit.psimFri_ov2 Circuit.mainZ2_verifies
+  Circuit.sim_opening_verifies
 -- Each circuit under Fiat–Shamir, the commitment opened
 #audit_clean Circuit.sudCols_main Circuit.witCols_main Circuit.compCols_main Circuit.sud_fs_open Circuit.wit_fs_open
   Circuit.comp_fs_open
