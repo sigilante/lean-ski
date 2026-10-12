@@ -135,8 +135,8 @@ The theorems are in namespace `Circuit` unless prefixed.
 9. **A committed split.** `skilark/csplit8` holds the source of `csplit`,
    a statement and a proof. `lake exe skilark cstatement` compiles the
    source and checks that the statement is its predicate for `x = 200`
-   and the commitment `c = 255`, the weights regenerated from seed 1;
-   offered as `c = 256`, it refuses. `ski-air composed-verify` checks the
+   and the commitment `c` that `commitment.txt` names, the weights
+   regenerated from seed 1; offered as `c + 1`, it refuses. `ski-air composed-verify` checks the
    proof; with one byte changed, it is refused.
 
 10. **A Sudoku in zero knowledge.** `sudoku` holds the statement of
@@ -162,7 +162,7 @@ The theorems are in namespace `Circuit` unless prefixed.
     budget `2^15`, or with the jet table Lean computes without the closure
     rule, it is refused.
 12. **`csplit8` with jets, under hiding.** `skilark/csplit8/jets`, the
-    same at `log 18 19 17 17`, a height below the plain proof's.
+    same at `log 18 19 15 16`, its commitment in `jets/commitment.txt`.
 13. **The Poseidon2 jet.** `p2` holds three statements and their proofs.
     `verify.sh` checks that each statement is Lean's: `p2pre`'s by
     re-emitting it (`lake exe composed emit-p2`); the hand-off's, which
@@ -233,22 +233,33 @@ never a hidden term. An accepted proof holds 16 Booleans on which
 `vsplitB` accepts `x = 200` (`Circuit.predExport_sound`). On such bits
 `vsplitB` accepts exactly two 8-bit numbers adding up to 200, as tested,
 not proved: every bit pattern for numbers of 2 and 3 bits, all 4,096
-cases for 4 bits once, and samples for 8 bits. The
+cases for 4 bits once, and all 65,536 for 8 bits, run by Avon (`avon
+witness --statement`), which accept exactly the 201 pairs. The
 claim is weak: some pair of 8-bit numbers adds up to any 8-bit `x`, so the
 proof shows only that `200 < 2^8`. It demonstrates a SKIlark program
 proving over hidden data; a range proof needs a commitment binding the
 hidden number to something public. The proof runs at `2^17` CPU rows and
 `2^18` memory cells, heights the statement names.
 
+The witness is secret. `produce.sh` draws `a` uniformly from 0 to 200,
+from the system's entropy, takes `b = 200 - a`, and discards both; the
+release holds no witness and no count of the run. A run's length depends
+on its witness (from 103,250 to 130,045 CPU rows over the 201 pairs), so
+the heights are fixed to hold every pair's run, and the proof's
+dimensions say nothing of the one proved.
+
 **The committed split** (`skilark/csplit8`). The same over 24 literal
 bits: `a` and `b` add up to 200, and `a`'s bits with 8 random bits `r`
-sum, under public weights, to the commitment `c = 255`: a knapsack
-commitment to `a`. The proof holds 24 Booleans on which `vcsplitB`
+sum, under public weights, to the commitment `c` in `commitment.txt`: a
+knapsack commitment to `a`, with `a` and `r` drawn in secret as `split8`'s
+pair is. The proof holds 24 Booleans on which `vcsplitB`
 accepts (`Circuit.predExport_sound`); that it accepts exactly these
 conditions is tested, not proved. At these sizes the commitment neither
 binds nor hides: `2^16` openings map to sums of at most 437, and a search finds
 one at once. It is the shape of a committed range proof; real parameters
-need a cheaper kernel. It runs at `2^19` rows and `2^20` memory cells.
+need a cheaper kernel. It runs at `2^20` rows and `2^20` memory cells,
+which hold every witness's run: over the 51,456 pairs `(a, r)` with
+`a + b = 200`, the run takes 290,659 to 644,561 CPU rows.
 
 **The Sudoku proof** (`sudoku`). The statement is the formula of
 Wikipedia's puzzle (`Sudoku.sudokuExpr`) over 729 hidden Boolean cells,
@@ -260,11 +271,13 @@ formula's run reaches the accepting marker: a solution of the puzzle
 
 **The proofs with jets** (`skilark/*/jets`). The same predicates, proved
 with the composed circuit with jets: a licensed template's instantiation
-takes one CPU row where the machine took many. `split8` runs in 11,167 CPU
-rows (1,520 instantiations, 7,154 POP and 11,931 INSTW rows) against
-129,964 without jets. `csplit8` runs in 118,222 (4,968 instantiations,
-22,382 POP and 36,578 INSTW rows) against 471,887, and fits `2^17` rows
-and `2^18` memory cells against the plain proof's `2^19` and `2^20`.
+takes one CPU row where the machine took many. Over its 201 witnesses
+`split8` runs in 8,813 to 11,167 CPU rows, against 103,250 to 130,045
+without jets, and fits `log 17 18 14 14`. Over its 51,456, `csplit8` runs
+in 20,731 to 256,978 CPU rows, with up to 334,182 memory cells, 26,547 POP
+and 40,867 INSTW rows, and fits `log 18 19 15 16` against the plain
+proof's `2^20` and `2^20`. Each released proof's own counts stay with its
+secret witness.
 Avon wrote each witness table (`avon witness --statement`, Avon's
 `docs/ZK-JETS.md` milestone 8), byte for byte the table lean-ski's prover
 writes, and ski-air proved it (`compj-prove-table`). What an accepted
@@ -469,8 +482,9 @@ Dropping them took the table from 2,768 roots to 759 and the run from
 
 `WITNESS=ski-air release/produce.sh STAGE…` has ski-air write the
 jetted witness tables in Avon's place, for when Avon cannot run. Avon
-(`e2905bb`) wrote the released ones, and `produce.sh` checks each of
-the four against ski-air's, byte for byte: `3 sumto`'s jetted and probe
+wrote the released ones (`e2905bb` `3 sumto`'s, `7b0dc1d` `split8`'s and
+`csplit8`'s), and `produce.sh` checks each of the four against
+ski-air's, byte for byte: `3 sumto`'s jetted and probe
 tables, and `split8`'s and `csplit8`'s. Avon's witnesses are
 byte-identical to the tables lean-ski's own prover writes for the same
 term, jet table and plan (Avon's `make

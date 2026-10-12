@@ -1,10 +1,22 @@
 # Worklist
 
 What remains, in the order we mean to take it. `PLAN.md` records the design and what
-is built; this file records what is next. Last revised 2026-10-10.
+is built; this file records what is next. Last revised 2026-10-12.
 
 ## Done since the last revision
 
+- **The split predicates' witnesses are secret, and their heights hold every witness**:
+  an audit of the zero-knowledge claim found `release/produce.sh` printing `split8`'s
+  and `csplit8`'s witnesses (`a = 123, b = 77, r = 181`), and `csplit8`'s heights
+  chosen from that witness's run. A run's length depends on its witness, so heights
+  that hold only some runs tell which witnesses fit. `scripts/split_sweep.py` runs every
+  witness through Avon: `split8` accepts exactly the 201 pairs with `a + b = 200` of all
+  65,536, in 103,250 to 130,045 rows (8,813 to 11,167 with jets), within its heights;
+  `csplit8`'s 51,456 take up to 644,561 rows (256,978 with jets), past its `2^19`
+  (`2^17`). `produce.sh` now draws each witness from the system's entropy and prints no
+  count of its run; `csplit8` proves at `2^20 2^20` and `2^18 2^19 2^15 2^16`, and its
+  commitments, drawn with the witnesses, are in `commitment.txt`, which `verify.sh`
+  reads. Avon at `7b0dc1d` wrote the jetted tables; `verify.sh` passes.
 - **Every zero-knowledge prover's traces against Lean's honest tables** (#9): all five
   circuits, memory multiplicities by a count proved equal to Lean's, blinding blocks read
   from Lean. The checks found two prover faults, both fixed.
@@ -99,6 +111,13 @@ and its claim table moves to the docs, where `release/README.md` already holds i
   Fiat–Shamir.
 - Probe segments under the hiding; ∀ over public inputs; aggregation.
 - Remote CI for lean-ski: waits on the public release.
+- From the audit of the zero-knowledge claim (2026-10-12): `PRGClose` quantifies over
+  every test, so no 128-bit seed meets it and `transcript_prg` says nothing for ChaCha20;
+  state it over a class of tests, or drop it. `pcsCloseN_masked` needs every column at
+  one height and is composed with no circuit's theorem. The honest tables meet the
+  simulator's hypotheses by theorem only for jets and Poseidon2 (`CRun.honest_zk`,
+  `honest_zkP`); the Sudoku, hidden-term and composed circuits have the trace gate
+  only. `EvalPS` is never instantiated with the circuit.
 
 ## Handed to Avon
 
