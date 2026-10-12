@@ -8,7 +8,9 @@ witness-free matrices and generic challenges (`*_hidingXG`): the LogUp
 challenges `(α, β)` drawn by hashing the commitment of the prover's first
 message, in the programmable random-oracle model (`sud_fs`, `wit_fs`,
 `comp_fs`).  The commitment is any hiding commitment (`ComHides`) of any
-data the prover computes from the witness and the blinding tuples.
+data the prover computes from the witness, the blinding tuples and the
+PCS randomness.  Each bound is `fs_transcript`'s with the circuit's
+error, the aborting draws, times the salts.
 
 Scope.  One Fiat–Shamir round, the LogUp challenges'.  The later
 challenges, `ζ`, the FRI challenge and the query points, stay fixed

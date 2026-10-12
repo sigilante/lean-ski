@@ -19,6 +19,26 @@ simulator, the real non-interactive view `(H, m, view at c = H(m))` and
 the simulator's, which draws `c`, simulates, and programs `H(m) := c`,
 count within the public-coin error times the `K^n` tables, the real count
 taken `K` times (the simulator draws `c` beside `H`).
+
+**Events may read the challenges** (`tsumN_ab`): each circuit's
+transcript theorem bounds events on its view; the distinguisher here sees
+the oracle table, so its event depends on the challenge even where the
+real proof aborts and shows nothing.  Reading the challenges from the
+view where it shows them and fixing the event elsewhere, `true` one way
+and `false` the other, gives the same bound with the same error.
+
+**A transcript under Fiat–Shamir** (`fs_transcript`, `fs_transcript'`):
+the hashed message is the commitment `Com (main t r) σ` of the prover's
+first message, any data it computes from the blinding tuples `t` and the
+PCS randomness `r`, its salt `σ` drawn apart.  A hiding commitment
+(`ComHides`, `com_swap`) makes it count as a fixed datum's, the challenge
+index `c < Q4²` reads as the pair `(α, β)` (`sumQ2`, `csum_tsumN`), and
+`fs_zk` does the rest.
+
+Scope.  The oracle is ideal (a uniform function, programmable) and the
+commitment perfectly hiding.  One round: the challenges drawn by hashing
+are the LogUp pair; `ζ`, the FRI challenge and the query points stay
+fixed parameters.
 -/
 
 namespace Circuit
