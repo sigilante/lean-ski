@@ -5,9 +5,13 @@ import Ski.ZK.QuotSat
 # The targets from the opened values
 
 `shows_sat` gives the honest chunks' targets `airTg`, `airTgE` over the
-column polynomials.  The verifier, and the simulator, see only the
-openings.  This file reads the targets from the opened values alone and
-shows they agree with the honest ones.
+column polynomials.  The `CSet` targets of `pcsCloseN_chunks` are
+functions of the groups' openings at `S ++ g S` and `Z` (`openMulti`
+over `QGroup.ext`): the verifier sees the openings at `S` and `ζ, g ζ`,
+and the simulator samples them jointly with those at `g S`
+(`MaskQuot`).  This file reads the targets from that joint sample and
+shows they agree with the honest ones.  At `ζ` the reading uses only
+the verifier's openings.
 
 A quotient group opens its masked columns at `S ++ g S` and at the
 out-of-domain points `ζ, g ζ` (`QGroup.ext`, `openAll`).  A leaf at row
@@ -106,7 +110,8 @@ def ρOpen (S : List F) (os : List (List F × List EF)) (preP : Nat → List F) 
   | .last => fval x (selL g m)
   | .trans => fval x (selT g m)
 
-/-- The leaves from the openings at `ζ`: the openings at `ζ` and `g ζ`. -/
+/-- The leaves from the out-of-domain openings: index 0 and 1, the
+    openings at `ζ` and `g ζ` when they were taken at `[ζ, g ζ]`. -/
 def ρOpenE (os : List (List F × List EF)) (preP : Nat → List F) (g : F) (m : Nat) (ζ : EF) : Atom → EF
   | .main 0 i => ((os.getD i ([], [])).2).getD 0 EF.zero
   | .main 1 i => ((os.getD i ([], [])).2).getD 1 EF.zero
@@ -256,9 +261,11 @@ theorem sat_cut {A : AirD} {Tb : Table} {w : Nat} (h : Sat A Tb) (hw : ∀ c ∈
     openings**: a table of `m + 1` rows on `⟨g⟩` that meets `Sat`, whose
     `w` main columns `ts` are committed with masks on `R` and opened, in
     one view, at `S ++ g S` and `ζ, g ζ`, and whose quotient chunks are honest
-    (`QuotOK` of the quotient of the masked columns), shows the verifier
-    `airTg` and `airTgE` over `ρOpen` and `ρOpenE`: functions of the
-    openings, the public preprocessed columns and the domain. -/
+    (`QuotOK` of the quotient of the masked columns), shows `airTg` and
+    `airTgE` over `ρOpen` and `ρOpenE`.  These are functions of the
+    openings at `S ++ g S` and `ζ, g ζ` and of public data: the
+    constraints, `ws`, `g`, `m`, the preprocessed polynomials, the chunk
+    domains `cs`, `Hl`, `cl`, the scale `κ` and `|qs|`. -/
 theorem shows_open {A : AirD} {Tb : Table} {g : F} {m : Nat} (hsat : Sat A Tb) (hh : Tb.h = m + 1)
     (hg : fpow g (m + 1) = 1) (hinj : ∀ a b, a < m + 1 → b < m + 1 → fpow g a = fpow g b → a = b)
     (hgd : ∀ c ∈ A.cons, c.guarded = true) {ts : List (List F)} (hwin : ∀ c ∈ A.cons, c.win ts.length = true)
