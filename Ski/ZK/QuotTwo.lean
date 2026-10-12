@@ -336,8 +336,8 @@ theorem recOK_airG {AF : EF → EF → List EF → AirD} {g : F} {m : Nat} {preP
     `⟨g⟩`, the query points and `ζ, g ζ`, and at each trace their columns,
     concatenated, are a table that meets `Sat` for the constraints
     `AF α β v` at the transcript's values `v = vt t α β`: the AIR's own,
-    and its LogUp constraints over base coordinates, which depend on the
-    challenges and the terminal.  `Sat` at every `t, α, β` is stronger
+    which may include its LogUp constraints over base coordinates, which
+    depend on the challenges and the terminal.  `Sat` at every `t, α, β` is stronger
     than completeness (`fallback`). -/
 theorem tabsHonest_gen {AF : EF → EF → List EF → AirD} {g : F} {m : Nat} {preP : Nat → List F} {gis : List Nat} {κ : F} {cs : List Chunk}
     {Hl : List F} {cl : F} {S : List F} {ζ : EF} {ws : List (EF → EF → List F)}
