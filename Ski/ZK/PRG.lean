@@ -19,8 +19,10 @@ seed and almost no uniform draw.  A pseudorandom generator fools the
 efficient tests only, so the theorems here take the smallest class they
 use, `TTests real`: the real transcript's event at fixed challenges, one
 test per pair `(α, β)`.  Each runs the honest prover on the witness, so it
-is efficient when the event is.  That ChaCha20 fools these tests is an
-assumption, not a theorem.
+is efficient when the event is (`pcs` and `tv` are, for Plonky3).  That
+ChaCha20 fools these tests for an efficient event is an assumption, not a
+theorem, and the seeded guarantee it gives is computational: for an event
+such as "the view is some seed's", the hypothesis fails.
 
 `prg_transfer` moves the count of any event in the class from uniform
 randomness to the seed's, at a cost of `δ` for each pair of challenges,

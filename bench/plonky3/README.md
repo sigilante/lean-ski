@@ -204,9 +204,10 @@ bits bound one key search at `2^128`, and a batch search over `N` proofs
 at about `2^128 / N`. The verifier rebuilds
 the preprocessed commitment, so both sides commit the public preprocessed
 tables under a fixed public seed; only the traces are committed under the
-secret one. The Lean theorems count over uniform randomness; that ChaCha20
-under the seed fools the transcript's own tests, its event at each pair of
-challenges, is assumed (`Ski/ZK/PRG.lean`, `transcript_prg`). The CPU and memory heights are
+secret one. The Lean theorems count over uniform randomness. We assume
+that ChaCha20 under the seed fools the transcript's own tests for an
+efficient event, one test per pair of challenges, so the seeded guarantee
+is computational (`Ski/ZK/PRG.lean`, `transcript_prg`). The CPU and memory heights are
 constants of prover and verifier (`2^16` each), not the run's, so they say
 nothing about the witness: the run's length depends on where each digit's
 bit falls.

@@ -924,10 +924,11 @@ stays a hypothesis. The prover's secret randomness is one 128-bit seed per
 proof, expanded by ChaCha20 with a stream for each of the blinding
 tuples, the leaf salts and the codewords (`bench/plonky3/src/seed.rs`);
 `transcript_prg` carries the transcript theorems to it, assuming ChaCha20
-fools the transcript's own tests, its event at each pair of challenges
-(`PRGClose (TTests real)`, `Ski/ZK/PRG.lean`). Over every test the
-assumption would fail for any generator: the test "is some `G s`" tells
-the seeds from uniform draws.
+fools the transcript's own tests for an efficient event, its event at
+each pair of challenges (`PRGClose (TTests real)`, `Ski/ZK/PRG.lean`), so
+the seeded guarantee is computational. Over every test the assumption
+would fail for any generator with fewer seeds than draws: the test "is
+some `G s`" tells the seeds from uniform draws.
 
 Composed statements with `∃` and knowledge implication (`Ski/ComposeX.lean`).
 `∃ y. F` holds `y` once in the hidden witness and pairs it into the inputs
