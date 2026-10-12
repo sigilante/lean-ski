@@ -99,6 +99,8 @@ import Ski.ZK.PreOpen
 import Ski.ZK.Interleave
 import Ski.ZK.FSZK
 import Ski.ZK.FSInst
+import Ski.ZK.FSOpen
+import Ski.ZK.FSOpenFri
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -1147,3 +1149,7 @@ open Ski.Audit
   Circuit.tsumN_ab Circuit.efIdx_efOf Circuit.sumQ2 Circuit.sm_exch Circuit.com_swap Circuit.csum_tsumN
   Circuit.fs_transcript Circuit.fs_transcript' Circuit.fs_pair Circuit.realVN_cases Circuit.simVN_some
   Circuit.sud_fs Circuit.wit_fs Circuit.comp_fs
+-- Fiat–Shamir with the commitment opened
+#audit_clean Circuit.sig_in Circuit.open_real Circuit.openEv_and Circuit.open_real_t Circuit.open_sim_t Circuit.fs_open
+-- The opened main columns of the composed PCS
+#audit_clean Circuit.quot_open Circuit.mpolysMulti_getD Circuit.zip_map_self Circuit.pcsFri_ov Circuit.psimFri_ov Circuit.opF_sdF
