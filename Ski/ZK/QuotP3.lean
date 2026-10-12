@@ -15,7 +15,7 @@ and proves those hypotheses once.
 
 `p3_static` gives `hdom`, `hc`, `hcl`, `hκ` and `hw` for them.  What is
 left for a named circuit is numbers: `shift ≠ 0`, `ω^(2^k) = -1` (for
-BabyBear, `bbGen_half`), and `(l + 1) n = 2^(k+1)`.
+BabyBear, `bbGen_half`), `0 < n` and `(l + 1) n = 2^(k+1)`.
 -/
 
 namespace Circuit
@@ -119,7 +119,8 @@ theorem p3_static {shift ω : F} {l n k : Nat} (hs : shift ≠ 0) (hhalf : fpow 
         cosetL s' (fpow ω ((p3cs shift ω l n).length + 1)) n →
       ((allL (p3cs shift ω l n) (p3dom shift ω l n l) (p3c shift ω n l) qs ql)[j]'hj).2.2.1 =
         finv (opv s' (allL (p3cs shift ω l n) (p3dom shift ω l n l) (p3c shift ω n l) qs ql) j) *
-          finv (p3κ shift ω l n)) := by
+          finv (p3κ shift ω l n)) ∧
+    (∀ ch ∈ p3cs shift ω l n, ch.m ≠ 0) := by
   have hcs : (p3cs shift ω l n).length = l := by unfold p3cs; rw [List.length_map, List.length_range]
   have hsc : ∀ i, p3c shift ω n i ≠ 0 := fun i =>
     finv_ne (fpow_ne_zero' (mul_ne_zero' hs (fpow_ne_zero' (fun e => by
@@ -144,7 +145,8 @@ theorem p3_static {shift ω : F} {l n k : Nat} (hs : shift ≠ 0) (hhalf : fpow 
       have := hdis0 i j (by rw [p3L0_length]; exact hi) hj hji (p3s shift ω i) (by rw [hget0]; exact hfirst i hi)
       exact this)
   have hκ : p3κ shift ω l n ≠ 0 := finv_ne (ho l (Nat.lt_succ_self l))
-  refine ⟨by rw [hcs]; exact p3_doms shift ω l n, fun ch hch => ?_, hsc l, hκ, fun qs ql hq j hj s' hs' => ?_⟩
+  refine ⟨by rw [hcs]; exact p3_doms shift ω l n, fun ch hch => ?_, hsc l, hκ, fun qs ql hq j hj s' hs' => ?_,
+    fun ch hch => ?_⟩
   · obtain ⟨i, _, rfl⟩ := List.mem_map.1 hch; exact hsc i
   · rw [hcs] at hq hs'
     obtain ⟨hlen, hent⟩ := p3_allL shift ω l n qs ql hq
@@ -164,6 +166,8 @@ theorem p3_static {shift ω : F} {l n k : Nat} (hs : shift ≠ 0) (hhalf : fpow 
       have h2 : finv (p3o shift ω l n j) * finv (p3κ shift ω l n) = 1 := by
         rw [hjl']; exact mul_finv hκ
       exact h2.symm
+  · obtain ⟨i, hi, rfl⟩ := List.mem_map.1 hch
+    exact mul_ne_zero' (finv_ne (ho i (by have := List.mem_range.1 hi; omega))) (finv_ne hκ)
 
 -- ---------------------------------------------------------------------------
 -- BabyBear's trace domain and masks
@@ -211,6 +215,15 @@ theorem bb_masks (t : Nat) (ht : t ≤ 25) :
     obtain ⟨r', hr', rfl⟩ := hR b hb
     have := inj _ _ (by omega) (by omega) e; omega
 
+/-- **The table's sets meet `CSet.OK`** from its parts. -/
+theorem airQTab_ok {A : AirD} {g : F} {m : Nat} {preP : Nat → List F} {gi : Nat} {κ : F} {cs : List Chunk}
+    {Hl : List F} {cl : F} {S : List F} {ζ : EF} {ws : List (EF → EF → List F)} (hζ : ∀ x : F, EF.ofF x ≠ ζ)
+    (hdet : (mz ζ).det ≠ 0) (hS4 : S.length + 4 ≤ m + 1) (hcm : ∀ ch ∈ cs, ch.c ≠ 0 ∧ ch.m ≠ 0) (hcl : cl ≠ 0) :
+    ∀ c ∈ (airQTab A g m preP gi κ cs Hl cl S ζ ws).sets, c.OK := fun c hc => by
+  unfold QTab.sets airQTab at hc
+  obtain ⟨_, _, rfl⟩ := List.mem_map.1 hc
+  exact ⟨hζ, hdet, hS4, hcm, hcl⟩
+
 theorem split_member_nodup {shift ω : F} {L n k : Nat} (hs : shift ≠ 0) (hhalf : fpow ω (2 ^ k) = -1)
     (hN : L * n = 2 ^ (k + 1)) {H : List F} (hH : H ∈ splitD shift ω L n) : H.Nodup :=
   (List.pairwise_flatten.1 (split_nodup hs hhalf hN)).1 H hH
@@ -247,9 +260,7 @@ theorem pcsCloseN_fri_bb {V : Type} {qs : List QGroup} {ks : List Nat} {cols : (
     (hζ : ∀ x : F, EF.ofF x ≠ ζ) (hS : ∀ x ∈ S, fval x (fvan (cosetL 1 (bbGen (tb + 1)) (m + 1))) ≠ 0)
     (hD : ∀ e ∈ A.cons, e.pdeg ≤ D) (hDlq : D ≤ 2 ^ lq)
     (hsd : ∀ e ∈ A.cons, e.sdeg ≤ s) (hs : s < m + 1) (hPsz : D * (2 * (m + 1) - 1) + s + 1 ≤ P)
-    (hok : ∀ c ∈ (airQTab A (bbGen (tb + 1)) m preP gi (p3κ 31 (bbGen (k + 1)) l (m + 1))
-      (p3cs 31 (bbGen (k + 1)) l (m + 1)) (p3dom 31 (bbGen (k + 1)) l (m + 1) l) (p3c 31 (bbGen (k + 1)) (m + 1) l)
-      S ζ ws).sets, c.OK) :
+    (hdetζ : (mz ζ).det ≠ 0) (hS4 : S.length + 4 ≤ m + 1) :
     PCSCloseN off (P ^ (friN1 qs ks [airQTab A (bbGen (tb + 1)) m preP gi (p3κ 31 (bbGen (k + 1)) l (m + 1))
         (p3cs 31 (bbGen (k + 1)) l (m + 1)) (p3dom 31 (bbGen (k + 1)) l (m + 1) l) (p3c 31 (bbGen (k + 1)) (m + 1) l)
         S ζ ws] +
@@ -267,7 +278,7 @@ theorem pcsCloseN_fri_bb {V : Type} {qs : List QGroup} {ks : List Nat} {cols : (
         S ζ ws] ncw αb fri) 0 := by
   have h31 : (31 : F) ≠ 0 := by decide
   have hhalf := bbGen_half k hk
-  obtain ⟨hdom, hc, hcl, hκ, hw⟩ := p3_static h31 hhalf hN (by omega)
+  obtain ⟨hdom, hc, hcl, hκ, hw, hm0⟩ := p3_static h31 hhalf hN (by omega)
   obtain ⟨hg, hinj⟩ := bb_trace tb (by omega)
   have hcs : (p3cs 31 (bbGen (k + 1)) l (m + 1)).length = l := by unfold p3cs; rw [List.length_map, List.length_range]
   have hnd := bb_masks tb ht
@@ -278,7 +289,7 @@ theorem pcsCloseN_fri_bb {V : Type} {qs : List QGroup} {ks : List Nat} {cols : (
     (R := cosetL (bbGen (tb + 2)) (bbGen (tb + 1)) (m + 1)) (nR := nR) (g := bbGen (tb + 1)) (m := m)
     hgi hcl' hT hRq hSq hZq hnq hnxt hsatT hg hinj hgd (by rw [cosetL_length]; exact Nat.le_refl _) hnd hpreL hζ hS hc hcl hκ h31 hhalf
     (by rw [hcs]; exact hN) (by rw [hcs]; exact hdom) (by rw [hcs]; exact hL) hD hDlq hsd hs hPsz
-    (fun qs' ql h => hw qs' ql h) hok
+    (fun qs' ql h => hw qs' ql h) (airQTab_ok hζ hdetζ hS4 (fun ch hch => ⟨hc ch hch, hm0 ch hch⟩) hcl)
     (fun ch hch => hNodup _ (by rw [← hdom]; exact List.mem_append_left _ (List.mem_map_of_mem hch)))
     (hNodup _ (by rw [← hdom]; exact List.mem_append_right _ List.mem_cons_self))
 

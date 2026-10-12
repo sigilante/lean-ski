@@ -912,7 +912,7 @@ open Ski.Audit
   Circuit.recOK_air Circuit.tabsHonest_air Circuit.pcsCloseN_fri_air Circuit.tabsHonest_cons
   Circuit.friN_air Circuit.pcsCloseN_fri_air_draw Circuit.fallback
 -- Plonky3's chunks built; BabyBear's trace domain and masks
-#audit_clean Circuit.opv_hc Circuit.p3_doms Circuit.p3_allL Circuit.p3_static Circuit.bb_trace Circuit.bb_masks
+#audit_clean Circuit.airQTab_ok Circuit.opv_hc Circuit.p3_doms Circuit.p3_allL Circuit.p3_static Circuit.bb_trace Circuit.bb_masks
   Circuit.pcsCloseN_fri_bb
 -- The corpus circuit's AIR facts
 #audit_clean Circuit.base_p3ok Circuit.base_facts Circuit.pcsCloseN_fri_base

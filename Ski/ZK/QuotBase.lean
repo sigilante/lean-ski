@@ -45,8 +45,9 @@ theorem base_facts (t : Term) {A : AirD} (hA : A ∈ baseAirs t) :
     (`base_facts`): Plonky3 degree `2`, so `lq = 1` and four chunks on the
     quotient domain of `2^(tb+3)` points, `31 · ⟨bbGen (tb+3)⟩`.  Left: the
     group's shape, a table meeting `Sat` with the AIR's width at each
-    trace, the preprocessed columns' size, the query and out-of-domain
-    points, and `CSet.OK`. -/
+    trace, the preprocessed columns' size, the query points (off the
+    trace, `|S| + 4 ≤ N`) and the out-of-domain point (`ζ` generating the
+    extension). -/
 theorem pcsCloseN_fri_base {V : Type} {qs : List QGroup} {ks : List Nat} {cols : (Nat → Tup) → EF → EF → List (List (List F))}
     {ncw : Nat} {αb : EF} {fri : EF → EF → List (EF → EF) → V}
     (hokq : ∀ q ∈ qs, q.OK) (hks : ks.length = qs.length)
@@ -70,9 +71,7 @@ theorem pcsCloseN_fri_base {V : Type} {qs : List QGroup} {ks : List Nat} {cols :
       (∀ r i, r < m + 1 → fval (fpow (bbGen (tb + 1)) r) (preP i) = Tb.pre r i))
     (hpreL : ∀ i, (preP i).length ≤ 2 * (m + 1))
     (hζ : ∀ x : F, EF.ofF x ≠ ζ) (hS : ∀ x ∈ S, fval x (fvan (cosetL 1 (bbGen (tb + 1)) (m + 1))) ≠ 0)
-    (hok : ∀ c ∈ (airQTab A (bbGen (tb + 1)) m preP gi (p3κ 31 (bbGen (tb + 3)) 3 (m + 1))
-      (p3cs 31 (bbGen (tb + 3)) 3 (m + 1)) (p3dom 31 (bbGen (tb + 3)) 3 (m + 1) 3) (p3c 31 (bbGen (tb + 3)) (m + 1) 3)
-      S ζ ws).sets, c.OK) :
+    (hdetζ : (mz ζ).det ≠ 0) (hS4 : S.length + 4 ≤ m + 1) :
     PCSCloseN off (P ^ (friN1 qs ks [airQTab A (bbGen (tb + 1)) m preP gi (p3κ 31 (bbGen (tb + 3)) 3 (m + 1))
         (p3cs 31 (bbGen (tb + 3)) 3 (m + 1)) (p3dom 31 (bbGen (tb + 3)) 3 (m + 1) 3) (p3c 31 (bbGen (tb + 3)) (m + 1) 3)
         S ζ ws] +
@@ -104,6 +103,6 @@ theorem pcsCloseN_fri_base {V : Type} {qs : List QGroup} {ks : List Nat} {cols :
     (fun t' α β => by
       obtain ⟨Tb, h1, h2, h3, h4, h5⟩ := hsatT t' α β
       exact ⟨Tb, h1, h2, fun c hc => by rw [h3]; exact hwin c hc, h4, h5⟩)
-    hgd hpreL hζ hS hD (by decide) hsd (by omega) (by show 2 * (2 * (m + 1) - 1) + 1 + 1 ≤ 2013265921; omega) hok
+    hgd hpreL hζ hS hD (by decide) hsd (by omega) (by show 2 * (2 * (m + 1) - 1) + 1 + 1 ≤ 2013265921; omega) hdetζ hS4
 
 end Circuit
