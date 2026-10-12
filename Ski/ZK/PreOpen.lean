@@ -19,8 +19,10 @@ transcript theorems hold over it with no PCS term (`sud_hidingX`,
 the preprocessed columns fold into FRI's view.  Setup randomness is
 drawn once per verifying key, a fixed public draw: `NR2 = 1`, with `Rb`
 and `Ro` closing over it; `NR2 > 1` models fresh randomness per proof.
-Assumed: that FRI's view is a function of every matrix's batched
-polynomial, as before; Plonky3's recombination of the per-matrix batches
+At generic challenges, `ζ` and `αb` any `Generic` draws, all but `P²`
+of the `P⁴` (`nongeneric_count`), the same holds (`sud_hidingXG`,
+`wit_hidingXG`, `comp_hidingXG`).  Assumed: that FRI's view is a function
+of every matrix's batched polynomial, as before; Plonky3's recombination of the per-matrix batches
 (its `αb`-offset sums by height included) is a fixed function of
 `Bs ++ Rb`, which `fri` absorbs.
 -/
@@ -294,5 +296,153 @@ theorem comp_hidingX {V Wv : Type} (off : EF → String → EF) {R Lm : Nat} (hR
   have hpcs := comp_pcsX (heap := m.heap) (roots := roots) off sc sm sw (by omega) (by omega) (by omega) (by omega)
     hM hC hWh p2 s2 qv wm wc ww wp wsg hSM hSC hS9 hSP hSS hszM hszC hsz9 hszP hszS hζ hdet fri hdb haw hncw NR2 Rb Ro
   exact comp_transcriptG off NR 0 pcs psim hbal hun hpcs E
+
+/-- **The Sudoku proof at generic challenges**: `sud_hidingX` with `ζ`
+    and the FRI challenge `αb` any `Generic` draws, all but `P²` of the `P⁴`
+    (`nongeneric_count`). -/
+theorem sud_hidingXG {V Wv : Type} (off : EF → String → EF) {puzzle : List Nat} (hc : CluesOK (cluesOf puzzle))
+    {ρ : Nat → Bool} {A : List Cell} {k : Nat} {row : Nat → Air.Row}
+    (hA : AcceptsFrom A (stmtMachine ρ 729 (sudokuExpr (cluesOf puzzle)) ACC REJ) k row)
+    (hacc : rd A (row (k - 1)).ctr (row (k - 1)).hd = some (.atom ACC))
+    (hlen : A.length = 2 ^ 16) (hk : k ≤ 2 ^ 16)
+    {tP : Nat} (htp : tP = progTp (stmtMachine (fun _ => false) 729 (sudokuExpr (cluesOf puzzle)) ACC REJ).heap)
+    {S16 S10 SP : List F} {ζ : EF} (qv : EF → EF → List EF → F → List F → List F → List EF)
+    (wm wc ww wp : List (EF → EF → List F))
+    (hS16 : ∀ x ∈ S16, x ∉ cosetL 1 (bbGen 16) (2 ^ 16)) (hS10 : ∀ x ∈ S10, x ∉ cosetL 1 (bbGen 10) (2 ^ 10))
+    (hSP : ∀ x ∈ SP, x ∉ cosetL 1 (bbGen (tP + 1)) (2 ^ (tP + 1)))
+    (hsz16 : 2 * S16.length + 8 ≤ 2 ^ 16) (hsz : 2 * S10.length + 8 ≤ 2 ^ 10)
+    (hszP : 2 * SP.length + 8 ≤ 2 ^ (tP + 1)) {ncw : Nat} {αb : EF} (fri : EF → EF → List (EF → EF) → V) (hncw : 4 ≤ ncw) (hgζ : Generic ζ) (hgα : Generic αb)
+    (NR2 : Nat) (Rb : EF → EF → Nat → List (EF → EF)) (Ro : EF → EF → Nat → Wv)
+    (E : TViewN (SudPV (V × Wv)) EF → Bool) :
+    let blank := stmtMachine (fun _ => false) 729 (sudokuExpr (cluesOf puzzle)) ACC REJ
+    let C := cpuTableW A row k (2 ^ 16)
+    let Pg := progTableS blank.heap
+    let Wt := witTableS A
+    let Mm := memTableC A (cpuAirS blank.hd blank.stk blank.heap.length ACC) (progAirS blank.heap) witAirS C Pg Wt
+    let NR0 := sudNR off blank.hd blank.stk blank.heap.length blank.heap C Mm Wt tP S16 S10 SP ζ qv wm wc ww wp ncw
+    let pcs := fun t α β r => sudPcs off blank.hd blank.stk blank.heap.length blank.heap C Mm Wt tP S16 S10 SP ζ qv wm wc ww wp ncw αb
+      (friX fri Rb Ro (r / NR0)) t α β (r % NR0)
+    let psim := fun α β v r => sudPsim off blank.hd blank.stk blank.heap.length blank.heap C Mm Wt tP S16 S10 SP ζ qv wm wc ww wp ncw αb
+      (friX fri Rb Ro (r / NR0)) α β v (r % NR0)
+    let NR := NR0 * NR2
+    let tabs := fun t : Nat → Tup => sudTables blank.hd blank.stk blank.heap.length blank.heap
+      ((C.setBlind BLA (t 1)).setBlind BLB (t 0)) (Mm.setBlind 5 (t 0)) (progTableS blank.heap) (Wt.setBlind 1 (t 1))
+    let tv := fun pre β t => sudViewN pre β blank.hd blank.stk blank.heap.length C Mm Wt t
+    let tp := fun pre β => terminal pre β (progAirS blank.heap) (progTableS blank.heap)
+    let M := (allEntries (sudTables blank.hd blank.stk blank.heap.length blank.heap C Mm (progTableS blank.heap) Wt)).length
+    tsumN NR 2 (fun α β r t => indB (genB β && E (realVN off tabs tv tp pcs α β r t))) ≤
+      tsumN NR 2 (fun α β r t => indB (genB β && E (simVN off tp chainBus (fun _ => false) chainPar 3 tp psim α β r t))) +
+        Q4 * (NR * (Q4 ^ 2 * M)) + Q4 * (Q4 * (Q4 ^ 2 * 0)) ∧
+    tsumN NR 2 (fun α β r t => indB (genB β && E (simVN off tp chainBus (fun _ => false) chainPar 3 tp psim α β r t))) ≤
+      tsumN NR 2 (fun α β r t => indB (genB β && E (realVN off tabs tv tp pcs α β r t))) +
+        Q4 * (NR * (Q4 ^ 2 * M)) + Q4 * (Q4 * (Q4 ^ 2 * 0)) :=
+  sud_hidingX off hc hA hacc hlen hk htp qv wm wc ww wp hS16 hS10 hSP hsz16 hsz hszP (generic_ofF_ne hgζ)
+    (mz_generic hgζ) fri (mz_generic hgα) (generic_apow_ne hgα) hncw NR2 Rb Ro E
+
+/-- **The hidden-term proof at generic challenges**: `wit_hidingX` with `ζ`
+    and the FRI challenge `αb` any `Generic` draws, all but `P²` of the `P⁴`
+    (`nongeneric_count`). -/
+theorem wit_hidingXG {V Wv : Type} (off : EF → String → EF) {Vt x : Term} {W : Nat} {ws : List Cell} (hwf : WF ws)
+    (hwl : ws.length = W) (hW8 : W ≤ 2 ^ 8) {A : List Cell} {k : Nat} {row : Nat → Air.Row}
+    (hA : AcceptsFrom A (wMachine ws (Vt ⬝ x)) k row)
+    (hK : rd A (row (k - 1)).ctr (row (k - 1)).hd = some .K ∧ rd A (row (k - 1)).ctr (row (k - 1)).stk = some .nil)
+    (hlen : A.length = 2 ^ 10) (hk : k ≤ 2 ^ 10)
+    {tP : Nat} (htp : tP = progTpW (wMachine (List.replicate W .S) (Vt ⬝ x)).heap W)
+    {S10 S9 SP : List F} {ζ : EF} (qv : EF → EF → List EF → F → List F → List F → List EF)
+    (wm wc ww wp : List (EF → EF → List F))
+    (hS10 : ∀ x ∈ S10, x ∉ cosetL 1 (bbGen 10) (2 ^ 10)) (hS9 : ∀ x ∈ S9, x ∉ cosetL 1 (bbGen 9) (2 ^ 9))
+    (hSP : ∀ x ∈ SP, x ∉ cosetL 1 (bbGen (tP + 1)) (2 ^ (tP + 1)))
+    (hsz10 : 2 * S10.length + 8 ≤ 2 ^ 10) (hsz9 : 2 * S9.length + 8 ≤ 2 ^ 9)
+    (hszP : 2 * SP.length + 8 ≤ 2 ^ (tP + 1)) {ncw : Nat} {αb : EF} (fri : EF → EF → List (EF → EF) → V) (hncw : 4 ≤ ncw) (hgζ : Generic ζ) (hgα : Generic αb)
+    (NR2 : Nat) (Rb : EF → EF → Nat → List (EF → EF)) (Ro : EF → EF → Nat → Wv)
+    (E : TViewN (PcsPV (V × Wv)) EF → Bool) :
+    let blank := wMachine (List.replicate W .S) (Vt ⬝ x)
+    let C := cpuTableW A row k (2 ^ 10)
+    let Pg := progTableW blank.heap W
+    let Wt := witTableG 0 A 0 W
+    let Mm := memTableC A (cpuAirW blank.hd blank.stk blank.heap.length) (progAirW blank.heap W) (witAirW W) C Pg Wt
+    let NR0 := wNR off blank.hd blank.stk blank.heap.length blank.heap W C Mm Wt tP S10 S9 SP ζ qv wm wc ww wp ncw
+    let pcs := fun t α β r => wPcs off blank.hd blank.stk blank.heap.length blank.heap W C Mm Wt tP S10 S9 SP ζ qv wm wc ww wp ncw αb
+      (friX fri Rb Ro (r / NR0)) t α β (r % NR0)
+    let psim := fun α β v r => wPsim off blank.hd blank.stk blank.heap.length blank.heap W C Mm Wt tP S10 S9 SP ζ qv wm wc ww wp ncw αb
+      (friX fri Rb Ro (r / NR0)) α β v (r % NR0)
+    let NR := NR0 * NR2
+    let tabs := fun t : Nat → Tup => witTables blank.hd blank.stk blank.heap.length blank.heap W
+      ((C.setBlind BLA (t 1)).setBlind BLB (t 0)) (Mm.setBlind 5 (t 0)) (progTableW blank.heap W)
+      (Wt.setBlind WT_BLIND (t 1))
+    let tv := fun pre β t => witViewN pre β blank.hd blank.stk blank.heap.length W C Mm Wt t
+    let ptm := fun pre β => terminal pre β (progAirW blank.heap W) (progTableW blank.heap W)
+    let M := (allEntries (witTables blank.hd blank.stk blank.heap.length blank.heap W C Mm (progTableW blank.heap W)
+      Wt)).length
+    tsumN NR 2 (fun α β r t => indB (genB β && E (realVN off tabs tv ptm pcs α β r t))) ≤
+      tsumN NR 2 (fun α β r t => indB (genB β && E (simVN off ptm chainBus (fun _ => false) chainPar 3 ptm psim α β r t))) +
+        Q4 * (NR * (Q4 ^ 2 * M)) + Q4 * (Q4 * (Q4 ^ 2 * 0)) ∧
+    tsumN NR 2 (fun α β r t => indB (genB β && E (simVN off ptm chainBus (fun _ => false) chainPar 3 ptm psim α β r t))) ≤
+      tsumN NR 2 (fun α β r t => indB (genB β && E (realVN off tabs tv ptm pcs α β r t))) +
+        Q4 * (NR * (Q4 ^ 2 * M)) + Q4 * (Q4 * (Q4 ^ 2 * 0)) :=
+  wit_hidingX off hwf hwl hW8 hA hK hlen hk htp qv wm wc ww wp hS10 hS9 hSP hsz10 hsz9 hszP (generic_ofF_ne
+    hgζ) (mz_generic hgζ) fri (mz_generic hgα) (generic_apow_ne hgα) hncw NR2 Rb Ro E
+
+/-- **The composed proof at generic challenges**: `comp_hidingX` with `ζ`
+    and the FRI challenge `αb` any `Generic` draws, all but `P²` of the `P⁴`
+    (`nongeneric_count`). -/
+theorem comp_hidingXG {V Wv : Type} (off : EF → String → EF) {R Lm : Nat} (hR : R ≤ 20) {shp : BT} {Ps : List Term}
+    {W : Nat} {ρ : Nat → Bool} {region : List Cell} (hrl : region.length = W)
+    (hr : ∀ i c, region[i]? = some c → cellOK (BT.nleaves shp + 3 + i) c = true)
+    {A : List Cell} {e : Nat → Nat} {row : Nat → Air.Row}
+    (hA : AcceptsC A (cMachine ρ shp region Ps) (cHeap ρ shp region Ps).2
+      (cHeap ρ shp region Ps).1.length Ps.length e row)
+    (hlen : A.length = 2 ^ Lm) (hLm : Lm ≤ 20) (hK : e (Ps.length - 1) < 2 ^ R)
+    (hNW : BT.nleaves shp + W ≤ 2 ^ 8)
+    {tbM tbC tpP tpS : Nat} (htM : tbM + 1 = Lm) (htC : tbC + 1 = R)
+    (htP : tpP = progTpC (blankM shp W Ps).heap (BT.nleaves shp) W) (htS : tpS = segTp (blankRoots shp W Ps))
+    {SM SC S9 SP SS : List F} {ζ : EF} (qv : EF → EF → List EF → F → List F → List F → List EF)
+    (wm wc ww wp wsg : List (EF → EF → List F))
+    (hSM : ∀ x ∈ SM, x ∉ cosetL 1 (bbGen (tbM + 1)) (2 ^ (tbM + 1)))
+    (hSC : ∀ x ∈ SC, x ∉ cosetL 1 (bbGen (tbC + 1)) (2 ^ (tbC + 1)))
+    (hS9 : ∀ x ∈ S9, x ∉ cosetL 1 (bbGen 9) (2 ^ 9))
+    (hSP : ∀ x ∈ SP, x ∉ cosetL 1 (bbGen (tpP + 1)) (2 ^ (tpP + 1)))
+    (hSS : ∀ x ∈ SS, x ∉ cosetL 1 (bbGen (tpS + 1)) (2 ^ (tpS + 1)))
+    (hszM : 2 * SM.length + 8 ≤ 2 ^ (tbM + 1)) (hszC : 2 * SC.length + 8 ≤ 2 ^ (tbC + 1))
+    (hsz9 : 2 * S9.length + 8 ≤ 2 ^ 9) (hszP : 2 * SP.length + 8 ≤ 2 ^ (tpP + 1))
+    (hszS : 2 * SS.length + 8 ≤ 2 ^ (tpS + 1)) {ncw : Nat} {αb : EF} (fri : EF → EF → List (EF → EF) → V) (hncw : 4 ≤ ncw) (hgζ : Generic ζ) (hgα : Generic αb)
+    (NR2 : Nat) (Rb : EF → EF → Nat → List (EF → EF)) (Ro : EF → EF → Nat → Wv)
+    (E : TViewN (PcsPV (V × Wv)) (EF × EF) → Bool) :
+    let m := blankM shp W Ps
+    let roots := blankRoots shp W Ps
+    let N := BT.nleaves shp
+    let C := cpuTableC A row e Ps.length roots (2 ^ R)
+    let Pg := progTableC m.heap N W
+    let Wt := witTable A N W
+    let Mm := memTableC A (cpuAirC m.hd m.stk m.heap.length roots.length m.stk) (progAirC m.heap N W)
+      (witAir N W) C Pg Wt
+    let NR0 := cNR off m.hd m.stk m.heap.length roots.length m.stk m.heap N W roots C Mm Wt tbM tbC tpP tpS
+      SM SC S9 SP SS ζ qv wm wc ww wp wsg ncw
+    let pcs := fun t α β r => cPcs off m.hd m.stk m.heap.length roots.length m.stk m.heap N W roots C Mm Wt tbM tbC tpP tpS
+      SM SC S9 SP SS ζ qv wm wc ww wp wsg ncw αb
+      (friX fri Rb Ro (r / NR0)) t α β (r % NR0)
+    let psim := fun α β v r => cPsim off m.hd m.stk m.heap.length roots.length m.stk m.heap N W roots C Mm Wt tbM tbC tpP tpS
+      SM SC S9 SP SS ζ qv wm wc ww wp wsg ncw αb
+      (friX fri Rb Ro (r / NR0)) α β v (r % NR0)
+    let NR := NR0 * NR2
+    let tabs := fun t : Nat → Tup => compTables m.hd m.stk m.heap.length roots.length m.stk m.heap N W roots
+      ((C.setBlind BLA (t 1)).setBlind BLB (t 0)) (Mm.setBlind 5 (t 0)) (progTableC m.heap N W)
+      (Wt.setBlind WT_BLIND (t 1)) (segsPub roots)
+    let tv := fun pre β t => compViewN pre β m.hd m.stk m.heap.length roots.length m.stk N W C Mm Wt t
+    let pb := fun pre β => (terminal pre β (progAirC m.heap N W) (progTableC m.heap N W),
+      terminal pre β (segsAir roots) (segsPub roots))
+    let ptm := fun pre β => (terminal pre β (progAirC m.heap N W) (progTableC m.heap N W)).add
+      (terminal pre β (segsAir roots) (segsPub roots))
+    let M := (allEntries (compTables m.hd m.stk m.heap.length roots.length m.stk m.heap N W roots C Mm
+      (progTableC m.heap N W) Wt (segsPub roots))).length
+    tsumN NR 2 (fun α β r t => indB (genB β && E (realVN off tabs tv pb pcs α β r t))) ≤
+      tsumN NR 2 (fun α β r t => indB (genB β && E (simVN off pb chainBus (fun _ => false) chainPar 3 ptm psim α β r t))) +
+        Q4 * (NR * (Q4 ^ 2 * M)) + Q4 * (Q4 * (Q4 ^ 2 * 0)) ∧
+    tsumN NR 2 (fun α β r t => indB (genB β && E (simVN off pb chainBus (fun _ => false) chainPar 3 ptm psim α β r t))) ≤
+      tsumN NR 2 (fun α β r t => indB (genB β && E (realVN off tabs tv pb pcs α β r t))) +
+        Q4 * (NR * (Q4 ^ 2 * M)) + Q4 * (Q4 * (Q4 ^ 2 * 0)) :=
+  comp_hidingX off hR hrl hr hA hlen hLm hK hNW htM htC htP htS qv wm wc ww wp wsg hSM hSC hS9 hSP hSS hszM
+    hszC hsz9 hszP hszS (generic_ofF_ne hgζ) (mz_generic hgζ) fri (mz_generic hgα) (generic_apow_ne hgα) hncw
+    NR2 Rb Ro E
 
 end Circuit

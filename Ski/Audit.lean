@@ -1137,5 +1137,6 @@ open Ski.Audit
   Circuit.comp_pcs Circuit.comp_pub_heights Circuit.cPsim_pre Circuit.comp_hiding
 -- The witness-free matrices: preprocessed columns and randomization
 #audit_clean Circuit.sud_pcsX Circuit.wit_pcsX Circuit.comp_pcsX Circuit.sud_hidingX Circuit.wit_hidingX Circuit.comp_hidingX
+  Circuit.sud_hidingXG Circuit.wit_hidingXG Circuit.comp_hidingXG
 -- The masked column is Plonky3's interleaved column
 #audit_clean Circuit.ileave_perm Circuit.zip_ileave Circuit.coset_ileave Circuit.ileave_mcol_coef Circuit.ileave_mcol Circuit.bb_ileave_mcol

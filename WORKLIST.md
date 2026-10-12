@@ -102,8 +102,9 @@ is built; this file records what is next. Last revised 2026-10-13.
   the tables' preprocessed columns only (`sudPsim_pre`, `wPsim_pre`, `cPsim_pre`); the
   preprocessed columns and the randomization polynomial, matrices without witness, join
   FRI's input and the view, and each transcript theorem holds over that PCS
-  (`Ski/ZK/PreOpen.lean`, `*_hidingX`). Assumed: Fiat–Shamir, the Merkle salts' hiding, and
-  generic `ζ` and FRI challenge. The groups' trace and mask points (`hT`, `hRq`) are tied to
+  (`Ski/ZK/PreOpen.lean`, `*_hidingX`). The challenges `ζ` and `αb` may be any `Generic`
+  draws, all but `P²` of the `P⁴` (`*_hidingXG`, `nongeneric_count`). Assumed: Fiat–Shamir
+  and the Merkle salts' hiding. The groups' trace and mask points (`hT`, `hRq`) are tied to
   the committed matrices: the masked column is the interpolant of Plonky3's interleaved
   column over the `2n`-point domain (`Ski/ZK/Interleave.lean`, `bb_ileave_mcol`); that
   Plonky3 interleaves, trace rows even and random rows odd, is read from its source.
