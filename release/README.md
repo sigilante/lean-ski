@@ -118,7 +118,7 @@ The theorems are in namespace `Circuit` unless prefixed.
    `composed/and` each hold a statement, `public.txt`, and a proof: that
    the prover holds bits and a witness realizing the `∨`, or the `∧`, of
    two atoms of Part II's logic (`Ski/WitnessExamples.lean`), the witness
-   hidden, drawn at production from the formula's valid witnesses.
+   hidden, drawn at production from a fixed list of valid witnesses.
    `verify.sh` first checks that each `public.txt` is Lean's statement of
    its formula (`lake exe composed emit`). `ski-air
    composed-verify PUBLIC PROOF` then pipes the statement's bytes to Lean's
@@ -439,11 +439,12 @@ Dropping them took the table from 2,768 roots to 759 and the run from
    which `lake exe jets check` rejects) is proved over the forged jet
    table.
 7. The composed proofs: Lean emits each statement and a witness drawn
-   from the system's entropy, uniformly among the formula's valid ones
+   from the system's entropy, uniformly from a fixed list of valid ones
    (`lake exe composed emit-fresh`: for the `∨`, which side holds; for the
-   `∧`, which of two negations), and `ski-air composed-prove` proves it;
+   `∧`, which of two negations; other terms also realize the atoms, such as
+   `sat_fake`, and the list leaves them out), and `ski-air composed-prove` proves it;
    the witness stays in a temporary directory, and nothing prints its
-   run's length. Every valid witness's run fits the statement's heights
+   run's length. Every listed witness's run fits the statement's heights
    (`emit-fresh DIR --all` writes them all; each proves).
 8. The SKIlark proof: SKIlark writes `skilark/split8/source.ski`
    (`python -m skilark.zk 8`), Lean emits the statement and witness from

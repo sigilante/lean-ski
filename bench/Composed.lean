@@ -382,11 +382,14 @@ def freshBelow (n : Nat) : IO Nat := do
     if v < 256 / n * n then return v % n
   throw (IO.userError "no draw below the bound")
 
-/-- **The released formulas' valid witnesses**, each the bits and the
+/-- **A fixed list of the released formulas' valid witnesses**, each the
+    bits and the
     region's term.  `∨`: either side or both; the side not chosen gets `K`.
     `∧`: both sides, the negation either `negW` or the term that passes
     the negation tests while ignoring its argument (`neg_fake`); the
-    triple's satisfying assignment is unique (`satW`). -/
+    triple's satisfying assignment is unique (`satW`).  Other terms also
+    realize the atoms (`sat_fake`, other fakes of the negation); the list
+    leaves them out, so the secret is which listed witness. -/
 def freshChoices : List (String × MF × Nat × List (BT × Term)) :=
   [("or", negOr, 64,
      [(.node (.leaf true) (.leaf false), pairT negW K),
@@ -397,9 +400,9 @@ def freshChoices : List (String × MF × Nat × List (BT × Term)) :=
       (.node (.leaf true) (.leaf true), pairT (K ⬝ (K ⬝ (K ⬝ (K ⬝ (K ⬝ K))))) satW)])]
 
 /-- `composed emit-fresh DIR`: the released `∨` and `∧` statements, each
-    with a witness drawn uniformly from its valid witnesses
+    with a witness drawn uniformly from its list of valid witnesses
     (`freshChoices`), from the system's entropy; nothing prints which.
-    `composed emit-fresh DIR --all` writes every valid witness instead, as
+    `composed emit-fresh DIR --all` writes every listed witness instead, as
     `DIR/NAME/I/witness.txt`, to check that each one's run fits the
     statement's heights. -/
 def emitFresh (dir : String) (all : Bool := false) : IO UInt32 := do

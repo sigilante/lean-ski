@@ -20,7 +20,7 @@
 #      proved over the forged jet table, which Lean's check refuses;
 #   7. composed statements (release/composed): Lean emits each example's
 #      statement and a witness drawn from the system's entropy, uniformly
-#      among its valid witnesses (`lake exe composed emit-fresh`: for the
+#      from a fixed list of valid witnesses (`lake exe composed emit-fresh`: for the
 #      `∨`, which side holds; for the `∧`, which negation); ski-air
 #      composed-prove proves it in zero knowledge, printing no count of
 #      its run.  The witness stays in a temporary directory, and the
@@ -171,7 +171,7 @@ fi
 if want composed; then
 echo "--- composed statements in zero knowledge"
 lake build composed > /dev/null
-# Each witness is drawn among the formula's valid ones; nothing prints
+# Each witness is drawn from a fixed list of valid ones; nothing prints
 # which, nor its run's length, which depends on it.
 lake exe composed emit-fresh "$tmp/composed" > /dev/null
 for n in or and; do
