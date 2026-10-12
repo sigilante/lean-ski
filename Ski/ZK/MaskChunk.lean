@@ -192,7 +192,7 @@ theorem jsE_step (m a b i u w : EF) :
 /-- **A chunk other than the last**: its domain `H`, its vanishing
     polynomial's scale `c` (`v_H = c · ∏_{a ∈ H} (X - a)`), and its
     weight `m` in the last chunk's random polynomial (Plonky3's
-    `mul_coeffs`, `c_i / c_last`). -/
+    `mul_coeffs`, `cis_i / cis_last` from `get_zp_cis`). -/
 structure Chunk where
   H : List F
   c : F

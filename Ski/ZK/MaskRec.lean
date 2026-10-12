@@ -10,20 +10,26 @@ into chunks `q_i`, each equal to `Qp` on its own domain `H_i`, and the
 verifier recombines them with the selectors `get_zp_cis` computes.
 
 `rpoly_quot` proves the recombination `κ Σ_i μ_i q_i ∏_{j ≠ i} v_j` is
-`Qp` itself.  It needs disjoint domains of size `n`, degrees below
-`|L| n`, and normalized selectors (`κ μ_k ∏_{j ≠ k} v_j = 1` on `H_k`).
-Off every domain the chunks' normalized sum is then `Qp / (κ ∏_j v_j)`,
-at a query point (`rpoly_val`) and at `ζ` (`rpoly_valE`).
-`shows_of_honest` turns these facts into `Shows`, with the targets
-`qtg` and `qtgE`.  `recOK_of_honest` lifts the result to every column.
+`Qp` itself.  It needs disjoint domains of size `n`, chunks of fewer
+than `n` coefficients, `Qp` of fewer than `|L| n`, and normalized
+selectors (`κ μ_k ∏_{j ≠ k} v_j = 1` on `H_k`).  The recombination is
+the product `∏_j v_j` times the normalized sum, at a query point
+(`rpoly_val`) and at `ζ` (`rpoly_valE`), so off every domain the sum is
+`Qp / (κ ∏_j v_j)` (`shows_of_quot`).  `shows_of_honest` gives `Shows`
+from `QuotOK`, with the targets `qtg` and `qtgE`.  `recOK_of_honest`
+lifts the result to every column.
 
-Scope.  The remaining hypothesis of `recOK_of_honest` is that the
-verifier's targets equal `qtg` on the query points and `qtgE` at `ζ`:
-the quotient's values at the opened points are functions of the
-openings.  For the out-of-domain point this is the constraint check
-`Qp(ζ) = C(ζ) / Z_H(ζ)`.  The theorem also takes the selector
-normalization as a hypothesis; it does not derive it from the cosets'
-structure.
+Plonky3's split meets `QuotOK` with `κ = cis_l` and `m_i = cis_i / cis_l`
+(`get_zp_cis`, `mul_coeffs`).  Its domains are cosets of one subgroup of
+order `n`, so each `v_j` is constant on another chunk's domain and the
+normalization holds there.
+
+Scope.  `recOK_of_honest` takes `QuotOK` for each column, normalization
+included; it does not derive the normalization from the cosets'
+structure.  It also takes the verifier's targets equal to `qtg` on the
+query points and `qtgE` at `ζ`: the quotient's values at the opened
+points are functions of the openings.  At `ζ` this is the constraint
+check `Qp(ζ) = C(ζ) / Z_H(ζ)`.
 -/
 
 namespace Circuit
@@ -157,8 +163,9 @@ theorem sel_step (κ μ qx o Qx : F) (hsel : κ * μ * o = 1) (hq : qx = Qx) : �
 /-- **The recombination is the quotient**: when each chunk agrees with the
     quotient `Qp` on its own domain, the selectors are normalized
     (`κ μ_k ∏_{j ≠ k} v_j = 1` on chunk `k`'s domain, Plonky3's
-    `get_zp_cis`), the domains are disjoint and the degrees are below the
-    domains' size, `κ · Σ_i μ_i q_i ∏_{j ≠ i} v_j` is `Qp`. -/
+    `get_zp_cis`), the domains are disjoint, each chunk has fewer than `n`
+    coefficients and `Qp` fewer than `|L| n`, `κ · Σ_i μ_i q_i ∏_{j ≠ i} v_j`
+    is `Qp`. -/
 theorem rpoly_quot {h : Nat} (κ : F) (L : List (List F × F × F × List F)) (Qp : List F)
     (hsz : ∀ p ∈ L, p.1.length = h ∧ p.2.2.2.length ≤ h) (hQ : Qp.length ≤ L.length * h)
     (hnd : (L.map (·.1)).flatten.Nodup)
@@ -378,7 +385,7 @@ def QuotOK (cs : List Chunk) (Hl : List F) (cl : F) (qs : List (List F)) (ql : L
     (∀ k (hk : k < (allL cs Hl cl qs ql).length), ∀ x ∈ ((allL cs Hl cl qs ql)[k]'hk).1,
       κ * ((allL cs Hl cl qs ql)[k]'hk).2.2.1 * opv x (allL cs Hl cl qs ql) k = 1)
 
-/-- **Honest chunks show the quotient**, from the interpolation alone. -/
+/-- **Honest chunks show the quotient**, from `QuotOK`. -/
 theorem shows_of_honest {S : List F} {ζ : EF} (hζ : ∀ x : F, EF.ofF x ≠ ζ) {cs : List Chunk} {Hl : List F} {cl : F}
     {qs : List (List F)} {ql : List F} {κ : F} {Qp : List F} (hc : ∀ ch ∈ cs, ch.c ≠ 0) (hcl : cl ≠ 0)
     (h : QuotOK cs Hl cl qs ql κ Qp) :

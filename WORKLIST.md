@@ -139,9 +139,11 @@ and its claim table moves to the docs, where `release/README.md` already holds i
   Arvo binds nothing here; it replays its log. Needed only to prove a kernel's history
   to someone who lacks the log.
 - Instantiate `pcsCloseN_fri` for each circuit with one group a committed matrix (main
-  and permutation traces apart), and `recOK_of_honest`'s two hypotheses: the selector
-  normalization from the cosets' structure, and the targets from the constraint check. The Merkle salts and Fiat–Shamir are
-  cryptographic assumptions (hiding hash, random oracle).
+  and permutation traces apart), and discharge `recOK_of_honest`'s hypotheses: `QuotOK`
+  for Plonky3's coset split (`κ = cis_l`, `m_i = cis_i / cis_l`; the normalization follows
+  because each `Z_j` is constant on another chunk's coset), and the targets from the
+  constraint check. The Merkle salts and Fiat–Shamir are cryptographic assumptions
+  (hiding hash, random oracle).
 - Proven 100-bit parameters: 203 queries at rate 1/2; the masks then need 422 points,
   within the `2^9` floor (`bench/plonky3/README.md`).
 - FRI's soundness and round-by-round soundness, proved rather than assumed;
