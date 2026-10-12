@@ -19,9 +19,9 @@ The public tables' heights are powers of two set by the statement
 (`progC_height`, `segsC_height`).
 
 `comp_pcs`: that PCS meets `PCSCloseN` with `ε = 0` over the composed
-transcript's values.  `comp_hiding`: for an accepting composed run, with
-the CPU table `2^R ≥ 2` rows high, `comp_transcriptG` over that PCS, its
-PCS term zero; the simulator reads the tables' preprocessed columns only
+transcript's values.  `comp_hiding`: for an accepting composed run,
+`comp_transcriptG` over that PCS, its PCS term zero, each height at
+least `2|S| + 8` (so `R, Lm ≥ 3`); the simulator reads the tables' preprocessed columns only
 (`cPsim_pre`).
 
 Left out of the view and assumed: as for the Sudoku proof.
@@ -243,7 +243,7 @@ theorem comp_pcs {V : Type} (off : EF → String → EF) {hd0 stk0 ctr0 n nilA :
   refine pcsCloseN_fri_tabs (fun q hq => ?_) (by rfl)
     (fun t α β => cCols_shaped off hd0 stk0 ctr0 n nilA hM hC hW hPg hSg SM SC S9 SP SS ζ qv t α β)
     hdb haw hncw off tv Ts (fun p hp => ?_)
-  · simp only [qs, cGroups, List.mem_cons, List.not_mem_nil, or_false] at hq
+  · simp only [cGroups, List.mem_cons, List.not_mem_nil, or_false] at hq
     have gM := bbGroup_OK (tb := tbM) (qv := qv) (by omega) hSM hζ hszM
     have gC := bbGroup_OK (tb := tbC) (qv := qv) (by omega) hSC hζ hszC
     have g9 := bbGroup_OK (tb := 8) (qv := qv) (by decide) hS9' hζ hsz9'
@@ -384,7 +384,8 @@ theorem cPsim_pre {V : Type} (off : EF → String → EF) (hd0 stk0 ctr0 n nilA 
 /-- **The composed proof is zero knowledge over its composed hiding PCS**,
     the public program and segments tables included: for an accepting
     composed run on a memory of `2^Lm` cells with a CPU table of `2^R`
-    rows (`tbM + 1 = Lm`, `tbC + 1 = R`), query points off each trace
+    rows (`tbM + 1 = Lm`, `tbC + 1 = R`; the size bounds force
+    `R, Lm ≥ 3`), query points off each trace
     domain, `ζ` generating the extension and the FRI challenge generic,
     the real transcript over that PCS and the simulated one, summed over
     `α, β, r` and the tuples with `β` generic, differ by at most the
