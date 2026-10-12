@@ -215,13 +215,20 @@ theorem airTgE_open {T R S : List F} {n : Nat} {ts : List (List F)} {rs : List F
 -- The whole: a committed, opened table
 -- ---------------------------------------------------------------------------
 
-/-- **A masked column interpolates its values on the trace points.** -/
-theorem mcol_on_T {T R t r : List F} (ht : T.length = t.length) (hr : R.length = r.length) (hnd : (T ++ R).Nodup)
+theorem zip_fst_sub : ∀ (R r : List F), ((R.zip r).map Prod.fst).Sublist R
+  | [], _ => List.Sublist.slnil
+  | _ :: _, [] => List.nil_sublist _
+  | a :: R, _ :: r => (zip_fst_sub R r).cons_cons a
+
+/-- **A masked column interpolates its values on the trace points**, with
+    any number of random values. -/
+theorem mcol_on_T {T R t r : List F} (ht : T.length = t.length) (hnd : (T ++ R).Nodup)
     {i : Nat} (hi : i < T.length) : fval T[i] (mcol T R t r) = t[i]'(ht ▸ hi) := by
   unfold mcol
-  have hfst : (T.zip t ++ R.zip r).map Prod.fst = T ++ R := by
-    rw [List.map_append, map_fst_zip' ht, map_fst_zip' hr]
-  exact finterp_eval _ (by rw [hfst]; exact hnd) (T[i], t[i]'(ht ▸ hi)) (List.mem_append_left _ (zip_mem hi ht))
+  have hfst : (T.zip t ++ R.zip r).map Prod.fst = T ++ (R.zip r).map Prod.fst := by
+    rw [List.map_append, map_fst_zip' ht]
+  exact finterp_eval _ (by rw [hfst]; exact hnd.sublist ((zip_fst_sub R r).append_left T))
+    (T[i], t[i]'(ht ▸ hi)) (List.mem_append_left _ (zip_mem hi ht))
 
 theorem mpolys_getD (T R : List F) (n : Nat) : ∀ (ts : List (List F)) (rs : List F) (i : Nat), i < ts.length →
     (mpolys T R n ts rs).getD i [] = mcol T R (ts.getD i []) ((rs.drop (i * n)).take n)
@@ -270,8 +277,7 @@ theorem shows_open {A : AirD} {Tb : Table} {g : F} {m : Nat} (hsat : Sat A Tb) (
     (hg : fpow g (m + 1) = 1) (hinj : ∀ a b, a < m + 1 → b < m + 1 → fpow g a = fpow g b → a = b)
     (hgd : ∀ c ∈ A.cons, c.guarded = true) {ts : List (List F)} (hwin : ∀ c ∈ A.cons, c.win ts.length = true)
     (hts : ∀ i (hi : i < ts.length), (ts[i]).length = m + 1 ∧ ∀ r (hr : r < (ts[i]).length), (ts[i])[r] = Tb.main r i)
-    {R : List F} {n : Nat} (hR : R.length = n) (hnd : (cosetL 1 g (m + 1) ++ R).Nodup) {rs : List F}
-    (hrs : ts.length * n ≤ rs.length) (preP : Nat → List F)
+    {R : List F} {n : Nat} (hnd : (cosetL 1 g (m + 1) ++ R).Nodup) {rs : List F} (preP : Nat → List F)
     (hpre : ∀ r i, r < m + 1 → fval (fpow g r) (preP i) = Tb.pre r i)
     {S : List F} {ζ : EF} (hζ : ∀ x : F, EF.ofF x ≠ ζ) {cs : List Chunk} {Hl : List F} {cl : F}
     {qs : List (List F)} {ql : List F} {κ : F} (hc : ∀ ch ∈ cs, ch.c ≠ 0) (hcl : cl ≠ 0) (ws : List F)
@@ -293,14 +299,9 @@ theorem shows_open {A : AirD} {Tb : Table} {g : F} {m : Nat} (hsat : Sat A Tb) (
     by_cases hi : i < ts.length
     · rw [if_pos hi, mpolys_getD _ _ _ ts rs i hi]
       obtain ⟨hl, hv⟩ := hts i hi
-      have hrl : ((rs.drop (i * n)).take n).length = n := by
-        rw [List.length_take, List.length_drop]
-        have : (i + 1) * n ≤ ts.length * n := Nat.mul_le_mul_right n hi
-        rw [Nat.succ_mul] at this
-        omega
       have hti : (ts.getD i []).length = (cosetL 1 g (m + 1)).length := by
         rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hi, Option.getD_some, hl, hT]
-      have := mcol_on_T (t := ts.getD i []) hti.symm (hR.trans hrl.symm) hnd (i := r) (by rw [hT]; exact hr)
+      have := mcol_on_T (t := ts.getD i []) (r := (rs.drop (i * n)).take n) hti.symm hnd (i := r) (by rw [hT]; exact hr)
       rw [cosetL_getElem g (m + 1) 1 r, one_mul'] at this
       rw [this]
       simp only [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hi, Option.getD_some]

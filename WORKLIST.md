@@ -46,8 +46,10 @@ is built; this file records what is next. Last revised 2026-10-10.
   for a table that meets `Sat` its honest chunks show the AIR's targets (`Ski/ZK/QuotSat.lean`,
   `hvan_of_sat`, `shows_sat`). The quotient fits Plonky3's ZK chunk count, in Plonky3's degree (`quot_fits`). The targets
   read from the openings are the honest ones, and an opened table that meets `Sat` shows
-  them (`Ski/ZK/QuotOpen.lean`, `shows_open`). Open: instantiating a circuit's `CSet`s with
-  these targets inside `pcsCloseN_fri`. The coordinates fold back to the
+  them (`Ski/ZK/QuotOpen.lean`, `shows_open`). An AIR's quotient table enters `pcsCloseN_fri` with
+  `TabsHonest` discharged (`Ski/ZK/QuotInst.lean`, `tabsHonest_air`, `pcsCloseN_fri_air`).
+  Open: one table per AIR of a multi-AIR circuit, and a named circuit's static facts
+  (its group, its `g`, its domains) checked by the kernel. The coordinates fold back to the
   verifier's fold times the model's chunk normalization, and extension constraints, folded by coordinates, agree with Plonky3's
   fold in the extension (`Ski/ZK/QuotFold.lean`, `airTgE_back`, `airTgE_mixed`).
 - **The quotient's recombined values hide** (`Ski/ZK/MaskQuot.lean`): the chunks sit

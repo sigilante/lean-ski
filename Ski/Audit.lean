@@ -80,6 +80,7 @@ import Ski.ZK.VanishPow
 import Ski.ZK.QuotSat
 import Ski.ZK.QuotFold
 import Ski.ZK.QuotOpen
+import Ski.ZK.QuotInst
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -904,6 +905,9 @@ open Ski.Audit
 -- The targets from the opened values
 #audit_clean Circuit.idxIn_spec Circuit.eval_win Circuit.ρOpen_honest Circuit.ρOpenE_honest Circuit.airTg_open
   Circuit.airTgE_open Circuit.mcol_on_T Circuit.mpolys_getD Circuit.sat_cut Circuit.shows_open
+-- An AIR's quotient table in the composed hiding PCS
+#audit_clean Circuit.ppoly_allL Circuit.airTg_qs Circuit.airTgE_qs Circuit.openMulti_at Circuit.coord_shows
+  Circuit.recOK_air Circuit.tabsHonest_air Circuit.pcsCloseN_fri_air
 
 -- Part II's interface with an additive distance: the errors add, the hybrid argument proved
 #audit_clean Compose.lsum_le Compose.lsum_add Compose.lsum_const Compose.lsum_comm Compose.lsum_prod
