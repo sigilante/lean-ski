@@ -26,7 +26,8 @@ normalization holds there.
 
 Scope.  `recOK_of_honest` takes `QuotOK` for each column, normalization
 included.  `Ski/ZK/MaskCoset.lean` reduces the normalization on cosets
-to each domain's first point (`quotOK_of_coset`).  It also takes the verifier's targets equal to `qtg` on the
+to each domain's first point (`quotOK_of_coset`).  `recOK_of_honest`
+also takes the verifier's targets equal to `qtg` on the
 query points and `qtgE` at `ζ`: the quotient's values at the opened
 points are functions of the openings.  At `ζ` this is the constraint
 check `Qp(ζ) = C(ζ) / Z_H(ζ)`.

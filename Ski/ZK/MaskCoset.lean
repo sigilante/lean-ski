@@ -14,6 +14,20 @@ gⁱ)` when `gⁿ = 1` (`pr_rot`), so `v_j` is constant on `H_k`
 `sel_of_coset` derives the normalization from its value at each first
 point, and `quotOK_of_coset` builds `QuotOK` with that hypothesis in
 place of the pointwise one.
+
+Plonky3's chunk `j` is the coset `shift · gen^j · ⟨gen^L⟩`, with first
+point `s_j = shift · gen^j` and vanishing polynomial `Z_j = (X / s_j)ⁿ -
+1`.  The model's `c_j · ∏_i (X - s_j gⁱ)` is `Z_j` when `c_j = s_j⁻ⁿ`.
+With that scale, `κ = cis_l` and `m_k = cis_k / cis_l`, the first-point
+hypothesis is `get_zp_cis`'s definition.
+
+The targets.  `qtg_ctg` and `qtgE_ctgE` rewrite the targets through the
+quotient's defining identity `Qp Z_H = C`: they become `C / Z_H` on a
+domain and `C / (Z_H κ ∏_j v_j)` off every domain.  `C`'s value at `ζ`
+is the verifier's evaluation of the constraints on the opened trace
+values, and the other factors are public domain data.  An instance for
+a circuit still has to show that its `CSet` targets compute these values
+from the openings.
 -/
 
 namespace Circuit
@@ -150,5 +164,54 @@ theorem quotOK_of_coset {cs : List Chunk} {Hl : List F} {cl : F} {qs : List (Lis
       κ * ((allL cs Hl cl qs ql)[k]'hk).2.2.1 * opv s (allL cs Hl cl qs ql) k = 1) :
     QuotOK cs Hl cl qs ql κ Qp :=
   ⟨hκ, n, hsz, hQ, hnd, hdis, hint, sel_of_coset κ g n hg _ hcos hfirst⟩
+
+-- ---------------------------------------------------------------------------
+-- The targets from the constraint polynomial
+-- ---------------------------------------------------------------------------
+
+theorem cdiv_c (Z K Q fk : F) : Z * (K * (Q * fk)) = (K * fk) * (Q * Z) :=
+  fid (e := v 0 * (v 1 * (v 2 * v 3))) (e' := (v 1 * v 3) * (v 2 * v 0)) (by decide) [Z, K, Q, fk]
+
+/-- `Q / K = C / (Z K)` when `Q Z = C`, `Z ≠ 0`. -/
+theorem cdiv (Q K Z C : F) (h : Q * Z = C) (hz : Z ≠ 0) : Q * finv K = C * finv (Z * K) := by
+  by_cases hk : K = 0
+  · rw [hk, EF.finv_zero, mul_zero', mul_zero', EF.finv_zero, mul_zero']
+  · exact qdiv_step Z K _ C (by rw [cdiv_c, mul_finv hk, one_mul', h]) (mul_ne_zero' hz hk)
+
+theorem cdivE (Q K Z C : EF) (h : Q.mul Z = C) (hz : Z ≠ EF.zero) : Q.mul K.inv = C.mul (Z.mul K).inv := by
+  by_cases hk : K = EF.zero
+  · rw [hk, EF.inv_zero, EF.mul_zero, EF.mul_zero, EF.inv_zero, EF.mul_zero]
+  · refine div_stepE Z K _ C ?_ (mulE_ne_zero hz hk)
+    rw [← EF.mul_assoc K, EF.mul_comm K, EF.mul_assoc Q, EF.mul_inv hk, EF.mul_one,
+      EF.mul_comm Z, h]
+
+/-- **The targets from the constraint polynomial**: on every domain
+    `C / Z_H`, and off every domain `C / (Z_H κ ∏_j v_j)`. -/
+def ctg (cs : List Chunk) (Hl : List F) (cl : F) (qs : List (List F)) (ql : List F) (κ : F) (ZH Cp : List F) (x : F) : F :=
+  if x ∈ Hl ∨ inSome x cs = true then fval x Cp * finv (fval x ZH)
+  else fval x Cp * finv (fval x ZH * (κ * fval x (rpoly.ppoly (allL cs Hl cl qs ql))))
+
+def ctgE (ζ : EF) (cs : List Chunk) (Hl : List F) (cl : F) (qs : List (List F)) (ql : List F) (κ : F) (ZH Cp : List F) : EF :=
+  (fvalE ζ Cp).mul ((fvalE ζ ZH).mul ((EF.ofF κ).mul (fvalE ζ (rpoly.ppoly (allL cs Hl cl qs ql))))).inv
+
+/-- **The quotient's targets are the constraints'**: when `Qp Z_H = C`,
+    `qtg` is `ctg` wherever `Z_H` does not vanish, and `qtgE` is `ctgE`
+    when `Z_H(ζ) ≠ 0`. -/
+theorem qtg_ctg {cs : List Chunk} {Hl : List F} {cl : F} {qs : List (List F)} {ql : List F} {κ : F}
+    {Qp ZH Cp : List F} (h : FZero (fcdiff (fmul Qp ZH) Cp)) (x : F) (hz : fval x ZH ≠ 0) :
+    qtg cs Hl cl qs ql κ Qp x = ctg cs Hl cl qs ql κ ZH Cp x := by
+  have hq : fval x Qp * fval x ZH = fval x Cp := by
+    rw [← fval_fmul]; exact sub_eq_zero (by rw [← fval_fcdiff]; exact fval_fzero x _ h)
+  unfold qtg ctg
+  split
+  · rw [← hq, mul_assoc', mul_finv hz, mul_one']
+  · exact cdiv _ _ _ _ hq hz
+
+theorem qtgE_ctgE {ζ : EF} {cs : List Chunk} {Hl : List F} {cl : F} {qs : List (List F)} {ql : List F} {κ : F}
+    {Qp ZH Cp : List F} (h : FZero (fcdiff (fmul Qp ZH) Cp)) (hz : fvalE ζ ZH ≠ EF.zero) :
+    qtgE ζ cs Hl cl qs ql κ Qp = ctgE ζ cs Hl cl qs ql κ ZH Cp := by
+  have hq : (fvalE ζ Qp).mul (fvalE ζ ZH) = fvalE ζ Cp := by
+    rw [← fvalE_fmul]; exact (sub_eq_zero_iff _ _).1 (by rw [← fvalE_fcdiff]; exact fvalE_fzero ζ _ h)
+  exact cdivE _ _ _ _ hq hz
 
 end Circuit

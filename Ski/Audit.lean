@@ -875,7 +875,7 @@ open Ski.Audit
   Circuit.recOK_of_honest
 -- On cosets the selectors are normalized from each first point
 #audit_clean Circuit.fval_coset Circuit.pr_rot Circuit.pr_inv Circuit.coset_const Circuit.opv_congr
-  Circuit.sel_of_coset Circuit.quotOK_of_coset
+  Circuit.sel_of_coset Circuit.quotOK_of_coset Circuit.cdiv Circuit.cdivE Circuit.qtg_ctg Circuit.qtgE_ctgE
 
 -- Part II's interface with an additive distance: the errors add, the hybrid argument proved
 #audit_clean Compose.lsum_le Compose.lsum_add Compose.lsum_const Compose.lsum_comm Compose.lsum_prod
