@@ -22,9 +22,9 @@ the PCS's closeness stand for the STARK's, assumed: the constructor
 STARK; zero knowledge uses only the PCS's closeness.  The proof view is
 `transcript_zkG`'s, without the heights, which the statement fixes
 (`R`, `Lm`; `transcript_zkGH` adds them).  `composeC` gives Part II's
-conclusions over the instance.  The circuit is budget-exact: an accepted
-evaluation witness gets a proof when its run fits the heights, which
-depends on the evaluation; no theorem can supply it for every witness.
+conclusions over the instance, starting from a run.  Not derived: a run
+from a realizer's evaluation witness; under `CRel`'s caps on the heights
+and the region, a realizer whose evaluation needs more has none.
 -/
 
 namespace Circuit
@@ -195,15 +195,20 @@ def compPSD {PV : Type} (off : EF → String → EF) (NR ε : Nat) (hNR : 0 < NR
 /-- **Part II's conclusions for the composed circuit** (`composeD`'s, over
     `compPSD`).  For a formula's statement (its shape the formula's,
     cleared, its terms the formula's), with the STARK's assumed arguments:
-    - **knowledge**: a proof that verifies gives a run whose bits and
-      region read back as a realizer of the formula (`composed_sound`);
+    - **knowledge**: a proof that verifies gives a run whose region holds
+      a witness `w` (`cWitness`) that, with the run's bits, reads back as a
+      realizer of the formula (`composed_sound`);
     - **completeness**: for every accepted run, every proof the prover
-      outputs verifies, and it aborts on at most `err` draws;
+      outputs verifies (the assumed `complete`, passed through), and it
+      aborts on at most `err` draws (proved);
     - **zero knowledge**: for every accepted run, within `err`;
     - **witness indistinguishability**: for any two accepted runs, for
       instance from the two sides of an `∨`, within `2 · err`.
-    A realizer gets a proof when an accepted run of its statement fits the
-    statement's heights; the circuit is budget-exact. -/
+    Not derived: an accepted run from a realizer.  `composeD` starts from
+    a realizer; this starts from a run, and nothing here builds one from
+    an evaluation witness.  `CRel` caps the heights (`R`, `Lm ≤ 20`) and
+    the bits and region (`≤ 2^8`), so a realizer whose evaluation needs
+    more has no run under any statement. -/
 theorem composeC {PV : Type} (off : EF → String → EF) (NR ε : Nat) (hNR : 0 < NR)
     (pcs : CStmt → CRun' → (Nat → Tup) → EF → EF → Nat → PV) (psim : CStmt → EF → EF → List EF → Nat → PV)
     (hpcs : ∀ s w, CRel s w → PCSCloseN off NR (ctv s w) (pcs s w) (psim s) ε)
@@ -214,7 +219,8 @@ theorem composeC {PV : Type} (off : EF → String → EF) (NR ε : Nat) (hNR : 0
     (knowledge : ∀ s π, verify s π → CRel s (ext s π))
     (M : MF) (s : CStmt) (hs : s.shp = clear M) (hP : s.Ps = stmtOf M) :
     let ps := compPSD off NR ε hNR pcs psim hpcs verify ext complete knowledge
-    (∀ π, ps.verify s π → ∃ w, Accepts M (fillB (clear M) (ps.ext s π).ρ 0) w ∧
+    (∀ π, ps.verify s π → ∃ w, cWitness (ps.ext s π).ρ (BT.nleaves (clear M)) (ps.ext s π).region = some w ∧
+      Accepts M (fillB (clear M) (ps.ext s π).ρ 0) w ∧
       Real M.toForm (readBack M (fillB (clear M) (ps.ext s π).ρ 0) w [])) ∧
     (∀ r, CRel s r → (∀ d π, ps.prove s r d = some π → ps.verify s π) ∧
       cnt ps.draws (ps.prove s r) (fun o => o.isNone) ≤ ps.err s) ∧
@@ -224,11 +230,11 @@ theorem composeC {PV : Type} (off : EF → String → EF) (NR ε : Nat) (hNR : 0
   refine ⟨fun π hv => ?_, fun r h => ⟨ps.complete s r h, ps.aborts_le h⟩, fun r h => ps.zk s r h,
     fun r r' h h' => ?_⟩
   · obtain ⟨_, _, _, _, hr, hA, _⟩ := ps.knowledge s π hv
-    obtain ⟨w, _, hsh, hall⟩ := composed_sound hr hA
-    rw [hs] at hsh
+    obtain ⟨w, hw, hsh, hall⟩ := composed_sound hr hA
+    rw [hs] at hsh hw
     rw [hP, hs] at hall
     have hacc : Accepts M (fillB (clear M) (ps.ext s π).ρ 0) w := ⟨shape_of_same M _ hsh, hall⟩
-    exact ⟨w, hacc, real_of_accepted hacc⟩
+    exact ⟨w, hw, hacc, real_of_accepted hacc⟩
   · rw [Nat.two_mul]
     exact (ps.zk s r h).trans (ps.zk s r' h').symm
 

@@ -982,10 +982,13 @@ zero knowledge within `err` and witness indistinguishability within
 relation an accepted run within the statement's heights, its zero
 knowledge proved within an error the statement fixes, completeness,
 knowledge soundness and the PCS's closeness assumed; `composeC` gives
-Part II's conclusions over it, a verified proof read back as a realizer
-(`composed_sound`), zero knowledge within `err` and witness
-indistinguishability within `2 · err` between accepted runs. The circuit
-is budget-exact: a realizer gets a proof when its run fits the heights. Two composed statements over a public hand-off
+Part II's conclusions over it, starting from a run: a verified proof read
+back as a realizer (`composed_sound`), aborts at most `err` (the proofs'
+verifying assumed), zero knowledge within `err`, witness
+indistinguishability within `2 · err` between accepted runs. Not derived:
+a run from a realizer's evaluation witness; under the relation's caps
+(heights `2^20`, bits and region `2^8`) a realizer whose evaluation needs
+more has none. Two composed statements over a public hand-off
 prove the conjunction; a two-stage example is proved in zero knowledge, a
 proof per stage.
 
