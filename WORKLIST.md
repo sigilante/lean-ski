@@ -56,16 +56,17 @@ is built; this file records what is next. Last revised 2026-10-13.
   (`pcsCloseN_fri_air_draw`). Plonky3's chunks are built and their hypotheses proved, and
   over BabyBear the trace domain's order and the masks' distinctness (`Ski/ZK/QuotP3.lean`,
   `p3_static`, `bb_trace`, `bb_masks`, `pcsCloseN_fri_bb`); the group's trace and mask
-  points on them are assumed (`hT`, `hRq`). For the corpus circuit the kernel checks the AIR
-  facts for every term, and the composed theorem is specialized to it
-  (`Ski/ZK/QuotBase.lean`, `pcsCloseN_fri_base`). Several AIRs enter with one table each,
-  each folding its AIR's own constraints (`pcsCloseN_fri_tabs`), and the corpus LogUp
-  interactions' degree is checked by the kernel (`base_lup`). A table can read several
-  groups and take constraints that depend on the challenges and the transcript's values, as
-  LogUp's do (`Ski/ZK/QuotTwo.lean`, `tabsHonest_gen`, `pcsCloseN_fri_gen`). LogUp's
-  constraints are written as constraints, complete row by row on the honest permutation
-  trace, and of the shape `tabsHonest_gen` asks, for the corpus too, each lookup with its
-  bus's prefix as its `α`, so multi-bus AIRs are covered (`Ski/ZK/LogUpAir.lean`, `lup_sat`;
+  points on them, `hT` and `hRq`, are Plonky3's interleaved rows (`Ski/ZK/Interleave.lean`,
+  `bb_ileave_mcol`). For the corpus circuit the kernel checks the AIR facts for every term,
+  and the composed theorem is specialized to it (`Ski/ZK/QuotBase.lean`,
+  `pcsCloseN_fri_base`). Several AIRs enter with one table each, each folding its AIR's own
+  constraints (`pcsCloseN_fri_tabs`), and the corpus LogUp interactions' degree is checked
+  by the kernel (`base_lup`). A table can read several groups and take constraints that
+  depend on the challenges and the transcript's values, as LogUp's do
+  (`Ski/ZK/QuotTwo.lean`, `tabsHonest_gen`, `pcsCloseN_fri_gen`). LogUp's constraints are
+  written as constraints, complete row by row on the honest permutation trace, and of the
+  shape `tabsHonest_gen` asks, for the corpus too, each lookup with its bus's prefix as its
+  `α`, so multi-bus AIRs are covered (`Ski/ZK/LogUpAir.lean`, `lup_sat`;
   `Ski/ZK/LogUpBase.lean`, `corpus_withLup_shape`). The honest total is the transcript's
   terminal, so completeness holds at the transcript's terminal of any table meeting `Sat`
   (`accV_terminal`, `lup_sat_terminal`). The committed main and permutation groups are that
@@ -108,14 +109,14 @@ is built; this file records what is next. Last revised 2026-10-13.
   the committed matrices: the masked column is the interpolant of Plonky3's interleaved
   column over the `2n`-point domain (`Ski/ZK/Interleave.lean`, `bb_ileave_mcol`); that
   Plonky3 interleaves, trace rows even and random rows odd, is read from its source.
-- **The quotient's recombined values hide** (`Ski/ZK/MaskQuot.lean`): the chunks sit
-  at the committed trace's height, so a query opens them at the trace's point `s`, where they
-  recombine to a function of the terminals and the masked columns at `s` and `g s`.
-  Masks covering `S ++ g S` and `Z`, `2|S| + 4|Z| ≤ n`, hide it with the column
-  openings (`pcsCloseN_quot`, `PCSCloseN.post`), and every hiding circuit's transcript
-  theorem holds over that view with no PCS term (`*_transcriptG_quot`). At `q` queries
-  that is `2q + 8`, which `mask-margin` checks. The chunks' own values, their split and
-  randomization stay assumed.
+- **The quotient's recombined values hide** (`Ski/ZK/MaskQuot.lean`): the chunks sit at the
+  committed trace's height, so a query opens them at the trace's point `s`, where they
+  recombine to a function of the terminals and the masked columns at `s` and `g s`. Masks
+  covering `S ++ g S` and `Z`, `2|S| + 4|Z| ≤ n`, hide it with the column openings
+  (`pcsCloseN_quot`, `PCSCloseN.post`), and every hiding circuit's transcript theorem holds
+  over that view with no PCS term (`*_transcriptG_quot`). At `q` queries that is `2q + 8`,
+  which `mask-margin` checks. The chunks' own values, their split and randomization were
+  assumed here; later modules build them (`MaskChunk`, `MaskSplit`, `QuotP3`, `PreOpen`).
 - **Every hiding table has at least `2^9` rows**: `HidingFriPcs` asks `2(q + 8) = 216`
   mask points and the quotient `2q + 8 = 208`; the `2^9` floor leaves 296 to spare and
   meets 203 queries (422). An earlier count, `3q + 8 = 308` (#30 and 77c36cf), took
@@ -214,12 +215,6 @@ and its claim table moves to the docs, where `release/README.md` already holds i
   calls per proof over computed bits: a P2IN that walks a list, as P2OUT writes one.
   Arvo binds nothing here; it replays its log. Needed only to prove a kernel's history
   to someone who lacks the log.
-- Instantiate `pcsCloseN_fri` for each circuit with one group a committed matrix (main
-  and permutation traces apart), and discharge `recOK_of_honest`'s hypotheses: `QuotOK`
-  for Plonky3's coset split (`κ = cis_l`, `m_i = cis_i / cis_l`; `quotOK_of_coset` reduces
-  the normalization to each first point, with `c_j = s_j⁻ⁿ`), and the targets: each
-  `CSet`'s `JS`, `Jζ` computing `ctg`, `ctgE` from the openings (`qtg_ctg`, `qtgE_ctgE`). The Merkle salts and Fiat–Shamir are cryptographic assumptions
-  (hiding hash, random oracle).
 - Proven 100-bit parameters: 203 queries at rate 1/2; the masks then need 422 points,
   within the `2^9` floor (`bench/plonky3/README.md`).
 - FRI's soundness and round-by-round soundness, proved rather than assumed;
