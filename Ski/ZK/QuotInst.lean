@@ -13,8 +13,11 @@ it at every trace, challenge, mask and transcript value, and
 
 The hypotheses are of three kinds.
 - **At each trace** (`hsatT`): the group's columns are a table that
-  meets `Sat`, with constraints in the window of offsets 0 and 1.  This
-  is the circuit's completeness.
+  meets `Sat`, with constraints in the window of offsets 0 and 1.
+  `PCSCloseN` quantifies over every tuple assignment `t` and every
+  challenge pair, so this is stronger than completeness, which gives
+  `Sat` only for accepted runs.  A trace builder meets it when it falls
+  back to one fixed accepting table on inputs it does not accept.
 - **The group:** its trace points are `⟨g⟩` and its next-row map is
   `g ·`; its out-of-domain points are `ζ, g ζ`; its masks lie off the
   trace.
@@ -25,7 +28,8 @@ The hypotheses are of three kinds.
   - the weights are `cis_k / κ` (`hw`).
 
 The weight lists `ws` are the base coordinates of the folding
-challenge's powers, fixed before the masks in the public-coin model.
+challenge's powers: a fixed folding challenge, independent of the masks.
+The theorem holds for each value, and the model does not sample it.
 The theorem covers one quotient table, that of the group `gi`.
 Fiat–Shamir and the Merkle commitments' hiding stay assumed, as in
 `pcsCloseN_fri`.
@@ -297,26 +301,50 @@ theorem tabsHonest_air {A : AirD} {g : F} {m : Nat} {preP : Nat → List F} {gi 
       exact this
 
 /-- **The composed hiding PCS with an AIR's quotient table**: `pcsCloseN_fri`
-    with `TabsHonest` discharged by `tabsHonest_air`. -/
+    at the table `airQTab` with the data `airData`, its `TabsHonest`
+    discharged by `tabsHonest_air`. -/
 theorem pcsCloseN_fri_air {V : Type} {qs : List QGroup} {ks : List Nat} {cols : (Nat → Tup) → EF → EF → List (List (List F))}
     {ncw : Nat} {αb : EF} {fri : EF → EF → List (EF → EF) → V}
-    (hok : ∀ q ∈ qs, q.OK) (hks : ks.length = qs.length)
+    (hokq : ∀ q ∈ qs, q.OK) (hks : ks.length = qs.length)
     (hcols : ∀ t α β, Shaped (qs.map QGroup.ext) (cols t α β) ∧ (cols t α β).map List.length = ks)
-    (hd : (mz αb).det ≠ 0) (haw : ∀ w, apow αb w ≠ EF.zero) (hncw : 4 ≤ ncw)
+    (hdet : (mz αb).det ≠ 0) (haw : ∀ w, apow αb w ≠ EF.zero) (hncw : 4 ≤ ncw)
     (off : EF → String → EF) (tv : (String → EF) → EF → (Nat → Tup) → List EF)
     {A : AirD} {g : F} {m : Nat} {preP : Nat → List F} {gi : Nat} {κ : F} {cs : List Chunk}
-    {Hl : List F} {cl : F} {S : List F} {ζ : EF} {ws : List (List F)}
-    (htab : ∀ t α β ms (v : List EF), TabsHonest
-      (fun c => c.JS α β v (openMulti (qs.map QGroup.ext) (cols t α β) ms))
-      (fun c => c.Jζ α β v (openMulti (qs.map QGroup.ext) (cols t α β) ms))
-      [airQTab A g m preP gi κ cs Hl cl S ζ ws]
-      [airData A g m preP cs Hl ws ((mpolysMulti (qs.map QGroup.ext) (cols t α β) ms).getD gi [])]) :
+    {Hl : List F} {cl : F} {S : List F} {ζ : EF} {ws : List (List F)} {R : List F} {nR : Nat}
+    (hgi : gi < qs.length) (hcl' : ∀ t α β, gi < (cols t α β).length)
+    (hT : (qs[gi]'hgi).base.T = cosetL 1 g (m + 1)) (hRq : (qs[gi]'hgi).base.R = R) (hSq : (qs[gi]'hgi).base.S = S)
+    (hZq : (qs[gi]'hgi).base.Z = [ζ, (EF.ofF g).mul ζ]) (hnq : (qs[gi]'hgi).base.n = nR)
+    (hnxt : (qs[gi]'hgi).nxt = (g * ·))
+    (hsatT : ∀ t α β, ∃ Tb : Table, Sat A Tb ∧ Tb.h = m + 1 ∧
+      (∀ c ∈ A.cons, c.win ((cols t α β)[gi]'(hcl' t α β)).length = true) ∧
+      (∀ i (hi : i < ((cols t α β)[gi]'(hcl' t α β)).length),
+        (((cols t α β)[gi]'(hcl' t α β))[i]).length = m + 1 ∧
+        ∀ r (hr : r < (((cols t α β)[gi]'(hcl' t α β))[i]).length),
+          (((cols t α β)[gi]'(hcl' t α β))[i])[r] = Tb.main r i) ∧
+      (∀ r i, r < m + 1 → fval (fpow g r) (preP i) = Tb.pre r i))
+    (hg : fpow g (m + 1) = 1) (hinj : ∀ a b, a < m + 1 → b < m + 1 → fpow g a = fpow g b → a = b)
+    (hgd : ∀ c ∈ A.cons, c.guarded = true) (hR : R.length ≤ m + 1) (hnd : (cosetL 1 g (m + 1) ++ R).Nodup)
+    (hpreL : ∀ i, (preP i).length ≤ 2 * (m + 1))
+    (hζ : ∀ x : F, EF.ofF x ≠ ζ) (hS : ∀ x ∈ S, fval x (fvan (cosetL 1 g (m + 1))) ≠ 0)
+    (hc : ∀ ch ∈ cs, ch.c ≠ 0) (hcl : cl ≠ 0) (hκ : κ ≠ 0)
+    {shift ω : F} {k lq D s : Nat} (hshift : shift ≠ 0) (hhalf : fpow ω (2 ^ k) = -1)
+    (hN : (cs.length + 1) * (m + 1) = 2 ^ (k + 1))
+    (hdom : cs.map (·.H) ++ [Hl] = splitD shift ω (cs.length + 1) (m + 1))
+    (hL : cs.length + 1 = 2 ^ (lq + 1)) (hD : ∀ e ∈ A.cons, e.pdeg ≤ D) (hDlq : D ≤ 2 ^ lq)
+    (hsd : ∀ e ∈ A.cons, e.sdeg ≤ s) (hs : s < m + 1) (hPsz : D * (2 * (m + 1) - 1) + s + 1 ≤ P)
+    (hw : ∀ (qs : List (List F)) (ql : List F), qs.length = cs.length → ∀ j (hj : j < (allL cs Hl cl qs ql).length) s',
+      ((allL cs Hl cl qs ql)[j]'hj).1 = cosetL s' (fpow ω (cs.length + 1)) (m + 1) →
+      ((allL cs Hl cl qs ql)[j]'hj).2.2.1 = finv (opv s' (allL cs Hl cl qs ql) j) * finv κ)
+    (hok : ∀ c ∈ (airQTab A g m preP gi κ cs Hl cl S ζ ws).sets, c.OK)
+    (hHn : ∀ ch ∈ cs, ch.H.Nodup) (hHln : Hl.Nodup) :
     PCSCloseN off (P ^ (friN1 qs ks [airQTab A g m preP gi κ cs Hl cl S ζ ws] +
         friN2 qs [airQTab A g m preP gi κ cs Hl cl S ζ ws] ncw)) tv
       (pcsFri off tv qs ks cols [airQTab A g m preP gi κ cs Hl cl S ζ ws]
         (fun t α β ms => [airData A g m preP cs Hl ws ((mpolysMulti (qs.map QGroup.ext) (cols t α β) ms).getD gi [])])
         ncw αb fri)
       (psimFri qs ks [airQTab A g m preP gi κ cs Hl cl S ζ ws] ncw αb fri) 0 :=
-  pcsCloseN_fri hok hks hcols hd haw hncw off tv (fun t α β ms => htab t α β ms _)
+  pcsCloseN_fri hokq hks hcols hdet haw hncw off tv (fun t α β ms =>
+    tabsHonest_air hgi hcl' hT hRq hSq hZq hnq hnxt hsatT hg hinj hgd hR hnd hpreL hζ hS hc hcl hκ hshift hhalf hN
+      hdom hL hD hDlq hsd hs hPsz hw hok hHn hHln t α β ms _)
 
 end Circuit

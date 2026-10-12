@@ -48,8 +48,10 @@ is built; this file records what is next. Last revised 2026-10-10.
   read from the openings are the honest ones, and an opened table that meets `Sat` shows
   them (`Ski/ZK/QuotOpen.lean`, `shows_open`). An AIR's quotient table enters `pcsCloseN_fri` with
   `TabsHonest` discharged (`Ski/ZK/QuotInst.lean`, `tabsHonest_air`, `pcsCloseN_fri_air`).
-  Open: one table per AIR of a multi-AIR circuit, and a named circuit's static facts
-  (its group, its `g`, its domains) checked by the kernel. The coordinates fold back to the
+  `hsatT` asks `Sat` at every tuple assignment, more than
+  completeness gives. Open: a trace builder that falls back to a fixed accepting table; one
+  table per AIR of a multi-AIR circuit; the folding challenge sampled in the transcript
+  rather than fixed; a named circuit's static facts checked by the kernel. The coordinates fold back to the
   verifier's fold times the model's chunk normalization, and extension constraints, folded by coordinates, agree with Plonky3's
   fold in the extension (`Ski/ZK/QuotFold.lean`, `airTgE_back`, `airTgE_mixed`).
 - **The quotient's recombined values hide** (`Ski/ZK/MaskQuot.lean`): the chunks sit
