@@ -1191,7 +1191,12 @@ theorem over `EF`.
   tree's `transcript_zkN`; per circuit `sud_transcript`, `wit_transcript`,
   `comp_transcript`): from public data it matches the real transcript on
   every event within a fraction `P^2 / P^4 + M / P^4 + ε / NR` of the
-  draws, `M` the LogUp messages. The model: public-coin challenges `α`
+  draws, `M` the LogUp messages. Whether `β` is non-generic is public
+  (its `x` and `x^3` coefficients zero), so every hiding verifier rejects
+  such a proof and the honest prover proves again from a fresh seed
+  (`src/reject.rs`, about once in `2^62` proofs). Over the generic `β`
+  the `P^2 / P^4` term goes (`Ski/ZK/Reject.lean`, `transcript_zkG` and
+  each circuit's `*_transcriptG`). The model: public-coin challenges `α`
   and `β`, uniform and independent of the prover's randomness
   (honest-verifier zero knowledge; Fiat–Shamir in the random oracle model
   makes it non-interactive, a standard step not proved here); and one

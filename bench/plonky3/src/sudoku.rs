@@ -486,10 +486,11 @@ fn verify_zk(p: &Public, proof: &SProof) -> Result<(), String> {
         let pvs = crate::stmt::public_values(&v_airs);
         let r = verify_batch(&v_config, &v_airs, proof, &pvs, &v_data.common)
             .map_err(|e| format!("verify: {e:?}"));
-        if r.is_ok() {
-            crate::fsbudget::budget!("sudoku", &v_airs, proof, &v_data.common, v_config, p3_uni_stark::OpeningShape::hiding(RANDOM_CODEWORDS));
-        }
-        r
+        r?;
+        // The challenge β must be generic (`Ski/ZK/Reject.lean`).
+        crate::reject::check_beta(&v_airs, proof)?;
+        crate::fsbudget::budget!("sudoku", &v_airs, proof, &v_data.common, v_config, p3_uni_stark::OpeningShape::hiding(RANDOM_CODEWORDS));
+        Ok(())
     }));
     match verified {
         Ok(r) => r,
@@ -537,8 +538,10 @@ pub fn sudoku_prove(public: &std::path::Path, wit: &std::path::Path, proof_out: 
     if let Some(t) = table_out {
         std::fs::write(t, lean_table(&p, &tb)).map_err(|e| format!("{}: {e}", t.display()))?;
     }
-    let (bs, ps) = ProverSeed::fresh().split();
-    let (proof, prove_s) = prove_zk(&p, &sudoku_traces(&p, &tb, bs), ps)?;
+    let (proof, prove_s) = crate::reject::until_generic(&airs(&p), || {
+        let (bs, ps) = ProverSeed::fresh().split();
+        prove_zk(&p, &sudoku_traces(&p, &tb, bs), ps)
+    })?;
     let bytes = postcard::to_allocvec(&proof).map_err(|e| format!("serialize: {e}"))?;
     std::fs::write(proof_out, &bytes).map_err(|e| format!("{}: {e}", proof_out.display()))?;
     verify_zk(&p, &proof)?;

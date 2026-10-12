@@ -60,6 +60,7 @@ import Ski.ZK.LogUpCJ
 import Ski.ZK.MaskOOD
 import Ski.ZK.MaskPCS
 import Ski.ZK.PRG
+import Ski.ZK.Reject
 import Ski.ZK.FSRound
 import Ski.ComposedJ
 import Ski.Circuit.Flow
@@ -803,6 +804,10 @@ open Ski.Audit
 
 -- The prover's randomness from one seed: counts move from uniform draws to the seed's at the generator's cost
 #audit_clean Circuit.sumTo_mulR Circuit.sumTo_bound Circuit.prg_transfer Circuit.transcript_prg
+
+-- Rejecting the non-generic challenges: the transcript at every generic β, without the P^2/P^4 term
+#audit_clean Circuit.genB_iff Circuit.sumTo_sumN_zero Circuit.transcript_zkG Circuit.comp_transcriptG
+  Circuit.sud_transcriptG Circuit.wit_transcriptG Circuit.compJ_transcriptG Circuit.compP_transcriptG
 
 -- Fiat–Shamir round by round: adaptive hash calls, grinding, and the LogUp round under them
 #audit_clean Circuit.seqSum_const Circuit.seqSum_mono Circuit.seqSum_add Circuit.fs_attempts Circuit.sumTo_pair

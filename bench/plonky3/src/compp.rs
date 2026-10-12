@@ -711,10 +711,11 @@ fn verify(p: &PPublic, proof: &PProof) -> Result<(), String> {
             .map_err(|e| format!("verifier setup: {e:?}"))?;
         let r = verify_batch(&v_config, &v_airs, proof, &crate::stmt::public_values(&v_airs), &v_data.common)
             .map_err(|e| format!("verify: {e:?}"));
-        if r.is_ok() {
-            crate::fsbudget::budget!("compp", &v_airs, proof, &v_data.common, v_config, p3_uni_stark::OpeningShape::hiding(4));
-        }
-        r
+        r?;
+        // The challenge β must be generic (`Ski/ZK/Reject.lean`).
+        crate::reject::check_beta(&v_airs, proof)?;
+        crate::fsbudget::budget!("compp", &v_airs, proof, &v_data.common, v_config, p3_uni_stark::OpeningShape::hiding(4));
+        Ok(())
     }));
     match verified {
         Ok(r) => r,
@@ -835,8 +836,10 @@ pub fn compp_prove(public: &std::path::Path, wit: &std::path::Path, proof_out: &
     if let Some(t) = table_out {
         std::fs::write(t, lean_table(&p, &tb)).map_err(|e| format!("{}: {e}", t.display()))?;
     }
-    let (bs, ps) = ProverSeed::fresh().split();
-    let (proof, prove_s) = prove(&p, &traces(&p, &tb, true, bs), ps)?;
+    let (proof, prove_s) = crate::reject::until_generic(&airs(&p), || {
+        let (bs, ps) = ProverSeed::fresh().split();
+        prove(&p, &traces(&p, &tb, true, bs), ps)
+    })?;
     let bytes = postcard::to_allocvec(&proof).map_err(|e| format!("serialize: {e}"))?;
     // Verify before writing: a proof that does not verify is never written.
     let t1 = Instant::now();
@@ -1025,8 +1028,10 @@ pub fn compp_prove_table(public: &std::path::Path, table: &std::path::Path, proo
     let ttext = std::fs::read_to_string(table).map_err(|e| format!("{}: {e}", table.display()))?;
     let tb = table_of_text(&p, &ttext)?;
     one_call(&tb)?;
-    let (bs, ps) = ProverSeed::fresh().split();
-    let (proof, prove_s) = prove(&p, &traces(&p, &tb, true, bs), ps)?;
+    let (proof, prove_s) = crate::reject::until_generic(&airs(&p), || {
+        let (bs, ps) = ProverSeed::fresh().split();
+        prove(&p, &traces(&p, &tb, true, bs), ps)
+    })?;
     let bytes = postcard::to_allocvec(&proof).map_err(|e| format!("serialize: {e}"))?;
     let t1 = Instant::now();
     verify(&p, &proof)?;

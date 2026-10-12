@@ -856,7 +856,12 @@ over any such tree is `transcript_zkN` (`Ski/ZK/TranscriptN.lean`), and
 the three-table `transcript_zk` is its instance: the chain's view is the
 tree's (`chain_viewT`), the tree's reference base the chain's reference
 triple (`viewT_xrefN`), and the sums over two tuples are the sums over two
-edges (`tsum_tsumN`). So `comp_transcript`, `sud_transcript` and
+edges (`tsum_tsumN`). The non-generic `β`, `P^2` of `P^4`, are public,
+so every hiding verifier rejects them and the honest prover redraws its
+seed (`bench/plonky3/src/reject.rs`); `transcript_zkG`
+(`Ski/ZK/Reject.lean`) and each circuit's `*_transcriptG` simulate the
+transcripts at the generic `β` without the `P^2/P^4` term. So
+`comp_transcript`, `sud_transcript` and
 `wit_transcript`, their statements unchanged, rest on the tree: the
 design's milestone 2.
 The closure rule, the design's milestone 3 (`Ski/JetPublic.lean`): the

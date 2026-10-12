@@ -93,6 +93,7 @@ mod sudoku;
 mod witness;
 mod p2air;
 mod compp;
+mod reject;
 
 // ---------------------------------------------------------------------------
 // The STARK configuration

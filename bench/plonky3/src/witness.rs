@@ -465,10 +465,11 @@ fn prove_and_verify(p: &Public, traces: &[RowMajorMatrix<Val>; 4], ps: PcsStream
         let v_data = ProverData::<ZkConfig>::from_airs_and_degrees(&v_config, &v_airs, &want)
             .map_err(|e| format!("verifier setup: {e:?}"))?;
         let r = verify_batch(&v_config, &v_airs, &proof, &crate::stmt::public_values(&v_airs), &v_data.common).map_err(|e| format!("verify: {e:?}"));
-        if r.is_ok() {
-            crate::fsbudget::budget!("witness", &v_airs, &proof, &v_data.common, v_config, p3_uni_stark::OpeningShape::hiding(4));
-        }
-        r
+        r?;
+        // The challenge β must be generic (`Ski/ZK/Reject.lean`).
+        crate::reject::check_beta(&v_airs, &proof)?;
+        crate::fsbudget::budget!("witness", &v_airs, &proof, &v_data.common, v_config, p3_uni_stark::OpeningShape::hiding(4));
+        Ok(())
     }));
     let outcome = match verified {
         Ok(Ok(())) => Outcome::Verified(prove_s, t1.elapsed().as_secs_f64()),
