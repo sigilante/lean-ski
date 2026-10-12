@@ -41,9 +41,10 @@ Scope.
   coordinate `c_m` of an extension constraint takes coordinate `k` of
   `αʲ Xᵐ`.  `Ski/ZK/QuotFold.lean` folds the coordinates back
   (`airTgE_back`).
-- **Leaves.** `E` has no periodic columns, no auxiliary or permutation
-  columns and no extension-valued leaves; public values enter only as
-  constants.
+- **Leaves.** `E` has no periodic columns and no extension-valued
+  leaves; an extension column enters as its four base columns, and an
+  extension constraint as its coordinates (`Ski/ZK/QuotFold.lean`).
+  Public values and challenges enter only as constants.
 - **Selectors.** They are given polynomials.  Plonky3 evaluates them
   through `Z_H(x) = xⁿ - 1`; `Ski/ZK/VanishPow.lean` proves that formula
   equals `∏_{a ∈ H} (x - a)` and gives the first- and last-row
