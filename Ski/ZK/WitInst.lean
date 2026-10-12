@@ -20,7 +20,8 @@ least the `2^9` floor, for every run over `2^10` cells.
 transcript's values.  `wit_hiding`: for an accepting run of the
 hidden-term statement, `wit_transcriptG` over that PCS, its PCS term zero.
 
-Left out of the view and assumed: as for the Sudoku proof.
+Left out of this view and assumed: as for the Sudoku proof; the
+witness-free matrices join it in `Ski/ZK/PreOpen.lean` (`wit_hidingX`).
 -/
 
 namespace Circuit

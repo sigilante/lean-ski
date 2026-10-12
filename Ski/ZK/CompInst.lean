@@ -24,7 +24,8 @@ transcript's values.  `comp_hiding`: for an accepting composed run,
 least `2|S| + 8` (so `R, Lm ≥ 3`); the simulator reads the tables' preprocessed columns only
 (`cPsim_pre`).
 
-Left out of the view and assumed: as for the Sudoku proof.
+Left out of this view and assumed: as for the Sudoku proof; the
+witness-free matrices join it in `Ski/ZK/PreOpen.lean` (`comp_hidingX`).
 -/
 
 namespace Circuit

@@ -46,8 +46,9 @@ quotient over `cis_l ∏ v_j`.  The transcript theorems then hold over that
 view with no PCS term (`transcript_zkG_chunks` and the five circuits').
 
 Scope.  The randomization polynomial opened with the quotient, the random
-codeword columns appended to each chunk, FRI's layers, Merkle paths and
-salts, and Fiat–Shamir stay assumed.  The points, `ζ` and the challenges
+codeword columns appended to each chunk and FRI's layers are added later
+(`pcsCloseN_friR`, `Ski/ZK/PreOpen.lean`); Merkle paths and salts, and
+Fiat–Shamir stay assumed.  The points, `ζ` and the challenges
 are fixed before the masks, in the public-coin model.  That the honest
 chunks show the quotient, as `RecOK` states, is read from Plonky3's source
 (the split of the quotient's evaluations, `get_zp_cis`), not proved.

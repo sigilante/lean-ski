@@ -16,11 +16,13 @@ For each circuit the PCS with them still hides exactly
 (`sud_pcsX`, `wit_pcsX`, `comp_pcsX`, by `PCSCloseN.family`), and the
 transcript theorems hold over it with no PCS term (`sud_hidingX`,
 `wit_hidingX`, `comp_hidingX`).  This closes the earlier argument that
-the preprocessed columns fold into FRI's view: with `NR2 = 1` they are
-fixed, and with setup randomness they are a draw independent of the
-witness.  Assumed: that FRI's view is a function of every matrix's
-batched polynomial, as before; the order of the matrices in FRI's input
-is a fixed rearrangement, which `fri` absorbs.
+the preprocessed columns fold into FRI's view.  Setup randomness is
+drawn once per verifying key, a fixed public draw: `NR2 = 1`, with `Rb`
+and `Ro` closing over it; `NR2 > 1` models fresh randomness per proof.
+Assumed: that FRI's view is a function of every matrix's batched
+polynomial, as before; Plonky3's recombination of the per-matrix batches
+(its `αb`-offset sums by height included) is a fixed function of
+`Bs ++ Rb`, which `fri` absorbs.
 -/
 
 namespace Circuit
