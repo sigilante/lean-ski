@@ -592,26 +592,22 @@ theorem add_sub_cancel_f (a l : F) : a + (l - a) = l :=
 theorem mul_div_cancel3 (V d : F) (hV : V ≠ 0) : V * (d * finv V) = d := by
   rw [mul_comm' d, ← mul_assoc', mul_finv hV, one_mul']
 
-/-- **The chunks hide all but what the verifier recombines**: two chunk
-    data that agree where the verifier can see them (`Agree`) open with
-    one distribution over the chunks' random polynomials. -/
-theorem chunks_hide {S : List F} {ζ : EF} {h : Nat} (hζ : ∀ x : F, EF.ofF x ≠ ζ) (hd : (mz ζ).det ≠ 0)
+/-- **The chunks' shift**: for two chunk data that agree where the
+    verifier can see them, a shift of the random polynomials under which
+    the second opens as the first. -/
+theorem chunks_shiftV {S : List F} {ζ : EF} {h : Nat} (hζ : ∀ x : F, EF.ofF x ≠ ζ) (hd : (mz ζ).det ≠ 0)
     (hn : S.length + 4 ≤ h) {cs : List Chunk} {Hl : List F} {cl : F}
     (hok : ∀ ch ∈ cs, ch.c ≠ 0 ∧ ch.m ≠ 0) (hcl : cl ≠ 0)
     {qs qs' : List (List F)} {ql ql' : List F} (h1 : qs.length = cs.length) (h2 : qs'.length = cs.length)
-    (hag : Agree S ζ cs Hl cl qs qs' ql ql') (E : List (List F × List EF) → Bool) :
-    vsum (cs.length * h) (fun rs => if E (chunksView S [ζ] h cs Hl cl qs ql rs) then 1 else 0) =
-      vsum (cs.length * h) (fun rs => if E (chunksView S [ζ] h cs Hl cl qs' ql' rs) then 1 else 0) := by
+    (hag : Agree S ζ cs Hl cl qs qs' ql ql') :
+    ∃ K : List F, K.length = cs.length * h ∧ ∀ rs : List F, rs.length = cs.length * h →
+      chunksView S [ζ] h cs Hl cl qs' ql' (vadd rs K) = chunksView S [ζ] h cs Hl cl qs ql rs := by
   obtain ⟨hH, hHl, hJ, hJE⟩ := hag
   let A : F → F := fun x => jsumF x cs qs - jsumF x cs qs'
   let L : F → F := fun x => (fval x ql' - fval x ql) * finv (cl * fval x (fvan Hl))
   obtain ⟨hKl, hKv, hKS, hKZ⟩ := shiftK_spec hζ hd hn A L (fun _ => false) cs qs qs' hok h1 h2 hH
   let K := shiftK S ζ h A L (fun _ => false) cs qs qs'
-  rw [← vsum_shift _ K hKl (fun rs => if E (chunksView S [ζ] h cs Hl cl qs' ql' rs) then 1 else 0)]
-  refine vsum_congr _ (fun rs hr => ?_)
-  show (if E (chunksView S [ζ] h cs Hl cl qs ql rs) = true then 1 else 0) =
-    (if E (chunksView S [ζ] h cs Hl cl qs' ql' (vadd rs K)) = true then 1 else 0)
-  suffices e : chunksView S [ζ] h cs Hl cl qs' ql' (vadd rs K) = chunksView S [ζ] h cs Hl cl qs ql rs by rw [e]
+  refine ⟨K, hKl, fun rs hr => ?_⟩
   unfold chunksView
   rw [hKv rs hr]
   congr 3
@@ -637,6 +633,23 @@ theorem chunks_hide {S : List F} {ζ : EF} {h : Nat} (hζ : ∀ x : F, EF.ofF x 
     unfold chunkAtE
     rw [fvalE_fcscale, fvalE_fcscale, wsumR_vaddE ζ h cs rs K hr hKl]
     exact lastE _ _ _ _ _ (jdiffE (EF.mul_inv hV) hJE hKZ)
+
+/-- **The chunks hide all but what the verifier recombines**: two chunk
+    data that agree where the verifier can see them (`Agree`) open with
+    one distribution over the chunks' random polynomials. -/
+theorem chunks_hide {S : List F} {ζ : EF} {h : Nat} (hζ : ∀ x : F, EF.ofF x ≠ ζ) (hd : (mz ζ).det ≠ 0)
+    (hn : S.length + 4 ≤ h) {cs : List Chunk} {Hl : List F} {cl : F}
+    (hok : ∀ ch ∈ cs, ch.c ≠ 0 ∧ ch.m ≠ 0) (hcl : cl ≠ 0)
+    {qs qs' : List (List F)} {ql ql' : List F} (h1 : qs.length = cs.length) (h2 : qs'.length = cs.length)
+    (hag : Agree S ζ cs Hl cl qs qs' ql ql') (E : List (List F × List EF) → Bool) :
+    vsum (cs.length * h) (fun rs => if E (chunksView S [ζ] h cs Hl cl qs ql rs) then 1 else 0) =
+      vsum (cs.length * h) (fun rs => if E (chunksView S [ζ] h cs Hl cl qs' ql' rs) then 1 else 0) := by
+  obtain ⟨K, hKl, he⟩ := chunks_shiftV hζ hd hn hok hcl h1 h2 hag
+  rw [← vsum_shift _ K hKl (fun rs => if E (chunksView S [ζ] h cs Hl cl qs' ql' rs) then 1 else 0)]
+  refine vsum_congr _ (fun rs hr => ?_)
+  show (if E (chunksView S [ζ] h cs Hl cl qs ql rs) = true then 1 else 0) =
+    (if E (chunksView S [ζ] h cs Hl cl qs' ql' (vadd rs K)) = true then 1 else 0)
+  rw [he rs hr]
 
 -- ---------------------------------------------------------------------------
 -- Chunks with given views: the simulator's

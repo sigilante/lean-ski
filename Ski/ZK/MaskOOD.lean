@@ -344,10 +344,10 @@ include hT hR hTR hTS hZ hn
     shifted rows `t` under the original plus `D`, coefficient by
     coefficient up to zeros. -/
 theorem mask_shift_ood (t t' : List F) (ht : t.length = n) (ht' : t'.length = n) :
-    ∃ c D : List F, c.length = n ∧ (∀ s ∈ S, fval s D = 0) ∧ (∀ z ∈ Z, fvalE z D = EF.zero) ∧
+    ∃ c D : List F, c.length = n ∧ D.length ≤ n + n ∧ (∀ s ∈ S, fval s D = 0) ∧ (∀ z ∈ Z, fvalE z D = EF.zero) ∧
       ∀ r : List F, r.length = n → FZero (fcdiff (mcol T R t' (vadd r c)) (fcadd (mcol T R t r) D)) := by
   rcases Nat.eq_zero_or_pos n with rfl | hpos
-  · refine ⟨[], [], rfl, fun s _ => rfl, fun z _ => rfl, fun r hr => ?_⟩
+  · refine ⟨[], [], rfl, Nat.zero_le _, fun s _ => rfl, fun z _ => rfl, fun r hr => ?_⟩
     rw [List.length_eq_zero_iff.1 ht, List.length_eq_zero_iff.1 ht', List.length_eq_zero_iff.1 hr,
       List.length_eq_zero_iff.1 hT, List.length_eq_zero_iff.1 hR]
     intro x hx
@@ -448,7 +448,7 @@ theorem mask_shift_ood (t t' : List F) (ht : t.length = n) (ht' : t'.length = n)
       rw [List.getElem_zipWith]
       show _ + c[i] = _
       simp only [hcD, List.getElem_map]
-  exact ⟨c, D, hc, hDS, hDZ, key⟩
+  exact ⟨c, D, hc, hDl, hDS, hDZ, key⟩
 
 /-- **Random rows hide a column's openings, out of domain too**: the values
     at the opened points `S` of `F` and `Z` of `EF` (none in `F`) take every
@@ -457,7 +457,7 @@ theorem mask_shift_ood (t t' : List F) (ht : t.length = n) (ht' : t'.length = n)
 theorem mask_hides_ood (t t' : List F) (ht : t.length = n) (ht' : t'.length = n) (E : List F → List EF → Bool) :
     vsum n (fun r => if E (mopen T R S t r) (Z.map (fun z => fvalE z (mcol T R t r))) then 1 else 0) =
       vsum n (fun r => if E (mopen T R S t' r) (Z.map (fun z => fvalE z (mcol T R t' r))) then 1 else 0) := by
-  obtain ⟨c, D, hc, hDS, hDZ, key⟩ := mask_shift_ood hT hR hTR hTS hZ hn t t' ht ht'
+  obtain ⟨c, D, hc, _, hDS, hDZ, key⟩ := mask_shift_ood hT hR hTR hTS hZ hn t t' ht ht'
   have keyS : ∀ r : List F, r.length = n → mopen T R S t' (vadd r c) = mopen T R S t r := by
     intro r hr
     unfold mopen
