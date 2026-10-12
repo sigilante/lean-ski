@@ -820,7 +820,7 @@ of a statement (`sud_zk`, `wit_zk`, `comp_zk`; the composed ones sharing
 their segment table), for a fixed challenge whose combiner matrix is
 invertible. That fails exactly for the `P^2` challenges in `F(x^2)`, about
 `2^-62` (`generic_iff`, `nongeneric_count`). A zero denominator aborts the
-prover for at most one `α` per message (`abort_count`), below `2^-100` for every released proof, whose `M` is at most 8,127,232 (`csplit8`'s, `ski-air fs-budget`).
+prover for at most one `α` per message (`abort_count`), below `2^-99` for every released proof, whose `M` is under `2^24` (`csplit8`'s is the largest, `ski-air fs-budget`).
 A simulator for the whole transcript (`transcript_zk`; the model in
 `Ski/ZK/Transcript.lean`, the proof in `Ski/ZK/TranscriptN.lean`): fixed by the statement, it matches the real transcript
 on every event within `P^2/P^4 + M/P^4 + ε/NR` of the draws, for

@@ -1252,8 +1252,8 @@ theorem over `EF`.
     depends on the witness. Every bus prefix is `α` plus an offset free
     of `α`, so for any tables, `β` and blinding at most one `α` per
     message aborts (`abort_count`, `Ski/ZK/Abort.lean`): `M/P^4`, below
-    `2^-100` for every released proof, whose `M` is at most 8,127,232
-    (`csplit8`'s, `ski-air fs-budget`); Sudoku's 821,248 messages give
+    `2^-99` for every released proof, whose `M` is under `2^24`
+    (`csplit8`'s is the largest, `ski-air fs-budget`); Sudoku's 821,248 messages give
     below `2^-103`.
   - Everything committed and opened rests on Plonky3's hiding PCS,
     assumed (`PCSClose ε`), statistical and unaudited.
