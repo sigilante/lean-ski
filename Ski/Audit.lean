@@ -97,6 +97,8 @@ import Ski.ZK.CompRunSat
 import Ski.ZK.CompInst
 import Ski.ZK.PreOpen
 import Ski.ZK.Interleave
+import Ski.ZK.FSZK
+import Ski.ZK.FSInst
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -1140,3 +1142,8 @@ open Ski.Audit
   Circuit.sud_hidingXG Circuit.wit_hidingXG Circuit.comp_hidingXG
 -- The masked column is Plonky3's interleaved column
 #audit_clean Circuit.ileave_perm Circuit.zip_ileave Circuit.coset_ileave Circuit.ileave_mcol_coef Circuit.ileave_mcol Circuit.bb_ileave_mcol
+-- Fiat–Shamir keeps the simulation, programmable random oracle
+#audit_clean Circuit.split_digit Circuit.rget_rset Circuit.oracle_reprog Circuit.fs_real Circuit.fs_zk Circuit.fs_zk'
+  Circuit.tsumN_ab Circuit.efIdx_efOf Circuit.sumQ2 Circuit.sm_exch Circuit.com_swap Circuit.csum_tsumN
+  Circuit.fs_transcript Circuit.fs_transcript' Circuit.fs_pair Circuit.realVN_cases Circuit.simVN_some
+  Circuit.sud_fs Circuit.wit_fs Circuit.comp_fs
