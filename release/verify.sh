@@ -84,6 +84,9 @@
 #  14. the masking margin (`ski-air mask-margin`): every zero-knowledge
 #      proof's smallest table has the random rows `masks_hide` needs,
 #      |S| + 4|Z| <= n, and Plonky3's HidingFriPcs's 2 (queries + 8).
+#  15. the bytes against the model's view (`ski-air proof-shape`): every
+#      zero-knowledge proof's bytes are exactly its fields, encoded again
+#      byte for byte, each field a part of the view Lean simulates.
 #
 # Each refusal must give its expected reason (`refused`): a proof refused
 # by the statement check where the proof check should refuse it fails.
@@ -648,6 +651,27 @@ zk=$(find release/composed release/skilark release/sudoku release/p2 release/ent
 "$SKI_AIR" mask-margin $zk > "$tmp/mm.log" \
     && ok "every zero-knowledge proof meets the masking margin ($(grep -c 'margin met' "$tmp/mm.log") proofs; $(grep -o '[0-9]* to spare' "$tmp/mm.log" | sort -n | head -n 1) at the least)" \
     || no "a proof misses the masking margin ($(grep -m 1 'NOT MET' "$tmp/mm.log" | head -c 100))"
+
+echo "--- 15. the bytes against the model's view"
+# Every byte of a hiding proof lies in a field of Plonky3's BatchProof, and
+# each field is part of the view the transcript theorems simulate.
+n15=0
+for f in $zk; do
+    if "$SKI_AIR" proof-shape "$f" > "$tmp/ps.log" 2>&1; then
+        n15=$((n15 + 1))
+    else
+        no "$f has bytes outside the model's view ($(head -c 100 "$tmp/ps.log"))"
+    fi
+done
+[ "$n15" = "$(echo "$zk" | wc -w | tr -d ' ')" ] && ok "every zero-knowledge proof's bytes are its fields, each in the view ($n15 proofs)"
+"$SKI_AIR" proof-shape release/composed/or/or.proof > /dev/null \
+    && { printf 'x' | cat release/composed/or/or.proof - > "$tmp/ps-longer.proof"
+         if "$SKI_AIR" proof-shape "$tmp/ps-longer.proof" > "$tmp/ps.log" 2>&1; then
+             no "a proof with a byte appended is accounted"
+         else
+             grep -q "bytes after the proof" "$tmp/ps.log" && ok "a proof with a byte appended is refused (bytes after the proof)" \
+                 || no "a proof with a byte appended is refused for another reason ($(head -c 100 "$tmp/ps.log"))"
+         fi; }
 
 [ "$failed" = 0 ] || { echo "NOT VERIFIED: release"; exit 1; }
 echo "VERIFIED: release/sumto, release/composed, release/skilark (with jets${QUICK:+, csplit8 skipped}), release/sudoku, release/p2 and release/entropy"

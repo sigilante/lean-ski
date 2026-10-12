@@ -1007,6 +1007,23 @@ What the theorem rests on:
   released zero-knowledge proof; `ski-air fs-budget` prints it after each
   hiding verification. More queries or a wider fold would need a higher
   floor.
+- **Every byte of a hiding proof lies in the simulated view.** A released
+  proof is a postcard encoding of Plonky3's `BatchProof`. `ski-air
+  proof-shape PROOF` (`src/proofshape.rs`, `release/verify.sh` step 15)
+  reads it and refuses unless the bytes are exactly the proof's own
+  encoding, so no byte sits outside its fields. Each field is a part of
+  the view Lean's transcript theorems simulate: the commitments, the
+  opened values and the opening proof are the PCS's view; the terminals
+  are one per table; `degree_bits` are the heights, which the verifier
+  pins to the statement's (`Ski/ZK/Heights.lean`); the two proof-of-work
+  witnesses are the unique values the verifier accepts after the
+  transcript before them. The challenges are not in the bytes. Proofs of
+  one statement differ in size only in the Merkle digests of the opening
+  proof: Plonky3's multi-openings send each shared digest once, and how
+  many paths share one depends on the query positions, Fiat–Shamir
+  challenges the simulator draws too. `split8`'s proofs with jets before
+  and after the Avon remake have the same 488,085 bytes of opened values
+  and Merkle digests of 588,752 and 593,296 bytes, 142 digests apart.
 
 ## Jets: instantiation rows
 

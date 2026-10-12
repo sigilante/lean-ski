@@ -869,11 +869,20 @@ the public tables, blinding flags clear (`comp_honest_zk`,
 `sud_honest_zk`, `wit_honest_zk` in `Ski/ZK/Honest.lean`;
 `CRun.honest_zk`; `honest_zkP`). The view includes the trace heights:
 blinding keeps them, the honest tables' are the statement's, and the
-simulator emits those (`transcript_zkGH`, `Ski/ZK/Heights.lean`). The
+simulator emits those (`transcript_zkGH`, `Ski/ZK/Heights.lean`) for the
+composed, Sudoku and hidden-term circuits; the jet circuits' heights are
+public, but no theorem yet ties their honest tables to them. The margin
+check counts two points a query; simulating the quotient's openings would
+need `S` closed under the shift, up to 408 points, more than the smallest
+tables' 256 rows. The
 masked column openings hide for tables of several heights, each over its
 own domain (`masks_hide_multi`, `pcsCloseN_multi` in
 `Ski/ZK/MaskMulti.lean`), and every hiding circuit's transcript theorem
-holds over that PCS with no PCS term (`*_transcriptG_masked`).
+holds over that PCS with no PCS term (`*_transcriptG_masked`). Every
+byte of a released hiding proof lies in a field of that view: `ski-air
+proof-shape` (`release/verify.sh` step 15) refuses a proof whose bytes
+are not its fields' own encoding, and proofs of one statement differ in
+size only in the Merkle digests their query paths share.
 The closure rule, the design's milestone 3 (`Ski/JetPublic.lean`): the
 composed heap's private cells, the bit slots and the region, are pointed
 into by public cells, so a jet table checked over the blank heap need not
