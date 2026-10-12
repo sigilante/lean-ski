@@ -53,6 +53,10 @@ theorem comp_P3 (hd0 stk0 ctr0 n nilA : Nat) (heap : List Cell) (N W : Nat) (roo
 -- Blinding keeps `Sat`
 -- ---------------------------------------------------------------------------
 
+/-- **Blinding keeps the height and the preprocessed columns.** -/
+theorem setBlind_h_pre (T : Table) (c : Nat) (a : Tup) : (T.setBlind c a).h = T.h ∧ (T.setBlind c a).pre = T.pre :=
+  ⟨rfl, rfl⟩
+
 /-- The flag's boolean check, `f (f - 1)` with `f` column `c + 4`. -/
 def isFlagBool (c : Nat) : E → Bool
   | .mul (.atom (.main 0 i)) (.sub (.atom (.main 0 j)) (.const one)) =>
