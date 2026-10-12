@@ -88,12 +88,10 @@ is built; this file records what is next. Last revised 2026-10-10.
   `hpcs`. Over BabyBear one private table's every domain, chunk and group fact is discharged
   (`Ski/ZK/BbGroup.lean`, `tabsHonest_bb`). One Sudoku run gives `Balanced`, `Unblinded` and
   `Sat` for the same tables, their blinded copies' `Sat` and the view's terminals
-  (`Ski/ZK/SudRun.lean`). Open: the concrete Sudoku theorem: six trace groups (`bbGroup`,
-  heights `2^16` for the CPU and memory, `2^10` for the witness) with `cols` laid out from
-  `mainCols` and `permCols` and `Shaped`; `tabs` the transcript's own tables, whose blinded
-  members give `hmem`; the FRI challenge facts; and `pcsCloseN_fri_tabs` fed into
-  `sud_transcriptG`. Then the hidden-term and composed circuits alike. The groups' trace and
-  mask points tied to the committed matrices (`hT`, `hRq`) stay modeled.
+  (`Ski/ZK/SudRun.lean`). The Sudoku proof is zero knowledge over its composed hiding PCS,
+  end to end, its PCS term zero (`Ski/ZK/SudInst.lean`, `sud_pcs`, `sud_hiding`). Open: the
+  hidden-term and composed circuits alike (their `*_run_sats` and instances); the groups'
+  trace and mask points tied to the committed matrices (`hT`, `hRq`) stay modeled.
 - **The quotient's recombined values hide** (`Ski/ZK/MaskQuot.lean`): the chunks sit
   at the committed trace's height, so a query opens them at the trace's point `s`, where they
   recombine to a function of the terminals and the masked columns at `s` and `g s`.
