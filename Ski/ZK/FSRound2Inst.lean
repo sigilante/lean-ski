@@ -72,21 +72,22 @@ theorem wit_fs2 {V Wv D1 D2 : Type} (off : EF → String → EF) {Vt x : Term} {
     let sm := fun (g : Nat × Nat × Nat × (Nat → Tup) → Nat) =>
       sumTo NS1 (fun σ1 => sumTo NS2 (fun σ2 => sumTo NR (fun r => sumN 2 (fun t => g (σ1, σ2, r, t)))))
     let m1 := fun (x : Nat × Nat × Nat × (Nat → Tup)) => Com1 (main1 x.2.2.2 x.2.2.1) x.1
-    let m2 := fun (c1 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) => Com2 (main2 c1 x.2.2.2 x.2.2.1) x.2.1
+    let m2 := fun (c1 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
+      Com1 (main1 x.2.2.2 x.2.2.1) x.1 + n1 * Com2 (main2 c1 x.2.2.2 x.2.2.1) x.2.1
     let rv := fun (c1 c2 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
       realVN off tabs tv ptm (pcsZ (efOf c2)) (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2
     let sv := fun (c1 c2 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
       simVN off ptm chainBus (fun _ => false) chainPar 3 ptm (psimZ (efOf c2)) (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2
     let gd := fun (c1 c2 : Nat) => genB (efOf (c1 % Q4)) && genB (efOf c2)
     let err := Q4 * (NR * (Q4 ^ 2 * M)) + Q4 * (Q4 * (Q4 ^ 2 * 0))
-    (Q4 * Q4) * (Q4 * sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (Q4 ^ n2) (fun H2 => sm (fun x =>
+    (Q4 * Q4) * (Q4 * sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (Q4 ^ (n1 * n2)) (fun H2 => sm (fun x =>
       indB (gd (rget (Q4 * Q4) (m1 x) H1) (rget Q4 (m2 (rget (Q4 * Q4) (m1 x) H1) x) H2) &&
         E H1 H2 (m1 x) (m2 (rget (Q4 * Q4) (m1 x) H1) x)
           (rv (rget (Q4 * Q4) (m1 x) H1) (rget Q4 (m2 (rget (Q4 * Q4) (m1 x) H1) x) H2) x)))))) ≤
-    sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (Q4 ^ n2) (fun H2 => sumTo (Q4 * Q4) (fun c1 => sumTo Q4 (fun c2 =>
-      sm (fun x => indB (gd c1 c2 && E (rset (Q4 * Q4) (Com1 d1 x.1) H1 c1) (rset Q4 (Com2 d2 x.2.1) H2 c2)
-        (Com1 d1 x.1) (Com2 d2 x.2.1) (sv c1 c2 x))))))) +
-      (Q4 * Q4) ^ n1 * (Q4 ^ n2 * (Q4 * (NS1 * (NS2 * err)))) := by
+    sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (Q4 ^ (n1 * n2)) (fun H2 => sumTo (Q4 * Q4) (fun c1 => sumTo Q4 (fun c2 =>
+      sm (fun x => indB (gd c1 c2 && E (rset (Q4 * Q4) (Com1 d1 x.1) H1 c1) (rset Q4 (Com1 d1 x.1 + n1 * Com2 d2 x.2.1) H2 c2)
+        (Com1 d1 x.1) (Com1 d1 x.1 + n1 * Com2 d2 x.2.1) (sv c1 c2 x))))))) +
+      (Q4 * Q4) ^ n1 * (Q4 ^ (n1 * n2) * (Q4 * (NS1 * (NS2 * err)))) := by
   intro blank C Pg Wt Mm NR0 pcsZ psimZ NR tabs tv ptm M sm m1 m2 rv sv gd err
   obtain ⟨hbal, hun⟩ := wit_honest_zk hwf hwl hW8 hA hlen hk
   obtain ⟨sc, sms, sw, hWh⟩ := wit_run_sats hwf hwl hW8 hA hK hlen hk
@@ -114,13 +115,14 @@ theorem wit_fs2 {V Wv D1 D2 : Type} (off : EF → String → EF) {Vt x : Term} {
     rw [sumTo_congr _ (fun σ1 _ => sm_exch (NS := NS2) (NR := NR) (m := 2) (N := N)
       (fun i σ2 r t => f i (σ1, σ2, r, t)))]
     exact sumTo_exch _ N NS1
-  exact fs_zk2 (K1 := Q4 * Q4) (K2 := Q4) (n1 := n1) (n2 := n2) (Nat.mul_pos Q4_pos Q4_pos) Q4_pos sm hsm m1 m2
-    (fun x => hr1 _ _) (fun _ x => hr2 _ _) (fun _ _ x => Com1 d1 x.1) (fun _ _ x => Com2 d2 x.2.1) rv sv gd
+  exact fs_zk2 (K1 := Q4 * Q4) (K2 := Q4) (n1 := n1) (n2 := n1 * n2) (Nat.mul_pos Q4_pos Q4_pos) Q4_pos sm hsm m1 m2
+    (fun x => hr1 _ _) (fun _ x => pair_lt (hr1 _ _) (hr2 _ _)) (fun _ _ x => Com1 d1 x.1)
+    (fun _ _ x => Com1 d1 x.1 + n1 * Com2 d2 x.2.1) rv sv gd
     (fun F => pc_two (fun c2 α β r t => realVN off tabs tv ptm (pcsZ (efOf c2)) α β r t)
       (fun c2 α β r t => simVN off ptm chainBus (fun _ => false) chainPar 3 ptm (psimZ (efOf c2)) α β r t)
       (fun c2 => genB (efOf c2)) (fun c2 α β r t => realVN_cases _ _ _ _ _ α β r t)
       (fun c2 α β r t => simVN_some _ _ _ _ _ _ _ _ α β r t) (fun c2 hg => (hb c2 hg).1) (fun c2 hg => (hb c2 hg).2)
-      Com1 hc1 Com2 hc2 main1 main2 d1 d2 F) E
+      Com1 hc1 Com2 hc2 main1 main2 d1 d2 (fun c1 c2 a b v => F c1 c2 a (a + n1 * b) v)) E
 set_option maxRecDepth 100000 in
 theorem cNR_zeta (off : EF → String → EF) (hd0 stk0 ctr0 n nilA : Nat) (heap : List Cell) (N W : Nat) (roots : List Nat)
     (C Mm Wt : Table) (tbM tbC tpP tpS : Nat) (SM SC S9 SP SS : List F) (ζ ζ' : EF)
@@ -198,21 +200,22 @@ theorem comp_fs2 {V Wv D1 D2 : Type} (off : EF → String → EF) {R Lm : Nat} (
     let sm := fun (g : Nat × Nat × Nat × (Nat → Tup) → Nat) =>
       sumTo NS1 (fun σ1 => sumTo NS2 (fun σ2 => sumTo NR (fun r => sumN 2 (fun t => g (σ1, σ2, r, t)))))
     let m1 := fun (x : Nat × Nat × Nat × (Nat → Tup)) => Com1 (main1 x.2.2.2 x.2.2.1) x.1
-    let m2 := fun (c1 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) => Com2 (main2 c1 x.2.2.2 x.2.2.1) x.2.1
+    let m2 := fun (c1 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
+      Com1 (main1 x.2.2.2 x.2.2.1) x.1 + n1 * Com2 (main2 c1 x.2.2.2 x.2.2.1) x.2.1
     let rv := fun (c1 c2 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
       realVN off tabs tv pb (pcsZ (efOf c2)) (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2
     let sv := fun (c1 c2 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
       simVN off pb chainBus (fun _ => false) chainPar 3 ptm (psimZ (efOf c2)) (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2
     let gd := fun (c1 c2 : Nat) => genB (efOf (c1 % Q4)) && genB (efOf c2)
     let err := Q4 * (NR * (Q4 ^ 2 * M)) + Q4 * (Q4 * (Q4 ^ 2 * 0))
-    (Q4 * Q4) * (Q4 * sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (Q4 ^ n2) (fun H2 => sm (fun x =>
+    (Q4 * Q4) * (Q4 * sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (Q4 ^ (n1 * n2)) (fun H2 => sm (fun x =>
       indB (gd (rget (Q4 * Q4) (m1 x) H1) (rget Q4 (m2 (rget (Q4 * Q4) (m1 x) H1) x) H2) &&
         E H1 H2 (m1 x) (m2 (rget (Q4 * Q4) (m1 x) H1) x)
           (rv (rget (Q4 * Q4) (m1 x) H1) (rget Q4 (m2 (rget (Q4 * Q4) (m1 x) H1) x) H2) x)))))) ≤
-    sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (Q4 ^ n2) (fun H2 => sumTo (Q4 * Q4) (fun c1 => sumTo Q4 (fun c2 =>
-      sm (fun x => indB (gd c1 c2 && E (rset (Q4 * Q4) (Com1 d1 x.1) H1 c1) (rset Q4 (Com2 d2 x.2.1) H2 c2)
-        (Com1 d1 x.1) (Com2 d2 x.2.1) (sv c1 c2 x))))))) +
-      (Q4 * Q4) ^ n1 * (Q4 ^ n2 * (Q4 * (NS1 * (NS2 * err)))) := by
+    sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (Q4 ^ (n1 * n2)) (fun H2 => sumTo (Q4 * Q4) (fun c1 => sumTo Q4 (fun c2 =>
+      sm (fun x => indB (gd c1 c2 && E (rset (Q4 * Q4) (Com1 d1 x.1) H1 c1) (rset Q4 (Com1 d1 x.1 + n1 * Com2 d2 x.2.1) H2 c2)
+        (Com1 d1 x.1) (Com1 d1 x.1 + n1 * Com2 d2 x.2.1) (sv c1 c2 x))))))) +
+      (Q4 * Q4) ^ n1 * (Q4 ^ (n1 * n2) * (Q4 * (NS1 * (NS2 * err)))) := by
   intro m roots N C Pg Wt Mm NR0 pcsZ psimZ NR tabs tv pb ptm M sm m1 m2 rv sv gd err
   obtain ⟨hbal, hun⟩ := comp_honest_zk hR hrl hr hA hlen hLm hK hNW
   obtain ⟨sc, sms, sw, hWh, _⟩ := comp_run_sats hR hrl hr hA hlen hLm hK hNW
@@ -244,11 +247,12 @@ theorem comp_fs2 {V Wv D1 D2 : Type} (off : EF → String → EF) {R Lm : Nat} (
     rw [sumTo_congr _ (fun σ1 _ => sm_exch (NS := NS2) (NR := NR) (m := 2) (N := N)
       (fun i σ2 r t => f i (σ1, σ2, r, t)))]
     exact sumTo_exch _ N NS1
-  exact fs_zk2 (K1 := Q4 * Q4) (K2 := Q4) (n1 := n1) (n2 := n2) (Nat.mul_pos Q4_pos Q4_pos) Q4_pos sm hsm m1 m2
-    (fun x => hr1 _ _) (fun _ x => hr2 _ _) (fun _ _ x => Com1 d1 x.1) (fun _ _ x => Com2 d2 x.2.1) rv sv gd
+  exact fs_zk2 (K1 := Q4 * Q4) (K2 := Q4) (n1 := n1) (n2 := n1 * n2) (Nat.mul_pos Q4_pos Q4_pos) Q4_pos sm hsm m1 m2
+    (fun x => hr1 _ _) (fun _ x => pair_lt (hr1 _ _) (hr2 _ _)) (fun _ _ x => Com1 d1 x.1)
+    (fun _ _ x => Com1 d1 x.1 + n1 * Com2 d2 x.2.1) rv sv gd
     (fun F => pc_two (fun c2 α β r t => realVN off tabs tv pb (pcsZ (efOf c2)) α β r t)
       (fun c2 α β r t => simVN off pb chainBus (fun _ => false) chainPar 3 ptm (psimZ (efOf c2)) α β r t)
       (fun c2 => genB (efOf c2)) (fun c2 α β r t => realVN_cases _ _ _ _ _ α β r t)
       (fun c2 α β r t => simVN_some _ _ _ _ _ _ _ _ α β r t) (fun c2 hg => (hb c2 hg).1) (fun c2 hg => (hb c2 hg).2)
-      Com1 hc1 Com2 hc2 main1 main2 d1 d2 F) E
+      Com1 hc1 Com2 hc2 main1 main2 d1 d2 (fun c1 c2 a b v => F c1 c2 a (a + n1 * b) v)) E
 end Circuit

@@ -1166,6 +1166,6 @@ open Ski.Audit
 #audit_clean Circuit.fs_zkc Circuit.fs_zk2
 -- The second round under Fiat–Shamir
 #audit_clean Circuit.pc_two_core Circuit.pc_two Circuit.mtotal_congr Circuit.traceCw_congr Circuit.tabsCr_congr
-  Circuit.tabsCw_congr Circuit.sudNR_zeta Circuit.sud_fs2
+  Circuit.tabsCw_congr Circuit.sudNR_zeta Circuit.sud_fs2 Circuit.pair_lt
 -- The hidden-term and composed proofs over two Fiat–Shamir rounds
 #audit_clean Circuit.wNR_zeta Circuit.cNR_zeta Circuit.wit_fs2 Circuit.comp_fs2

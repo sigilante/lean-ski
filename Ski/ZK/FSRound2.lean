@@ -3,17 +3,25 @@ import Ski.ZK.FSRounds
 /-!
 # The second round under Fiat–Shamir: `ζ` hashed
 
-The second round hashes a second commitment, of data the prover computes
-after the LogUp challenges (its permutation columns and quotient
-chunks), into the out-of-domain point `ζ`.  `pc_two`: summed over every
+The second round hashes the transcript so far, the first commitment and
+a second, of data the prover computes after the LogUp challenges (its
+permutation columns and quotient chunks), into the out-of-domain point
+`ζ` (`pair_lt` encodes the pair as one oracle input).  `pc_two`: summed over every
 generic `ζ`, the transcript bound at each `ζ` and two hiding commitments
 give the two-round public-coin bound `fs_zk2` asks; `sud_fs2` applies it
 to the Sudoku proof.
 
 Scope.  Both commitments hide perfectly and neither is opened in the
-view (`ComHides`, as `Ski/ZK/FSInst.lean` for the first round); the FRI
-challenge and the query points stay fixed parameters; one proof per
-oracle; generic `β` and `ζ`.
+view (`ComHides`, as `Ski/ZK/FSInst.lean` for the first round): the
+quotient values at `ζ` the view shows are not tied to the second
+commitment, a step back from `Ski/ZK/FSOpenInst.lean`.  Plonky3 draws the
+constraint-folding challenge between the permutation and quotient
+commitments; here that round is merged into the second and the folding
+challenge stays a fixed parameter, as do the FRI challenge and the query
+points.  The count is guarded at generic `β` and generic `ζ`: the
+non-generic `ζ` (`x1 = x3 = 0`, `P²` of `P⁴`, mass `1/P²`) are left out
+as the non-generic `β` are, an assumed exclusion; Plonky3 neither rejects
+nor redraws them.  One proof per oracle; one direction proved.
 -/
 
 namespace Circuit
@@ -176,6 +184,11 @@ theorem pc_two {PV PB D1 D2 : Type} {NR m e1 e2 NS1 NS2 K2 : Nat}
       (fun c1 a b v => F c1 c2 a b v)
 
 
+/-- A pair of commitments as one oracle input. -/
+theorem pair_lt {a b n1 n2 : Nat} (ha : a < n1) (hb : b < n2) : a + n1 * b < n1 * n2 := by
+  have : n1 * b + n1 ≤ n1 * n2 := by rw [← Nat.mul_succ]; exact Nat.mul_le_mul_left _ hb
+  omega
+
 -- ---------------------------------------------------------------------------
 -- The Sudoku proof, `ζ` hashed
 -- ---------------------------------------------------------------------------
@@ -228,7 +241,8 @@ theorem sud_fs2 {V Wv D1 D2 : Type} (off : EF → String → EF) {puzzle : List 
     let sm := fun (g : Nat × Nat × Nat × (Nat → Tup) → Nat) =>
       sumTo NS1 (fun σ1 => sumTo NS2 (fun σ2 => sumTo NR (fun r => sumN 2 (fun t => g (σ1, σ2, r, t)))))
     let m1 := fun (x : Nat × Nat × Nat × (Nat → Tup)) => Com1 (main1 x.2.2.2 x.2.2.1) x.1
-    let m2 := fun (c1 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) => Com2 (main2 c1 x.2.2.2 x.2.2.1) x.2.1
+    let m2 := fun (c1 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
+      Com1 (main1 x.2.2.2 x.2.2.1) x.1 + n1 * Com2 (main2 c1 x.2.2.2 x.2.2.1) x.2.1
     let rv := fun (c1 c2 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
       realVN off tabs tv tp (pcsZ (efOf c2)) (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2
     let sv := fun (c1 c2 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
@@ -236,14 +250,14 @@ theorem sud_fs2 {V Wv D1 D2 : Type} (off : EF → String → EF) {puzzle : List 
         x.2.2.1 x.2.2.2
     let gd := fun (c1 c2 : Nat) => genB (efOf (c1 % Q4)) && genB (efOf c2)
     let err := Q4 * (NR * (Q4 ^ 2 * M)) + Q4 * (Q4 * (Q4 ^ 2 * 0))
-    (Q4 * Q4) * (Q4 * sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (Q4 ^ n2) (fun H2 => sm (fun x =>
+    (Q4 * Q4) * (Q4 * sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (Q4 ^ (n1 * n2)) (fun H2 => sm (fun x =>
       indB (gd (rget (Q4 * Q4) (m1 x) H1) (rget Q4 (m2 (rget (Q4 * Q4) (m1 x) H1) x) H2) &&
         E H1 H2 (m1 x) (m2 (rget (Q4 * Q4) (m1 x) H1) x)
           (rv (rget (Q4 * Q4) (m1 x) H1) (rget Q4 (m2 (rget (Q4 * Q4) (m1 x) H1) x) H2) x)))))) ≤
-    sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (Q4 ^ n2) (fun H2 => sumTo (Q4 * Q4) (fun c1 => sumTo Q4 (fun c2 =>
-      sm (fun x => indB (gd c1 c2 && E (rset (Q4 * Q4) (Com1 d1 x.1) H1 c1) (rset Q4 (Com2 d2 x.2.1) H2 c2)
-        (Com1 d1 x.1) (Com2 d2 x.2.1) (sv c1 c2 x))))))) +
-      (Q4 * Q4) ^ n1 * (Q4 ^ n2 * (Q4 * (NS1 * (NS2 * err)))) := by
+    sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (Q4 ^ (n1 * n2)) (fun H2 => sumTo (Q4 * Q4) (fun c1 => sumTo Q4 (fun c2 =>
+      sm (fun x => indB (gd c1 c2 && E (rset (Q4 * Q4) (Com1 d1 x.1) H1 c1) (rset Q4 (Com1 d1 x.1 + n1 * Com2 d2 x.2.1) H2 c2)
+        (Com1 d1 x.1) (Com1 d1 x.1 + n1 * Com2 d2 x.2.1) (sv c1 c2 x))))))) +
+      (Q4 * Q4) ^ n1 * (Q4 ^ (n1 * n2) * (Q4 * (NS1 * (NS2 * err)))) := by
   intro blank C Pg Wt Mm NR0 pcsZ psimZ NR tabs tv tp M sm m1 m2 rv sv gd err
   obtain ⟨hbal, hun⟩ := sud_honest_zk hc hA hlen hk
   obtain ⟨sc, sms, sw⟩ := sud_run_sats hc hA hacc hlen hk
@@ -274,12 +288,13 @@ theorem sud_fs2 {V Wv D1 D2 : Type} (off : EF → String → EF) {puzzle : List 
     rw [sumTo_congr _ (fun σ1 _ => sm_exch (NS := NS2) (NR := NR) (m := 2) (N := N)
       (fun i σ2 r t => f i (σ1, σ2, r, t)))]
     exact sumTo_exch _ N NS1
-  exact fs_zk2 (K1 := Q4 * Q4) (K2 := Q4) (n1 := n1) (n2 := n2) (Nat.mul_pos Q4_pos Q4_pos) Q4_pos sm hsm m1 m2
-    (fun x => hr1 _ _) (fun _ x => hr2 _ _) (fun _ _ x => Com1 d1 x.1) (fun _ _ x => Com2 d2 x.2.1) rv sv gd
+  exact fs_zk2 (K1 := Q4 * Q4) (K2 := Q4) (n1 := n1) (n2 := n1 * n2) (Nat.mul_pos Q4_pos Q4_pos) Q4_pos sm hsm m1 m2
+    (fun x => hr1 _ _) (fun _ x => pair_lt (hr1 _ _) (hr2 _ _)) (fun _ _ x => Com1 d1 x.1)
+    (fun _ _ x => Com1 d1 x.1 + n1 * Com2 d2 x.2.1) rv sv gd
     (fun F => pc_two (fun c2 α β r t => realVN off tabs tv tp (pcsZ (efOf c2)) α β r t)
       (fun c2 α β r t => simVN off tp chainBus (fun _ => false) chainPar 3 tp (psimZ (efOf c2)) α β r t)
       (fun c2 => genB (efOf c2)) (fun c2 α β r t => realVN_cases _ _ _ _ _ α β r t)
       (fun c2 α β r t => simVN_some _ _ _ _ _ _ _ _ α β r t) (fun c2 hg => (hb c2 hg).1) (fun c2 hg => (hb c2 hg).2)
-      Com1 hc1 Com2 hc2 main1 main2 d1 d2 F) E
+      Com1 hc1 Com2 hc2 main1 main2 d1 d2 (fun c1 c2 a b v => F c1 c2 a (a + n1 * b) v)) E
 
 end Circuit
