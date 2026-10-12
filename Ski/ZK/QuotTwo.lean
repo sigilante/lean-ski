@@ -12,11 +12,18 @@ openings, concatenated, are honest openings of the concatenated column
 polynomials (`HonestOpen`, `honest_append`).  The targets read from them
 are then the honest targets (`airTg_open_gen`, `airTgE_open_gen`).
 
-The constraints are any `E` list, so an extension constraint enters
-through its coordinates (`eq4`, `Ski/ZK/QuotFold.lean`) as a LogUp
-constraint over the permutation columns does.  A column `i` below the
-first group's width reads the first group, and the others read the next
-groups in order.
+The constraints are a family `AF α β v`: Plonky3's LogUp constraints
+have coefficients in the challenges `α, β` and a last-row constraint on
+the prover's terminal, a transcript value.  An extension constraint
+enters through its coordinates (`eq4`, `Ski/ZK/QuotFold.lean`), the
+challenges and terminal as constants.  `tabsHonest_gen` asks `Sat` only
+at the transcript's own values `v = vt t α β`, and `pcsCloseN_fri_gen`
+takes them from the transcript.  Column `i` below the first group's
+width reads the first group, and the others read the next groups in
+order (Plonky3 flattens permutation column `c` to base columns
+`4c, …, 4c + 3`).  Every group is opened at `ζ` and `g ζ`, which
+over-approximates Plonky3's main-trace openings when the AIR reads no
+next row.
 -/
 
 namespace Circuit
@@ -299,26 +306,27 @@ theorem mpolys_mem_len (T R : List F) (n : Nat) : ∀ (ts : List (List F)) (rs :
 -- ---------------------------------------------------------------------------
 
 /-- **An AIR's quotient table over the groups `gis`**: as `airQTab`, the
-    leaves read from the groups' openings concatenated. -/
-def airQTabG (A : AirD) (g : F) (m : Nat) (preP : Nat → List F) (gis : List Nat) (κ : F) (cs : List Chunk)
+    leaves read from the groups' openings concatenated and the
+    constraints `AF α β v` taken at the challenges and transcript values. -/
+def airQTabG (AF : EF → EF → List EF → AirD) (g : F) (m : Nat) (preP : Nat → List F) (gis : List Nat) (κ : F) (cs : List Chunk)
     (Hl : List F) (cl : F) (S : List F) (ζ : EF) (ws : List (EF → EF → List F)) : QTab :=
   ⟨cs, Hl, cl, S, ζ, m + 1, ws.map fun w =>
-    (fun α β _ o x => airTg cs Hl cl (cs.map fun _ => []) [] κ (cosetL 1 g (m + 1)) (w α β) A.cons
+    (fun α β v o x => airTg cs Hl cl (cs.map fun _ => []) [] κ (cosetL 1 g (m + 1)) (w α β) (AF α β v).cons
         (ρOpen S (catAt o gis) preP g m) x,
-     fun α β _ o => airTgE ζ cs Hl cl (cs.map fun _ => []) [] κ (cosetL 1 g (m + 1)) (w α β) A.cons
+     fun α β v o => airTgE ζ cs Hl cl (cs.map fun _ => []) [] κ (cosetL 1 g (m + 1)) (w α β) (AF α β v).cons
         (ρOpenE (catAt o gis) preP g m ζ))⟩
 
-theorem recOK_airG {A : AirD} {g : F} {m : Nat} {preP : Nat → List F} {gis : List Nat} {κ : F} {cs : List Chunk}
+theorem recOK_airG {AF : EF → EF → List EF → AirD} {g : F} {m : Nat} {preP : Nat → List F} {gis : List Nat} {κ : F} {cs : List Chunk}
     {Hl : List F} {cl : F} {S : List F} {ζ : EF} (α β : EF) (v : List EF) (o : List (List (List F × List EF)))
     (mp : List (List F))
     (h : ∀ w, Shows S ζ cs Hl cl (cs.map fun ch => chunkOf ch.H (fdivH (cosetL 1 g (m + 1))
-        (cpoly (stdRho g (fun i => mp.getD i []) preP (selF g m) (selL g m) (selT g m)) w A.cons)))
+        (cpoly (stdRho g (fun i => mp.getD i []) preP (selF g m) (selL g m) (selT g m)) w (AF α β v).cons)))
       (chunkOf Hl (fdivH (cosetL 1 g (m + 1))
-        (cpoly (stdRho g (fun i => mp.getD i []) preP (selF g m) (selL g m) (selT g m)) w A.cons)))
-      (airTg cs Hl cl (cs.map fun _ => []) [] κ (cosetL 1 g (m + 1)) w A.cons (ρOpen S (catAt o gis) preP g m))
-      (airTgE ζ cs Hl cl (cs.map fun _ => []) [] κ (cosetL 1 g (m + 1)) w A.cons (ρOpenE (catAt o gis) preP g m ζ))) :
-    ∀ ws : List (EF → EF → List F), RecOK (airQTabG A g m preP gis κ cs Hl cl S ζ ws).sets
-      (airData A g m preP cs Hl ws α β mp) (fun c => c.JS α β v o) (fun c => c.Jζ α β v o)
+        (cpoly (stdRho g (fun i => mp.getD i []) preP (selF g m) (selL g m) (selT g m)) w (AF α β v).cons)))
+      (airTg cs Hl cl (cs.map fun _ => []) [] κ (cosetL 1 g (m + 1)) w (AF α β v).cons (ρOpen S (catAt o gis) preP g m))
+      (airTgE ζ cs Hl cl (cs.map fun _ => []) [] κ (cosetL 1 g (m + 1)) w (AF α β v).cons (ρOpenE (catAt o gis) preP g m ζ))) :
+    ∀ ws : List (EF → EF → List F), RecOK (airQTabG AF g m preP gis κ cs Hl cl S ζ ws).sets
+      (airData (AF α β v) g m preP cs Hl ws α β mp) (fun c => c.JS α β v o) (fun c => c.Jζ α β v o)
   | [] => trivial
   | w :: ws => ⟨⟨List.length_map _, h (w α β)⟩, recOK_airG α β v o mp h ws⟩
 
@@ -326,41 +334,46 @@ theorem recOK_airG {A : AirD} {g : F} {m : Nat} {preP : Nat → List F} {gis : L
     trace, challenge, mask and transcript value: the groups `gis` (an
     AIR's main trace and its permutation trace) share the trace domain
     `⟨g⟩`, the query points and `ζ, g ζ`, and at each trace their columns,
-    concatenated, are a table that meets `Sat` for the constraints `A.cons`
-    (the AIR's own and its LogUp constraints over base coordinates). -/
-theorem tabsHonest_gen {A : AirD} {g : F} {m : Nat} {preP : Nat → List F} {gis : List Nat} {κ : F} {cs : List Chunk}
+    concatenated, are a table that meets `Sat` for the constraints
+    `AF α β v` at the transcript's values `v = vt t α β`: the AIR's own,
+    and its LogUp constraints over base coordinates, which depend on the
+    challenges and the terminal.  `Sat` at every `t, α, β` is stronger
+    than completeness (`fallback`). -/
+theorem tabsHonest_gen {AF : EF → EF → List EF → AirD} {g : F} {m : Nat} {preP : Nat → List F} {gis : List Nat} {κ : F} {cs : List Chunk}
     {Hl : List F} {cl : F} {S : List F} {ζ : EF} {ws : List (EF → EF → List F)}
-    {qs : List QGroup} {cols : (Nat → Tup) → EF → EF → List (List (List F))}
+    {qs : List QGroup} {cols : (Nat → Tup) → EF → EF → List (List (List F))} (vt : (Nat → Tup) → EF → EF → List EF)
     (hgrp : ∀ j ∈ gis, ∃ hj : j < qs.length, (qs[j]'hj).base.T = cosetL 1 g (m + 1) ∧ (qs[j]'hj).base.S = S ∧
       (qs[j]'hj).base.Z = [ζ, (EF.ofF g).mul ζ] ∧ (qs[j]'hj).nxt = (g * ·) ∧
       (cosetL 1 g (m + 1) ++ (qs[j]'hj).base.R).Nodup ∧ (qs[j]'hj).base.R.length ≤ m + 1)
     (hcl' : ∀ t α β, ∀ j ∈ gis, j < (cols t α β).length)
-    (hsatT : ∀ t α β, ∃ Tb : Table, Sat A Tb ∧ Tb.h = m + 1 ∧
-      (∀ c ∈ A.cons, c.win (catAt (cols t α β) gis).length = true) ∧
+    (hsatT : ∀ t α β, ∃ Tb : Table, Sat (AF α β (vt t α β)) Tb ∧ Tb.h = m + 1 ∧
+      (∀ c ∈ (AF α β (vt t α β)).cons, c.win (catAt (cols t α β) gis).length = true) ∧
       (∀ col ∈ catAt (cols t α β) gis, col.length = m + 1) ∧
       (∀ i (hi : i < (catAt (cols t α β) gis).length) r (hr : r < ((catAt (cols t α β) gis)[i]).length),
         ((catAt (cols t α β) gis)[i])[r] = Tb.main r i) ∧
       (∀ r i, r < m + 1 → fval (fpow g r) (preP i) = Tb.pre r i))
     (hg : fpow g (m + 1) = 1) (hinj : ∀ a b, a < m + 1 → b < m + 1 → fpow g a = fpow g b → a = b)
-    (hgd : ∀ c ∈ A.cons, c.guarded = true) (hpreL : ∀ i, (preP i).length ≤ 2 * (m + 1))
+    (hgd : ∀ α β v, ∀ c ∈ (AF α β v).cons, c.guarded = true) (hpreL : ∀ i, (preP i).length ≤ 2 * (m + 1))
     (hζ : ∀ x : F, EF.ofF x ≠ ζ) (hS : ∀ x ∈ S, fval x (fvan (cosetL 1 g (m + 1))) ≠ 0)
     (hc : ∀ ch ∈ cs, ch.c ≠ 0) (hcl : cl ≠ 0) (hκ : κ ≠ 0)
     {shift ω : F} {k lq D s : Nat} (hshift : shift ≠ 0) (hhalf : fpow ω (2 ^ k) = -1)
     (hN : (cs.length + 1) * (m + 1) = 2 ^ (k + 1))
     (hdom : cs.map (·.H) ++ [Hl] = splitD shift ω (cs.length + 1) (m + 1))
-    (hL : cs.length + 1 = 2 ^ (lq + 1)) (hD : ∀ e ∈ A.cons, e.pdeg ≤ D) (hDlq : D ≤ 2 ^ lq)
-    (hsd : ∀ e ∈ A.cons, e.sdeg ≤ s) (hs : s < m + 1) (hPsz : D * (2 * (m + 1) - 1) + s + 1 ≤ P)
+    (hL : cs.length + 1 = 2 ^ (lq + 1)) (hD : ∀ α β v, ∀ e ∈ (AF α β v).cons, e.pdeg ≤ D) (hDlq : D ≤ 2 ^ lq)
+    (hsd : ∀ α β v, ∀ e ∈ (AF α β v).cons, e.sdeg ≤ s) (hs : s < m + 1) (hPsz : D * (2 * (m + 1) - 1) + s + 1 ≤ P)
     (hw : ∀ (qs : List (List F)) (ql : List F), qs.length = cs.length → ∀ j (hj : j < (allL cs Hl cl qs ql).length) s',
       ((allL cs Hl cl qs ql)[j]'hj).1 = cosetL s' (fpow ω (cs.length + 1)) (m + 1) →
       ((allL cs Hl cl qs ql)[j]'hj).2.2.1 = finv (opv s' (allL cs Hl cl qs ql) j) * finv κ)
-    (hok : ∀ c ∈ (airQTabG A g m preP gis κ cs Hl cl S ζ ws).sets, c.OK)
+    (hok : ∀ c ∈ (airQTabG AF g m preP gis κ cs Hl cl S ζ ws).sets, c.OK)
     (hHn : ∀ ch ∈ cs, ch.H.Nodup) (hHln : Hl.Nodup) :
-    ∀ t α β ms (v : List EF), TabsHonest
-      (fun c => c.JS α β v (openMulti (qs.map QGroup.ext) (cols t α β) ms))
-      (fun c => c.Jζ α β v (openMulti (qs.map QGroup.ext) (cols t α β) ms))
-      [airQTabG A g m preP gis κ cs Hl cl S ζ ws]
-      [airData A g m preP cs Hl ws α β (catAt (mpolysMulti (qs.map QGroup.ext) (cols t α β) ms) gis)] := by
-  intro t α β ms v
+    ∀ t α β ms, TabsHonest
+      (fun c => c.JS α β (vt t α β) (openMulti (qs.map QGroup.ext) (cols t α β) ms))
+      (fun c => c.Jζ α β (vt t α β) (openMulti (qs.map QGroup.ext) (cols t α β) ms))
+      [airQTabG AF g m preP gis κ cs Hl cl S ζ ws]
+      [airData (AF α β (vt t α β)) g m preP cs Hl ws α β
+        (catAt (mpolysMulti (qs.map QGroup.ext) (cols t α β) ms) gis)] := by
+  intro t α β ms
+  let v := vt t α β
   let o := openMulti (qs.map QGroup.ext) (cols t α β) ms
   let mp := mpolysMulti (qs.map QGroup.ext) (cols t α β) ms
   obtain ⟨Tb, hsat, hh, hwin, hlen, hval, hpre⟩ := hsatT t α β
@@ -412,23 +425,69 @@ theorem tabsHonest_gen {A : AirD} {g : F} {m : Nat} {preP : Nat → List F} {gis
     obtain ⟨j, hj, hpj⟩ := mem_catAt hp
     obtain ⟨R, hRl, _, _, hL'⟩ := hgroup j hj
     have := hL' p hpj; omega
-  have hwin' : ∀ c ∈ A.cons, c.win (catAt mp gis).length = true := fun c hc' => by rw [hC.1]; exact hwin c hc'
+  have hwin' : ∀ c ∈ (AF α β v).cons, c.win (catAt mp gis).length = true := fun c hc' => by rw [hC.1]; exact hwin c hc'
   have hdl : ∀ H ∈ cs.map (·.H) ++ [Hl], H.length = m + 1 := fun H hH => by
     rw [hdom] at hH; exact split_length hH
   refine ⟨⟨hok, fun ch hch => ⟨hdl _ (List.mem_append_left _ (List.mem_map_of_mem hch)), hHn ch hch⟩,
     hdl _ (List.mem_append_right _ List.mem_cons_self), hHln, ?_, fun d hd => ?_⟩, trivial⟩
-  · exact recOK_airG α β _ o _ (fun w => coord_shows_gen hsat hh hg hinj hgd hwin' hps hpsL preP hpreL hpre hO hζ hS
-      hc hcl hκ hshift hhalf hN hdom hL hD hDlq hsd hs hPsz hw w) ws
+  · exact recOK_airG α β _ o _ (fun w => coord_shows_gen hsat hh hg hinj (hgd α β v) hwin' hps hpsL preP hpreL hpre hO
+      hζ hS hc hcl hκ hshift hhalf hN hdom hL (hD α β v) hDlq (hsd α β v) hs hPsz hw w) ws
   · obtain ⟨w, _, rfl⟩ := List.mem_map.1 hd
     refine ⟨fun q hq => ?_, ?_⟩
     · obtain ⟨ch, hch, rfl⟩ := List.mem_map.1 hq
       have := chunkOf_length ch.H (fdivH (cosetL 1 g (m + 1)) (cpoly (stdRho g
-        (fun i => (catAt mp gis).getD i []) preP (selF g m) (selL g m) (selT g m)) (w α β) A.cons))
+        (fun i => (catAt mp gis).getD i []) preP (selF g m) (selL g m) (selT g m)) (w α β) (AF α β v).cons))
       rw [hdl _ (List.mem_append_left _ (List.mem_map_of_mem hch))] at this
       exact this
     · have := chunkOf_length Hl (fdivH (cosetL 1 g (m + 1)) (cpoly (stdRho g
-        (fun i => (catAt mp gis).getD i []) preP (selF g m) (selL g m) (selT g m)) (w α β) A.cons))
+        (fun i => (catAt mp gis).getD i []) preP (selF g m) (selL g m) (selT g m)) (w α β) (AF α β v).cons))
       rw [hdl _ (List.mem_append_right _ List.mem_cons_self)] at this
       exact this
+
+/-- **The composed hiding PCS with a table over several groups**:
+    `pcsCloseN_fri` at `airQTabG`, its constraints taken at the
+    challenges and the transcript's values, `TabsHonest` discharged by
+    `tabsHonest_gen`. -/
+theorem pcsCloseN_fri_gen {V : Type} {ks : List Nat} {ncw : Nat} {αb : EF} {fri : EF → EF → List (EF → EF) → V}
+    (off : EF → String → EF) (tv : (String → EF) → EF → (Nat → Tup) → List EF)
+    {AF : EF → EF → List EF → AirD} {g : F} {m : Nat} {preP : Nat → List F} {gis : List Nat} {κ : F} {cs : List Chunk}
+    {Hl : List F} {cl : F} {S : List F} {ζ : EF} {ws : List (EF → EF → List F)}
+    {qs : List QGroup} {cols : (Nat → Tup) → EF → EF → List (List (List F))}
+    (hgrp : ∀ j ∈ gis, ∃ hj : j < qs.length, (qs[j]'hj).base.T = cosetL 1 g (m + 1) ∧ (qs[j]'hj).base.S = S ∧
+      (qs[j]'hj).base.Z = [ζ, (EF.ofF g).mul ζ] ∧ (qs[j]'hj).nxt = (g * ·) ∧
+      (cosetL 1 g (m + 1) ++ (qs[j]'hj).base.R).Nodup ∧ (qs[j]'hj).base.R.length ≤ m + 1)
+    (hcl' : ∀ t α β, ∀ j ∈ gis, j < (cols t α β).length)
+    (hsatT : ∀ t α β, ∃ Tb : Table, Sat (AF α β (tv (prefixOf α (off β)) β t)) Tb ∧ Tb.h = m + 1 ∧
+      (∀ c ∈ (AF α β (tv (prefixOf α (off β)) β t)).cons, c.win (catAt (cols t α β) gis).length = true) ∧
+      (∀ col ∈ catAt (cols t α β) gis, col.length = m + 1) ∧
+      (∀ i (hi : i < (catAt (cols t α β) gis).length) r (hr : r < ((catAt (cols t α β) gis)[i]).length),
+        ((catAt (cols t α β) gis)[i])[r] = Tb.main r i) ∧
+      (∀ r i, r < m + 1 → fval (fpow g r) (preP i) = Tb.pre r i))
+    (hg : fpow g (m + 1) = 1) (hinj : ∀ a b, a < m + 1 → b < m + 1 → fpow g a = fpow g b → a = b)
+    (hgd : ∀ α β v, ∀ c ∈ (AF α β v).cons, c.guarded = true) (hpreL : ∀ i, (preP i).length ≤ 2 * (m + 1))
+    (hζ : ∀ x : F, EF.ofF x ≠ ζ) (hS : ∀ x ∈ S, fval x (fvan (cosetL 1 g (m + 1))) ≠ 0)
+    (hc : ∀ ch ∈ cs, ch.c ≠ 0) (hcl : cl ≠ 0) (hκ : κ ≠ 0)
+    {shift ω : F} {k lq D s : Nat} (hshift : shift ≠ 0) (hhalf : fpow ω (2 ^ k) = -1)
+    (hN : (cs.length + 1) * (m + 1) = 2 ^ (k + 1))
+    (hdom : cs.map (·.H) ++ [Hl] = splitD shift ω (cs.length + 1) (m + 1))
+    (hL : cs.length + 1 = 2 ^ (lq + 1)) (hD : ∀ α β v, ∀ e ∈ (AF α β v).cons, e.pdeg ≤ D) (hDlq : D ≤ 2 ^ lq)
+    (hsd : ∀ α β v, ∀ e ∈ (AF α β v).cons, e.sdeg ≤ s) (hs : s < m + 1) (hPsz : D * (2 * (m + 1) - 1) + s + 1 ≤ P)
+    (hw : ∀ (qs : List (List F)) (ql : List F), qs.length = cs.length → ∀ j (hj : j < (allL cs Hl cl qs ql).length) s',
+      ((allL cs Hl cl qs ql)[j]'hj).1 = cosetL s' (fpow ω (cs.length + 1)) (m + 1) →
+      ((allL cs Hl cl qs ql)[j]'hj).2.2.1 = finv (opv s' (allL cs Hl cl qs ql) j) * finv κ)
+    (hok : ∀ c ∈ (airQTabG AF g m preP gis κ cs Hl cl S ζ ws).sets, c.OK)
+    (hHn : ∀ ch ∈ cs, ch.H.Nodup) (hHln : Hl.Nodup)  (hokq : ∀ q ∈ qs, q.OK) (hks : ks.length = qs.length)
+    (hcols : ∀ t α β, Shaped (qs.map QGroup.ext) (cols t α β) ∧ (cols t α β).map List.length = ks)
+    (hdet : (mz αb).det ≠ 0) (haw : ∀ w, apow αb w ≠ EF.zero) (hncw : 4 ≤ ncw) :
+    PCSCloseN off (P ^ (friN1 qs ks [airQTabG AF g m preP gis κ cs Hl cl S ζ ws] +
+        friN2 qs [airQTabG AF g m preP gis κ cs Hl cl S ζ ws] ncw)) tv
+      (pcsFri off tv qs ks cols [airQTabG AF g m preP gis κ cs Hl cl S ζ ws]
+        (fun t α β ms => [airData (AF α β (tv (prefixOf α (off β)) β t)) g m preP cs Hl ws α β
+          (catAt (mpolysMulti (qs.map QGroup.ext) (cols t α β) ms) gis)])
+        ncw αb fri)
+      (psimFri qs ks [airQTabG AF g m preP gis κ cs Hl cl S ζ ws] ncw αb fri) 0 :=
+  pcsCloseN_fri hokq hks hcols hdet haw hncw off tv
+    (tabsHonest_gen (fun t α β => tv (prefixOf α (off β)) β t) hgrp hcl' hsatT hg hinj hgd hpreL hζ hS hc hcl hκ
+      hshift hhalf hN hdom hL hD hDlq hsd hs hPsz hw hok hHn hHln)
 
 end Circuit

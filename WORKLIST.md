@@ -61,12 +61,12 @@ is built; this file records what is next. Last revised 2026-10-10.
   (`Ski/ZK/QuotBase.lean`, `pcsCloseN_fri_base`). Several AIRs enter with one table each,
   each folding its AIR's own constraints (`pcsCloseN_fri_tabs`), and the corpus LogUp
   interactions' degree is checked by the kernel (`base_lup`). A table can read several
-  groups, so it folds the LogUp constraints over the permutation trace too
-  (`Ski/ZK/QuotTwo.lean`, `tabsHonest_gen`). Open: the corpus LogUp constraints written as
-  `Q` over the permutation columns, with `Sat` for the main and permutation tables together;
-  a circuit's builder with its fixed accepting fallback table of the same shape (`fallback`
-  combines them), and the group's trace and mask points tied to the committed matrices
-  (`hT`, `hRq`).
+  groups and take constraints that depend on the challenges and the transcript's values, as
+  LogUp's do (`Ski/ZK/QuotTwo.lean`, `tabsHonest_gen`, `pcsCloseN_fri_gen`). Open: the
+  corpus LogUp constraints written as `AF α β v` over the permutation columns, with `Sat`
+  for the main and permutation tables together at the transcript's terminal; a circuit's
+  builder with its fixed accepting fallback table of the same shape (`fallback` combines
+  them), and the group's trace and mask points tied to the committed matrices (`hT`, `hRq`).
 - **The quotient's recombined values hide** (`Ski/ZK/MaskQuot.lean`): the chunks sit
   at the committed trace's height, so a query opens them at the trace's point `s`, where they
   recombine to a function of the terminals and the masked columns at `s` and `g s`.
