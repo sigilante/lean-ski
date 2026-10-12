@@ -1457,7 +1457,7 @@ theorem csets_shift : ∀ (csets : List CSet) (ds ds' : List (List (List F) × L
     refine ⟨by show (cKeys csets ds ds').length + 1 = csets.length + 1; rw [hKsl], fun k hk hc => ?_, fun cr hcr => ?_⟩
     · cases k with
       | zero => exact hKl
-      | succ k => exact hKs k (by simp only [List.length_cons] at hk; omega) (by simp only [List.length_cons] at hc; omega)
+      | succ k => exact hKs k (Nat.lt_of_succ_lt_succ hk) (by simp only [List.length_cons] at hc; omega)
     · have hcr' : cr.length = c.cs.length * c.h + ctot csets := hcr
       have hrn : c.cs.length * c.h ≤ cr.length := by omega
       have hrt : (cr.take (c.cs.length * c.h)).length = c.cs.length * c.h := by rw [List.length_take]; omega
