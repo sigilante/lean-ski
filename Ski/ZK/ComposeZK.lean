@@ -14,11 +14,9 @@ Here those draws are a list (`tdraws`), its sums are the transcript's
 bound is `comp_transcriptG`'s (`comp_closeD`), in the form of a `PSD`'s
 zero-knowledge field, with error `M/P^4 + ε/NR` counted against all the
 `Q4 · Q4 · NR · Q4^2` draws; over the generic draws alone, `tdraws`, the
-distance is that over `1 - P^-2`.  No `PSD` instance is built from it
-yet.  That needs the honest tables from the witness, through an accepted
-run of the composed machine within the statement's heights
-(`comp_honest_zk` takes the run); the error a function of the statement,
-`M` fixed by its heights; and the PCS's closeness `ε`, assumed.
+distance is that over `1 - P^-2`.  `Ski/ZK/CompPSD.lean` builds the
+instance (`compPSD`): its relation an accepted run of the composed
+machine within the statement's heights, its error the statement's.
 -/
 
 namespace Circuit

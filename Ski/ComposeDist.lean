@@ -14,8 +14,9 @@ a statistical distance of at most `err / draws.length`.
 
 Knowledge soundness stays an assumed field, as it is the STARK's.  The
 zero-knowledge field has the form the circuits' transcript theorems prove
-(`Ski/ZK/ComposeZK.lean` turns `transcript_zkG` into `CloseD`); no `PSD`
-instance is built from them yet.
+(`Ski/ZK/ComposeZK.lean` turns `transcript_zkG` into `CloseD`), and
+`Ski/ZK/CompPSD.lean` builds the composed circuit's instance (`compPSD`),
+its relation an accepted run of the composed machine.
 
 - `composeD`: over such a system, a formula's statement is complete,
   knowledge-sound, zero knowledge within `err`, and witness

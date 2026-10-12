@@ -870,8 +870,9 @@ the public tables, blinding flags clear (`comp_honest_zk`,
 `CRun.honest_zk`; `honest_zkP`). The view includes the trace heights:
 blinding keeps them, the honest tables' are the statement's, and the
 simulator emits those (`transcript_zkGH`, `Ski/ZK/Heights.lean`) for the
-composed, Sudoku and hidden-term circuits; the jet circuits' heights are
-public, but no theorem yet ties their honest tables to them. The margin
+composed, Sudoku and hidden-term circuits; the jet circuits' honest
+heights are the budgets and public lengths (`compJ_honest_heights`,
+`compP_honest_heights`). The margin
 check counts two points a query; simulating the quotient's openings would
 need `S` closed under the shift, up to 408 points, more than the smallest
 tables' 256 rows. The
@@ -976,10 +977,12 @@ states zero knowledge as `CloseD` over explicit draws, `composeD` gives
 zero knowledge within `err` and witness indistinguishability within
 `2 · err`, and `chain2D` proves the hybrid argument, the chain within
 `err₁/|D₁| + err₂/|D₂|`; the transcript theorems give the field's form
-(`closeD_of_transcriptG`, `comp_closeD` in `Ski/ZK/ComposeZK.lean`), but
-no `PSD` instance is built yet: it needs the honest tables from the
-witness (an accepted run within the heights), an error fixed by the
-statement, and the PCS's closeness, assumed. Two composed statements over a public hand-off
+(`closeD_of_transcriptG`, `comp_closeD` in `Ski/ZK/ComposeZK.lean`), and
+`compPSD` (`Ski/ZK/CompPSD.lean`) is the composed circuit's instance: its
+relation an accepted run within the statement's heights, its zero
+knowledge proved within an error the statement fixes, completeness,
+knowledge soundness and the PCS's closeness assumed. Not yet derived: the
+run from an accepted evaluation witness, for `composeD`. Two composed statements over a public hand-off
 prove the conjunction; a two-stage example is proved in zero knowledge, a
 proof per stage.
 

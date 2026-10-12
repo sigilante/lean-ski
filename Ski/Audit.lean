@@ -66,6 +66,8 @@ import Ski.ZK.Heights
 import Ski.ZK.MaskMulti
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
+import Ski.ZK.CompPSD
+import Ski.ZK.HeightsJ
 import Ski.ZK.FSRound
 import Ski.ComposedJ
 import Ski.Circuit.Flow
@@ -834,6 +836,10 @@ open Ski.Audit
 
 -- The transcript theorems as the interface's zero knowledge
 #audit_clean Circuit.sumTo_lsum Circuit.sumN_lsum Circuit.lsum_tdraws Circuit.closeD_of_transcriptG Circuit.comp_closeD
+
+-- The composed circuit as a PSD, its zero knowledge proved; the jet circuits' honest heights public
+#audit_clean Circuit.comp_entries Circuit.assigns_ne Circuit.tdraws_ne Circuit.compPSD
+  Circuit.compJ_honest_heights Circuit.compP_honest_heights
 
 -- Fiat–Shamir round by round: adaptive hash calls, grinding, and the LogUp round under them
 #audit_clean Circuit.seqSum_const Circuit.seqSum_mono Circuit.seqSum_add Circuit.fs_attempts Circuit.sumTo_pair

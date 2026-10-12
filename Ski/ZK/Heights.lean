@@ -18,8 +18,7 @@ tables have the unblinded tables' heights (`comp_heights`, `sud_heights`,
 CPU and memory heights the statement names, the witness table's fixed
 height, and the public tables'.  The hiding verifiers refuse any other
 heights (`bench/plonky3`, each `verify`'s `degree_bits` check).  The jet
-circuits' heights are public too, but no theorem here ties their honest
-tables to them.
+circuits' honest heights are public too (`Ski/ZK/HeightsJ.lean`).
 -/
 
 namespace Circuit
