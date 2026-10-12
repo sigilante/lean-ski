@@ -88,6 +88,7 @@ import Ski.ZK.LogUpAir
 import Ski.ZK.LogUpBase
 import Ski.ZK.HideP3
 import Ski.ZK.HideWire
+import Ski.ZK.BbGroup
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -933,6 +934,8 @@ open Ski.Audit
 -- The hiding circuits' AIRs meet the composed PCS's checks
 #audit_clean Circuit.sud_P3 Circuit.wit_P3 Circuit.comp_P3 Circuit.sat_setBlind Circuit.blind_ok Circuit.setBlind_h_pre
   Circuit.sud_wire Circuit.wit_wire Circuit.comp_wire Circuit.preInterp_spec Circuit.tabsHonest_corpus_ite
+-- A BabyBear trace group; one private table, every domain, chunk and group fact discharged
+#audit_clean Circuit.bbGroup_OK Circuit.bbGroup_hgrp Circuit.bb_chunks Circuit.airQTabG_ok Circuit.tabsHonest_bb
 
 -- Part II's interface with an additive distance: the errors add, the hybrid argument proved
 #audit_clean Compose.lsum_le Compose.lsum_add Compose.lsum_const Compose.lsum_comm Compose.lsum_prod
