@@ -67,9 +67,9 @@ use sudoku::{blind_tuple, public_zk_config, secret_zk_config, postcard_size, rep
 const LOG_ROWS: usize = 10;
 const LOG_MEM: usize = 10;
 /// The witness table's height, and the least height of any table, `2^9`:
-/// the quotient's openings need `3 · queries + 8` mask points, 308 at the
-/// benchmark setting, above the hiding PCS's own
-/// `2 · (queries + 4 · opening points)`, 216.
+/// the hiding PCS asks `2 · (queries + 4 · opening points)` mask points,
+/// 216 at the benchmark setting and 422 at 203 queries, above the
+/// quotient's `2 · queries + 8` (`src/fsbudget.rs`, `margin_text`).
 const LOG_WIT: usize = 9;
 const LOG_MIN: usize = 9;
 /// The region's cells at most (`WitAir`'s `W ≤ 2^8`).

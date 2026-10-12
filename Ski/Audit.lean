@@ -64,6 +64,7 @@ import Ski.ZK.Reject
 import Ski.ZK.Honest
 import Ski.ZK.Heights
 import Ski.ZK.MaskMulti
+import Ski.ZK.MaskQuot
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -830,6 +831,10 @@ open Ski.Audit
 #audit_clean Circuit.masks_hide_multi Circuit.shaped_zero Circuit.pcsCloseN_multi Circuit.transcript_zkG_masked
   Circuit.comp_transcriptG_masked Circuit.sud_transcriptG_masked Circuit.wit_transcriptG_masked
   Circuit.compJ_transcriptG_masked Circuit.compP_transcriptG_masked
+#audit_clean Circuit.PCSCloseN.post Circuit.QGroup.ext_OK Circuit.colsAt_openAll Circuit.QGroup.view_quot
+  Circuit.pcsCloseN_quot Circuit.transcript_zkG_quot Circuit.comp_transcriptG_quot
+  Circuit.sud_transcriptG_quot Circuit.wit_transcriptG_quot Circuit.compJ_transcriptG_quot
+  Circuit.compP_transcriptG_quot
 
 -- Part II's interface with an additive distance: the errors add, the hybrid argument proved
 #audit_clean Compose.lsum_le Compose.lsum_add Compose.lsum_const Compose.lsum_comm Compose.lsum_prod

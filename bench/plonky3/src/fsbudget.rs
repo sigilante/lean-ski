@@ -344,17 +344,17 @@ where
 /// `|S| + 4 |Z| <= n`, `S` the base-field points of the view and `Z` the two
 /// out-of-domain points, four coordinates each.  A query opens each
 /// column at one point, so the column openings need `q + 8`.  The quotient
-/// needs more: under hiding Plonky3 commits the quotient chunks at twice
-/// the trace's height, so a query also opens the quotient at a point whose
-/// square is the trace's, and the chunks recombine there to a function of
-/// the trace at that point and at its next row: three points a query,
-/// `3q + 8`.  Plonky3's `HidingFriPcs` asks `2 (queries + 4 · opening
+/// needs more: its chunks are committed at the committed trace's height, so a
+/// query opens them at the trace's point `x`, where they recombine to a
+/// function of the trace at `x` and at its next row `g x`
+/// (`pcsCloseN_quot`, `Ski/ZK/MaskQuot.lean`): two points a query,
+/// `2q + 8`.  Plonky3's `HidingFriPcs` asks `2 (queries + 4 · opening
 /// points)`.  Under hiding a table's degree bits count its rows and as
 /// many random rows: the trace has half.  Whether the smallest table meets
 /// all three, and the line saying so.
 pub(crate) fn margin_text(degree_bits: &[usize], queries: usize) -> (bool, String) {
     let columns = queries + 4 * 2;
-    let quotient = 3 * queries + 4 * 2;
+    let quotient = 2 * queries + 4 * 2;
     let p3 = 2 * (queries + 4 * 2);
     let min_log = degree_bits.iter().copied().min().unwrap_or(1).saturating_sub(1);
     let n = 1usize << min_log;
@@ -434,14 +434,16 @@ pub(crate) use budget;
 mod margin_tests {
     use super::margin_text;
 
-    /// At 100 queries the bound is the quotient's 308 rows: 2^9 meets it,
-    /// 2^8 does not; the degree bits count the random rows too.
+    /// At 100 queries the bound is HidingFriPcs's 216 rows: 2^8 meets it,
+    /// 2^7 does not; the degree bits count the random rows too.  At 203
+    /// queries it is 422, which 2^9 meets.
     #[test]
     fn the_margin_is_the_smallest_tables() {
-        assert!(margin_text(&[12, 10, 11], 100).0);
-        assert!(!margin_text(&[12, 9, 11], 100).0);
-        assert!(margin_text(&[10], 100).1.contains("204 to spare"));
-        assert!(margin_text(&[10], 168).0);
-        assert!(!margin_text(&[10], 169).0);
+        assert!(margin_text(&[12, 9, 11], 100).0);
+        assert!(!margin_text(&[12, 8, 11], 100).0);
+        assert!(margin_text(&[10], 100).1.contains("296 to spare"));
+        assert!(margin_text(&[10], 203).0);
+        assert!(margin_text(&[10], 248).0);
+        assert!(!margin_text(&[10], 249).0);
     }
 }

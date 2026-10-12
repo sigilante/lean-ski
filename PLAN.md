@@ -873,17 +873,23 @@ simulator emits those (`transcript_zkGH`, `Ski/ZK/Heights.lean`) for the
 composed, Sudoku and hidden-term circuits; the jet circuits' honest
 heights are the budgets and public lengths (`compJ_honest_heights`,
 `compP_honest_heights`). The margin
-check tests the quotient's requirement. Under hiding Plonky3 commits the
-quotient chunks at twice the trace's height, so a query also opens the
-quotient at `x_Q`, with `x_Q^2 = g_F x`, and `Q(x_Q)` depends on the trace
-at `x_Q` and `g x_Q`: the masks must cover `3q + 8 = 308` points. Every
-committed table of a hiding proof has at least `2^9` rows: the heights a
-statement names by its checks (`logOK`, `plogsOK`), the others by public
-padding; 204 to spare. The
+check tests the quotient's requirement too. Plonky3 commits the quotient
+chunks at the committed trace's height, so a query opens them at the trace's
+point `s`, where they recombine to a function of the trace at `s` and
+`g s`: the masks must cover `2q + 8 = 208` points, below `HidingFriPcs`'s
+`2(q + 8) = 216`. Every committed table of a hiding proof has at least
+`2^9` rows: the heights a statement names by its checks (`logOK`,
+`plogsOK`), the others by public padding; 296 to spare, and room for 203
+queries (422). The
 masked column openings hide for tables of several heights, each over its
 own domain (`masks_hide_multi`, `pcsCloseN_multi` in
 `Ski/ZK/MaskMulti.lean`), and every hiding circuit's transcript theorem
-holds over that PCS with no PCS term (`*_transcriptG_masked`). Every
+holds over that PCS with no PCS term (`*_transcriptG_masked`). With the
+quotient's recombined values at the query points in the view, functions
+of the terminals and the columns at `s` and `g s`, the same holds when the
+masks cover `2|S| + 4|Z|` points, `2q + 8` (`pcsCloseN_quot`,
+`*_transcriptG_quot`, `Ski/ZK/MaskQuot.lean`); the chunks' own values,
+their split and randomization stay assumed. Every
 byte of a released hiding proof lies in a field of that view: `ski-air
 proof-shape` (`release/verify.sh` step 15) refuses a proof whose bytes
 are not its fields' own encoding, and proofs of one statement differ in
@@ -945,8 +951,9 @@ binding and the STARK's soundness stay assumed. **The hiding PCS**
 column's openings at `|S|` points of `F` and `|Z|` of the extension
 independent of the trace when `|S| + 4|Z| ≤ n` (`masks_hide`), in the
 public-coin interactive model with the points independent of the masks.
-Applied with `S ∪ gS`, since the quotient's openings couple to the next
-row. The quotient chunks, the codeword columns, FRI, Merkle salts and
+Applied with `S ++ gS`, since the quotient's recombined values couple to
+the next row (`pcsCloseN_quot`). The quotient's chunks, the randomization polynomial, the codeword
+columns, FRI, Merkle salts and
 Fiat–Shamir stay assumed. For a PCS whose view is exactly these openings,
 `PCSCloseN` holds with `ε = 0` (`Ski/ZK/MaskPCS.lean`); for Plonky3's, it
 stays a hypothesis. The prover's secret randomness is one 128-bit seed per

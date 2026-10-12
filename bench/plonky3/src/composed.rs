@@ -133,9 +133,10 @@ const LOG_ROWS: usize = 11;
 const LOG_MEM: usize = 11;
 const LOG_BOUNDS: std::ops::RangeInclusive<usize> = 9..=20;
 pub(crate) const LOG_WIT: usize = 9;
-/// The least height of every committed table, `2^9` rows: the quotient's
-/// openings need `3 · queries + 8` mask points, 308 at the benchmark
-/// setting (`src/fsbudget.rs`, `margin_text`).
+/// The least height of every committed table, `2^9` rows: the hiding PCS
+/// asks `2 · (queries + 4 · opening points)` mask points, 216 at the
+/// benchmark setting and 422 at 203 queries (`src/fsbudget.rs`,
+/// `margin_text`).
 pub(crate) const LOG_MIN: usize = 9;
 /// The private cells a statement may name, the bits and the region
 /// (`ComposedText.privateOK`).

@@ -1000,13 +1000,14 @@ What the theorem rests on:
   permutation traces, the quotient, FRI and the openings. The theorem's
   own content is the eight terminals' tree argument, with its error terms
   for non-generic challenges and aborts.
-- **The `2^9` floor has a margin of 204 values.** A query opens each
+- **The `2^9` floor has a margin of 296 values.** A query opens each
   committed column at one point, so the column openings need
-  `q + 8 = 108` (`masks_hide`). Under hiding Plonky3 commits the quotient
-  chunks at twice the trace's height, so a query also opens the quotient
-  at a point whose square is the trace's, where the chunks recombine to a
-  function of the trace there and at its next row: three points a query,
-  `3q + 8 = 308`. Plonky3's `HidingFriPcs` asks `2 (100 + 8) = 216`.
+  `q + 8 = 108` (`masks_hide`). Plonky3 commits the quotient chunks at
+  the committed trace's height, so a query opens them at the trace's point,
+  where they recombine to a function of the trace there and at its next
+  row: two points a query, `2q + 8 = 208`, the hypothesis of
+  `pcsCloseN_quot` (`Ski/ZK/MaskQuot.lean`), which simulates the
+  recombined values. Plonky3's `HidingFriPcs` asks `2 (100 + 8) = 216`.
   Every committed table has at least `2^9` rows, 512 random rows: the
   witness table and the providers are padded to it, and the statement
   checks refuse a height or budget below 9 (`ComposedText.logOK`,
@@ -1191,10 +1192,9 @@ The proven figures stay where the low-degree test holds them.
 **Proven 100 bits, a future option.** 203 queries at rate `1/2` reach it
 for every released proof, with the same grinding. Two costs follow. The
 query part, most of a proof, roughly doubles. And the hiding PCS's masking
-budget, `2 (queries + 4 · opening points)` random rows a table, which
-`masks_hide` also needs, rises from 216 to 422. The quotient's openings
-rise further, to `3q + 8 = 617` mask points, beyond the `2^9` floor: 203
-queries need tables of at least `2^10` rows. Rate `1/4` (124
+budget, `2 (queries + 4 · opening points)` random rows a table, rises
+from 216 to 422, within the `2^9` floor;
+the quotient's recombined values need `2q + 8 = 414`. Rate `1/4` (124
 queries) or `1/8` (102) shortens proofs but doubles or quadruples the
 low-degree extension, and does not reach 100 bits for `csplit8`. 128 bits
 needs a larger extension field and a wider digest, a change to every Lean
