@@ -20,6 +20,14 @@ the transcript's `terminal pre β A Tb` (`accV_terminal`), so LogUp's
 completeness holds at the terminal the transcript publishes, when no
 message's denominator vanishes (`lup_sat_terminal`).
 
+The committed groups: the main group's columns and the permutation
+group's flattened columns, concatenated, are the table with its
+permutation columns (`cols_withPerm`, in `LogUpAir`).  So a builder
+whose main group holds a `Sat` table, whose permutation group holds the
+honest columns and whose transcript publishes the terminal meets
+`tabsHonest_gen`'s per-trace hypothesis (`hsatT_lup`), and a corpus AIR's
+table with its LogUp constraints is honest (`tabsHonest_corpus`).
+
 Scope.  An `Inter` is one p3 `Lookup`: no flags, one tuple (same-bus
 packing cannot merge two tuples at degree 2), the fields as elements
 and the signed count as the multiplicity.  The bus enters only through
@@ -377,5 +385,120 @@ theorem lup_sat_terminal {A : AirD} {Tb : Table} (h : Sat A Tb) (pre : String �
       rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hc, Option.getD_some]; exact List.getElem_mem hc
     rw [e1, combV_horner]
     exact hden _ hmem r hr
+
+theorem plain_wmono {w W d : Nat} {e : E} (h : Plain w d e) (hW : w ≤ W) : Plain W d e :=
+  ⟨h.1, win_mono hW e h.2.1, h.2.2⟩
+
+/-- **`hsatT` for an AIR with its LogUp constraints**, from the builder:
+    at each trace and challenge pair, group `gm` holds a table `Tb` that
+    meets `Sat` and group `gp` the honest permutation columns, the
+    transcript's value at index `k` is the table's terminal, and no
+    message's denominator vanishes.  Then the two groups, concatenated,
+    are a table meeting `Sat` for the AIR with LogUp's constraints at the
+    transcript's values, as `tabsHonest_gen` asks. -/
+theorem hsatT_lup {A : AirD} {m gm gp k : Nat} (pre : EF → EF → String → EF)
+    (cols : (Nat → Tup) → EF → EF → List (List (List F))) (vt : (Nat → Tup) → EF → EF → List EF)
+    (preP : Nat → List F) (g : F)
+    (hA : ∀ c ∈ A.cons, c.win A.width = true)
+    (hI : ∀ I ∈ A.inters, (∀ e ∈ I.fields, Plain A.width 1 e) ∧ Plain A.width 2 I.count)
+    (hb : ∀ t α β, ∃ Tb : Table, Sat A Tb ∧ Tb.h = m + 1 ∧
+      (cols t α β).getD gm [] = mainCols Tb A.width ∧
+      (cols t α β).getD gp [] = permCols Tb (busAlphas (pre α β) A) β (corpusLs A) ∧
+      (vt t α β).getD k EF.zero = terminal (pre α β) β A Tb ∧
+      (∀ I ∈ A.inters, ∀ r, r < Tb.h → den (pre α β) β I.bus (I.fields.map (·.eval (Tb.env r))) ≠ EF.zero) ∧
+      (∀ r i, r < m + 1 → fval (fpow g r) (preP i) = Tb.pre r i)) :
+    ∀ t α β, ∃ Tb : Table,
+      Sat ((fun α β v => withLup A (busAlphas (pre α β) A) β (v.getD k EF.zero) A.width (corpusLs A)) α β (vt t α β)) Tb ∧
+      Tb.h = m + 1 ∧
+      (∀ c ∈ ((fun α β v => withLup A (busAlphas (pre α β) A) β (v.getD k EF.zero) A.width (corpusLs A))
+        α β (vt t α β)).cons, c.win (catAt (cols t α β) [gm, gp]).length = true) ∧
+      (∀ col ∈ catAt (cols t α β) [gm, gp], col.length = m + 1) ∧
+      (∀ i (hi : i < (catAt (cols t α β) [gm, gp]).length) r (hr : r < ((catAt (cols t α β) [gm, gp])[i]).length),
+        ((catAt (cols t α β) [gm, gp])[i])[r] = Tb.main r i) ∧
+      (∀ r i, r < m + 1 → fval (fpow g r) (preP i) = Tb.pre r i) := by
+  intro t α β
+  obtain ⟨Tb, hsat, hh, hm, hp, hv, hden, hpre⟩ := hb t α β
+  have hcat : catAt (cols t α β) [gm, gp] = mainCols Tb A.width ++ permCols Tb (busAlphas (pre α β) A) β (corpusLs A) := by
+    show (cols t α β).getD gm [] ++ ((cols t α β).getD gp [] ++ []) = _
+    rw [hm, hp, List.append_nil]
+  obtain ⟨hlen, hcl, hval⟩ := cols_withPerm Tb (busAlphas (pre α β) A) β (corpusLs A) A.width
+  refine ⟨withPerm Tb (busAlphas (pre α β) A) β (corpusLs A) A.width, ?_, hh, fun c hc => ?_, ?_, ?_, hpre⟩
+  · show Sat (withLup A (busAlphas (pre α β) A) β ((vt t α β).getD k EF.zero) A.width (corpusLs A)) _
+    rw [hv]
+    exact lup_sat_terminal hsat (pre α β) β hA
+      (fun I hI' => ⟨fun e he => ((hI I hI').1 e he).2.1, (hI I hI').2.2.1⟩) hden
+  · rw [hcat, hlen]
+    rcases List.mem_append.1 hc with hc | hc
+    · exact win_mono (by omega) c (hA c hc)
+    · obtain ⟨q, hq, e⟩ := mem_eq4 hc
+      have := lup_shape (W := A.width + 4 * ((corpusLs A).length + 1)) (w := A.width) (busAlphas (pre α β) A) β
+        ((vt t α β).getD k EF.zero) (corpusLs A) (fun L hL => ?_) (Nat.le_refl _) c hc
+      · exact this.2.1
+      · obtain ⟨I, hI', rfl⟩ := List.mem_map.1 hL
+        have hw : A.width ≤ A.width + 4 * ((corpusLs A).length + 1) := by omega
+        exact ⟨fun e he => plain_wmono ((hI I hI').1 e he) hw, plain_wmono (hI I hI').2 hw⟩
+  · rw [hcat]; intro col hcol; rw [hcl col hcol, hh]
+  · intro i hi r hr
+    have hi' : i < (mainCols Tb A.width ++ permCols Tb (busAlphas (pre α β) A) β (corpusLs A)).length := by
+      rw [← hcat]; exact hi
+    have := hval i hi' r (by simp only [hcat] at hr; exact hr)
+    simp only [hcat]
+    exact this
+
+theorem corpus_plain (t : Term) {A : AirD} (hA : A ∈ baseAirs t) :
+    ∀ I ∈ A.inters, (∀ e ∈ I.fields, Plain A.width 1 e) ∧ Plain A.width 2 I.count := fun I hI => by
+  have h := List.all_eq_true.1 (corpus_lup_ok t A hA) (I.fields, I.count) (List.mem_map.2 ⟨I, hI, rfl⟩)
+  simp only [lupOkB, Bool.and_eq_true, List.all_eq_true, decide_eq_true_eq] at h
+  obtain ⟨⟨⟨hes, hs⟩, hw⟩, hd⟩ := h
+  exact ⟨fun e he => ⟨(hes e he).1.1, (hes e he).1.2, (hes e he).2⟩, hs, hw, hd⟩
+
+/-- **A corpus AIR's quotient table with its LogUp constraints is honest**:
+    `tabsHonest_gen` over its main group `gm` and permutation group `gp`,
+    the constraints the AIR's and LogUp's at each lookup's bus prefix and
+    the transcript's terminal, from the builder's facts (`hb`) and the
+    static facts of the groups, the domains and the weights. -/
+theorem tabsHonest_corpus (term : Term) {A : AirD} (hA : A ∈ baseAirs term) {g : F} {m gm gp k : Nat}
+    {preP : Nat → List F} {κ : F} {cs : List Chunk} {Hl : List F} {cl : F} {S : List F} {ζ : EF}
+    {ws : List (EF → EF → List F)} {qs : List QGroup} {cols : (Nat → Tup) → EF → EF → List (List (List F))}
+    (pre : EF → EF → String → EF) (vt : (Nat → Tup) → EF → EF → List EF)
+    (hgrp : ∀ j ∈ [gm, gp], ∃ hj : j < qs.length, (qs[j]'hj).base.T = cosetL 1 g (m + 1) ∧ (qs[j]'hj).base.S = S ∧
+      (qs[j]'hj).base.Z = [ζ, (EF.ofF g).mul ζ] ∧ (qs[j]'hj).nxt = (g * ·) ∧
+      (cosetL 1 g (m + 1) ++ (qs[j]'hj).base.R).Nodup ∧ (qs[j]'hj).base.R.length ≤ m + 1)
+    (hcl' : ∀ t α β, ∀ j ∈ [gm, gp], j < (cols t α β).length)
+    (hb : ∀ t α β, ∃ Tb : Table, Sat A Tb ∧ Tb.h = m + 1 ∧
+      (cols t α β).getD gm [] = mainCols Tb A.width ∧
+      (cols t α β).getD gp [] = permCols Tb (busAlphas (pre α β) A) β (corpusLs A) ∧
+      (vt t α β).getD k EF.zero = terminal (pre α β) β A Tb ∧
+      (∀ I ∈ A.inters, ∀ r, r < Tb.h → den (pre α β) β I.bus (I.fields.map (·.eval (Tb.env r))) ≠ EF.zero) ∧
+      (∀ r i, r < m + 1 → fval (fpow g r) (preP i) = Tb.pre r i))
+    (hg : fpow g (m + 1) = 1) (hinj : ∀ a b, a < m + 1 → b < m + 1 → fpow g a = fpow g b → a = b)
+    (hpreL : ∀ i, (preP i).length ≤ 2 * (m + 1))
+    (hζ : ∀ x : F, EF.ofF x ≠ ζ) (hS : ∀ x ∈ S, fval x (fvan (cosetL 1 g (m + 1))) ≠ 0)
+    (hc : ∀ ch ∈ cs, ch.c ≠ 0) (hcl : cl ≠ 0) (hκ : κ ≠ 0)
+    {shift ω : F} {kk lq : Nat} (hshift : shift ≠ 0) (hhalf : fpow ω (2 ^ kk) = -1)
+    (hN : (cs.length + 1) * (m + 1) = 2 ^ (kk + 1))
+    (hdom : cs.map (·.H) ++ [Hl] = splitD shift ω (cs.length + 1) (m + 1))
+    (hL : cs.length + 1 = 2 ^ (lq + 1)) (hDlq : 2 ≤ 2 ^ lq) (hs : 1 < m + 1)
+    (hPsz : 2 * (2 * (m + 1) - 1) + 1 + 1 ≤ P)
+    (hw : ∀ (qs : List (List F)) (ql : List F), qs.length = cs.length → ∀ j (hj : j < (allL cs Hl cl qs ql).length) s',
+      ((allL cs Hl cl qs ql)[j]'hj).1 = cosetL s' (fpow ω (cs.length + 1)) (m + 1) →
+      ((allL cs Hl cl qs ql)[j]'hj).2.2.1 = finv (opv s' (allL cs Hl cl qs ql) j) * finv κ)
+    (hok : ∀ c ∈ (airQTabG (fun α β v => withLup A (busAlphas (pre α β) A) β (v.getD k EF.zero) A.width (corpusLs A))
+      g m preP [gm, gp] κ cs Hl cl S ζ ws).sets, c.OK)
+    (hHn : ∀ ch ∈ cs, ch.H.Nodup) (hHln : Hl.Nodup) :
+    ∀ t α β ms, TabsHonest
+      (fun c => c.JS α β (vt t α β) (openMulti (qs.map QGroup.ext) (cols t α β) ms))
+      (fun c => c.Jζ α β (vt t α β) (openMulti (qs.map QGroup.ext) (cols t α β) ms))
+      [airQTabG (fun α β v => withLup A (busAlphas (pre α β) A) β (v.getD k EF.zero) A.width (corpusLs A))
+        g m preP [gm, gp] κ cs Hl cl S ζ ws]
+      [airData (withLup A (busAlphas (pre α β) A) β ((vt t α β).getD k EF.zero) A.width (corpusLs A)) g m preP cs Hl
+        ws α β (catAt (mpolysMulti (qs.map QGroup.ext) (cols t α β) ms) [gm, gp])] := by
+  obtain ⟨hgd, hwin, _, _⟩ := base_facts term hA
+  have shape := fun α β (v : List EF) => corpus_withLup_shape term hA (busAlphas (pre α β) A) β (v.getD k EF.zero)
+  exact tabsHonest_gen (AF := fun α β v => withLup A (busAlphas (pre α β) A) β (v.getD k EF.zero) A.width (corpusLs A))
+    vt hgrp hcl' (hsatT_lup pre cols vt preP g hwin (corpus_plain term hA) hb) hg hinj
+    (fun α β v c hc => (shape α β v c hc).1) hpreL hζ hS hc hcl hκ hshift hhalf hN hdom hL
+    (fun α β v c hc => (shape α β v c hc).2.2.1) hDlq (fun α β v c hc => (shape α β v c hc).2.2.2) hs hPsz hw hok
+    hHn hHln
 
 end Circuit

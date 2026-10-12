@@ -312,4 +312,44 @@ theorem lup_sat {A : AirD} {Tb : Table} (h : Sat A Tb) (αs : Nat → EF) (β : 
     · exact this.2.2.1
     · exact this.2.2.2
 
+-- ---------------------------------------------------------------------------
+-- The committed groups: the main columns and the permutation columns
+-- ---------------------------------------------------------------------------
+
+/-- The table's first `w` main columns, each as its `h` values. -/
+def mainCols (Tb : Table) (w : Nat) : List (List F) :=
+  (List.range w).map fun i => (List.range Tb.h).map fun r => Tb.main r i
+
+/-- **The permutation trace's columns**, flattened: the accumulator and each
+    fraction, four base columns each, each as its `h` values. -/
+def permCols (Tb : Table) (αs : Nat → EF) (β : EF) (Ls : List (List E × E)) : List (List F) :=
+  (List.range (4 * (Ls.length + 1))).map fun j => (List.range Tb.h).map fun r =>
+    coordOf (permV Tb αs β Ls (j / 4) r) (j % 4)
+
+/-- **The two groups, concatenated, are the table with its permutation
+    columns**: column `i`'s value at row `r` is `withPerm`'s. -/
+theorem cols_withPerm (Tb : Table) (αs : Nat → EF) (β : EF) (Ls : List (List E × E)) (w : Nat) :
+    (mainCols Tb w ++ permCols Tb αs β Ls).length = w + 4 * (Ls.length + 1) ∧
+    (∀ col ∈ mainCols Tb w ++ permCols Tb αs β Ls, col.length = Tb.h) ∧
+    ∀ i (hi : i < (mainCols Tb w ++ permCols Tb αs β Ls).length) r
+      (hr : r < ((mainCols Tb w ++ permCols Tb αs β Ls)[i]).length),
+      ((mainCols Tb w ++ permCols Tb αs β Ls)[i])[r] = (withPerm Tb αs β Ls w).main r i := by
+  have hm : (mainCols Tb w).length = w := by unfold mainCols; rw [List.length_map, List.length_range]
+  have hp : (permCols Tb αs β Ls).length = 4 * (Ls.length + 1) := by
+    unfold permCols; rw [List.length_map, List.length_range]
+  refine ⟨by rw [List.length_append, hm, hp], fun col hcol => ?_, fun i hi r hr => ?_⟩
+  · rcases List.mem_append.1 hcol with h | h
+    · unfold mainCols at h; obtain ⟨_, _, rfl⟩ := List.mem_map.1 h; rw [List.length_map, List.length_range]
+    · unfold permCols at h; obtain ⟨_, _, rfl⟩ := List.mem_map.1 h; rw [List.length_map, List.length_range]
+  · show _ = if i < w then Tb.main r i else _
+    by_cases hiw : i < w
+    · rw [if_pos hiw]
+      simp only [List.getElem_append_left (show i < (mainCols Tb w).length by rw [hm]; exact hiw)] at hr ⊢
+      unfold mainCols at hr ⊢
+      simp only [List.getElem_map, List.getElem_range]
+    · rw [if_neg hiw]
+      simp only [List.getElem_append_right (show (mainCols Tb w).length ≤ i by rw [hm]; omega)] at hr ⊢
+      unfold permCols at hr ⊢
+      simp only [List.getElem_map, List.getElem_range, hm]
+
 end Circuit

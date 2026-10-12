@@ -68,10 +68,12 @@ is built; this file records what is next. Last revised 2026-10-10.
   bus's prefix as its `α`, so multi-bus AIRs are covered (`Ski/ZK/LogUpAir.lean`, `lup_sat`;
   `Ski/ZK/LogUpBase.lean`, `corpus_withLup_shape`). The honest total is the transcript's
   terminal, so completeness holds at the published terminal (`accV_terminal`,
-  `lup_sat_terminal`). Open: the committed main and permutation groups tied to `withPerm`'s
-  columns; a circuit's builder with its fixed accepting fallback table of the same shape
-  (`fallback` combines them), and the group's trace and mask points tied to the committed
-  matrices (`hT`, `hRq`).
+  `lup_sat_terminal`). The committed main and permutation groups are that table's columns,
+  so a corpus AIR's table with its LogUp constraints is honest from the builder's facts
+  (`cols_withPerm`, `hsatT_lup`, `tabsHonest_corpus`). Open: the transcript view's terminal
+  index and the builder's groups named for each circuit; a circuit's builder with its fixed
+  accepting fallback table of the same shape (`fallback` combines them), and the group's
+  trace and mask points tied to the committed matrices (`hT`, `hRq`).
 - **The quotient's recombined values hide** (`Ski/ZK/MaskQuot.lean`): the chunks sit
   at the committed trace's height, so a query opens them at the trace's point `s`, where they
   recombine to a function of the terminals and the masked columns at `s` and `g s`.
