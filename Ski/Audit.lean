@@ -936,6 +936,7 @@ open Ski.Audit
   Circuit.sud_wire Circuit.wit_wire Circuit.comp_wire Circuit.preInterp_spec Circuit.tabsHonest_corpus_ite
 -- A BabyBear trace group; one private table, every domain, chunk and group fact discharged
 #audit_clean Circuit.bbGroup_OK Circuit.bbGroup_hgrp Circuit.bb_chunks Circuit.airQTabG_ok Circuit.tabsHonest_bb
+  Circuit.gen31_pow27 Circuit.lde_off_trace
 
 -- Part II's interface with an additive distance: the errors add, the hybrid argument proved
 #audit_clean Compose.lsum_le Compose.lsum_add Compose.lsum_const Compose.lsum_comm Compose.lsum_prod

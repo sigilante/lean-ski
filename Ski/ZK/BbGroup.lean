@@ -7,9 +7,12 @@ The committed group of a table of `2^(tb+1)` rows: its trace points
 `⟨bbGen (tb+1)⟩`, its masks on the interleaved coset (`HidingFriPcs`), its
 next row `bbGen (tb+1) ·`, its query points `S` and out-of-domain points
 `ζ, g ζ` (`bbGroup`).  It meets `QGroup.OK` when the query points lie off
-the trace, `ζ` lies off `F` and `2 |S| + 8 ≤ 2^(tb+1)` (`bbGroup_OK`),
-and it has the shape `tabsHonest_corpus_ite`'s `hgrp` asks
-(`bbGroup_hgrp`).
+the trace, `ζ` lies off `F` and `2 |S| + 8 ≤ 2^(tb+1)` (`bbGroup_OK`);
+Plonky3's `HidingFriPcs` budget, `N ≥ 2 (q + 8)` at two opening points,
+implies the last.  It has the shape `tabsHonest_corpus_ite`'s `hgrp`
+asks (`bbGroup_hgrp`).  Plonky3's query points lie on the LDE coset
+`31 · ⟨ω⟩`, and since 31 generates `F*` (`31^(2^27) ≠ 1`, checked by the
+kernel) that coset misses every trace domain (`lde_off_trace`).
 -/
 
 namespace Circuit
@@ -130,10 +133,15 @@ def bbκ (tb lq m : Nat) : F := p3κ 31 (bbGen (tb + lq + 2)) (2 ^ (lq + 1) - 1)
 
 /-- **One private table over BabyBear, honest at every challenge**:
     `tabsHonest_corpus_ite` with the trace groups `bbGroup`, Plonky3's
-    chunks and the preprocessed columns interpolated, every domain, chunk
-    and group fact discharged.  Left: the AIR's check (`AirP3`), the
-    run's tables, columns and terminal (`hb`), the transcript's tables
-    (`hmem`), and the query and out-of-domain points. -/
+    chunks and the preprocessed columns interpolated, every domain and
+    chunk fact and the groups' shape discharged.  Left: the AIR's check
+    (`AirP3`); the run's tables, columns and terminal (`hb`); one fixed
+    preprocessed table `P0` every `tab t` shares (`hpre0`); the groups
+    list with `bbGroup` at `gm` and `gp` (`hqm`, `hqp`, `hcl'`); the
+    transcript's tables (`hmem`); the height `m + 1 = 2^(tb+1)` with
+    `1 ≤ lq` and `tb + lq + 1 ≤ 26`; and the query and out-of-domain
+    points (`hSoff`, which `lde_off_trace` gives for Plonky3's queries,
+    `|S| + 4 ≤ m + 1`, `ζ ∉ F`, `(mz ζ).det ≠ 0`). -/
 theorem tabsHonest_bb (off : EF → String → EF) (tv : (String → EF) → EF → (Nat → Tup) → List EF)
     {A : AirD} (hP : AirP3 A = true) {tb lq m gm gp k : Nat} (ht : tb ≤ 25) (hlq : 1 ≤ lq)
     (hk : tb + lq + 1 ≤ 26) (hm : m + 1 = 2 ^ (tb + 1))
@@ -194,5 +202,33 @@ theorem tabsHonest_bb (off : EF → String → EF) (tv : (String → EF) → EF 
         by rw [e]; exact e5, by rw [e]; exact e6⟩
   · obtain ⟨h1, h2, h3, h4, h5⟩ := hb t α β
     exact ⟨h1, h2, h3, h4, h5, fun r i hr => by rw [hpre0]; exact (hpre i).2 r hr⟩
+
+-- ---------------------------------------------------------------------------
+-- The query points lie off the trace
+-- ---------------------------------------------------------------------------
+
+theorem fpow_one_pow (x : F) (a b : Nat) (h : fpow x a = 1) : fpow x (a * b) = 1 := by
+  rw [fpow_mul', h, fpow_one']
+
+/-- Every BabyBear two-adic generator's `2^27`-th power is one. -/
+theorem bbGen_pow27 {b : Nat} (hb : b ≤ 26) : fpow (bbGen (b + 1)) (2 ^ 27) = 1 := by
+  rw [show 2 ^ 27 = 2 ^ (b + 1) * 2 ^ (26 - b) by rw [← Nat.pow_add]; congr 1; omega]
+  exact fpow_one_pow _ _ _ (bb_trace b hb).1
+
+/-- 31 generates `F*`, so its `2^27`-th power is not one (the kernel computes it). -/
+theorem gen31_pow27 : fpow (31 : F) (2 ^ 27) ≠ 1 := by
+  rw [← fpowFast_eq 28 _ _ (by decide)]; decide
+
+/-- **The LDE coset `31 · ⟨ω⟩` lies off every trace domain**: Plonky3's
+    query points `31 · ωᵉ`, `ω` a two-adic generator, are not in
+    `⟨bbGen (tb+1)⟩`. -/
+theorem lde_off_trace {tb b : Nat} (htb : tb ≤ 26) (hb : b ≤ 26) (e : Nat) :
+    (31 : F) * fpow (bbGen (b + 1)) e ∉ cosetL 1 (bbGen (tb + 1)) (2 ^ (tb + 1)) := fun hx => by
+  obtain ⟨r, _, hr⟩ := mem_coset hx
+  rw [one_mul'] at hr
+  have h1 : fpow ((31 : F) * fpow (bbGen (b + 1)) e) (2 ^ 27) = fpow (fpow (bbGen (tb + 1)) r) (2 ^ 27) := by rw [hr]
+  rw [fpow_mul_distrib, ← fpow_mul', Nat.mul_comm, fpow_mul', bbGen_pow27 hb, fpow_one', mul_one',
+    ← fpow_mul', Nat.mul_comm, fpow_mul', bbGen_pow27 htb, fpow_one'] at h1
+  exact gen31_pow27 h1
 
 end Circuit
