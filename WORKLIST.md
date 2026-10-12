@@ -1,7 +1,7 @@
 # Worklist
 
 What remains, in the order we mean to take it. `PLAN.md` records the design and what
-is built; this file records what is next. Last revised 2026-10-10.
+is built; this file records what is next. Last revised 2026-10-13.
 
 ## Done since the last revision
 
