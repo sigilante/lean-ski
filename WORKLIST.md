@@ -70,15 +70,16 @@ is built; this file records what is next. Last revised 2026-10-10.
   terminal, so completeness holds at the transcript's terminal of any table meeting `Sat`
   (`accV_terminal`, `lup_sat_terminal`). The committed main and permutation groups are that
   table's columns, so a corpus AIR's table with its LogUp constraints is honest from the
-  builder's facts (`cols_withPerm`, `hsatT_lup`, `tabsHonest_corpus`). `Sat` is asked only
-  at challenges where no message of nonzero count has a vanishing denominator; elsewhere the
-  prover aborts and the model sends the canonical chunks, honest at every challenge
-  (`tabsHonest_canon`, `pcsCloseN_fri_gen`). Open: the abort's probability charged in the
-  transcript theorem; the transcript view's terminal index and the builder's groups named
-  for each circuit, with `Sat` and the denominators at each circuit's blinded tables; a
-  circuit's builder with its fixed accepting fallback table of the same shape (`fallback`
-  combines them), and the group's trace and mask points tied to the committed matrices
-  (`hT`, `hRq`).
+  builder's facts (`cols_withPerm`, `hsatT_lup`, `tabsHonest_corpus`). For the corpus the
+  LogUp part is asked only where `goodLup` holds, no message of nonzero count with a
+  vanishing denominator at the builder's table; elsewhere Plonky3's prover aborts and the
+  model sends the canonical chunks, honest at every challenge (`goodLup`,
+  `tabsHonest_canon`, `pcsCloseN_fri_gen`, whose `good` is a parameter). Open: the abort's
+  probability charged in the transcript theorem; the transcript view's terminal index and
+  the builder's groups named for each circuit, with `Sat` and the denominators at each
+  circuit's blinded tables; a circuit's builder with its fixed accepting fallback table of
+  the same shape (`fallback` combines them), and the group's trace and mask points tied to
+  the committed matrices (`hT`, `hRq`).
 - **The quotient's recombined values hide** (`Ski/ZK/MaskQuot.lean`): the chunks sit
   at the committed trace's height, so a query opens them at the trace's point `s`, where they
   recombine to a function of the terminals and the masked columns at `s` and `g s`.
