@@ -32,8 +32,9 @@ The weights `ws` are functions of the challenges `α, β`: the base
 coordinates of the folding challenge's powers.  The theorem holds for
 every such choice, so for every value of a folding challenge drawn
 independently of the masks.  Plonky3 draws it independently of `α, β`
-as well.  Averaging an exact simulation over that draw keeps it exact,
-but that step is not formalized here.
+as well.  `pcsCloseN_fri_air_draw` draws the weights by an index beside
+the PCS's randomness, all of one length, and the simulation stays exact
+(`PCSCloseN.family`).
 The theorem covers one quotient table, that of the group `gi`; a
 circuit with several AIRs discharges each table alone and combines them
 (`tabsHonest_cons`).
@@ -352,6 +353,79 @@ theorem pcsCloseN_fri_air {V : Type} {qs : List QGroup} {ks : List Nat} {cols : 
   pcsCloseN_fri hokq hks hcols hdet haw hncw off tv (fun t α β ms =>
     tabsHonest_air hgi hcl' hT hRq hSq hZq hnq hnxt hsatT hg hinj hgd hR hnd hpreL hζ hS hc hcl hκ hshift hhalf hN
       hdom hL hD hDlq hsd hs hPsz hw hok hHn hHln t α β ms _)
+
+
+theorem friN_air (qs : List QGroup) (ks : List Nat) (ncw : Nat) {A : AirD} {g : F} {m : Nat} {preP : Nat → List F}
+    {gi : Nat} {κ : F} {cs : List Chunk} {Hl : List F} {cl : F} {S : List F} {ζ : EF} {ws ws' : List (EF → EF → List F)}
+    (h : ws.length = ws'.length) :
+    friN1 qs ks [airQTab A g m preP gi κ cs Hl cl S ζ ws] + friN2 qs [airQTab A g m preP gi κ cs Hl cl S ζ ws] ncw =
+      friN1 qs ks [airQTab A g m preP gi κ cs Hl cl S ζ ws'] + friN2 qs [airQTab A g m preP gi κ cs Hl cl S ζ ws'] ncw := by
+  show mtotal _ ks + ((ws.map _).length * _ + 0) + (traceCw ncw _ + (QTab.cws _ ncw + 0)) =
+    mtotal _ ks + ((ws'.map _).length * _ + 0) + (traceCw ncw _ + (QTab.cws _ ncw + 0))
+  rw [List.length_map, List.length_map, h]; rfl
+
+/-- **The folding challenge drawn independently**: with the weights `ws δ`
+    for a challenge index `δ < NR2` drawn beside the PCS's randomness,
+    all of one length, the composed hiding PCS still meets `PCSCloseN`
+    exactly (`PCSCloseN.family`). -/
+theorem pcsCloseN_fri_air_draw {V : Type} {qs : List QGroup} {ks : List Nat} {cols : (Nat → Tup) → EF → EF → List (List (List F))}
+    {ncw : Nat} {αb : EF} {fri : EF → EF → List (EF → EF) → V}
+    (hokq : ∀ q ∈ qs, q.OK) (hks : ks.length = qs.length)
+    (hcols : ∀ t α β, Shaped (qs.map QGroup.ext) (cols t α β) ∧ (cols t α β).map List.length = ks)
+    (hdet : (mz αb).det ≠ 0) (haw : ∀ w, apow αb w ≠ EF.zero) (hncw : 4 ≤ ncw)
+    (off : EF → String → EF) (tv : (String → EF) → EF → (Nat → Tup) → List EF)
+    {A : AirD} {g : F} {m : Nat} {preP : Nat → List F} {gi : Nat} {κ : F} {cs : List Chunk}
+    {Hl : List F} {cl : F} {S : List F} {ζ : EF} {ws : Nat → List (EF → EF → List F)} {nk : Nat} (hws : ∀ δ, (ws δ).length = nk) {NR2 : Nat} {R : List F} {nR : Nat}
+    (hgi : gi < qs.length) (hcl' : ∀ t α β, gi < (cols t α β).length)
+    (hT : (qs[gi]'hgi).base.T = cosetL 1 g (m + 1)) (hRq : (qs[gi]'hgi).base.R = R) (hSq : (qs[gi]'hgi).base.S = S)
+    (hZq : (qs[gi]'hgi).base.Z = [ζ, (EF.ofF g).mul ζ]) (hnq : (qs[gi]'hgi).base.n = nR)
+    (hnxt : (qs[gi]'hgi).nxt = (g * ·))
+    (hsatT : ∀ t α β, ∃ Tb : Table, Sat A Tb ∧ Tb.h = m + 1 ∧
+      (∀ c ∈ A.cons, c.win ((cols t α β)[gi]'(hcl' t α β)).length = true) ∧
+      (∀ i (hi : i < ((cols t α β)[gi]'(hcl' t α β)).length),
+        (((cols t α β)[gi]'(hcl' t α β))[i]).length = m + 1 ∧
+        ∀ r (hr : r < (((cols t α β)[gi]'(hcl' t α β))[i]).length),
+          (((cols t α β)[gi]'(hcl' t α β))[i])[r] = Tb.main r i) ∧
+      (∀ r i, r < m + 1 → fval (fpow g r) (preP i) = Tb.pre r i))
+    (hg : fpow g (m + 1) = 1) (hinj : ∀ a b, a < m + 1 → b < m + 1 → fpow g a = fpow g b → a = b)
+    (hgd : ∀ c ∈ A.cons, c.guarded = true) (hR : R.length ≤ m + 1) (hnd : (cosetL 1 g (m + 1) ++ R).Nodup)
+    (hpreL : ∀ i, (preP i).length ≤ 2 * (m + 1))
+    (hζ : ∀ x : F, EF.ofF x ≠ ζ) (hS : ∀ x ∈ S, fval x (fvan (cosetL 1 g (m + 1))) ≠ 0)
+    (hc : ∀ ch ∈ cs, ch.c ≠ 0) (hcl : cl ≠ 0) (hκ : κ ≠ 0)
+    {shift ω : F} {k lq D s : Nat} (hshift : shift ≠ 0) (hhalf : fpow ω (2 ^ k) = -1)
+    (hN : (cs.length + 1) * (m + 1) = 2 ^ (k + 1))
+    (hdom : cs.map (·.H) ++ [Hl] = splitD shift ω (cs.length + 1) (m + 1))
+    (hL : cs.length + 1 = 2 ^ (lq + 1)) (hD : ∀ e ∈ A.cons, e.pdeg ≤ D) (hDlq : D ≤ 2 ^ lq)
+    (hsd : ∀ e ∈ A.cons, e.sdeg ≤ s) (hs : s < m + 1) (hPsz : D * (2 * (m + 1) - 1) + s + 1 ≤ P)
+    (hw : ∀ (qs : List (List F)) (ql : List F), qs.length = cs.length → ∀ j (hj : j < (allL cs Hl cl qs ql).length) s',
+      ((allL cs Hl cl qs ql)[j]'hj).1 = cosetL s' (fpow ω (cs.length + 1)) (m + 1) →
+      ((allL cs Hl cl qs ql)[j]'hj).2.2.1 = finv (opv s' (allL cs Hl cl qs ql) j) * finv κ)
+    (hok : ∀ δ, ∀ c ∈ (airQTab A g m preP gi κ cs Hl cl S ζ (ws δ)).sets, c.OK)
+    (hHn : ∀ ch ∈ cs, ch.H.Nodup) (hHln : Hl.Nodup) :
+    PCSCloseN off (P ^ (friN1 qs ks [airQTab A g m preP gi κ cs Hl cl S ζ (ws 0)] +
+        friN2 qs [airQTab A g m preP gi κ cs Hl cl S ζ (ws 0)] ncw) * NR2) tv
+      (fun t α β r => pcsFri off tv qs ks cols [airQTab A g m preP gi κ cs Hl cl S ζ (ws (r / P ^ (friN1 qs ks
+          [airQTab A g m preP gi κ cs Hl cl S ζ (ws 0)] + friN2 qs [airQTab A g m preP gi κ cs Hl cl S ζ (ws 0)] ncw)))]
+        (fun t α β ms => [airData A g m preP cs Hl (ws (r / P ^ (friN1 qs ks
+          [airQTab A g m preP gi κ cs Hl cl S ζ (ws 0)] + friN2 qs [airQTab A g m preP gi κ cs Hl cl S ζ (ws 0)] ncw)))
+          α β ((mpolysMulti (qs.map QGroup.ext) (cols t α β) ms).getD gi [])])
+        ncw αb fri t α β (r % P ^ (friN1 qs ks [airQTab A g m preP gi κ cs Hl cl S ζ (ws 0)] +
+          friN2 qs [airQTab A g m preP gi κ cs Hl cl S ζ (ws 0)] ncw)))
+      (fun α β v r => psimFri qs ks [airQTab A g m preP gi κ cs Hl cl S ζ (ws (r / P ^ (friN1 qs ks
+          [airQTab A g m preP gi κ cs Hl cl S ζ (ws 0)] + friN2 qs [airQTab A g m preP gi κ cs Hl cl S ζ (ws 0)] ncw)))]
+        ncw αb fri α β v (r % P ^ (friN1 qs ks [airQTab A g m preP gi κ cs Hl cl S ζ (ws 0)] +
+          friN2 qs [airQTab A g m preP gi κ cs Hl cl S ζ (ws 0)] ncw))) 0 := by
+  refine PCSCloseN.family (NR2 := NR2)
+    (pcs := fun δ t α β r => pcsFri off tv qs ks cols [airQTab A g m preP gi κ cs Hl cl S ζ (ws δ)]
+      (fun t α β ms => [airData A g m preP cs Hl (ws δ) α β ((mpolysMulti (qs.map QGroup.ext) (cols t α β) ms).getD gi [])])
+      ncw αb fri t α β r)
+    (psim := fun δ α β v r => psimFri qs ks [airQTab A g m preP gi κ cs Hl cl S ζ (ws δ)] ncw αb fri α β v r)
+    (fun δ => ?_)
+  have e := friN_air qs ks ncw (A := A) (g := g) (m := m) (preP := preP) (gi := gi) (κ := κ) (cs := cs) (Hl := Hl)
+    (cl := cl) (S := S) (ζ := ζ) (ws := ws δ) (ws' := ws 0) ((hws δ).trans (hws 0).symm)
+  rw [← e]
+  exact pcsCloseN_fri_air hokq hks hcols hdet haw hncw off tv hgi hcl' hT hRq hSq hZq hnq hnxt hsatT hg hinj hgd hR
+    hnd hpreL hζ hS hc hcl hκ hshift hhalf hN hdom hL hD hDlq hsd hs hPsz hw (hok δ) hHn hHln
 
 /-- **Tables combine**: `TabsHonest` for each table alone gives it for the
     list, so a circuit with several AIRs discharges one `airQTab` per AIR,

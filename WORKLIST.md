@@ -54,8 +54,8 @@ is built; this file records what is next. Last revised 2026-10-10.
   in the extension (`Ski/ZK/QuotFold.lean`, `airTgE_back`, `airTgE_mixed`). Open: a trace
   builder that falls back to a fixed accepting table of the same shape; the composed
   statement for a multi-AIR circuit (each table discharges alone, `tabsHonest_cons`);
-  averaging over an independently drawn folding challenge (the weights may now depend on the
-  challenges); a named circuit's static facts checked by the kernel.
+  a named circuit's static facts checked by the kernel. The folding challenge is drawn
+  beside the PCS's randomness (`pcsCloseN_fri_air_draw`).
 - **The quotient's recombined values hide** (`Ski/ZK/MaskQuot.lean`): the chunks sit
   at the committed trace's height, so a query opens them at the trace's point `s`, where they
   recombine to a function of the terminals and the masked columns at `s` and `g s`.
