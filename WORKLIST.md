@@ -5,6 +5,9 @@ is built; this file records what is next. Last revised 2026-10-10.
 
 ## Done since the last revision
 
+- **The challenges' conditions, counted** (`Ski/ZK/MaskGen.lean`): the independence that
+  `pcsCloseN_fri` asks of `αb` and the chunks of `ζ` is `Generic`, which fails for `P²` of
+  the `P⁴` challenges (`mz_det_eq`, `nongeneric_count`); `pcsCloseN_fri_generic`.
 - **FRI's view hides** (`Ski/ZK/MaskFri.lean`): FRI's input is each committed matrix's
   batched polynomial; a joint shift of masks, chunk randomness and random codewords keeps
   every opening and every batched polynomial, four codewords cancelling any change of a
