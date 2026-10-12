@@ -971,7 +971,12 @@ proofs, each stage its own statement and prover, later statements
 computed from earlier ones and the values they publish; `chain2` makes a
 proof system of the chain from the stages', complete, knowledge-sound and
 zero knowledge (componentwise, the proofs' randomness independent), and
-iterates to any length. Two composed statements over a public hand-off
+iterates to any length. With a distance (`Ski/ComposeDist.lean`): `PSD`
+states zero knowledge as `CloseD` over explicit draws, `composeD` gives
+zero knowledge within `err` and witness indistinguishability within
+`2 · err`, and `chain2D` proves the hybrid argument, the chain within
+`err₁/|D₁| + err₂/|D₂|`; the transcript theorems supply the field
+(`closeD_of_transcriptG`, `comp_closeD` in `Ski/ZK/ComposeZK.lean`). Two composed statements over a public hand-off
 prove the conjunction; a two-stage example is proved in zero knowledge, a
 proof per stage.
 

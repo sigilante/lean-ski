@@ -64,6 +64,8 @@ import Ski.ZK.Reject
 import Ski.ZK.Honest
 import Ski.ZK.Heights
 import Ski.ZK.MaskMulti
+import Ski.ComposeDist
+import Ski.ZK.ComposeZK
 import Ski.ZK.FSRound
 import Ski.ComposedJ
 import Ski.Circuit.Flow
@@ -824,6 +826,14 @@ open Ski.Audit
 #audit_clean Circuit.masks_hide_multi Circuit.shaped_zero Circuit.pcsCloseN_multi Circuit.transcript_zkG_masked
   Circuit.comp_transcriptG_masked Circuit.sud_transcriptG_masked Circuit.wit_transcriptG_masked
   Circuit.compJ_transcriptG_masked Circuit.compP_transcriptG_masked
+
+-- Part II's interface with an additive distance: the errors add, the hybrid argument proved
+#audit_clean Compose.lsum_le Compose.lsum_add Compose.lsum_const Compose.lsum_comm Compose.lsum_prod
+  Compose.lprod_length Compose.CloseD.refl Compose.CloseD.symm Compose.CloseD.trans Compose.CloseD.mono
+  Compose.closeD_prod Compose.composeD Compose.chain2D Compose.chain2D_draws
+
+-- The transcript theorems as the interface's zero knowledge
+#audit_clean Circuit.sumTo_lsum Circuit.sumN_lsum Circuit.lsum_tdraws Circuit.closeD_of_transcriptG Circuit.comp_closeD
 
 -- Fiat–Shamir round by round: adaptive hash calls, grinding, and the LogUp round under them
 #audit_clean Circuit.seqSum_const Circuit.seqSum_mono Circuit.seqSum_add Circuit.fs_attempts Circuit.sumTo_pair
