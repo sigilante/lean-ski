@@ -93,6 +93,8 @@ import Ski.ZK.SudRun
 import Ski.ZK.SudInst
 import Ski.ZK.WitRun
 import Ski.ZK.WitInst
+import Ski.ZK.CompRunSat
+import Ski.ZK.CompInst
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -1128,3 +1130,6 @@ open Ski.Audit
 -- The hidden-term proof over its composed hiding PCS, end to end
 #audit_clean Circuit.padPow Circuit.progW_height Circuit.wit_prog_height Circuit.wCols_shaped Circuit.wit_airs_P3
   Circuit.wit_pcs Circuit.wPsim_pre Circuit.wit_hiding
+-- The composed proof over its composed hiding PCS, end to end
+#audit_clean Circuit.comp_run_sats Circuit.progC_height Circuit.segsC_height Circuit.cCols_shaped Circuit.comp_airs_P3
+  Circuit.comp_pcs Circuit.comp_pub_heights Circuit.cPsim_pre Circuit.comp_hiding
