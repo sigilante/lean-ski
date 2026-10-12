@@ -5,6 +5,9 @@ is built; this file records what is next. Last revised 2026-10-10.
 
 ## Done since the last revision
 
+- **The random columns' openings hide** (`Ski/ZK/MaskRand.lean`): independent randomness
+  beside a PCS keeps `PCSCloseN` exact (`PCSCloseN.indep`); with the random codeword and
+  randomization columns' openings, `pcsCloseN_rand`.
 - **The quotient's chunks hide** (`Ski/ZK/MaskChunk.lean`, `Ski/ZK/Solve4.lean`): Plonky3's
   chunk randomization, `q_i + v_i r_i` with the last chunk's `r` cancelling the others',
   hides all but what the verifier sees: a chunk on its own domain (a query point can lie
@@ -119,8 +122,11 @@ and its claim table moves to the docs, where `release/README.md` already holds i
   calls per proof over computed bits: a P2IN that walks a list, as P2OUT writes one.
   Arvo binds nothing here; it replays its log. Needed only to prove a kernel's history
   to someone who lacks the log.
-- The rest of the hiding PCS: the randomization polynomial and the random codeword
-  columns, simple next to the chunks; FRI's layers and Merkle salts.
+- FRI's layers under hiding: the random codeword and randomization columns mask the
+  batched polynomial FRI folds; its sibling values and final polynomial need a count of
+  the points and functionals they reveal (ePrint 2024/1037 §4). Their own openings are
+  proved (`pcsCloseN_rand`). The Merkle salts and Fiat–Shamir are cryptographic
+  assumptions (hiding hash, random oracle).
 - Proven 100-bit parameters: 203 queries at rate 1/2; the masks then need 422 points,
   within the `2^9` floor (`bench/plonky3/README.md`).
 - FRI and round-by-round soundness, proved rather than assumed;
