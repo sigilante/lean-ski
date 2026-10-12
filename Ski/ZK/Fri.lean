@@ -15,9 +15,10 @@ the column masks hide the openings: if a shift `Δ` of the mask's
 randomness leaves every other opening alone and cancels the difference of
 two witnesses on what FRI reveals, the views have one distribution
 (`fri_hides_of_cancel`).  Plonky3 masks `B` with the random codeword and
-randomization columns (ePrint 2024/1037 §4); that such a shift exists for
-its parameters, a count of the points and functionals FRI reveals against
-the masks' freedom, is not proved here.
+randomization columns (ePrint 2024/1037 §4).  `Ski/ZK/MaskFri.lean` proves
+FRI hides without counting what FRI reveals: the codewords' shift leaves
+every batched polynomial unchanged (`pcsCloseN_fri`).  The view here
+folds by two and takes one input height.
 -/
 
 namespace Circuit

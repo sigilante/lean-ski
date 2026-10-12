@@ -29,9 +29,9 @@ the masks must cover `2q + 8` points; Plonky3's `HidingFriPcs` asks
 Scope.  The view holds the recombined value `Q(s)`, a function of the
 chunks' values; Plonky3's proof opens each chunk, at `s` and at `ζ`,
 and those values are not in this view; `Ski/ZK/MaskChunk.lean` adds them
-(`pcsCloseN_chunks`).  Assumed: the randomization polynomial (opened at `ζ`
-and at every query point), the random codeword columns, FRI's layers,
-Merkle paths and salts, and Fiat–Shamir.  The points and
+(`pcsCloseN_chunks`), and `Ski/ZK/MaskFri.lean` the randomization
+polynomial, the codewords and FRI.  Assumed: Merkle paths and salts, and
+Fiat–Shamir.  The points and
 the constraint-folding challenge are fixed before the masks, in the
 public-coin model (`QGroup.qv` is one function for each value of that
 challenge).  That the recombined chunks give `Q(s)` as this function is

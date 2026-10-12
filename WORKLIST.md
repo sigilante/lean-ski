@@ -5,6 +5,13 @@ is built; this file records what is next. Last revised 2026-10-10.
 
 ## Done since the last revision
 
+- **FRI's view hides** (`Ski/ZK/MaskFri.lean`): FRI's input is each committed matrix's
+  batched polynomial; a joint shift of masks, chunk randomness and random codewords keeps
+  every opening and every batched polynomial, four codewords cancelling any change of a
+  matrix's columns when `1, αb, αb², αb³` are independent (`mat_cancel`, `cw_rows`). The
+  composed PCS with every chunk, codeword and FRI's view meets `PCSCloseN` exactly
+  (`pcsCloseN_fri`, `pcsCloseN_friR` with the randomization polynomial,
+  `*_transcriptG_fri`), with one group a committed matrix.
 - **The random columns' openings hide** (`Ski/ZK/MaskRand.lean`): independent randomness
   beside a PCS keeps `PCSCloseN` exact (`PCSCloseN.indep`); with the random codeword and
   randomization columns' openings, `pcsCloseN_rand`.
@@ -122,14 +129,13 @@ and its claim table moves to the docs, where `release/README.md` already holds i
   calls per proof over computed bits: a P2IN that walks a list, as P2OUT writes one.
   Arvo binds nothing here; it replays its log. Needed only to prove a kernel's history
   to someone who lacks the log.
-- FRI's layers under hiding: the random codeword and randomization columns mask the
-  batched polynomial FRI folds; its sibling values and final polynomial need a count of
-  the points and functionals they reveal (ePrint 2024/1037 §4). Their own openings are
-  proved (`pcsCloseN_rand`). The Merkle salts and Fiat–Shamir are cryptographic
-  assumptions (hiding hash, random oracle).
+- Instantiate `pcsCloseN_fri` for each circuit with one group a committed matrix (main
+  and permutation traces apart) and `RecOK` discharged from a model of Plonky3's quotient
+  split; today both are read from Plonky3's source. The Merkle salts and Fiat–Shamir are
+  cryptographic assumptions (hiding hash, random oracle).
 - Proven 100-bit parameters: 203 queries at rate 1/2; the masks then need 422 points,
   within the `2^9` floor (`bench/plonky3/README.md`).
-- FRI and round-by-round soundness, proved rather than assumed;
+- FRI's soundness and round-by-round soundness, proved rather than assumed;
   Fiat–Shamir.
 - Probe segments under the hiding; ∀ over public inputs; aggregation.
 - Remote CI for lean-ski: waits on the public release.

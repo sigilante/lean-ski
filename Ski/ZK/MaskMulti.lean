@@ -20,8 +20,9 @@ proved part of every hiding circuit's simulated view: `transcript_zkG`
 over that PCS has no PCS term (`transcript_zkG_masked`).  The scope is
 `MaskPCS.lean`'s: the column openings, in the public-coin model, with the
 points fixed before the masks.  `Ski/ZK/MaskQuot.lean` adds the
-quotient's recombined values at the query points; the quotient's chunks, the random
-codewords, FRI and the Merkle salts stay assumed.
+quotient's recombined values at the query points, `MaskChunk.lean` the
+chunks, and `MaskFri.lean` the codewords and FRI (with one group a
+committed matrix); the Merkle salts and Fiat–Shamir stay assumed.
 -/
 
 namespace Circuit

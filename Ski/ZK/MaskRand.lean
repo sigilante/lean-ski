@@ -16,7 +16,8 @@ simulation exact (`PCSCloseN.indep`): the simulator draws them itself.
 (`pcsCloseN_rand`).
 
 Scope.  This covers these columns' openings.  Their other role, masking
-the polynomial FRI tests, belongs to FRI's view, which stays assumed.
+the polynomial FRI tests, is `Ski/ZK/MaskFri.lean`'s (`pcsCloseN_fri`,
+`pcsCloseN_friR`).
 -/
 
 namespace Circuit

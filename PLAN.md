@@ -958,9 +958,10 @@ public-coin interactive model with the points independent of the masks.
 Applied with `S ++ gS`, since the quotient's recombined values couple to
 the next row (`pcsCloseN_quot`), and its chunks hide all but what the
 verifier recombines (`pcsCloseN_chunks`), given that the honest chunks show
-the quotient (`RecOK`). The randomization polynomial, the
-codeword columns, FRI, Merkle salts and
-Fiat–Shamir stay assumed. For a PCS whose view is exactly these openings,
+the quotient (`RecOK`). The codewords absorb every matrix's change, so FRI's
+view, a function of each matrix's batched polynomial, hides too
+(`pcsCloseN_fri`, `pcsCloseN_friR`, `Ski/ZK/MaskFri.lean`); the Merkle
+commitments' hiding and Fiat–Shamir stay assumed. For a PCS whose view is exactly these openings,
 `PCSCloseN` holds with `ε = 0` (`Ski/ZK/MaskPCS.lean`); for Plonky3's, it
 stays a hypothesis. The prover's secret randomness is one 128-bit seed per
 proof, expanded by ChaCha20 with a stream for each of the blinding

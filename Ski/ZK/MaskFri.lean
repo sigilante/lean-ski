@@ -5,11 +5,20 @@ import Ski.ZK.Fri
 
 FRI receives, for each committed matrix, its columns batched by powers of
 the challenge `α` (`batch`, `wcomb`): the reduced opening at a point `z` is
-`α^off (P(X) - P(z))/(X - z)` for `P = Σ_col α^col f_col`, so FRI's whole
-view (every layer's commitment, every query's siblings, the last layer) is
-a function of these batched polynomials.  Plonky3's hiding PCS appends to
-every matrix at least four random codeword columns (`with_random_cols`,
+`α^off (P(X) - P(z))/(X - z)` for `P = Σ_col α^col f_col`, the columns in
+Plonky3's order, codewords last (`two_adic_pcs.rs`), so FRI's layers'
+values, every query's siblings and the last layer are functions of these
+batched polynomials; the input openings at the query points are the
+columns' openings there.  Plonky3's hiding PCS appends to every private
+matrix at least four random codeword columns (`with_random_cols`,
 `num_random_codewords ≥ Challenge::DIMENSION`).
+
+**One group a committed matrix.**  The batched polynomial and the
+codewords belong to a committed matrix, so the theorems here match
+Plonky3 when every `QGroup` is one committed matrix (each instance's main
+trace, and its permutation trace, apart), and when each group's query
+points `S` hold every FRI query point at that matrix's height.  The
+masks' and quotient's results allow coarser groups; this one does not.
 
 The column masks hide by a shift: under a fixed shift of the masks the
 columns of one trace are another's plus fixed polynomials vanishing at the
@@ -55,7 +64,9 @@ Scope.  Proved in the public-coin model: the points, `ζ`, the
 batching challenge `αb` and FRI's challenges fixed before the masks, as
 Fiat–Shamir with a random oracle makes them.  Assumed: Fiat–Shamir itself,
 and the Merkle commitments' hiding (salted hashes), since the view leaves
-out the commitments and the Merkle paths; that the honest chunks show the
+out the commitments, the Merkle paths and the proof-of-work witnesses
+(`batch_pow_witness`, `commit_pow_witnesses`, `query_pow_witness`,
+`lookup_pow_witness`, `ood_pow_witness`), which the transcript fixes; that the honest chunks show the
 quotient (`RecOK`), read from Plonky3's source; that `1, αb, αb², αb³`
 and `1, ζ, ζ², ζ³` are independent over `F`, each failing for a uniform
 draw with probability about `2^-62`; and that FRI's view is a function of
