@@ -895,7 +895,8 @@ open Ski.Audit
 -- A coset's vanishing polynomial is xⁿ - sⁿ; Plonky3's selectors
 #audit_clean Circuit.fval_lowv Circuit.fvan_coset_pow Circuit.sel_first Circuit.sel_last
 -- The constraints vanish on the trace domain, from Sat
-#audit_clean Circuit.p3Sels Circuit.hvan_of_sat Circuit.quot_length_le Circuit.shows_sat
+#audit_clean Circuit.p3Sels Circuit.hvan_of_sat Circuit.quot_length_le Circuit.shows_sat Circuit.p3_deg
+  Circuit.quot_fits
 -- The base coordinates fold back to the verifier's check
 #audit_clean Circuit.recomb_step Circuit.fold_back Circuit.recomb_mul Circuit.airTgE_back
 

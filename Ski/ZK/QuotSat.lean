@@ -21,7 +21,8 @@ polynomials that interpolate the table on `⟨g⟩`, the leaves' values at
 `shows_sat` puts the pieces together: for a table that meets `Sat`, its honest
 quotient chunks, over Plonky3's selector polynomials, show the AIR's
 targets.  `quot_length_le` bounds the quotient by the constraints'
-degree.
+degree, and `quot_fits` shows that bound fits Plonky3's ZK chunk count:
+`2^(lq+1)` chunks of `N` points, `D ≤ 2^lq`.
 -/
 
 namespace Circuit
@@ -164,5 +165,30 @@ theorem shows_sat {A : AirD} {T : Table} {g : F} {m : Nat} (hsat : Sat A T) (hh 
         (fun a => fvalE ζ (stdRho g main pre (selF g m) (selL g m) (selT g m) a))) :=
   shows_air hζ hc hcl _ ws A.cons _ (cosetL_one_nodup hinj)
     (hvan_of_sat hsat hh hg hinj hgd main pre hmain hpre) hP hS hZ hq
+
+/-- **Plonky3's chunk count fits the quotient** under ZK: a trace of `N`
+    rows has polynomials of `2N` coefficients, and `2^(lq+1)` chunks of
+    `N` points each with `D ≤ 2^lq` (`get_log_num_quotient_chunks`,
+    `num_quotient_chunks = 1 << (lq + is_zk)`).  Then, for `N ≥ 1`,
+    `D (2N - 1) + 1 - N ≤ 2^(lq+1) N`. -/
+theorem p3_deg (D N lq : Nat) (hN : 0 < N) (hD : D ≤ 2 ^ lq) : D * (2 * N - 1) + 1 - N ≤ 2 ^ (lq + 1) * N := by
+  rcases N with _ | N
+  · exact absurd hN (Nat.lt_irrefl 0)
+  · have h1 : D * (2 * (N + 1) - 1) ≤ D * (2 * (N + 1)) := Nat.mul_le_mul_left D (by omega)
+    have h2 : D * (2 * (N + 1)) ≤ 2 ^ lq * (2 * (N + 1)) := Nat.mul_le_mul_right _ hD
+    have h3 : 2 ^ lq * (2 * (N + 1)) = 2 ^ (lq + 1) * (N + 1) := by
+      rw [Nat.pow_succ, Nat.mul_assoc]
+    omega
+
+/-- **The honest quotient fits Plonky3's chunks**: constraints of degree at
+    most `D ≤ 2^lq` over leaves of at most `2N` coefficients, divided by a
+    trace domain of `N` points, leave at most `2^(lq+1) N` coefficients,
+    the bound `QuotOK` asks of `2^(lq+1)` chunks of `N` points. -/
+theorem quot_fits (ρ : Atom → List F) (N D lq : Nat) (hN : 0 < N) (hρ : ∀ a, (ρ a).length ≤ 2 * N) (ws : List F)
+    (es : List E) (hD : ∀ e ∈ es, e.deg ≤ D) (hlq : D ≤ 2 ^ lq) (H : List F) (hH : H.length = N) :
+    (fdivH H (cpoly ρ ws es)).length ≤ 2 ^ (lq + 1) * N := by
+  have := quot_length_le ρ (2 * N - 1) D (fun a => by have := hρ a; omega) ws es hD H
+  rw [hH] at this
+  exact Nat.le_trans this (p3_deg D N lq hN hlq)
 
 end Circuit
