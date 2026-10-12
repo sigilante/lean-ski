@@ -88,14 +88,15 @@ is built; this file records what is next. Last revised 2026-10-10.
   `hpcs`. Over BabyBear one private table's every domain, chunk and group fact is discharged
   (`Ski/ZK/BbGroup.lean`, `tabsHonest_bb`). One Sudoku run gives `Balanced`, `Unblinded` and
   `Sat` for the same tables, their blinded copies' `Sat` and the view's terminals
-  (`Ski/ZK/SudRun.lean`). The Sudoku proof's private tables are zero knowledge over their
-  composed hiding PCS, end to end, their PCS term zero (`Ski/ZK/SudInst.lean`, `sud_pcs`,
-  `sud_hiding`), with each height opened at its own query points (`S16`, `S10`). Fixed, not
-  sampled: `ζ`, the FRI challenge, the blinding blocks, the quotient values and the query
-  points; the four chunks per table follow from Plonky3's `2^(log2_ceil 2 + 1)` at degree 2.
-  Open: the public program table's group and quotient; the hidden-term and composed circuits
-  alike (their `*_run_sats` and instances). Assumed: Fiat–Shamir, the Merkle salts' hiding,
-  and generic `ζ` and FRI challenge. The groups' trace and mask points tied to the committed
+  (`Ski/ZK/SudRun.lean`). The Sudoku proof is zero knowledge over its composed hiding PCS,
+  end to end, its PCS term zero, the public program table's groups and quotient included
+  (`Ski/ZK/SudInst.lean`, `sud_pcs`, `sud_hiding`), with each height opened at its own query
+  points (`S16`, `S10`, `SP`) and the program table's height derived from the statement
+  (`sud_prog_height`). Fixed, not sampled: `ζ`, the FRI challenge, the blinding blocks, the
+  quotient values and the query points; the four chunks per table follow from Plonky3's
+  `2^(log2_ceil 2 + 1)` at degree 2. Open: the hidden-term and composed circuits alike
+  (their `*_run_sats` and instances). Assumed: Fiat–Shamir, the Merkle salts' hiding, and
+  generic `ζ` and FRI challenge. The groups' trace and mask points tied to the committed
   matrices (`hT`, `hRq`) stay modeled.
 - **The quotient's recombined values hide** (`Ski/ZK/MaskQuot.lean`): the chunks sit
   at the committed trace's height, so a query opens them at the trace's point `s`, where they

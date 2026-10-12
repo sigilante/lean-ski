@@ -143,7 +143,7 @@ def bbκ (tb lq m : Nat) : F := p3κ 31 (bbGen (tb + lq + 2)) (2 ^ (lq + 1) - 1)
     points (`hSoff`, which `lde_off_trace` gives for Plonky3's queries,
     `|S| + 4 ≤ m + 1`, `ζ ∉ F`, `(mz ζ).det ≠ 0`). -/
 theorem tabsHonest_bb (off : EF → String → EF) (tv : (String → EF) → EF → (Nat → Tup) → List EF)
-    {A : AirD} (hP : AirP3 A = true) {tb lq m gm gp k : Nat} (ht : tb ≤ 25) (hlq : 1 ≤ lq)
+    {A : AirD} (hP : AirP3 A = true) {tb lq m gm gp : Nat} {tm : EF → EF → List EF → EF} (ht : tb ≤ 25) (hlq : 1 ≤ lq)
     (hk : tb + lq + 1 ≤ 26) (hm : m + 1 = 2 ^ (tb + 1))
     {S : List F} {ζ : EF} {ws : List (EF → EF → List F)} {qs : List QGroup}
     {cols : (Nat → Tup) → EF → EF → List (List (List F))} {qv1 qv2 : EF → EF → List EF → F → List F → List F → List EF}
@@ -155,20 +155,20 @@ theorem tabsHonest_bb (off : EF → String → EF) (tv : (String → EF) → EF 
     (hb : ∀ t α β, Sat A (tab t) ∧ (tab t).h = m + 1 ∧
       (cols t α β).getD gm [] = mainCols (tab t) A.width ∧
       (cols t α β).getD gp [] = permCols (tab t) (busAlphas (prefixOf α (off β)) A) β (corpusLs A) ∧
-      (tv (prefixOf α (off β)) β t).getD k EF.zero = terminal (prefixOf α (off β)) β A (tab t))
+      tm α β (tv (prefixOf α (off β)) β t) = terminal (prefixOf α (off β)) β A (tab t))
     (hζ : ∀ x : F, EF.ofF x ≠ ζ) (hdet : (mz ζ).det ≠ 0)
     (hSoff : ∀ x ∈ S, x ∉ cosetL 1 (bbGen (tb + 1)) (m + 1)) (hS4 : S.length + 4 ≤ m + 1) :
     ∀ t α β ms, TabsHonest
       (fun c => c.JS α β (tv (prefixOf α (off β)) β t) (openMulti (qs.map QGroup.ext) (cols t α β) ms))
       (fun c => c.Jζ α β (tv (prefixOf α (off β)) β t) (openMulti (qs.map QGroup.ext) (cols t α β) ms))
-      [airQTabG (fun α β v => withLup A (busAlphas (prefixOf α (off β)) A) β (v.getD k EF.zero) A.width
+      [airQTabG (fun α β v => withLup A (busAlphas (prefixOf α (off β)) A) β (tm α β v) A.width
         (corpusLs A)) (bbGen (tb + 1)) m (preInterp P0 (bbGen (tb + 1)) m) [gm, gp] (bbκ tb lq m) (bbCs tb lq m)
         (bbHl tb lq m) (bbCl tb lq m) S ζ ws]
       [if Aborts (prefixOf α (off β)) β (tabs t) = false then
-          airData (withLup A (busAlphas (prefixOf α (off β)) A) β ((tv (prefixOf α (off β)) β t).getD k EF.zero)
+          airData (withLup A (busAlphas (prefixOf α (off β)) A) β (tm α β (tv (prefixOf α (off β)) β t))
             A.width (corpusLs A)) (bbGen (tb + 1)) m (preInterp P0 (bbGen (tb + 1)) m) (bbCs tb lq m) (bbHl tb lq m)
             ws α β (catAt (mpolysMulti (qs.map QGroup.ext) (cols t α β) ms) [gm, gp])
-          else canonData (airQTabG (fun α β v => withLup A (busAlphas (prefixOf α (off β)) A) β (v.getD k EF.zero)
+          else canonData (airQTabG (fun α β v => withLup A (busAlphas (prefixOf α (off β)) A) β (tm α β v)
             A.width (corpusLs A)) (bbGen (tb + 1)) m (preInterp P0 (bbGen (tb + 1)) m) [gm, gp] (bbκ tb lq m)
             (bbCs tb lq m) (bbHl tb lq m) (bbCl tb lq m) S ζ ws).sets α β (tv (prefixOf α (off β)) β t)
             (openMulti (qs.map QGroup.ext) (cols t α β) ms)] := by
@@ -182,7 +182,7 @@ theorem tabsHonest_bb (off : EF → String → EF) (tv : (String → EF) → EF 
     calc 2 = 2 ^ 1 := rfl
       _ ≤ 2 ^ (tb + 1) := Nat.pow_le_pow_right (by decide) (by omega)
   have hbig : 2 ^ (tb + 1) ≤ 2 ^ 26 := Nat.pow_le_pow_right (by decide) (by omega)
-  refine tabsHonest_corpus_ite off tv hP tab tabs hmem (fun j hj => ?_) hcl'
+  refine tabsHonest_corpus_ite off tv hP (tm := tm) (lq := lq) tab tabs hmem (fun j hj => ?_) hcl'
     (fun t α β => ?_) hg hinj (fun i => by have := (hpre i).1; omega) hζ
     (fun x hx => fvan_ne x _ (hSoff x hx)) hc hcl hκ hshift hhalf hN hdom hL
     (Nat.le_trans (by decide : 2 ≤ 2 ^ 1) (Nat.pow_le_pow_right (by decide) hlq)) (by omega)

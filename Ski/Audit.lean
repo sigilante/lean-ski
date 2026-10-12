@@ -943,6 +943,7 @@ open Ski.Audit
 #audit_clean Circuit.sud_run_sats Circuit.sud_run_wire
 -- The Sudoku proof over its composed hiding PCS, end to end
 #audit_clean Circuit.sudCols_shaped Circuit.sud_airs_P3 Circuit.sud_pcs Circuit.sud_hiding
+#audit_clean Circuit.lgF_pow Circuit.pow2From_pow Circuit.pow2From_ge_n Circuit.progS_height Circuit.sud_prog_height
 
 -- Part II's interface with an additive distance: the errors add, the hybrid argument proved
 #audit_clean Compose.lsum_le Compose.lsum_add Compose.lsum_const Compose.lsum_comm Compose.lsum_prod

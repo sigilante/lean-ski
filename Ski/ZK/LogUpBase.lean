@@ -417,11 +417,11 @@ theorem plain_wmono {w W d : Nat} {e : E} (h : Plain w d e) (hW : w ≤ W) : Pla
 /-- **`hsatT` for an AIR with its LogUp constraints**, from the builder:
     at each trace and challenge pair, group `gm` holds a table `Tb` that
     meets `Sat` and group `gp` the honest permutation columns, the
-    transcript's value at index `k` is the table's terminal, and no
+    terminal `tm` reads from the transcript's values is the table's, and no
     message of nonzero count has a vanishing denominator.  Then the two groups, concatenated,
     are a table meeting `Sat` for the AIR with LogUp's constraints at the
     transcript's values, as `tabsHonest_gen` asks. -/
-theorem hsatT_lup {A : AirD} {m gm gp k : Nat} (pre : EF → EF → String → EF)
+theorem hsatT_lup {A : AirD} {m gm gp : Nat} {tm : EF → EF → List EF → EF} (pre : EF → EF → String → EF)
     (cols : (Nat → Tup) → EF → EF → List (List (List F))) (vt : (Nat → Tup) → EF → EF → List EF)
     (preP : Nat → List F) (g : F) (good : (Nat → Tup) → EF → EF → Prop)
     (hA : ∀ c ∈ A.cons, c.win A.width = true)
@@ -429,14 +429,14 @@ theorem hsatT_lup {A : AirD} {m gm gp k : Nat} (pre : EF → EF → String → E
     (hb : ∀ t α β, good t α β → ∃ Tb : Table, Sat A Tb ∧ Tb.h = m + 1 ∧
       (cols t α β).getD gm [] = mainCols Tb A.width ∧
       (cols t α β).getD gp [] = permCols Tb (busAlphas (pre α β) A) β (corpusLs A) ∧
-      (vt t α β).getD k EF.zero = terminal (pre α β) β A Tb ∧
+      tm α β (vt t α β) = terminal (pre α β) β A Tb ∧
       (∀ I ∈ A.inters, ∀ r, r < Tb.h → I.count.eval (Tb.env r) ≠ 0 →
         den (pre α β) β I.bus (I.fields.map (·.eval (Tb.env r))) ≠ EF.zero) ∧
       (∀ r i, r < m + 1 → fval (fpow g r) (preP i) = Tb.pre r i)) :
     ∀ t α β, good t α β → ∃ Tb : Table,
-      Sat ((fun α β v => withLup A (busAlphas (pre α β) A) β (v.getD k EF.zero) A.width (corpusLs A)) α β (vt t α β)) Tb ∧
+      Sat ((fun α β v => withLup A (busAlphas (pre α β) A) β (tm α β v) A.width (corpusLs A)) α β (vt t α β)) Tb ∧
       Tb.h = m + 1 ∧
-      (∀ c ∈ ((fun α β v => withLup A (busAlphas (pre α β) A) β (v.getD k EF.zero) A.width (corpusLs A))
+      (∀ c ∈ ((fun α β v => withLup A (busAlphas (pre α β) A) β (tm α β v) A.width (corpusLs A))
         α β (vt t α β)).cons, c.win (catAt (cols t α β) [gm, gp]).length = true) ∧
       (∀ col ∈ catAt (cols t α β) [gm, gp], col.length = m + 1) ∧
       (∀ i (hi : i < (catAt (cols t α β) [gm, gp]).length) r (hr : r < ((catAt (cols t α β) [gm, gp])[i]).length),
@@ -449,7 +449,7 @@ theorem hsatT_lup {A : AirD} {m gm gp k : Nat} (pre : EF → EF → String → E
     rw [hm, hp, List.append_nil]
   obtain ⟨hlen, hcl, hval⟩ := cols_withPerm Tb (busAlphas (pre α β) A) β (corpusLs A) A.width
   refine ⟨withPerm Tb (busAlphas (pre α β) A) β (corpusLs A) A.width, ?_, hh, fun c hc => ?_, ?_, ?_, hpre⟩
-  · show Sat (withLup A (busAlphas (pre α β) A) β ((vt t α β).getD k EF.zero) A.width (corpusLs A)) _
+  · show Sat (withLup A (busAlphas (pre α β) A) β (tm α β (vt t α β)) A.width (corpusLs A)) _
     rw [hv]
     exact lup_sat_terminal hsat (pre α β) β hA
       (fun I hI' => ⟨fun e he => ((hI I hI').1 e he).2.1, (hI I hI').2.2.1⟩) hden
@@ -458,7 +458,7 @@ theorem hsatT_lup {A : AirD} {m gm gp k : Nat} (pre : EF → EF → String → E
     · exact win_mono (by omega) c (hA c hc)
     · obtain ⟨q, hq, e⟩ := mem_eq4 hc
       have := lup_shape (W := A.width + 4 * ((corpusLs A).length + 1)) (w := A.width) (busAlphas (pre α β) A) β
-        ((vt t α β).getD k EF.zero) (corpusLs A) (fun L hL => ?_) (Nat.le_refl _) c hc
+        (tm α β (vt t α β)) (corpusLs A) (fun L hL => ?_) (Nat.le_refl _) c hc
       · exact this.2.1
       · obtain ⟨I, hI', rfl⟩ := List.mem_map.1 hL
         have hw : A.width ≤ A.width + 4 * ((corpusLs A).length + 1) := by omega
@@ -495,7 +495,7 @@ def goodLup (A : AirD) (pre : EF → EF → String → EF) (tab : (Nat → Tup) 
     prover aborts, and `pcsCloseN_fri_gen` sends the canonical chunks),
     from the builder's facts (`hb`) and the static facts of the groups,
     the domains and the weights. -/
-theorem tabsHonest_corpus {A : AirD} (hP : AirP3 A = true) {g : F} {m gm gp k : Nat}
+theorem tabsHonest_corpus {A : AirD} (hP : AirP3 A = true) {g : F} {m gm gp : Nat} {tm : EF → EF → List EF → EF}
     {preP : Nat → List F} {κ : F} {cs : List Chunk} {Hl : List F} {cl : F} {S : List F} {ζ : EF}
     {ws : List (EF → EF → List F)} {qs : List QGroup} {cols : (Nat → Tup) → EF → EF → List (List (List F))}
     (pre : EF → EF → String → EF) (vt : (Nat → Tup) → EF → EF → List EF) (tab : (Nat → Tup) → EF → EF → Table)
@@ -507,7 +507,7 @@ theorem tabsHonest_corpus {A : AirD} (hP : AirP3 A = true) {g : F} {m gm gp k : 
     (hb : ∀ t α β, Sat A (tab t α β) ∧ (tab t α β).h = m + 1 ∧
       (cols t α β).getD gm [] = mainCols (tab t α β) A.width ∧
       (cols t α β).getD gp [] = permCols (tab t α β) (busAlphas (pre α β) A) β (corpusLs A) ∧
-      (vt t α β).getD k EF.zero = terminal (pre α β) β A (tab t α β) ∧
+      tm α β (vt t α β) = terminal (pre α β) β A (tab t α β) ∧
       (∀ r i, r < m + 1 → fval (fpow g r) (preP i) = (tab t α β).pre r i))
     (hg : fpow g (m + 1) = 1) (hinj : ∀ a b, a < m + 1 → b < m + 1 → fpow g a = fpow g b → a = b)
     (hpreL : ∀ i, (preP i).length ≤ 2 * (m + 1))
@@ -521,19 +521,19 @@ theorem tabsHonest_corpus {A : AirD} (hP : AirP3 A = true) {g : F} {m gm gp k : 
     (hw : ∀ (qs : List (List F)) (ql : List F), qs.length = cs.length → ∀ j (hj : j < (allL cs Hl cl qs ql).length) s',
       ((allL cs Hl cl qs ql)[j]'hj).1 = cosetL s' (fpow ω (cs.length + 1)) (m + 1) →
       ((allL cs Hl cl qs ql)[j]'hj).2.2.1 = finv (opv s' (allL cs Hl cl qs ql) j) * finv κ)
-    (hok : ∀ c ∈ (airQTabG (fun α β v => withLup A (busAlphas (pre α β) A) β (v.getD k EF.zero) A.width (corpusLs A))
+    (hok : ∀ c ∈ (airQTabG (fun α β v => withLup A (busAlphas (pre α β) A) β (tm α β v) A.width (corpusLs A))
       g m preP [gm, gp] κ cs Hl cl S ζ ws).sets, c.OK)
     (hHn : ∀ ch ∈ cs, ch.H.Nodup) (hHln : Hl.Nodup) :
     ∀ t α β ms, good t α β → TabsHonest
       (fun c => c.JS α β (vt t α β) (openMulti (qs.map QGroup.ext) (cols t α β) ms))
       (fun c => c.Jζ α β (vt t α β) (openMulti (qs.map QGroup.ext) (cols t α β) ms))
-      [airQTabG (fun α β v => withLup A (busAlphas (pre α β) A) β (v.getD k EF.zero) A.width (corpusLs A))
+      [airQTabG (fun α β v => withLup A (busAlphas (pre α β) A) β (tm α β v) A.width (corpusLs A))
         g m preP [gm, gp] κ cs Hl cl S ζ ws]
-      [airData (withLup A (busAlphas (pre α β) A) β ((vt t α β).getD k EF.zero) A.width (corpusLs A)) g m preP cs Hl
+      [airData (withLup A (busAlphas (pre α β) A) β (tm α β (vt t α β)) A.width (corpusLs A)) g m preP cs Hl
         ws α β (catAt (mpolysMulti (qs.map QGroup.ext) (cols t α β) ms) [gm, gp])] := by
   obtain ⟨hgd, hwin, _, _⟩ := p3_facts hP
-  have shape := fun α β (v : List EF) => corpus_withLup_shape hP (busAlphas (pre α β) A) β (v.getD k EF.zero)
-  exact tabsHonest_gen (AF := fun α β v => withLup A (busAlphas (pre α β) A) β (v.getD k EF.zero) A.width (corpusLs A))
+  have shape := fun α β (v : List EF) => corpus_withLup_shape hP (busAlphas (pre α β) A) β (tm α β v)
+  exact tabsHonest_gen (AF := fun α β v => withLup A (busAlphas (pre α β) A) β (tm α β v) A.width (corpusLs A))
     vt good hgrp hcl' (hsatT_lup pre cols vt preP g good hwin (corpus_plain hP)
       (fun t α β hgood => by
         obtain ⟨h1, h2, h3, h4, h5, h6⟩ := hb t α β
@@ -570,7 +570,7 @@ theorem goodLup_of_noAbort {A : AirD} {off : EF → String → EF} {tab : (Nat �
     chunks where the proof does not abort, the canonical ones elsewhere. -/
 theorem tabsHonest_corpus_ite
     (off : EF → String → EF) (tv : (String → EF) → EF → (Nat → Tup) → List EF)
-    {A : AirD} (hP : AirP3 A = true) {g : F} {m gm gp k : Nat}
+    {A : AirD} (hP : AirP3 A = true) {g : F} {m gm gp : Nat} {tm : EF → EF → List EF → EF}
     {preP : Nat → List F} {κ : F} {cs : List Chunk} {Hl : List F} {cl : F} {S : List F} {ζ : EF}
     {ws : List (EF → EF → List F)} {qs : List QGroup} {cols : (Nat → Tup) → EF → EF → List (List (List F))}
     (tab : (Nat → Tup) → Table) (tabs : (Nat → Tup) → List (AirD × Table)) (hmem : ∀ t, (A, tab t) ∈ tabs t)
@@ -581,7 +581,7 @@ theorem tabsHonest_corpus_ite
     (hb : ∀ t α β, Sat A (tab t) ∧ (tab t).h = m + 1 ∧
       (cols t α β).getD gm [] = mainCols (tab t) A.width ∧
       (cols t α β).getD gp [] = permCols (tab t) (busAlphas (prefixOf α (off β)) A) β (corpusLs A) ∧
-      (tv (prefixOf α (off β)) β t).getD k EF.zero = terminal (prefixOf α (off β)) β A (tab t) ∧
+      tm α β (tv (prefixOf α (off β)) β t) = terminal (prefixOf α (off β)) β A (tab t) ∧
       (∀ r i, r < m + 1 → fval (fpow g r) (preP i) = (tab t).pre r i))
     (hg : fpow g (m + 1) = 1) (hinj : ∀ a b, a < m + 1 → b < m + 1 → fpow g a = fpow g b → a = b)
     (hpreL : ∀ i, (preP i).length ≤ 2 * (m + 1))
@@ -595,18 +595,18 @@ theorem tabsHonest_corpus_ite
     (hw : ∀ (qs : List (List F)) (ql : List F), qs.length = cs.length → ∀ j (hj : j < (allL cs Hl cl qs ql).length) s',
       ((allL cs Hl cl qs ql)[j]'hj).1 = cosetL s' (fpow ω (cs.length + 1)) (m + 1) →
       ((allL cs Hl cl qs ql)[j]'hj).2.2.1 = finv (opv s' (allL cs Hl cl qs ql) j) * finv κ)
-    (hok : ∀ c ∈ (airQTabG (fun α β v => withLup A (busAlphas (prefixOf α (off β)) A) β (v.getD k EF.zero) A.width
+    (hok : ∀ c ∈ (airQTabG (fun α β v => withLup A (busAlphas (prefixOf α (off β)) A) β (tm α β v) A.width
       (corpusLs A)) g m preP [gm, gp] κ cs Hl cl S ζ ws).sets, c.OK)
     (hHn : ∀ ch ∈ cs, ch.H.Nodup) (hHln : Hl.Nodup) :
     ∀ t α β ms, TabsHonest
       (fun c => c.JS α β (tv (prefixOf α (off β)) β t) (openMulti (qs.map QGroup.ext) (cols t α β) ms))
       (fun c => c.Jζ α β (tv (prefixOf α (off β)) β t) (openMulti (qs.map QGroup.ext) (cols t α β) ms))
-      [airQTabG (fun α β v => withLup A (busAlphas (prefixOf α (off β)) A) β (v.getD k EF.zero) A.width
+      [airQTabG (fun α β v => withLup A (busAlphas (prefixOf α (off β)) A) β (tm α β v) A.width
         (corpusLs A)) g m preP [gm, gp] κ cs Hl cl S ζ ws]
       [if Aborts (prefixOf α (off β)) β (tabs t) = false then
-          airData (withLup A (busAlphas (prefixOf α (off β)) A) β ((tv (prefixOf α (off β)) β t).getD k EF.zero)
+          airData (withLup A (busAlphas (prefixOf α (off β)) A) β (tm α β (tv (prefixOf α (off β)) β t))
             A.width (corpusLs A)) g m preP cs Hl ws α β (catAt (mpolysMulti (qs.map QGroup.ext) (cols t α β) ms) [gm, gp])
-          else canonData (airQTabG (fun α β v => withLup A (busAlphas (prefixOf α (off β)) A) β (v.getD k EF.zero)
+          else canonData (airQTabG (fun α β v => withLup A (busAlphas (prefixOf α (off β)) A) β (tm α β v)
             A.width (corpusLs A)) g m preP [gm, gp] κ cs Hl cl S ζ ws).sets α β (tv (prefixOf α (off β)) β t)
             (openMulti (qs.map QGroup.ext) (cols t α β) ms)] := by
   intro t α β ms
@@ -635,7 +635,7 @@ theorem tabsHonest_corpus_ite
     the transcript's tables `tabs t`. -/
 theorem pcsCloseN_fri_corpus {V : Type} {ks : List Nat} {ncw : Nat} {αb : EF} {fri : EF → EF → List (EF → EF) → V}
     (off : EF → String → EF) (tv : (String → EF) → EF → (Nat → Tup) → List EF)
-    {A : AirD} (hP : AirP3 A = true) {g : F} {m gm gp k : Nat}
+    {A : AirD} (hP : AirP3 A = true) {g : F} {m gm gp : Nat} {tm : EF → EF → List EF → EF}
     {preP : Nat → List F} {κ : F} {cs : List Chunk} {Hl : List F} {cl : F} {S : List F} {ζ : EF}
     {ws : List (EF → EF → List F)} {qs : List QGroup} {cols : (Nat → Tup) → EF → EF → List (List (List F))}
     (tab : (Nat → Tup) → Table) (tabs : (Nat → Tup) → List (AirD × Table)) (hmem : ∀ t, (A, tab t) ∈ tabs t)
@@ -649,7 +649,7 @@ theorem pcsCloseN_fri_corpus {V : Type} {ks : List Nat} {ncw : Nat} {αb : EF} {
     (hb : ∀ t α β, Sat A (tab t) ∧ (tab t).h = m + 1 ∧
       (cols t α β).getD gm [] = mainCols (tab t) A.width ∧
       (cols t α β).getD gp [] = permCols (tab t) (busAlphas (prefixOf α (off β)) A) β (corpusLs A) ∧
-      (tv (prefixOf α (off β)) β t).getD k EF.zero = terminal (prefixOf α (off β)) β A (tab t) ∧
+      tm α β (tv (prefixOf α (off β)) β t) = terminal (prefixOf α (off β)) β A (tab t) ∧
       (∀ r i, r < m + 1 → fval (fpow g r) (preP i) = (tab t).pre r i))
     (hg : fpow g (m + 1) = 1) (hinj : ∀ a b, a < m + 1 → b < m + 1 → fpow g a = fpow g b → a = b)
     (hpreL : ∀ i, (preP i).length ≤ 2 * (m + 1))
@@ -663,23 +663,23 @@ theorem pcsCloseN_fri_corpus {V : Type} {ks : List Nat} {ncw : Nat} {αb : EF} {
     (hw : ∀ (qs : List (List F)) (ql : List F), qs.length = cs.length → ∀ j (hj : j < (allL cs Hl cl qs ql).length) s',
       ((allL cs Hl cl qs ql)[j]'hj).1 = cosetL s' (fpow ω (cs.length + 1)) (m + 1) →
       ((allL cs Hl cl qs ql)[j]'hj).2.2.1 = finv (opv s' (allL cs Hl cl qs ql) j) * finv κ)
-    (hok : ∀ c ∈ (airQTabG (fun α β v => withLup A (busAlphas (prefixOf α (off β)) A) β (v.getD k EF.zero) A.width
+    (hok : ∀ c ∈ (airQTabG (fun α β v => withLup A (busAlphas (prefixOf α (off β)) A) β (tm α β v) A.width
       (corpusLs A)) g m preP [gm, gp] κ cs Hl cl S ζ ws).sets, c.OK)
     (hHn : ∀ ch ∈ cs, ch.H.Nodup) (hHln : Hl.Nodup) :
     PCSCloseN off (P ^ (friN1 qs ks [airQTabG (fun α β v => withLup A (busAlphas (prefixOf α (off β)) A) β
-        (v.getD k EF.zero) A.width (corpusLs A)) g m preP [gm, gp] κ cs Hl cl S ζ ws] +
-      friN2 qs [airQTabG (fun α β v => withLup A (busAlphas (prefixOf α (off β)) A) β (v.getD k EF.zero) A.width
+        (tm α β v) A.width (corpusLs A)) g m preP [gm, gp] κ cs Hl cl S ζ ws] +
+      friN2 qs [airQTabG (fun α β v => withLup A (busAlphas (prefixOf α (off β)) A) β (tm α β v) A.width
         (corpusLs A)) g m preP [gm, gp] κ cs Hl cl S ζ ws] ncw)) tv
       (pcsFri off tv qs ks cols [airQTabG (fun α β v => withLup A (busAlphas (prefixOf α (off β)) A) β
-          (v.getD k EF.zero) A.width (corpusLs A)) g m preP [gm, gp] κ cs Hl cl S ζ ws]
+          (tm α β v) A.width (corpusLs A)) g m preP [gm, gp] κ cs Hl cl S ζ ws]
         (fun t α β ms => [if Aborts (prefixOf α (off β)) β (tabs t) = false then
-          airData (withLup A (busAlphas (prefixOf α (off β)) A) β ((tv (prefixOf α (off β)) β t).getD k EF.zero)
+          airData (withLup A (busAlphas (prefixOf α (off β)) A) β (tm α β (tv (prefixOf α (off β)) β t))
             A.width (corpusLs A)) g m preP cs Hl ws α β (catAt (mpolysMulti (qs.map QGroup.ext) (cols t α β) ms) [gm, gp])
-          else canonData (airQTabG (fun α β v => withLup A (busAlphas (prefixOf α (off β)) A) β (v.getD k EF.zero)
+          else canonData (airQTabG (fun α β v => withLup A (busAlphas (prefixOf α (off β)) A) β (tm α β v)
             A.width (corpusLs A)) g m preP [gm, gp] κ cs Hl cl S ζ ws).sets α β (tv (prefixOf α (off β)) β t)
             (openMulti (qs.map QGroup.ext) (cols t α β) ms)])
         ncw αb fri)
-      (psimFri qs ks [airQTabG (fun α β v => withLup A (busAlphas (prefixOf α (off β)) A) β (v.getD k EF.zero) A.width
+      (psimFri qs ks [airQTabG (fun α β v => withLup A (busAlphas (prefixOf α (off β)) A) β (tm α β v) A.width
         (corpusLs A)) g m preP [gm, gp] κ cs Hl cl S ζ ws] ncw αb fri) 0 :=
   pcsCloseN_fri hokq hks hcols hdet haw hncw off tv (tabsHonest_corpus_ite off tv hP tab tabs hmem hgrp hcl' hb hg hinj
     hpreL hζ hS hc hcl hκ hshift hhalf hN hdom hL hDlq hs hPsz hw hok hHn hHln)
