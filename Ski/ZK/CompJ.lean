@@ -496,7 +496,7 @@ theorem honest_zk (hd0 stk0 ctr0 : Nat) {heap : List Cell} {N W : Nat}
   · have hK0 : 0 < K := by omega
     have hWt : 0 < (witTable R.A N W).h := by
       show 0 < (witRowsG 3 N W).length
-      rw [witRowsG_len hNW]; exact Nat.two_pow_pos 8
+      rw [witRowsG_len hNW]; exact Nat.two_pow_pos 9
     exact {
       hc := hK0
       hm := hA0

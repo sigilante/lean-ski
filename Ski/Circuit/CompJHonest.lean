@@ -15,7 +15,7 @@ every other row, its POP and INSTW rows every instantiation.
   on a restart row; the restart selector; the segment counter; the next
   root; the blinding flags clear.
 - **POP**, **INSTW**: the jet run's.  **ROOTS**, **HDR**, **TMPL**: each
-  tuple's use count on its first row, the rows padded to `2^8`.
+  tuple's use count on its first row, the rows padded to `2^9`.
 - **Memory**: the cells, each with the count of messages sent to it by
   the CPU, program, witness, POP and INSTW tables (`memTable5`).
 -/

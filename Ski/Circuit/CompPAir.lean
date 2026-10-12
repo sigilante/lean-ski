@@ -97,11 +97,11 @@ def cpuIntersP2 : List Inter :=
 def cpuAirP2 (hd0 stk0 ctr0 n nilA J root : Nat) : AirD :=
   ⟨"cpu", P2SEL + 6, 0, cpuConsP2 hd0 stk0 ctr0 n nilA J root, cpuIntersP2, []⟩
 
-/-- The witness table's rows, padded to a power of two at least `2^8`. -/
+/-- The witness table's rows, padded to a power of two at least `2^9`. -/
 def witRowsP (N W : Nat) : List (List F) :=
   let rows := (List.range N).map (fun i => [ofN (3 + i), ofN 1, ofN 1]) ++
     (List.range W).map (fun i => [ofN (3 + N + i), ofN 1, ofN 0])
-  rows ++ List.replicate (pow2Min 8 rows.length - rows.length) [ofN 0, ofN 0, ofN 0]
+  rows ++ List.replicate (pow2Min 9 rows.length - rows.length) [ofN 0, ofN 0, ofN 0]
 
 def witAirP (N W : Nat) : AirD := ⟨"wit", WT_BLIND + 5, 3, witCons, witInters, witRowsP N W⟩
 

@@ -6,7 +6,7 @@ import Ski.ZK.Reject
 
 `masks_hide` and `pcsCloseN_masked` take columns of one height `n`.  A
 proof's tables have several (the CPU's `2^R` rows, the memory's `2^Lm`,
-the witness table's `2^8`), and Plonky3 masks each table's columns over
+the witness table's `2^9`), and Plonky3 masks each table's columns over
 its own trace domain.  Here the columns come in groups, one per height,
 each with its own trace points `T`, mask points `R`, query points `S` and
 out-of-domain points `Z` (`MGroup`), and each meeting `masks_hide`'s
@@ -19,8 +19,10 @@ Composed with the transcript theorems, the masked trace openings become a
 proved part of every hiding circuit's simulated view: `transcript_zkG`
 over that PCS has no PCS term (`transcript_zkG_masked`).  The scope is
 `MaskPCS.lean`'s: the column openings, in the public-coin model, with the
-points fixed before the masks; the quotient, the random codewords, FRI
-and the Merkle salts stay assumed.
+points fixed before the masks.  `Ski/ZK/MaskQuot.lean` adds the
+quotient's recombined values at the query points, `MaskChunk.lean` the
+chunks, and `MaskFri.lean` the codewords and FRI (with one group a
+committed matrix); the Merkle salts and Fiat–Shamir stay assumed.
 -/
 
 namespace Circuit

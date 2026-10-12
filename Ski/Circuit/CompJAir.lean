@@ -20,7 +20,7 @@ checks the Rust export (`ski-air export-compj PUBLIC JETS`) against it.
 - **Memory**, **program**, **witness** and **segments** are the composed
   circuit's.
 - **ROOTS**, **HDR** and **TMPL** are the jet table's providers, padded to
-  at least `2^8` rows as the hiding PCS needs; **POP** and **INSTW** are
+  at least `2^9` rows as the hiding PCS needs; **POP** and **INSTW** are
   the jet circuit's.  Each carries the blocks of its edges in the
   blinding tree `WIT —a— CPU —b— MEM`, `CPU —c— POP —d— INSTW —e— TMPL
   —f— HDR —g— ROOTS`: a received block (count `-flag`), then a sent one
@@ -99,19 +99,19 @@ def withBlocks (A : AirD) (blocks : List (String × Bool)) : AirD :=
    A.inters ++ blocks.zipIdx.map (fun ((bus, send), i) => blindMsg bus (A.width + 5 * i) send),
    A.pretrace⟩
 
-/-- Pad to a power of two, at least `2^8`, with copies of the first row. -/
-def padCopies8 : List (List F) → List (List F)
+/-- Pad to a power of two, at least `2^9`, with copies of the first row. -/
+def padCopiesMin : List (List F) → List (List F)
   | [] => []
-  | r :: rs => (r :: rs) ++ List.replicate (pow2Min 8 (rs.length + 1) - (rs.length + 1)) r
+  | r :: rs => (r :: rs) ++ List.replicate (pow2Min 9 (rs.length + 1) - (rs.length + 1)) r
 
 def rootsRowsCJ (roots : List (Nat × Nat)) : List (List F) :=
-  padCopies8 (roots.map fun (a, g) => [ofN a, ofN g])
+  padCopiesMin (roots.map fun (a, g) => [ofN a, ofN g])
 
 def hdrRowsCJ (jets : List Air.Jet) : List (List F) :=
-  padCopies8 (jets.zipIdx.map fun (J, g) => hdrRow J g)
+  padCopiesMin (jets.zipIdx.map fun (J, g) => hdrRow J g)
 
 def tmplRowsCJ (jets : List Air.Jet) : List (List F) :=
-  padCopies8 (jets.zipIdx.flatMap fun (J, g) =>
+  padCopiesMin (jets.zipIdx.flatMap fun (J, g) =>
     (symCells J J.body 0).1.zipIdx.map fun (cl, j) => tmplRow g j cl)
 
 def rootsAirCJ (roots : List (Nat × Nat)) : AirD :=

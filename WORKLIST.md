@@ -5,6 +5,44 @@ is built; this file records what is next. Last revised 2026-10-10.
 
 ## Done since the last revision
 
+- **The challenges' conditions, counted** (`Ski/ZK/MaskGen.lean`): the independence that
+  `pcsCloseN_fri` asks of `αb` and the chunks of `ζ` is `Generic`, which fails for `P²` of
+  the `P⁴` challenges (`mz_det_eq`, `nongeneric_count`); `pcsCloseN_fri_generic`.
+- **FRI's view hides** (`Ski/ZK/MaskFri.lean`): FRI's input is each committed matrix's
+  batched polynomial; a joint shift of masks, chunk randomness and random codewords keeps
+  every opening and every batched polynomial, four codewords cancelling any change of a
+  matrix's columns when `1, αb, αb², αb³` are independent (`mat_cancel`, `cw_rows`). The
+  composed PCS with every chunk, codeword and FRI's view meets `PCSCloseN` exactly
+  (`pcsCloseN_fri`, `pcsCloseN_friR` with the randomization polynomial,
+  `*_transcriptG_fri`), with one group a committed matrix.
+- **The random columns' openings hide** (`Ski/ZK/MaskRand.lean`): independent randomness
+  beside a PCS keeps `PCSCloseN` exact (`PCSCloseN.indep`); with the random codeword and
+  randomization columns' openings, `pcsCloseN_rand`.
+- **The quotient's chunks hide** (`Ski/ZK/MaskChunk.lean`, `Ski/ZK/Solve4.lean`): Plonky3's
+  chunk randomization, `q_i + v_i r_i` with the last chunk's `r` cancelling the others',
+  hides all but what the verifier sees: a chunk on its own domain (a query point can lie
+  there) and the normalized recombination elsewhere (`chunks_hide`, `chunks_sim`). The PCS
+  with every quotient column's opened chunks meets `PCSCloseN` exactly
+  (`pcsCloseN_chunks`, `*_transcriptG_chunks`), when `|S| + 4 ≤ n`, `ζ` generates the
+  extension (`solve_spec`, `mz_gen_det`; a uniform `ζ` fails with probability about
+  `2^-62`), and the honest chunks show the quotient (`RecOK`, read from Plonky3's source).
+- **The quotient's recombined values hide** (`Ski/ZK/MaskQuot.lean`): the chunks sit
+  at the committed trace's height, so a query opens them at the trace's point `s`, where they
+  recombine to a function of the terminals and the masked columns at `s` and `g s`.
+  Masks covering `S ++ g S` and `Z`, `2|S| + 4|Z| ≤ n`, hide it with the column
+  openings (`pcsCloseN_quot`, `PCSCloseN.post`), and every hiding circuit's transcript
+  theorem holds over that view with no PCS term (`*_transcriptG_quot`). At `q` queries
+  that is `2q + 8`, which `mask-margin` checks. The chunks' own values, their split and
+  randomization stay assumed.
+- **Every hiding table has at least `2^9` rows**: `HidingFriPcs` asks `2(q + 8) = 216`
+  mask points and the quotient `2q + 8 = 208`; the `2^9` floor leaves 296 to spare and
+  meets 203 queries (422). An earlier count, `3q + 8 = 308` (#30 and 77c36cf), took
+  the quotient chunks for twice the trace's height; they are the same height (the batch
+  verifier's chunk domains), so `2^8` had met the need. The statement checks (`logOK`,
+  `plogsOK`, the Rust's `LOG_BOUNDS`) take heights `2^9` to `2^20`; the witness and
+  provider tables pad to `2^9`; bits and region stay capped at `2^8`. `ski-air
+  mask-margin` tests both counts, and `verify.sh` step 6 refuses a statement at height `2^8`. The
+  release is remade at the new floor. `lake exe entropy` reads Avon's record checksum.
 - **Every zero-knowledge prover's traces against Lean's honest tables** (#9): all five
   circuits, memory multiplicities by a count proved equal to Lean's, blinding blocks read
   from Lean. The checks found two prover faults, both fixed.
@@ -14,7 +52,8 @@ is built; this file records what is next. Last revised 2026-10-10.
 - **The statement digest binds the CPU's constants, tested end to end** (#13):
   `ski-air composed-digest-bound`, `verify.sh` steps 6 and 13.
 - **The masking margin, checked**: `ski-air mask-margin`, `verify.sh` step 14. Every
-  released hiding proof has 48 random rows to spare over `masks_hide`'s `|S| + 4|Z| ≤ n`.
+  released hiding proof has 296 random rows to spare over `HidingFriPcs`'s 216, at
+  tables of at least `2^9` rows.
 - **The Poseidon2 circuit is complete** (#15): `compPG_complete_log`, and for `p2pre h`
   and `p2commit c pat` with the published level table `idxPub 1`
   (`compP_complete_log`, `compPC_complete_log`). Every table's constraints hold on its
@@ -93,9 +132,13 @@ and its claim table moves to the docs, where `release/README.md` already holds i
   calls per proof over computed bits: a P2IN that walks a list, as P2OUT writes one.
   Arvo binds nothing here; it replays its log. Needed only to prove a kernel's history
   to someone who lacks the log.
-- Proven 100-bit parameters: 203 queries at rate 1/2, and the `2^8` tables grown to
-  `2^9`, which changes statements' heights (`bench/plonky3/README.md`).
-- FRI, the quotient's hiding and round-by-round soundness, proved rather than assumed;
+- Instantiate `pcsCloseN_fri` for each circuit with one group a committed matrix (main
+  and permutation traces apart) and `RecOK` discharged from a model of Plonky3's quotient
+  split; today both are read from Plonky3's source. The Merkle salts and Fiat–Shamir are
+  cryptographic assumptions (hiding hash, random oracle).
+- Proven 100-bit parameters: 203 queries at rate 1/2; the masks then need 422 points,
+  within the `2^9` floor (`bench/plonky3/README.md`).
+- FRI's soundness and round-by-round soundness, proved rather than assumed;
   Fiat–Shamir.
 - Probe segments under the hiding; ∀ over public inputs; aggregation.
 - Remote CI for lean-ski: waits on the public release.

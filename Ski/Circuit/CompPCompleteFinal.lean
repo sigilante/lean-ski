@@ -31,7 +31,7 @@ set_option maxRecDepth 100000 in
 theorem idx_pre (n : Nat) : PreIs p2idxAir (idxPub n) := ⟨rfl, fun _ _ _ _ => rfl⟩
 
 theorem witRowsP_le {N W : Nat} (h : N + W ≤ 2 ^ 24) : (witRowsP N W).length ≤ 2 ^ 24 := by
-  have hp := pow2From_le (n := N + W) h 64 8 (by decide)
+  have hp := pow2From_le (n := N + W) h 64 9 (by decide)
   unfold witRowsP pow2Min
   simp only [List.length_append, List.length_map, List.length_range, List.length_replicate]
   omega

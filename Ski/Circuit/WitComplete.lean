@@ -184,17 +184,17 @@ def progTableW (heap : List Cell) (W : Nat) : Table :=
   ⟨(progRowsW heap W).length, fun _ _ => 0, fun q j => ((progRowsW heap W).getD q []).getD j 0⟩
 
 theorem progRowsW_pos (heap : List Cell) (W : Nat) : 0 < (progRowsW heap W).length := by
-  have := pow2From_ge 64 (2 ^ 8) ((heap.zipIdx.filter fun x => !(x.2 < W)).length)
+  have := pow2From_ge 64 (2 ^ 9) ((heap.zipIdx.filter fun x => !(x.2 < W)).length)
   unfold progRowsW pow2Min
   simp only [List.length_append, List.length_map, List.length_replicate]
-  have : (0 : Nat) < 2 ^ 8 := by decide
+  have : (0 : Nat) < 2 ^ 9 := by decide
   omega
 
 theorem progRowsW_le {heap : List Cell} {W : Nat} (h : heap.length ≤ 2 ^ 24) :
     (progRowsW heap W).length ≤ 2 ^ 24 := by
   have hf := List.length_filter_le (fun x : Cell × Nat => !(x.2 < W)) heap.zipIdx
   rw [List.length_zipIdx] at hf
-  have hp := pow2From_le (n := (heap.zipIdx.filter fun x => !(x.2 < W)).length) (by omega) 64 8 (by decide)
+  have hp := pow2From_le (n := (heap.zipIdx.filter fun x => !(x.2 < W)).length) (by omega) 64 9 (by decide)
   unfold progRowsW pow2Min
   simp only [List.length_append, List.length_map, List.length_replicate]
   omega
@@ -221,7 +221,7 @@ theorem progW_honest {A heap : List Cell} {W : Nat}
   let pub := heap.zipIdx.filter fun x => !(x.2 < W)
   let rows := pub.map fun (x : Cell × Nat) =>
     [ofN x.2, ofN (cellTag x.1), ofN (cellFields x.1).1, ofN (cellFields x.1).2, ofN 1]
-  have hrows : progRowsW heap W = rows ++ List.replicate (pow2Min 8 rows.length - rows.length)
+  have hrows : progRowsW heap W = rows ++ List.replicate (pow2Min 9 rows.length - rows.length)
       [ofN 0, ofN 0, ofN 0, ofN 0, ofN 0] := rfl
   rcases Nat.lt_or_ge q rows.length with hl | hl
   · have hg : (progRowsW heap W).getD q [] = rows[q] := by
@@ -244,7 +244,7 @@ theorem progW_honest {A heap : List Cell} {W : Nat}
   · exfalso; apply hc
     show (prec 4).eval _ = 0
     rw [pv, hrows, List.getD_eq_getElem?_getD (a := ([] : List F))]
-    rcases Nat.lt_or_ge q (rows ++ List.replicate (pow2Min 8 rows.length - rows.length)
+    rcases Nat.lt_or_ge q (rows ++ List.replicate (pow2Min 9 rows.length - rows.length)
         [ofN 0, ofN 0, ofN 0, ofN 0, ofN 0]).length with h' | h'
     · rw [List.getElem?_append_right hl, List.getElem?_replicate]
       simp only [List.length_append, List.length_replicate] at h'
@@ -371,7 +371,7 @@ theorem wit_complete {V x : Term} {W : Nat} {Rs : List AirD} (hs : sameAirsB Rs 
     {A : List Cell} {k : Nat} {row : Nat → Row} (hA : AcceptsFrom A (wMachine ws (V ⬝ x)) k row)
     (hK : rd A (row (k - 1)).ctr (row (k - 1)).hd = some .K ∧ rd A (row (k - 1)).ctr (row (k - 1)).stk = some .nil)
     (hfit : Fits A) (hlen : A.length = 2 ^ 10) (hk : k ≤ 2 ^ 10) :
-    ∃ C Mm Pg Wt, AcceptedP Rs [C, Mm, Pg, Wt] ∧ C.h = 2 ^ 10 ∧ Mm.h = 2 ^ 10 ∧ Wt.h = 2 ^ 8 ∧
+    ∃ C Mm Pg Wt, AcceptedP Rs [C, Mm, Pg, Wt] ∧ C.h = 2 ^ 10 ∧ Mm.h = 2 ^ 10 ∧ Wt.h = 2 ^ 9 ∧
       Pg = progTableW (wMachine (List.replicate W .S) (V ⬝ x)).heap W ∧
       memOf Mm = A ∧ ∀ i, i < k → rowOf C i = row i := by
   have hl : ws.length = (List.replicate W Cell.S).length := by rw [List.length_replicate, hwl]
@@ -423,7 +423,7 @@ theorem wit_complete {V x : Term} {W : Nat} {Rs : List AirD} (hs : sameAirsB Rs 
     have z : (witAirs V x W).zip [C, Mm, Pg, Wt] =
         witTables blank.hd blank.stk blank.heap.length blank.heap W C Mm Pg Wt := rfl
     have hPg : Pg.h ≤ 2 ^ 24 := progRowsW_le (by rw [← hlenm]; omega)
-    have hWt : Wt.h = 2 ^ 8 := witRowsG_len (by omega)
+    have hWt : Wt.h = 2 ^ 9 := witRowsG_len (by omega)
     refine ⟨rfl, ?_, ?_, ?_, ?_⟩
     · rw [z]
       intro p hp

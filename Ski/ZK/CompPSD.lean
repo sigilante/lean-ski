@@ -93,7 +93,7 @@ def hTab (h : Nat) : Table := ⟨h, fun _ _ => 0, fun _ _ => 0⟩
     a function of the AIRs and the heights the statement fixes. -/
 def cM : Nat :=
   (allEntries (compTables s.m.hd s.m.stk s.m.heap.length s.roots.length s.m.stk s.m.heap s.N s.W s.roots
-    (hTab (2 ^ s.R)) (hTab (2 ^ s.Lm)) s.Pg (hTab (2 ^ 8)) (segsPub s.roots))).length
+    (hTab (2 ^ s.R)) (hTab (2 ^ s.Lm)) s.Pg (hTab (2 ^ 9)) (segsPub s.roots))).length
 end
 
 /-- **The honest tables' messages are the statement's count**, for every
@@ -102,14 +102,14 @@ end
 theorem comp_entries {s : CStmt} {w : CRun'} (h : CRel s w) (t : Nat → Tup) :
     (allEntries (ctabs s w t)).length = cM s := by
   obtain ⟨_, _, hNW, _, _, _, _, hlen, _⟩ := h
-  have hW : (hWt s w).h = 2 ^ 8 := witRows_len hNW
+  have hW : (hWt s w).h = 2 ^ 9 := witRows_len hNW
   have hM : (hMm s w).h = 2 ^ s.Lm := hlen
   unfold ctabs cM
   rw [allEntries_length, allEntries_length]
   simp only [compTables, List.map_cons, List.map_nil]
   rw [show (((hC s w).setBlind BLA (t 1)).setBlind BLB (t 0)).h = 2 ^ s.R from rfl,
     show ((hMm s w).setBlind 5 (t 0)).h = 2 ^ s.Lm from hM,
-    show ((hWt s w).setBlind WT_BLIND (t 1)).h = 2 ^ 8 from hW]
+    show ((hWt s w).setBlind WT_BLIND (t 1)).h = 2 ^ 9 from hW]
   rfl
 
 theorem assigns_ne : ∀ m, assigns m ≠ []

@@ -842,7 +842,7 @@ verifier's case analysis however it likes. The first predicate, `split`
 `x`; at `k = 8`, 129,965 rows at `2^17`. The statement names its heights
 (`log R M`). The committed split `csplit` adds a knapsack commitment to
 `a` under public weights, checked in the same pass: 471,888 rows at
-`2^19`, proved in 42 s. At these sizes the commitment neither binds nor
+`2^19`, proved in 40 s. At these sizes the commitment neither binds nor
 hides (`2^16` openings, sums of at most 437); it is the statement's shape.
 Jets on SKIlark code, measured in the clear (`bench/plonky3/README.md`):
 `split8`'s verifier runs in 11,483 rows jetted against 129,957 plain,
@@ -873,13 +873,27 @@ simulator emits those (`transcript_zkGH`, `Ski/ZK/Heights.lean`) for the
 composed, Sudoku and hidden-term circuits; the jet circuits' honest
 heights are the budgets and public lengths (`compJ_honest_heights`,
 `compP_honest_heights`). The margin
-check counts two points a query; simulating the quotient's openings would
-need `S` closed under the shift, up to 408 points, more than the smallest
-tables' 256 rows. The
+check tests the quotient's requirement too. Plonky3 commits the quotient
+chunks at the committed trace's height, so a query opens them at the trace's
+point `s`, where they recombine to a function of the trace at `s` and
+`g s`: the masks must cover `2q + 8 = 208` points, below `HidingFriPcs`'s
+`2(q + 8) = 216`. Every committed table of a hiding proof has at least
+`2^9` rows: the heights a statement names by its checks (`logOK`,
+`plogsOK`), the others by public padding; 296 to spare, and room for 203
+queries (422). The
 masked column openings hide for tables of several heights, each over its
 own domain (`masks_hide_multi`, `pcsCloseN_multi` in
 `Ski/ZK/MaskMulti.lean`), and every hiding circuit's transcript theorem
-holds over that PCS with no PCS term (`*_transcriptG_masked`). Every
+holds over that PCS with no PCS term (`*_transcriptG_masked`). With the
+quotient's recombined values at the query points in the view, functions
+of the terminals and the columns at `s` and `g s`, the same holds when the
+masks cover `2|S| + 4|Z|` points, `2q + 8` (`pcsCloseN_quot`,
+`*_transcriptG_quot`, `Ski/ZK/MaskQuot.lean`). With every quotient
+column's opened chunks in the view too, randomized as Plonky3 does, the
+same holds when `|S| + 4 ≤ n`, `ζ` generates the extension (failing for a
+uniform `ζ` with probability `p^-2`, about `2^-62`) and the honest chunks
+show the quotient (`RecOK`, read from Plonky3's source)
+(`pcsCloseN_chunks`, `*_transcriptG_chunks`, `Ski/ZK/MaskChunk.lean`). Every
 byte of a released hiding proof lies in a field of that view: `ski-air
 proof-shape` (`release/verify.sh` step 15) refuses a proof whose bytes
 are not its fields' own encoding, and proofs of one statement differ in
@@ -941,9 +955,13 @@ binding and the STARK's soundness stay assumed. **The hiding PCS**
 column's openings at `|S|` points of `F` and `|Z|` of the extension
 independent of the trace when `|S| + 4|Z| ≤ n` (`masks_hide`), in the
 public-coin interactive model with the points independent of the masks.
-Applied with `S ∪ gS`, since the quotient's openings couple to the next
-row. The quotient chunks, the codeword columns, FRI, Merkle salts and
-Fiat–Shamir stay assumed. For a PCS whose view is exactly these openings,
+Applied with `S ++ gS`, since the quotient's recombined values couple to
+the next row (`pcsCloseN_quot`), and its chunks hide all but what the
+verifier recombines (`pcsCloseN_chunks`), given that the honest chunks show
+the quotient (`RecOK`). The codewords absorb every matrix's change, so FRI's
+view, a function of each matrix's batched polynomial, hides too
+(`pcsCloseN_fri`, `pcsCloseN_friR`, `Ski/ZK/MaskFri.lean`); the Merkle
+commitments' hiding and Fiat–Shamir stay assumed. For a PCS whose view is exactly these openings,
 `PCSCloseN` holds with `ε = 0` (`Ski/ZK/MaskPCS.lean`); for Plonky3's, it
 stays a hypothesis. The prover's secret randomness is one 128-bit seed per
 proof, expanded by ChaCha20 with a stream for each of the blinding

@@ -107,11 +107,11 @@ def witInters : List Inter :=
 def pow2Min (lg n : Nat) : Nat := pow2From 64 (2 ^ lg) n
 
 /-- The witness table's preprocessed rows, from base address `a0`: the bit
-    cells in bit mode, then the region's, padded to `2^8`. -/
+    cells in bit mode, then the region's, padded to `2^9`. -/
 def witRowsG (a0 N W : Nat) : List (List F) :=
   let rows := (List.range N).map (fun i => [ofN (a0 + i), ofN 1, ofN 1]) ++
     (List.range W).map (fun i => [ofN (a0 + N + i), ofN 1, ofN 0])
-  rows ++ List.replicate (2 ^ 8 - rows.length) [ofN 0, ofN 0, ofN 0]
+  rows ++ List.replicate (2 ^ 9 - rows.length) [ofN 0, ofN 0, ofN 0]
 
 /-- The composed circuit's: the bits at `3` on. -/
 def witRows (N W : Nat) : List (List F) := witRowsG 3 N W
@@ -121,17 +121,17 @@ def witAir (N W : Nat) : AirD := ⟨"wit", WT_BLIND + 5, 3, witCons, witInters, 
 /-- The segment table: `(j, root_j)`, padded with the first. -/
 def segRows (roots : List Nat) : List (List F) :=
   let rows := roots.zipIdx.map fun (r, j) => [ofN j, ofN r]
-  rows ++ List.replicate (pow2Min 8 rows.length - rows.length) (rows.headD [])
+  rows ++ List.replicate (pow2Min 9 rows.length - rows.length) (rows.headD [])
 
 def segsAir (roots : List Nat) : AirD :=
   ⟨"segs", 1, 2, [], [⟨"segs", 0, .neg (col 0), [prec 0, prec 1]⟩], segRows roots⟩
 
 /-- The program table of the public cells: every cell outside the private
-    addresses `[3, 3 + N + W)`, padded to `2^8`. -/
+    addresses `[3, 3 + N + W)`, padded to at least `2^9`. -/
 def progRowsC (heap : List Cell) (N W : Nat) : List (List F) :=
   let rows := (heap.zipIdx.filter fun (_, i) => !(3 ≤ i && i < 3 + N + W)).map
     fun (c, i) => [ofN i, ofN (cellTag c), ofN (cellFields c).1, ofN (cellFields c).2, ofN 1]
-  rows ++ List.replicate (pow2Min 8 rows.length - rows.length) [ofN 0, ofN 0, ofN 0, ofN 0, ofN 0]
+  rows ++ List.replicate (pow2Min 9 rows.length - rows.length) [ofN 0, ofN 0, ofN 0, ofN 0, ofN 0]
 
 def progAirC (heap : List Cell) (N W : Nat) : AirD :=
   ⟨"prog", 1, 5, [col 0], [⟨"mem", 1, prec 4, [prec 0, prec 1, prec 2, prec 3]⟩], progRowsC heap N W⟩

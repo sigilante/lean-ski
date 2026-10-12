@@ -64,6 +64,13 @@ import Ski.ZK.Reject
 import Ski.ZK.Honest
 import Ski.ZK.Heights
 import Ski.ZK.MaskMulti
+import Ski.ZK.MaskQuot
+import Ski.ZK.MaskChunk
+import Ski.ZK.MaskRand
+import Ski.ZK.Fri
+import Ski.ZK.MaskFri
+import Ski.ZK.MaskGen
+import Ski.ZK.MaskCom
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -830,6 +837,36 @@ open Ski.Audit
 #audit_clean Circuit.masks_hide_multi Circuit.shaped_zero Circuit.pcsCloseN_multi Circuit.transcript_zkG_masked
   Circuit.comp_transcriptG_masked Circuit.sud_transcriptG_masked Circuit.wit_transcriptG_masked
   Circuit.compJ_transcriptG_masked Circuit.compP_transcriptG_masked
+#audit_clean Circuit.PCSCloseN.post Circuit.QGroup.ext_OK Circuit.colsAt_openAll Circuit.QGroup.view_quot
+  Circuit.pcsCloseN_quot Circuit.transcript_zkG_quot Circuit.comp_transcriptG_quot
+  Circuit.sud_transcriptG_quot Circuit.wit_transcriptG_quot Circuit.compJ_transcriptG_quot
+  Circuit.compP_transcriptG_quot
+
+-- The quotient's chunks: a polynomial over F through one point of the extension, the chunks hide all but what the
+-- verifier recombines, the simulator's canonical chunks, the PCS with chunks, every circuit's transcript
+#audit_clean Circuit.M4.sol0 Circuit.M4.sol1 Circuit.M4.sol2 Circuit.M4.sol3 Circuit.solve_spec Circuit.mz_gen_det
+  Circuit.interpSZ_spec Circuit.wsumR_vadd Circuit.wsumR_vaddE Circuit.shiftK_spec Circuit.chunks_hide
+  Circuit.agree_of_shows Circuit.canon_shows Circuit.chunks_sim Circuit.chunks_recombine Circuit.chunks_recombineE Circuit.csets_sim
+  Circuit.pcsCloseN_chunks Circuit.transcript_zkG_chunks Circuit.comp_transcriptG_chunks
+  Circuit.sud_transcriptG_chunks Circuit.wit_transcriptG_chunks Circuit.compJ_transcriptG_chunks
+  Circuit.compP_transcriptG_chunks
+#audit_clean Circuit.sumTo_split Circuit.PCSCloseN.indep Circuit.pcsCloseN_rand
+#audit_clean Circuit.ev_add Circuit.ev_smul Circuit.ev_split Circuit.ev_ffold Circuit.fold_formula Circuit.friPath_add
+  Circuit.friLast_add Circuit.friView_add Circuit.fri_hides_of_cancel
+#audit_clean Circuit.mask_shift_ood Circuit.masks_shift Circuit.masks_shift_multi Circuit.openMulti_eq
+  Circuit.openMulti_of_rel Circuit.four_gam Circuit.wcomb_cwShift Circuit.mat_cancel Circuit.cwShift_vanish
+  Circuit.cw_rel Circuit.cws_rel Circuit.chunkPolys_rel Circuit.batch_eq Circuit.cwOpen_eq Circuit.fri_hides
+#audit_clean Circuit.chunks_shiftV Circuit.chunksView_eq Circuit.vanish_of_open_rel Circuit.vsum_dshift
+  Circuit.wsumR_rcomb Circuit.lcv_chunkPoly Circuit.rows_rel Circuit.firstPolys_get Circuit.firstDiffs_get
+  Circuit.rcomb_sl Circuit.cwShift_get Circuit.chunkDiffs_get Circuit.cw_entry Circuit.cw_rows
+#audit_clean Circuit.csets_shift Circuit.csView_sets Circuit.tab_rel Circuit.relAll_append Circuit.cwRel_append
+  Circuit.relAll_of_get Circuit.cwRel_of_get Circuit.pieces_vadd Circuit.tab_all
+#audit_clean Circuit.tabs_all Circuit.trace_all Circuit.recOK_canon Circuit.tabsOK_of Circuit.pcsCloseN_fri
+  Circuit.PCSCloseN.family Circuit.pcsCloseN_friR Circuit.transcript_zkG_fri Circuit.comp_transcriptG_fri
+  Circuit.sud_transcriptG_fri Circuit.wit_transcriptG_fri Circuit.compJ_transcriptG_fri Circuit.compP_transcriptG_fri
+#audit_clean Circuit.M4.det_rev Circuit.mz_det_eq Circuit.mz_generic Circuit.generic_ofF_ne Circuit.generic_apow_ne
+  Circuit.pcsCloseN_fri_generic Circuit.cset_ok_of_generic Circuit.nongeneric_count
+#audit_clean Circuit.PCSCloseN.commit
 
 -- Part II's interface with an additive distance: the errors add, the hybrid argument proved
 #audit_clean Compose.lsum_le Compose.lsum_add Compose.lsum_const Compose.lsum_comm Compose.lsum_prod

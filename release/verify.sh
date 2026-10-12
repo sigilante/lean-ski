@@ -32,6 +32,8 @@
 #      with one CPU constant changed, every AIR as given, it is refused
 #      (`composed-digest-bound`): the CPU's start registers and acceptance
 #      flag sit in no committed table, so the digest is what binds them;
+#      and Lean refuses a statement naming 2^8 memory cells, below the
+#      hiding floor of 2^9, while accepting 2^9;
 #   7. a SKIlark predicate in zero knowledge (release/skilark/split8): Lean
 #      compiles the SKIjack source of `split` and checks that the statement
 #      is the predicate `vsplitB` for x = 200 over 16 literal bits (`lake
@@ -83,8 +85,10 @@
 #      `composed-digest-bound` refuses bootok's with the digest of its
 #      statement with a CPU constant changed.
 #  14. the masking margin (`ski-air mask-margin`): every zero-knowledge
-#      proof's smallest table has the random rows `masks_hide` needs,
-#      |S| + 4|Z| <= n, and Plonky3's HidingFriPcs's 2 (queries + 8).
+#      proof's smallest table has the random rows its openings need, the
+#      quotient's 3 queries + 8 (Plonky3 commits the quotient at twice the
+#      trace's height), above masks_hide's queries + 8 for the columns and
+#      Plonky3's HidingFriPcs's 2 (queries + 8).
 #  15. the bytes against the model's view (`ski-air proof-shape`): every
 #      zero-knowledge proof's bytes are exactly its fields, encoded again
 #      byte for byte, each field a part of the view Lean simulates.
@@ -334,6 +338,22 @@ for n in or and; do
         refused "$tmp/cp.log" 'statement: NOT A STATEMENT' "the $n proof against a doctored statement is refused"
     fi
 done
+# Every committed table of a hiding proof has at least 2^9 rows: Lean's
+# statement check accepts a statement naming 2^9 memory cells and refuses
+# one naming 2^8.
+sed '2a\
+log 11 9
+' release/composed/or/public.txt > "$tmp/log9.txt"
+sed '2a\
+log 11 8
+' release/composed/or/public.txt > "$tmp/log8.txt"
+if ! lake exe composed statement "$tmp/log9.txt" > "$tmp/l9.log" 2>&1 || ! grep -q '^STATEMENT' "$tmp/l9.log"; then
+    no "Lean refuses the ∨ statement at 2^9 memory cells ($(tail -n 1 "$tmp/l9.log" | head -c 80))"
+elif lake exe composed statement "$tmp/log8.txt" > "$tmp/l8.log" 2>&1; then
+    no "Lean accepts a statement naming 2^8 memory cells"
+else
+    ok "a statement naming a height below 2^9 is refused ($(tail -n 1 "$tmp/l8.log" | head -c 60)); at 2^9 it is accepted"
+fi
 if "$SKI_AIR" composed-verify release/composed/and/public.txt release/composed/or/or.proof > "$tmp/cx.log"; then
     no "the ∨ proof verified for the ∧ statement"
 else

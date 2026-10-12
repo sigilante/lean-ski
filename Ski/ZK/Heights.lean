@@ -98,7 +98,7 @@ theorem compP_heights (hd0 stk0 ctr0 n nilA J root : Nat) (heap : List Cell) (N 
 
 /-- **The composed proof's honest heights are the statement's**: the
     tables of `comp_honest_zk` have `2^R` CPU rows, `2^Lm` memory cells,
-    `2^8` witness rows, and the public program and segment tables'
+    `2^9` witness rows, and the public program and segment tables'
     heights. -/
 theorem comp_honest_heights {R Lm : Nat} {shp : BT} {Ps : List Term} {W : Nat} {A : List Cell}
     {e : Nat → Nat} {row : Nat → Air.Row} (hlen : A.length = 2 ^ Lm) (hNW : BT.nleaves shp + W ≤ 2 ^ 8) :
@@ -110,9 +110,9 @@ theorem comp_honest_heights {R Lm : Nat} {shp : BT} {Ps : List Term} {W : Nat} {
     let Wt := witTable A N W
     let Mm := memTableC A (cpuAirC m.hd m.stk m.heap.length roots.length m.stk) (progAirC m.heap N W)
       (witAir N W) C Pg Wt
-    [C.h, Mm.h, Pg.h, Wt.h, (segsPub roots).h] = [2 ^ R, 2 ^ Lm, Pg.h, 2 ^ 8, (segsPub roots).h] := by
+    [C.h, Mm.h, Pg.h, Wt.h, (segsPub roots).h] = [2 ^ R, 2 ^ Lm, Pg.h, 2 ^ 9, (segsPub roots).h] := by
   intro m roots N C Pg Wt Mm
-  have hW : Wt.h = 2 ^ 8 := witRows_len hNW
+  have hW : Wt.h = 2 ^ 9 := witRows_len hNW
   have hM : Mm.h = 2 ^ Lm := hlen
   rw [hW, hM]
   rfl
@@ -139,7 +139,7 @@ theorem sud_honest_heights {puzzle : List Nat} {A : List Cell} {k : Nat} {row : 
 end
 
 /-- **The hidden-term proof's honest heights are the statement's**:
-    `2^10` CPU rows and memory cells, `2^8` witness rows, and the public
+    `2^10` CPU rows and memory cells, `2^9` witness rows, and the public
     program table's height. -/
 theorem wit_honest_heights {V x : Term} {W : Nat} {A : List Cell} {k : Nat} {row : Nat → Air.Row}
     (hW8 : W ≤ 2 ^ 8) (hlen : A.length = 2 ^ 10) :
@@ -148,9 +148,9 @@ theorem wit_honest_heights {V x : Term} {W : Nat} {A : List Cell} {k : Nat} {row
     let Pg := progTableW blank.heap W
     let Wt := witTableG 0 A 0 W
     let Mm := memTableC A (cpuAirW blank.hd blank.stk blank.heap.length) (progAirW blank.heap W) (witAirW W) C Pg Wt
-    [C.h, Mm.h, Pg.h, Wt.h] = [2 ^ 10, 2 ^ 10, Pg.h, 2 ^ 8] := by
+    [C.h, Mm.h, Pg.h, Wt.h] = [2 ^ 10, 2 ^ 10, Pg.h, 2 ^ 9] := by
   intro blank C Pg Wt Mm
-  have hW : Wt.h = 2 ^ 8 := witRowsG_len (by omega)
+  have hW : Wt.h = 2 ^ 9 := witRowsG_len (by omega)
   have hM : Mm.h = 2 ^ 10 := hlen
   rw [hW, hM]
   rfl

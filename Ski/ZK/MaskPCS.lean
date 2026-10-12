@@ -19,14 +19,15 @@ digits (`digitsF`); counting over `r` is counting over the masks
 
 Scope.  This is the column-opening part of Plonky3's hiding PCS, in the
 public-coin model with `S` and `Z` fixed before the masks.  The view
-`pcsM` leaves out the quotient chunks and their randomization, the random
-codeword columns, FRI's layers, Merkle paths and salts, and Fiat–Shamir;
-for Plonky3 those stay assumed.  The theorem fixes `S` and `Z`: a protocol
+`pcsM` leaves out the quotient and its chunks (`Ski/ZK/MaskQuot.lean` and
+`Ski/ZK/MaskChunk.lean` add them), the random codeword columns, FRI's
+layers, Merkle paths and salts, and Fiat–Shamir; for Plonky3 the last
+stay assumed.  The theorem fixes `S` and `Z`: a protocol
 that draws `ζ` must also charge `ζ ∈ F` (`hZ`, probability about `P^-3` a
 point) and draw it independently of the masks, and every committed table
-needs at least `|S| + 4|Z|` rows.  Simulating the quotient's openings,
-which this file does not do, would further need `S` to include the
-next-row points `g S` they couple to.
+needs at least `|S| + 4|Z|` rows.  The quotient's recombined values at
+the query points couple to the next row; `Ski/ZK/MaskQuot.lean`
+simulates them, with `S` extended by its next rows.
 -/
 
 namespace Circuit

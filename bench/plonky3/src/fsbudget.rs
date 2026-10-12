@@ -341,27 +341,34 @@ where
 /// lookup grinding are read from the configuration.
 /// **The masking margin** (`masks_hide`, `Ski/ZK/MaskOOD.lean`): a table
 /// of `n` rows, masked by `n` random rows, hides its openings when
-/// `|S| + 4 |Z| <= n`, `S` the base-field points FRI opens (two a query at
-/// arity 2) and `Z` the two out-of-domain points, four coordinates each.
-/// Plonky3's `HidingFriPcs` asks `2 (queries + 4 · opening points)`, a
-/// little more.  Under hiding a table's degree bits count its rows and as
+/// `|S| + 4 |Z| <= n`, `S` the base-field points of the view and `Z` the two
+/// out-of-domain points, four coordinates each.  A query opens each
+/// column at one point, so the column openings need `q + 8`.  The quotient
+/// needs more: its chunks are committed at the committed trace's height, so a
+/// query opens them at the trace's point `x`, where they recombine to a
+/// function of the trace at `x` and at its next row `g x`
+/// (`pcsCloseN_quot`, `Ski/ZK/MaskQuot.lean`): two points a query,
+/// `2q + 8`.  Plonky3's `HidingFriPcs` asks `2 (queries + 4 · opening
+/// points)`.  Under hiding a table's degree bits count its rows and as
 /// many random rows: the trace has half.  Whether the smallest table meets
-/// both, and the line saying so.
+/// all three, and the line saying so.
 pub(crate) fn margin_text(degree_bits: &[usize], queries: usize) -> (bool, String) {
-    let lean = 2 * queries + 4 * 2;
+    let columns = queries + 4 * 2;
+    let quotient = 2 * queries + 4 * 2;
     let p3 = 2 * (queries + 4 * 2);
     let min_log = degree_bits.iter().copied().min().unwrap_or(1).saturating_sub(1);
     let n = 1usize << min_log;
-    let need = lean.max(p3);
+    let need = columns.max(quotient).max(p3);
     if n >= need {
         (true, format!(
-            "masking margin met: the smallest table 2^{min_log} = {n} rows; masks_hide needs {lean}, \
-             HidingFriPcs {p3}; {} to spare",
+            "masking margin met: the smallest table 2^{min_log} = {n} rows; the column openings need {columns}, \
+             the quotient's {quotient}, HidingFriPcs {p3}; {} to spare",
             n - need
         ))
     } else {
         (false, format!(
-            "masking margin NOT MET: the smallest table 2^{min_log} = {n} rows; masks_hide needs {lean}, HidingFriPcs {p3}"
+            "masking margin NOT MET: the smallest table 2^{min_log} = {n} rows; the column openings need {columns}, \
+             the quotient's {quotient}, HidingFriPcs {p3}"
         ))
     }
 }
@@ -427,14 +434,16 @@ pub(crate) use budget;
 mod margin_tests {
     use super::margin_text;
 
-    /// At 100 queries the bound is 216 rows: 2^8 meets it, 2^7 does not;
-    /// the degree bits count the random rows too.
+    /// At 100 queries the bound is HidingFriPcs's 216 rows: 2^8 meets it,
+    /// 2^7 does not; the degree bits count the random rows too.  At 203
+    /// queries it is 422, which 2^9 meets.
     #[test]
     fn the_margin_is_the_smallest_tables() {
         assert!(margin_text(&[12, 9, 11], 100).0);
         assert!(!margin_text(&[12, 8, 11], 100).0);
-        assert!(margin_text(&[9], 100).1.contains("40 to spare"));
-        assert!(margin_text(&[9], 120).0);
-        assert!(!margin_text(&[9], 121).0);
+        assert!(margin_text(&[10], 100).1.contains("296 to spare"));
+        assert!(margin_text(&[10], 203).0);
+        assert!(margin_text(&[10], 248).0);
+        assert!(!margin_text(&[10], 249).0);
     }
 }
