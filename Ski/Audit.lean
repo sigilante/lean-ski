@@ -115,6 +115,7 @@ import Ski.ZK.FSOpen3Inst
 import Ski.ZK.FSQuery
 import Ski.ZK.FSQueryInst
 import Ski.ZK.FSMulti
+import Ski.ZK.FSMultiInst
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -1219,3 +1220,5 @@ open Ski.Audit
   Circuit.lin_sm Circuit.comm_sm Circuit.comm_sum4 Circuit.lin_sum4 Circuit.fs_open4_abs Circuit.fs_open4_two
   Circuit.zkb_pair Circuit.lin_pair Circuit.comm_pair Circuit.comm_pair' Circuit.mono_pair
   Circuit.lin_pairL Circuit.comm_pairL Circuit.comm_pairL'
+-- Two Sudoku proofs under one oracle
+#audit_clean Circuit.spread_sum Circuit.sud_fs_open4_two
