@@ -1369,4 +1369,4 @@ open Ski.Audit
 #audit_clean Circuit.sum_pos_exists Circuit.hφsp_of_inj Circuit.add_mod_cancel Circuit.foldlA_lt Circuit.foldlA_inj Circuit.spongeA_inj Circuit.spongeA_hφsp Circuit.spongeA_lt Circuit.spongeA_sat Circuit.foldlG_inj Circuit.spongeG_hφsp
 
 -- Two sponge chains meet rarely under random round functions (SpongeRandom)
-#audit_clean Circuit.pair_count Circuit.sumTabs_mono Circuit.sumTabs_const Circuit.sumTabs_add Circuit.sumTabs_mul Circuit.chainL_meet Circuit.chainL_meet_digit
+#audit_clean Circuit.pair_count Circuit.sumTabs_mono Circuit.sumTabs_const Circuit.sumTabs_add Circuit.sumTabs_mul Circuit.rget_lt Circuit.chainL_meet Circuit.chainL_meet_digit Circuit.chainL_sat

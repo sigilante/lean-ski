@@ -1,28 +1,31 @@
 import Ski.ZK.SpongeSpread
 
 /-!
-# Two sponge chains meet rarely under random round functions
+# Two sponge chains meet rarely under per-step random round functions
 
 An overwriting duplex sponge is not injective in its state, so
-`SpongeSpread`'s exact argument does not reach it; its states meet only
-with small probability over the permutation.  Here each absorption reads
-its own uniformly drawn table at a position injective in the state for the
-block (`inner`), the step's round function: the permutation called with a
-step counter in its input, a domain separation that idealizes the one
-permutation Plonky3 calls at every step.  Two chains from distinct states
-meet on at most `L/K` of the tables over `L` absorptions (`chainL_meet`):
-at the first step where they meet, two distinct positions of a fresh table
-agree (`pair_count`).  The state is the capacity: an overwriting sponge's
-next capacity is the round function's answer at the block and the
-capacity, a position injective in the capacity.  Two digits absorbed from
-one state, at distinct positions, meet on at most `(L+1)/K` of the tables
-(`chainL_meet_digit`): the capacity collisions `SudChallenger`'s `hφsp`
-charges to `δs`.
+`SpongeSpread`'s exact argument does not reach it.  Here each absorption
+reads its own uniformly drawn table, the step's round function, at a
+position injective in the state below `K` for the block (`inner`).  Two
+chains from distinct states below `K` meet on at most `L/K` of the tables
+over `L` absorptions (`chainL_meet`): at the first step where they meet,
+two distinct positions of a fresh table agree (`pair_count`).  Two digits
+absorbed from one state at distinct positions meet on at most `(L+1)/K`
+(`chainL_meet_digit`).  `chainL_sat` meets the hypotheses.
 
-Not shown: the step from these averaged bounds to `hφsp`, which holds at
-every table; it needs the round functions inside the oracle's tables, so
-that the composites average over them as over the hash; nor the single
-permutation in place of per-step round functions.
+The model's state is the capacity, the next capacity the round function's
+answer at the block and the capacity: an overwriting sponge whose blocks
+fill the rate.  Not shown:
+- Plonky3's one permutation in place of independent per-step round
+  functions (Plonky3 feeds no step counter); with one permutation a step's
+  query may repeat an earlier one, a birthday term of order `(2L)²/K`;
+- partial-rate absorptions, where old rate elements enter the next call;
+- a squeezed index shorter than the capacity;
+- `SudChallenger`'s `hφsp`: it bounds, at every table, how many salts
+  reach one index, while these bounds average over the tables whether one
+  pair of chains meets; pair collisions bound the squared fibre sizes, so
+  even averaged they give fibres of order `NS1 √((L+1)/K)`, and a
+  worst-case table defeats `hφsp` outright.
 -/
 
 set_option autoImplicit false
@@ -73,6 +76,8 @@ theorem pair_count {K n p q : Nat} (hK : 0 < K) (hp : p < n) (hpq : p ≠ q) :
           by_cases hc : c = 0 <;> simp [hc, indB])
       _ = K ^ n := by rw [sumTo_const, Nat.mul_one]
 
+theorem rget_lt {K : Nat} (hK : 0 < K) (m H : Nat) : rget K m H < K := Nat.mod_lt _ hK
+
 /-- A sum over `L` tables, each below `T`. -/
 def sumTabs (T : Nat) : Nat → (List Nat → Nat) → Nat
   | 0, f => f []
@@ -110,17 +115,17 @@ def chainL (K : Nat) (inner : Nat → Nat → Nat) : Nat → List Nat → List N
 
 /-- **Two chains from distinct states meet on at most `L/K` of the tables**
     over `L` absorptions, each position injective in the state. -/
-theorem chainL_meet {K M : Nat} (hK : 0 < K) (inner : Nat → Nat → Nat) (hin : ∀ s x, inner s x < M)
-    (hinj : ∀ x s s', inner s x = inner s' x → s = s') :
-    ∀ (xs : List Nat) (s s' : Nat), s ≠ s' →
+theorem chainL_meet {K M : Nat} (hK : 0 < K) (inner : Nat → Nat → Nat) (hin : ∀ s x, s < K → inner s x < M)
+    (hinj : ∀ x s s', s < K → s' < K → inner s x = inner s' x → s = s') :
+    ∀ (xs : List Nat) (s s' : Nat), s < K → s' < K → s ≠ s' →
       K * sumTabs (K ^ M) xs.length (fun hs => indB (decide (chainL K inner s xs hs = chainL K inner s' xs hs))) ≤
         xs.length * (K ^ M) ^ xs.length
-  | [], s, s', hne => by
+  | [], s, s', _, _, hne => by
     show K * indB (decide (s = s')) ≤ 0 * 1
     rw [decide_eq_false hne]; exact Nat.le_of_eq rfl
-  | x :: xs, s, s', hne => by
-    have hpq : inner s x ≠ inner s' x := fun e => hne (hinj x s s' e)
-    have ih := fun u v (huv : u ≠ v) => chainL_meet hK inner hin hinj xs u v huv
+  | x :: xs, s, s', hs, hs', hne => by
+    have hpq : inner s x ≠ inner s' x := fun e => hne (hinj x s s' hs hs' e)
+    have ih := fun u v (hu : u < K) (hv : v < K) (huv : u ≠ v) => chainL_meet hK inner hin hinj xs u v hu hv huv
     let p := inner s x
     let q := inner s' x
     have pt : ∀ h hs, indB (decide (chainL K inner s (x :: xs) (h :: hs) = chainL K inner s' (x :: xs) (h :: hs))) ≤
@@ -144,11 +149,11 @@ theorem chainL_meet {K M : Nat} (hK : 0 < K) (inner : Nat → Nat → Nat) (hin 
       refine Nat.add_le_add_left ?_ _
       by_cases e : rget K p h = rget K q h
       · simp only [if_pos e]; rw [sumTabs_const, Nat.mul_zero, Nat.mul_zero]; exact Nat.zero_le _
-      · simp only [if_neg e]; exact ih _ _ e
+      · simp only [if_neg e]; exact ih _ _ (rget_lt hK _ _) (rget_lt hK _ _) e
     rw [sumTo_mul]
     refine Nat.le_trans (sumTo_mono _ step) ?_
     rw [sumTo_add, sumTo_const, ← sumTo_mul, ← sumTo_mul]
-    have pc := pair_count (n := M) hK (hin s x) hpq
+    have pc := pair_count (n := M) hK (hin s x hs) hpq
     have e2 : K * ((K ^ M) ^ xs.length * sumTo (K ^ M) (fun h => indB (decide (rget K p h = rget K q h)))) ≤
         (K ^ M) ^ xs.length * K ^ M := by
       rw [Nat.mul_left_comm]; exact Nat.mul_le_mul_left _ pc
@@ -161,13 +166,14 @@ theorem chainL_meet {K M : Nat} (hK : 0 < K) (inner : Nat → Nat → Nat) (hin 
 /-- **Two digits absorbed from one state meet on at most `(L+1)/K` of the
     tables**: the digits read at distinct positions (`hd`, the absorption
     injective in the block), then `L` more blocks. -/
-theorem chainL_meet_digit {K M : Nat} (hK : 0 < K) (inner : Nat → Nat → Nat) (hin : ∀ s x, inner s x < M)
-    (hinj : ∀ x s s', inner s x = inner s' x → s = s') (iv a b : Nat) (hd : inner iv a ≠ inner iv b)
+theorem chainL_meet_digit {K M : Nat} (hK : 0 < K) (inner : Nat → Nat → Nat) (hin : ∀ s x, s < K → inner s x < M)
+    (hinj : ∀ x s s', s < K → s' < K → inner s x = inner s' x → s = s') (iv a b : Nat) (hiv : iv < K)
+    (hd : inner iv a ≠ inner iv b)
     (xs : List Nat) :
     K * sumTabs (K ^ M) (xs.length + 1)
         (fun hs => indB (decide (chainL K inner iv (a :: xs) hs = chainL K inner iv (b :: xs) hs))) ≤
       (xs.length + 1) * (K ^ M) ^ (xs.length + 1) := by
-  have ih := fun u v (huv : u ≠ v) => chainL_meet hK inner hin hinj xs u v huv
+  have ih := fun u v (hu : u < K) (hv : v < K) (huv : u ≠ v) => chainL_meet hK inner hin hinj xs u v hu hv huv
   let p := inner iv a
   let q := inner iv b
   have hpq : p ≠ q := hd
@@ -192,11 +198,11 @@ theorem chainL_meet_digit {K M : Nat} (hK : 0 < K) (inner : Nat → Nat → Nat)
     refine Nat.add_le_add_left ?_ _
     by_cases e : rget K p h = rget K q h
     · simp only [if_pos e]; rw [sumTabs_const, Nat.mul_zero, Nat.mul_zero]; exact Nat.zero_le _
-    · simp only [if_neg e]; exact ih _ _ e
+    · simp only [if_neg e]; exact ih _ _ (rget_lt hK _ _) (rget_lt hK _ _) e
   rw [sumTo_mul]
   refine Nat.le_trans (sumTo_mono _ step) ?_
   rw [sumTo_add, sumTo_const, ← sumTo_mul, ← sumTo_mul]
-  have pc := pair_count (n := M) hK (hin iv a) hpq
+  have pc := pair_count (n := M) hK (hin iv a hiv) hpq
   have e2 : K * ((K ^ M) ^ xs.length * sumTo (K ^ M) (fun h => indB (decide (rget K p h = rget K q h)))) ≤
       (K ^ M) ^ xs.length * K ^ M := by
     rw [Nat.mul_left_comm]; exact Nat.mul_le_mul_left _ pc
@@ -205,5 +211,19 @@ theorem chainL_meet_digit {K M : Nat} (hK : 0 < K) (inner : Nat → Nat → Nat)
       ≤ (K ^ M) ^ xs.length * K ^ M + K ^ M * (xs.length * (K ^ M) ^ xs.length) := Nat.add_le_add_right e2 _
     _ = (xs.length + 1) * (K ^ M) ^ (xs.length + 1) := by
       rw [Nat.pow_succ, Nat.succ_mul]; ac_rfl
+
+/-- **The hypotheses are met** by `inner s x = (x % X) K + s`: positions
+    below `X K`, injective in the state below `K`, and distinct digits
+    below `X` at distinct positions. -/
+theorem chainL_sat {K X : Nat} (hK : 0 < K) (hX : 0 < X) :
+    (∀ s x, s < K → (x % X) * K + s < X * K) ∧
+      (∀ x s s', s < K → s' < K → (x % X) * K + s = (x % X) * K + s' → s = s') ∧
+      (∀ iv a b, a < X → b < X → a ≠ b → (a % X) * K + iv ≠ (b % X) * K + iv) := by
+  refine ⟨fun s x hs => ?_, fun x s s' _ _ h => by omega, fun iv a b ha hb hab h => hab ?_⟩
+  · calc (x % X) * K + s < (x % X) * K + K := Nat.add_lt_add_left hs _
+      _ = (x % X + 1) * K := by rw [Nat.succ_mul]
+      _ ≤ X * K := Nat.mul_le_mul_right _ (Nat.mod_lt _ hX)
+  · rw [Nat.mod_eq_of_lt ha, Nat.mod_eq_of_lt hb] at h
+    exact Nat.eq_of_mul_eq_mul_right hK (by omega)
 
 end Circuit
