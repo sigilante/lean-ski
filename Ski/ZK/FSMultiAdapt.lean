@@ -45,11 +45,11 @@ from the view or in turn (`zkbT_adaptiveFR`), its mass `R` times one
 pick's (`zkbT_adaptiveV_massR`).  A pick
 reading the draws beyond the view is no distinguisher's, which sees the
 tables and the views alone; this is the model's definition, not a
-theorem.  Not shown: one statement's error in place of
-the sum.  The split applies each statement's `ZKBT` bound once, and that
-bound charges any event its full error; an error shared by all statements,
-as a collision with an earlier query, would need one joint bound to be
-charged once.
+theorem.  The sum of the statements' errors is tight
+for these hypotheses: `S` statements each meeting `ZKBT` with error `1`
+can make the picked real count `S` with every confirmed simulation `0`
+(`zkbT_adaptive_tight`).  A tighter bound needs a joint hypothesis across
+the statements, as when their errors share one collision event; not shown.
 -/
 
 set_option autoImplicit false
@@ -387,6 +387,56 @@ theorem zkbT_adaptiveV_massR {T X C V : Type} {K S R : Nat} {ST : (T → Nat) �
   rw [← sumTo_const]
   exact sumTo_mono R (fun c0 _ =>
     zkbT_adaptiveV_mass hST hsm hSC rv pg sv ε h hnorm (ix c0) (hix c0) (hcons c0))
+
+/-- **The sum of the errors is tight**: `S` statements over `S` tables,
+    statement `j`'s real view flagging table `j` and its simulation never,
+    each meet `ZKBT` with error `1`; the pick `ix H = H % S` then makes the
+    real count `S`, while every confirmed simulation counts `0`, so
+    `zkbT_adaptive`'s bound `sumTo S ε = S` is met with equality.  From
+    per-statement bounds no single statement's error can replace the
+    sum. -/
+theorem zkbT_adaptive_tight (S : Nat) (hS : 0 < S) :
+    (∀ j, j < S → ZKBT (fun f : Nat → Nat => sumTo S f) 1 (fun f : Unit → Nat => f ()) (fun g : Unit → Nat => g ())
+      (fun H _ => decide (H = j)) (fun H _ _ => H) (fun _ _ _ => false) 1) ∧
+    1 * sumTo S (fun H => indB ((fun _ (p : Nat × Bool) => p.2) H (H % S, decide (H = H % S)))) = sumTo S (fun _ => 1) ∧
+    sumTo S (fun j => sumTo S (fun H => indB ((fun _ (p : Nat × Bool) => p.2) H (j, false) && decide (H % S = j)))) = 0 := by
+  refine ⟨fun j hj E => ?_, ?_, ?_⟩
+  · show 1 * sumTo S (fun H => indB (E H (decide (H = j)))) ≤ sumTo S (fun H => indB (E H false)) + 1
+    rw [Nat.one_mul]
+    have key : ∀ n, sumTo n (fun H => indB (E H (decide (H = j)))) ≤
+        sumTo n (fun H => indB (E H false)) + indB (decide (j < n)) := by
+      intro n
+      induction n with
+      | zero => exact Nat.zero_le _
+      | succ n ih =>
+        show sumTo n _ + indB (E n (decide (n = j))) ≤ sumTo n _ + indB (E n false) + indB (decide (j < n + 1))
+        by_cases e : n = j
+        · subst e
+          have h1 : indB (decide (n < n)) = 0 := by simp [indB]
+          rw [h1, Nat.add_zero] at ih
+          have h2 : indB (decide (n < n + 1)) = 1 := by simp [indB]
+          rw [h2]
+          have := indB_le (E n (decide (n = n)))
+          omega
+        · have h1 : decide (n = j) = false := decide_eq_false e
+          rw [h1]
+          have h2 : indB (decide (j < n)) ≤ indB (decide (j < n + 1)) := by
+            by_cases hj' : j < n
+            · simp [indB, hj', Nat.lt_succ_of_lt hj']
+            · simp [indB, hj']
+          omega
+    refine Nat.le_trans (key S) (Nat.add_le_add_left ?_ _)
+    exact indB_le _
+  · rw [Nat.one_mul]
+    refine sumTo_congr _ (fun H hH => ?_)
+    show indB (decide (H = H % S)) = 1
+    rw [Nat.mod_eq_of_lt hH]; simp [indB]
+  · have z : ∀ n, sumTo n (fun _ : Nat => (0 : Nat)) = 0 := fun n => by rw [sumTo_const, Nat.mul_zero]
+    rw [← z S]
+    refine sumTo_congr _ (fun j _ => ?_)
+    rw [← z S]
+    refine sumTo_congr _ (fun H _ => ?_)
+    rfl
 
 /-- **Two statements picked in turn** meet `zkbT_adaptiveF`'s `hfix`: the
     statements indexed `j1 + S1 j2`, the first pick read from the view every
