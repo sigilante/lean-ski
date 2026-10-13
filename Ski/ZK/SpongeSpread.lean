@@ -12,8 +12,13 @@ property: its state lies in `[0, N)`, each absorption adds the block modulo
 injective in the state, and the state after absorbing the digit (below
 `n1 ≤ N`) and then any blocks determines the digit (`spongeA`,
 `spongeA_inj`, `spongeA_hφsp`, the transcript encoded as blocks by any
-`enc`).  The index is the full state; each block is one absorption, so a
-digit spread over several rate blocks is not covered.
+`enc`).  The index is the full state, below `N` (`spongeA_lt`), so the
+fourth table spans it: `N ≤ N4`.  The state is one element of `Z_N`, all of
+it rate; each block is one absorption, so a digit spread over several rate
+blocks is not covered, and neither is a sponge over a vector of field
+elements, whose state group `F_p^t` is not cyclic (the argument carries
+over to any group translation followed by a bijection, but only `Z_N` is
+proved).
 
 Not shown: Plonky3's `DuplexChallenger`, which overwrites the rate part of
 the state instead of adding into it, so two states differing only there
@@ -88,7 +93,7 @@ def spongeA (π : Nat → Nat) (N iv n1 : Nat) (m : Nat) (w : List Nat) : Nat :=
 theorem foldlA_lt {π : Nat → Nat} {N : Nat} (hπN : ∀ a, a < N → π a < N) (hN : 0 < N) :
     ∀ (xs : List Nat) (s : Nat), s < N → xs.foldl (absorbA π N) s < N
   | [], _, h => h
-  | x :: xs, s, _ => foldlA_lt hπN hN xs _ (hπN _ (Nat.mod_lt _ hN))
+  | _ :: xs, _, _ => foldlA_lt hπN hN xs _ (hπN _ (Nat.mod_lt _ hN))
 
 theorem foldlA_inj {π : Nat → Nat} {N : Nat} (hπ : ∀ a b, a < N → b < N → π a = π b → a = b)
     (hπN : ∀ a, a < N → π a < N) (hN : 0 < N) :
@@ -100,9 +105,9 @@ theorem foldlA_inj {π : Nat → Nat} {N : Nat} (hπ : ∀ a b, a < N → b < N 
     exact add_mod_cancel hs hs' (hπ _ _ (Nat.mod_lt _ hN) (Nat.mod_lt _ hN) h1)
 
 /-- **The adding sponge's state determines the first absorbed digit**: `π`
-    a permutation of `[0, N)`, the digits below `n1 ≤ N`, `iv < N`. -/
+    a permutation of `[0, N)`, the digits below `n1 ≤ N`. -/
 theorem spongeA_inj {π : Nat → Nat} {N iv n1 : Nat} (hπ : ∀ a b, a < N → b < N → π a = π b → a = b)
-    (hπN : ∀ a, a < N → π a < N) (hn1 : n1 ≤ N) (hiv : iv < N) :
+    (hπN : ∀ a, a < N → π a < N) (hn1 : n1 ≤ N) :
     ∀ rest w a b, a < n1 → b < n1 → spongeA π N iv n1 (a + n1 * rest) w = spongeA π N iv n1 (b + n1 * rest) w → a = b := by
   intro rest w a b ha hb h
   have hpos : 0 < n1 := Nat.lt_of_le_of_lt (Nat.zero_le _) ha
@@ -118,12 +123,18 @@ theorem spongeA_inj {π : Nat → Nat} {N iv n1 : Nat} (hπ : ∀ a b, a < N →
 /-- **An adding duplex sponge meets the spread**, its full state the index,
     the transcript `w` encoded as blocks by any `enc`. -/
 theorem spongeA_hφsp {D W : Type} {NS1 n1 δs : Nat} {π : Nat → Nat} {N iv : Nat}
-    (hπ : ∀ a b, a < N → b < N → π a = π b → a = b) (hπN : ∀ a, a < N → π a < N) (hn1 : n1 ≤ N) (hiv : iv < N)
+    (hπ : ∀ a b, a < N → b < N → π a = π b → a = b) (hπN : ∀ a, a < N → π a < N) (hn1 : n1 ≤ N)
     (enc : W → List Nat) (Com1 : D → Nat → Nat) (hr1 : ∀ d σ, Com1 d σ < n1)
     (hsp1 : ∀ d v, sumTo NS1 (fun σ => indB (decide (Com1 d σ = v))) ≤ δs) :
     ∀ d rest w v, sumTo NS1 (fun σ1 => indB (decide (spongeA π N iv n1 (Com1 d σ1 + n1 * rest) (enc w) = v))) ≤ δs :=
   hφsp_of_inj Com1 (fun m w => spongeA π N iv n1 m (enc w))
-    (fun rest w a b ha hb h => spongeA_inj hπ hπN hn1 hiv rest (enc w) a b ha hb h) hr1 hsp1
+    (fun rest w a b ha hb h => spongeA_inj hπ hπN hn1 rest (enc w) a b ha hb h) hr1 hsp1
+
+/-- **The sponge's state lies in `[0, N)`**: as the fourth table's index it
+    needs `N ≤ N4`, the table spanning the whole state. -/
+theorem spongeA_lt {π : Nat → Nat} {N iv n1 : Nat} (hπN : ∀ a, a < N → π a < N) (hN : 0 < N) (m : Nat)
+    (w : List Nat) : spongeA π N iv n1 m w < N :=
+  foldlA_lt hπN hN _ _ (hπN _ (Nat.mod_lt _ hN))
 
 /-- The identity is a permutation of `[0, N)`: the hypotheses are met. -/
 theorem spongeA_sat (N : Nat) : (∀ a b, a < N → b < N → (fun x => x) a = (fun x => x) b → a = b) ∧

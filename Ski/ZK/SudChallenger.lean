@@ -12,9 +12,8 @@ spread over the first commitment's salt (`hφsp`).  The read-back implies
 it (`hφsp_of_hdg`), and it is strictly weaker: `φ m w = (m % 2 + m / 2) % 2`
 at `n1 = 2` meets it and admits no read-back.  A sponge meets it when the
 index is its full state and the absorptions after the first commitment
-permute the state; capacity collisions of the absorbed commitment, and
-any truncation of the index to `N4` values (at least `NS1 / N4` per value),
-enter `δs`.  The proofs' spread lemmas (`sudFS4T_hspS`, `witFS4T_hspS`,
+permute the state; capacity collisions of the absorbed commitment enter
+`δs`.  The proofs' spread lemmas (`sudFS4T_hspS`, `witFS4T_hspS`,
 `compFS4T_hspS`) and the interleaved proofs (`sud_interleaveS`,
 `wit_interleaveS`, `comp_interleaveS`) follow.  An adding sponge, its
 full state the index, meets `hφsp` exactly (`SpongeSpread`).  Not shown: the overwrite

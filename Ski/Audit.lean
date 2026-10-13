@@ -1365,4 +1365,4 @@ open Ski.Audit
 #audit_clean Circuit.friBetas_length Circuit.friCommit_run Circuit.friCommitPf_eq Circuit.friCommit_reads
 
 -- A duplex sponge meets the challenger's spread (SpongeSpread)
-#audit_clean Circuit.sum_pos_exists Circuit.hφsp_of_inj Circuit.add_mod_cancel Circuit.foldlA_lt Circuit.foldlA_inj Circuit.spongeA_inj Circuit.spongeA_hφsp Circuit.spongeA_sat
+#audit_clean Circuit.sum_pos_exists Circuit.hφsp_of_inj Circuit.add_mod_cancel Circuit.foldlA_lt Circuit.foldlA_inj Circuit.spongeA_inj Circuit.spongeA_hφsp Circuit.spongeA_lt Circuit.spongeA_sat
