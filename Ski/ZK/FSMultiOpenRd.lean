@@ -25,8 +25,8 @@ query phases in `zkbT_powD_rd`.  Openings whose strategy also reads their
 data and salt (`pfRd`), as FRI's layer-root challenges need, are components
 too: the read list names each opening's data (`sudMain1` …) and salt
 (`pfRdReads`, `pfRd_progD`, `sudFS4T_houtD`, `sudFS4T_hrdD`).  No digit is needed
-here: an opening reading at points of any digit its strategy picks (a
-function of `c4` and `M`; with the data and salt as well, not shown) is a
+here: an opening reading at points of any digit `μ c4 M` its strategy picks
+(with the data and salt as well, not shown) is a
 component too, its hits charged to the programmers' spread (`pfRdA`,
 `pfRdA_prog`, `sudFS4T_houtA`, `sudFS4T_hrdA`; `pfRdM` its own-digit case,
 `pfRdM_eq_A`).  The composed

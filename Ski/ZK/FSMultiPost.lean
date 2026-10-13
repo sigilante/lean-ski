@@ -22,12 +22,13 @@ compose `n`-fold as `zkbT_powD` does, `zkbT_post_pair` iterated (`VQ`,
 (`rdQ`, every proof's reads and every phase's queries, `rvQ_prog`,
 `rdQ_length`), the hit flag and the collisions discharge: each stage's
 collisions at most the earlier reads and its own queries times the next
-proof's spread (`zkbT_powQ_rd`).  Instanced for the Sudoku proofs
-(`fs4_powQ`, `FSMultiMixSud`'s `sud_powQ`).  Not shown: the hidden-term and
-composed circuits, and the other opening variants, instanced; query counts
+proof's spread (`zkbT_powQ_rd`).  Instanced for the three circuits and
+their opening variants (`fs4_powQ`; `FSMultiMixSud`'s `sud_powQ`,
+`wit_powQ`, `comp_powQ`, `sud_powQD`, `wit_powQD`, `comp_powQD`,
+`sud_powQA`).  Queries after the last proof come from `zkbT_postAll`;
+statements chosen from views are `FSMultiAdapt`'s.  Not shown: query counts
 varying by phase (consecutive phases merge into one adaptive phase of their
-total count); queries after the last proof come from `zkbT_postAll`;
-statements chosen from views are `FSMultiAdapt`'s.
+total count).
 -/
 
 set_option autoImplicit false
