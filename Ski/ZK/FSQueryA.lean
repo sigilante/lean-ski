@@ -2,12 +2,13 @@ import Ski.ZK.FSOpenA
 import Ski.ZK.FSQueryInst
 
 /-!
-# The Sudoku proof's four rounds, the first commitment hiding up to `η`
+# The circuits' four rounds, the first commitment hiding up to `η`
 
-`sud_fs_open4` at a first commitment that hides only up to `η`
-(`ComHidesA`, `ComPfHidesA`), through `FSOpenA`'s `fs_open4A`: a Merkle
-commitment whose leaves may share a hash (`ROMMerkleColl`).  One
-direction.
+`sud_fs_open4`, `wit_fs_open4` and `comp_fs_open4` at a first commitment
+that hides only up to `η` (`ComHidesA`, `ComPfHidesA`), through `FSOpenA`'s
+`fs_open4A`: a Merkle commitment whose leaves may share a hash
+(`ROMMerkleColl`).  One direction each: `sud_fs_open4A`, `wit_fs_open4A`,
+`comp_fs_open4A`.
 -/
 
 set_option autoImplicit false
@@ -20,31 +21,10 @@ open B Air Stmt Mach Sudoku SudokuText
 
 set_option maxRecDepth 100000 in
 /-- **`sud_fs_open4` with the first commitment hiding up to `η`**
-    (`fs_open4A`), one direction.
-     **The Sudoku proof over four Fiat–Shamir rounds, the query points
-    hashed**: `sud_fs_open3` with the query points a fourth challenge `c4`,
-    drawn from a fourth table at a function `φ` of the commitments'
-    transcript and the openings at `ζ`, which do not read the query points
-    (`pcsFri_ood`, `pcsFri_oodT`, `pcsFri_oodC`); `φ` may carry a proof-of-work nonce ground
-    against a table of its own, independent of the query table (`fs_pow`).
-    The points are decoded by
-    `S16 S10 SP` (`fs_open4`, `fs_open4R`).  The opening proofs (`Pf`, the
-    Merkle paths at the drawn indices) and FRI's openings and randomness
-    (`fri`, `Rb`, `Ro`) read `c4`; the committed data do not
-    (`sud_same_d`, `sud_data_q`).  Assumed at every `c4`: the decoding
-    admissible (off the trace domains, few enough points), and each
-    commitment hiding given its openings and opening proof there.  Both
-    ways, both counts unguarded, the non-generic `β` and `ζ` in the bound.
-    Assumed besides `sud_fs_open3`'s: the fourth table's input is the
-    commitments' transcript and every opening at `ζ` (the trace groups',
-    the quotient chunks' and the codewords'), without FRI's layer
-    commitments or its final polynomial.  The FRI challenge is hashed
-    too, decoded from `c4` by `αd`; the draws where it fails the verifier's
-    test, at most `B4` of the `K4`, enter the bound as their whole count;
-    Plonky3 samples it before FRI's layers, from the openings at `ζ`
-    (decoded uniformly, `P²` in every `Q4`: `genB_count_mod`).
-    FRI's folding challenges are read from `c4` through `Rb`, as one draw
-    with the query points, not each hashed after its layer. -/
+    (`ComHidesA`, `ComPfHidesA`), through `fs_open4A`: the real count of the
+    four rounds is at most the simulator's plus `fs_open4`'s error and
+    `Q4² NS2 NS3 NR Q4² η` at each draw of the challenges and tables.  One
+    direction; the second and third commitments hide exactly. -/
 theorem sud_fs_open4A {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {puzzle : List Nat} (hc : CluesOK (cluesOf puzzle))
     {ρ : Nat → Bool} {A : List Cell} {k : Nat} {row : Nat → Air.Row}
     (hA : AcceptsFrom A (stmtMachine ρ 729 (sudokuExpr (cluesOf puzzle)) ACC REJ) k row)
@@ -345,31 +325,10 @@ open B Air Compose CompM Stmt Mach Wit
 
 set_option maxRecDepth 100000 in
 /-- **`wit_fs_open4` with the first commitment hiding up to `η`**
-    (`fs_open4A`), one direction.
-     **The hidden-term proof over four Fiat–Shamir rounds, the query points
-    hashed**: `wit_fs_open3` with the query points a fourth challenge `c4`,
-    drawn from a fourth table at a function `φ` of the commitments'
-    transcript and the openings at `ζ`, which do not read the query points
-    (`pcsFri_ood`, `pcsFri_oodT`, `pcsFri_oodC`); `φ` may carry a proof-of-work nonce ground
-    against a table of its own, independent of the query table (`fs_pow`).
-    The points are decoded by
-    `S10 S9 SP` (`fs_open4`, `fs_open4R`).  The opening proofs (`Pf`, the
-    Merkle paths at the drawn indices) and FRI's openings and randomness
-    (`fri`, `Rb`, `Ro`) read `c4`; the committed data do not
-    (`wit_same_d`, `wit_data_q`).  Assumed at every `c4`: the decoding
-    admissible (off the trace domains, few enough points), and each
-    commitment hiding given its openings and opening proof there.  Both
-    ways, both counts unguarded, the non-generic `β` and `ζ` in the bound.
-    Assumed besides `wit_fs_open3`'s: the fourth table's input is the
-    commitments' transcript and every opening at `ζ` (the trace groups',
-    the quotient chunks' and the codewords'), without FRI's layer
-    commitments or its final polynomial.  The FRI challenge is hashed
-    too, decoded from `c4` by `αd`; the draws where it fails the verifier's
-    test, at most `B4` of the `K4`, enter the bound as their whole count;
-    Plonky3 samples it before FRI's layers, from the openings at `ζ`
-    (decoded uniformly, `P²` in every `Q4`: `genB_count_mod`).
-    FRI's folding challenges are read from `c4` through `Rb`, as one draw
-    with the query points, not each hashed after its layer. -/
+    (`ComHidesA`, `ComPfHidesA`), through `fs_open4A`: the real count of the
+    four rounds is at most the simulator's plus `fs_open4`'s error and
+    `Q4² NS2 NS3 NR Q4² η` at each draw of the challenges and tables.  One
+    direction; the second and third commitments hide exactly. -/
 theorem wit_fs_open4A {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {Vt x : Term} {W : Nat} {ws : List Cell} (hwf : WF ws)
     (hwl : ws.length = W) (hW8 : W ≤ 2 ^ 8) {A : List Cell} {k : Nat} {row : Nat → Air.Row}
     (hA : AcceptsFrom A (wMachine ws (Vt ⬝ x)) k row)
@@ -665,31 +624,10 @@ theorem wit_fs_open4A {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {Vt x 
 
 set_option maxRecDepth 100000 in
 /-- **`comp_fs_open4` with the first commitment hiding up to `η`**
-    (`fs_open4A`), one direction.
-     **The composed proof over four Fiat–Shamir rounds, the query points
-    hashed**: `comp_fs_open3` with the query points a fourth challenge `c4`,
-    drawn from a fourth table at a function `φ` of the commitments'
-    transcript and the openings at `ζ`, which do not read the query points
-    (`pcsFri_ood`, `pcsFri_oodT`, `pcsFri_oodC`); `φ` may carry a proof-of-work nonce ground
-    against a table of its own, independent of the query table (`fs_pow`).
-    The points are decoded by
-    `SM SC S9 SP SS` (`fs_open4`, `fs_open4R`).  The opening proofs (`Pf`, the
-    Merkle paths at the drawn indices) and FRI's openings and randomness
-    (`fri`, `Rb`, `Ro`) read `c4`; the committed data do not
-    (`comp_same_d`, `comp_data_q`).  Assumed at every `c4`: the decoding
-    admissible (off the trace domains, few enough points), and each
-    commitment hiding given its openings and opening proof there.  Both
-    ways, both counts unguarded, the non-generic `β` and `ζ` in the bound.
-    Assumed besides `comp_fs_open3`'s: the fourth table's input is the
-    commitments' transcript and every opening at `ζ` (the trace groups',
-    the quotient chunks' and the codewords'), without FRI's layer
-    commitments or its final polynomial.  The FRI challenge is hashed
-    too, decoded from `c4` by `αd`; the draws where it fails the verifier's
-    test, at most `B4` of the `K4`, enter the bound as their whole count;
-    Plonky3 samples it before FRI's layers, from the openings at `ζ`
-    (decoded uniformly, `P²` in every `Q4`: `genB_count_mod`).
-    FRI's folding challenges are read from `c4` through `Rb`, as one draw
-    with the query points, not each hashed after its layer. -/
+    (`ComHidesA`, `ComPfHidesA`), through `fs_open4A`: the real count of the
+    four rounds is at most the simulator's plus `fs_open4`'s error and
+    `Q4² NS2 NS3 NR Q4² η` at each draw of the challenges and tables.  One
+    direction; the second and third commitments hide exactly. -/
 theorem comp_fs_open4A {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {R Lm : Nat} (hR : R ≤ 20) {shp : BT} {Ps : List Term}
     {W : Nat} {ρ : Nat → Bool} {region : List Cell} (hrl : region.length = W)
     (hr : ∀ i c, region[i]? = some c → cellOK (BT.nleaves shp + 3 + i) c = true)

@@ -9,7 +9,8 @@ import Ski.ZK.FSQueryA
 the hits gaining `L` queries' worth (`rom4_transferMC`), and the padded
 ideal opening hides up to the salt vectors where leaves meet
 (`pfMIP_hidesA`, `collB_count`), entering through `sud_fs_open4A`
-(`sud_fs_open4ROMMC`).  One direction.
+(`sud_fs_open4ROMMC`, `wit_fs_open4ROMMC`, `comp_fs_open4ROMMC`).  One
+direction.
 -/
 
 set_option autoImplicit false
@@ -19,14 +20,10 @@ open ZKF
 section
 open B Air Stmt Mach Sudoku SudokuText Compose CompM Wit
 
-/-- **`rom4_transferM` without `hdist`** (`transferMc_inC`), `s (k + L)`
-    in place of `s k`.
-     **The four-round transfer over a Merkle tree's leaves**
-    (`rom4_transfer` with `transferMc_in`): `K = KA^L` times `fs_open4`'s
-    real count with the first commitment the leaves' answers (`comM`, its
-    opening `pfM` showing the opened set `isOf c4` at the drawn query
-    challenge) is at most its count with the ideal opening (`comMI`,
-    `pfMI`) plus `L s k / NSl` a draw. -/
+/-- **`rom4_transferM` without `hdist`** (`transferMc_inC`): `K = KA^L`
+    times the real count with the first commitment the leaves' answers is at
+    most the count with the padded ideal opening plus `L s (k + L) / NSl` a
+    draw. -/
 theorem rom4_transferMC {PV PB D O Pq D2 O2 P2 D3 O3 P3 W : Type}
     {K KA NR m NSl L s k n NS2 NS3 K2 K3 K4 N4 n2 n3 : Nat} (hKA : 0 < KA) (hN : 0 < NSl) (hKL : K = KA ^ L)
     (φ : Nat → W → Nat) (rv : Nat → Nat → Nat → EF → EF → Nat → (Nat → Tup) → TViewN PV PB)
@@ -103,15 +100,12 @@ theorem rom4_transferMC {PV PB D O Pq D2 O2 P2 D3 O3 P3 W : Type}
   exact Nat.le_refl _
 
 set_option maxRecDepth 100000 in
-/-- **`sud_fs_open4ROMM` without `hdist`**: the leaves may share a hash.
-     **`sud_fs_open4` over a Merkle tree's leaves drawn from the oracle**
-    (`fs_open4ROMM`'s commitment): the first commitment the leaves' answers
-    (`comM`, range `KQ = KA^L`), its opening `pfM` showing the opened set
-    `isOf c4` at the drawn query challenge; `rom4_transferM`, then
-    `sud_fs_open4` at the ideal opening (`comMI`, `pfMI`, hiding by
-    `pfMIP_hides`).  `hposO`: the opened values fix the opened leaves'
-    positions, the tie of the leaves to the committed rows, a hypothesis.  The
-    bound gains `L sQ kQ / NSl` a draw; one direction. -/
+/-- **`sud_fs_open4ROMM` without `hdist`**: the first commitment a Merkle
+    tree's leaves that may share a hash.  `rom4_transferMC` moves the real
+    count to the padded ideal opening, which hides up to the salt vectors
+    where leaves meet (`pfMIP_hidesA`, `collB_count`), and `sud_fs_open4A`
+    holds there.  The bound gains `L sQ (kQ + L) / NSl + 2 L² sQ / NSl` a
+    draw; one direction. -/
 theorem sud_fs_open4ROMMC {V Wv Pq P2 P3 : Type} (off : EF → String → EF) {puzzle : List Nat} (hc : CluesOK (cluesOf puzzle))
     {ρ : Nat → Bool} {A : List Cell} {k : Nat} {row : Nat → Air.Row}
     (hA : AcceptsFrom A (stmtMachine ρ 729 (sudokuExpr (cluesOf puzzle)) ACC REJ) k row)
@@ -290,15 +284,12 @@ theorem sud_fs_open4ROMMC {V Wv Pq P2 P3 : Type} (off : EF → String → EF) {p
     Com2 Pf2 ov2 main2 Com3 Pf3 ov3 main3 E) (Nat.add_le_add_right fo _)
 
 set_option maxRecDepth 100000 in
-/-- **`wit_fs_open4ROMM` without `hdist`**: the leaves may share a hash.
-     **`wit_fs_open4` over a Merkle tree's leaves drawn from the oracle**
-    (`fs_open4ROMM`'s commitment): the first commitment the leaves' answers
-    (`comM`, range `KQ = KA^L`), its opening `pfM` showing the opened set
-    `isOf c4` at the drawn query challenge; `rom4_transferM`, then
-    `wit_fs_open4` at the ideal opening (`comMI`, `pfMI`, hiding by
-    `pfMIP_hides`).  `hposO`: the opened values fix the opened leaves'
-    positions, the tie of the leaves to the committed rows, a hypothesis.  The
-    bound gains `L sQ kQ / NSl` a draw; one direction. -/
+/-- **`wit_fs_open4ROMM` without `hdist`**: the first commitment a Merkle
+    tree's leaves that may share a hash.  `rom4_transferMC` moves the real
+    count to the padded ideal opening, which hides up to the salt vectors
+    where leaves meet (`pfMIP_hidesA`, `collB_count`), and `wit_fs_open4A`
+    holds there.  The bound gains `L sQ (kQ + L) / NSl + 2 L² sQ / NSl` a
+    draw; one direction. -/
 theorem wit_fs_open4ROMMC {V Wv Pq P2 P3 : Type} (off : EF → String → EF) {Vt x : Term} {W : Nat} {ws : List Cell} (hwf : WF ws)
     (hwl : ws.length = W) (hW8 : W ≤ 2 ^ 8) {A : List Cell} {k : Nat} {row : Nat → Air.Row}
     (hA : AcceptsFrom A (wMachine ws (Vt ⬝ x)) k row)
@@ -478,15 +469,12 @@ theorem wit_fs_open4ROMMC {V Wv Pq P2 P3 : Type} (off : EF → String → EF) {V
     Com2 Pf2 ov2 main2 Com3 Pf3 ov3 main3 E) (Nat.add_le_add_right fo _)
 
 set_option maxRecDepth 100000 in
-/-- **`comp_fs_open4ROMM` without `hdist`**: the leaves may share a hash.
-     **`comp_fs_open4` over a Merkle tree's leaves drawn from the oracle**
-    (`fs_open4ROMM`'s commitment): the first commitment the leaves' answers
-    (`comM`, range `KQ = KA^L`), its opening `pfM` showing the opened set
-    `isOf c4` at the drawn query challenge; `rom4_transferM`, then
-    `comp_fs_open4` at the ideal opening (`comMI`, `pfMI`, hiding by
-    `pfMIP_hides`).  `hposO`: the opened values fix the opened leaves'
-    positions, the tie of the leaves to the committed rows, a hypothesis.  The
-    bound gains `L sQ kQ / NSl` a draw; one direction. -/
+/-- **`comp_fs_open4ROMM` without `hdist`**: the first commitment a Merkle
+    tree's leaves that may share a hash.  `rom4_transferMC` moves the real
+    count to the padded ideal opening, which hides up to the salt vectors
+    where leaves meet (`pfMIP_hidesA`, `collB_count`), and `comp_fs_open4A`
+    holds there.  The bound gains `L sQ (kQ + L) / NSl + 2 L² sQ / NSl` a
+    draw; one direction. -/
 theorem comp_fs_open4ROMMC {V Wv Pq P2 P3 : Type} (off : EF → String → EF) {R Lm : Nat} (hR : R ≤ 20) {shp : BT} {Ps : List Term}
     {W : Nat} {ρ : Nat → Bool} {region : List Cell} (hrl : region.length = W)
     (hr : ∀ i c, region[i]? = some c → cellOK (BT.nleaves shp + 3 + i) c = true)
