@@ -2,34 +2,40 @@ import Ski.ZK.FriCommit
 import Ski.ZK.FSMultiMixSud
 
 /-!
-# The Sudoku proofs with FRI in Plonky3's order as an opening
+# The Sudoku proofs with FRI's commit-phase reads in Plonky3's order
 
-`FriCommit` builds a commit-phase strategy of FRI's shape in Plonky3's
-order (`friCommitQCPf`).  Here it is the third opening of
-`sud_interleaveD`'s Sudoku proofs, and the proofs' own FRI view is constant
-(`sud_interleaveFRI`; `fri`, `Rb`, `Ro` constant, so that view component is
-`((), ())`).  The opening reads the three earlier challenges (the
+`FriCommit` builds commit-phase read strategies in Plonky3's order.  Here
+the third opening of `sud_interleaveD`'s Sudoku proofs reads that way and
+the proofs' own FRI view is constant (`sud_interleaveFRI`; `fri`, `Rb`,
+`Ro` constant, so that view component is `((), ())`).  The opening
+(`pfRd` with `friCommitNxtC`) reads the three earlier challenges (the
 protocol's messages, by the layout of `m3` under `hr1`, `hr2`), then `k3`
-layer reads at `φ3 M (Rᵢ, i)`, then its query seed, its reads blind to
-`c4`; its output (`out3`) may read `c4`, the rows it opens, which makes
-the seed read redundant.  The theorem holds for any `layer3`, `out3` and
-`φ3`: nothing constrains them to fold, to stay below the table, or to avoid the proof's
-own query point (a read landing there returns `c4`'s value).
+layer reads at `φ3 M (Rᵢ, i)`, then a seed (`friCommitQC_seed`), its
+reads blind to `c4`; its output `out3` reads `c4`, whose rows it answers,
+and may ignore the seed.  The theorem holds for any `layer3`, `out3` and
+`φ3`: nothing constrains them to fold, to stay below the table, or to
+avoid the proof's own query point (a read landing there returns `c4`'s
+value).
 
 Limits, beyond the instantiation:
-- **Hiding.**  FRI's hiding moves from `sud_pcs`, which held for any `fri`,
-  to the hypothesis `hp3`, which fixes the opening's data and asks the
-  output's distribution over the salt to hide it given the values opened
-  at `c4`'s rows.  The opening's output reads `c4` (`out3`), as Plonky3's
-  answers at its query rows do: an output blind to `c4` would have to meet
-  `hp3` for every `c4` at once, which by interpolation only data-blind
-  outputs do.  `comPf_op` shows data-dependent outputs meet it (the opened
-  values themselves).  Whether Plonky3's FRI, masking with codewords inside
-  the data, meets it is `MaskFri`'s question, not answered here.
-- **Order.**  The folding challenges are read blind to `c4` and the
-  query rows come from `c4`, but `c4`'s point `φ m3 w` does not hash the
-  layer roots, where Plonky3 samples its queries after observing them: a
-  soundness gap, not a hiding one.
+- **Order.**  The query rows are `c4`'s, drawn before the commit phase from
+  a point `φ m3 w` that hashes neither the layer roots nor the seed; in
+  Plonky3 they come from a seed sampled after the roots.  That is a
+  soundness gap, and the hiding premise rests on the reordering too:
+  `hp3` fixes `c4`, so the opened rows, before the salt is drawn.
+- **Hiding.**  FRI's hiding moves from `sud_pcs`, which held for any
+  `fri`, to the hypothesis `hp3`: for fixed data and every table, the
+  output's distribution over the salt is fixed by the values opened at
+  `c4`'s rows.  An output blind to `c4` would have to meet it for every
+  `c4` at once, which by interpolation only data-blind outputs do;
+  reading `c4` lifts that, and `comPf_op` shows outputs that are the
+  opened values themselves meet it.  But at all-zero tables every read is
+  `0`, so every part of the output computed from the data and the reads
+  alone, Plonky3's final polynomial among them, must be a function of the
+  opened values: Plonky3's FRI, its codewords fixed inside the data, does
+  not meet `hp3`, and `MaskFri`'s shift of the codewords' randomness
+  cannot help while `hp3` holds them fixed.  A faithful version needs the
+  codewords drawn from the salt, or `hp3` averaged over the tables.
 - **Coverage.**  The opening sees slot 3's data only (the quotient table's
   chunks and codewords, through `pfPair`; the binder `d3` is unused); the
   trace polynomials and codewords of slots 1 and 2 and the matrices `Rb`
@@ -58,8 +64,8 @@ section
 open B Air Stmt Mach Sudoku SudokuText Compose CompM Wit
 
 set_option maxRecDepth 100000 in
-/-- **The Sudoku proofs with a commit phase of FRI's shape, in Plonky3's
-    order, as their third opening**: `sud_interleaveD` with the third opening reading the earlier
+/-- **The Sudoku proofs with FRI's commit-phase reads in Plonky3's order
+    as their third opening, the queries at `c4`'s rows**: `sud_interleaveD` with the third opening reading the earlier
     challenges, `k3` layer reads, and the query seed last
     (`friCommitNxtC`, `friCommitQC_seed`), its reads blind to `c4` and its
     output `out3` reading it, and the
