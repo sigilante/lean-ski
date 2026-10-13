@@ -17,8 +17,8 @@ group places them at distinct points, every opened leaf is queried
 `L`: no map from all of `Nat` into the field is injective.  Points read off
 the leaf index meet it for `L ≤ P` (`xsW_inj`, `sud_opened_iff_xsW`).  They show the
 separation satisfiable, not the circuits' conditions that query points
-lie off the trace domain (`hS16` …), which LDE coset points
-`shift · ω ^ l` would meet.
+lie off the trace domain (`hS16` …), which the LDE points `xsL` below
+meet.
 
 Mixed heights fit the converse.  In Plonky3 a shorter matrix's row serves
 a block of leaves: leaf `l` reads row `l / 2 ^ sh k` of group `k`, where
@@ -28,11 +28,28 @@ repeat, but the tallest group (`sh k0 = 0`) separates the leaves when its
 decides the opened leaf (`isOfRows_xsSh_iff`, for sets built by `qSets`;
 the per-circuit theorems take any `xs`).
 
-Not shown: that the circuits' query sets (`S16`, `S10`, `SP` and the
-others) are the points of indices FRI draws from the fourth challenge (the
-per-circuit theorems take it as hypotheses `h0` … on each set); that the
-tallest group's points are distinct (a hypothesis, `hinj`); FRI's own
-layer commitments and their openings (`friX` takes FRI as a function);
+FRI's query points are the LDE coset `31 · ⟨ω⟩` at each group's row,
+stored bit-reversed as Plonky3 stores them (`xsL`, `revBits`).  They lie
+off every trace domain (`xsL_off`, by `lde_off_trace`), and the tallest
+group's `2 ^ (bl k0 + 1)` points are distinct (`xsL_inj`, `revBits_inj`).
+The faithful choice is `bl k` the group's LDE log height less one and
+`sh k = bl 0 - bl k`, group 0 the tallest; `sud_fri_leaves` holds for any
+`bl`, `sh` with `sh 0 = 0`, which at that choice asks the program table no
+taller than `2 ^ 16` (`tP ≤ 15`).  For the Sudoku circuit with its query
+sets built from FRI's indices at these points, the off-trace conditions
+`hS16`, `hS10`, `hSP` hold, `hposO` holds at the queried leaves, and the
+opened real leaves are exactly the queried ones (`sud_fri_leaves`).  The
+PCS views (`pcsZ`) and `hposO` read the same sets `S16 c4` ….  The
+hidden-term circuit follows the same way; the composed one also needs its
+program and statement tables' heights `tpP, tpS ≤ 26`, and its tallest
+group is not fixed in advance.
+
+Not shown: that the indices are those Plonky3 draws from the fourth
+challenge (`idx c4` is any list of leaves below the first round's tallest
+height, which Plonky3 takes as the global maximum it draws below; the size
+conditions `hsz16` … stay hypotheses bounding its length); a theorem
+feeding `sud_fri_leaves` into `sud_fs_open4ROMM`; FRI's own layer
+commitments and their openings (`friX` takes FRI as a function);
 Plonky3's injection of shorter rows at internal nodes
 (`compress_and_inject`), here the shared row `l / 2 ^ sh k` at the leaf;
 and per-matrix salts.
@@ -126,6 +143,78 @@ theorem xsW_inj {L k0 : Nat} (hL : L ≤ P) : ∀ l l', l < L → l' < L → xsW
   have e' := congrArg Fin.val e
   simp only [xsW] at e'
   rwa [Nat.mod_eq_of_lt (Nat.lt_of_lt_of_le hl hL), Nat.mod_eq_of_lt (Nat.lt_of_lt_of_le hl' hL)] at e'
+
+/-- The low `n` bits of `i`, reversed. -/
+def revBits : Nat → Nat → Nat
+  | 0, _ => 0
+  | n + 1, i => i % 2 * 2 ^ n + revBits n (i / 2)
+
+theorem revBits_lt : ∀ n i, revBits n i < 2 ^ n
+  | 0, _ => by simp [revBits]
+  | n + 1, i => by
+    have ih := revBits_lt n (i / 2)
+    have h2 : i % 2 ≤ 1 := Nat.le_of_lt_succ (Nat.mod_lt _ (by decide))
+    show i % 2 * 2 ^ n + revBits n (i / 2) < 2 ^ (n + 1)
+    rw [Nat.pow_succ]
+    calc i % 2 * 2 ^ n + revBits n (i / 2) < i % 2 * 2 ^ n + 2 ^ n := Nat.add_lt_add_left ih _
+      _ = (i % 2 + 1) * 2 ^ n := by rw [Nat.add_mul, Nat.one_mul]
+      _ ≤ 2 * 2 ^ n := Nat.mul_le_mul_right _ (by omega)
+      _ = 2 ^ n * 2 := Nat.mul_comm _ _
+
+theorem revBits_inj : ∀ n i j, i < 2 ^ n → j < 2 ^ n → revBits n i = revBits n j → i = j
+  | 0, i, j, hi, hj, _ => by simp at hi hj; omega
+  | n + 1, i, j, hi, hj, e => by
+    have ri := revBits_lt n (i / 2)
+    have rj := revBits_lt n (j / 2)
+    change i % 2 * 2 ^ n + revBits n (i / 2) = j % 2 * 2 ^ n + revBits n (j / 2) at e
+    have hm : i % 2 = j % 2 := by
+      have a := Nat.mod_lt i (show 0 < 2 by decide)
+      have b := Nat.mod_lt j (show 0 < 2 by decide)
+      rcases Nat.lt_or_ge (i % 2) 1 with h | h <;> rcases Nat.lt_or_ge (j % 2) 1 with h' | h'
+      · omega
+      · have : i % 2 = 0 := by omega
+        have : j % 2 = 1 := by omega
+        simp only [*, Nat.zero_mul, Nat.one_mul, Nat.zero_add] at e; omega
+      · have : i % 2 = 1 := by omega
+        have : j % 2 = 0 := by omega
+        simp only [*, Nat.zero_mul, Nat.one_mul, Nat.zero_add] at e; omega
+      · omega
+    rw [hm] at e
+    have e' := Nat.add_left_cancel e
+    have hd := revBits_inj n (i / 2) (j / 2) (by rw [Nat.pow_succ] at hi; omega) (by rw [Nat.pow_succ] at hj; omega) e'
+    omega
+
+/-- FRI's query points: leaf `l` reads row `l / 2 ^ sh k` of group `k`, stored
+    bit-reversed, on the LDE coset `31 · ⟨bbGen (bl k + 1)⟩` (Plonky3's
+    `x = GENERATOR · ω ^ reverse_bits_len (index >> bits_reduced, log_h)`). -/
+def xsL (bl sh : Nat → Nat) (l k : Nat) : F :=
+  31 * fpow (bbGen (bl k + 1)) (revBits (bl k + 1) (l / 2 ^ sh k))
+
+/-- **FRI's query points lie off every trace domain** (`lde_off_trace`):
+    a query set built from any indices meets the circuits' `hS16`, `hS10`,
+    `hSP` and the rest. -/
+theorem xsL_off {bl sh : Nat → Nat} (hbl : ∀ k, bl k ≤ 26) {tb : Nat} (htb : tb ≤ 26) (idx : List Nat) (k : Nat) :
+    ∀ x ∈ idx.map (fun l => xsL bl sh l k), x ∉ cosetL 1 (bbGen (tb + 1)) (2 ^ (tb + 1)) := by
+  intro x hx
+  obtain ⟨l, _, rfl⟩ := List.mem_map.1 hx
+  exact lde_off_trace htb (hbl k) _
+
+theorem mul31_cancel {a b : F} (h : 31 * a = 31 * b) : a = b := by
+  have e : (31 : F) * (a - b) = 0 := by
+    rw [show (31 : F) * (a - b) = 31 * a - 31 * b from
+      fid (e := E.const 31 * (v 0 - v 1)) (e' := E.const 31 * v 0 - E.const 31 * v 1) (by decide) [a, b], h, sub_self']
+  rcases mul_eq_zero e with e | e
+  · exact absurd e (by decide)
+  · exact sub_eq_zero e
+
+/-- **The tallest group separates the real leaves**: its `2 ^ (bl k0 + 1)`
+    LDE points are distinct (`fpow_inj`). -/
+theorem xsL_inj {bl sh : Nat → Nat} {k0 : Nat} (h0 : sh k0 = 0) (hb : bl k0 ≤ 26) :
+    ∀ l l', l < 2 ^ (bl k0 + 1) → l' < 2 ^ (bl k0 + 1) → xsL bl sh l k0 = xsL bl sh l' k0 → l = l' := by
+  intro l l' hl hl' e
+  unfold xsL at e
+  rw [h0, Nat.pow_zero, Nat.div_one, Nat.div_one] at e
+  exact revBits_inj _ l l' hl hl' (fpow_inj (bbGen_half (bl k0) hb) (revBits_lt _ _) (revBits_lt _ _) (mul31_cancel e))
 
 section
 open B Air Stmt Mach Sudoku SudokuText Compose CompM Wit
@@ -249,6 +338,37 @@ theorem sud_opened_iff_xsW {tP : Nat} {ζ : EF} {qv : EF → EF → List EF → 
     isOfRows ((sudGroups tP (idx.map (fun l => xsW l 0)) (idx.map (fun l => xsW l 4)) (idx.map (fun l => xsW l 6))
       ζ qv).map (·.base.S)) [0, 2, 4, 6] xsW l = true ↔ l ∈ idx :=
   sud_opened_iff rfl rfl rfl rfl hidx (List.mem_cons_self ..) (xsW_inj hL) hl
+
+/-- **The Sudoku circuit with FRI's query sets**: the sets `S16`, `S10`,
+    `SP` built from FRI's indices `idx c4` at the LDE points `xsL` (groups
+    `0, 2` share a height) meet the circuit's off-trace conditions, the
+    circuit's `hposO` holds at the queried leaves, and the opened real leaves
+    are exactly the queried ones. -/
+theorem sud_fri_leaves {tP : Nat} {qv : EF → EF → List EF → F → List F → List F → List EF}
+    {bl sh : Nat → Nat} (hbl : ∀ k, bl k ≤ 26) (h20 : bl 2 = bl 0) (s20 : sh 2 = sh 0) (hs0 : sh 0 = 0)
+    (htP : tP ≤ 26) {idx : Nat → List Nat} (hidx : ∀ c4, ∀ l ∈ idx c4, l < 2 ^ (bl 0 + 1))
+    {h : List (List F) → Nat} {NSl Mh : Nat} :
+    let S16 := fun c4 => (idx c4).map (fun l => xsL bl sh l 0)
+    let S10 := fun c4 => (idx c4).map (fun l => xsL bl sh l 4)
+    let SP := fun c4 => (idx c4).map (fun l => xsL bl sh l 6)
+    (∀ c4, ∀ x ∈ S16 c4, x ∉ cosetL 1 (bbGen 16) (2 ^ 16)) ∧ (∀ c4, ∀ x ∈ S10 c4, x ∉ cosetL 1 (bbGen 10) (2 ^ 10)) ∧
+    (∀ c4, ∀ x ∈ SP c4, x ∉ cosetL 1 (bbGen (tP + 1)) (2 ^ (tP + 1))) ∧
+    (∀ c4 d d', opF ((sudGroups tP (S16 c4) (S10 c4) (SP c4) EF.zero qv).map (·.base.S)) [0, 2, 4, 6] d =
+        opF ((sudGroups tP (S16 c4) (S10 c4) (SP c4) EF.zero qv).map (·.base.S)) [0, 2, 4, 6] d' →
+      ∀ l a, decide (l ∈ idx c4) = true →
+        posRows (xsL bl sh) [0, 2, 4, 6] h (2 ^ (bl 0 + 1)) NSl Mh d l a =
+          posRows (xsL bl sh) [0, 2, 4, 6] h (2 ^ (bl 0 + 1)) NSl Mh d' l a) ∧
+    (∀ c4 l, l < 2 ^ (bl 0 + 1) →
+      (isOfRows ((sudGroups tP (S16 c4) (S10 c4) (SP c4) EF.zero qv).map (·.base.S)) [0, 2, 4, 6] (xsL bl sh) l = true ↔
+        l ∈ idx c4)) := by
+  intro S16 S10 SP
+  have h2 : ∀ c4, S16 c4 = (idx c4).map (fun l => xsL bl sh l 2) := fun c4 => by
+    show (idx c4).map (fun l => xsL bl sh l 0) = _
+    unfold xsL; rw [h20, s20]
+  refine ⟨fun c4 => xsL_off hbl (tb := 15) (by decide) _ 0, fun c4 => xsL_off hbl (tb := 9) (by decide) _ 4,
+    fun c4 => xsL_off hbl htP _ 6, sud_hposO_idx (fun _ => rfl) h2 (fun _ => rfl) (fun _ => rfl), ?_⟩
+  intro c4 l hl
+  exact sud_opened_iff rfl (h2 c4) rfl rfl (hidx c4) (List.mem_cons_self ..) (xsL_inj hs0 (hbl 0)) hl
 
 end
 
