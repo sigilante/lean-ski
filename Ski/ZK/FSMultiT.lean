@@ -362,21 +362,21 @@ theorem fs_open4_absT {PV PB D1 O1 P1 D2 O2 P2 D3 O3 P3 W : Type} {NR m e1 e2 NS
       tsumN NR m (fun α β r t => indB (genB β && E (sv c4 c2 c3 α β r t))) ≤
         tsumN NR m (fun α β r t => indB (genB β && E (rv c4 c2 c3 α β r t))) + e1 + e2)
     (Com1 : D1 → Nat → Nat) 
-    (Pf1 : Nat → Nat → Nat → Nat → Nat → D1 → Nat → P1) (op1 : Nat → D1 → O1) (sd1 : Nat → O1 → D1) (d1 : D1)
+    (Pf1 : Nat → Nat → Nat → Nat → Nat → Nat → D1 → Nat → P1) (op1 : Nat → D1 → O1) (sd1 : Nat → O1 → D1) (d1 : D1)
     (hc1 : ComHides NS1 Com1) 
-    (hp1 : ∀ c4 T1 T2 T3 T4, ComPfHides NS1 Com1 (Pf1 c4 T1 T2 T3 T4) (op1 c4)) (hr1 : ∀ d σ, Com1 d σ < n1)
+    (hp1 : ∀ c4 T1 T2 T3 T4 M, ComPfHides NS1 Com1 (Pf1 c4 T1 T2 T3 T4 M) (op1 c4)) (hr1 : ∀ d σ, Com1 d σ < n1)
     (ov1 : Nat → TViewN PV PB → Option O1) (hov1 : ∀ c4, ov1 c4 none = none) (main1 : (Nat → Tup) → Nat → D1)
     (hsd1 : ∀ c4 t r, op1 c4 (sd1 c4 (op1 c4 (main1 t r))) = op1 c4 (main1 t r))
     (Com2 : D2 → Nat → Nat) 
-    (Pf2 : Nat → Nat → Nat → Nat → Nat → D2 → Nat → P2) (op2 : Nat → D2 → O2) (sd2 : Nat → O2 → D2) (d2 : D2)
+    (Pf2 : Nat → Nat → Nat → Nat → Nat → Nat → D2 → Nat → P2) (op2 : Nat → D2 → O2) (sd2 : Nat → O2 → D2) (d2 : D2)
     (hc2 : ComHides NS2 Com2) 
-    (hp2 : ∀ c4 T1 T2 T3 T4, ComPfHides NS2 Com2 (Pf2 c4 T1 T2 T3 T4) (op2 c4)) (hr2 : ∀ d σ, Com2 d σ < n2)
+    (hp2 : ∀ c4 T1 T2 T3 T4 M, ComPfHides NS2 Com2 (Pf2 c4 T1 T2 T3 T4 M) (op2 c4)) (hr2 : ∀ d σ, Com2 d σ < n2)
     (ov2 : Nat → TViewN PV PB → Option O2) (hov2 : ∀ c4, ov2 c4 none = none) (main2 : Nat → (Nat → Tup) → Nat → D2)
     (hsd2 : ∀ c4 c t r, op2 c4 (sd2 c4 (op2 c4 (main2 c t r))) = op2 c4 (main2 c t r))
     (Com3 : D3 → Nat → Nat) 
-    (Pf3 : Nat → Nat → Nat → Nat → Nat → D3 → Nat → P3) (op3 : Nat → D3 → O3) (sd3 : Nat → O3 → D3) (d3 : D3)
+    (Pf3 : Nat → Nat → Nat → Nat → Nat → Nat → D3 → Nat → P3) (op3 : Nat → D3 → O3) (sd3 : Nat → O3 → D3) (d3 : D3)
     (hc3 : ComHides NS3 Com3) 
-    (hp3 : ∀ c4 T1 T2 T3 T4, ComPfHides NS3 Com3 (Pf3 c4 T1 T2 T3 T4) (op3 c4)) (hr3 : ∀ d σ, Com3 d σ < n3)
+    (hp3 : ∀ c4 T1 T2 T3 T4 M, ComPfHides NS3 Com3 (Pf3 c4 T1 T2 T3 T4 M) (op3 c4)) (hr3 : ∀ d σ, Com3 d σ < n3)
     (ov3 : Nat → TViewN PV PB → Option O3) (hov3 : ∀ c4, ov3 c4 none = none) (main3 : Nat → Nat → (Nat → Tup) → Nat → D3)
     (hsd3 : ∀ c4 c c' t r, op3 c4 (sd3 c4 (op3 c4 (main3 c c' t r))) = op3 c4 (main3 c c' t r))
     (hvo1 : ∀ c4 c2 c3 c r t, rv c4 c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t = none ∨
@@ -398,9 +398,9 @@ theorem fs_open4_absT {PV PB D1 O1 P1 D2 O2 P2 D3 O3 P3 W : Type} {NR m e1 e2 NS
     let m3 := fun (c1 c2 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
       m1 x + n1 * comPair NS2 n2 Com2 Com3 (main2 c1 x.2.2.2 x.2.2.1, main3 c1 c2 x.2.2.2 x.2.2.1) x.2.1
     let rvo := fun (T1 T2 T3 T4 c4 c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
-      ((ov1 c4 (rv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)).map (fun _ => Pf1 c4 T1 T2 T3 T4 (main1 x.2.2.2 x.2.2.1) x.1),
+      ((ov1 c4 (rv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)).map (fun _ => Pf1 c4 T1 T2 T3 T4 (m3 c1 c2 x) (main1 x.2.2.2 x.2.2.1) x.1),
        (ovPair (ov2 c4) (ov3 c4) (rv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)).map
-         (fun _ => pfPair NS2 (Pf2 c4 T1 T2 T3 T4) (Pf3 c4 T1 T2 T3 T4) (main2 c1 x.2.2.2 x.2.2.1, main3 c1 c2 x.2.2.2 x.2.2.1) x.2.1),
+         (fun _ => pfPair NS2 (Pf2 c4 T1 T2 T3 T4 (m3 c1 c2 x)) (Pf3 c4 T1 T2 T3 T4 (m3 c1 c2 x)) (main2 c1 x.2.2.2 x.2.2.1, main3 c1 c2 x.2.2.2 x.2.2.1) x.2.1),
        rv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)
     let s1 := fun (c4 _c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) => Com1 (sd1 c4 (sop1 c4 c2 c3 x.2.2.1 x.2.2.2)) x.1
     let s2 := fun (c4 c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
@@ -409,8 +409,8 @@ theorem fs_open4_absT {PV PB D1 O1 P1 D2 O2 P2 D3 O3 P3 W : Type} {NR m e1 e2 NS
       s1 c4 c1 c2 c3 x + n1 * comPair NS2 n2 Com2 Com3
         (sd2 c4 (sop2 c4 c2 c3 c1 x.2.2.1 x.2.2.2), sd3 c4 (sop3 c4 c2 c3 c1 x.2.2.1 x.2.2.2)) x.2.1
     let svo := fun (T1 T2 T3 T4 c4 c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
-      (some (Pf1 c4 T1 T2 T3 T4 (sd1 c4 (sop1 c4 c2 c3 x.2.2.1 x.2.2.2)) x.1),
-       some (pfPair NS2 (Pf2 c4 T1 T2 T3 T4) (Pf3 c4 T1 T2 T3 T4) (sd2 c4 (sop2 c4 c2 c3 c1 x.2.2.1 x.2.2.2), sd3 c4 (sop3 c4 c2 c3 c1 x.2.2.1 x.2.2.2)) x.2.1),
+      (some (Pf1 c4 T1 T2 T3 T4 (s3 c4 c1 c2 c3 x) (sd1 c4 (sop1 c4 c2 c3 x.2.2.1 x.2.2.2)) x.1),
+       some (pfPair NS2 (Pf2 c4 T1 T2 T3 T4 (s3 c4 c1 c2 c3 x)) (Pf3 c4 T1 T2 T3 T4 (s3 c4 c1 c2 c3 x)) (sd2 c4 (sop2 c4 c2 c3 c1 x.2.2.1 x.2.2.2), sd3 c4 (sop3 c4 c2 c3 c1 x.2.2.1 x.2.2.2)) x.2.1),
        sv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)
     let sm4 := fun (g : Nat × Nat × Nat × (Nat × Nat × Nat × (Nat → Tup)) → Nat) =>
       sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (K2 ^ (n1 * n2)) (fun H2 =>

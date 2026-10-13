@@ -432,8 +432,9 @@ theorem fs_lastGT {Y Vw : Type} {K4 n4 K ε B4 : Nat} (hK4 : 0 < K4) (sm : (Y �
 
 /-- **Fiat–Shamir over four rounds, every commitment opened, the openings
     reading all four oracle tables** (`fs_open4` over `fs_lastGT` and
-    `fs_open3UT`): `Pf1T c4 T1 T2 T3 T4`, hiding given at every choice of
-    tables.  After the fourth reprogramming the openings read the fourth
+    `fs_open3UT`): `Pf1T c4 T1 T2 T3 T4 M`, hiding given at every choice of
+    tables and of `M`, the third message, whose low digit is the first
+    commitment.  After the fourth reprogramming the openings read the fourth
     table set at `φ` of the third message and `oz` of the view; inside, the
     first three as in `fs_open3T`.  Unguarded; one proof per oracle. -/
 theorem fs_open4T {PV PB D1 O1 P1 D2 O2 P2 D3 O3 P3 W : Type} {NR m e1 e2 NS1 NS2 NS3 K2 K3 K4 n1 n2 n3 : Nat}
@@ -452,21 +453,21 @@ theorem fs_open4T {PV PB D1 O1 P1 D2 O2 P2 D3 O3 P3 W : Type} {NR m e1 e2 NS1 NS
       tsumN NR m (fun α β r t => indB (genB β && E (sv c4 c2 c3 α β r t))) ≤
         tsumN NR m (fun α β r t => indB (genB β && E (rv c4 c2 c3 α β r t))) + e1 + e2)
     (Com1 : D1 → Nat → Nat) 
-    (Pf1T : Nat → Nat → Nat → Nat → Nat → D1 → Nat → P1) (op1 : Nat → D1 → O1) (sd1 : Nat → O1 → D1) (d1 : D1)
+    (Pf1T : Nat → Nat → Nat → Nat → Nat → Nat → D1 → Nat → P1) (op1 : Nat → D1 → O1) (sd1 : Nat → O1 → D1) (d1 : D1)
     (hc1 : ComHides NS1 Com1) 
-    (hp1 : ∀ c4 T1 T2 T3 T4, ComPfHides NS1 Com1 (Pf1T c4 T1 T2 T3 T4) (op1 c4)) (hr1 : ∀ d σ, Com1 d σ < n1)
+    (hp1 : ∀ c4 T1 T2 T3 T4 M, ComPfHides NS1 Com1 (Pf1T c4 T1 T2 T3 T4 M) (op1 c4)) (hr1 : ∀ d σ, Com1 d σ < n1)
     (ov1 : Nat → TViewN PV PB → Option O1) (hov1 : ∀ c4, ov1 c4 none = none) (main1 : (Nat → Tup) → Nat → D1)
     (hsd1 : ∀ c4 t r, op1 c4 (sd1 c4 (op1 c4 (main1 t r))) = op1 c4 (main1 t r))
     (Com2 : D2 → Nat → Nat) 
-    (Pf2T : Nat → Nat → Nat → Nat → Nat → D2 → Nat → P2) (op2 : Nat → D2 → O2) (sd2 : Nat → O2 → D2) (d2 : D2)
+    (Pf2T : Nat → Nat → Nat → Nat → Nat → Nat → D2 → Nat → P2) (op2 : Nat → D2 → O2) (sd2 : Nat → O2 → D2) (d2 : D2)
     (hc2 : ComHides NS2 Com2) 
-    (hp2 : ∀ c4 T1 T2 T3 T4, ComPfHides NS2 Com2 (Pf2T c4 T1 T2 T3 T4) (op2 c4)) (hr2 : ∀ d σ, Com2 d σ < n2)
+    (hp2 : ∀ c4 T1 T2 T3 T4 M, ComPfHides NS2 Com2 (Pf2T c4 T1 T2 T3 T4 M) (op2 c4)) (hr2 : ∀ d σ, Com2 d σ < n2)
     (ov2 : Nat → TViewN PV PB → Option O2) (hov2 : ∀ c4, ov2 c4 none = none) (main2 : Nat → (Nat → Tup) → Nat → D2)
     (hsd2 : ∀ c4 c t r, op2 c4 (sd2 c4 (op2 c4 (main2 c t r))) = op2 c4 (main2 c t r))
     (Com3 : D3 → Nat → Nat) 
-    (Pf3T : Nat → Nat → Nat → Nat → Nat → D3 → Nat → P3) (op3 : Nat → D3 → O3) (sd3 : Nat → O3 → D3) (d3 : D3)
+    (Pf3T : Nat → Nat → Nat → Nat → Nat → Nat → D3 → Nat → P3) (op3 : Nat → D3 → O3) (sd3 : Nat → O3 → D3) (d3 : D3)
     (hc3 : ComHides NS3 Com3) 
-    (hp3 : ∀ c4 T1 T2 T3 T4, ComPfHides NS3 Com3 (Pf3T c4 T1 T2 T3 T4) (op3 c4)) (hr3 : ∀ d σ, Com3 d σ < n3)
+    (hp3 : ∀ c4 T1 T2 T3 T4 M, ComPfHides NS3 Com3 (Pf3T c4 T1 T2 T3 T4 M) (op3 c4)) (hr3 : ∀ d σ, Com3 d σ < n3)
     (ov3 : Nat → TViewN PV PB → Option O3) (hov3 : ∀ c4, ov3 c4 none = none) (main3 : Nat → Nat → (Nat → Tup) → Nat → D3)
     (hsd3 : ∀ c4 c c' t r, op3 c4 (sd3 c4 (op3 c4 (main3 c c' t r))) = op3 c4 (main3 c c' t r))
     (hvo1 : ∀ c4 c2 c3 c r t, rv c4 c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t = none ∨
@@ -489,9 +490,9 @@ theorem fs_open4T {PV PB D1 O1 P1 D2 O2 P2 D3 O3 P3 W : Type} {NR m e1 e2 NS1 NS
     let m3 := fun (c1 c2 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
       m1 x + n1 * comPair NS2 n2 Com2 Com3 (main2 c1 x.2.2.2 x.2.2.1, main3 c1 c2 x.2.2.2 x.2.2.1) x.2.1
     let rvo := fun (T1 T2 T3 T4 c4 c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
-      ((ov1 c4 (rv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)).map (fun _ => Pf1T c4 T1 T2 T3 T4 (main1 x.2.2.2 x.2.2.1) x.1),
+      ((ov1 c4 (rv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)).map (fun _ => Pf1T c4 T1 T2 T3 T4 (m3 c1 c2 x) (main1 x.2.2.2 x.2.2.1) x.1),
        (ovPair (ov2 c4) (ov3 c4) (rv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)).map
-         (fun _ => pfPair NS2 (Pf2T c4 T1 T2 T3 T4) (Pf3T c4 T1 T2 T3 T4) (main2 c1 x.2.2.2 x.2.2.1, main3 c1 c2 x.2.2.2 x.2.2.1) x.2.1),
+         (fun _ => pfPair NS2 (Pf2T c4 T1 T2 T3 T4 (m3 c1 c2 x)) (Pf3T c4 T1 T2 T3 T4 (m3 c1 c2 x)) (main2 c1 x.2.2.2 x.2.2.1, main3 c1 c2 x.2.2.2 x.2.2.1) x.2.1),
        rv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)
     let s1 := fun (c4 _c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) => Com1 (sd1 c4 (sop1 c4 c2 c3 x.2.2.1 x.2.2.2)) x.1
     let s2 := fun (c4 c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
@@ -500,8 +501,8 @@ theorem fs_open4T {PV PB D1 O1 P1 D2 O2 P2 D3 O3 P3 W : Type} {NR m e1 e2 NS1 NS
       s1 c4 c1 c2 c3 x + n1 * comPair NS2 n2 Com2 Com3
         (sd2 c4 (sop2 c4 c2 c3 c1 x.2.2.1 x.2.2.2), sd3 c4 (sop3 c4 c2 c3 c1 x.2.2.1 x.2.2.2)) x.2.1
     let svo := fun (T1 T2 T3 T4 c4 c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
-      (some (Pf1T c4 T1 T2 T3 T4 (sd1 c4 (sop1 c4 c2 c3 x.2.2.1 x.2.2.2)) x.1),
-       some (pfPair NS2 (Pf2T c4 T1 T2 T3 T4) (Pf3T c4 T1 T2 T3 T4) (sd2 c4 (sop2 c4 c2 c3 c1 x.2.2.1 x.2.2.2), sd3 c4 (sop3 c4 c2 c3 c1 x.2.2.1 x.2.2.2)) x.2.1),
+      (some (Pf1T c4 T1 T2 T3 T4 (s3 c4 c1 c2 c3 x) (sd1 c4 (sop1 c4 c2 c3 x.2.2.1 x.2.2.2)) x.1),
+       some (pfPair NS2 (Pf2T c4 T1 T2 T3 T4 (s3 c4 c1 c2 c3 x)) (Pf3T c4 T1 T2 T3 T4 (s3 c4 c1 c2 c3 x)) (sd2 c4 (sop2 c4 c2 c3 c1 x.2.2.1 x.2.2.2), sd3 c4 (sop3 c4 c2 c3 c1 x.2.2.1 x.2.2.2)) x.2.1),
        sv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)
     let sm4 := fun (g : Nat × Nat × Nat × (Nat × Nat × Nat × (Nat → Tup)) → Nat) =>
       sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (K2 ^ (n1 * n2)) (fun H2 =>
@@ -559,12 +560,12 @@ theorem fs_open4T {PV PB D1 O1 P1 D2 O2 P2 D3 O3 P3 W : Type} {NR m e1 e2 NS1 NS
             c4 c1 c2 c3 x))))))))))
     g4 hB4 (fun c4 hg4 H4 G => ?_) (fun H4 _ c4 v => E v.1 v.2.1 v.2.2.1 H4 v.2.2.2.1 v.2.2.2.2.1 v.2.2.2.2.2.1 v.2.2.2.2.2.2)
   have h3 := fs_open3UT hK2 hK3 (rv c4) (sv c4) gz hgz (hrv c4) (hsv c4) (fun c2 c3 hg => h1 c4 c2 c3 hg4 hg) (fun c2 c3 hg => h2 c4 c2 c3 hg4 hg)
-    Com1 (fun T1 T2 T3 M w => Pf1T c4 T1 T2 T3 (rset K4 (φ M (oz w)) H4 c4)) (op1 c4) (sd1 c4) d1 hc1
-    (fun T1 T2 T3 M w => hp1 c4 T1 T2 T3 _) hr1 (ov1 c4) (hov1 c4) main1 (hsd1 c4)
-    Com2 (fun T1 T2 T3 M w => Pf2T c4 T1 T2 T3 (rset K4 (φ M (oz w)) H4 c4)) (op2 c4) (sd2 c4) d2 hc2
-    (fun T1 T2 T3 M w => hp2 c4 T1 T2 T3 _) hr2 (ov2 c4) (hov2 c4) main2 (hsd2 c4)
-    Com3 (fun T1 T2 T3 M w => Pf3T c4 T1 T2 T3 (rset K4 (φ M (oz w)) H4 c4)) (op3 c4) (sd3 c4) d3 hc3
-    (fun T1 T2 T3 M w => hp3 c4 T1 T2 T3 _) hr3 (ov3 c4) (hov3 c4) main3 (hsd3 c4)
+    Com1 (fun T1 T2 T3 M w => Pf1T c4 T1 T2 T3 (rset K4 (φ M (oz w)) H4 c4) M) (op1 c4) (sd1 c4) d1 hc1
+    (fun T1 T2 T3 M w => hp1 c4 T1 T2 T3 _ M) hr1 (ov1 c4) (hov1 c4) main1 (hsd1 c4)
+    Com2 (fun T1 T2 T3 M w => Pf2T c4 T1 T2 T3 (rset K4 (φ M (oz w)) H4 c4) M) (op2 c4) (sd2 c4) d2 hc2
+    (fun T1 T2 T3 M w => hp2 c4 T1 T2 T3 _ M) hr2 (ov2 c4) (hov2 c4) main2 (hsd2 c4)
+    Com3 (fun T1 T2 T3 M w => Pf3T c4 T1 T2 T3 (rset K4 (φ M (oz w)) H4 c4) M) (op3 c4) (sd3 c4) d3 hc3
+    (fun T1 T2 T3 M w => hp3 c4 T1 T2 T3 _ M) hr3 (ov3 c4) (hov3 c4) main3 (hsd3 c4)
     (hvo1 c4) (hvo2 c4) (hvo3 c4) (sop1 c4) (sop2 c4) (sop3 c4) (hsvo1 c4) (hsvo2 c4) (hsvo3 c4)
     (fun H1 H2 H3 a b c v => G (φ c (oz v.2.2)) (H1, H2, H3, a, b, c, v))
   simp only [Mq, ← hoz c4]
@@ -598,15 +599,15 @@ theorem fs_open4ROMT {PV PB D O Pq D2 O2 P2 D3 O3 P3 W : Type}
     (ov1 : Nat → TViewN PV PB → Option O) (hov1 : ∀ c4, ov1 c4 none = none) (main1 : (Nat → Tup) → Nat → D)
     (hsd1 : ∀ c4 t r, op1 c4 (sd1 c4 (op1 c4 (main1 t r))) = op1 c4 (main1 t r))
     (Com2 : D2 → Nat → Nat) 
-    (Pf2T : Nat → Nat → Nat → Nat → Nat → D2 → Nat → P2) (op2 : Nat → D2 → O2) (sd2 : Nat → O2 → D2) (d2 : D2)
+    (Pf2T : Nat → Nat → Nat → Nat → Nat → Nat → D2 → Nat → P2) (op2 : Nat → D2 → O2) (sd2 : Nat → O2 → D2) (d2 : D2)
     (hc2 : ComHides NS2 Com2) 
-    (hp2 : ∀ c4 T1 T2 T3 T4, ComPfHides NS2 Com2 (Pf2T c4 T1 T2 T3 T4) (op2 c4)) (hr2 : ∀ d σ, Com2 d σ < n2)
+    (hp2 : ∀ c4 T1 T2 T3 T4 M, ComPfHides NS2 Com2 (Pf2T c4 T1 T2 T3 T4 M) (op2 c4)) (hr2 : ∀ d σ, Com2 d σ < n2)
     (ov2 : Nat → TViewN PV PB → Option O2) (hov2 : ∀ c4, ov2 c4 none = none) (main2 : Nat → (Nat → Tup) → Nat → D2)
     (hsd2 : ∀ c4 c t r, op2 c4 (sd2 c4 (op2 c4 (main2 c t r))) = op2 c4 (main2 c t r))
     (Com3 : D3 → Nat → Nat) 
-    (Pf3T : Nat → Nat → Nat → Nat → Nat → D3 → Nat → P3) (op3 : Nat → D3 → O3) (sd3 : Nat → O3 → D3) (d3 : D3)
+    (Pf3T : Nat → Nat → Nat → Nat → Nat → Nat → D3 → Nat → P3) (op3 : Nat → D3 → O3) (sd3 : Nat → O3 → D3) (d3 : D3)
     (hc3 : ComHides NS3 Com3) 
-    (hp3 : ∀ c4 T1 T2 T3 T4, ComPfHides NS3 Com3 (Pf3T c4 T1 T2 T3 T4) (op3 c4)) (hr3 : ∀ d σ, Com3 d σ < n3)
+    (hp3 : ∀ c4 T1 T2 T3 T4 M, ComPfHides NS3 Com3 (Pf3T c4 T1 T2 T3 T4 M) (op3 c4)) (hr3 : ∀ d σ, Com3 d σ < n3)
     (ov3 : Nat → TViewN PV PB → Option O3) (hov3 : ∀ c4, ov3 c4 none = none) (main3 : Nat → Nat → (Nat → Tup) → Nat → D3)
     (hsd3 : ∀ c4 c c' t r, op3 c4 (sd3 c4 (op3 c4 (main3 c c' t r))) = op3 c4 (main3 c c' t r))
     (hvo1 : ∀ c4 c2 c3 c r t, rv c4 c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t = none ∨
@@ -639,7 +640,7 @@ theorem fs_open4ROMT {PV PB D O Pq D2 O2 P2 D3 O3 P3 W : Type}
     let rvo := fun (T1 T2 T3 T4 c4 c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
       ((ov1 c4 (rv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)).map (fun _ => Pf1 c4 T1 T2 T3 T4 (main1 x.2.2.2 x.2.2.1) x.1),
        (ovPair (ov2 c4) (ov3 c4) (rv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)).map
-         (fun _ => pfPair NS2 (Pf2T c4 T1 T2 T3 T4) (Pf3T c4 T1 T2 T3 T4) (main2 c1 x.2.2.2 x.2.2.1, main3 c1 c2 x.2.2.2 x.2.2.1) x.2.1),
+         (fun _ => pfPair NS2 (Pf2T c4 T1 T2 T3 T4 (m3 c1 c2 x)) (Pf3T c4 T1 T2 T3 T4 (m3 c1 c2 x)) (main2 c1 x.2.2.2 x.2.2.1, main3 c1 c2 x.2.2.2 x.2.2.1) x.2.1),
        rv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)
     let s1 := fun (c4 _c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) => Cmi (sd1 c4 (sop1 c4 c2 c3 x.2.2.1 x.2.2.2)) x.1
     let s2 := fun (c4 c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
@@ -649,7 +650,7 @@ theorem fs_open4ROMT {PV PB D O Pq D2 O2 P2 D3 O3 P3 W : Type}
         (sd2 c4 (sop2 c4 c2 c3 c1 x.2.2.1 x.2.2.2), sd3 c4 (sop3 c4 c2 c3 c1 x.2.2.1 x.2.2.2)) x.2.1
     let svo := fun (T1 T2 T3 T4 c4 c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
       (some (Pfi c4 T1 T2 T3 T4 (sd1 c4 (sop1 c4 c2 c3 x.2.2.1 x.2.2.2)) x.1),
-       some (pfPair NS2 (Pf2T c4 T1 T2 T3 T4) (Pf3T c4 T1 T2 T3 T4) (sd2 c4 (sop2 c4 c2 c3 c1 x.2.2.1 x.2.2.2), sd3 c4 (sop3 c4 c2 c3 c1 x.2.2.1 x.2.2.2)) x.2.1),
+       some (pfPair NS2 (Pf2T c4 T1 T2 T3 T4 (s3 c4 c1 c2 c3 x)) (Pf3T c4 T1 T2 T3 T4 (s3 c4 c1 c2 c3 x)) (sd2 c4 (sop2 c4 c2 c3 c1 x.2.2.1 x.2.2.2), sd3 c4 (sop3 c4 c2 c3 c1 x.2.2.1 x.2.2.2)) x.2.1),
        sv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)
     let sm4 := fun (g : Nat × Nat × Nat × (Nat × Nat × Nat × (Nat → Tup)) → Nat) =>
       sumTo ((Q4 * Q4) ^ K) (fun H1 => sumTo (K2 ^ (K * n2)) (fun H2 =>
@@ -683,7 +684,7 @@ theorem fs_open4ROMT {PV PB D O Pq D2 O2 P2 D3 O3 P3 W : Type}
         (K * (NSo * (K ^ n * (s * k))) * (NS2 * NS3 * (NR * (Q4 ^ m * 1))))))))) := by
   intro Com1 Pf1 Cmi Pfi smR smI m1 m2 m3 rvo s1 s2 s3 svo sm4 sm4I r1 r2 r3 Mq
   have fo := fs_open4T (NS1 := NSh * (NSo * K ^ n) * K) (n1 := K) hK2 hK3 hK4 φ hφ rv sv gz hgz g4 hB4 hrv hsv oz hoz
-    h1 h2 Cmi Pfi op1 sd1 d1 (comI_hides hK pos hpos) (fun c4 T1 T2 T3 T4 => pfI_hides hK pos hpos (op1 c4) g (nxtT T1 T2 T3 T4))
+    h1 h2 Cmi (fun c4 T1 T2 T3 T4 _ => Pfi c4 T1 T2 T3 T4) op1 sd1 d1 (comI_hides hK pos hpos) (fun c4 T1 T2 T3 T4 _ => pfI_hides hK pos hpos (op1 c4) g (nxtT T1 T2 T3 T4))
     (fun _ _ => Nat.mod_lt _ hK) ov1 hov1 main1 hsd1
     Com2 Pf2T op2 sd2 d2 hc2 hp2 hr2 ov2 hov2 main2 hsd2 Com3 Pf3T op3 sd3 d3 hc3 hp3 hr3 ov3 hov3 main3 hsd3
     hvo1 hvo2 hvo3 sop1 sop2 sop3 hsvo1 hsvo2 hsvo3 E
@@ -704,7 +705,7 @@ theorem fs_open4ROMT {PV PB D O Pq D2 O2 P2 D3 O3 P3 W : Type}
     E H1 H2 H3 H4 c mm2 mm3
       ((ov1 c4 (rv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) y.2.1 y.2.2)).map (fun _ => pf),
        (ovPair (ov2 c4) (ov3 c4) (rv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) y.2.1 y.2.2)).map
-         (fun _ => pfPair NS2 (Pf2T c4 H1 H2 H3 H4) (Pf3T c4 H1 H2 H3 H4) (main2 c1 y.2.2 y.2.1, main3 c1 c2 y.2.2 y.2.1) y.1),
+         (fun _ => pfPair NS2 (Pf2T c4 H1 H2 H3 H4 mm3) (Pf3T c4 H1 H2 H3 H4 mm3) (main2 c1 y.2.2 y.2.1, main3 c1 c2 y.2.2 y.2.1) y.1),
        rv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) y.2.1 y.2.2)
   have hso := smT_lin (NS2 * NS3) NR m
   have so1 := smT_one (NS2 * NS3) NR m

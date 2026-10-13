@@ -24,8 +24,10 @@ fourth table too: a read at the query hash `φ (m1 x + n1 k) w` of a message
 carrying the reader's first message, a fourth-table hash that lands on the programmed point
 carrying the programmer's (`hpD`; the circuits' `hφs` gives it across
 statements, `hpD_of_hφs`) (`runR4`, `runR4_prog`,
-`outR4`, `outR4_hout`, `outR4_hpq`).  Not shown: that any circuit's
-openings are of this form (they read whole tables).
+`outR4`, `outR4_hout`, `outR4_hpq`).  The circuits' openings receive the
+third message and meet `hout` and `hpq` when they read only at its digit
+(`FSMultiOpen`, under the coarser digit flag `hqD`); they are not shown to
+be `outR4`s.
 -/
 
 set_option autoImplicit false

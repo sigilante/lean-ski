@@ -17,8 +17,10 @@ Instances: a query phase (`adv_zkbT`, programming nothing; `advRd`,
 `advRd_hrd`, `k` reads); a four-round proof reading the tables at its
 messages (`rd4`, `rd4_hrd`, four reads); and one whose output also reads
 them as `outR4` does (`rd4 ++ rdOut`, `rd4T_hrd`, `4 + B4 B1 B2 B3 k`
-reads, `rdOut_length`).  Queries chosen from earlier proofs' views: `FSMultiViews`.  Not shown: the circuits'
-openings, which read whole tables, are not shown to be `outR4`s.
+reads, `rdOut_length`).  Queries chosen from earlier proofs' views: `FSMultiViews`.  Not shown: the
+circuits' openings as `outR4`s, so these interleavings do not cover them;
+`FSMultiOpen` covers openings that read only at their digit (`RdOK`) in
+`fs4_powDT`, without query phases.
 -/
 
 set_option autoImplicit false

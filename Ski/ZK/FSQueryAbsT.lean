@@ -4,8 +4,8 @@ import Ski.ZK.FSQueryAbs
 /-!
 # The circuits' four-round bounds with the openings reading the tables, and `n` proofs
 
-`FSQueryAbs` with the openings `Pf? c4 T1 T2 T3 T4` reading the four
-Fiat–Shamir tables: each circuit's bound as a `ZKBT`
+`FSQueryAbs` with the openings `Pf? c4 T1 T2 T3 T4 M` reading the four
+Fiat–Shamir tables and the third message `M`: each circuit's bound as a `ZKBT`
 (`sud_fs_open4_absT`, `wit_fs_open4_absT`, `comp_fs_open4_absT`, over
 `fs_open4_absT`, the hypotheses discharged as in `FSQueryAbs`).  A proof's
 data with its output and simulated view reading the tables is a `FS4DT`,
@@ -44,15 +44,15 @@ theorem sud_fs_open4_absT {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {p
     (hncw : 4 ≤ ncw)
     (NR2 : Nat) (Rb : Nat → EF → EF → Nat → List (EF → EF)) (Ro : Nat → EF → EF → Nat → Wv)
     {NS1 NS2 NS3 n1 n2 n3 : Nat}
-    (Com1 : List (List (List F)) → Nat → Nat) (Pf1 : Nat → Nat → Nat → Nat → Nat → List (List (List F)) → Nat → P1) (hc1 : ComHides NS1 Com1)
-    (hp1 : ∀ c4 T1 T2 T3 T4, ComPfHides NS1 Com1 (Pf1 c4 T1 T2 T3 T4) (opF ((sudGroups tP (S16 c4) (S10 c4) (SP c4) EF.zero qv).map (·.base.S)) [0, 2, 4, 6]))
+    (Com1 : List (List (List F)) → Nat → Nat) (Pf1 : Nat → Nat → Nat → Nat → Nat → Nat → List (List (List F)) → Nat → P1) (hc1 : ComHides NS1 Com1)
+    (hp1 : ∀ c4 T1 T2 T3 T4 M, ComPfHides NS1 Com1 (Pf1 c4 T1 T2 T3 T4 M) (opF ((sudGroups tP (S16 c4) (S10 c4) (SP c4) EF.zero qv).map (·.base.S)) [0, 2, 4, 6]))
     (hr1 : ∀ d σ, Com1 d σ < n1) (d1 : List (List (List F)))
-    (Com2 : List (List (List F)) → Nat → Nat) (Pf2 : Nat → Nat → Nat → Nat → Nat → List (List (List F)) → Nat → P2) (hc2 : ComHides NS2 Com2)
-    (hp2 : ∀ c4 T1 T2 T3 T4, ComPfHides NS2 Com2 (Pf2 c4 T1 T2 T3 T4) (opF ((sudGroups tP (S16 c4) (S10 c4) (SP c4) EF.zero qv).map (·.base.S)) [1, 3, 5, 7]))
+    (Com2 : List (List (List F)) → Nat → Nat) (Pf2 : Nat → Nat → Nat → Nat → Nat → Nat → List (List (List F)) → Nat → P2) (hc2 : ComHides NS2 Com2)
+    (hp2 : ∀ c4 T1 T2 T3 T4 M, ComPfHides NS2 Com2 (Pf2 c4 T1 T2 T3 T4 M) (opF ((sudGroups tP (S16 c4) (S10 c4) (SP c4) EF.zero qv).map (·.base.S)) [1, 3, 5, 7]))
     (hr2 : ∀ d σ, Com2 d σ < n2) (d2 : List (List (List F)))
     (Com3 : List (List (List (List F))) × List (List (List F)) → Nat → Nat)
-    (Pf3 : Nat → Nat → Nat → Nat → Nat → List (List (List (List F))) × List (List (List F)) → Nat → P3) (hc3 : ComHides NS3 Com3)
-    (hp3 : ∀ c4 T1 T2 T3 T4, ComPfHides NS3 Com3 (Pf3 c4 T1 T2 T3 T4) (fun d => (opQ (sudSsT (S16 c4) (S10 c4) (SP c4)) d.1, opCw (sudSsC tP (S16 c4) (S10 c4) (SP c4)) d.2)))
+    (Pf3 : Nat → Nat → Nat → Nat → Nat → Nat → List (List (List (List F))) × List (List (List F)) → Nat → P3) (hc3 : ComHides NS3 Com3)
+    (hp3 : ∀ c4 T1 T2 T3 T4 M, ComPfHides NS3 Com3 (Pf3 c4 T1 T2 T3 T4 M) (fun d => (opQ (sudSsT (S16 c4) (S10 c4) (SP c4)) d.1, opCw (sudSsC tP (S16 c4) (S10 c4) (SP c4)) d.2)))
     (hr3 : ∀ d σ, Com3 d σ < n3) (d3 : List (List (List (List F))) × List (List (List F))) :
     let blank := stmtMachine (fun _ => false) 729 (sudokuExpr (cluesOf puzzle)) ACC REJ
     let C := cpuTableW A row k (2 ^ 16)
@@ -133,9 +133,9 @@ theorem sud_fs_open4_absT {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {p
     let m3 := fun (c1 c2 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
       m1 x + n1 * comPair NS2 n2 Com2 Com3 (main2 c1 x.2.2.2 x.2.2.1, main3 c1 c2 x.2.2.2 x.2.2.1) x.2.1
     let rvo := fun (T1 T2 T3 T4 c4 c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
-      ((ov1 c4 (rvF c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)).map (fun _ => Pf1 c4 T1 T2 T3 T4 (main1 x.2.2.2 x.2.2.1) x.1),
+      ((ov1 c4 (rvF c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)).map (fun _ => Pf1 c4 T1 T2 T3 T4 (m3 c1 c2 x) (main1 x.2.2.2 x.2.2.1) x.1),
        (ovPair (ov2 c4) (ov3 c4) (rvF c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)).map
-         (fun _ => pfPair NS2 (Pf2 c4 T1 T2 T3 T4) (Pf3 c4 T1 T2 T3 T4) (main2 c1 x.2.2.2 x.2.2.1, main3 c1 c2 x.2.2.2 x.2.2.1) x.2.1),
+         (fun _ => pfPair NS2 (Pf2 c4 T1 T2 T3 T4 (m3 c1 c2 x)) (Pf3 c4 T1 T2 T3 T4 (m3 c1 c2 x)) (main2 c1 x.2.2.2 x.2.2.1, main3 c1 c2 x.2.2.2 x.2.2.1) x.2.1),
        rvF c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)
     let s1 := fun (c4 _c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) => Com1 (sdF (Ss c4) mk1 (sop1 c4 c2 c3 x.2.2.1 x.2.2.2)) x.1
     let s2 := fun (c4 c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
@@ -144,8 +144,8 @@ theorem sud_fs_open4_absT {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {p
       s1 c4 c1 c2 c3 x + n1 * comPair NS2 n2 Com2 Com3
         (sdF (Ss c4) mk2 (sop2 c4 c2 c3 c1 x.2.2.1 x.2.2.2), sd3 c4 (sop3 c4 c2 c3 c1 x.2.2.1 x.2.2.2)) x.2.1
     let svo := fun (T1 T2 T3 T4 c4 c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
-      (some (Pf1 c4 T1 T2 T3 T4 (sdF (Ss c4) mk1 (sop1 c4 c2 c3 x.2.2.1 x.2.2.2)) x.1),
-       some (pfPair NS2 (Pf2 c4 T1 T2 T3 T4) (Pf3 c4 T1 T2 T3 T4) (sdF (Ss c4) mk2 (sop2 c4 c2 c3 c1 x.2.2.1 x.2.2.2), sd3 c4 (sop3 c4 c2 c3 c1 x.2.2.1 x.2.2.2)) x.2.1),
+      (some (Pf1 c4 T1 T2 T3 T4 (s3 c4 c1 c2 c3 x) (sdF (Ss c4) mk1 (sop1 c4 c2 c3 x.2.2.1 x.2.2.2)) x.1),
+       some (pfPair NS2 (Pf2 c4 T1 T2 T3 T4 (s3 c4 c1 c2 c3 x)) (Pf3 c4 T1 T2 T3 T4 (s3 c4 c1 c2 c3 x)) (sdF (Ss c4) mk2 (sop2 c4 c2 c3 c1 x.2.2.1 x.2.2.2), sd3 c4 (sop3 c4 c2 c3 c1 x.2.2.1 x.2.2.2)) x.2.1),
        svF c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)
     let sm4 := fun (g : Nat × Nat × Nat × (Nat × Nat × Nat × (Nat → Tup)) → Nat) =>
       sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (K2 ^ (n1 * n2)) (fun H2 =>
@@ -294,12 +294,12 @@ theorem sud_fs_open4_absT {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {p
     fun c4 c t r => opF_sdF _ _ _
   have hsd3 : ∀ c4 c c' t r, op3 c4 (sd3 c4 (op3 c4 (main3 c c' t r))) = op3 c4 (main3 c c' t r) := fun c4 c c' t r =>
     congrArg Prod.snd (op2_sd2 (Ss c4) [] (SsT c4) (SsC c4) (fun _ => []) (main3 c c' t r).1 (main3 c c' t r).2)
-  have hp3' : ∀ c4 T1 T2 T3 T4, ComPfHides NS3 Com3 (Pf3 c4 T1 T2 T3 T4) (op3 c4) := by
-    intro c4 T1 T2 T3 T4
+  have hp3' : ∀ c4 T1 T2 T3 T4 M, ComPfHides NS3 Com3 (Pf3 c4 T1 T2 T3 T4 M) (op3 c4) := by
+    intro c4 T1 T2 T3 T4 M
     have e1 : SsT c4 = sudSsT (S16 c4) (S10 c4) (SP c4) := sud_SsT off blank.hd blank.stk blank.heap.length blank.heap C Mm Wt tP (S16 c4) (S10 c4) (SP c4) EF.zero qv (wm 0) (wc 0) (ww 0) (wp 0)
     have e2 : SsC c4 = sudSsC tP (S16 c4) (S10 c4) (SP c4) := sud_SsC off blank.hd blank.stk blank.heap.length blank.heap C Mm Wt tP (S16 c4) (S10 c4) (SP c4) EF.zero qv (wm 0) (wc 0) (ww 0) (wp 0) ncw
-    show ComPfHides NS3 Com3 (Pf3 c4 T1 T2 T3 T4) (fun d => (opQ (SsT c4) d.1, opCw (SsC c4) d.2))
-    rw [e1, e2]; exact hp3 c4 T1 T2 T3 T4
+    show ComPfHides NS3 Com3 (Pf3 c4 T1 T2 T3 T4 M) (fun d => (opQ (SsT c4) d.1, opCw (SsC c4) d.2))
+    rw [e1, e2]; exact hp3 c4 T1 T2 T3 T4 M
   have hoz : ∀ c4 c2 c3 α β r t, ozF (rvF c4 c2 c3 α β r t) = ozF (rvF 0 c2 c3 α β r t) := by
     intro c4 c2 c3 α β r t
     simp only [rvF]
@@ -347,15 +347,15 @@ theorem wit_fs_open4_absT {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {V
     (hB4 : sumTo K4 (fun c4 => indB (!genB (αd c4))) ≤ B4) (fri : Nat → EF → EF → List (EF → EF) → V) (hncw : 4 ≤ ncw)
     (NR2 : Nat) (Rb : Nat → EF → EF → Nat → List (EF → EF)) (Ro : Nat → EF → EF → Nat → Wv)
     {NS1 NS2 NS3 n1 n2 n3 : Nat}
-    (Com1 : List (List (List F)) → Nat → Nat) (Pf1 : Nat → Nat → Nat → Nat → Nat → List (List (List F)) → Nat → P1) (hc1 : ComHides NS1 Com1)
-    (hp1 : ∀ c4 T1 T2 T3 T4, ComPfHides NS1 Com1 (Pf1 c4 T1 T2 T3 T4) (opF ((wGroups tP (S10 c4) (S9 c4) (SP c4) EF.zero qv).map (·.base.S)) [0, 2, 4, 6]))
+    (Com1 : List (List (List F)) → Nat → Nat) (Pf1 : Nat → Nat → Nat → Nat → Nat → Nat → List (List (List F)) → Nat → P1) (hc1 : ComHides NS1 Com1)
+    (hp1 : ∀ c4 T1 T2 T3 T4 M, ComPfHides NS1 Com1 (Pf1 c4 T1 T2 T3 T4 M) (opF ((wGroups tP (S10 c4) (S9 c4) (SP c4) EF.zero qv).map (·.base.S)) [0, 2, 4, 6]))
     (hr1 : ∀ d σ, Com1 d σ < n1) (d1 : List (List (List F)))
-    (Com2 : List (List (List F)) → Nat → Nat) (Pf2 : Nat → Nat → Nat → Nat → Nat → List (List (List F)) → Nat → P2) (hc2 : ComHides NS2 Com2)
-    (hp2 : ∀ c4 T1 T2 T3 T4, ComPfHides NS2 Com2 (Pf2 c4 T1 T2 T3 T4) (opF ((wGroups tP (S10 c4) (S9 c4) (SP c4) EF.zero qv).map (·.base.S)) [1, 3, 5, 7]))
+    (Com2 : List (List (List F)) → Nat → Nat) (Pf2 : Nat → Nat → Nat → Nat → Nat → Nat → List (List (List F)) → Nat → P2) (hc2 : ComHides NS2 Com2)
+    (hp2 : ∀ c4 T1 T2 T3 T4 M, ComPfHides NS2 Com2 (Pf2 c4 T1 T2 T3 T4 M) (opF ((wGroups tP (S10 c4) (S9 c4) (SP c4) EF.zero qv).map (·.base.S)) [1, 3, 5, 7]))
     (hr2 : ∀ d σ, Com2 d σ < n2) (d2 : List (List (List F)))
     (Com3 : List (List (List (List F))) × List (List (List F)) → Nat → Nat)
-    (Pf3 : Nat → Nat → Nat → Nat → Nat → List (List (List (List F))) × List (List (List F)) → Nat → P3) (hc3 : ComHides NS3 Com3)
-    (hp3 : ∀ c4 T1 T2 T3 T4, ComPfHides NS3 Com3 (Pf3 c4 T1 T2 T3 T4) (fun d => (opQ (wSsT (S10 c4) (S9 c4) (SP c4)) d.1, opCw (wSsC tP (S10 c4) (S9 c4) (SP c4)) d.2)))
+    (Pf3 : Nat → Nat → Nat → Nat → Nat → Nat → List (List (List (List F))) × List (List (List F)) → Nat → P3) (hc3 : ComHides NS3 Com3)
+    (hp3 : ∀ c4 T1 T2 T3 T4 M, ComPfHides NS3 Com3 (Pf3 c4 T1 T2 T3 T4 M) (fun d => (opQ (wSsT (S10 c4) (S9 c4) (SP c4)) d.1, opCw (wSsC tP (S10 c4) (S9 c4) (SP c4)) d.2)))
     (hr3 : ∀ d σ, Com3 d σ < n3) (d3 : List (List (List (List F))) × List (List (List F))) :
     let blank := wMachine (List.replicate W .S) (Vt ⬝ x)
     let C := cpuTableW A row k (2 ^ 10)
@@ -438,9 +438,9 @@ theorem wit_fs_open4_absT {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {V
     let m3 := fun (c1 c2 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
       m1 x + n1 * comPair NS2 n2 Com2 Com3 (main2 c1 x.2.2.2 x.2.2.1, main3 c1 c2 x.2.2.2 x.2.2.1) x.2.1
     let rvo := fun (T1 T2 T3 T4 c4 c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
-      ((ov1 c4 (rvF c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)).map (fun _ => Pf1 c4 T1 T2 T3 T4 (main1 x.2.2.2 x.2.2.1) x.1),
+      ((ov1 c4 (rvF c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)).map (fun _ => Pf1 c4 T1 T2 T3 T4 (m3 c1 c2 x) (main1 x.2.2.2 x.2.2.1) x.1),
        (ovPair (ov2 c4) (ov3 c4) (rvF c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)).map
-         (fun _ => pfPair NS2 (Pf2 c4 T1 T2 T3 T4) (Pf3 c4 T1 T2 T3 T4) (main2 c1 x.2.2.2 x.2.2.1, main3 c1 c2 x.2.2.2 x.2.2.1) x.2.1),
+         (fun _ => pfPair NS2 (Pf2 c4 T1 T2 T3 T4 (m3 c1 c2 x)) (Pf3 c4 T1 T2 T3 T4 (m3 c1 c2 x)) (main2 c1 x.2.2.2 x.2.2.1, main3 c1 c2 x.2.2.2 x.2.2.1) x.2.1),
        rvF c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)
     let s1 := fun (c4 _c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) => Com1 (sdF (Ss c4) mk1 (sop1 c4 c2 c3 x.2.2.1 x.2.2.2)) x.1
     let s2 := fun (c4 c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
@@ -449,8 +449,8 @@ theorem wit_fs_open4_absT {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {V
       s1 c4 c1 c2 c3 x + n1 * comPair NS2 n2 Com2 Com3
         (sdF (Ss c4) mk2 (sop2 c4 c2 c3 c1 x.2.2.1 x.2.2.2), sd3 c4 (sop3 c4 c2 c3 c1 x.2.2.1 x.2.2.2)) x.2.1
     let svo := fun (T1 T2 T3 T4 c4 c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
-      (some (Pf1 c4 T1 T2 T3 T4 (sdF (Ss c4) mk1 (sop1 c4 c2 c3 x.2.2.1 x.2.2.2)) x.1),
-       some (pfPair NS2 (Pf2 c4 T1 T2 T3 T4) (Pf3 c4 T1 T2 T3 T4) (sdF (Ss c4) mk2 (sop2 c4 c2 c3 c1 x.2.2.1 x.2.2.2), sd3 c4 (sop3 c4 c2 c3 c1 x.2.2.1 x.2.2.2)) x.2.1),
+      (some (Pf1 c4 T1 T2 T3 T4 (s3 c4 c1 c2 c3 x) (sdF (Ss c4) mk1 (sop1 c4 c2 c3 x.2.2.1 x.2.2.2)) x.1),
+       some (pfPair NS2 (Pf2 c4 T1 T2 T3 T4 (s3 c4 c1 c2 c3 x)) (Pf3 c4 T1 T2 T3 T4 (s3 c4 c1 c2 c3 x)) (sdF (Ss c4) mk2 (sop2 c4 c2 c3 c1 x.2.2.1 x.2.2.2), sd3 c4 (sop3 c4 c2 c3 c1 x.2.2.1 x.2.2.2)) x.2.1),
        svF c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)
     let sm4 := fun (g : Nat × Nat × Nat × (Nat × Nat × Nat × (Nat → Tup)) → Nat) =>
       sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (K2 ^ (n1 * n2)) (fun H2 =>
@@ -598,12 +598,12 @@ theorem wit_fs_open4_absT {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {V
     fun c4 c t r => opF_sdF _ _ _
   have hsd3 : ∀ c4 c c' t r, op3 c4 (sd3 c4 (op3 c4 (main3 c c' t r))) = op3 c4 (main3 c c' t r) := fun c4 c c' t r =>
     congrArg Prod.snd (op2_sd2 (Ss c4) [] (SsT c4) (SsC c4) (fun _ => []) (main3 c c' t r).1 (main3 c c' t r).2)
-  have hp3' : ∀ c4 T1 T2 T3 T4, ComPfHides NS3 Com3 (Pf3 c4 T1 T2 T3 T4) (op3 c4) := by
-    intro c4 T1 T2 T3 T4
+  have hp3' : ∀ c4 T1 T2 T3 T4 M, ComPfHides NS3 Com3 (Pf3 c4 T1 T2 T3 T4 M) (op3 c4) := by
+    intro c4 T1 T2 T3 T4 M
     have e1 : SsT c4 = wSsT (S10 c4) (S9 c4) (SP c4) := wit_SsT off blank.hd blank.stk blank.heap.length blank.heap W C Mm Wt tP (S10 c4) (S9 c4) (SP c4) EF.zero qv (wm 0) (wc 0) (ww 0) (wp 0)
     have e2 : SsC c4 = wSsC tP (S10 c4) (S9 c4) (SP c4) := wit_SsC off blank.hd blank.stk blank.heap.length blank.heap W C Mm Wt tP (S10 c4) (S9 c4) (SP c4) EF.zero qv (wm 0) (wc 0) (ww 0) (wp 0) ncw
-    show ComPfHides NS3 Com3 (Pf3 c4 T1 T2 T3 T4) (fun d => (opQ (SsT c4) d.1, opCw (SsC c4) d.2))
-    rw [e1, e2]; exact hp3 c4 T1 T2 T3 T4
+    show ComPfHides NS3 Com3 (Pf3 c4 T1 T2 T3 T4 M) (fun d => (opQ (SsT c4) d.1, opCw (SsC c4) d.2))
+    rw [e1, e2]; exact hp3 c4 T1 T2 T3 T4 M
   have hoz : ∀ c4 c2 c3 α β r t, ozF (rvF c4 c2 c3 α β r t) = ozF (rvF 0 c2 c3 α β r t) := by
     intro c4 c2 c3 α β r t
     simp only [rvF]
@@ -660,15 +660,15 @@ theorem comp_fs_open4_absT {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {
     (hB4 : sumTo K4 (fun c4 => indB (!genB (αd c4))) ≤ B4) (fri : Nat → EF → EF → List (EF → EF) → V) (hncw : 4 ≤ ncw)
     (NR2 : Nat) (Rb : Nat → EF → EF → Nat → List (EF → EF)) (Ro : Nat → EF → EF → Nat → Wv)
     {NS1 NS2 NS3 n1 n2 n3 : Nat}
-    (Com1 : List (List (List F)) → Nat → Nat) (Pf1 : Nat → Nat → Nat → Nat → Nat → List (List (List F)) → Nat → P1) (hc1 : ComHides NS1 Com1)
-    (hp1 : ∀ c4 T1 T2 T3 T4, ComPfHides NS1 Com1 (Pf1 c4 T1 T2 T3 T4) (opF ((cGroups tbM tbC tpP tpS (SM c4) (SC c4) (S9 c4) (SP c4) (SS c4) EF.zero qv).map (·.base.S)) [0, 2, 4, 6, 8]))
+    (Com1 : List (List (List F)) → Nat → Nat) (Pf1 : Nat → Nat → Nat → Nat → Nat → Nat → List (List (List F)) → Nat → P1) (hc1 : ComHides NS1 Com1)
+    (hp1 : ∀ c4 T1 T2 T3 T4 M, ComPfHides NS1 Com1 (Pf1 c4 T1 T2 T3 T4 M) (opF ((cGroups tbM tbC tpP tpS (SM c4) (SC c4) (S9 c4) (SP c4) (SS c4) EF.zero qv).map (·.base.S)) [0, 2, 4, 6, 8]))
     (hr1 : ∀ d σ, Com1 d σ < n1) (d1 : List (List (List F)))
-    (Com2 : List (List (List F)) → Nat → Nat) (Pf2 : Nat → Nat → Nat → Nat → Nat → List (List (List F)) → Nat → P2) (hc2 : ComHides NS2 Com2)
-    (hp2 : ∀ c4 T1 T2 T3 T4, ComPfHides NS2 Com2 (Pf2 c4 T1 T2 T3 T4) (opF ((cGroups tbM tbC tpP tpS (SM c4) (SC c4) (S9 c4) (SP c4) (SS c4) EF.zero qv).map (·.base.S)) [1, 3, 5, 7, 9]))
+    (Com2 : List (List (List F)) → Nat → Nat) (Pf2 : Nat → Nat → Nat → Nat → Nat → Nat → List (List (List F)) → Nat → P2) (hc2 : ComHides NS2 Com2)
+    (hp2 : ∀ c4 T1 T2 T3 T4 M, ComPfHides NS2 Com2 (Pf2 c4 T1 T2 T3 T4 M) (opF ((cGroups tbM tbC tpP tpS (SM c4) (SC c4) (S9 c4) (SP c4) (SS c4) EF.zero qv).map (·.base.S)) [1, 3, 5, 7, 9]))
     (hr2 : ∀ d σ, Com2 d σ < n2) (d2 : List (List (List F)))
     (Com3 : List (List (List (List F))) × List (List (List F)) → Nat → Nat)
-    (Pf3 : Nat → Nat → Nat → Nat → Nat → List (List (List (List F))) × List (List (List F)) → Nat → P3) (hc3 : ComHides NS3 Com3)
-    (hp3 : ∀ c4 T1 T2 T3 T4, ComPfHides NS3 Com3 (Pf3 c4 T1 T2 T3 T4) (fun d => (opQ (cSsT (SM c4) (SC c4) (S9 c4) (SP c4) (SS c4)) d.1, opCw (cSsC tbM tbC tpP tpS (SM c4) (SC c4) (S9 c4) (SP c4) (SS c4)) d.2)))
+    (Pf3 : Nat → Nat → Nat → Nat → Nat → Nat → List (List (List (List F))) × List (List (List F)) → Nat → P3) (hc3 : ComHides NS3 Com3)
+    (hp3 : ∀ c4 T1 T2 T3 T4 M, ComPfHides NS3 Com3 (Pf3 c4 T1 T2 T3 T4 M) (fun d => (opQ (cSsT (SM c4) (SC c4) (S9 c4) (SP c4) (SS c4)) d.1, opCw (cSsC tbM tbC tpP tpS (SM c4) (SC c4) (S9 c4) (SP c4) (SS c4)) d.2)))
     (hr3 : ∀ d σ, Com3 d σ < n3) (d3 : List (List (List (List F))) × List (List (List F))) :
     let m := blankM shp W Ps
     let roots := blankRoots shp W Ps
@@ -757,9 +757,9 @@ theorem comp_fs_open4_absT {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {
     let m3 := fun (c1 c2 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
       m1 x + n1 * comPair NS2 n2 Com2 Com3 (main2 c1 x.2.2.2 x.2.2.1, main3 c1 c2 x.2.2.2 x.2.2.1) x.2.1
     let rvo := fun (T1 T2 T3 T4 c4 c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
-      ((ov1 c4 (rvF c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)).map (fun _ => Pf1 c4 T1 T2 T3 T4 (main1 x.2.2.2 x.2.2.1) x.1),
+      ((ov1 c4 (rvF c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)).map (fun _ => Pf1 c4 T1 T2 T3 T4 (m3 c1 c2 x) (main1 x.2.2.2 x.2.2.1) x.1),
        (ovPair (ov2 c4) (ov3 c4) (rvF c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)).map
-         (fun _ => pfPair NS2 (Pf2 c4 T1 T2 T3 T4) (Pf3 c4 T1 T2 T3 T4) (main2 c1 x.2.2.2 x.2.2.1, main3 c1 c2 x.2.2.2 x.2.2.1) x.2.1),
+         (fun _ => pfPair NS2 (Pf2 c4 T1 T2 T3 T4 (m3 c1 c2 x)) (Pf3 c4 T1 T2 T3 T4 (m3 c1 c2 x)) (main2 c1 x.2.2.2 x.2.2.1, main3 c1 c2 x.2.2.2 x.2.2.1) x.2.1),
        rvF c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)
     let s1 := fun (c4 _c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) => Com1 (sdF (Ss c4) mk1 (sop1 c4 c2 c3 x.2.2.1 x.2.2.2)) x.1
     let s2 := fun (c4 c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
@@ -768,8 +768,8 @@ theorem comp_fs_open4_absT {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {
       s1 c4 c1 c2 c3 x + n1 * comPair NS2 n2 Com2 Com3
         (sdF (Ss c4) mk2 (sop2 c4 c2 c3 c1 x.2.2.1 x.2.2.2), sd3 c4 (sop3 c4 c2 c3 c1 x.2.2.1 x.2.2.2)) x.2.1
     let svo := fun (T1 T2 T3 T4 c4 c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
-      (some (Pf1 c4 T1 T2 T3 T4 (sdF (Ss c4) mk1 (sop1 c4 c2 c3 x.2.2.1 x.2.2.2)) x.1),
-       some (pfPair NS2 (Pf2 c4 T1 T2 T3 T4) (Pf3 c4 T1 T2 T3 T4) (sdF (Ss c4) mk2 (sop2 c4 c2 c3 c1 x.2.2.1 x.2.2.2), sd3 c4 (sop3 c4 c2 c3 c1 x.2.2.1 x.2.2.2)) x.2.1),
+      (some (Pf1 c4 T1 T2 T3 T4 (s3 c4 c1 c2 c3 x) (sdF (Ss c4) mk1 (sop1 c4 c2 c3 x.2.2.1 x.2.2.2)) x.1),
+       some (pfPair NS2 (Pf2 c4 T1 T2 T3 T4 (s3 c4 c1 c2 c3 x)) (Pf3 c4 T1 T2 T3 T4 (s3 c4 c1 c2 c3 x)) (sdF (Ss c4) mk2 (sop2 c4 c2 c3 c1 x.2.2.1 x.2.2.2), sd3 c4 (sop3 c4 c2 c3 c1 x.2.2.1 x.2.2.2)) x.2.1),
        svF c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)
     let sm4 := fun (g : Nat × Nat × Nat × (Nat × Nat × Nat × (Nat → Tup)) → Nat) =>
       sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (K2 ^ (n1 * n2)) (fun H2 =>
@@ -920,12 +920,12 @@ theorem comp_fs_open4_absT {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {
     fun c4 c t r => opF_sdF _ _ _
   have hsd3 : ∀ c4 c c' t r, op3 c4 (sd3 c4 (op3 c4 (main3 c c' t r))) = op3 c4 (main3 c c' t r) := fun c4 c c' t r =>
     congrArg Prod.snd (op2_sd2 (Ss c4) [] (SsT c4) (SsC c4) (fun _ => []) (main3 c c' t r).1 (main3 c c' t r).2)
-  have hp3' : ∀ c4 T1 T2 T3 T4, ComPfHides NS3 Com3 (Pf3 c4 T1 T2 T3 T4) (op3 c4) := by
-    intro c4 T1 T2 T3 T4
+  have hp3' : ∀ c4 T1 T2 T3 T4 M, ComPfHides NS3 Com3 (Pf3 c4 T1 T2 T3 T4 M) (op3 c4) := by
+    intro c4 T1 T2 T3 T4 M
     have e1 : SsT c4 = cSsT (SM c4) (SC c4) (S9 c4) (SP c4) (SS c4) := comp_SsT off m.hd m.stk m.heap.length roots.length m.stk m.heap N W roots C Mm Wt tbM tbC tpP tpS (SM c4) (SC c4) (S9 c4) (SP c4) (SS c4) EF.zero qv (wm 0) (wc 0) (ww 0) (wp 0) (wsg 0)
     have e2 : SsC c4 = cSsC tbM tbC tpP tpS (SM c4) (SC c4) (S9 c4) (SP c4) (SS c4) := comp_SsC off m.hd m.stk m.heap.length roots.length m.stk m.heap N W roots C Mm Wt tbM tbC tpP tpS (SM c4) (SC c4) (S9 c4) (SP c4) (SS c4) EF.zero qv (wm 0) (wc 0) (ww 0) (wp 0) (wsg 0) ncw
-    show ComPfHides NS3 Com3 (Pf3 c4 T1 T2 T3 T4) (fun d => (opQ (SsT c4) d.1, opCw (SsC c4) d.2))
-    rw [e1, e2]; exact hp3 c4 T1 T2 T3 T4
+    show ComPfHides NS3 Com3 (Pf3 c4 T1 T2 T3 T4 M) (fun d => (opQ (SsT c4) d.1, opCw (SsC c4) d.2))
+    rw [e1, e2]; exact hp3 c4 T1 T2 T3 T4 M
   have hoz : ∀ c4 c2 c3 α β r t, ozF (rvF c4 c2 c3 α β r t) = ozF (rvF 0 c2 c3 α β r t) := by
     intro c4 c2 c3 α β r t
     simp only [rvF]
