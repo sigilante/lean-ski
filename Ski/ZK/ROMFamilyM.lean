@@ -30,7 +30,7 @@ theorem rgetL_spread {K n : Nat} (hK : 0 < K) (ps : List Nat) (hnd : ps.Nodup) (
         Nat.mul_le_mul_left _ (sumTo_indEq v _).1
     _ = K ^ n := Nat.mul_one _
 
-
+/-- Distinct leaves' positions are distinct. -/
 theorem posAll_nodup {D : Type} (pos : D → Nat → Nat → Nat) (L NSl : Nat)
     (hdist : ∀ d l l' a b, l < L → l' < L → l ≠ l' → pos d l a ≠ pos d l' b) (d : D) (σh : Nat) :
     (posAll pos L NSl d σh).Nodup := by
