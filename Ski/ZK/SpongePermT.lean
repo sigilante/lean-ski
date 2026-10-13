@@ -33,8 +33,7 @@ width `K` is the whole state, so no PRP/PRF switching term enters.
   has two values.
 
 Not shown: inverse queries to the permutation (an honest sponge makes
-none), and any step to `SudChallenger`'s `hφsp`, which bounds at every
-table how many salts reach one index.
+none).  `SpongeIndex` takes these bounds toward `SudChallenger`'s `hφsp`.
 -/
 
 set_option autoImplicit false

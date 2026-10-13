@@ -21,8 +21,13 @@ pairs of chains that meet.
   (`spread_countP`).  `spread_satPT` meets `hd` at `two_meet_satPT`'s
   full-width instance.
 
-`hφsp` holds at one table for every later transcript `rest` and `w`; here
-the later blocks `xs` are fixed before the permutation is drawn.  Not
+Two modelling assumptions enter.  The state `iv` before the first
+commitment is fixed before the permutation is drawn: no permutation call
+precedes the commitment.  The first commitment fills one aligned block
+(`hd`, `n1 ≤ R1` at the full-width instance); a digest straddling two
+permutation calls is not covered.  And `hφsp` holds at one table for every
+later transcript `rest` and `w`, while here the later blocks `xs` are fixed
+before the permutation is drawn.  Not
 shown: the composites with the permutation inside the averaged oracle and
 the later blocks drawn independently of it, which would replace `hφsp`'s
 constant `δs` by this average.

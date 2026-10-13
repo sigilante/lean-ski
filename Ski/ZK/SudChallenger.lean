@@ -16,8 +16,10 @@ permute the state; capacity collisions of the absorbed commitment enter
 `δs`.  The proofs' spread lemmas (`sudFS4T_hspS`, `witFS4T_hspS`,
 `compFS4T_hspS`) and the interleaved proofs (`sud_interleaveS`,
 `wit_interleaveS`, `comp_interleaveS`) follow.  An adding sponge, its
-full state the index, meets `hφsp` exactly (`SpongeSpread`).  Not shown: the overwrite
-sponge's collision bound; the other composites' versions.
+full state the index, meets `hφsp` exactly (`SpongeSpread`).  `SpongeIndex` bounds
+the overwrite sponge's spread at every table up to its meeting pairs, and
+those pairs averaged over a uniform permutation.  Not shown: the step from
+that average to `hφsp` at one table; the other composites' versions.
 -/
 
 set_option autoImplicit false
