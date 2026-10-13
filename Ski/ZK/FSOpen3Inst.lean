@@ -41,17 +41,17 @@ set_option maxRecDepth 100000 in
     transcript with the quotient chunks' commitment; each commitment
     opened beside the view; the simulator commits and opens interpolants
     through its own view's openings and programs all three tables
-    (`fs_open3`).  Assumed: each commitment hides alone and given its
-    openings at the real query points, perfectly, and is a primitive apart
-    from the oracle; generic `β` and `ζ`, the other draws dropped from
-    both counts, their mass outside the bound; the weights a family of
-    fixed lengths; the FRI challenge `αb` and the query points fixed
-    parameters, unhashed; one proof per oracle.  The third commitment's
-    data are taken at `ζ = 0`: without an abort they equal the data at
-    every `ζ` (`wit_data_zeta`), and with one only the commitment shows.
-    The simulator reads the tables only through `wPsim` and the quotient
-    tables' shapes, both their preprocessed columns only (`wPsim_pre`,
-    `wTs_pre`). -/
+    (`fs_open3U`).  Both counts are unguarded: the draws with `β` or `ζ`
+    non-generic, at most `2/P²` of all, enter the bound as its last term.
+    Assumed: each commitment hides alone and given its openings at the
+    real query points, perfectly, and is a primitive apart from the
+    oracle; the weights a family of fixed lengths; the FRI challenge `αb`
+    and the query points fixed parameters, unhashed; one proof per oracle.
+    The third commitment's data are taken at `ζ = 0`: without an abort
+    they equal the data at every `ζ` (`wit_data_zeta`), and with one only
+    the commitment shows.  The simulator reads the tables only through
+    `wPsim` and the quotient tables' shapes, both their preprocessed
+    columns only (`wPsim_pre`, `wTs_pre`). -/
 theorem wit_fs_open3 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {Vt x : Term} {W : Nat} {ws : List Cell} (hwf : WF ws)
     (hwl : ws.length = W) (hW8 : W ≤ 2 ^ 8) {A : List Cell} {k : Nat} {row : Nat → Air.Row}
     (hA : AcceptsFrom A (wMachine ws (Vt ⬝ x)) k row)
@@ -166,21 +166,19 @@ theorem wit_fs_open3 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {Vt x :
       (some (Pf1 ((sdF Ss0 mk1) (sop1 c2 c3 x.2.2.1 x.2.2.2)) x.1),
        some (pfPair NS2 Pf2 Pf3 ((sdF Ss0 mk2) (sop2 c2 c3 c1 x.2.2.1 x.2.2.2), sd3 (sop3 c2 c3 c1 x.2.2.1 x.2.2.2)) x.2.1),
        svF c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)
-    let gd := fun (c1 c2 c3 : Nat) => genB (efOf (c1 % Q4)) && genB (efOf c3)
     (Q4 * Q4) * (K2 * (Q4 * sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (K2 ^ (n1 * n2)) (fun H2 =>
       sumTo (Q4 ^ (n1 * (n2 * n3))) (fun H3 => sm (fun x =>
-      indB (gd (rget (Q4 * Q4) (m1 x) H1) (rget K2 (m2 (rget (Q4 * Q4) (m1 x) H1) x) H2)
-          (rget Q4 (m3 (rget (Q4 * Q4) (m1 x) H1) (rget K2 (m2 (rget (Q4 * Q4) (m1 x) H1) x) H2) x) H3) &&
-        E H1 H2 H3 (m1 x) (m2 (rget (Q4 * Q4) (m1 x) H1) x)
+      indB (E H1 H2 H3 (m1 x) (m2 (rget (Q4 * Q4) (m1 x) H1) x)
           (m3 (rget (Q4 * Q4) (m1 x) H1) (rget K2 (m2 (rget (Q4 * Q4) (m1 x) H1) x) H2) x)
           (rvo (rget (Q4 * Q4) (m1 x) H1) (rget K2 (m2 (rget (Q4 * Q4) (m1 x) H1) x) H2)
             (rget Q4 (m3 (rget (Q4 * Q4) (m1 x) H1) (rget K2 (m2 (rget (Q4 * Q4) (m1 x) H1) x) H2) x) H3) x)))))))) ≤
     sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (K2 ^ (n1 * n2)) (fun H2 => sumTo (Q4 ^ (n1 * (n2 * n3))) (fun H3 =>
       sumTo (Q4 * Q4) (fun c1 => sumTo K2 (fun c2 => sumTo Q4 (fun c3 => sm (fun x =>
-        indB (gd c1 c2 c3 && E (rset (Q4 * Q4) (s1 c1 c2 c3 x) H1 c1) (rset K2 (s2 c1 c2 c3 x) H2 c2)
+        indB (E (rset (Q4 * Q4) (s1 c1 c2 c3 x) H1 c1) (rset K2 (s2 c1 c2 c3 x) H2 c2)
           (rset Q4 (s3 c1 c2 c3 x) H3 c3) (s1 c1 c2 c3 x) (s2 c1 c2 c3 x) (s3 c1 c2 c3 x) (svo c1 c2 c3 x))))))))) +
       (Q4 * Q4) ^ n1 * (K2 ^ (n1 * n2) * (Q4 ^ (n1 * (n2 * n3)) *
-        (K2 * (Q4 * (NS1 * (NS2 * NS3 * ((Q4 * (NR * (Q4 ^ 2 * M)) + Q4 * (Q4 * (Q4 ^ 2 * 0)))))))))) := by
+        (K2 * (Q4 * (NS1 * (NS2 * NS3 * ((Q4 * (NR * (Q4 ^ 2 * M)) + Q4 * (Q4 * (Q4 ^ 2 * 0))))))) +
+          (Q4 * (P * P) * (K2 * Q4) + Q4 * Q4 * (K2 * (P * P))) * (NS1 * (NS2 * NS3 * (NR * (Q4 ^ 2 * 1))))))) := by
   intro blank C Pg Wt Mm NR0 pcsZ psimZ NR tabs tv ptm M q0 Ss0 ks cols tqZ qdZ SsT0 SsC0 mk1 mk2 main1 main2 main3 vS qZ sop1 sop2 sop3 ov1 ov2 ov3 rvF svF op3 sd3
   obtain ⟨hbal, hun⟩ := wit_honest_zk hwf hwl hW8 hA hlen hk
   obtain ⟨sc, sms, sw, hWh⟩ := wit_run_sats hwf hwl hW8 hA hK hlen hk
@@ -295,7 +293,9 @@ theorem wit_fs_open3 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {Vt x :
     have e2 : SsC0 = wSsC tP S10 S9 SP := wit_SsC off blank.hd blank.stk blank.heap.length blank.heap W C Mm Wt tP S10 S9 SP EF.zero qv (wm 0) (wc 0) (ww 0) (wp 0) ncw
     show ComPfHides NS3 Com3 Pf3 (fun d => (opQ SsT0 d.1, opCw SsC0 d.2))
     rw [e1, e2]; exact hp3
-  exact fs_open3 hK2 Q4_pos rvF svF (fun c2 c3 => genB (efOf c3))
+  have hgz : sumTo K2 (fun _ => sumTo Q4 (fun c3 => indB (!genB (efOf c3)))) ≤ K2 * (P * P) := by
+    rw [genB_count, sumTo_const]; exact Nat.le_refl _
+  exact fs_open3U hK2 Q4_pos rvF svF (fun c2 c3 => genB (efOf c3)) hgz
     (fun c2 c3 α β r t => realVN_cases _ _ _ _ _ α β r t) (fun c2 c3 α β r t => simVN_some _ _ _ _ _ _ _ _ α β r t)
     (fun c2 c3 hg => (hb c2 c3 hg).1) (fun c2 c3 hg => (hb c2 c3 hg).2)
     Com1 Pf1 (opF Ss0 mk1) (sdF Ss0 mk1) d1 hc1 hp1 hr1 ov1 rfl main1 hsd1
@@ -332,17 +332,17 @@ set_option maxRecDepth 100000 in
     transcript with the quotient chunks' commitment; each commitment
     opened beside the view; the simulator commits and opens interpolants
     through its own view's openings and programs all three tables
-    (`fs_open3`).  Assumed: each commitment hides alone and given its
-    openings at the real query points, perfectly, and is a primitive apart
-    from the oracle; generic `β` and `ζ`, the other draws dropped from
-    both counts, their mass outside the bound; the weights a family of
-    fixed lengths; the FRI challenge `αb` and the query points fixed
-    parameters, unhashed; one proof per oracle.  The third commitment's
-    data are taken at `ζ = 0`: without an abort they equal the data at
-    every `ζ` (`comp_data_zeta`), and with one only the commitment shows.
-    The simulator reads the tables only through `cPsim` and the quotient
-    tables' shapes, both their preprocessed columns only (`cPsim_pre`,
-    `cTs_pre`). -/
+    (`fs_open3U`).  Both counts are unguarded: the draws with `β` or `ζ`
+    non-generic, at most `2/P²` of all, enter the bound as its last term.
+    Assumed: each commitment hides alone and given its openings at the
+    real query points, perfectly, and is a primitive apart from the
+    oracle; the weights a family of fixed lengths; the FRI challenge `αb`
+    and the query points fixed parameters, unhashed; one proof per oracle.
+    The third commitment's data are taken at `ζ = 0`: without an abort
+    they equal the data at every `ζ` (`comp_data_zeta`), and with one only
+    the commitment shows.  The simulator reads the tables only through
+    `cPsim` and the quotient tables' shapes, both their preprocessed
+    columns only (`cPsim_pre`, `cTs_pre`). -/
 theorem comp_fs_open3 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {R Lm : Nat} (hR : R ≤ 20) {shp : BT} {Ps : List Term}
     {W : Nat} {ρ : Nat → Bool} {region : List Cell} (hrl : region.length = W)
     (hr : ∀ i c, region[i]? = some c → cellOK (BT.nleaves shp + 3 + i) c = true)
@@ -472,21 +472,19 @@ theorem comp_fs_open3 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {R Lm 
       (some (Pf1 ((sdF Ss0 mk1) (sop1 c2 c3 x.2.2.1 x.2.2.2)) x.1),
        some (pfPair NS2 Pf2 Pf3 ((sdF Ss0 mk2) (sop2 c2 c3 c1 x.2.2.1 x.2.2.2), sd3 (sop3 c2 c3 c1 x.2.2.1 x.2.2.2)) x.2.1),
        svF c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)
-    let gd := fun (c1 c2 c3 : Nat) => genB (efOf (c1 % Q4)) && genB (efOf c3)
     (Q4 * Q4) * (K2 * (Q4 * sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (K2 ^ (n1 * n2)) (fun H2 =>
       sumTo (Q4 ^ (n1 * (n2 * n3))) (fun H3 => sm (fun x =>
-      indB (gd (rget (Q4 * Q4) (m1 x) H1) (rget K2 (m2 (rget (Q4 * Q4) (m1 x) H1) x) H2)
-          (rget Q4 (m3 (rget (Q4 * Q4) (m1 x) H1) (rget K2 (m2 (rget (Q4 * Q4) (m1 x) H1) x) H2) x) H3) &&
-        E H1 H2 H3 (m1 x) (m2 (rget (Q4 * Q4) (m1 x) H1) x)
+      indB (E H1 H2 H3 (m1 x) (m2 (rget (Q4 * Q4) (m1 x) H1) x)
           (m3 (rget (Q4 * Q4) (m1 x) H1) (rget K2 (m2 (rget (Q4 * Q4) (m1 x) H1) x) H2) x)
           (rvo (rget (Q4 * Q4) (m1 x) H1) (rget K2 (m2 (rget (Q4 * Q4) (m1 x) H1) x) H2)
             (rget Q4 (m3 (rget (Q4 * Q4) (m1 x) H1) (rget K2 (m2 (rget (Q4 * Q4) (m1 x) H1) x) H2) x) H3) x)))))))) ≤
     sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (K2 ^ (n1 * n2)) (fun H2 => sumTo (Q4 ^ (n1 * (n2 * n3))) (fun H3 =>
       sumTo (Q4 * Q4) (fun c1 => sumTo K2 (fun c2 => sumTo Q4 (fun c3 => sm (fun x =>
-        indB (gd c1 c2 c3 && E (rset (Q4 * Q4) (s1 c1 c2 c3 x) H1 c1) (rset K2 (s2 c1 c2 c3 x) H2 c2)
+        indB (E (rset (Q4 * Q4) (s1 c1 c2 c3 x) H1 c1) (rset K2 (s2 c1 c2 c3 x) H2 c2)
           (rset Q4 (s3 c1 c2 c3 x) H3 c3) (s1 c1 c2 c3 x) (s2 c1 c2 c3 x) (s3 c1 c2 c3 x) (svo c1 c2 c3 x))))))))) +
       (Q4 * Q4) ^ n1 * (K2 ^ (n1 * n2) * (Q4 ^ (n1 * (n2 * n3)) *
-        (K2 * (Q4 * (NS1 * (NS2 * NS3 * ((Q4 * (NR * (Q4 ^ 2 * M)) + Q4 * (Q4 * (Q4 ^ 2 * 0)))))))))) := by
+        (K2 * (Q4 * (NS1 * (NS2 * NS3 * ((Q4 * (NR * (Q4 ^ 2 * M)) + Q4 * (Q4 * (Q4 ^ 2 * 0))))))) +
+          (Q4 * (P * P) * (K2 * Q4) + Q4 * Q4 * (K2 * (P * P))) * (NS1 * (NS2 * NS3 * (NR * (Q4 ^ 2 * 1))))))) := by
   intro m roots N C Pg Wt Mm NR0 pcsZ psimZ NR tabs tv pb ptm M q0 Ss0 ks cols tqZ qdZ SsT0 SsC0 mk1 mk2 main1 main2 main3 vS qZ sop1 sop2 sop3 ov1 ov2 ov3 rvF svF op3 sd3
   obtain ⟨hbal, hun⟩ := comp_honest_zk hR hrl hr hA hlen hLm hK hNW
   obtain ⟨sc, sms, sw, hWh, _⟩ := comp_run_sats hR hrl hr hA hlen hLm hK hNW
@@ -604,7 +602,9 @@ theorem comp_fs_open3 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {R Lm 
     have e2 : SsC0 = cSsC tbM tbC tpP tpS SM SC S9 SP SS := comp_SsC off m.hd m.stk m.heap.length roots.length m.stk m.heap N W roots C Mm Wt tbM tbC tpP tpS SM SC S9 SP SS EF.zero qv (wm 0) (wc 0) (ww 0) (wp 0) (wsg 0) ncw
     show ComPfHides NS3 Com3 Pf3 (fun d => (opQ SsT0 d.1, opCw SsC0 d.2))
     rw [e1, e2]; exact hp3
-  exact fs_open3 hK2 Q4_pos rvF svF (fun c2 c3 => genB (efOf c3))
+  have hgz : sumTo K2 (fun _ => sumTo Q4 (fun c3 => indB (!genB (efOf c3)))) ≤ K2 * (P * P) := by
+    rw [genB_count, sumTo_const]; exact Nat.le_refl _
+  exact fs_open3U hK2 Q4_pos rvF svF (fun c2 c3 => genB (efOf c3)) hgz
     (fun c2 c3 α β r t => realVN_cases _ _ _ _ _ α β r t) (fun c2 c3 α β r t => simVN_some _ _ _ _ _ _ _ _ α β r t)
     (fun c2 c3 hg => (hb c2 c3 hg).1) (fun c2 c3 hg => (hb c2 c3 hg).2)
     Com1 Pf1 (opF Ss0 mk1) (sdF Ss0 mk1) d1 hc1 hp1 hr1 ov1 rfl main1 hsd1
