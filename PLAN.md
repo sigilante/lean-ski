@@ -839,10 +839,10 @@ accepted proof holds Booleans on which the verifier accepts
 (`predExport_sound`). A witness term would not do, since it answers the
 verifier's case analysis however it likes. The first predicate, `split`
 (`skilark.zk`), adds two hidden bit strings and compares the sum with
-`x`; at `k = 8`, 129,965 rows at `2^17`. The statement names its heights
+`x`; at `k = 8`, 103,250 to 130,045 rows over its 201 witnesses, at `2^17`. The statement names its heights
 (`log R M`). The committed split `csplit` adds a knapsack commitment to
-`a` under public weights, checked in the same pass: 471,888 rows at
-`2^19`, proved in 40 s. At these sizes the commitment neither binds nor
+`a` under public weights, checked in the same pass: 290,659 to 644,561 rows
+over its 51,456 witnesses, at `2^20`. At these sizes the commitment neither binds nor
 hides (`2^16` openings, sums of at most 437); it is the statement's shape.
 Jets on SKIlark code, measured in the clear (`bench/plonky3/README.md`):
 `split8`'s verifier runs in 11,483 rows jetted against 129,957 plain,

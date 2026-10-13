@@ -30,16 +30,20 @@
 #      `split` for 8 bits, from SKIlark (`python -m
 #      skilark.zk 8`, SKILARK_PY, default ~/SKIlark/.venv/bin/python; the
 #      committed source when it is absent); Lean compiles it and emits the
-#      predicate statement `x = 200` and the witness, the 16 bits of
-#      `a = 123, b = 77`, at heights
-#      2^17 and 2^18; ski-air composed-prove proves it.  The witness stays
-#      in a temporary directory.
+#      predicate statement `x = 200` and the witness, the 16 bits of a
+#      secret pair (`secret_a`, below: a uniform in 0..200 from the
+#      system's entropy, b = 200 - a), at heights 2^17 and 2^18, which hold
+#      the run of each of the 201 pairs; ski-air composed-prove proves it.
+#      The pair, the witness and the prover's counts of the run stay in a
+#      temporary directory: the counts depend on the pair, and nothing
+#      prints them.
 #   9. a committed split (release/skilark/csplit8): SKIlark's `python -m
 #      skilark.zk csplit 8 8` (or the committed source); Lean emits the
-#      statement x = 200 with the knapsack commitment of a = 123 and
-#      r = 181 under the weights of seed 1, and the witness, the bits of
-#      a, b = 77 and r, at heights 2^19 and 2^20; ski-air composed-prove
-#      proves it.
+#      statement x = 200 with the knapsack commitment c of a secret a and
+#      r (a as in 8, r uniform in 0..255) under the weights of seed 1, c
+#      written to commitment.txt, and the witness, the bits of a, b and r,
+#      at heights 2^20 and 2^20, which hold every witness's run; ski-air
+#      composed-prove proves it, as in 8.
 #  10. a Sudoku (release/sudoku): Lean emits the statement of Wikipedia's
 #      puzzle and the witness, its solution (`lake exe sudoku emit`);
 #      ski-air sudoku-prove proves it in zero knowledge.  The witness stays
@@ -47,7 +51,9 @@
 #  11. split8 and csplit8 with jets, under hiding (release/skilark/*/jets):
 #      Lean writes the statement with jets, its heights and POP's and
 #      INSTW's budgets public (`lake exe composed budget`: log R M Lp Li;
-#      split8 at 2^17 2^18 2^14 2^14, csplit8 at 2^17 2^18 2^15 2^16), and
+#      split8 at 2^17 2^18 2^14 2^14, csplit8 at 2^18 2^19 2^15 2^16, each
+#      holding the run of every witness, so the heights say nothing of the
+#      secret witness the stage draws afresh, as in 8 and 9), and
 #      its jet table from the source's templates (`lake exe skilark
 #      cjets`, Air.jetTableC); Avon writes the witness table (`avon
 #      witness --statement`, Avon's milestone 8); Lean's `composed check-cj`
@@ -93,6 +99,17 @@ done
 (cd bench/plonky3 && cargo build --release --locked --quiet)
 A=bench/plonky3/target/release/ski-air
 PY=${SKILARK_PY:-$HOME/SKIlark/.venv/bin/python}
+
+# Secret witnesses for the split predicates, from the system's entropy: a
+# byte, and a uniform in 0..200 by rejection.  They reach only the
+# emitters and provers, whose output goes to $tmp; a run's counts depend on
+# its witness, so no secret stage prints them.
+byte() { od -An -N1 -tu1 /dev/urandom | tr -d ' \n'; }
+secret_a() {
+    local v
+    while v=$(byte); case "$v" in ''|*[!0-9]*) echo "no entropy from /dev/urandom" >&2; exit 1 ;; esac; [ "$v" -gt 200 ]; do :; done
+    echo "$v"
+}
 
 if want sumto; then
 echo "--- Lean: the term and its jet table"
@@ -195,14 +212,17 @@ else
     echo "no SKIlark at $PY: keeping the committed $S/source.ski"
 fi
 lake build skilark > /dev/null
-lake exe skilark emit "$S/source.ski" 8 200 123 77 17 18 "$tmp/skilark"
+a=$(secret_a)
+lake exe skilark emit "$S/source.ski" 8 200 "$a" $((200 - a)) 17 18 "$tmp/skilark" > /dev/null
 /bin/cp "$tmp/skilark/public.txt" "$S/public.txt"
-bench/plonky3/target/release/ski-air composed-prove "$S/public.txt" "$tmp/skilark/witness.txt" "$S/split8.proof"
+bench/plonky3/target/release/ski-air composed-prove "$S/public.txt" "$tmp/skilark/witness.txt" "$S/split8.proof" \
+    > "$tmp/split8.log"
+echo "proved $S/split8.proof"
 
 fi
 
 if want csplit8; then
-echo "--- a committed split in zero knowledge: a + b = 200, a in a toy knapsack commitment c = 255"
+echo "--- a committed split in zero knowledge: a + b = 200, a in a toy knapsack commitment"
 S=release/skilark/csplit8
 mkdir -p "$S"
 if [ -x "$PY" ]; then
@@ -210,9 +230,15 @@ if [ -x "$PY" ]; then
 else
     echo "no SKIlark at $PY: keeping the committed $S/source.ski"
 fi
-lake exe skilark cemit "$S/source.ski" 8 8 1 200 123 77 181 19 20 "$tmp/csplit"
+a=$(secret_a); r=$(byte)
+lake exe skilark cemit "$S/source.ski" 8 8 1 200 "$a" $((200 - a)) "$r" 20 20 "$tmp/csplit" > "$tmp/csplit.log"
+sed -n 's/.*: x = 200, c = \([0-9]*\);.*/\1/p' "$tmp/csplit.log" > "$tmp/commitment.txt"
+grep -qx '[0-9][0-9]*' "$tmp/commitment.txt" || { echo "no commitment in cemit's output" >&2; exit 1; }
 /bin/cp "$tmp/csplit/public.txt" "$S/public.txt"
-bench/plonky3/target/release/ski-air composed-prove "$S/public.txt" "$tmp/csplit/witness.txt" "$S/csplit8.proof"
+/bin/cp "$tmp/commitment.txt" "$S/commitment.txt"
+bench/plonky3/target/release/ski-air composed-prove "$S/public.txt" "$tmp/csplit/witness.txt" "$S/csplit8.proof" \
+    > "$tmp/csplit8.log"
+echo "proved $S/csplit8.proof, commitment $(cat "$S/commitment.txt")"
 fi
 
 if want sudoku; then
@@ -230,20 +256,31 @@ echo "--- split8 and csplit8 with jets, under hiding: $WITNESS writes the witnes
 # Avon with milestone 8 (`avon witness --statement`): AVON_DIR's checkout
 if [ "$WITNESS" = avon ]; then make -C "$AVON_DIR" > /dev/null; fi
 lake build skilark composed > /dev/null
-# name, its emit command's arguments and the plain statement's heights, the jet statement's heights and budgets
-for c in "split8:emit:8 200 123 77:17 18:14 14" "csplit8:cemit:8 8 1 200 123 77 181:17 18:15 16"; do
-    IFS=: read -r name cmd args lg bud <<< "$c"
+# name, the jet statement's heights and budgets: each holds the run of
+# every witness, so they are fixed before the stage draws its secret one
+for c in "split8:17 18:14 14" "csplit8:18 19:15 16"; do
+    IFS=: read -r name lg bud <<< "$c"
     S=release/skilark/$name
     mkdir -p "$S/jets"
-    # shellcheck disable=SC2086
-    lake exe skilark "$cmd" "$S/source.ski" $args $lg "$tmp/$name" > /dev/null
+    a=$(secret_a)
+    if [ "$name" = split8 ]; then
+        # shellcheck disable=SC2086
+        lake exe skilark emit "$S/source.ski" 8 200 "$a" $((200 - a)) $lg "$tmp/$name" > /dev/null
+    else
+        r=$(byte)
+        # shellcheck disable=SC2086
+        lake exe skilark cemit "$S/source.ski" 8 8 1 200 "$a" $((200 - a)) "$r" $lg "$tmp/$name" > "$tmp/$name.emit.log"
+        sed -n 's/.*: x = 200, c = \([0-9]*\);.*/\1/p' "$tmp/$name.emit.log" > "$tmp/$name.commitment.txt"
+        grep -qx '[0-9][0-9]*' "$tmp/$name.commitment.txt" || { echo "no commitment in cemit's output" >&2; exit 1; }
+        /bin/cp "$tmp/$name.commitment.txt" "$S/jets/commitment.txt"
+    fi
     # shellcheck disable=SC2086
     lake exe composed budget "$tmp/$name/public.txt" $bud "$S/jets/public.txt"
     lake exe skilark cjets "$S/source.ski" "$S/jets/public.txt" "$S/jets/$name.jets" | tail -n 1
     if [ "$WITNESS" = avon ]; then
         "$AVON_DIR/build/avon" witness --statement="$S/jets/public.txt" --jet-table="$S/jets/$name.jets" \
-            "$tmp/$name/witness.txt" > "$tmp/$name.table" 2> "$tmp/avon.err"
-        cat "$tmp/avon.err"
+            "$tmp/$name/witness.txt" > "$tmp/$name.table" 2> "$tmp/avon.err" \
+            || { cat "$tmp/avon.err" >&2; exit 1; }
         # Avon's table is the one lean-ski's prover writes, byte for byte.
         "$A" compj-prove "$S/jets/public.txt" "$S/jets/$name.jets" "$S/source.ski" "$tmp/$name/witness.txt" \
             "$tmp/$name.own.proof" "$tmp/$name.own.table" > /dev/null
@@ -251,11 +288,10 @@ for c in "split8:emit:8 200 123 77:17 18:14 14" "csplit8:cemit:8 8 1 200 123 77 
     else
         "$A" compj-prove "$S/jets/public.txt" "$S/jets/$name.jets" "$S/source.ski" "$tmp/$name/witness.txt" \
             "$tmp/$name.first.proof" "$tmp/$name.table" > "$tmp/$name.prove.log"
-        cut -c1-200 "$tmp/$name.prove.log"
     fi
-    lake exe composed check-cj "$S/source.ski" "$S/jets/public.txt" "$tmp/$name.table" | grep -E '^(ACCEPT|REJECT)' | cut -c1-120
+    lake exe composed check-cj "$S/source.ski" "$S/jets/public.txt" "$tmp/$name.table" | grep -oE '^(ACCEPT|REJECT)'
     "$A" compj-prove-table "$S/jets/public.txt" "$S/jets/$name.jets" "$S/source.ski" "$tmp/$name.table" \
-        "$S/jets/$name.proof"
+        "$S/jets/$name.proof" > "$tmp/$name.prove-table.log"
     "$A" compj-verify "$S/jets/public.txt" "$S/jets/$name.jets" "$S/source.ski" "$S/jets/$name.proof" | cut -c1-80
 done
 fi
