@@ -16,8 +16,8 @@ The bound gains `s k / NSh` a draw, one direction.  The limits are
 `fs_open4ROM`'s: the queries read the opening at the drawn challenge and
 the commitment, no query answers where the prover aborts, the later
 commitments primitives, the commitment's table apart from the Fiat–Shamir
-tables, one hash (a commitment to several leaves, a Merkle tree's:
-`ROMMerkle`, one round).
+tables, one hash (several hidden leaves, a step
+towards a Merkle tree's: `ROMMerkle`, one round).
 -/
 set_option autoImplicit false
 

@@ -1261,4 +1261,4 @@ open Ski.Audit
 #audit_clean Circuit.rgetL_rset Circuit.reprog_swapL Circuit.pfIL_hides Circuit.comIL_hides Circuit.runQ_rsetL
   Circuit.hitL_false Circuit.pfRL_pfIL Circuit.rget_mul_le Circuit.rset_comm Circuit.rset_rsetL Circuit.rsetL_back
   Circuit.hitL_rsetL Circuit.any_le_sum Circuit.hitL_bound Circuit.transferRL Circuit.rgetL_lt Circuit.pfRL_hidesA
-  Circuit.fs_openROML
+  Circuit.fs_openROML Circuit.hs_one

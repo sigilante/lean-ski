@@ -5,12 +5,15 @@ import Ski.ZK.ROMHide
 
 `Ski/ZK/ROMHide.lean`'s commitment is one answer of its own table.  A
 Merkle commitment hashes each leaf, its data with a salt, into a leaf
-hash, and the root and every authentication path are functions of the leaf
-hashes.  Here the commitment is all `L` leaf hashes, the answers of the
-commitment's table at the leaves' salted positions (`comRL`); the root and
-the authentication paths, any functions of them computed apart from the
-leaves' table, are events of it, so the model shows the distinguisher at
-least what any Merkle opening shows.  The ideal opening re-randomizes
+hash, and the root and the authentication paths are functions of the leaf
+hashes.  Here the commitment is `L` leaf hashes, the answers of the
+commitment's table at the leaves' salted positions (`comRL`), every
+position depending on the hidden salt.  This is the step towards a Merkle
+commitment, not yet the commitment itself: the opened leaves' salts are
+never shown (a Merkle opening shows them, and which leaves open depends on
+the later challenges), no two leaves share a position (`hnd`; salted leaves
+with equal rows and salts would), the internal hashing is apart from the
+leaves' table, and Fiat–Shamir hashes the leaf vector, not a root.  The ideal opening re-randomizes
 every leaf's answer (`comIL`, `pfIL`), and hides exactly
 (`reprog_swapL`, `pfIL_hides`, `comIL_hides`); the real opening differs
 from it only where a query hits a leaf (`pfRL_pfIL`, `hitL_rsetL`), at most
@@ -279,7 +282,7 @@ theorem any_le_sum (f : Nat → Bool) : ∀ (ps : List Nat),
 theorem hitL_bound {D P : Type} {K n NSh NSo L s k : Nat} (hK : 0 < K) (ps : D → Nat → Nat → List Nat)
     (hnd : ∀ d σo σh, (ps d σo σh).Nodup) (hlen : ∀ d σo σh, (ps d σo σh).length = L)
     (hlt : ∀ d σo σh, ∀ p ∈ ps d σo σh, p < n)
-    (hs : ∀ d σo l v, sumTo NSh (fun σh => indB (decide ((ps d σo σh).getD l 0 = v))) ≤ s)
+    (hs : ∀ d σo l, l < L → ∀ v, sumTo NSh (fun σh => indB (decide ((ps d σo σh).getD l 0 = v))) ≤ s)
     (pf : Nat → P) (nxt : P → Nat → List Nat → Nat) (d : D) :
     sumTo (NSh * (NSo * K ^ n)) (fun σ => indB (hitL K (ps d (saltO NSh NSo σ) (saltH NSh σ))
       (nxt (pf (saltO NSh NSo σ))) (comRL K NSh NSo ps d σ) k (saltT NSh NSo σ))) ≤ NSo * (K ^ n * (L * (s * k))) := by
@@ -321,8 +324,8 @@ theorem hitL_bound {D P : Type} {K n NSh NSo L s k : Nat} (hK : 0 < K) (ps : D �
           rw [hlen d o σh] at this; exact this)
     _ = sumTo L (fun l => sumTo NSh (fun σh => indB (decide ((ps d o σh).getD l 0 ∈ qposQ K (nxt (pf o)) c k H)))) :=
         sumTo_exch _ _ _
-    _ ≤ sumTo L (fun _ => s * k) := sumTo_mono _ (fun l _ => by
-          have h := salts_in (fun σh => (ps d o σh).getD l 0) (hs d o l) (qposQ K (nxt (pf o)) c k H)
+    _ ≤ sumTo L (fun _ => s * k) := sumTo_mono _ (fun l hl => by
+          have h := salts_in (fun σh => (ps d o σh).getD l 0) (hs d o l hl) (qposQ K (nxt (pf o)) c k H)
           rwa [qposQ_length] at h)
     _ = L * (s * k) := sumTo_const _ _
 
@@ -333,7 +336,7 @@ theorem hitL_bound {D P : Type} {K n NSh NSo L s k : Nat} (hK : 0 < K) (ps : D �
 theorem transferRL {D O P : Type} {K n NSh NSo L s k : Nat} (hK : 0 < K) (ps : D → Nat → Nat → List Nat)
     (hnd : ∀ d σo σh, (ps d σo σh).Nodup) (hlen : ∀ d σo σh, (ps d σo σh).length = L)
     (hlt : ∀ d σo σh, ∀ p ∈ ps d σo σh, p < n)
-    (hs : ∀ d σo l v, sumTo NSh (fun σh => indB (decide ((ps d σo σh).getD l 0 = v))) ≤ s)
+    (hs : ∀ d σo l, l < L → ∀ v, sumTo NSh (fun σh => indB (decide ((ps d σo σh).getD l 0 = v))) ≤ s)
     (op : D → O) (g : O → Nat → P) (nxt : P → Nat → List Nat → Nat) (F : Nat → P × List Nat → Bool) (d : D) :
     K ^ L * sumTo (NSh * (NSo * K ^ n)) (fun σ => indB (F (comRL K NSh NSo ps d σ) (pfRL K NSh NSo k ps op g nxt d σ))) ≤
       sumTo (NSh * (NSo * K ^ n) * K ^ L) (fun σ =>
@@ -371,7 +374,7 @@ theorem rgetL_lt {K : Nat} (hK : 0 < K) : ∀ (ps : List Nat) (H : Nat), rgetL K
 theorem pfRL_hidesA {D O P : Type} {K n NSh NSo L s k : Nat} (hK : 0 < K) (ps : D → Nat → Nat → List Nat)
     (hnd : ∀ d σo σh, (ps d σo σh).Nodup) (hlen : ∀ d σo σh, (ps d σo σh).length = L)
     (hlt : ∀ d σo σh, ∀ p ∈ ps d σo σh, p < n)
-    (hs : ∀ d σo l v, sumTo NSh (fun σh => indB (decide ((ps d σo σh).getD l 0 = v))) ≤ s)
+    (hs : ∀ d σo l, l < L → ∀ v, sumTo NSh (fun σh => indB (decide ((ps d σo σh).getD l 0 = v))) ≤ s)
     (op : D → O) (g : O → Nat → P) (nxt : P → Nat → List Nat → Nat) :
     ComPfHidesA (NSh * (NSo * K ^ n)) (NSo * (K ^ n * (2 * (L * (s * k))))) (comRL K NSh NSo ps)
       (pfRL K NSh NSo k ps op g nxt) op := by
@@ -393,13 +396,13 @@ theorem pfRL_hidesA {D O P : Type} {K n NSh NSo L s k : Nat} (hK : 0 < K) (ps : 
         rw [← Nat.mul_add]; congr 1; rw [← Nat.mul_add]; congr 1; omega
 /-- **One Fiat–Shamir round, the commitment to `L` leaves drawn from the
     oracle** (`fs_openA` over `comRL`, `pfRL`): `fs_openROM` with the
-    commitment the leaves' answers at their salted positions, a root being
-    any function of them; the bound gains `L` times `fs_openROM`'s hit term,
+    commitment the leaves' answers at their salted positions, the leaf
+    vector hashed; the bound gains `L` times `fs_openROM`'s hit term,
     `2 L s k / NSh` a draw normalized. -/
 theorem fs_openROML {PV PB D O P : Type} {NR m e1 e2 K n NSh NSo L s k : Nat} (hK : 0 < K)
     (ps : D → Nat → Nat → List Nat) (hnd : ∀ d σo σh, (ps d σo σh).Nodup) (hlen : ∀ d σo σh, (ps d σo σh).length = L)
     (hlt : ∀ d σo σh, ∀ p ∈ ps d σo σh, p < n) (g : O → Nat → P)
-    (hs : ∀ d σo l v, sumTo NSh (fun σh => indB (decide ((ps d σo σh).getD l 0 = v))) ≤ s) (nxt : P → Nat → List Nat → Nat)
+    (hs : ∀ d σo l, l < L → ∀ v, sumTo NSh (fun σh => indB (decide ((ps d σo σh).getD l 0 = v))) ≤ s) (nxt : P → Nat → List Nat → Nat)
     (op : D → O) (sd : O → D) (d0 : D)
     (ov : TViewN PV PB → Option O) (hovn : ov none = none) (main : (Nat → Tup) → Nat → D)
     (hsd : ∀ t r, op (sd (op (main t r))) = op (main t r))
@@ -444,4 +447,28 @@ theorem fs_openROML {PV PB D O P : Type} {NR m e1 e2 K n NSh NSo L s k : Nat} (h
     rwa [hlen] at h
   exact fs_openA (comRL K NSh NSo ps) (pfRL K NSh NSo k ps op g nxt) op sd d0 hcom
     (pfRL_hidesA hK ps hnd hlen hlt hs op g nxt) hrange ov hovn main hsd sop h1 h2 hrv hsv hrvo hsvo E
+
+/-- **The spread hypothesis is met with `s = 1`** (not vacuous): one leaf
+    per draw, its position the hidden salt itself. -/
+theorem hs_one {D : Type} (NSh : Nat) :
+    ∀ (d : D) (σo l : Nat), l < 1 → ∀ v, sumTo NSh (fun σh => indB (decide (([σh] : List Nat).getD l 0 = v))) ≤ 1 := by
+  intro d σo l hl v
+  have hl0 : l = 0 := by omega
+  subst hl0
+  show sumTo NSh (fun σh => indB (decide (σh = v))) ≤ 1
+  induction NSh with
+  | zero => exact Nat.zero_le _
+  | succ N ih =>
+    show sumTo N (fun σh => indB (decide (σh = v))) + indB (decide (N = v)) ≤ 1
+    by_cases h : N = v
+    · subst h
+      have z : sumTo N (fun σh => indB (decide (σh = N))) = 0 := by
+        have : ∀ M, M ≤ N → sumTo M (fun σh => indB (decide (σh = N))) = 0 := by
+          intro M; induction M with
+          | zero => intro _; rfl
+          | succ M ihM => intro hM; show sumTo M _ + indB (decide (M = N)) = 0
+                          rw [ihM (by omega)]; simp [indB, show M ≠ N by omega]
+        exact this N (Nat.le_refl _)
+      rw [z]; simp [indB]
+    · simp only [h, decide_false, indB, Nat.add_zero]; exact ih
 end Circuit
