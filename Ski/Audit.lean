@@ -126,6 +126,14 @@ import Ski.ZK.ROMMerkle
 import Ski.ZK.ROMMerkleOpen
 import Ski.ZK.ROMWitness
 import Ski.ZK.ROMMerkle4
+import Ski.ZK.ROMMerkleColl
+import Ski.ZK.FSOpenA
+import Ski.ZK.FSQueryA
+import Ski.ZK.ROMInstMC
+import Ski.ZK.FSQueryAbsA
+import Ski.ZK.ROMFamilyMC
+import Ski.ZK.ROMMerkleRowsP
+import Ski.ZK.ROMMerkleIdxC
 import Ski.ZK.ROMInstM
 import Ski.ZK.ROMFamilyM
 import Ski.ZK.ROMMerkleRows
@@ -1333,3 +1341,13 @@ open Ski.Audit
   Circuit.qIdx_length Circuit.qIdx_lt Circuit.qIdx_qEnc Circuit.qEnc_lt Circuit.qEnc_qIdx Circuit.qIdx_inj
   Circuit.qIdx_onto Circuit.qIdx_add_mul Circuit.qIdx_split Circuit.hB4_split Circuit.sud_fs_open4ROMM_qIdx Circuit.wit_fs_open4ROMM_qIdx Circuit.comp_fs_open4ROMM_qIdx Circuit.friS_qIdx_length Circuit.qIdx_fri_conds Circuit.sud_fs_open4ROMM_fri Circuit.wit_fri_leaves Circuit.wit_fs_open4ROMM_fri
   Circuit.comp_fri_leaves Circuit.comp_fs_open4ROMM_fri
+
+-- Leaves that may share a hash (ROMMerkleColl)
+#audit_clean Circuit.posU_nodupS Circuit.posU_not_memS Circuit.pfMI_hidesA Circuit.pfMIP_hidesA Circuit.rgetL_enc Circuit.comM_val Circuit.hitLeaf_boundC Circuit.hitM_boundC Circuit.transferMC Circuit.collB_dist Circuit.pair_count Circuit.collB_count Circuit.pfM_hidesC Circuit.fs_openROMMC Circuit.collide_sat Circuit.hitLeafc_boundC Circuit.hitMc_boundC Circuit.transferMcC Circuit.transferMc_inC Circuit.fs_open4ROMMC
+
+-- Fiat–Shamir with the first commitment hiding up to η (FSOpenA)
+#audit_clean Circuit.open_real2A Circuit.open_two_coreA Circuit.fs_open3UA Circuit.fs_open4A
+#audit_clean Circuit.sud_fs_open4A Circuit.wit_fs_open4A Circuit.comp_fs_open4A Circuit.rom4_transferMC Circuit.sud_fs_open4ROMMC Circuit.wit_fs_open4ROMMC Circuit.comp_fs_open4ROMMC
+#audit_clean Circuit.comM_spreadLC Circuit.comMI_spreadLC
+#audit_clean Circuit.fs_open4_absA Circuit.sud_fs_open4_absA Circuit.wit_fs_open4_absA Circuit.comp_fs_open4_absA Circuit.sud_fs4A Circuit.wit_fs4A Circuit.comp_fs4A Circuit.sud_fs_open4_powDA Circuit.wit_fs_open4_powDA Circuit.comp_fs_open4_powDA Circuit.rom4_stepMC Circuit.sud_fs_open4_powDROMMC Circuit.wit_fs_open4_powDROMMC Circuit.comp_fs_open4_powDROMMC
+#audit_clean Circuit.posRowsP_lt Circuit.posRowsP_spread Circuit.posRowsP_hposO Circuit.posRowsP_meet Circuit.posRowsP_of_posRows Circuit.sud_fs_open4ROMMC_fri Circuit.wit_fs_open4ROMMC_fri Circuit.comp_fs_open4ROMMC_fri
