@@ -156,7 +156,11 @@ is built; this file records what is next. Last revised 2026-10-13.
   `fs_openROMMR`), with a leaf index in the hash input (Plonky3's leaf hash carries none: without
   it, unopened leaves with equal data and salts share a hash, a term not counted); four rounds, the
   opened set read at the query challenge: `Ski/ZK/ROMMerkle4.lean` (`fs_open4ROMM`; the root hashed: `fs_open4ROMMR`); not yet:
-  the circuits' and the multi-proof theorems over the Merkle commitment; internal-node hashing
+  the circuits' and the multi-proof theorems over the Merkle commitment: there the leaves are
+  the committed matrix's low-degree-extension rows, the opened data the rows at the query
+  indices beside the openings at `ζ` the instances' `op1` names, so `hposO` ties the leaf
+  positions to those rows and the opened rows' hiding comes from the PCS layer (`MaskFri`,
+  `pcsCloseN_fri`), a joint statement not yet written; internal-node hashing
   apart from the leaves' table stays an assumption); FRI's
   folding challenges hashed with the transcript before FRI (from its own layer commitments,
   against a table of its own, they fit already: `fs_pow`); FRI's layer commitments and final polynomial in the query hash's
