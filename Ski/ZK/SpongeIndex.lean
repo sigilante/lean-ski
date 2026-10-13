@@ -20,17 +20,26 @@ pairs of chains that meet.
   `δs (1 + n1² (0 + ⋯ + (2L+1)) F / (K - 2(L+1)))` on average
   (`spread_countP`).  `spread_satPT` meets `hd` at `two_meet_satPT`'s
   full-width instance.
+- **Every later transcript at one table.** The later blocks `enc rest w`
+  number at most `X^L` on their first `L` blocks (`xsOf_cover`), so one
+  table's `δs' = δs (1 + pairsAll)`, `pairsAll` the meeting pairs summed
+  over all `X^L` block lists, meets `hsp1` and `hφsp` in exactly the form
+  `sudFS4T_hspS` and `sud_interleaveS` take, for every `d`, `rest`, `w`
+  and `v` (`hφsp_sponge`, `sponge_hsp`).  Averaged over a uniform
+  permutation, `δs'` is at most
+  `δs (1 + X^L n1² (0 + ⋯ + (2L+1)) F / (K - 2(L+1)))` (`pairsAll_countP`,
+  `sponge_δs_countP`).  The composites hold at each table with that
+  table's `δs'`, their errors linear in it.
 
-Two modelling assumptions enter.  The state `iv` before the first
-commitment is fixed before the permutation is drawn: no permutation call
-precedes the commitment.  The first commitment fills one aligned block
-(`hd`, `n1 ≤ R1` at the full-width instance); a digest straddling two
-permutation calls is not covered.  And `hφsp` holds at one table for every
-later transcript `rest` and `w`, while here the later blocks `xs` are fixed
-before the permutation is drawn.  Not
-shown: the composites with the permutation inside the averaged oracle and
-the later blocks drawn independently of it, which would replace `hφsp`'s
-constant `δs` by this average.
+The union over later transcripts costs the factor `X^L`: the bound says
+something only while `X^L n1² (0 + ⋯ + (2L+1)) F` stays below
+`K - 2(L+1)`: few later block lists against the capacity.  Plonky3's transcripts are longer; there the later
+blocks would have to be drawn independently of the permutation and the
+composites averaged over it, a step not shown.  Two modelling assumptions
+enter as well.  The state `iv` before the first commitment is fixed before
+the permutation is drawn: no permutation call precedes the commitment.  The
+first commitment fills one aligned block (`hd`, `n1 ≤ R1` at the full-width
+instance); a digest straddling two permutation calls is not covered.
 -/
 
 set_option autoImplicit false
@@ -189,5 +198,113 @@ theorem spread_satPT {R1 R2 C n1 : Nat} (hn : n1 ≤ R1) (iv : Nat) :
   intro a b ha hb hab e
   rw [Nat.mod_eq_of_lt (Nat.lt_of_lt_of_le ha hn), Nat.mod_eq_of_lt (Nat.lt_of_lt_of_le hb hn)] at e
   exact hab (Nat.add_right_cancel e)
+
+/-! ### Every later transcript at one table: a union bound -/
+
+theorem chain1_congr (K : Nat) (inner : Nat → Nat → Nat) (s : Nat) (xs ys : List Nat) (H : Nat) :
+    ∀ j, (∀ i, i < j → xs.getD i 0 = ys.getD i 0) → chain1 K inner s xs H j = chain1 K inner s ys H j
+  | 0, _ => rfl
+  | j + 1, h => by
+    show rget K (inner (chain1 K inner s xs H j) (xs.getD j 0)) H = rget K (inner (chain1 K inner s ys H j) (ys.getD j 0)) H
+    rw [chain1_congr K inner s xs ys H j (fun i hi => h i (Nat.lt_succ_of_lt hi)), h j (Nat.lt_succ_self j)]
+
+/-- The `i`-th list of `L` blocks below `X`: the digits of `i`. -/
+def xsOf (X L i : Nat) : List Nat := (List.range L).map (fun m => rget X m i)
+
+theorem xsOf_getD (X L i m : Nat) (hm : m < L) : (xsOf X L i).getD m 0 = rget X m i := by
+  unfold xsOf
+  rw [List.getD_eq_getElem?_getD, List.getElem?_map, List.getElem?_range hm]; rfl
+
+/-- **Every block list below `X` is one of the `X^L`** on its first `L`
+    blocks. -/
+theorem xsOf_cover {X L : Nat} (hX : 0 < X) (xs : List Nat) (hxs : ∀ i, i < L → xs.getD i 0 < X) :
+    ∃ i, i < X ^ L ∧ ∀ m, m < L → xs.getD m 0 = (xsOf X L i).getD m 0 :=
+  ⟨tab X (fun m => xs.getD m 0) L, tab_lt L _ hxs, fun m hm => by
+    rw [xsOf_getD X L _ m hm, rget_tab hX L _ hxs m hm]⟩
+
+/-- The meeting pairs summed over all `X^L` lists of later blocks. -/
+def pairsAll (K : Nat) (inner : Nat → Nat → Nat) (iv n1 X L H : Nat) : Nat :=
+  sumTo (X ^ L) (fun i => pairsEq n1 (fun c => chain1 K inner iv (c :: xsOf X L i) H (L + 1)))
+
+/-- **`hφsp` at every table, in its exact form**: the index the overwrite
+    sponge's state after the first commitment `m % n1` and `L` later blocks
+    `enc (m / n1) w`, each below `X`; at the table `H` at most
+    `δs (1 + pairsAll)` salts reach any `v`, for every `d`, `rest` and `w`. -/
+theorem hφsp_sponge {D W : Type} {K NS1 n1 δs X L : Nat} (hX : 0 < X) (inner : Nat → Nat → Nat) (iv : Nat)
+    (enc : Nat → W → List Nat) (henc : ∀ r w i, i < L → (enc r w).getD i 0 < X)
+    (Com1 : D → Nat → Nat) (hr1 : ∀ d σ, Com1 d σ < n1)
+    (hsp1 : ∀ d v, sumTo NS1 (fun σ => indB (decide (Com1 d σ = v))) ≤ δs) (H : Nat) :
+    ∀ d rest w v, sumTo NS1 (fun σ1 => indB (decide
+        (chain1 K inner iv (((Com1 d σ1 + n1 * rest) % n1) :: enc ((Com1 d σ1 + n1 * rest) / n1) w) H (L + 1) = v))) ≤
+      δs * (1 + pairsAll K inner iv n1 X L H) := by
+  intro d rest w v
+  have hn1 : 0 < n1 := Nat.lt_of_le_of_lt (Nat.zero_le _) (hr1 d 0)
+  have em : ∀ σ1, (Com1 d σ1 + n1 * rest) % n1 = Com1 d σ1 ∧ (Com1 d σ1 + n1 * rest) / n1 = rest := fun σ1 =>
+    ⟨by rw [Nat.add_mul_mod_self_left, Nat.mod_eq_of_lt (hr1 d σ1)],
+     by rw [Nat.add_mul_div_left _ _ hn1, Nat.div_eq_of_lt (hr1 d σ1), Nat.zero_add]⟩
+  obtain ⟨i, hi, hag⟩ := xsOf_cover hX (enc rest w) (henc rest w)
+  have hch : ∀ c, chain1 K inner iv (c :: enc rest w) H (L + 1) = chain1 K inner iv (c :: xsOf X L i) H (L + 1) :=
+    fun c => chain1_congr K inner iv _ _ H (L + 1) (fun j hj => by
+      cases j with
+      | zero => rfl
+      | succ j => exact hag j (Nat.lt_of_succ_lt_succ hj))
+  have e : ∀ σ1, chain1 K inner iv (((Com1 d σ1 + n1 * rest) % n1) :: enc ((Com1 d σ1 + n1 * rest) / n1) w) H (L + 1) =
+      (fun c => chain1 K inner iv (c :: xsOf X L i) H (L + 1)) (Com1 d σ1) := fun σ1 => by
+    rw [(em σ1).1, (em σ1).2, hch]
+  rw [sumTo_congr _ (fun σ1 _ => by rw [e σ1])]
+  refine Nat.le_trans (spread_pairs Com1 hr1 hsp1 (fun c => chain1 K inner iv (c :: xsOf X L i) H (L + 1)) d v) (Nat.mul_le_mul_left _ (Nat.add_le_add_left ?_ 1))
+  exact le_sumTo (fun i => pairsEq n1 (fun c => chain1 K inner iv (c :: xsOf X L i) H (L + 1))) _ hi
+
+/-- **The table's `δs` averaged over a uniform permutation**: summed over the
+    permutation tables, `pairsAll` is at most
+    `X^L n1² (0 + ⋯ + (2L+1)) F / (K - 2(L+1))` per table, a union over the
+    `X^L` later block lists. -/
+theorem pairsAll_countP {K F n1 X L : Nat} (hK : 0 < K) (inner : Nat → Nat → Nat) (hin : ∀ s x, inner s x < K)
+    (κ : Nat → Nat) (hF : ∀ v, sumTo K (fun u => indB (decide (κ u = v))) ≤ F)
+    (hpk : ∀ x s s', inner s x = inner s' x → κ s = κ s') {iv : Nat}
+    (hd : ∀ a b, a < n1 → b < n1 → a ≠ b → inner iv a ≠ inner iv b) :
+    (K - 2 * (L + 1)) * sumTo (K ^ K) (fun H => indB (permB K H) * pairsAll K inner iv n1 X L H) ≤
+      X ^ L * (n1 * n1 * (sumTo (2 * (L + 1)) (fun j => j) * F * sumTo (K ^ K) (fun H => indB (permB K H)))) := by
+  unfold pairsAll
+  have e : sumTo (K ^ K) (fun H => indB (permB K H) * sumTo (X ^ L)
+        (fun i => pairsEq n1 (fun c => chain1 K inner iv (c :: xsOf X L i) H (L + 1)))) =
+      sumTo (X ^ L) (fun i => sumTo (K ^ K) (fun H => indB (permB K H) *
+        pairsEq n1 (fun c => chain1 K inner iv (c :: xsOf X L i) H (L + 1)))) := by
+    rw [sumTo_congr _ (fun H _ => sumTo_mul _ _ (X ^ L))]
+    exact sumTo_exch _ (X ^ L) (K ^ K)
+  rw [e, sumTo_mul]
+  refine Nat.le_trans (sumTo_mono _ (fun i _ => pairs_countP hK inner hin κ hF hpk hd (xsOf X L i) L)) ?_
+  rw [sumTo_const]; exact Nat.le_refl _
+
+/-- **`SudChallenger`'s two spread hypotheses at every table**: with the
+    index `φ m w` the overwrite sponge's state over `m % n1` and
+    `enc (m / n1) w`, the table's `δs' = δs (1 + pairsAll)` meets `hsp1` and
+    `hφsp` exactly as `sudFS4T_hspS` and `sud_interleaveS` take them. -/
+theorem sponge_hsp {D W : Type} {K NS1 n1 δs X L : Nat} (hX : 0 < X) (inner : Nat → Nat → Nat) (iv : Nat)
+    (enc : Nat → W → List Nat) (henc : ∀ r w i, i < L → (enc r w).getD i 0 < X)
+    (Com1 : D → Nat → Nat) (hr1 : ∀ d σ, Com1 d σ < n1)
+    (hsp1 : ∀ d v, sumTo NS1 (fun σ => indB (decide (Com1 d σ = v))) ≤ δs) (H : Nat) :
+    (∀ d v, sumTo NS1 (fun σ => indB (decide (Com1 d σ = v))) ≤ δs * (1 + pairsAll K inner iv n1 X L H)) ∧
+      (∀ d rest w v, sumTo NS1 (fun σ1 => indB (decide
+        ((fun m w => chain1 K inner iv ((m % n1) :: enc (m / n1) w) H (L + 1)) (Com1 d σ1 + n1 * rest) w = v))) ≤
+        δs * (1 + pairsAll K inner iv n1 X L H)) :=
+  ⟨fun d v => Nat.le_trans (hsp1 d v) (Nat.le_trans (Nat.le_of_eq (Nat.mul_one δs).symm)
+      (Nat.mul_le_mul_left _ (Nat.le_add_right 1 _))),
+   hφsp_sponge hX inner iv enc henc Com1 hr1 hsp1 H⟩
+
+/-- **The table's `δs'` averaged over a uniform permutation**: at most
+    `δs (1 + X^L n1² (0 + ⋯ + (2L+1)) F / (K - 2(L+1)))` per table. -/
+theorem sponge_δs_countP {K F n1 X L δs : Nat} (hK : 0 < K) (inner : Nat → Nat → Nat) (hin : ∀ s x, inner s x < K)
+    (κ : Nat → Nat) (hF : ∀ v, sumTo K (fun u => indB (decide (κ u = v))) ≤ F)
+    (hpk : ∀ x s s', inner s x = inner s' x → κ s = κ s') {iv : Nat}
+    (hd : ∀ a b, a < n1 → b < n1 → a ≠ b → inner iv a ≠ inner iv b) :
+    (K - 2 * (L + 1)) * sumTo (K ^ K) (fun H => indB (permB K H) * (δs * (1 + pairsAll K inner iv n1 X L H))) ≤
+      δs * ((K - 2 * (L + 1)) * sumTo (K ^ K) (fun H => indB (permB K H)) +
+        X ^ L * (n1 * n1 * (sumTo (2 * (L + 1)) (fun j => j) * F * sumTo (K ^ K) (fun H => indB (permB K H))))) := by
+  have pt : ∀ H, indB (permB K H) * (δs * (1 + pairsAll K inner iv n1 X L H)) =
+      δs * (indB (permB K H) + indB (permB K H) * pairsAll K inner iv n1 X L H) := fun H => by
+    rw [Nat.mul_left_comm, Nat.mul_add, Nat.mul_one]
+  rw [sumTo_congr _ (fun H _ => pt H), ← sumTo_mul, sumTo_add, Nat.mul_left_comm, Nat.mul_add]
+  exact Nat.mul_le_mul_left _ (Nat.add_le_add (Nat.le_refl _) (pairsAll_countP hK inner hin κ hF hpk hd))
 
 end Circuit

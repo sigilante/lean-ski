@@ -1381,4 +1381,4 @@ open Ski.Audit
 #audit_clean Circuit.tab_lt Circuit.rget_tab Circuit.digit_ext Circuit.swapV_swapV Circuit.rget_vswap Circuit.vswap_lt Circuit.vswap_vswap Circuit.permB_inj Circuit.permB_of_inj Circuit.permB_vswap Circuit.le_sumTo Circuit.count_notmem Circuit.fresh_countP Circuit.runAdp_pos Circuit.runAdp_vswap Circuit.colR_countP Circuit.two_meet_countKP Circuit.two_meet_digitKP Circuit.two_squeeze_countP Circuit.permB_id Circuit.two_meet_satPT Circuit.two_meet_satPT_k0
 
 -- The overwrite sponge's index over the first commitment (SpongeIndex)
-#audit_clean Circuit.stA_chain Circuit.stB_chain Circuit.preimage_le_pairs Circuit.spread_pairs Circuit.pairs_countP Circuit.spread_countP Circuit.spread_satPT
+#audit_clean Circuit.stA_chain Circuit.stB_chain Circuit.preimage_le_pairs Circuit.spread_pairs Circuit.pairs_countP Circuit.spread_countP Circuit.spread_satPT Circuit.chain1_congr Circuit.xsOf_getD Circuit.xsOf_cover Circuit.hφsp_sponge Circuit.pairsAll_countP Circuit.sponge_hsp Circuit.sponge_δs_countP
