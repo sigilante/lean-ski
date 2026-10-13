@@ -19,8 +19,8 @@ table, a step's query possibly repeating an earlier one.
   only in a projection `κ` of the state, at least the capacity.  Two
   distinct positions answering alike under `κ`, its fibres at most `F`,
   occur on at most `(0 + ⋯ + (k-1)) F / K` of the tables (`colK_count`),
-  and chains whose first positions differ and that meet saw one
-  (`two_meet_colK`): chains from distinct capacities meet after `L ≥ 1`
+  and chains whose first positions differ, over blocks shared after the
+  first, that meet saw one (`two_meet_colK`): chains from distinct capacities meet after `L ≥ 1`
   absorptions on at most `(0 + ⋯ + (2L-1)) / |capacity|` of the tables
   (`two_meet_countK`), and so do two digits absorbed from one state at
   distinct positions (`two_meet_digitK`).  A genuine partial-rate
