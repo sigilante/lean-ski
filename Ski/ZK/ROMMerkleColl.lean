@@ -32,8 +32,9 @@ spread `hs` alone.
 
 The circuit instances: `ROMInstMC` (`sud_fs_open4ROMMC`,
 `wit_fs_open4ROMMC`, `comp_fs_open4ROMMC`).  Not shown: the families
-(`ROMFamilyM`) without `hdist`; they also need an approximate spread of the commitment
-(`comM_spreadL`), whose full `K^L` fails when two leaves share an answer.
+(`ROMFamilyM`) without `hdist`; their spread, whose full `K^L` fails
+when two leaves share an answer, holds up to the meeting salt vectors
+(`ROMFamilyMC`), but the family theorems take exact hiding and spread.
 -/
 
 set_option autoImplicit false
