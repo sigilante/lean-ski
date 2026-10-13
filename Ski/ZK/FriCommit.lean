@@ -28,13 +28,15 @@ Not shown, and needed before this is Plonky3's FRI:
 - the roots read one commitment's data, not the other commitments', which
   FRI's batched DEEP codeword reads (and, with `friCommitNxt`, not the
   earlier challenges either);
-- the hash point is `(M, Rᵢ, i)`, not the full transcript.  The values
-  opened at `ζ`, which Plonky3 observes before FRI's batching challenge and
-  folding challenges, enter only where a layer returns them beside its
-  root: `friCommitQCPf` reads the three earlier challenges, then the `k`
+- the hash point is `(M, Rᵢ, i)`, not the full transcript.  This
+  commitment's values opened at `ζ` (Plonky3 observes every commitment's
+  before FRI's batching challenge and folding challenges) enter only where
+  a layer returns them beside its root, as arguments of `φ`: `friCommitQCPf` reads the three earlier challenges, then the `k`
   layers, then the query seed, its layers given those challenges, the
   data and the salt, nothing reading `c4` (`runR4_dropA`, `friCommitQC_c4`,
-  `friCommitQC_seed`, `friCommitQC_reads`);
+  `friCommitQC_seed`, `friCommitQC_reads`; there the seed's point holds
+  whatever the last layer returns, and the batching challenge is a first
+  folding read whose layer returns no root);
 - the proof's query indices `c4` are drawn before the commit phase, where
   Plonky3 samples them after it.  A strategy may draw its own after
   (`friCommitQPf`: `k` layers, then a query seed read at `φ M (R_k, k)`,
@@ -287,8 +289,9 @@ theorem friCommitQC_c4 {D R P : Type} (K1 K2 K3 K4 n1 n2 k : Nat) (φ : Nat → 
 
 /-- **Its newest read is the query seed**: the fourth table at
     `φ M (R_k, k)`, `R_k` the layer of the three earlier challenges (the
-    first table at the first message's digit, the second and third at the
-    second and third messages) and all `k` folding challenges. -/
+    first table at `M % n1`, the second at `M % n1 + n1 ((M / n1) % n2)`,
+    the third at `M`: the three messages when the commitments lie in range,
+    `friCommitC_msgs`) and all `k` folding challenges, oldest first. -/
 theorem friCommitQC_seed {D R : Type} (K1 K2 K3 K4 n1 n2 k : Nat) (φ : Nat → Option R × Nat → Nat)
     (layer0 : List Nat → D → Nat → List Nat → R) (H : Nat × Nat × Nat × Nat) (c4 M : Nat) (d : D) (σ : Nat) :
     let run := runR4 K1 K2 K3 K4 n1 (M % n1) φ (friCommitNxtC n1 n2 (fun _ => layer0) c4 M d σ) H (k + 3)
