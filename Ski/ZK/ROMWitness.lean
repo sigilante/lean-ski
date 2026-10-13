@@ -1,4 +1,4 @@
-import Ski.ZK.ROMMerkleOpen
+import Ski.ZK.ROMMerkle4
 import Ski.ZK.ROMFamily
 
 /-!
@@ -13,8 +13,9 @@ the first lemma that consumes it: the single commitment (`posW`, into
 `pfR_hidesA`, `s k / NSh = 1/8`), several hidden leaves (`psW`, into
 `pfRL_hidesA`, `2/8`), a Merkle tree's leaves with one opened (`posM`, into
 `pfM_hidesA`, the unopened leaf's data read), the query hash keeping the
-first commitment's digit across statements (`φW`), and a family's
-per-statement positions (`posF`).
+first commitment's digit across statements (`φW`), a family's
+per-statement positions (`posF`), and the four-round Merkle opening's set
+read at the challenge (`isOfW`, `op1W`: the leaf `c4 mod 2` opened).
 -/
 
 set_option autoImplicit false
@@ -119,4 +120,20 @@ theorem hsF : ∀ ix d σo v, sumTo ((fun _ => 8) ix) (fun σh => indB (decide (
 example : ∀ ix : Nat, ComHides (8 * (1 * 2 ^ 8) * 2) (comI 2 8 1 (fun (_ : List (List (List F))) σo σh => posF ix [] σo σh)) :=
   fun ix => comI_hides (K := 2) (n := 8) (by decide) _ (fun _ _ _ => hposF ix [] _ _)
 
+/-- The opened set read at the challenge: leaf `c4 mod 2`. -/
+def isOfW (c4 l : Nat) : Bool := l == c4 % 2
+def op1W (c4 : Nat) (d : Nat × Nat) : Nat := if c4 % 2 = 0 then d.1 else d.2
+theorem hposOW : ∀ c4 (d d' : Nat × Nat), op1W c4 d = op1W c4 d' → ∀ l a, isOfW c4 l = true → posM d l a = posM d' l a := by
+  intro c4 d d' h l a hO
+  have hl : l = c4 % 2 := by simpa [isOfW] using hO
+  subst hl
+  rcases Nat.mod_two_eq_zero_or_one c4 with e | e <;> simp [op1W, e, posM] at h ⊢ <;> simp [h]
+example : isOfW 0 0 ≠ isOfW 1 0 := by decide
+def sd1W (_c4 : Nat) (o : Nat) : Nat × Nat := (o, o)
+theorem hsd1W : ∀ c4 (d : Nat × Nat), op1W c4 (sd1W c4 (op1W c4 d)) = op1W c4 d := by
+  intro c4 d; unfold op1W sd1W; split <;> rfl
+example := fun c4 => pfMIP_hides (K := 2) (n := 16) (NSl := 8) (L := 2) (k := 1) (by decide) posM hdistM hltM
+  (isOfW c4) (op1W c4) (hposOW c4) (fun o _ => o) (fun _ _ _ => 0)
+example := hitMc_bound (K := 2) (n := 16) (NSl := 8) (L := 2) (k := 1) (s := 1) (by decide) (by decide) posM hdistM hltM hsM
+  isOfW op1W (fun c => c) (fun o _ => o) (fun _ _ _ => 0) ((0,0) : Nat × Nat)
 end Circuit

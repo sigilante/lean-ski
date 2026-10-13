@@ -1270,4 +1270,4 @@ open Ski.Audit
 -- Four rounds over a Merkle tree's leaves, the opened set read at the challenge
 #audit_clean Circuit.mod_mul_div Circuit.rsetL_mod Circuit.unop_le Circuit.pfMIP_hides Circuit.pfMc_pfMI Circuit.any_unop_le Circuit.hitLeafc_bound Circuit.hitMc_bound Circuit.transferMc Circuit.transferMc_in Circuit.fs_open4ROMM
 -- The hypotheses, met
-#audit_clean Circuit.inj_le_one Circuit.hposW Circuit.hsW Circuit.hndW Circuit.hlenW Circuit.hltW Circuit.hsLW Circuit.hdistM Circuit.hltM Circuit.hsM Circuit.hposOM Circuit.hφW Circuit.hφsW Circuit.hposF Circuit.hsF
+#audit_clean Circuit.inj_le_one Circuit.hposW Circuit.hsW Circuit.hndW Circuit.hlenW Circuit.hltW Circuit.hsLW Circuit.hdistM Circuit.hltM Circuit.hsM Circuit.hposOM Circuit.hφW Circuit.hφsW Circuit.hposF Circuit.hsF Circuit.hposOW Circuit.hsd1W
