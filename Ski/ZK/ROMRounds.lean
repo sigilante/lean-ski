@@ -338,7 +338,7 @@ theorem comI_digit {D : Type} {K NSh NSo u σ : Nat} (pos : D → Nat → Nat �
   unfold comI; rw [(digit_dec hu).1]
 
 /-- **The transfer with the opening chosen by the commitment's value**:
-    `transferR` where the opened data is `op1 (c4f c)`, `c` the
+    `transferR`'s first direction where the opened data is `op1 (c4f c)`, `c` the
     commitment, the queries reading that opening and the commitment. -/
 theorem transferRc {D O P : Type} {K n NSh NSo s k : Nat} (hK : 0 < K) (pos : D → Nat → Nat → Nat)
     (hpos : ∀ d σo σh, pos d σo σh < n) (op1 : Nat → D → O) (g : O → Nat → P)
@@ -400,7 +400,8 @@ theorem transferRc_in {Y D O P : Type} {K n NSh NSo s k : Nat} (hK : 0 < K) (so 
     (`pfI_hides`), as `fs_open4` asks.  Normalized, the real probability is
     at most the simulator's plus `fs_open4`'s errors (the transcript bound,
     the excluded challenges' counts `Bz` and `B4`) and `s k / NSh` a draw;
-    one direction, unguarded, with `fs_open2ROM`'s other limits. -/
+    one direction, with no draw guard (as `fs_open4`'s), and `fs_open2ROM`'s
+    other limits. -/
 theorem fs_open4ROM {PV PB D O Pq D2 O2 P2 D3 O3 P3 W : Type}
     {NR m e1 e2 NSh NSo s k n NS2 NS3 K2 K3 K4 n2 n3 : Nat}
     (hK : 0 < K) (hK2 : 0 < K2) (hK3 : 0 < K3) (hK4 : 0 < K4)

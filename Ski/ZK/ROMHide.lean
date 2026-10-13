@@ -53,7 +53,8 @@ the commitment drawn from the oracle is its count with the ideal opening,
 to which the exact theorem applies, up to the hits: for any event of the
 commitment and its opening, both ways (`transferR`).  Writing that
 transfer into a theorem's statement, its event's other arguments summed
-outside, is done for two rounds (`Ski/ZK/ROMRounds.lean`, `fs_open2ROM`).
+outside, is done for two, three and four rounds (`Ski/ZK/ROMRounds.lean`:
+`fs_open2ROM`, `fs_open3ROM`, `fs_open4ROM`).
 -/
 
 namespace Circuit
