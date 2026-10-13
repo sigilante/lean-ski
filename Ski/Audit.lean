@@ -114,6 +114,7 @@ import Ski.ZK.FSOpen3
 import Ski.ZK.FSOpen3Inst
 import Ski.ZK.FSQuery
 import Ski.ZK.FSQueryInst
+import Ski.ZK.FSMulti
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -1212,3 +1213,6 @@ open Ski.Audit
   Circuit.sud_fs_open4
 #audit_clean Circuit.wit_data_q Circuit.wit_same_d Circuit.wit_fs_open4 Circuit.comp_data_q Circuit.comp_same_d
   Circuit.comp_fs_open4
+-- Several proofs under one oracle
+#audit_clean Circuit.rget_digit_ne Circuit.rget_rset_ne Circuit.smK Circuit.smC Circuit.oracle_reprog_get
+  Circuit.reprog_beside Circuit.fs_zk_two Circuit.col_spread

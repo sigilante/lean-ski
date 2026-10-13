@@ -129,8 +129,9 @@ is built; this file records what is next. Last revised 2026-10-13.
   `*_fs_open4`), the FRI challenge hashed with them, its non-generic draws in the bound
   (`fs_lastG`), the query hash's input any function of the transcript, a query
   proof-of-work nonce among them, its table independent of the query table (`fs_pow`), and the lookup
-  nonce through the first commitment (`ComHides.post`). Open, most exploitable first: several proofs per oracle (a hybrid and a
-  collision term); `Com` from the same oracle (bounded queries, a ROM-hiding term); FRI's
+  nonce through the first commitment (`ComHides.post`). Two proofs under one oracle, one round each, keep their errors plus
+  a collision term (`Ski/ZK/FSMulti.lean`, `fs_zk_two`, `col_spread`). Open, most exploitable
+  first: several four-round proofs per oracle (the hybrid over every table); `Com` from the same oracle (bounded queries, a ROM-hiding term); FRI's
   folding challenges hashed with the transcript before FRI (from its own layer commitments,
   against a table of its own, they fit already: `fs_pow`); FRI's layer commitments and final polynomial in the query hash's
   input (every opening at `ζ` is in it, `pcsFri_ood`, `pcsFri_oodT`,
