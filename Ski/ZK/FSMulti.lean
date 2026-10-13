@@ -48,7 +48,8 @@ and the commitment's salt spread bounds the hits (`spread_sum`,
 (`read4_pow`): each proof its own messages, programmed points and bound,
 a hit of one proof's message on another's programmed point putting its
 first commitment there (`readPowI`, `hitPowI_le`).  For proofs of different shapes, each with its
-own types and counts (`PowD`, `zkb_powD`; four rounds: `read4_powD`).
+own types and counts (`PowD`, `zkb_powD`); four rounds with each proof's
+own counts over shared draw, challenge and output types (`read4_powD`).
 -/
 
 namespace Circuit
