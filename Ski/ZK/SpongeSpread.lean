@@ -15,10 +15,10 @@ injective in the state, and the state after absorbing the digit (below
 `enc`).  The index is the full state, below `N` (`spongeA_lt`), so the
 fourth table spans it: `N ≤ N4`.  The state is one element of `Z_N`, all of
 it rate; each block is one absorption, so a digit spread over several rate
-blocks is not covered, and neither is a sponge over a vector of field
-elements, whose state group `F_p^t` is not cyclic (the argument carries
-over to any group translation followed by a bijection, but only `Z_N` is
-proved).
+blocks is not covered.  Over any state, a vector of field elements
+included, the same holds when each absorption is injective in the state
+(a translation followed by a permutation is), the first in the digit, and
+the index in the state (`spongeG`, `spongeG_hφsp`).
 
 Not shown: Plonky3's `DuplexChallenger`, which overwrites the rate part of
 the state instead of adding into it, so two states differing only there
@@ -139,5 +139,37 @@ theorem spongeA_lt {π : Nat → Nat} {N iv n1 : Nat} (hπN : ∀ a, a < N → �
 /-- The identity is a permutation of `[0, N)`: the hypotheses are met. -/
 theorem spongeA_sat (N : Nat) : (∀ a b, a < N → b < N → (fun x => x) a = (fun x => x) b → a = b) ∧
     (∀ a, a < N → (fun x : Nat => x) a < N) := ⟨fun _ _ _ _ h => h, fun _ h => h⟩
+
+/-- **A sponge over any state**: the digit absorbed first by `start`, then
+    the rest of the message and the later blocks by `absorb`, the state
+    read as a table index by `idx`. -/
+def spongeG {S B : Type} (start : Nat → S) (absorb : S → B → S) (blk : Nat → B) (idx : S → Nat)
+    (n1 : Nat) (m : Nat) (w : List B) : Nat :=
+  idx ((blk (m / n1) :: w).foldl absorb (start (m % n1)))
+
+theorem foldlG_inj {S B : Type} {absorb : S → B → S} (habs : ∀ x s s', absorb s x = absorb s' x → s = s') :
+    ∀ (xs : List B) (s s' : S), xs.foldl absorb s = xs.foldl absorb s' → s = s'
+  | [], _, _, h => h
+  | x :: xs, s, s', h => habs x s s' (foldlG_inj habs xs _ _ h)
+
+/-- **A sponge over any state meets the spread** when each absorption is
+    injective in the state (a translation by the block followed by a
+    permutation, over any group: a vector of field elements, added
+    componentwise, included), the first absorption injective in the digit,
+    and the index injective in the state. -/
+theorem spongeG_hφsp {D S B W : Type} {NS1 n1 δs : Nat} (start : Nat → S) (absorb : S → B → S) (blk : Nat → B)
+    (idx : S → Nat) (enc : W → List B)
+    (hstart : ∀ a b, a < n1 → b < n1 → start a = start b → a = b)
+    (habs : ∀ x s s', absorb s x = absorb s' x → s = s') (hidx : ∀ s s', idx s = idx s' → s = s')
+    (Com1 : D → Nat → Nat) (hr1 : ∀ d σ, Com1 d σ < n1)
+    (hsp1 : ∀ d v, sumTo NS1 (fun σ => indB (decide (Com1 d σ = v))) ≤ δs) :
+    ∀ d rest w v, sumTo NS1 (fun σ1 =>
+      indB (decide (spongeG start absorb blk idx n1 (Com1 d σ1 + n1 * rest) (enc w) = v))) ≤ δs := by
+  refine hφsp_of_inj Com1 (fun m w => spongeG start absorb blk idx n1 m (enc w)) (fun rest w a b ha hb h => ?_) hr1 hsp1
+  have hpos : 0 < n1 := Nat.lt_of_le_of_lt (Nat.zero_le _) ha
+  have h' := hidx _ _ h
+  rw [Nat.add_mul_div_left _ _ hpos, Nat.add_mul_div_left _ _ hpos, Nat.div_eq_of_lt ha, Nat.div_eq_of_lt hb,
+    Nat.add_mul_mod_self_left, Nat.add_mul_mod_self_left, Nat.mod_eq_of_lt ha, Nat.mod_eq_of_lt hb] at h'
+  exact hstart a b ha hb (foldlG_inj habs _ _ _ h')
 
 end Circuit
