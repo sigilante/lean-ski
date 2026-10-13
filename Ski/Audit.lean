@@ -1181,3 +1181,4 @@ open Ski.Audit
 -- The Sudoku proof over two Fiat–Shamir rounds, both commitments opened
 #audit_clean Circuit.mpolysMulti_congr Circuit.traceCws_congr Circuit.SameShape.n1 Circuit.SameShape.n2
   Circuit.SameShape.dataF2 Circuit.SameShape.dataP2 Circuit.sud_same Circuit.sud_data_zeta Circuit.sud_fs_open2
+  Circuit.sud_SsT Circuit.sud_SsC

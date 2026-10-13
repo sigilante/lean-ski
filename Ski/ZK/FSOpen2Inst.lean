@@ -11,7 +11,7 @@ second challenge draws after them: they are taken at `ζ = 0`, and the
 PCS at any `ζ` agrees with the PCS at `0` on everything they read (the
 groups' trace and mask points and sizes, the tables' shapes and query
 points, the randomness's slices), and, where the proof does not abort,
-on the chunk data (`sud_zeta`).
+on the chunk data (`sud_data_zeta`).
 -/
 
 namespace Circuit
@@ -137,6 +137,33 @@ end
 section
 open B Air Stmt Mach Sudoku SudokuText
 
+/-- The Sudoku quotient tables' query points, in `sudTs`'s order. -/
+def sudSsT (S16 S10 SP : List F) : List (List F) := [S16, S16, S10, SP]
+
+/-- The Sudoku chunk matrices' query points, as `tabsInfo` lists them. -/
+def sudSsC (tP : Nat) (S16 S10 SP : List F) : List (List F) :=
+  List.replicate ((bbCs 15 1 (2 ^ 16 - 1)).length + 1) S16 ++
+    (List.replicate ((bbCs 15 1 (2 ^ 16 - 1)).length + 1) S16 ++
+      (List.replicate ((bbCs 9 1 (2 ^ 10 - 1)).length + 1) S10 ++
+        (List.replicate ((bbCs tP 1 (2 ^ (tP + 1) - 1)).length + 1) SP ++ [])))
+
+set_option maxRecDepth 100000 in
+theorem sud_SsT (off : EF → String → EF) (hd0 stk0 ctr0 : Nat) (heap : List Cell) (C Mm Wt : Table) (tp : Nat)
+    (S16 S10 SP : List F) (ζ : EF) (qv : EF → EF → List EF → F → List F → List F → List EF)
+    (wm wc ww wp : List (EF → EF → List F)) :
+    ((sudTs off hd0 stk0 ctr0 heap C Mm Wt tp S16 S10 SP ζ qv wm wc ww wp).map Prod.fst).map (·.S) =
+      sudSsT S16 S10 SP := by
+  simp only [sudTs, bbTab, airQTabG, List.map_cons, List.map_nil, sudSsT]
+
+set_option maxRecDepth 100000 in
+theorem sud_SsC (off : EF → String → EF) (hd0 stk0 ctr0 : Nat) (heap : List Cell) (C Mm Wt : Table) (tp : Nat)
+    (S16 S10 SP : List F) (ζ : EF) (qv : EF → EF → List EF → F → List F → List F → List EF)
+    (wm wc ww wp : List (EF → EF → List F)) (ncw : Nat) :
+    (tabsInfo ncw ((sudTs off hd0 stk0 ctr0 heap C Mm Wt tp S16 S10 SP ζ qv wm wc ww wp).map Prod.fst)).map (·.S) =
+      sudSsC tp S16 S10 SP := by
+  simp only [sudTs, bbTab, airQTabG, tabsInfo, tInfo, List.map_cons, List.map_nil, List.map_append,
+    List.map_replicate, sudSsC]
+
 set_option maxRecDepth 100000 in
 /-- **The Sudoku proof over two Fiat–Shamir rounds, both commitments
     opened**, in the programmable random-oracle model: the first
@@ -145,7 +172,7 @@ set_option maxRecDepth 100000 in
     each opened beside the view; the simulator commits and opens
     interpolants through its own view's openings and programs both
     tables (`fs_open2`).  Assumed: each commitment hides alone and given
-    its openings, perfectly (the second at any opened point lists);
+    its openings, perfectly;
     generic `β` and `ζ`; the folding challenge's round merged; the FRI
     challenge and the query points fixed; one proof per oracle. -/
 theorem sud_fs_open2 {V Wv P1 P2 : Type} (off : EF → String → EF) {puzzle : List Nat} (hc : CluesOK (cluesOf puzzle))
@@ -169,7 +196,8 @@ theorem sud_fs_open2 {V Wv P1 P2 : Type} (off : EF → String → EF) {puzzle : 
     (Com2 : List (List (List F)) × List (List (List (List F))) × List (List (List F)) → Nat → Nat)
     (Pf2 : List (List (List F)) × List (List (List (List F))) × List (List (List F)) → Nat → P2)
     (hc2 : ComHides NS2 Com2)
-    (hp2 : ∀ SsT SsC, ComPfHides NS2 Com2 Pf2 (op2F ((sudGroups tP S16 S10 SP EF.zero qv).map (·.base.S)) [1, 3, 5, 7] SsT SsC))
+    (hp2 : ComPfHides NS2 Com2 Pf2 (op2F ((sudGroups tP S16 S10 SP EF.zero qv).map (·.base.S)) [1, 3, 5, 7]
+      (sudSsT S16 S10 SP) (sudSsC tP S16 S10 SP)))
     (hr2 : ∀ d σ, Com2 d σ < n2)
     (d2 : List (List (List F)) × List (List (List (List F))) × List (List (List F)))
     (E : Nat → Nat → Nat → Nat → Option P1 × Option P2 × TViewN (SudPV (V × Wv)) EF → Bool) :
@@ -342,10 +370,16 @@ theorem sud_fs_open2 {V Wv P1 P2 : Type} (off : EF → String → EF) {puzzle : 
     fun t r => opF_sdF _ _ _
   have hsd2 : ∀ c t r, op2F Ss0 mk2 SsT0 SsC0 (sd2F Ss0 mk2 SsT0 SsC0 (op2F Ss0 mk2 SsT0 SsC0 (main2 c t r))) =
       op2F Ss0 mk2 SsT0 SsC0 (main2 c t r) := fun c t r => op2_sd2 _ _ _ _ _ _ _
+  have hp2' : ComPfHides NS2 Com2 Pf2 (op2F Ss0 mk2 SsT0 SsC0) := by
+    have e1 : SsT0 = sudSsT S16 S10 SP := sud_SsT off blank.hd blank.stk blank.heap.length blank.heap C Mm Wt tP S16 S10 SP
+      EF.zero qv wm wc ww wp
+    have e2 : SsC0 = sudSsC tP S16 S10 SP := sud_SsC off blank.hd blank.stk blank.heap.length blank.heap C Mm Wt tP S16
+      S10 SP EF.zero qv wm wc ww wp ncw
+    rw [e1, e2]; exact hp2
   exact fs_open2 Q4_pos rvF svF (fun c2 => genB (efOf c2)) (fun c2 α β r t => realVN_cases _ _ _ _ _ α β r t)
     (fun c2 α β r t => simVN_some _ _ _ _ _ _ _ _ α β r t) (fun c2 hg => (hb c2 hg).1) (fun c2 hg => (hb c2 hg).2)
     Com1 Pf1 (opF Ss0 mk1) (sdF Ss0 mk1) d1 hc1 hp1 hr1 ov1 rfl main1 hsd1
-    Com2 Pf2 (op2F Ss0 mk2 SsT0 SsC0) (sd2F Ss0 mk2 SsT0 SsC0) d2 hc2 (hp2 _ _) hr2 ov2 rfl main2 hsd2
+    Com2 Pf2 (op2F Ss0 mk2 SsT0 SsC0) (sd2F Ss0 mk2 SsT0 SsC0) d2 hc2 hp2' hr2 ov2 rfl main2 hsd2
     hvo1 hvo2 sop1 sop2 hsvo1 hsvo2 E
 end
 

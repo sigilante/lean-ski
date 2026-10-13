@@ -15,8 +15,8 @@ shows, the second after drawing the challenges (`fs_zkc`'s licence).
 `open_real2`: `open_real` with the event reading the draw, so the second
 commitment's swap may leave the first's opening in it; two swaps then
 reduce the real count to view events, one transcript count per pair of
-salts (`open_two_core`), summed over the guarded second challenge
-(`open_two`).
+salts (`open_two_core`), summed over the guarded second challenge in
+`fs_open2`.
 -/
 
 namespace Circuit
