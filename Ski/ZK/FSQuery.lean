@@ -16,10 +16,11 @@ gives four rounds with every commitment opened (`fs_open4`, `fs_open4R`),
 and the Sudoku proof with its query points hashed (`sud_fs_open4`).  The
 FRI challenge is decoded from the same fourth challenge; the draws where
 it fails the verifier's test enter the bound as their whole count
-(`fs_lastG`, `fs_lastGR`).  The query hash's input is any encoding `φ` of
+(`fs_lastG`, `fs_lastGR`).  The query hash's input is any function `φ` of
 the commitments' transcript; with a proof-of-work nonce ground against a
-table of its own, the bound holds at every such table and summed over
-them (`fs_pow`).
+table of its own, independent of the query table, the bound holds at every
+such table and summed over them (`fs_pow`, a usage note rather than one
+composed theorem).
 -/
 
 namespace Circuit
@@ -222,9 +223,13 @@ theorem fs_lastGR {Y Vw : Type} {K4 n4 K ε B4 : Nat} (hK4 : 0 < K4) (sm : (Y �
       exact Nat.add_le_add_left (Nat.mul_le_mul_left _ (Nat.mul_le_mul_right _ hB4)) _
 
 /-- **A table nobody programs**, such as the proof-of-work oracle's: a
-    bound at every such table, the nonce ground against it and carried into
-    the query hash by `φ`, holds summed over the tables, for a
-    distinguisher that reads the table. -/
+    bound at every such table holds summed over the tables, for a
+    distinguisher that reads the table.  Used with `fs_open4` at
+    `φ m := (m, nonce m)`, the nonce a total function of the table and `m`
+    with one bound `N4` for every table; the proof-of-work table is assumed
+    independent of the query table (Plonky3 grinds and samples on one
+    duplex challenger, modelled here as independent components on one
+    input). -/
 theorem fs_pow {NP e : Nat} (A B : Nat → Nat) (h : ∀ HP, A HP ≤ B HP + e) :
     sumTo NP A ≤ sumTo NP B + NP * e := by
   rw [← sumTo_const e NP, ← sumTo_add]
@@ -232,7 +237,7 @@ theorem fs_pow {NP e : Nat} (A B : Nat → Nat) (h : ∀ HP, A HP ≤ B HP + e) 
 
 /-- **Fiat–Shamir over four rounds, every commitment opened**: `fs_open3U`
     with the query points a fourth challenge `c4`, hashed into a fourth
-    table at `φ` of the third message: any encoding of the commitments'
+    table at `φ` of the third message: any function of the commitments'
     transcript, such as the transcript with the proof-of-work nonce ground
     against a table of its own.  The
     commitments do not read `c4`; the views, their opened values, the
@@ -494,15 +499,17 @@ theorem fs_open4R {PV PB D1 O1 P1 D2 O2 P2 D3 O3 P3 : Type} {NR m e1 e2 NS1 NS2 
 
 
 
+
 section
 open B Air Stmt Mach Sudoku SudokuText
 
 set_option maxRecDepth 100000 in
 /-- **The Sudoku proof over four Fiat–Shamir rounds, the query points
     hashed**: `sud_fs_open3` with the query points a fourth challenge `c4`,
-    drawn from a fourth table at an encoding `φ` of the commitments'
+    drawn from a fourth table at a function `φ` of the commitments'
     transcript (which may carry a proof-of-work nonce ground against a
-    table of its own) and decoded by
+    table of its own, independent of the query table: `fs_pow`) and
+    decoded by
     `S16 S10 SP` (`fs_open4`, `fs_open4R`).  The opening proofs (`Pf`, the
     Merkle paths at the drawn indices) and FRI's openings and randomness
     (`fri`, `Rb`, `Ro`) read `c4`; the committed data do not

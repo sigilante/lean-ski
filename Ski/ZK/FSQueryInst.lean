@@ -42,9 +42,10 @@ theorem wit_same_d (off : EF → String → EF) (hd0 stk0 ctr0 : Nat) (heap : Li
 set_option maxRecDepth 100000 in
 /-- **The hidden-term proof over four Fiat–Shamir rounds, the query points
     hashed**: `wit_fs_open3` with the query points a fourth challenge `c4`,
-    drawn from a fourth table at an encoding `φ` of the commitments'
+    drawn from a fourth table at a function `φ` of the commitments'
     transcript (which may carry a proof-of-work nonce ground against a
-    table of its own) and decoded by
+    table of its own, independent of the query table: `fs_pow`) and
+    decoded by
     `S10 S9 SP` (`fs_open4`, `fs_open4R`).  The opening proofs (`Pf`, the
     Merkle paths at the drawn indices) and FRI's openings and randomness
     (`fri`, `Rb`, `Ro`) read `c4`; the committed data do not
@@ -381,9 +382,10 @@ theorem comp_same_d (off : EF → String → EF) (hd0 stk0 ctr0 n nilA : Nat) (h
 set_option maxRecDepth 100000 in
 /-- **The composed proof over four Fiat–Shamir rounds, the query points
     hashed**: `comp_fs_open3` with the query points a fourth challenge `c4`,
-    drawn from a fourth table at an encoding `φ` of the commitments'
+    drawn from a fourth table at a function `φ` of the commitments'
     transcript (which may carry a proof-of-work nonce ground against a
-    table of its own) and decoded by
+    table of its own, independent of the query table: `fs_pow`) and
+    decoded by
     `SM SC S9 SP SS` (`fs_open4`, `fs_open4R`).  The opening proofs (`Pf`, the
     Merkle paths at the drawn indices) and FRI's openings and randomness
     (`fri`, `Rb`, `Ro`) read `c4`; the committed data do not
