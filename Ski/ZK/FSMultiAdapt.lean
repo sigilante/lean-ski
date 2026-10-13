@@ -37,11 +37,17 @@ view the first determines (`seqPick_fix`, statements indexed `j1 + S1 j2`);
 `seqPick_step`, whose conclusions are its own hypotheses over the larger
 range).  The statements number `S1 S2` (`S1⋯Sk` for `k` picks), all sharing
 their draws and challenges, and so does the error's factor.  A pick with
-coins of its own sums fixed picks over the coins (`zkbT_adaptiveR`).  A pick
+coins of its own sums fixed picks over the coins, the simulator running
+the distinguisher on coins it draws: from the tables (`zkbT_adaptiveR`),
+from the view or in turn (`zkbT_adaptiveFR`), its mass `R` times one
+pick's (`zkbT_adaptiveV_massR`).  A pick
 reading the draws beyond the view is no distinguisher's, which sees the
-tables and the views alone.  Not shown: one statement's error in place of
-the sum; the split applies a `ZKBT` bound once per statement, and the bound
-holds event by event, each event charged the full error.
+tables and the views alone; this is the model's definition, not a
+theorem.  Not shown: one statement's error in place of
+the sum.  The split applies each statement's `ZKBT` bound once, and that
+bound charges any event its full error; an error shared by all statements,
+as a collision with an earlier query, would need one joint bound to be
+charged once.
 -/
 
 set_option autoImplicit false
@@ -343,6 +349,42 @@ theorem zkbT_adaptiveF {T X C V : Type} {K S : Nat} {ST : (T → Nat) → Nat} (
             fun H => sumTo S (fun j => sm (fun x => indB (E H (j, rv j H x) && decide (ix H (rv j H x) = j)))) from
           funext fun H => hsm S _, hST S _, sumTo_mul]
     _ ≤ _ := Nat.le_trans (sumTo_mono _ each) (Nat.le_of_eq (sumTo_add _ _ _))
+
+/-- **`zkbT_adaptiveF` with coins**: the distinguisher draws `c0 < R`, its
+    pick `ix c0`, real pick `r c0` and event `E c0`; summed over the coins,
+    the simulator running the distinguisher on coins of its own.  View picks
+    (`hcons`) and picks in turn (`seqPick_one`, `seqPick_step`) meet `hfix`
+    at each coin. -/
+theorem zkbT_adaptiveFR {T X C V : Type} {K S R : Nat} {ST : (T → Nat) → Nat} (hST : Lin ST)
+    {sm : (X → Nat) → Nat} (hsm : Lin sm) {SC : (C → Nat) → Nat}
+    (rv : Nat → T → X → V) (pg : Nat → T → C → X → T) (sv : Nat → T → C → X → V) (ε : Nat → Nat)
+    (h : ∀ j, j < S → ZKBT ST K sm SC (rv j) (pg j) (sv j) (ε j)) (ix : Nat → T → V → Nat)
+    (r : Nat → T → X → Nat) (hr : ∀ c0 H x, r c0 H x < S)
+    (hfix : ∀ c0 H x j, j < S → (ix c0 H (rv j H x) = j ↔ j = r c0 H x)) (E : Nat → T → Nat × V → Bool) :
+    K * sumTo R (fun c0 => ST (fun H => sm (fun x => indB (E c0 H (r c0 H x, rv (r c0 H x) H x))))) ≤
+      sumTo R (fun c0 => sumTo S (fun j => ST (fun H => SC (fun c => sm (fun x =>
+        indB (E c0 (pg j H c x) (j, sv j H c x) && decide (ix c0 (pg j H c x) (sv j H c x) = j))))))) +
+        R * sumTo S ε := by
+  rw [sumTo_mul, ← sumTo_const (sumTo S ε) R, ← sumTo_add]
+  exact sumTo_mono R (fun c0 _ =>
+    zkbT_adaptiveF hST hsm rv pg sv ε h (ix c0) (r c0) (hr c0) (hfix c0) (E c0))
+
+/-- **`zkbT_adaptiveV_mass` with coins**: summed over the coins, the
+    confirmed simulations number at most `R` times the real draws plus the
+    errors; a pick reading the tables alone ignores `v`. -/
+theorem zkbT_adaptiveV_massR {T X C V : Type} {K S R : Nat} {ST : (T → Nat) → Nat} (hST : Lin ST)
+    {sm : (X → Nat) → Nat} (hsm : Lin sm) {SC : (C → Nat) → Nat} (hSC : Lin SC)
+    (rv : Nat → T → X → V) (pg : Nat → T → C → X → T) (sv : Nat → T → C → X → V) (ε : Nat → Nat)
+    (h : ∀ j, j < S → ZKBT ST K sm SC (rv j) (pg j) (sv j) (ε j))
+    (hnorm : ST (fun _ => SC (fun _ => sm (fun _ => 1))) = K * ST (fun _ => sm (fun _ => 1)))
+    (ix : Nat → T → V → Nat) (hix : ∀ c0 H v, ix c0 H v < S)
+    (hcons : ∀ c0 j H x, ix c0 H (rv j H x) = ix c0 H (rv 0 H x)) :
+    sumTo R (fun c0 => sumTo S (fun j => ST (fun H => SC (fun c => sm (fun x =>
+        indB (decide (ix c0 (pg j H c x) (sv j H c x) = j))))))) ≤
+      R * (K * ST (fun _ => sm (fun _ => 1)) + sumTo S ε) := by
+  rw [← sumTo_const]
+  exact sumTo_mono R (fun c0 _ =>
+    zkbT_adaptiveV_mass hST hsm hSC rv pg sv ε h hnorm (ix c0) (hix c0) (hcons c0))
 
 /-- **Two statements picked in turn** meet `zkbT_adaptiveF`'s `hfix`: the
     statements indexed `j1 + S1 j2`, the first pick read from the view every

@@ -25,16 +25,15 @@ query phases in `zkbT_powD_rd`.  Openings whose strategy also reads their
 data and salt (`pfRd`), as FRI's layer-root challenges need, are components
 too: the read list names each opening's data (`sudMain1` …) and salt
 (`pfRdReads`, `pfRd_progD`, `sudFS4T_houtD`, `sudFS4T_hrdD`).  No digit is needed
-here: an opening reading at points of any digit `μ c4 M` its strategy picks
-(with the data and salt as well, not shown) is a
-component too, its hits charged to the programmers' spread (`pfRdA`,
-`pfRdA_prog`, `sudFS4T_houtA`, `sudFS4T_hrdA`; `pfRdM` its own-digit case,
-`pfRdM_eq_A`).  The composed
-theorem is `FSMultiMix`'s `fs4_interleave`.  Not shown: its spread `hsp` for
-these proofs (each programmed coordinate: the first three the first
-commitment's, the fourth through a digit read-back on `φ` of `hdg`'s kind);
-that FRI's challenges are such a strategy (FRI's commit phase is not
-modelled); the hidden-term and composed circuits.
+here: an opening whose reads sit at the digit `μ c4 M`, `μ` any function of
+the fourth challenge and the third message, is a component too, its hits
+charged to the programmers' spread (`pfRdA`, `pfRdA_prog`, `sudFS4T_houtA`,
+`sudFS4T_hrdA`; `pfRdM` its own-digit case, `pfRdM_eq_A`).  The composed
+theorem is `FSMultiMix`'s `fs4_interleave`; `FSMultiMixSud` gives the
+spread `hsp` and the hidden-term and composed circuits.  Not shown: an
+any-digit opening that also reads its data and salt; any-digit openings
+for the hidden-term and composed circuits; that FRI's challenges are such
+a strategy (FRI's commit phase is not modelled).
 -/
 
 set_option autoImplicit false
