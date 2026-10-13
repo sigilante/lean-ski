@@ -151,6 +151,7 @@ import Ski.ZK.SudDraws
 import Ski.ZK.SudAdapt
 import Ski.ZK.SudChallenger
 import Ski.ZK.FriCommit
+import Ski.ZK.SpongeSpread
 import Ski.ZK.FSQueryAbsT
 import Ski.ZK.FSQueryPowT
 import Ski.ZK.ROMFamilyT
@@ -1362,3 +1363,6 @@ open Ski.Audit
 
 -- FRI's commit phase as an opening that reads the tables (FriCommit)
 #audit_clean Circuit.friBetas_length Circuit.friCommit_run Circuit.friCommitPf_eq Circuit.friCommit_reads
+
+-- A duplex sponge meets the challenger's spread (SpongeSpread)
+#audit_clean Circuit.sum_pos_exists Circuit.hφsp_of_inj Circuit.foldl_inj Circuit.sponge_inj Circuit.sponge_hφsp Circuit.hφsp_trunc
