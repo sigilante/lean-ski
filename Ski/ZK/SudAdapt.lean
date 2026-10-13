@@ -13,8 +13,9 @@ families, one per choice of puzzles, move to one draw count
 (`zkbT_sm_congr`), and a distinguisher picking the family from the tables
 is bounded by `zkbT_adaptive` (`sud_adaptive`).  The families share the
 program tables' height `tP`; `SudDraws`'s `sud_progTp` makes it `14` for
-every valid puzzle, so each family's own bound (`sud_interleave` and its
-kin, through `htp`) admits the one `tP`.
+every valid puzzle, so each family's own bound (`sud_interleave`, through
+`htp`) admits the one `tP`.  Not shown: the data-reading and any-digit
+families (`sudDD`, `sudDA`), which would need their own `sudD_sm`.
 -/
 
 set_option autoImplicit false
