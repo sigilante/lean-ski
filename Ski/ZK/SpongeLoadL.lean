@@ -4,15 +4,14 @@ import Ski.ZK.SpongeLoad
 # The load over several absorptions
 
 `SpongeLoad` bounds the index's preimage one absorption after the first
-commitment.  Here the index is the state `L + 1` absorptions after it,
-the later blocks any of `X^L` lists.
+commitment.  Here the index is the state after the first commitment and
+`L` later blocks, any of `X^L` lists (`L = 1` is `SpongeLoad`'s setting).
 
 - **The joint run.** The `n1` chains run as one adaptive run, step-major
   (`nxtJ`), its queries the chains' positions in order (`runJ_eq`); its
   hits on a set count the distinct queried positions whose answers lie in
   it (`hitN_eq_sum`).
-- **The ancestry.** The chains reaching `v` occupy fewer positions at
-  each later step; going one step back, each position's predecessors share
+- **The ancestry.** Going one step back, each position's predecessors share
   a capacity value (`hpk`), so on a table where every capacity value holds
   fewer than `m` of the run's hits they number at most `m - 1` times as
   many (`anc_step`).  The first positions are distinct (`hd`) and the last
@@ -39,7 +38,8 @@ suits a few absorptions, not a whole transcript.
 
 Limits, as in `SpongeLoad`: the state before the first commitment is
 fixed, the first commitment fills one aligned block, `H4` stays independent
-of the permutation, and the later blocks do not depend on the salt.
+of the permutation, and the later blocks do not depend on the salt.  The
+composites say nothing unless `Kp > n1 (L + 1)`.
 -/
 
 set_option autoImplicit false
@@ -484,8 +484,8 @@ theorem loadA_δs_countP {K F : Nat} (hK : 0 < K) (inner : Nat → Nat → Nat) 
   rw [sumTo_congr _ (fun H _ => Nat.mul_left_comm _ _ _), ← sumTo_mul, Nat.mul_left_comm, Nat.mul_assoc]
   exact Nat.mul_le_mul_left _ h
 
-/-- The fourth table's index `L + 1` absorptions after the first
-    commitment, under the permutation `H`. -/
+/-- The fourth table's index after the first commitment and `L` later
+    blocks, under the permutation `H`. -/
 def loadφA {W : Type} (K : Nat) (inner : Nat → Nat → Nat) (iv n1 L : Nat) (enc : Nat → W → List Nat) (H : Nat) :
     Nat → Nat → W → Nat :=
   fun _ m w => chain1 K inner iv ((m % n1) :: enc (m / n1) w) H (L + 1)
@@ -500,7 +500,7 @@ open B Air Stmt Mach Sudoku SudokuText Compose CompM Wit
 
 set_option maxRecDepth 100000 in
 /-- **`sud_interleaveS` averaged over a uniform permutation, the index
-    `L + 1` absorptions after the first commitment** (`loadφA`): at each
+    the state after the first commitment and `L` later blocks** (`loadφA`): at each
     permutation table `P` with `δsLA P = δ0 loadMA` (`loadA_hsp`); the error
     the permutation-weighted sum of the tables' errors (`zkbT_avgW`). -/
 theorem sud_interleaveLA {V Wv P1 P2 P3 W1 W2 W3 : Type} {kr kq : Nat} (φ1 : Nat → Nat → W1 → Nat) (nx1 : Nat → Nat → Nat → List Nat → Nat × Nat × W1) (G1 : Nat → Nat → Nat → List (List (List F)) → Nat → List Nat → P1) (φ2 : Nat → Nat → W2 → Nat) (nx2 : Nat → Nat → Nat → List Nat → Nat × Nat × W2) (G2 : Nat → Nat → Nat → List (List (List F)) → Nat → List Nat → P2) (φ3 : Nat → Nat → W3 → Nat) (nx3 : Nat → Nat → Nat → List Nat → Nat × Nat × W3) (G3 : Nat → Nat → Nat → List (List (List (List F))) × List (List (List F)) → Nat → List Nat → P3)
