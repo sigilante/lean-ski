@@ -126,6 +126,7 @@ import Ski.ZK.ROMMerkle
 import Ski.ZK.ROMMerkleOpen
 import Ski.ZK.ROMWitness
 import Ski.ZK.ROMMerkle4
+import Ski.ZK.ROMMerkleColl
 import Ski.ZK.ROMInstM
 import Ski.ZK.ROMFamilyM
 import Ski.ZK.ROMMerkleRows
@@ -1309,3 +1310,6 @@ open Ski.Audit
   Circuit.qIdx_length Circuit.qIdx_lt Circuit.qIdx_qEnc Circuit.qEnc_lt Circuit.qEnc_qIdx Circuit.qIdx_inj
   Circuit.qIdx_onto Circuit.qIdx_add_mul Circuit.qIdx_split Circuit.hB4_split Circuit.sud_fs_open4ROMM_qIdx Circuit.wit_fs_open4ROMM_qIdx Circuit.comp_fs_open4ROMM_qIdx Circuit.friS_qIdx_length Circuit.qIdx_fri_conds Circuit.sud_fs_open4ROMM_fri Circuit.wit_fri_leaves Circuit.wit_fs_open4ROMM_fri
   Circuit.comp_fri_leaves Circuit.comp_fs_open4ROMM_fri
+
+-- Leaves that may share a hash (ROMMerkleColl)
+#audit_clean Circuit.posU_nodupS Circuit.posU_not_memS Circuit.pfMI_hidesA Circuit.pfMIP_hidesA
