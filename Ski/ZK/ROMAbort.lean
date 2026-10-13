@@ -490,7 +490,12 @@ theorem open_two_coreQ {PV PB D1 O1 Pa1 P1 D2 O2 Pa2 P2 : Type} {NR m e1 e2 NS1 
       ac_rfl
 
 set_option maxRecDepth 100000 in
-/-- **Fiat–Shamir over two rounds, both commitments opened**, in the
+/-- **`fs_open2` with a part of each commitment shown even where the proof
+    aborts** (`PA1`, `PA2`, hiding jointly with their commitments,
+    `ComHidesP`, and with the openings, `ComPfHides` of pairs).  `fs_open2`'s
+    statement:
+
+    **Fiat–Shamir over two rounds, both commitments opened**, in the
     programmable random-oracle model: the real proof's first message
     `Com1 (main1 t r) σ1`, its LogUp challenges `c1 = H1` there, its second
     message the pair with `Com2 (main2 c1 t r) σ2`, `c2 = H2` there, and
@@ -583,6 +588,8 @@ theorem ComPfHides_toP {D O Pp : Type} {NS : Nat} {Com : D → Nat → Nat} {Pf 
   fun d d' hop E => h d d' hop (fun c p => E c ((), p))
 
 set_option maxRecDepth 100000 in
+/-- **`fs_open3` with a part of the first commitment shown even where the
+    proof aborts** (`PA1`); the later commitments as `fs_open3`'s. -/
 theorem fs_open3Q {PV PB D1 O1 Pa1 P1 D2 O2 P2 D3 O3 P3 : Type} {NR m e1 e2 NS1 NS2 NS3 K2 K3 n1 n2 n3 : Nat}
     (hK2 : 0 < K2) (hK3 : 0 < K3)
     (rv sv : Nat → Nat → EF → EF → Nat → (Nat → Tup) → TViewN PV PB) (gz : Nat → Nat → Bool)
@@ -702,6 +709,8 @@ theorem fs_open3Q {PV PB D1 O1 Pa1 P1 D2 O2 P2 D3 O3 P3 : Type} {NR m e1 e2 NS1 
     exact core
 
 set_option maxRecDepth 100000 in
+/-- **`fs_open3U` with a part of the first commitment shown even where the
+    proof aborts** (`PA1`). -/
 theorem fs_open3UQ {PV PB D1 O1 Pa1 P1 D2 O2 P2 D3 O3 P3 : Type} {NR m e1 e2 NS1 NS2 NS3 K2 K3 n1 n2 n3 : Nat}
     (hK2 : 0 < K2) (hK3 : 0 < K3)
     (rv sv : Nat → Nat → EF → EF → Nat → (Nat → Tup) → TViewN PV PB) (gz : Nat → Nat → Bool)
@@ -832,6 +841,8 @@ theorem fs_open3UQ {PV PB D1 O1 Pa1 P1 D2 O2 P2 D3 O3 P3 : Type} {NR m e1 e2 NS1
 
 
 set_option maxRecDepth 100000 in
+/-- **`fs_open4` with a part of the first commitment shown even where the
+    proof aborts** (`PA1 c4`, hiding with the commitment at each `c4`). -/
 theorem fs_open4Q {PV PB D1 O1 Pa1 P1 D2 O2 P2 D3 O3 P3 W : Type} {NR m e1 e2 NS1 NS2 NS3 K2 K3 K4 n1 n2 n3 : Nat}
     (hK2 : 0 < K2) (hK3 : 0 < K3) (hK4 : 0 < K4)
     (φ : Nat → W → Nat) {N4 : Nat} (hφ : ∀ m w, φ m w < N4)
@@ -955,7 +966,9 @@ set_option maxRecDepth 100000 in
     with query answers shown where the proof aborts** (`fs_open4ROM` over
     `fs_open4Q`): the first `k0` queries chosen from the commitment alone,
     answered always; the rest read the opening at the drawn challenge.  The
-    bound gains `s (k0 + k) / NSh` a draw; one direction. -/
+    bound gains `s (k0 + k) / NSh` a draw; one direction.  As `fs_openROMQ`:
+    no query reads the Fiat–Shamir tables or the view, and a strategy that
+    queries differently on abort takes `k0 = k` at twice the transfer term. -/
 theorem fs_open4ROMQ {PV PB D O Pq D2 O2 P2 D3 O3 P3 W : Type}
     {K NR m e1 e2 NSh NSo s k0 k n NS2 NS3 K2 K3 K4 n2 n3 : Nat}
     (hK : 0 < K) (hK2 : 0 < K2) (hK3 : 0 < K3) (hK4 : 0 < K4)
