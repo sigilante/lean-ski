@@ -36,7 +36,9 @@ view the first determines (`seqPick_fix`, statements indexed `j1 + S1 j2`);
 (S1⋯S_{i-1}))`, by `k - 1` steps from one pick (`seqPick_one`,
 `seqPick_step`, whose conclusions are its own hypotheses over the larger
 range).  The statements number `S1 S2` (`S1⋯Sk` for `k` picks), all sharing
-their draws and challenges, and so does the error's factor.  A pick with
+their draws and challenges, and so does the error's factor.  Any two
+Sudoku puzzles' proofs with the same parameters share their draws
+(`SudDraws`'s `sud_sm_eq`).  A pick with
 coins of its own sums fixed picks over the coins, the simulator running
 the distinguisher on coins it draws: from the tables (`zkbT_adaptiveR`),
 from the view or in turn (`zkbT_adaptiveFR`), its mass `R` times one

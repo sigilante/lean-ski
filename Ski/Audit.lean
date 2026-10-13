@@ -147,6 +147,7 @@ import Ski.ZK.FSMultiMixSud
 import Ski.ZK.FSMultiOpenROM
 import Ski.ZK.FSMultiPost
 import Ski.ZK.FSMultiAdapt
+import Ski.ZK.SudDraws
 import Ski.ZK.FSQueryAbsT
 import Ski.ZK.FSQueryPowT
 import Ski.ZK.ROMFamilyT
@@ -1346,3 +1347,6 @@ open Ski.Audit
 -- Statements chosen after seeing the tables (FSMultiAdapt)
 #audit_clean Circuit.zkbT_adaptive Circuit.indB_add_not Circuit.zkbT_rev Circuit.sum_indB_eq Circuit.zkbT_adaptive_mass Circuit.zkbT_adaptiveR Circuit.zkbT_adaptiveFR Circuit.zkbT_adaptiveV_massR Circuit.zkbT_adaptiveV Circuit.zkbT_adaptiveV_mass Circuit.zkbT_adaptiveF Circuit.seqPick_fix Circuit.digits_eq Circuit.seqPick_step
   Circuit.seqPick_one
+
+-- Sudoku statements share their draws (SudDraws)
+#audit_clean Circuit.pbuild_length Circuit.osz_all Circuit.osz_clues Circuit.osz_fixed Circuit.stmtMachine_heap Circuit.sudHeap_length Circuit.zipIdx_filter_length Circuit.pubCells_length Circuit.pow2From_leK Circuit.sud_progTp Circuit.sudKs_eq Circuit.sudNR_eq Circuit.sudFS4T_sm Circuit.sud_sm_eq
