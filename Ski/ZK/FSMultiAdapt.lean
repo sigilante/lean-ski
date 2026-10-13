@@ -18,13 +18,18 @@ backwards bounds the simulation by the real count (`zkbT_rev`), so the
 confirmed runs over all guesses number at most `K` times the real draws plus
 the errors (`zkbT_adaptive_mass`).  The bounds may be composites
 (`fs4_interleave`, `fs4_postInterleave`, `zkbT_pair`), `j` indexing the
-statement of one proof in them, the others fixed, all `S` composites
-sharing their draws and challenges.  The pick reads only the tables, so
-making it between proofs gains nothing over making it first: the real world
-programs nothing, and the simulator fixes every programmed point before the
-run and answers the pick at the composite's fully programmed tables, the
-later proofs' included.  Not shown: a pick reading earlier proofs'
-transcripts; several statements picked in turn; a tighter bound.
+statement of one proof in them, the others fixed, all `S` composites sharing
+their draws and challenges.  The pick reads only the tables, so making it
+between proofs gains nothing over making it first: the real world programs
+nothing, and the simulator fixes every programmed point before the run and
+answers the pick at the composite's fully programmed tables, the later
+proofs' included.  The pick may also read the real view where it agrees
+across the `S` statements (`zkbT_adaptiveV`, `hcons`): in a composite
+indexed by proof `m`'s statement, every other component's real view, the
+earlier proofs' transcripts among them; the simulation reads the pick off
+its own simulated view and programmed tables, and the mass bound carries
+over (`zkbT_adaptiveV_mass`). Not shown: several statements picked in turn;
+a tighter bound.
 -/
 
 set_option autoImplicit false
@@ -178,5 +183,88 @@ theorem zkbT_adaptive_mass {T X C V : Type} {K S : Nat} {ST : (T → Nat) → Na
   rw [← hsm S (fun j _ => indB (decide (ix H = j)))]
   congr 1; funext _
   exact sum_indB_eq (ix H) S (hix H)
+
+/-- **A statement picked from the view**: the pick `ix H v < S` reads the
+    tables and the view, but only the part every statement's view shares
+    (`hcons`, as the earlier proofs' transcripts in a composite indexed by a
+    later proof's statement).  The real pick is then well defined
+    (`ix H (rv 0 H x)`), and the same split bounds it: each statement's
+    simulation kept where the pick read off its simulated view and
+    programmed tables confirms it. -/
+theorem zkbT_adaptiveV {T X C V : Type} {K S : Nat} {ST : (T → Nat) → Nat} (hST : Lin ST) {sm : (X → Nat) → Nat}
+    (hsm : Lin sm) {SC : (C → Nat) → Nat}
+    (rv : Nat → T → X → V) (pg : Nat → T → C → X → T) (sv : Nat → T → C → X → V) (ε : Nat → Nat)
+    (h : ∀ j, j < S → ZKBT ST K sm SC (rv j) (pg j) (sv j) (ε j)) (ix : T → V → Nat) (hix : ∀ H v, ix H v < S)
+    (hcons : ∀ j H x, ix H (rv j H x) = ix H (rv 0 H x)) (E : T → Nat × V → Bool) :
+    K * ST (fun H => sm (fun x => indB (E H (ix H (rv 0 H x), rv (ix H (rv 0 H x)) H x)))) ≤
+      sumTo S (fun j => ST (fun H => SC (fun c => sm (fun x =>
+        indB (E (pg j H c x) (j, sv j H c x) && decide (ix (pg j H c x) (sv j H c x) = j)))))) + sumTo S ε := by
+  have split : ∀ H x, indB (E H (ix H (rv 0 H x), rv (ix H (rv 0 H x)) H x)) =
+      sumTo S (fun j => indB (E H (j, rv j H x) && decide (ix H (rv j H x) = j))) := by
+    intro H x
+    have e : ∀ j, (E H (j, rv j H x) && decide (ix H (rv j H x) = j)) =
+        (E H (j, rv j H x) && decide (ix H (rv 0 H x) = j)) := fun j => by rw [hcons j H x]
+    simp only [e]
+    -- the same split as `zkbT_adaptive`, at the pick `a := ix H (rv 0 H x)`
+    generalize ha : ix H (rv 0 H x) = a
+    have hal : a < S := ha ▸ hix H (rv 0 H x)
+    have key : ∀ n, a < n → sumTo n (fun j => indB (E H (j, rv j H x) && decide (a = j))) =
+        indB (E H (a, rv a H x)) := by
+      intro n
+      induction n with
+      | zero => intro hn; exact absurd hn (Nat.not_lt_zero _)
+      | succ n ih =>
+        intro hn
+        show sumTo n _ + indB (E H (n, rv n H x) && decide (a = n)) = _
+        rcases Nat.lt_or_ge a n with hl | hl
+        · rw [ih hl, decide_eq_false (Nat.ne_of_lt hl), Bool.and_false]; rfl
+        · have he : a = n := Nat.le_antisymm (Nat.le_of_lt_succ hn) hl
+          have z : ∀ m, m ≤ n → sumTo m (fun j => indB (E H (j, rv j H x) && decide (a = j))) = 0 := by
+            intro m
+            induction m with
+            | zero => intro _; rfl
+            | succ m ihm =>
+              intro hm
+              have hne : a ≠ m := by rw [he]; exact Nat.ne_of_gt hm
+              show sumTo m (fun j => indB (E H (j, rv j H x) && decide (a = j))) +
+                indB (E H (m, rv m H x) && decide (a = m)) = 0
+              rw [ihm (Nat.le_of_succ_le hm), decide_eq_false hne, Bool.and_false]; rfl
+          rw [z n (Nat.le_refl n), Nat.zero_add, he, decide_eq_true rfl, Bool.and_true]
+    exact (key S hal).symm
+  have each : ∀ j, j < S → K * ST (fun H => sm (fun x => indB (E H (j, rv j H x) && decide (ix H (rv j H x) = j)))) ≤
+      ST (fun H => SC (fun c => sm (fun x =>
+        indB (E (pg j H c x) (j, sv j H c x) && decide (ix (pg j H c x) (sv j H c x) = j))))) + ε j :=
+    fun j hj => h j hj (fun H v => E H (j, v) && decide (ix H v = j))
+  calc K * ST (fun H => sm (fun x => indB (E H (ix H (rv 0 H x), rv (ix H (rv 0 H x)) H x))))
+      = K * ST (fun H => sm (fun x => sumTo S (fun j => indB (E H (j, rv j H x) && decide (ix H (rv j H x) = j))))) := by
+        simp only [split]
+    _ = sumTo S (fun j => K * ST (fun H => sm (fun x => indB (E H (j, rv j H x) && decide (ix H (rv j H x) = j))))) := by
+        rw [show (fun H => sm (fun x => sumTo S (fun j => indB (E H (j, rv j H x) && decide (ix H (rv j H x) = j))))) =
+            fun H => sumTo S (fun j => sm (fun x => indB (E H (j, rv j H x) && decide (ix H (rv j H x) = j)))) from
+          funext fun H => hsm S _, hST S _, sumTo_mul]
+    _ ≤ _ := Nat.le_trans (sumTo_mono _ each) (Nat.le_of_eq (sumTo_add _ _ _))
+
+/-- **`zkbT_adaptive_mass` for a pick read from the view.** -/
+theorem zkbT_adaptiveV_mass {T X C V : Type} {K S : Nat} {ST : (T → Nat) → Nat} (hST : Lin ST) {sm : (X → Nat) → Nat}
+    (hsm : Lin sm) {SC : (C → Nat) → Nat} (hSC : Lin SC)
+    (rv : Nat → T → X → V) (pg : Nat → T → C → X → T) (sv : Nat → T → C → X → V) (ε : Nat → Nat)
+    (h : ∀ j, j < S → ZKBT ST K sm SC (rv j) (pg j) (sv j) (ε j))
+    (hnorm : ST (fun _ => SC (fun _ => sm (fun _ => 1))) = K * ST (fun _ => sm (fun _ => 1)))
+    (ix : T → V → Nat) (hix : ∀ H v, ix H v < S) (hcons : ∀ j H x, ix H (rv j H x) = ix H (rv 0 H x)) :
+    sumTo S (fun j => ST (fun H => SC (fun c => sm (fun x => indB (decide (ix (pg j H c x) (sv j H c x) = j)))))) ≤
+      K * ST (fun _ => sm (fun _ => 1)) + sumTo S ε := by
+  have each : ∀ j, j < S → ST (fun H => SC (fun c => sm (fun x => indB (decide (ix (pg j H c x) (sv j H c x) = j))))) ≤
+      K * ST (fun H => sm (fun x => indB (decide (ix H (rv 0 H x) = j)))) + ε j := fun j hj => by
+    have r := zkbT_rev hST hsm hSC (h j hj) hnorm (fun H v => decide (ix H v = j))
+    simp only [hcons] at r
+    exact r
+  refine Nat.le_trans (sumTo_mono _ each) ?_
+  rw [sumTo_add, ← sumTo_mul]
+  refine Nat.add_le_add_right (Nat.mul_le_mul_left _ (Nat.le_of_eq ?_)) _
+  rw [← hST S (fun j H => sm (fun x => indB (decide (ix H (rv 0 H x) = j))))]
+  congr 1; funext H
+  rw [← hsm S (fun j x => indB (decide (ix H (rv 0 H x) = j)))]
+  congr 1; funext x
+  exact sum_indB_eq (ix H (rv 0 H x)) S (hix H _)
 
 end Circuit
