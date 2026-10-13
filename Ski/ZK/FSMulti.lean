@@ -489,7 +489,9 @@ set_option maxRecDepth 100000 in
     commitment as its low digits, and `φ` keeps them (`hφ`), so a collision
     puts the second proof's first commitment at the first's simulated one;
     the commitment's spread over its salts, `δ₀` per draw (`hsp`), bounds
-    it. -/
+    it.  `hφ` restricts the query hash's input map: it must keep the
+    transcript's residue mod `n1`, as `φ m w = m % n1 + n1 (g m w % M)` with
+    `N4 = n1 M` does; a map that discards it falls outside. -/
 theorem fs_open4_two {PVA PBA D1A O1A P1A D2A O2A P2A D3A O3A P3A WA : Type} {NRA mA e1A e2A NS1A NS2A NS3A K2 K3 K4 n1 n2 n3 : Nat}
     (hK2 : 0 < K2) (hK3 : 0 < K3) (hK4 : 0 < K4)
     (φA : Nat → WA → Nat) {N4 : Nat} (hφA : ∀ mA w, φA mA w < N4)
