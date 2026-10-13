@@ -38,6 +38,17 @@ What this covers, and what it leaves out:
   query answers;
 * one round; the commitment's table apart from the Fiat–Shamir table, as a
   domain-separated oracle's.
+
+**The route through every round.**  The ideal opening answers the
+distinguisher's queries on the commitment's table with the commitment's own
+answer re-randomized by one more salt digit (`comI`, `pfI`); the
+re-randomized table is uniform and apart from the commitment
+(`reprog_swap`), so the pair hides exactly (`comI_hides`, `pfI_hides`) and
+every exact Fiat–Shamir theorem here applies to it unchanged, every round
+and every instance.  The real opening differs from the ideal only where a
+query hits the commitment's answer (`pfR_pfI`), so each real count moves to
+the real oracle's at `K` per hitting draw.  That last step, written into
+each theorem's statement, is not yet done.
 -/
 
 namespace Circuit
@@ -540,4 +551,122 @@ theorem fs_openROM {PV PB D O P : Type} {NR m e1 e2 Kc nc NSh NSo s k : Nat} (hK
   have hrange : ∀ d σ, comR Kc NSh NSo pos d σ < Kc := fun d σ => Nat.mod_lt _ hKc
   exact fs_openA (comR Kc NSh NSo pos) (pfR Kc NSh NSo k pos op g nxt) op sd d0 hcom (pfR_hidesA hKc pos hpos op g hs nxt) hrange ov hovn main hsd sop h1 h2 hrv hsv hrvo hsvo E
 
+/-- **Re-randomizing one answer is a bijection**: over the tables and the
+    answers `u` set at `p`, the pair (the old answer at `p`, the new table) is
+    every (answer, table) pair once. -/
+theorem reprog_swap {K n p : Nat} (hK : 0 < K) (hp : p < n) (f : Nat → Nat → Nat) :
+    sumTo (K ^ n) (fun H => sumTo K (fun u => f (rget K p H) (rset K p H u))) =
+      sumTo (K ^ n) (fun H => sumTo K (fun c => f c H)) := by
+  have hn : K ^ n = K ^ p * (K * K ^ (n - p - 1)) := by
+    rw [← Nat.pow_succ', ← Nat.pow_add]; congr 1; omega
+  have hpos : 0 < K ^ p := Nat.pow_pos hK
+  rw [hn, sumTo_split (K ^ p) _ (K * K ^ (n - p - 1)), sumTo_split (K ^ p) _ (K * K ^ (n - p - 1))]
+  rw [sumTo_split K _ (K ^ (n - p - 1)), sumTo_split K _ (K ^ (n - p - 1))]
+  refine sumTo_congr _ (fun hi _ => ?_)
+  -- left: Σ_d Σ_lo Σ_u f(d, lo + K^p(u + K hi)); right: Σ_d Σ_lo Σ_c f(c, lo + K^p(d + K hi))
+  have hl : ∀ d, d < K → sumTo (K ^ p) (fun lo => sumTo K (fun u =>
+      f (rget K p (lo + K ^ p * (d + K * hi))) (rset K p (lo + K ^ p * (d + K * hi)) u))) =
+      sumTo (K ^ p) (fun lo => sumTo K (fun u => f d (lo + K ^ p * (u + K * hi)))) := fun d hd =>
+    sumTo_congr _ (fun lo hlo => sumTo_congr _ (fun u _ => by
+      rw [(split_digit hK hlo hd).1, (split_digit hK hlo hd).2 u]))
+  rw [sumTo_congr K hl]
+  rw [sumTo_congr K (fun d _ => sumTo_exch (fun lo c => f c (lo + K ^ p * (d + K * hi))) K (K ^ p))]
+  rw [sumTo_exch _ K K]
+  exact sumTo_congr _ (fun d _ => sumTo_exch (fun lo u => f d (lo + K ^ p * (u + K * hi))) K (K ^ p))
+
+/-- The commitment with one more salt digit `u`, which it ignores. -/
+def comI {D : Type} (K NSh NSo : Nat) (pos : D → Nat → Nat → Nat) (d : D) (σ : Nat) : Nat :=
+  comR K NSh NSo pos d (σ / K)
+
+/-- **The ideal opening**: the distinguisher's queries answered on the
+    commitment's table with the commitment's own answer re-randomized to the
+    extra digit `u`. -/
+def pfI {D O P : Type} (K NSh NSo k : Nat) (pos : D → Nat → Nat → Nat) (op : D → O) (g : O → Nat → P)
+    (nxt : P → Nat → List Nat → Nat) (d : D) (σ : Nat) : P × List Nat :=
+  (g (op d) (saltO NSh NSo (σ / K)),
+   runQ K (nxt (g (op d) (saltO NSh NSo (σ / K)))) (comI K NSh NSo pos d σ) k
+     (rset K (pos d (saltO NSh NSo (σ / K)) (saltH NSh (σ / K))) (saltT NSh NSo (σ / K)) (σ % K)))
+
+theorem sum_digit (K N : Nat) (f : Nat → Nat) :
+    sumTo (N * K) f = sumTo N (fun σ => sumTo K (fun u => f (u + K * σ))) := by
+  rw [Nat.mul_comm]; exact sumTo_split K f N
+
+theorem digit_dec {K σ u : Nat} (hu : u < K) : (u + K * σ) / K = σ ∧ (u + K * σ) % K = u := by
+  have hK : 0 < K := by omega
+  refine ⟨?_, ?_⟩
+  · rw [Nat.add_mul_div_left _ _ hK, Nat.div_eq_of_lt hu, Nat.zero_add]
+  · rw [Nat.add_mul_mod_self_left, Nat.mod_eq_of_lt hu]
+
+/-- **The ideal opening hides exactly**: the re-randomized table is
+    uniform and apart from the commitment's answer (`reprog_swap`). -/
+theorem pfI_hides {D O P : Type} {K n NSh NSo k : Nat} (hK : 0 < K) (pos : D → Nat → Nat → Nat)
+    (hpos : ∀ d σo σh, pos d σo σh < n) (op : D → O) (g : O → Nat → P) (nxt : P → Nat → List Nat → Nat) :
+    ComPfHides (NSh * (NSo * K ^ n) * K) (comI K NSh NSo pos) (pfI K NSh NSo k pos op g nxt) op := by
+  intro d d' hop E
+  have key : ∀ dd : D, op dd = op d → sumTo (NSh * (NSo * K ^ n) * K) (fun σ =>
+      indB (E (comI K NSh NSo pos dd σ) (pfI K NSh NSo k pos op g nxt dd σ))) =
+      sumTo NSo (fun o => sumTo NSh (fun _ => sumTo (K ^ n) (fun H => sumTo K (fun c =>
+        indB (E c (g (op d) o, runQ K (nxt (g (op d) o)) c k H)))))) := fun dd hdd => by
+    rw [sum_digit, sum_salt_eq]
+    refine sumTo_congr _ (fun o ho => sumTo_congr _ (fun σh hh => ?_))
+    rw [← reprog_swap hK (hpos dd o σh) (fun c H => indB (E c (g (op d) o, runQ K (nxt (g (op d) o)) c k H)))]
+    refine sumTo_congr _ (fun h _ => sumTo_congr _ (fun u hu => ?_))
+    obtain ⟨e1, e2⟩ := digit_dec (σ := σh + NSh * (o + NSo * h)) hu
+    obtain ⟨a, b, c⟩ := salt_dec (h := h) hh ho
+    simp only [pfI, comI, comR, e1, e2, a, b, c, hdd]
+  rw [key d rfl, key d' hop.symm]
+
+/-- **The real and the ideal openings differ only where a query hits the
+    commitment's answer**: `K` times the count with the real opening is at
+    most the count with the ideal one plus `K` per hitting draw, and back. -/
+theorem pfR_pfI {D O P : Type} {K NSh NSo k : Nat} (hK : 0 < K) (pos : D → Nat → Nat → Nat)
+    (op : D → O) (g : O → Nat → P) (nxt : P → Nat → List Nat → Nat) (F : Nat → P × List Nat → Bool) (d : D)
+    (σ : Nat) :
+    let hit := decide (pos d (saltO NSh NSo σ) (saltH NSh σ) ∈
+      qposQ K (nxt (g (op d) (saltO NSh NSo σ))) (comR K NSh NSo pos d σ) k (saltT NSh NSo σ))
+    K * indB (F (comR K NSh NSo pos d σ) (pfR K NSh NSo k pos op g nxt d σ)) ≤
+      sumTo K (fun u => indB (F (comI K NSh NSo pos d (u + K * σ)) (pfI K NSh NSo k pos op g nxt d (u + K * σ)))) +
+        K * indB hit ∧
+    sumTo K (fun u => indB (F (comI K NSh NSo pos d (u + K * σ)) (pfI K NSh NSo k pos op g nxt d (u + K * σ)))) ≤
+      K * indB (F (comR K NSh NSo pos d σ) (pfR K NSh NSo k pos op g nxt d σ)) + K * indB hit := by
+  intro hit
+  have eq : ∀ u, u < K → (comI K NSh NSo pos d (u + K * σ), pfI K NSh NSo k pos op g nxt d (u + K * σ)) =
+      (comR K NSh NSo pos d σ, (g (op d) (saltO NSh NSo σ), runQ K (nxt (g (op d) (saltO NSh NSo σ)))
+        (comR K NSh NSo pos d σ) k (rset K (pos d (saltO NSh NSo σ) (saltH NSh σ)) (saltT NSh NSo σ) u))) :=
+    fun u hu => by obtain ⟨e1, e2⟩ := digit_dec (σ := σ) hu; simp only [pfI, comI, e1, e2]
+  cases hh : hit
+  · have hq : pos d (saltO NSh NSo σ) (saltH NSh σ) ∉
+        qposQ K (nxt (g (op d) (saltO NSh NSo σ))) (comR K NSh NSo pos d σ) k (saltT NSh NSo σ) := by
+      simpa [hit] using hh
+    have e : sumTo K (fun u => indB (F (comI K NSh NSo pos d (u + K * σ)) (pfI K NSh NSo k pos op g nxt d (u + K * σ)))) =
+        K * indB (F (comR K NSh NSo pos d σ) (pfR K NSh NSo k pos op g nxt d σ)) := by
+      rw [show K * indB (F (comR K NSh NSo pos d σ) (pfR K NSh NSo k pos op g nxt d σ)) =
+        sumTo K (fun _ => indB (F (comR K NSh NSo pos d σ) (pfR K NSh NSo k pos op g nxt d σ))) from
+        (sumTo_const _ K).symm]
+      refine sumTo_congr _ (fun u hu => ?_)
+      have e3 := eq u hu
+      rw [Prod.mk.injEq] at e3
+      rw [e3.1, e3.2, (runQ_rset hK hu _ _ k _ hq).1]
+      rfl
+    rw [e]; exact ⟨Nat.le_add_right _ _, Nat.le_add_right _ _⟩
+  · have b1 : K * indB (F (comR K NSh NSo pos d σ) (pfR K NSh NSo k pos op g nxt d σ)) ≤ K * indB true :=
+      Nat.mul_le_mul_left _ (indB_le _)
+    have b2 : sumTo K (fun u => indB (F (comI K NSh NSo pos d (u + K * σ))
+        (pfI K NSh NSo k pos op g nxt d (u + K * σ)))) ≤ K * indB true := by
+      refine Nat.le_trans (sumTo_mono _ (fun u _ => indB_le _)) (Nat.le_of_eq ?_)
+      rw [sumTo_const]; rfl
+    exact ⟨Nat.le_trans b1 (Nat.le_add_left _ _), Nat.le_trans b2 (Nat.le_add_left _ _)⟩
+
+/-- The bare commitment with the extra digit hides exactly. -/
+theorem comI_hides {D : Type} {K n NSh NSo : Nat} (hK : 0 < K) (pos : D → Nat → Nat → Nat)
+    (hpos : ∀ d σo σh, pos d σo σh < n) : ComHides (NSh * (NSo * K ^ n) * K) (comI K NSh NSo pos) := by
+  intro d d' E
+  have e : ∀ dd : D, sumTo (NSh * (NSo * K ^ n) * K) (fun σ => indB (E (comI K NSh NSo pos dd σ))) =
+      K * sumTo (NSh * (NSo * K ^ n)) (fun σ => indB (E (comR K NSh NSo pos dd σ))) := fun dd => by
+    rw [sum_digit, sumTo_mul]
+    refine sumTo_congr _ (fun σ _ => ?_)
+    rw [show K * indB (E (comR K NSh NSo pos dd σ)) = sumTo K (fun _ => indB (E (comR K NSh NSo pos dd σ))) from
+      (sumTo_const _ K).symm]
+    exact sumTo_congr _ (fun u hu => by simp only [comI, (digit_dec (σ := σ) hu).1])
+  rw [e d, e d', comR_hides hK pos hpos d d' E]
 end Circuit

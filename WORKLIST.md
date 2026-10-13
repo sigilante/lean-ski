@@ -139,7 +139,8 @@ is built; this file records what is next. Last revised 2026-10-13.
   are not yet proved); `Com` from the same oracle composed with the Fiat–Shamir theorems (hiding against
   `k` adaptive queries is proved: `Ski/ZK/ROMHide.lean`, `rom_hideQ`; given its openings:
   `rom_hidePfQ`; one round under approximate hiding: `fs_openA`; one round with the commitment
-  drawn from the oracle: `fs_openROM`; the later rounds not yet); FRI's
+  drawn from the oracle: `fs_openROM`; every round through the ideal opening (`pfI_hides`) and
+  the transfer `pfR_pfI`, not yet written into each theorem); FRI's
   folding challenges hashed with the transcript before FRI (from its own layer commitments,
   against a table of its own, they fit already: `fs_pow`); FRI's layer commitments and final polynomial in the query hash's
   input (every opening at `ζ` is in it, `pcsFri_ood`, `pcsFri_oodT`,
