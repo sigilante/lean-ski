@@ -212,7 +212,7 @@ theorem two_le4 {c a y b : Nat} (h : c * (c * a) ≤ b) : c * (c * (a + y)) ≤ 
 set_option maxRecDepth 100000 in
 /-- **Two four-round proofs under shared tables, each first commitment drawn
     from its own oracle table** (`fs_open4_two` through `pair_transfer` and
-    `rom4_step`): `KQ²` times the real count is at most `fs_open4_two`'s
+    `rom4_step`): `KQ²` times the real count (with `fs_open4_two`'s factor) is at most `fs_open4_two`'s
     bound at the ideal openings, the second's spread `hsp` from
     `comI_spread_sm`, plus each transfer's `s k / NSh` a draw; one direction. -/
 theorem fs_open4_twoROM {PVA PBA D1A O1A PqA D2A O2A P2A D3A O3A P3A WA : Type} {NRA mA e1A e2A NShA NSoA sA kA nA NS2A NS3A K2 K3 K4 KQ n2 n3 : Nat}
