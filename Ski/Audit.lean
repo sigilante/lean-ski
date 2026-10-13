@@ -159,6 +159,7 @@ import Ski.ZK.SpongeIndex
 import Ski.ZK.SpongeAvg
 import Ski.ZK.SpongeMany
 import Ski.ZK.SpongeLoad
+import Ski.ZK.SpongeLoadL
 import Ski.ZK.FSQueryAbsT
 import Ski.ZK.FSQueryPowT
 import Ski.ZK.ROMFamilyT
@@ -1394,3 +1395,6 @@ open Ski.Audit
 
 -- The load of one capacity value under a uniform permutation (SpongeLoad)
 #audit_clean Circuit.hitN_le Circuit.hitN_moment Circuit.eC_le Circuit.hitN_tail Circuit.runAdp_nxt0 Circuit.runAdp_nxt0_fst Circuit.hitN_nxt0 Circuit.fib_length Circuit.idx1_eq Circuit.idx1_preimage Circuit.loadM_countP Circuit.load_hsp Circuit.load_δs_countP Circuit.load_satPT Circuit.zkbT_avgW Circuit.permB_of_indB Circuit.sud_interleaveL Circuit.sud_interleaveLN
+
+-- The load over several absorptions (SpongeLoadL)
+#audit_clean Circuit.rget_posJ Circuit.runJ_eq Circuit.sumTo_point Circuit.hitN_eq_sum Circuit.sum_le_one Circuit.count_inj Circuit.stepPos_succ Circuit.posJ_stepPos Circuit.stepPos_mem Circuit.runJ_ok Circuit.anc_step Circuit.preimage_good Circuit.preimage_loadML Circuit.preimage_loadMA Circuit.loadA_hsp Circuit.loadMA_countP Circuit.loadA_δs_countP Circuit.sud_interleaveLA Circuit.sud_interleaveLAN
