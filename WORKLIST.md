@@ -169,8 +169,13 @@ is built; this file records what is next. Last revised 2026-10-13.
   for each `H`, a view of `(c, x)` (`rv (rset H (msg x) c) c x`) and `fs_zk` holds with the
   hypothesis taken at each `H`; the opening then reads the table through the commitment's
   value, and its hiding follows from hiding at each fixed table, summed over the
-  commitment's values: one round, `Ski/ZK/ROMFSRead.lean` (`fs_openT`, `fs_openROMT`); the
-  multi-round theorems over such views are not yet written);
+  commitment's values: one round, `Ski/ZK/ROMFSRead.lean` (`fs_openT`, `fs_openROMT`); two
+  and three rounds, every opening reading every table, `Ski/ZK/ROMFSRead2.lean` (`fs_open2T`,
+  `fs_open3T`, and over the oracle `fs_open2ROMT`, `fs_open3ROMT`); four rounds, the fourth
+  table read at a function of the third message and the view, `Ski/ZK/ROMFSRead4.lean`
+  (`fs_open4T`, `fs_open4ROMT`); the circuits' single-proof theorems over them,
+  `Ski/ZK/FSQueryT.lean` and `Ski/ZK/ROMInstT.lean` (`sud_fs_open4ROMT` and the others); the
+  multi-proof theorems over them (as `FSQueryAbs`, `ROMFamily` take `fs_open4ROM`) not yet);
   FRI's
   folding challenges hashed with the transcript before FRI (from its own layer commitments,
   against a table of its own, they fit already: `fs_pow`); FRI's layer commitments and final polynomial in the query hash's

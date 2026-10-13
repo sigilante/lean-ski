@@ -128,6 +128,10 @@ import Ski.ZK.ROMWitness
 import Ski.ZK.ROMMerkle4
 import Ski.ZK.ROMAbort
 import Ski.ZK.ROMFSRead
+import Ski.ZK.ROMFSRead2
+import Ski.ZK.ROMFSRead4
+import Ski.ZK.FSQueryT
+import Ski.ZK.ROMInstT
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -1276,5 +1280,8 @@ open Ski.Audit
   Circuit.ComHides_toP Circuit.ComPfHides_toP Circuit.fs_open3Q Circuit.fs_open3UQ Circuit.fs_open4Q Circuit.fs_open4ROMQ
 -- The distinguisher's queries reading the Fiat–Shamir table
 #audit_clean Circuit.fs_zkT Circuit.sum_pick Circuit.comPf_choose Circuit.open_real_tC Circuit.open_sim_tC Circuit.fs_openT Circuit.fs_openROMT Circuit.fs_zk2T
+#audit_clean Circuit.open_real2T Circuit.openEv2T_and Circuit.openEv2T_some Circuit.open_two_coreT Circuit.fs_open2T Circuit.fs_open2ROMT Circuit.fs_zk3T Circuit.fs_open3T Circuit.fs_open3ROMT
+#audit_clean Circuit.openEv2V_and Circuit.openEv2V_some Circuit.open_two_coreV Circuit.fs_zk3UT Circuit.fs_open3UT Circuit.fs_lastGT Circuit.fs_open4T Circuit.fs_open4ROMT
+#audit_clean Circuit.sud_fs_open4T Circuit.wit_fs_open4T Circuit.comp_fs_open4T Circuit.rom4_transferT Circuit.sud_fs_open4ROMT Circuit.wit_fs_open4ROMT Circuit.comp_fs_open4ROMT
 -- The hypotheses, met
 #audit_clean Circuit.inj_le_one Circuit.hposW Circuit.hsW Circuit.hndW Circuit.hlenW Circuit.hltW Circuit.hsLW Circuit.hdistM Circuit.hltM Circuit.hsM Circuit.hposOM Circuit.hφW Circuit.hφsW Circuit.hposF Circuit.hsF Circuit.hposOW Circuit.hsd1W

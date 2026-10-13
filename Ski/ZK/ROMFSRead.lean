@@ -18,8 +18,8 @@ transfer runs at each table and `fs_openT` at the ideal opening
 challenges, the commitment and the opening, not the transcript's other
 messages; their answers are shown where the proof does not abort
 (`ROMAbort` shows them there, apart); `ROMHide`'s other limits hold.  One
-round; the multi-round theorems over table-reading views are not yet
-written.
+round, and the two-round reprogramming over table-reading views
+(`fs_zk2T`); `ROMFSRead2` opens two and three rounds.
 -/
 
 set_option autoImplicit false
