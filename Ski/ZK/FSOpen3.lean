@@ -223,6 +223,17 @@ theorem sud_same_w (off : EF → String → EF) (hd0 stk0 ctr0 : Nat) (heap : Li
   tS := by simp only [sudTs, bbTab, airQTabG, List.map_cons, List.map_nil]
   iS := by simp only [sudTs, bbTab, airQTabG, tabsInfo, tInfo, List.map_cons, List.map_nil, List.map_append,
     List.map_replicate]
+
+/-- **The quotient tables' shapes read the tables' preprocessed columns
+    only**, as the simulator does (`sudPsim_pre`): the simulated openings
+    of `sud_fs_open3` read the tables only through these shapes. -/
+theorem sudTs_pre (off : EF → String → EF) (hd0 stk0 ctr0 : Nat) (heap : List Cell)
+    {C Mm Wt C' Mm' Wt' : Table} (hC : C.pre = C'.pre) (hM : Mm.pre = Mm'.pre) (hW : Wt.pre = Wt'.pre) (tp : Nat)
+    (S16 S10 SP : List F) (ζ : EF) (qv : EF → EF → List EF → F → List F → List F → List EF)
+    (wm wc ww wp : List (EF → EF → List F)) :
+    (sudTs off hd0 stk0 ctr0 heap C Mm Wt tp S16 S10 SP ζ qv wm wc ww wp).map Prod.fst =
+      (sudTs off hd0 stk0 ctr0 heap C' Mm' Wt' tp S16 S10 SP ζ qv wm wc ww wp).map Prod.fst := by
+  simp only [sudTs, List.map_cons, List.map_nil, bbTab, preInterp_pre hC, preInterp_pre hM, preInterp_pre hW]
 end
 
 section
@@ -245,8 +256,9 @@ set_option maxRecDepth 100000 in
     parameters, unhashed; one proof per oracle.  The third commitment's
     data are taken at `ζ = 0`: without an abort they equal the data at
     every `ζ` (`sud_data_zeta`), and with one only the commitment shows.
-    Not shown here: that the simulator reads only the tables'
-    preprocessed columns (`sudPsim_pre` covers `sudPsim`). -/
+    The simulator reads the tables only through `sudPsim` and the quotient
+    tables' shapes, both their preprocessed columns only (`sudPsim_pre`,
+    `sudTs_pre`). -/
 theorem sud_fs_open3 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {puzzle : List Nat} (hc : CluesOK (cluesOf puzzle))
     {ρ : Nat → Bool} {A : List Cell} {k : Nat} {row : Nat → Air.Row}
     (hA : AcceptsFrom A (stmtMachine ρ 729 (sudokuExpr (cluesOf puzzle)) ACC REJ) k row)

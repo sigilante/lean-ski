@@ -49,8 +49,9 @@ set_option maxRecDepth 100000 in
     parameters, unhashed; one proof per oracle.  The third commitment's
     data are taken at `ζ = 0`: without an abort they equal the data at
     every `ζ` (`wit_data_zeta`), and with one only the commitment shows.
-    Not shown here: that the simulator reads only the tables'
-    preprocessed columns (`wPsim_pre` covers `wPsim`). -/
+    The simulator reads the tables only through `wPsim` and the quotient
+    tables' shapes, both their preprocessed columns only (`wPsim_pre`,
+    `wTs_pre`). -/
 theorem wit_fs_open3 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {Vt x : Term} {W : Nat} {ws : List Cell} (hwf : WF ws)
     (hwl : ws.length = W) (hW8 : W ≤ 2 ^ 8) {A : List Cell} {k : Nat} {row : Nat → Air.Row}
     (hA : AcceptsFrom A (wMachine ws (Vt ⬝ x)) k row)
@@ -339,8 +340,9 @@ set_option maxRecDepth 100000 in
     parameters, unhashed; one proof per oracle.  The third commitment's
     data are taken at `ζ = 0`: without an abort they equal the data at
     every `ζ` (`comp_data_zeta`), and with one only the commitment shows.
-    Not shown here: that the simulator reads only the tables'
-    preprocessed columns (`cPsim_pre` covers `cPsim`). -/
+    The simulator reads the tables only through `cPsim` and the quotient
+    tables' shapes, both their preprocessed columns only (`cPsim_pre`,
+    `cTs_pre`). -/
 theorem comp_fs_open3 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {R Lm : Nat} (hR : R ≤ 20) {shp : BT} {Ps : List Term}
     {W : Nat} {ρ : Nat → Bool} {region : List Cell} (hrl : region.length = W)
     (hr : ∀ i c, region[i]? = some c → cellOK (BT.nleaves shp + 3 + i) c = true)
@@ -608,5 +610,27 @@ theorem comp_fs_open3 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {R Lm 
     Com1 Pf1 (opF Ss0 mk1) (sdF Ss0 mk1) d1 hc1 hp1 hr1 ov1 rfl main1 hsd1
     Com2 Pf2 (opF Ss0 mk2) (sdF Ss0 mk2) d2 hc2 hp2 hr2 ov2 rfl main2 hsd2
     Com3 Pf3 op3 sd3 d3 hc3 hp3' hr3 ov3 rfl main3 hsd3 hvo1 hvo2 hvo3 sop1 sop2 sop3 hsvo1 hsvo2 hsvo3 E
+
+/-- The hidden-term quotient tables' shapes read the tables' preprocessed
+    columns only (`sudTs_pre`'s counterpart). -/
+theorem wTs_pre (off : EF → String → EF) (hd0 stk0 ctr0 : Nat) (heap : List Cell) (W : Nat)
+    {C Mm Wt C' Mm' Wt' : Table} (hC : C.pre = C'.pre) (hM : Mm.pre = Mm'.pre) (hW : Wt.pre = Wt'.pre) (tp : Nat)
+    (S10 S9 SP : List F) (ζ : EF) (qv : EF → EF → List EF → F → List F → List F → List EF)
+    (wm wc ww wp : List (EF → EF → List F)) :
+    (wTs off hd0 stk0 ctr0 heap W C Mm Wt tp S10 S9 SP ζ qv wm wc ww wp).map Prod.fst =
+      (wTs off hd0 stk0 ctr0 heap W C' Mm' Wt' tp S10 S9 SP ζ qv wm wc ww wp).map Prod.fst := by
+  simp only [wTs, List.map_cons, List.map_nil, bbTab, preInterp_pre hC, preInterp_pre hM, preInterp_pre hW]
+
+/-- The composed quotient tables' shapes read the tables' preprocessed
+    columns only (`sudTs_pre`'s counterpart). -/
+theorem cTs_pre (off : EF → String → EF) (hd0 stk0 ctr0 n nilA : Nat) (heap : List Cell) (N W : Nat)
+    (roots : List Nat) {C Mm Wt C' Mm' Wt' : Table} (hC : C.pre = C'.pre) (hM : Mm.pre = Mm'.pre)
+    (hW : Wt.pre = Wt'.pre) (tbM tbC tpP tpS : Nat) (SM SC S9 SP SS : List F) (ζ : EF)
+    (qv : EF → EF → List EF → F → List F → List F → List EF) (wm wc ww wp wsg : List (EF → EF → List F)) :
+    (cTs off hd0 stk0 ctr0 n nilA heap N W roots C Mm Wt tbM tbC tpP tpS SM SC S9 SP SS ζ qv wm wc ww wp wsg).map
+        Prod.fst =
+      (cTs off hd0 stk0 ctr0 n nilA heap N W roots C' Mm' Wt' tbM tbC tpP tpS SM SC S9 SP SS ζ qv wm wc ww wp wsg).map
+        Prod.fst := by
+  simp only [cTs, List.map_cons, List.map_nil, bbTab, preInterp_pre hC, preInterp_pre hM, preInterp_pre hW]
 
 end Circuit
