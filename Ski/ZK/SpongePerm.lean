@@ -19,9 +19,14 @@ table, a step's query possibly repeating an earlier one.
   only in a projection `κ` of the state, at least the capacity.  Two
   distinct positions answering alike under `κ`, its fibres at most `F`,
   occur on at most `(0 + ⋯ + (k-1)) F / K` of the tables (`colK_count`),
-  and chains apart under `κ` that meet saw one (`two_meet_colK`): they meet
-  after `L` absorptions on at most `(0 + ⋯ + (2L-1)) / |capacity|` of the
-  tables (`two_meet_countK`, `two_meet_satK`).
+  and chains whose first positions differ and that meet saw one
+  (`two_meet_colK`): chains from distinct capacities meet after `L ≥ 1`
+  absorptions on at most `(0 + ⋯ + (2L-1)) / |capacity|` of the tables
+  (`two_meet_countK`), and so do two digits absorbed from one state at
+  distinct positions (`two_meet_digitK`).  A genuine partial-rate
+  absorption, the block overwriting part of the rate and the rest kept,
+  meets the hypotheses (`two_meet_satKP`); `two_meet_satK` is the
+  full-overwrite case.
 - **Two chains.** Two sponge chains, their queries alternating as one run
   (`nxt2`, each chain over its own blocks), that query distinct positions
   at the first step and wherever their states differ, and meet, saw such
@@ -506,40 +511,39 @@ theorem colK_count {K n F : Nat} (hK : 0 < K) (κ : Nat → Nat) (hF : ∀ v, su
     show sumTo k (fun j => j) * F * K ^ n + k * F * K ^ n = (sumTo k (fun j => j) + k) * F * K ^ n
     rw [Nat.add_mul, Nat.add_mul]
 
-/-- **Chains that meet saw a collision under the projection**: positions
-    equal only where the states agree under `κ` (`hpk`, a partial-rate
-    absorption keeping at least `κ` of the state), the starting states apart
-    under `κ`. -/
-theorem two_meet_colK {K : Nat} (inner : Nat → Nat → Nat) (κ : Nat → Nat) {sa sb : Nat} (xs : List Nat) (H : Nat)
-    (hpk : ∀ x s s', inner s x = inner s' x → κ s = κ s') (hk0 : κ sa ≠ κ sb) :
-    ∀ i, stA K inner sa sb xs xs H (i + 1) = stB K inner sa sb xs xs H (i + 1) →
-      colK κ (runAdp K (nxt2 inner sa sb xs xs) H (2 * (i + 1))) = true := by
-  have eA : ∀ j, stA K inner sa sb xs xs H (j + 1) = rget K (inner (stA K inner sa sb xs xs H j) (xs.getD j 0)) H :=
+/-- **Chains that meet saw a collision under the projection**: each over
+    its own blocks, the blocks shared after the first (`hblk`), the first
+    positions distinct (`hp0`), and later positions equal only where the
+    states agree under `κ` (`hpk`, a partial-rate absorption keeping at
+    least `κ` of the state). -/
+theorem two_meet_colK {K : Nat} (inner : Nat → Nat → Nat) (κ : Nat → Nat) {sa sb : Nat} (xa xb : List Nat) (H : Nat)
+    (hpk : ∀ x s s', inner s x = inner s' x → κ s = κ s')
+    (hblk : ∀ i, 0 < i → xa.getD i 0 = xb.getD i 0) (hp0 : inner sb (xb.getD 0 0) ≠ inner sa (xa.getD 0 0)) :
+    ∀ i, stA K inner sa sb xa xb H (i + 1) = stB K inner sa sb xa xb H (i + 1) →
+      colK κ (runAdp K (nxt2 inner sa sb xa xb) H (2 * (i + 1))) = true := by
+  have eA : ∀ j, stA K inner sa sb xa xb H (j + 1) = rget K (inner (stA K inner sa sb xa xb H j) (xa.getD j 0)) H :=
     fun j => by unfold stA; rw [if_neg (by omega), two_step]; rfl
-  have eB : ∀ j, stB K inner sa sb xs xs H (j + 1) = rget K (inner (stB K inner sa sb xs xs H j) (xs.getD j 0)) H :=
+  have eB : ∀ j, stB K inner sa sb xa xb H (j + 1) = rget K (inner (stB K inner sa sb xa xb H j) (xb.getD j 0)) H :=
     fun j => by unfold stB; rw [if_neg (by omega), two_step]; rfl
-  -- a meeting where the positions differ is a collision at this step
-  have here : ∀ i, inner (stB K inner sa sb xs xs H i) (xs.getD i 0) ≠ inner (stA K inner sa sb xs xs H i) (xs.getD i 0) →
-      stA K inner sa sb xs xs H (i + 1) = stB K inner sa sb xs xs H (i + 1) →
-      colK κ (runAdp K (nxt2 inner sa sb xs xs) H (2 * (i + 1))) = true := fun i hp h => by
+  have here : ∀ i, inner (stB K inner sa sb xa xb H i) (xb.getD i 0) ≠ inner (stA K inner sa sb xa xb H i) (xa.getD i 0) →
+      stA K inner sa sb xa xb H (i + 1) = stB K inner sa sb xa xb H (i + 1) →
+      colK κ (runAdp K (nxt2 inner sa sb xa xb) H (2 * (i + 1))) = true := fun i hp h => by
     rw [two_step]
     exact colK_of_mem κ _ _ _ List.mem_cons_self (List.mem_cons_of_mem _ List.mem_cons_self) hp
       (by rw [← eA, ← eB, h])
   intro i
   induction i with
-  | zero =>
-    intro h
-    refine here 0 (fun hp => hk0 ?_) h
-    have := (hpk _ _ _ hp).symm
-    simpa [stA, stB] using this
+  | zero => exact here 0 (by simpa [stA, stB] using hp0)
   | succ j ih =>
     intro h
-    by_cases hs : stA K inner sa sb xs xs H (j + 1) = stB K inner sa sb xs xs H (j + 1)
+    have hb := hblk (j + 1) (Nat.succ_pos j)
+    by_cases hs : stA K inner sa sb xa xb H (j + 1) = stB K inner sa sb xa xb H (j + 1)
     · rw [two_step]; exact colK_cons κ _ _ (colK_cons κ _ _ (ih hs))
-    · by_cases hp : inner (stB K inner sa sb xs xs H (j + 1)) (xs.getD (j + 1) 0) =
-          inner (stA K inner sa sb xs xs H (j + 1)) (xs.getD (j + 1) 0)
-      · have hκ := hpk _ _ _ hp
-        have hpj : inner (stB K inner sa sb xs xs H j) (xs.getD j 0) ≠ inner (stA K inner sa sb xs xs H j) (xs.getD j 0) :=
+    · by_cases hp : inner (stB K inner sa sb xa xb H (j + 1)) (xb.getD (j + 1) 0) =
+          inner (stA K inner sa sb xa xb H (j + 1)) (xa.getD (j + 1) 0)
+      · rw [hb] at hp
+        have hκ := hpk _ _ _ hp
+        have hpj : inner (stB K inner sa sb xa xb H j) (xb.getD j 0) ≠ inner (stA K inner sa sb xa xb H j) (xa.getD j 0) :=
           fun e => hs (by rw [eA, eB, e])
         rw [two_step, two_step]
         refine colK_cons κ _ _ (colK_cons κ _ _ (colK_of_mem κ _ _ _ List.mem_cons_self
@@ -549,9 +553,10 @@ theorem two_meet_colK {K : Nat} (inner : Nat → Nat → Nat) (κ : Nat → Nat)
 
 /-- **Partial-rate sponge chains under one table meet rarely**: positions
     injective in the projection `κ` only (old rate entries left in), `κ`'s
-    fibres below `K` at most `F`, from states apart under `κ`, after `L + 1`
-    absorptions the chains meet on at most `(0 + ⋯ + (2L+1)) F / K` of the
-    tables: `κ` the capacity, `F / K = 1 / |capacity|`. -/
+    fibres below `K` at most `F`, from states apart under `κ` over shared
+    blocks, after `L + 1` absorptions the chains meet on at most
+    `(0 + ⋯ + (2L+1)) F / K` of the tables: `κ` the capacity,
+    `F / K = 1 / |capacity|`. -/
 theorem two_meet_countK {K n F : Nat} (hK : 0 < K) (inner : Nat → Nat → Nat) (hin : ∀ s x, inner s x < n)
     (κ : Nat → Nat) (hF : ∀ v, sumTo K (fun u => indB (decide (κ u = v))) ≤ F)
     (hpk : ∀ x s s', inner s x = inner s' x → κ s = κ s') {sa sb : Nat} (hk0 : κ sa ≠ κ sb) (xs : List Nat) (L : Nat) :
@@ -561,13 +566,34 @@ theorem two_meet_countK {K n F : Nat} (hK : 0 < K) (inner : Nat → Nat → Nat)
     (colK_count (n := n) hK κ hF (nxt2 inner sa sb xs xs) (fun l => by rw [nxt2_def]; split <;> exact hin _ _) (2 * (L + 1)))
   cases e : decide (stA K inner sa sb xs xs H (L + 1) = stB K inner sa sb xs xs H (L + 1))
   · exact Nat.zero_le _
-  · rw [two_meet_colK inner κ xs H hpk hk0 L (of_decide_eq_true e)]
+  · rw [two_meet_colK inner κ xs xs H hpk (fun _ _ => rfl) (fun hp => hk0 (hpk _ _ _ hp).symm) L (of_decide_eq_true e)]
     exact Nat.le_refl _
 
-/-- **The partial-rate hypotheses are met** at every state by a state
-    `r + R c`, the capacity `κ s = (s / R) % C` with fibres `R` below `R C`, a
-    full overwrite keeping only the capacity:
-    `inner s x = (x % X) C + (s / R) % C`. -/
+/-- **Two digits absorbed from one state, partial rate, under one table**:
+    at distinct positions, then shared blocks, the chains meet after
+    `L + 1` absorptions on at most `(0 + ⋯ + (2L+1)) F / K` of the tables. -/
+theorem two_meet_digitK {K n F : Nat} (hK : 0 < K) (inner : Nat → Nat → Nat) (hin : ∀ s x, inner s x < n)
+    (κ : Nat → Nat) (hF : ∀ v, sumTo K (fun u => indB (decide (κ u = v))) ≤ F)
+    (hpk : ∀ x s s', inner s x = inner s' x → κ s = κ s') {iv a b : Nat} (hd : inner iv a ≠ inner iv b)
+    (xs : List Nat) (L : Nat) :
+    K * sumTo (K ^ n) (fun H =>
+        indB (decide (stA K inner iv iv (a :: xs) (b :: xs) H (L + 1) = stB K inner iv iv (a :: xs) (b :: xs) H (L + 1)))) ≤
+      sumTo (2 * (L + 1)) (fun j => j) * F * K ^ n := by
+  refine Nat.le_trans (Nat.mul_le_mul_left _ (sumTo_mono _ (fun H _ => ?_)))
+    (colK_count (n := n) hK κ hF (nxt2 inner iv iv (a :: xs) (b :: xs)) (fun l => by rw [nxt2_def]; split <;> exact hin _ _)
+      (2 * (L + 1)))
+  cases e : decide (stA K inner iv iv (a :: xs) (b :: xs) H (L + 1) = stB K inner iv iv (a :: xs) (b :: xs) H (L + 1))
+  · exact Nat.zero_le _
+  · have hblk : ∀ i, 0 < i → (a :: xs).getD i 0 = (b :: xs).getD i 0 := fun i hi => by
+      obtain ⟨j, rfl⟩ : ∃ j, i = j + 1 := ⟨i - 1, by omega⟩
+      rfl
+    rw [two_meet_colK inner κ (a :: xs) (b :: xs) H hpk hblk (fun e => hd e.symm) L (of_decide_eq_true e)]
+    exact Nat.le_refl _
+
+/-- **The projection hypotheses are met by a full overwrite**: the state
+    `r + R c`, its capacity `κ s = (s / R) % C` (fibres `R` below `R C`), the
+    position `inner s x = (x % X) C + (s / R) % C`, which keeps only the
+    capacity. -/
 theorem two_meet_satK {R C X : Nat} (hR : 0 < R) (hC : 0 < C) (hX : 0 < X) :
     (∀ s x, (x % X) * C + (s / R) % C < X * C) ∧
       (∀ x s s', (x % X) * C + (s / R) % C = (x % X) * C + (s' / R) % C → (s / R) % C = (s' / R) % C) ∧
@@ -585,5 +611,38 @@ theorem two_meet_satK {R C X : Nat} (hR : 0 < R) (hC : 0 < C) (hX : 0 < X) :
     rw [sumTo_congr _ (fun c hc => each c hc), ← sumTo_mul]
     calc R * sumTo C (fun c => indB (decide (c = v))) ≤ R * 1 := Nat.mul_le_mul_left _ (sumTo_indEq v C).1
       _ = R := Nat.mul_one R
+
+/-- **A genuine partial-rate absorption meets the hypotheses**: a state
+    `r1 + R1 (r2 + R2 c)`, the block overwriting `r1` and leaving `r2` and
+    the capacity `c` in the next call, `inner s x = x % X + X ((s / R1) % (R2 C))`
+    and `κ s = ((s / R1) % (R2 C)) / R2`, the capacity, its fibres `R1 R2`
+    below `R1 R2 C`; states with distinct capacities are apart under `κ`. -/
+theorem two_meet_satKP {R1 R2 C X : Nat} (hR1 : 0 < R1) (hR2 : 0 < R2) (hC : 0 < C) (hX : 0 < X) :
+    (∀ s x, x % X + X * ((s / R1) % (R2 * C)) < X * (R2 * C)) ∧
+      (∀ x s s', x % X + X * ((s / R1) % (R2 * C)) = x % X + X * ((s' / R1) % (R2 * C)) →
+        ((s / R1) % (R2 * C)) / R2 = ((s' / R1) % (R2 * C)) / R2) ∧
+      (∀ v, sumTo (R1 * (R2 * C)) (fun u => indB (decide (((u / R1) % (R2 * C)) / R2 = v))) ≤ R1 * R2) := by
+  have hRC : 0 < R2 * C := Nat.mul_pos hR2 hC
+  refine ⟨fun s x => ?_, fun x s s' h => ?_, fun v => ?_⟩
+  · calc x % X + X * ((s / R1) % (R2 * C)) < X + X * ((s / R1) % (R2 * C)) := Nat.add_lt_add_right (Nat.mod_lt _ hX) _
+      _ = X * ((s / R1) % (R2 * C) + 1) := by rw [Nat.mul_succ, Nat.add_comm]
+      _ ≤ X * (R2 * C) := Nat.mul_le_mul_left _ (Nat.mod_lt _ hRC)
+  · have e : X * ((s / R1) % (R2 * C)) = X * ((s' / R1) % (R2 * C)) := by omega
+    rw [Nat.eq_of_mul_eq_mul_left hX e]
+  · rw [sumTo_split R1 _ (R2 * C)]
+    have each : ∀ m, m < R2 * C → sumTo R1 (fun r => indB (decide ((((r + R1 * m) / R1) % (R2 * C)) / R2 = v))) =
+        R1 * indB (decide (m / R2 = v)) := fun m hm => by
+      refine Eq.trans (sumTo_congr _ (fun r hr => ?_)) (sumTo_const (indB (decide (m / R2 = v))) R1)
+      show indB (decide ((((r + R1 * m) / R1) % (R2 * C)) / R2 = v)) = indB (decide (m / R2 = v))
+      rw [Nat.add_mul_div_left _ _ hR1, Nat.div_eq_of_lt hr, Nat.zero_add, Nat.mod_eq_of_lt hm]
+    rw [sumTo_congr _ (fun m hm => each m hm), ← sumTo_mul, sumTo_split R2 _ C]
+    have each2 : ∀ c, sumTo R2 (fun r => indB (decide ((r + R2 * c) / R2 = v))) = R2 * indB (decide (c = v)) := fun c => by
+      refine Eq.trans (sumTo_congr _ (fun r hr => ?_)) (sumTo_const (indB (decide (c = v))) R2)
+      show indB (decide ((r + R2 * c) / R2 = v)) = indB (decide (c = v))
+      rw [Nat.add_mul_div_left _ _ hR2, Nat.div_eq_of_lt hr, Nat.zero_add]
+    rw [sumTo_congr _ (fun c _ => each2 c), ← sumTo_mul]
+    calc R1 * (R2 * sumTo C (fun c => indB (decide (c = v)))) ≤ R1 * (R2 * 1) :=
+          Nat.mul_le_mul_left _ (Nat.mul_le_mul_left _ (sumTo_indEq v C).1)
+      _ = R1 * R2 := by rw [Nat.mul_one]
 
 end Circuit
