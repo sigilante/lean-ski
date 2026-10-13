@@ -33,8 +33,12 @@ stored bit-reversed as Plonky3 stores them (`xsL`, `revBits`).  They lie
 off every trace domain (`xsL_off`, by `lde_off_trace`), and the tallest
 group's `2 ^ (bl k0 + 1)` points are distinct (`xsL_inj`, `revBits_inj`).
 The faithful choice is `bl k` the group's LDE log height less one and
-`sh k = bl 0 - bl k`, group 0 the tallest; `sud_fri_leaves` holds for any
-`bl`, `sh` with `sh 0 = 0`, which at that choice asks the program table no
+`sh k = bl 0 - bl k`, group 0 the tallest (for the Sudoku circuit,
+`sudBl`, `sud_fri_leaves_std`, which assumes `tP ≤ 15`: evaluated, the
+Sudoku program table has `progTp = 14` with no clues and with all 81, its
+heap `24063` and `24225` cells, but no theorem bounds it below `23` for
+every puzzle); `sud_fri_leaves` holds for any `bl`, `sh`
+with `sh 0 = 0`, which at that choice asks the program table no
 taller than `2 ^ 16` (`tP ≤ 15`), and `bl 0 ≤ 26` asks a log blowup of at
 most 11.  For the Sudoku circuit with its query
 sets built from FRI's indices at these points, the off-trace conditions
@@ -554,6 +558,44 @@ theorem sud_fs_open4ROMM_fri {V Wv Pq P2 P3 : Type} (off : EF → String → EF)
     (fun d l l' a b hl hl' hne => posRows_dist d l l' a b hl hl' hne) (fun d l a hl => Nat.lt_of_lt_of_le (posRows_lt hN hMh d l a hl) hnQ) g (fun d l v => Nat.le_trans (posRows_spread (Nat.two_pow_pos _) d l v) hsQ) nxt (fun c4 l => decide (l ∈ idx c4)) (sud_fri_leaves (tP := tP) (qv := qv) (h := h) (NSl := NSl) (Mh := Mh) hbl h20 s20 hs0 htP26 hidx).2.2.2.1 d1 Com2 Pf2
     hc2 hp2 hr2 d2 Com3 Pf3 hc3 hp3 hr3 d3
     E
+
+/-- The Sudoku circuit's group heights: LDE log height less one of group `k`
+    at log blowup `r` (groups `0`–`3` the `2 ^ 16` traces, `4`, `5` the
+    `2 ^ 10` table, `6`, `7` the program table `2 ^ (tP + 1)`). -/
+def sudBl (tP r k : Nat) : Nat :=
+  if k < 4 then 15 + r else if k < 6 then 9 + r else tP + r
+
+/-- **`sud_fri_leaves` at the circuit's own heights**: `bl := sudBl tP r`,
+    `sh k := bl 0 - bl k`, for a program table no taller than the traces
+    (`tP ≤ 15`) and a log blowup `r ≤ 11`. -/
+theorem sud_fri_leaves_std {tP r : Nat} (htP : tP ≤ 15) (hr : r ≤ 11)
+    {qv : EF → EF → List EF → F → List F → List F → List EF} {idx : Nat → List Nat}
+    (hidx : ∀ c4, ∀ l ∈ idx c4, l < 2 ^ (sudBl tP r 0 + 1)) {h : List (List F) → Nat} {NSl Mh : Nat} :
+    let bl := sudBl tP r
+    let sh := fun k => sudBl tP r 0 - sudBl tP r k
+    let S16 := fun c4 => (idx c4).map (fun l => xsL bl sh l 0)
+    let S10 := fun c4 => (idx c4).map (fun l => xsL bl sh l 4)
+    let SP := fun c4 => (idx c4).map (fun l => xsL bl sh l 6)
+    (∀ c4, ∀ x ∈ S16 c4, x ∉ cosetL 1 (bbGen 16) (2 ^ 16)) ∧ (∀ c4, ∀ x ∈ S10 c4, x ∉ cosetL 1 (bbGen 10) (2 ^ 10)) ∧
+    (∀ c4, ∀ x ∈ SP c4, x ∉ cosetL 1 (bbGen (tP + 1)) (2 ^ (tP + 1))) ∧
+    (∀ c4 d d', opF ((sudGroups tP (S16 c4) (S10 c4) (SP c4) EF.zero qv).map (·.base.S)) [0, 2, 4, 6] d =
+        opF ((sudGroups tP (S16 c4) (S10 c4) (SP c4) EF.zero qv).map (·.base.S)) [0, 2, 4, 6] d' →
+      ∀ l a, decide (l ∈ idx c4) = true →
+        posRows (xsL bl sh) [0, 2, 4, 6] h (2 ^ (bl 0 + 1)) NSl Mh d l a =
+          posRows (xsL bl sh) [0, 2, 4, 6] h (2 ^ (bl 0 + 1)) NSl Mh d' l a) ∧
+    (∀ c4 l, l < 2 ^ (bl 0 + 1) →
+      (isOfRows ((sudGroups tP (S16 c4) (S10 c4) (SP c4) EF.zero qv).map (·.base.S)) [0, 2, 4, 6] (xsL bl sh) l = true ↔
+        l ∈ idx c4)) := by
+  intro bl sh
+  have hbl : ∀ k, bl k ≤ 26 := fun k => by
+    show sudBl tP r k ≤ 26
+    unfold sudBl; split
+    · exact Nat.le_trans (Nat.add_le_add_left hr 15) (by decide)
+    · split
+      · exact Nat.le_trans (Nat.add_le_add_left hr 9) (by decide)
+      · exact Nat.le_trans (Nat.add_le_add htP hr) (by decide)
+  exact sud_fri_leaves (bl := bl) (sh := sh) (h := h) (NSl := NSl) (Mh := Mh) (tP := tP) (qv := qv) hbl rfl rfl (Nat.sub_self _)
+    (Nat.le_trans htP (by decide)) hidx
 
 /-- **The hidden-term circuit with FRI's query sets** (`sud_fri_leaves` for
     groups `0, 2, 4, 6`: `S10`, `S10`, `S9`, `SP`): the tallest opened group
