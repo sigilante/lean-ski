@@ -28,9 +28,13 @@ Not shown, and needed before this is Plonky3's FRI:
 - the roots read one commitment's data, not the other commitments', which
   FRI's batched DEEP codeword reads (and, with `friCommitNxt`, not the
   earlier challenges either);
-- the hash point is `(M, Rᵢ, i)`, not the full transcript: the opened
-  values at `ζ`, which Plonky3 observes before FRI's batching challenge
-  and folding challenges, are not hashed;
+- the hash point is `(M, Rᵢ, i)`, not the full transcript.  The values
+  opened at `ζ`, which Plonky3 observes before FRI's batching challenge and
+  folding challenges, enter only where a layer returns them beside its
+  root: `friCommitQCPf` reads the three earlier challenges, then the `k`
+  layers, then the query seed, its layers given those challenges, the
+  data and the salt, nothing reading `c4` (`runR4_dropA`, `friCommitQC_c4`,
+  `friCommitQC_seed`, `friCommitQC_reads`);
 - the proof's query indices `c4` are drawn before the commit phase, where
   Plonky3 samples them after it.  A strategy may draw its own after
   (`friCommitQPf`: `k` layers, then a query seed read at `φ M (R_k, k)`,
@@ -254,5 +258,65 @@ theorem friCommitQ_seed {D R : Type} (K1 K2 K3 K4 n1 k : Nat) (φ : Nat → R ×
   show some (3, φ M (layer0 d σ (friBetas K4 φ (fun _ => layer0) H c4 M d σ k).reverse,
     (friBetas K4 φ (fun _ => layer0) H c4 M d σ k).length)) = _
   rw [friBetas_length, friBetas_c4 K4 φ layer0 H c4 0 M d σ k]
+
+/-! ### The earlier challenges and the opened values hashed, queries last -/
+
+/-- A run keeps its older reads: after `a` more reads, dropping the newest
+    `a` gives the run of `b`. -/
+theorem runR4_dropA {W : Type} (K1 K2 K3 K4 n1 m : Nat) (φ : Nat → W → Nat) (nxt : List Nat → Nat × Nat × W)
+    (H : Nat × Nat × Nat × Nat) (b : Nat) : ∀ a, (runR4 K1 K2 K3 K4 n1 m φ nxt H (b + a)).drop a = runR4 K1 K2 K3 K4 n1 m φ nxt H b
+  | 0 => rfl
+  | a + 1 => by
+    show (_ :: runR4 K1 K2 K3 K4 n1 m φ nxt H (b + a)).drop (a + 1) = _
+    rw [List.drop_succ_cons]; exact runR4_dropA K1 K2 K3 K4 n1 m φ nxt H b a
+
+/-- **FRI in Plonky3's order, as a read strategy**: read the three earlier
+    challenges, then `k` folding challenges, layer `i` hashed at
+    `φ M (Rᵢ, i)`, then the query seed at `φ M (R_k, k)`, after every root;
+    nothing reads `c4`.  `R` is any type, so a layer may return the values
+    opened at `ζ` (a function of the earlier challenges, the data and the
+    salt) beside its root, and the hash points then hold them. -/
+def friCommitQCPf {D R P : Type} (K1 K2 K3 K4 n1 n2 k : Nat) (φ : Nat → Option R × Nat → Nat)
+    (layer0 : List Nat → D → Nat → List Nat → R) (out : Nat → D → Nat → List Nat → P) :
+    Nat → Nat → Nat → Nat → Nat → Nat → D → Nat → P :=
+  pfRd K1 K2 K3 K4 n1 (k + 4) φ (friCommitNxtC n1 n2 (fun _ => layer0)) (fun _ M d σ l => out M d σ l)
+
+theorem friCommitQC_c4 {D R P : Type} (K1 K2 K3 K4 n1 n2 k : Nat) (φ : Nat → Option R × Nat → Nat)
+    (layer0 : List Nat → D → Nat → List Nat → R) (out : Nat → D → Nat → List Nat → P) (c4 c4' : Nat) :
+    friCommitQCPf K1 K2 K3 K4 n1 n2 k φ layer0 out c4 = friCommitQCPf K1 K2 K3 K4 n1 n2 k φ layer0 out c4' := rfl
+
+/-- **Its newest read is the query seed**: the fourth table at
+    `φ M (R_k, k)`, `R_k` the layer of the three earlier challenges (the
+    first table at the first message's digit, the second and third at the
+    second and third messages) and all `k` folding challenges. -/
+theorem friCommitQC_seed {D R : Type} (K1 K2 K3 K4 n1 n2 k : Nat) (φ : Nat → Option R × Nat → Nat)
+    (layer0 : List Nat → D → Nat → List Nat → R) (H : Nat × Nat × Nat × Nat) (c4 M : Nat) (d : D) (σ : Nat) :
+    let run := runR4 K1 K2 K3 K4 n1 (M % n1) φ (friCommitNxtC n1 n2 (fun _ => layer0) c4 M d σ) H (k + 3)
+    (friCommitNxtC n1 n2 (fun _ => layer0) c4 M d σ run).1 = 3 ∧
+      pt4 n1 φ (M % n1) (friCommitNxtC n1 n2 (fun _ => layer0) c4 M d σ run) =
+        φ M (some (layer0 [rget K1 (M % n1) H.1, rget K2 (M % n1 + n1 * ((M / n1) % n2)) H.2.1, rget K3 M H.2.2.1] d σ
+          (run.reverse.drop 3)), k) := by
+  intro run
+  have hl : run.length = k + 3 := runR4_length _ _ _ _ _ _ _ _ _ _
+  obtain ⟨h1, h2⟩ := friCommitNxtC_layer n1 n2 φ (fun _ => layer0) c4 M d σ run k hl
+  refine ⟨h1, ?_⟩
+  rw [h2]
+  have hd : run.drop k = runR4 K1 K2 K3 K4 n1 (M % n1) φ (friCommitNxtC n1 n2 (fun _ => layer0) c4 M d σ) H 3 := by
+    show (runR4 K1 K2 K3 K4 n1 (M % n1) φ (friCommitNxtC n1 n2 (fun _ => layer0) c4 M d σ) H (k + 3)).drop k = _
+    rw [Nat.add_comm k 3]; exact runR4_dropA _ _ _ _ _ _ _ _ _ 3 k
+  have ht : run.reverse.take 3 =
+      [rget K1 (M % n1) H.1, rget K2 (M % n1 + n1 * ((M / n1) % n2)) H.2.1, rget K3 M H.2.2.1] := by
+    have hB : (run.drop k).reverse.length = 3 := by rw [List.length_reverse, List.length_drop, hl]; omega
+    have this : run.reverse.take 3 = (run.drop k).reverse := by
+      calc run.reverse.take 3 = ((run.take k ++ run.drop k).reverse).take 3 := by rw [List.take_append_drop]
+        _ = ((run.drop k).reverse ++ (run.take k).reverse).take 3 := by rw [List.reverse_append]
+        _ = (run.drop k).reverse := List.take_left' hB
+    rw [this, hd, friCommitC_first3]; rfl
+  rw [ht]
+
+theorem friCommitQC_reads {D R : Type} (K1 K2 K3 K4 n1 n2 k : Nat) (φ : Nat → Option R × Nat → Nat)
+    (layer0 : List Nat → D → Nat → List Nat → R) (H : Nat × Nat × Nat × Nat) (c4 M : Nat) (d : D) (σ : Nat) :
+    (pfRdReads K1 K2 K3 K4 n1 (k + 4) φ (friCommitNxtC n1 n2 (fun _ => layer0)) H c4 M d σ).length = k + 4 :=
+  pfRdReads_length _ _ _ _ _ _ _ _ _ _ _ _ _
 
 end Circuit
