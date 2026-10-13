@@ -12,9 +12,16 @@ low digit, as its messages are), any function of the answers (`outR`, its
 reads flagged by `hqR`).  `hout` holds (`outR_hout`); `hpq` holds at every
 programmed point whose coordinates carry its first message as low digit
 (`outR_hpq`), as the simulated points do (`fs4_powD`'s `hp2`, `hp3`, with
-`hr1`).  Not covered: reads of the fourth table, whose points are `φ` of the
-third message and the view, and adaptive reads (the read list `ks x` fixed
-by the draw); no circuit's openings are shown to be of this form.
+`hr1`).  The reads may also be chosen by the challenges' residues
+(`outRA`, `outRA_hout`, `outRA_hpq`) and adaptively, each from the answers
+so far, the hits flagged at the unprogrammed tables (`runR`, `runR_prog`,
+`outRQ`, `outRQ_hout`, `outRQ_hpq`).  The ranges `B1 … B4` lose nothing:
+taken as the challenges' ranges, `c % B = c` for every challenge counted,
+so the reads may be any function of the in-range challenges.  The read
+count `k` is fixed (an adaptive stopping rule pads to the maximum), and a
+read sees only the draw, the challenges and the earlier answers.  Not covered: reads of the fourth
+table, whose points are `φ` of the third message and the view; no circuit's
+openings are shown to be of this form (they read whole tables).
 -/
 
 set_option autoImplicit false
@@ -90,5 +97,133 @@ theorem outR_hpq {X : Type} {n1 : Nat} (m1 : X → Nat) (hm1 : ∀ x, m1 x < n1)
     | 1 => exact hpB
     | j + 2 => exact hpC
   rw [← hmod, ← e', hc]
+
+/-- `outR` with the reads chosen by the challenges (each read modulo a range
+    `B1 … B4`): read `(i, k)` of `ks c4 c1 c2 c3 x` asks table `i` at
+    `m1 x + n1 k`. -/
+def outRA {X O : Type} (K1 K2 K3 n1 B1 B2 B3 B4 : Nat) (m1 : X → Nat)
+    (ks : Nat → Nat → Nat → Nat → X → List (Nat × Nat))
+    (g : Nat → Nat → Nat → Nat → X → List Nat → O) (H : Nat × Nat × Nat × Nat) (c4 c1 c2 c3 : Nat) (x : X) : O :=
+  g c4 c1 c2 c3 x ((ks (c4 % B4) (c1 % B1) (c2 % B2) (c3 % B3) x).map
+    (fun r => rgetT K1 K2 K3 H r.1 (m1 x + n1 * r.2)))
+
+/-- Its hits: any read, at any challenges' residues, landing on the point. -/
+def hqRA {X : Type} (n1 B1 B2 B3 B4 : Nat) (m1 : X → Nat) (ks : Nat → Nat → Nat → Nat → X → List (Nat × Nat))
+    (_ : Nat × Nat × Nat × Nat) (p : Nat × Nat × Nat × Nat) (x : X) : Bool :=
+  (List.range B4).any (fun c4 => (List.range B1).any (fun c1 => (List.range B2).any (fun c2 =>
+    (List.range B3).any (fun c3 =>
+      (ks c4 c1 c2 c3 x).any (fun r => decide (coordT r.1 p = m1 x + n1 * r.2))))))
+
+/-- **`hout` for challenge-chosen reads.** -/
+theorem outRA_hout {X O : Type} {K1 K2 K3 K4 n1 B1 B2 B3 B4 : Nat} (h1 : 0 < K1) (h2 : 0 < K2) (h3 : 0 < K3)
+    (hB1 : 0 < B1) (hB2 : 0 < B2) (hB3 : 0 < B3) (hB4 : 0 < B4) (m1 : X → Nat)
+    (ks : Nat → Nat → Nat → Nat → X → List (Nat × Nat)) (g : Nat → Nat → Nat → Nat → X → List Nat → O) :
+    ∀ H p a c4 c1 c2 c3 x, a.1 < K1 ∧ a.2.1 < K2 ∧ a.2.2.1 < K3 ∧ a.2.2.2 < K4 →
+      hqRA n1 B1 B2 B3 B4 m1 ks H p x = false →
+      outRA K1 K2 K3 n1 B1 B2 B3 B4 m1 ks g (prog4 K1 K2 K3 K4 H p a) c4 c1 c2 c3 x =
+        outRA K1 K2 K3 n1 B1 B2 B3 B4 m1 ks g H c4 c1 c2 c3 x := by
+  intro H p a c4 c1 c2 c3 x ha hq
+  unfold outRA
+  congr 1
+  refine List.map_congr_left (fun r hr => rgetT_prog h1 h2 h3 H p a ha r.1 _ (fun e => ?_))
+  have hit : hqRA n1 B1 B2 B3 B4 m1 ks H p x = true := by
+    unfold hqRA
+    exact List.any_eq_true.2 ⟨c4 % B4, List.mem_range.2 (Nat.mod_lt _ hB4),
+      List.any_eq_true.2 ⟨c1 % B1, List.mem_range.2 (Nat.mod_lt _ hB1),
+      List.any_eq_true.2 ⟨c2 % B2, List.mem_range.2 (Nat.mod_lt _ hB2),
+      List.any_eq_true.2 ⟨c3 % B3, List.mem_range.2 (Nat.mod_lt _ hB3),
+      List.any_eq_true.2 ⟨r, hr, decide_eq_true e⟩⟩⟩⟩⟩
+  rw [hq] at hit; exact Bool.false_ne_true hit
+
+/-- **`hpq` for challenge-chosen reads**: every read carries the reader's
+    first message as low digit, whatever the challenges. -/
+theorem outRA_hpq {X : Type} {n1 B1 B2 B3 B4 : Nat} (m1 : X → Nat) (hm1 : ∀ x, m1 x < n1)
+    (ks : Nat → Nat → Nat → Nat → X → List (Nat × Nat))
+    (H p : Nat × Nat × Nat × Nat) (hpA : p.1 < n1) (hpB : p.2.1 % n1 = p.1) (hpC : p.2.2.1 % n1 = p.1) (x : X) :
+    hqRA n1 B1 B2 B3 B4 m1 ks H p x = true → m1 x = p.1 := by
+  intro h
+  unfold hqRA at h
+  obtain ⟨c4, _, h⟩ := List.any_eq_true.1 h
+  obtain ⟨c1, _, h⟩ := List.any_eq_true.1 h
+  obtain ⟨c2, _, h⟩ := List.any_eq_true.1 h
+  obtain ⟨c3, _, h⟩ := List.any_eq_true.1 h
+  exact outR_hpq m1 hm1 (ks c4 c1 c2 c3) H p hpA hpB hpC x h
+
+/-- A run of `k` adaptive reads: each read `nxt as` chosen from the answers
+    `as` so far, asking table `r.1` at `m n1`-offset `m + n1 r.2`. -/
+def runR (K1 K2 K3 n1 m : Nat) (nxt : List Nat → Nat × Nat) (H : Nat × Nat × Nat × Nat) : Nat → List Nat
+  | 0 => []
+  | k + 1 => rgetT K1 K2 K3 H (nxt (runR K1 K2 K3 n1 m nxt H k)).1 (m + n1 * (nxt (runR K1 K2 K3 n1 m nxt H k)).2) ::
+      runR K1 K2 K3 n1 m nxt H k
+
+/-- The run's reads, as made at the tables `H`. -/
+def readsR (K1 K2 K3 n1 m : Nat) (nxt : List Nat → Nat × Nat) (H : Nat × Nat × Nat × Nat) : Nat → List (Nat × Nat)
+  | 0 => []
+  | k + 1 => nxt (runR K1 K2 K3 n1 m nxt H k) :: readsR K1 K2 K3 n1 m nxt H k
+
+/-- **An adaptive run is unchanged by a programming its reads miss**: by
+    induction, each read is the same on both tables, so each answer is. -/
+theorem runR_prog {K1 K2 K3 K4 n1 m : Nat} (h1 : 0 < K1) (h2 : 0 < K2) (h3 : 0 < K3) (nxt : List Nat → Nat × Nat)
+    (H p a : Nat × Nat × Nat × Nat) (ha : a.1 < K1 ∧ a.2.1 < K2 ∧ a.2.2.1 < K3 ∧ a.2.2.2 < K4) :
+    ∀ k, (∀ r ∈ readsR K1 K2 K3 n1 m nxt H k, coordT r.1 p ≠ m + n1 * r.2) →
+      runR K1 K2 K3 n1 m nxt (prog4 K1 K2 K3 K4 H p a) k = runR K1 K2 K3 n1 m nxt H k
+  | 0, _ => rfl
+  | k + 1, hm => by
+    have ih := runR_prog h1 h2 h3 nxt H p a ha k (fun r hr => hm r (List.mem_cons_of_mem _ hr))
+    show rgetT K1 K2 K3 (prog4 K1 K2 K3 K4 H p a) (nxt (runR K1 K2 K3 n1 m nxt (prog4 K1 K2 K3 K4 H p a) k)).1
+        (m + n1 * (nxt (runR K1 K2 K3 n1 m nxt (prog4 K1 K2 K3 K4 H p a) k)).2) ::
+        runR K1 K2 K3 n1 m nxt (prog4 K1 K2 K3 K4 H p a) k = _
+    rw [ih]
+    show _ = rgetT K1 K2 K3 H (nxt (runR K1 K2 K3 n1 m nxt H k)).1 (m + n1 * (nxt (runR K1 K2 K3 n1 m nxt H k)).2) ::
+        runR K1 K2 K3 n1 m nxt H k
+    rw [rgetT_prog h1 h2 h3 H p a ha _ _ (hm _ (List.mem_cons_self ..))]
+
+/-- An output from `k` adaptive reads, the read strategy chosen by the draw
+    and the challenges' residues. -/
+def outRQ {X O : Type} (K1 K2 K3 n1 B1 B2 B3 B4 k : Nat) (m1 : X → Nat)
+    (nxt : Nat → Nat → Nat → Nat → X → List Nat → Nat × Nat)
+    (g : Nat → Nat → Nat → Nat → X → List Nat → O) (H : Nat × Nat × Nat × Nat) (c4 c1 c2 c3 : Nat) (x : X) : O :=
+  g c4 c1 c2 c3 x (runR K1 K2 K3 n1 (m1 x) (nxt (c4 % B4) (c1 % B1) (c2 % B2) (c3 % B3) x) H k)
+
+/-- Its hits, the reads made at the unprogrammed tables. -/
+def hqRQ {X : Type} (K1 K2 K3 n1 B1 B2 B3 B4 k : Nat) (m1 : X → Nat) (nxt : Nat → Nat → Nat → Nat → X → List Nat → Nat × Nat)
+    (H p : Nat × Nat × Nat × Nat) (x : X) : Bool :=
+  (List.range B4).any (fun c4 => (List.range B1).any (fun c1 => (List.range B2).any (fun c2 =>
+    (List.range B3).any (fun c3 =>
+      (readsR K1 K2 K3 n1 (m1 x) (nxt c4 c1 c2 c3 x) H k).any
+        (fun r => decide (coordT r.1 p = m1 x + n1 * r.2))))))
+
+/-- **`hout` for adaptive reads.** -/
+theorem outRQ_hout {X O : Type} {K1 K2 K3 K4 n1 B1 B2 B3 B4 k : Nat} (h1 : 0 < K1) (h2 : 0 < K2) (h3 : 0 < K3)
+    (hB1 : 0 < B1) (hB2 : 0 < B2) (hB3 : 0 < B3) (hB4 : 0 < B4) (m1 : X → Nat)
+    (nxt : Nat → Nat → Nat → Nat → X → List Nat → Nat × Nat) (g : Nat → Nat → Nat → Nat → X → List Nat → O) :
+    ∀ H p a c4 c1 c2 c3 x, a.1 < K1 ∧ a.2.1 < K2 ∧ a.2.2.1 < K3 ∧ a.2.2.2 < K4 →
+      hqRQ K1 K2 K3 n1 B1 B2 B3 B4 k m1 nxt H p x = false →
+      outRQ K1 K2 K3 n1 B1 B2 B3 B4 k m1 nxt g (prog4 K1 K2 K3 K4 H p a) c4 c1 c2 c3 x =
+        outRQ K1 K2 K3 n1 B1 B2 B3 B4 k m1 nxt g H c4 c1 c2 c3 x := by
+  intro H p a c4 c1 c2 c3 x ha hq
+  unfold outRQ
+  rw [runR_prog h1 h2 h3 _ H p a ha k (fun r hr e => ?_)]
+  have hit : hqRQ K1 K2 K3 n1 B1 B2 B3 B4 k m1 nxt H p x = true := by
+    unfold hqRQ
+    exact List.any_eq_true.2 ⟨c4 % B4, List.mem_range.2 (Nat.mod_lt _ hB4),
+      List.any_eq_true.2 ⟨c1 % B1, List.mem_range.2 (Nat.mod_lt _ hB1),
+      List.any_eq_true.2 ⟨c2 % B2, List.mem_range.2 (Nat.mod_lt _ hB2),
+      List.any_eq_true.2 ⟨c3 % B3, List.mem_range.2 (Nat.mod_lt _ hB3),
+      List.any_eq_true.2 ⟨r, hr, decide_eq_true e⟩⟩⟩⟩⟩
+  rw [hq] at hit; exact Bool.false_ne_true hit
+
+/-- **`hpq` for adaptive reads.** -/
+theorem outRQ_hpq {X : Type} {K1 K2 K3 n1 B1 B2 B3 B4 k : Nat} (m1 : X → Nat) (hm1 : ∀ x, m1 x < n1)
+    (nxt : Nat → Nat → Nat → Nat → X → List Nat → Nat × Nat)
+    (H p : Nat × Nat × Nat × Nat) (hpA : p.1 < n1) (hpB : p.2.1 % n1 = p.1) (hpC : p.2.2.1 % n1 = p.1) (x : X) :
+    hqRQ K1 K2 K3 n1 B1 B2 B3 B4 k m1 nxt H p x = true → m1 x = p.1 := by
+  intro h
+  unfold hqRQ at h
+  obtain ⟨c4, _, h⟩ := List.any_eq_true.1 h
+  obtain ⟨c1, _, h⟩ := List.any_eq_true.1 h
+  obtain ⟨c2, _, h⟩ := List.any_eq_true.1 h
+  obtain ⟨c3, _, h⟩ := List.any_eq_true.1 h
+  exact outR_hpq m1 hm1 (fun x' => readsR K1 K2 K3 n1 (m1 x') (nxt c4 c1 c2 c3 x') H k) H p hpA hpB hpC x h
 
 end Circuit

@@ -201,7 +201,8 @@ is built; this file records what is next. Last revised 2026-10-13.
   tables at points with the reader's first commitment as low digit, `read2_hout` for one
   read of the second; a fourth-table read must sit at `φ m w` with `m` carrying it), no
   circuit's openings yet shown to meet them (a class of outputs that does, reading the first
-  three tables at their own points: `Ski/ZK/FSMultiReads.lean`, `outR_hout`, `outR_hpq`); over the oracle's commitment,
+  three tables at points carrying their first message, fixed, challenge-chosen or adaptive:
+  `Ski/ZK/FSMultiReads.lean`, `outR_*`, `outRA_*`, `outRQ_*`; fourth-table reads not covered); over the oracle's commitment,
   `Ski/ZK/ROMFamilyT.lean` (`sud_fs_open4_powDROMT` and the others); `ROMMulti`'s generic
   theorems (`fs_open4_twoROM`, `fs_open4_powROM`, `read4_powDROM`, `rom4_read4`) have no
   table-reading versions, the family theorems composing `zkbT_rom` and `powD_transfer`
