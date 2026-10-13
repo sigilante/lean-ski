@@ -29,9 +29,14 @@ commitment's spread over its salts bounds.
 A proof's bound is a predicate (`ZKB`), closed under pairing (`zkb_pair`):
 two proofs make one, its draws, challenges, views and programming the
 pairs', and the pair's counts are again counts that commute and are
-monotone over the valid challenges (`lin_pair`, `comm_pair`, `comm_pair'`,
-`mono_pair`).  So any number of proofs under one oracle follows by
-pairing them one at a time, one collision term per pair.
+monotone over the valid challenges (`lin_pair`, `comm_pair`, `comm_pair'`
+for its draws, `lin_pairL`, `comm_pairL`, `comm_pairL'` for its
+challenges, `mono_pair`).  So proofs pair one at a time; each step's
+collision term counts the new proof's messages hitting any earlier proof's
+programmed answers (or the earlier proofs' hitting the new one's), which a
+union bound splits into one term per pair of proofs when the collision
+event reads only the messages.  Nothing here is stated for `n` proofs at
+once.
 -/
 
 namespace Circuit
@@ -413,6 +418,27 @@ theorem comm_pair' {X Y Z : Type} {sx : (X → Nat) → Nat} {sy : (Y → Nat) �
   rw [show (fun y => sx (fun x => sz (fun z => f z (x, y)))) = (fun y => sz (fun z => sx (fun x => f z (x, y))))
     from funext fun y => hx _]
   exact hy _
+
+/-- The pair's count with the first component outer, as its challenges are
+    counted, is a count. -/
+theorem lin_pairL {X Y : Type} {sx : (X → Nat) → Nat} {sy : (Y → Nat) → Nat} (hx : Lin sx) (hy : Lin sy) :
+    Lin (fun f : X × Y → Nat => sx (fun x => sy (fun y => f (x, y)))) := fun N f => by
+  show sx (fun x => sy (fun y => sumTo N (fun i => f i (x, y)))) = _
+  simp only [hy N, hx N]
+
+theorem comm_pairL {X Y Z : Type} {sx : (X → Nat) → Nat} {sy : (Y → Nat) → Nat} {sz : (Z → Nat) → Nat}
+    (hx : Comm sx sz) (hy : Comm sy sz) :
+    Comm (fun f : X × Y → Nat => sx (fun x => sy (fun y => f (x, y)))) sz := fun f => by
+  show sz (fun z => sx (fun x => sy (fun y => f (x, y) z))) = sx (fun x => sy (fun y => sz (fun z => f (x, y) z)))
+  rw [hx]; exact congrArg sx (funext fun x => hy _)
+
+theorem comm_pairL' {X Y Z : Type} {sx : (X → Nat) → Nat} {sy : (Y → Nat) → Nat} {sz : (Z → Nat) → Nat}
+    (hx : Comm sz sx) (hy : Comm sz sy) :
+    Comm sz (fun f : X × Y → Nat => sx (fun x => sy (fun y => f (x, y)))) := fun f => by
+  show sx (fun x => sy (fun y => sz (fun z => f z (x, y)))) = sz (fun z => sx (fun x => sy (fun y => f z (x, y))))
+  rw [show (fun x => sy (fun y => sz (fun z => f z (x, y)))) = (fun x => sz (fun z => sy (fun y => f z (x, y))))
+    from funext fun x => hy _]
+  exact hx _
 
 /-- The pair's challenges are monotone over the valid ones. -/
 theorem mono_pair {CA CB : Type} {SCA : (CA → Nat) → Nat} {SCB : (CB → Nat) → Nat} {okA : CA → Bool} {okB : CB → Bool}

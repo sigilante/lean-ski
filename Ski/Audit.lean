@@ -1218,3 +1218,4 @@ open Ski.Audit
   Circuit.reprog_beside Circuit.fs_zk_two Circuit.col_spread Circuit.fs_two Circuit.lin_sumN Circuit.lin_sumTo
   Circuit.lin_sm Circuit.comm_sm Circuit.comm_sum4 Circuit.lin_sum4 Circuit.fs_open4_abs Circuit.fs_open4_two
   Circuit.zkb_pair Circuit.lin_pair Circuit.comm_pair Circuit.comm_pair' Circuit.mono_pair
+  Circuit.lin_pairL Circuit.comm_pairL Circuit.comm_pairL'
