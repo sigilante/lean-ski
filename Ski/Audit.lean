@@ -1204,6 +1204,7 @@ open Ski.Audit
 #audit_clean Circuit.SameData.hn Circuit.SameData.ht Circuit.SameData.n1 Circuit.SameData.n2 Circuit.SameData.ms
   Circuit.SameData.ct Circuit.SameData.cr Circuit.SameData.cc Circuit.SameData.dataF2 Circuit.SameData.dataP2
   Circuit.sud_data_q Circuit.sud_same_d Circuit.fs_last Circuit.fs_lastR Circuit.fs_lastG Circuit.fs_lastGR
+  Circuit.genB_count_mod
   Circuit.fs_open4 Circuit.fs_open4R
   Circuit.sud_fs_open4
 #audit_clean Circuit.wit_data_q Circuit.wit_same_d Circuit.wit_fs_open4 Circuit.comp_data_q Circuit.comp_same_d

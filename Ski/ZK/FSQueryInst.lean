@@ -54,7 +54,8 @@ set_option maxRecDepth 100000 in
     commitments' transcript, without the opened values, FRI's layer
     commitments or the query proof-of-work.  The FRI challenge is hashed
     too, decoded from `c4` by `αd`; the draws where it fails the verifier's
-    test, at most `B4` of the `K4`, enter the bound as their whole count.
+    test, at most `B4` of the `K4`, enter the bound as their whole count
+    (decoded uniformly, `P²` in every `Q4`: `genB_count_mod`).
     FRI's folding challenges are read from `c4` through `Rb`, as one draw
     with the query points, not each hashed after its layer. -/
 theorem wit_fs_open4 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {Vt x : Term} {W : Nat} {ws : List Cell} (hwf : WF ws)
@@ -389,7 +390,8 @@ set_option maxRecDepth 100000 in
     commitments' transcript, without the opened values, FRI's layer
     commitments or the query proof-of-work.  The FRI challenge is hashed
     too, decoded from `c4` by `αd`; the draws where it fails the verifier's
-    test, at most `B4` of the `K4`, enter the bound as their whole count.
+    test, at most `B4` of the `K4`, enter the bound as their whole count
+    (decoded uniformly, `P²` in every `Q4`: `genB_count_mod`).
     FRI's folding challenges are read from `c4` through `Rb`, as one draw
     with the query points, not each hashed after its layer. -/
 theorem comp_fs_open4 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {R Lm : Nat} (hR : R ≤ 20) {shp : BT} {Ps : List Term}

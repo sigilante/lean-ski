@@ -148,6 +148,17 @@ theorem fs_lastR {Y Vw : Type} {K4 n4 K ε : Nat} (hK4 : 0 < K4) (sm : (Y → Na
         sumTo_mono _ (fun H4 _ => sumTo_mono _ (fun c4 _ => hb c4 (fun m v => E (rset K4 m H4 c4) m c4 v)))
     _ = _ := by simp only [sumTo_add, sumTo_const, sumTo_mul]
 
+/-- **The uniformly decoded FRI challenge**: decoded as `efOf (c4 % Q4)`
+    from `Q4 k` fourth challenges, `P²` in every `Q4` fail the verifier's
+    test (`genB_count`). -/
+theorem genB_count_mod (k : Nat) : sumTo (Q4 * k) (fun c4 => indB (!genB (efOf (c4 % Q4)))) = k * (P * P) := by
+  rw [sumTo_split Q4 _ k]
+  have e : ∀ q, sumTo Q4 (fun r => indB (!genB (efOf ((r + Q4 * q) % Q4)))) = P * P := fun q => by
+    rw [← genB_count]
+    refine sumTo_congr _ (fun r hr => ?_)
+    rw [Nat.add_mul_mod_self_left, Nat.mod_eq_of_lt hr]
+  rw [sumTo_congr _ (fun q _ => e q), sumTo_const]
+
 /-- **`fs_last` with excluded fourth challenges**: the bound holds at the
     fourth challenges `g4` admits; the others, at most `B4` of the `K4`, enter
     as their whole count `K sm 1`. -/
@@ -212,9 +223,10 @@ theorem fs_lastGR {Y Vw : Type} {K4 n4 K ε B4 : Nat} (hK4 : 0 < K4) (sm : (Y �
     table at the third message (the commitments' transcript).  The
     commitments do not read `c4`; the views, their opened values, the
     opening proofs (Merkle paths at the drawn indices) and the simulator's
-    openings do, and each commitment hides given its openings and opening
-    proof at every `c4` the guard `g4` admits; the others, at most `B4`, enter the
-    bound as their whole count.  Unguarded; one proof per oracle. -/
+    openings do.  Each commitment hides given its openings and opening
+    proof at every `c4`; the transcript bounds `h1`, `h2` hold at the `c4`
+    the guard `g4` admits, and the others, at most `B4`, enter the bound
+    as their whole count.  Unguarded; one proof per oracle. -/
 theorem fs_open4 {PV PB D1 O1 P1 D2 O2 P2 D3 O3 P3 : Type} {NR m e1 e2 NS1 NS2 NS3 K2 K3 K4 n1 n2 n3 : Nat}
     (hK2 : 0 < K2) (hK3 : 0 < K3) (hK4 : 0 < K4)
     (rv sv : Nat → Nat → Nat → EF → EF → Nat → (Nat → Tup) → TViewN PV PB) (gz : Nat → Nat → Bool)
@@ -464,12 +476,6 @@ theorem fs_open4R {PV PB D1 O1 P1 D2 O2 P2 D3 O3 P3 : Type} {NR m e1 e2 NS1 NS2 
   exact h3
 
 
-
-
-
-
-
-
 section
 open B Air Stmt Mach Sudoku SudokuText
 
@@ -488,7 +494,8 @@ set_option maxRecDepth 100000 in
     commitments' transcript, without the opened values, FRI's layer
     commitments or the query proof-of-work.  The FRI challenge is hashed
     too, decoded from `c4` by `αd`; the draws where it fails the verifier's
-    test, at most `B4` of the `K4`, enter the bound as their whole count.
+    test, at most `B4` of the `K4`, enter the bound as their whole count
+    (decoded uniformly, `P²` in every `Q4`: `genB_count_mod`).
     FRI's folding challenges are read from `c4` through `Rb`, as one draw
     with the query points, not each hashed after its layer. -/
 theorem sud_fs_open4 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {puzzle : List Nat} (hc : CluesOK (cluesOf puzzle))
