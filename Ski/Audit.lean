@@ -156,6 +156,7 @@ import Ski.ZK.SpongeRandom
 import Ski.ZK.SpongePerm
 import Ski.ZK.SpongePermT
 import Ski.ZK.SpongeIndex
+import Ski.ZK.SpongeAvg
 import Ski.ZK.FSQueryAbsT
 import Ski.ZK.FSQueryPowT
 import Ski.ZK.ROMFamilyT
@@ -1382,3 +1383,6 @@ open Ski.Audit
 
 -- The overwrite sponge's index over the first commitment (SpongeIndex)
 #audit_clean Circuit.stA_chain Circuit.stB_chain Circuit.preimage_le_pairs Circuit.spread_pairs Circuit.pairs_countP Circuit.spread_countP Circuit.spread_satPT Circuit.chain1_congr Circuit.xsOf_getD Circuit.xsOf_cover Circuit.hφsp_sponge Circuit.pairsAll_countP Circuit.sponge_hsp Circuit.sponge_δs_countP
+
+-- Composites averaged over the permutation (SpongeAvg)
+#audit_clean Circuit.zkbT_avg Circuit.errPowD_avg Circuit.sud_interleaveP
