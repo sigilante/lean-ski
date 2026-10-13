@@ -163,7 +163,13 @@ is built; this file records what is next. Last revised 2026-10-13.
   `pcsCloseN_fri`), a joint statement not yet written; internal-node hashing
   apart from the leaves' table stays an assumption; query answers shown where the proof
   aborts: `Ski/ZK/ROMAbort.lean`, one round (`fs_openROMQ`), four over the oracle
-  (`fs_open4ROMQ`, on `fs_open4Q`); the circuits' and multi-proof theorems with it not yet);
+  (`fs_open4ROMQ`, on `fs_open4Q`); the circuits' and multi-proof theorems with it not yet;
+  queries that read the Fiat–Shamir side, a route: after `fs_real` the real view is read at
+  the table `rset H m c`, which is `H` but at the message, so a view that reads the table is,
+  for each `H`, a view of `(c, x)` (`rv (rset H (msg x) c) c x`) and `fs_zk` holds with the
+  hypothesis taken at each `H`; the opening then reads the table through the commitment's
+  value, and its hiding follows from hiding at each fixed table, summed over the
+  commitment's values; the `fs_open` chain restated over such views is not yet written);
   FRI's
   folding challenges hashed with the transcript before FRI (from its own layer commitments,
   against a table of its own, they fit already: `fs_pow`); FRI's layer commitments and final polynomial in the query hash's
