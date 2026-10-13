@@ -22,8 +22,9 @@ table of its own, independent of the query table, the bound holds at every
 such table and summed over them (`fs_pow`, a usage note rather than one
 composed theorem).  The lookup nonce, before the LogUp challenges, enters
 the same way through the first commitment (`ComHides.post`,
-`ComPfHides.post`).  The query hash also reads the trace groups' openings at `ζ`,
-which do not read the query points (`pcsFri_ood`).
+`ComPfHides.post`).  The query hash also reads the openings at `ζ`, the trace groups' and
+the quotient chunks', which do not read the query points (`pcsFri_ood`,
+`pcsFri_oodT`).
 -/
 
 namespace Circuit
@@ -302,6 +303,71 @@ theorem pcsFri_ood {V V' : Type} (off : EF → String → EF) (tv : (String → 
   show (quotPost qs α β _ (openMulti (qs.map QGroup.ext) (cols t α β) (msF qs ks tabs ncw r))).map _ =
     (quotPost qs' α β _ (openMulti (qs'.map QGroup.ext) (cols t α β) (msF qs' ks tabs' ncw r))).map _
   rw [quotPost_snd, quotPost_snd, h.ms, openMulti_ood _ _ _ _ hZ, hl]
+theorem firstView_ood (S S' : List F) (Zc : List EF) (h : Nat) : ∀ (cs : List Chunk) (qs : List (List F)) (rs : List F),
+    (firstView S Zc h cs qs rs).map Prod.snd = (firstView S' Zc h cs qs rs).map Prod.snd
+  | ch :: cs, q :: qs, rs => by
+    simp only [firstView, List.map_cons]
+    rw [firstView_ood S S' Zc h cs qs (rs.drop h)]
+  | [], _, _ => rfl
+  | _ :: _, [], _ => rfl
+
+theorem chunksView_ood (S S' : List F) (Zc : List EF) (h : Nat) (cs : List Chunk) (Hl : List F) (cl : F)
+    (qs : List (List F)) (ql : List F) (rs : List F) :
+    (chunksView S Zc h cs Hl cl qs ql rs).map Prod.snd = (chunksView S' Zc h cs Hl cl qs ql rs).map Prod.snd := by
+  simp only [chunksView, List.map_append, List.map_cons, List.map_nil]
+  rw [firstView_ood S S' Zc h cs qs rs]
+
+theorem csView_ood : ∀ (cs cs' : List CSet) (ds : List (List (List F) × List F)) (cr : List F),
+    cs.map (fun c => (c.ζ, c.h, c.cs, c.Hl, c.cl)) = cs'.map (fun c => (c.ζ, c.h, c.cs, c.Hl, c.cl)) →
+    (csView cs ds cr).map (List.map Prod.snd) = (csView cs' ds cr).map (List.map Prod.snd)
+  | c :: cs, c' :: cs', d :: ds, cr, h => by
+    simp only [List.map_cons, List.cons.injEq, Prod.mk.injEq] at h
+    obtain ⟨⟨hz, hh, hc, hH, hl⟩, h⟩ := h
+    simp only [csView, List.map_cons]
+    rw [hz, hh, hc, hH, hl, chunksView_ood c.S c'.S, csView_ood cs cs' ds _ h]
+  | [], [], _, _, _ => rfl
+  | _ :: _, _ :: _, [], _, _ => rfl
+  | [], _ :: _, _, _, h => by simp at h
+  | _ :: _, [], _, _, h => by simp at h
+
+theorem sets_shape (T T' : QTab) (h : tShape T = tShape T') (hz : T.ζ = T'.ζ) :
+    T.sets.map (fun c => (c.ζ, c.h, c.cs, c.Hl, c.cl)) = T'.sets.map (fun c => (c.ζ, c.h, c.cs, c.Hl, c.cl)) := by
+  simp only [tShape, Prod.mk.injEq] at h
+  obtain ⟨hh, hc, hH, hl, ht⟩ := h
+  simp only [QTab.sets, List.map_map, Function.comp_def, hz, hh, hc, hH, hl]
+  rw [List.map_const', List.map_const', ht]
+
+/-- **The quotient chunks' openings at `ζ` read neither the query points nor
+    anything but the tables' shapes, `ζ` and data.** -/
+theorem tabsView_ood : ∀ (tabs tabs' : List QTab) (dss : List (List (List (List F) × List F))) (cr : List F),
+    tabs.map tShape = tabs'.map tShape → tabs.map (·.ζ) = tabs'.map (·.ζ) →
+    (tabsView tabs dss cr).map (List.map (List.map Prod.snd)) = (tabsView tabs' dss cr).map (List.map (List.map Prod.snd))
+  | T :: tabs, T' :: tabs', ds :: dss, cr, h, hz => by
+    simp only [List.map_cons, List.cons.injEq] at h hz
+    have hc : T.crs = T'.crs := by
+      have := h.1; simp only [tShape, Prod.mk.injEq] at this
+      unfold QTab.crs QTab.n; rw [this.1, this.2.1, this.2.2.2.2]
+    simp only [tabsView, List.map_cons]
+    rw [hc, csView_ood T.sets T'.sets ds _ (sets_shape T T' h.1 hz.1), tabsView_ood tabs tabs' dss _ h.2 hz.2]
+  | [], [], _, _, _, _ => rfl
+  | _ :: _, _ :: _, [], _, _, _ => rfl
+  | [], _ :: _, _, _, h, _ => by simp at h
+  | _ :: _, [], _, _, h, _ => by simp at h
+/-- **The quotient chunks' openings at `ζ` in the PCS view read neither the
+    query points nor FRI**, given the tables' data agree. -/
+theorem pcsFri_oodT {V V' : Type} (off : EF → String → EF) (tv : (String → EF) → EF → (Nat → Tup) → List EF)
+    (qs qs' : List QGroup) (ks : List Nat) (cols : (Nat → Tup) → EF → EF → List (List (List F)))
+    (tabs tabs' : List QTab) (qdT qdT' : (Nat → Tup) → EF → EF → List F → List (List (List (List F) × List F)))
+    (ncw : Nat) (αb αb' : EF) (fri : EF → EF → List (EF → EF) → V) (fri' : EF → EF → List (EF → EF) → V')
+    (h : SameData qs qs' tabs tabs') (hz : tabs.map (·.ζ) = tabs'.map (·.ζ)) (t : Nat → Tup) (α β : EF) (r : Nat)
+    (hq : qdT t α β (msF qs' ks tabs' ncw r) = qdT' t α β (msF qs' ks tabs' ncw r)) :
+    (pcsFri off tv qs ks cols tabs qdT ncw αb fri t α β r).1.2.map (List.map (List.map Prod.snd)) =
+      (pcsFri off tv qs' ks cols tabs' qdT' ncw αb' fri' t α β r).1.2.map (List.map (List.map Prod.snd)) := by
+  show (tabsView tabs (qdT t α β (msF qs ks tabs ncw r)) (crF qs ks tabs ncw r)).map _ =
+    (tabsView tabs' (qdT' t α β (msF qs' ks tabs' ncw r)) (crF qs' ks tabs' ncw r)).map _
+  rw [h.ms, h.cr, hq]
+  exact tabsView_ood _ _ _ _ h.shape hz
+
 /-- **Fiat–Shamir over four rounds, every commitment opened**: `fs_open3U`
     with the query points a fourth challenge `c4`, hashed into a fourth
     table at `φ` of the third message and `oz` of the view, which must not
@@ -581,6 +647,9 @@ theorem fs_open4R {PV PB D1 O1 P1 D2 O2 P2 D3 O3 P3 W : Type} {NR m e1 e2 NS1 NS
 
 
 
+
+
+
 section
 open B Air Stmt Mach Sudoku SudokuText
 
@@ -588,8 +657,8 @@ set_option maxRecDepth 100000 in
 /-- **The Sudoku proof over four Fiat–Shamir rounds, the query points
     hashed**: `sud_fs_open3` with the query points a fourth challenge `c4`,
     drawn from a fourth table at a function `φ` of the commitments'
-    transcript and the trace groups' openings at `ζ`, which do not read the
-    query points (`pcsFri_ood`); `φ` may carry a proof-of-work nonce ground
+    transcript and the openings at `ζ`, which do not read the query points
+    (`pcsFri_ood`, `pcsFri_oodT`); `φ` may carry a proof-of-work nonce ground
     against a table of its own, independent of the query table (`fs_pow`).
     The points are decoded by
     `S16 S10 SP` (`fs_open4`, `fs_open4R`).  The opening proofs (`Pf`, the
@@ -600,8 +669,8 @@ set_option maxRecDepth 100000 in
     commitment hiding given its openings and opening proof there.  Both
     ways, both counts unguarded, the non-generic `β` and `ζ` in the bound.
     Assumed besides `sud_fs_open3`'s: the fourth table's input is the
-    commitments' transcript and the trace openings at `ζ`, without the
-    quotient chunks' openings, FRI's layer commitments or its final
+    commitments' transcript and the openings at `ζ` (the trace groups' and
+    the quotient chunks'), without FRI's layer commitments or its final
     polynomial.  The FRI challenge is hashed
     too, decoded from `c4` by `αd`; the draws where it fails the verifier's
     test, at most `B4` of the `K4`, enter the bound as their whole count;
@@ -619,7 +688,7 @@ theorem sud_fs_open4 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {puzzle
     (wm wc ww wp : Nat → List (EF → EF → List F)) {Lwm Lwc Lww Lwp : Nat} (hlwm : ∀ c, (wm c).length = Lwm)
     (hlwc : ∀ c, (wc c).length = Lwc) (hlww : ∀ c, (ww c).length = Lww) (hlwp : ∀ c, (wp c).length = Lwp)
     {K2 K4 : Nat} (hK2 : 0 < K2) (hK4 : 0 < K4)
-    (φ : Nat → Option (List (List (List EF))) → Nat) {N4 : Nat} (hφ : ∀ m w, φ m w < N4)
+    (φ : Nat → Option (List (List (List EF)) × List (List (List (List EF)))) → Nat) {N4 : Nat} (hφ : ∀ m w, φ m w < N4)
     (hS16 : ∀ c4, ∀ x ∈ S16 c4, x ∉ cosetL 1 (bbGen 16) (2 ^ 16)) (hS10 : ∀ c4, ∀ x ∈ S10 c4, x ∉ cosetL 1 (bbGen 10) (2 ^ 10))
     (hSP : ∀ c4, ∀ x ∈ SP c4, x ∉ cosetL 1 (bbGen (tP + 1)) (2 ^ (tP + 1)))
     (hsz16 : ∀ c4, 2 * (S16 c4).length + 8 ≤ 2 ^ 16) (hsz : ∀ c4, 2 * (S10 c4).length + 8 ≤ 2 ^ 10)
@@ -702,8 +771,8 @@ theorem sud_fs_open4 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {puzzle
       realVN off tabs tv tp (pcsZ c4 c2 (efOf c3)) α β r t
     let svF := fun (c4 c2 c3 : Nat) (α β : EF) (r : Nat) (t : Nat → Tup) =>
       simVN off tp chainBus (fun _ => false) chainPar 3 tp (psimZ c4 c2 (efOf c3)) α β r t
-    let ozF : TViewN (SudPV (V × Wv)) EF → Option (List (List (List EF))) := fun v => match v with
-      | some (pv, _) => some (pv.1.1.map (fun g => g.1.map Prod.snd))
+    let ozF : TViewN (SudPV (V × Wv)) EF → Option (List (List (List EF)) × List (List (List (List EF)))) := fun v => match v with
+      | some (pv, _) => some (pv.1.1.map (fun g => g.1.map Prod.snd), pv.1.2.map (List.map (List.map Prod.snd)))
       | none => none
     let op3 := fun (c4 : Nat) (d : List (List (List (List F))) × List (List (List F))) =>
       (opQ (SsT c4) d.1, opCw (SsC c4) d.2)
@@ -892,10 +961,14 @@ theorem sud_fs_open4 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {puzzle
     simp only [rvF]
     unfold realVN
     cases hA : Aborts (prefixOf α (off β)) β (tabs t)
-    · simp only [Bool.false_eq_true, ↓reduceIte, ozF, Option.some.injEq]
-      exact pcsFri_ood off (fun pre β t => sudViewN pre β blank.hd blank.stk blank.heap.length C Mm Wt t) (sudGroups tP (S16 c4) (S10 c4) (SP c4) (efOf c3) qv) (sudGroups tP (S16 0) (S10 0) (SP 0) (efOf c3) qv) ks cols
+    · simp only [Bool.false_eq_true, ↓reduceIte, ozF, Option.some.injEq, Prod.mk.injEq]
+      have hd := sud_same_d off blank.hd blank.stk blank.heap.length blank.heap C Mm Wt tP (S16 c4) (S10 c4) (SP c4) (S16 0) (S10 0) (SP 0) (efOf c3) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wp c2) (wm c2) (wc c2) (ww c2) (wp c2) rfl rfl rfl rfl
+      refine ⟨pcsFri_ood off (fun pre β t => sudViewN pre β blank.hd blank.stk blank.heap.length C Mm Wt t) (sudGroups tP (S16 c4) (S10 c4) (SP c4) (efOf c3) qv) (sudGroups tP (S16 0) (S10 0) (SP 0) (efOf c3) qv) ks cols
         ((sudTs off blank.hd blank.stk blank.heap.length blank.heap C Mm Wt tP (S16 c4) (S10 c4) (SP c4) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wp c2)).map Prod.fst) ((sudTs off blank.hd blank.stk blank.heap.length blank.heap C Mm Wt tP (S16 0) (S10 0) (SP 0) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wp c2)).map Prod.fst) _ _ ncw (αd c4) (αd 0) _ _
-        (sud_same_d off blank.hd blank.stk blank.heap.length blank.heap C Mm Wt tP (S16 c4) (S10 c4) (SP c4) (S16 0) (S10 0) (SP 0) (efOf c3) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wp c2) (wm c2) (wc c2) (ww c2) (wp c2) rfl rfl rfl rfl) rfl rfl t α β (r % NR0)
+        hd rfl rfl t α β (r % NR0), pcsFri_oodT off (fun pre β t => sudViewN pre β blank.hd blank.stk blank.heap.length C Mm Wt t) (sudGroups tP (S16 c4) (S10 c4) (SP c4) (efOf c3) qv) (sudGroups tP (S16 0) (S10 0) (SP 0) (efOf c3) qv) ks cols
+        ((sudTs off blank.hd blank.stk blank.heap.length blank.heap C Mm Wt tP (S16 c4) (S10 c4) (SP c4) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wp c2)).map Prod.fst) ((sudTs off blank.hd blank.stk blank.heap.length blank.heap C Mm Wt tP (S16 0) (S10 0) (SP 0) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wp c2)).map Prod.fst) _ _ ncw (αd c4) (αd 0) _ _
+        hd (by simp only [sudTs, bbTab, airQTabG, List.map_cons, List.map_nil]) t α β (r % NR0)
+        (sud_data_q off blank.hd blank.stk blank.heap.length blank.heap C Mm Wt tP (S16 c4) (S10 c4) (SP c4) (S16 0) (S10 0) (SP 0) (efOf c3) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wp c2) t _ _ _ hA)⟩
     · rfl
   have hgz : sumTo K2 (fun _ => sumTo Q4 (fun c3 => indB (!genB (efOf c3)))) ≤ K2 * (P * P) := by
     rw [genB_count, sumTo_const]; exact Nat.le_refl _
