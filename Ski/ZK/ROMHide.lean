@@ -19,7 +19,7 @@ The Fiat–Shamir theorems take exact hiding (`ComHides`, `ComPfHides`);
 approximate hiding (`ComHidesA`, `ComPfHidesA`) enters only the real side,
 so one round with the commitment opened keeps its bound with the slack
 added (`open_realA`, `open_real_tA`, `fs_openA`).  The opened commitment
-hides against such runs: the salt split into the opened leaves' salts the
+hides against such runs: the salt split into its shown part the
 proof shows and the hidden rest (`rom_hidePfQ`, `2 s k / NSh`
 normalized).  Composed for one round (`fs_openROM`): the commitment's
 table and both salt parts folded into the salt (`comR`), the proof carrying
@@ -492,7 +492,7 @@ theorem pfR_hidesA {D O P : Type} {K n NSh NSo s k : Nat} (hK : 0 < K) (pos : D 
   exact h'
 /-- **One Fiat–Shamir round with the commitment drawn from the oracle**
     (`fs_openA` over `comR`, `pfR`): the commitment the answer of its own
-    table at a salted position, the salt split into the opened leaves' salts
+    table at a salted position, the salt split into its shown part
     the proof shows and the hidden rest; the distinguisher, besides the
     Fiat–Shamir table, the commitment and the opening, sees the answers to
     `k` queries into the commitment's table, chosen after the opening and
