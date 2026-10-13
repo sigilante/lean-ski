@@ -46,9 +46,10 @@ Not shown, and needed before this is Plonky3's FRI:
   `c4`.  That strategy derives every query index from one value below `K4`,
   read at a point that holds the final root alone, where Plonky3 samples
   each index after observing the final polynomial and the proof of work;
-- the proof's view keeps its own FRI (`fri c4`, `Rb c4` in `sudFS4T`);
-  `FriProof` sets it constant and runs `friCommitQCPf` as the third
-  opening instead, the opened rows still from `c4`;
+- the proof's view keeps its own FRI (`fri c4`, `Rb c4` in `sudFS4T`).
+  `FriProof` sets it constant and runs `friCommitQCPf` as the third opening
+  instead, but its hiding then rests on `hp3`, which a codeword-masked FRI
+  appears not to meet;
 - the opening's hiding given the opened values (`hp`) is a hypothesis,
   not derived from `MaskFri`.
 -/

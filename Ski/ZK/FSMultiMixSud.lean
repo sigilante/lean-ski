@@ -27,7 +27,8 @@ query phase before each proof chosen from every earlier view and answer
 `comp_powQD`; at any digit, `sud_powQA`.  A commit phase of FRI's shape
 over one commitment's data is a data-reading opening (`FriCommit`'s
 `friCommitPf`), which the `D` versions compose; it does not replace the
-proof's own FRI.
+proof's own FRI.  `FriProof` instantiates `sud_interleaveD` with a commit phase of FRI's
+shape as the third opening and the proof's own FRI constant.
 -/
 
 set_option autoImplicit false
