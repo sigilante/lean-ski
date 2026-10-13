@@ -12,7 +12,9 @@ in place: where the second's message misses the programmed answer the
 reprogramming is exact (`rget_rset_ne`, `reprog_beside`), and the pairs
 where it hits it, `δ` of them, enter the bound (`fs_zk_two`); a salted
 commitment's spread over its salts bounds them (`col_spread`).  One round
-per proof, one table.
+per proof, one table; the statements and witnesses fixed in advance (not
+chosen after seeing the oracle or the other proof).  Normalized, the
+error is `εA/(K|A|) + εB/(K|B|) + δ/(|A||B|)`.
 -/
 
 namespace Circuit
