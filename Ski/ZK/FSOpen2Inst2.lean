@@ -11,7 +11,7 @@ namespace Circuit
 
 open ZKF B Air Compose CompM Stmt Mach Wit
 
-/-- The hidden-term quotient tables' query points, in `sudTs`'s order. -/
+/-- The hidden-term quotient tables' query points, in `wTs`'s order. -/
 def wSsT (S10 S9 SP : List F) : List (List F) := [S10, S10, S9, SP]
 
 /-- The hidden-term chunk matrices' query points, as `tabsInfo` lists them. -/
