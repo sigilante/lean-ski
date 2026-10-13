@@ -18,13 +18,15 @@ normalized.  The fixed-query case first (`rom_off`, `rom_hide`).
 The Fiat–Shamir theorems take exact hiding (`ComHides`, `ComPfHides`);
 approximate hiding (`ComHidesA`, `ComPfHidesA`) enters only the real side,
 so one round with the commitment opened keeps its bound with the slack
-added (`open_realA`, `open_real_tA`, `fs_openA`).  Not yet composed: the
-hiding notions and `fs_zk`'s distinguisher must be restated over `k`-query
-runs into the commitment's table (folding that table into the salt makes
-hiding exact but blinds the distinguisher to it, which proves nothing
-against the oracle).  The opened commitment hides against such runs: the
-salt split into the opened leaves' salts the proof shows and the hidden
-rest (`rom_hidePfQ`, `2 s k / NSh` normalized).
+added (`open_realA`, `open_real_tA`, `fs_openA`).  The opened commitment
+hides against such runs: the salt split into the opened leaves' salts the
+proof shows and the hidden rest (`rom_hidePfQ`, `2 s k / NSh`
+normalized).  Composed for one round (`fs_openROM`): the commitment's
+table and both salt parts folded into the salt (`comR`), the proof carrying
+the distinguisher's `k` queries into that table, chosen after the opening
+and the commitment (`pfR`), so the bare commitment hides exactly
+(`comR_hides`) and the opened one up to the slack (`pfR_hidesA`).  The
+later rounds are not yet composed.
 -/
 
 namespace Circuit
@@ -304,11 +306,8 @@ theorem open_real_tA {PV PB D O Pp : Type} {NR m NS η : Nat} (Com : D → Nat �
   exact ⟨sumTo_mono _ (fun c _ => (hc c).1), sumTo_mono _ (fun c _ => (hc c).2)⟩
 /-- **`fs_open` with the commitment hiding up to `η`** (`ComHidesA`,
     `ComPfHidesA`): the error gains `Q4² NR Q4^m η`, each draw's hiding
-    slack.  `rom_hideQ` and `rom_hidePfQ` do not yet supply it: they bound
-    a commitment against a `k`-query run, while `ComHidesA` and
-    `ComPfHidesA` quantify over every query-free event of a fixed
-    commitment.  Composing needs both hiding notions and `fs_zk`'s
-    distinguisher restated over `k`-query runs into the commitment's table. -/
+    slack.  For a commitment drawn from the oracle, the distinguisher's
+    queries into its table carried in the proof, `fs_openROM`. -/
 theorem fs_openA {PV PB D O Pp : Type} {NR m NS n e1 e2 η : Nat} (Com : D → Nat → Nat) (Pf : D → Nat → Pp)
     (op : D → O) (sd : O → D) (d0 : D) (hcom : ComHidesA NS η Com)
     (hpf : ComPfHidesA NS η Com Pf op) (hrange : ∀ d σ, Com d σ < n)
@@ -395,5 +394,139 @@ theorem fs_openA {PV PB D O Pp : Type} {NR m NS n e1 e2 η : Nat} (Com : D → N
       rv (efOf (c / Q4)) (efOf (c % Q4)) x.2.1 x.2.2))
     (fun c x => (some (Pf (sd (sop x.2.1 x.2.2)) x.1), sv (efOf (c / Q4)) (efOf (c % Q4)) x.2.1 x.2.2))
     (fun c => genB (efOf (c % Q4))) (fun F => (core F).2) (fun H mm _ w => E H mm w)⟩
+
+/-- The salt `σ'` of a commitment from the oracle, three parts: the hidden
+    salt, the shown salt, the commitment's table. -/
+def saltH (NSh : Nat) (σ' : Nat) : Nat := σ' % NSh
+def saltO (NSh NSo : Nat) (σ' : Nat) : Nat := σ' / NSh % NSo
+def saltT (NSh NSo : Nat) (σ' : Nat) : Nat := σ' / NSh / NSo
+
+/-- **A commitment drawn from the oracle**: the commitment table's answer
+    at the position the data and both salt parts give. -/
+def comR {D : Type} (K NSh NSo : Nat) (pos : D → Nat → Nat → Nat) (d : D) (σ' : Nat) : Nat :=
+  rget K (pos d (saltO NSh NSo σ') (saltH NSh σ')) (saltT NSh NSo σ')
+
+/-- **Its opening, with the distinguisher's `k` queries into its table**:
+    the opening proof reads the opened values and the shown salt; the
+    queries are chosen after the opening and the commitment (`nxt`). -/
+def pfR {D O P : Type} (K NSh NSo k : Nat) (pos : D → Nat → Nat → Nat) (op : D → O) (g : O → Nat → P)
+    (nxt : P → Nat → List Nat → Nat) (d : D) (σ' : Nat) : P × List Nat :=
+  (g (op d) (saltO NSh NSo σ'),
+   runQ K (nxt (g (op d) (saltO NSh NSo σ'))) (comR K NSh NSo pos d σ') k (saltT NSh NSo σ'))
+
+theorem sum_salt (NSh NSo T : Nat) (f : Nat → Nat) :
+    sumTo (NSh * (NSo * T)) f =
+      sumTo T (fun h => sumTo NSo (fun o => sumTo NSh (fun σh => f (σh + NSh * (o + NSo * h))))) := by
+  rw [sumTo_split NSh f (NSo * T), sumTo_split NSo _ T]
+
+theorem salt_dec {NSh NSo σh o h : Nat} (hh : σh < NSh) (ho : o < NSo) :
+    saltH NSh (σh + NSh * (o + NSo * h)) = σh ∧ saltO NSh NSo (σh + NSh * (o + NSo * h)) = o ∧
+      saltT NSh NSo (σh + NSh * (o + NSo * h)) = h := by
+  have hp : 0 < NSh := by omega
+  have hq : 0 < NSo := by omega
+  have e1 : (σh + NSh * (o + NSo * h)) / NSh = o + NSo * h := by
+    rw [Nat.add_mul_div_left _ _ hp, Nat.div_eq_of_lt hh, Nat.zero_add]
+  refine ⟨?_, ?_, ?_⟩
+  · unfold saltH; rw [Nat.add_mul_mod_self_left, Nat.mod_eq_of_lt hh]
+  · unfold saltO; rw [e1, Nat.add_mul_mod_self_left, Nat.mod_eq_of_lt ho]
+  · unfold saltT; rw [e1, Nat.add_mul_div_left _ _ hq, Nat.div_eq_of_lt ho, Nat.zero_add]
+
+/-- The salts in the order the ROM lemmas sum them: shown, hidden, table. -/
+theorem sum_salt' (NSh NSo T : Nat) (f : Nat → Nat → Nat → Nat) :
+    sumTo T (fun h => sumTo NSo (fun o => sumTo NSh (fun σh => f h o σh))) =
+      sumTo NSo (fun o => sumTo NSh (fun σh => sumTo T (fun h => f h o σh))) := by
+  rw [sumTo_exch _ NSo T]
+  exact sumTo_congr _ (fun o _ => sumTo_exch _ NSh T)
+
+theorem sum_salt_eq (NSh NSo T : Nat) (f : Nat → Nat) :
+    sumTo (NSh * (NSo * T)) f =
+      sumTo NSo (fun o => sumTo NSh (fun σh => sumTo T (fun h => f (σh + NSh * (o + NSo * h))))) := by
+  rw [sum_salt]; exact sum_salt' NSh NSo T (fun h o σh => f (σh + NSh * (o + NSo * h)))
+
+/-- **The bare commitment from the oracle hides exactly**, against events
+    of its value alone. -/
+theorem comR_hides {D : Type} {K n NSh NSo : Nat} (hK : 0 < K) (pos : D → Nat → Nat → Nat)
+    (hpos : ∀ d σo σh, pos d σo σh < n) : ComHides (NSh * (NSo * K ^ n)) (comR K NSh NSo pos) := by
+  intro d d' E
+  have key : ∀ p, p < n → sumTo (K ^ n) (fun H => indB (E (rget K p H))) =
+      sumTo (K ^ n) (fun H => sumTo K (fun c => indB (E c))) / K := fun p hp => by
+    have := rom_off (n := n) hK hp [] List.not_mem_nil (fun _ c => E c)
+    rw [← this, Nat.mul_div_cancel_left _ hK]
+  rw [sum_salt_eq, sum_salt_eq]
+  refine sumTo_congr _ (fun o ho => sumTo_congr _ (fun σh hh => ?_))
+  have e := fun (dd : D) => sumTo_congr (K ^ n) (fun h (_ : h < K ^ n) =>
+    show indB (E (comR K NSh NSo pos dd (σh + NSh * (o + NSo * h)))) = indB (E (rget K (pos dd o σh) h)) by
+      unfold comR; obtain ⟨a, b, c⟩ := salt_dec (h := h) hh ho; rw [a, b, c])
+  rw [e d, e d', key _ (hpos d o σh), key _ (hpos d' o σh)]
+
+/-- **The opened commitment from the oracle hides up to `rom_hidePfQ`'s
+    slack**, against the distinguisher's `k` queries into its table. -/
+theorem pfR_hidesA {D O P : Type} {K n NSh NSo s k : Nat} (hK : 0 < K) (pos : D → Nat → Nat → Nat)
+    (hpos : ∀ d σo σh, pos d σo σh < n) (op : D → O) (g : O → Nat → P)
+    (hs : ∀ d σo v, sumTo NSh (fun σh => indB (decide (pos d σo σh = v))) ≤ s) (nxt : P → Nat → List Nat → Nat) :
+    ComPfHidesA (NSh * (NSo * K ^ n)) (NSo * (K ^ n * (2 * (s * k)))) (comR K NSh NSo pos)
+      (pfR K NSh NSo k pos op g nxt) op := by
+  intro d d' hop E
+  have h := rom_hidePfQ (NSo := NSo) (k := k) hK pos hpos op g hs nxt (fun pf ans c => E c (pf, ans)) d d' hop
+  rw [← Nat.mul_add] at h
+  have h' := Nat.le_of_mul_le_mul_left h hK
+  rw [sum_salt_eq, sum_salt_eq]
+  have e := fun (dd : D) => sumTo_congr NSo (fun o (ho : o < NSo) => sumTo_congr NSh (fun σh (hh : σh < NSh) =>
+    sumTo_congr (K ^ n) (fun h (_ : h < K ^ n) =>
+    show indB (E (comR K NSh NSo pos dd (σh + NSh * (o + NSo * h))) (pfR K NSh NSo k pos op g nxt dd
+        (σh + NSh * (o + NSo * h)))) =
+      indB (E (rget K (pos dd o σh) h) (g (op dd) o, runQ K (nxt (g (op dd) o)) (rget K (pos dd o σh) h) k h)) by
+      unfold pfR comR; obtain ⟨a, b, c⟩ := salt_dec (h := h) hh ho; rw [a, b, c])))
+  rw [e d, e d']
+  exact h'
+/-- **One Fiat–Shamir round with the commitment drawn from the oracle**
+    (`fs_openA` over `comR`, `pfR`): the commitment the answer of its own
+    table at a salted position, the salt split into the opened leaves' salts
+    the proof shows and the hidden rest; the distinguisher, besides the
+    Fiat–Shamir table, the commitment and the opening, sees the answers to
+    `k` queries into the commitment's table, chosen after the opening and
+    the commitment (`nxt`).  The bound gains `Q4² NR Q4^m NSo Kc^nc 2 s k`,
+    normalized `2 s k / NSh` a draw.  One round, the commitment table apart
+    from the Fiat–Shamir table as a domain-separated oracle's. -/
+theorem fs_openROM {PV PB D O P : Type} {NR m e1 e2 Kc nc NSh NSo s k : Nat} (hKc : 0 < Kc)
+    (pos : D → Nat → Nat → Nat) (hpos : ∀ d σo σh, pos d σo σh < nc) (g : O → Nat → P)
+    (hs : ∀ d σo v, sumTo NSh (fun σh => indB (decide (pos d σo σh = v))) ≤ s) (nxt : P → Nat → List Nat → Nat)
+    (op : D → O) (sd : O → D) (d0 : D)
+    (ov : TViewN PV PB → Option O) (hovn : ov none = none) (main : (Nat → Tup) → Nat → D)
+    (hsd : ∀ t r, op (sd (op (main t r))) = op (main t r))
+    (sop : Nat → (Nat → Tup) → O) {rv sv : EF → EF → Nat → (Nat → Tup) → TViewN PV PB}
+    (h1 : ∀ E : TViewN PV PB → Bool, tsumN NR m (fun α β r t => indB (genB β && E (rv α β r t))) ≤
+      tsumN NR m (fun α β r t => indB (genB β && E (sv α β r t))) + e1 + e2)
+    (h2 : ∀ E : TViewN PV PB → Bool, tsumN NR m (fun α β r t => indB (genB β && E (sv α β r t))) ≤
+      tsumN NR m (fun α β r t => indB (genB β && E (rv α β r t))) + e1 + e2)
+    (hrv : ∀ α β r t, rv α β r t = none ∨ ∃ p x y, rv α β r t = some (p, α, β, x, y))
+    (hsv : ∀ α β r t, ∃ p x y, sv α β r t = some (p, α, β, x, y))
+    (hrvo : ∀ α β r t, rv α β r t = none ∨ ov (rv α β r t) = some (op (main t r)))
+    (hsvo : ∀ α β r t, ov (sv α β r t) = some (sop r t))
+    (E : Nat → Nat → Option (P × List Nat) × TViewN PV PB → Bool) :
+    (Q4 * Q4) * sumTo ((Q4 * Q4) ^ Kc) (fun H => sumTo (NSh * (NSo * Kc ^ nc)) (fun σ => sumTo NR (fun r => sumN m (fun t =>
+      indB (genB (efOf (rget (Q4 * Q4) ((comR Kc NSh NSo pos) (main t r) σ) H % Q4)) && E H ((comR Kc NSh NSo pos) (main t r) σ)
+        ((ov (rv (efOf (rget (Q4 * Q4) ((comR Kc NSh NSo pos) (main t r) σ) H / Q4)) (efOf (rget (Q4 * Q4) ((comR Kc NSh NSo pos) (main t r) σ) H % Q4))
+            r t)).map (fun _ => (pfR Kc NSh NSo k pos op g nxt) (main t r) σ),
+          rv (efOf (rget (Q4 * Q4) ((comR Kc NSh NSo pos) (main t r) σ) H / Q4)) (efOf (rget (Q4 * Q4) ((comR Kc NSh NSo pos) (main t r) σ) H % Q4))
+            r t)))))) ≤
+    sumTo ((Q4 * Q4) ^ Kc) (fun H => sumTo (Q4 * Q4) (fun c => sumTo (NSh * (NSo * Kc ^ nc)) (fun σ => sumTo NR (fun r => sumN m (fun t =>
+      indB (genB (efOf (c % Q4)) && E (rset (Q4 * Q4) ((comR Kc NSh NSo pos) (sd (sop r t)) σ) H c) ((comR Kc NSh NSo pos) (sd (sop r t)) σ)
+        (some ((pfR Kc NSh NSo k pos op g nxt) (sd (sop r t)) σ), sv (efOf (c / Q4)) (efOf (c % Q4)) r t))))))) +
+    (Q4 * Q4) ^ Kc * ((NSh * (NSo * Kc ^ nc)) * (e1 + e2) + Q4 * Q4 * (NR * (Q4 ^ m * (NSo * (Kc ^ nc * (2 * (s * k))))))) ∧
+    sumTo ((Q4 * Q4) ^ Kc) (fun H => sumTo (Q4 * Q4) (fun c => sumTo (NSh * (NSo * Kc ^ nc)) (fun σ => sumTo NR (fun r => sumN m (fun t =>
+      indB (genB (efOf (c % Q4)) && E (rset (Q4 * Q4) ((comR Kc NSh NSo pos) (sd (sop r t)) σ) H c) ((comR Kc NSh NSo pos) (sd (sop r t)) σ)
+        (some ((pfR Kc NSh NSo k pos op g nxt) (sd (sop r t)) σ), sv (efOf (c / Q4)) (efOf (c % Q4)) r t))))))) ≤
+    (Q4 * Q4) * sumTo ((Q4 * Q4) ^ Kc) (fun H => sumTo (NSh * (NSo * Kc ^ nc)) (fun σ => sumTo NR (fun r => sumN m (fun t =>
+      indB (genB (efOf (rget (Q4 * Q4) ((comR Kc NSh NSo pos) (main t r) σ) H % Q4)) && E H ((comR Kc NSh NSo pos) (main t r) σ)
+        ((ov (rv (efOf (rget (Q4 * Q4) ((comR Kc NSh NSo pos) (main t r) σ) H / Q4)) (efOf (rget (Q4 * Q4) ((comR Kc NSh NSo pos) (main t r) σ) H % Q4))
+            r t)).map (fun _ => (pfR Kc NSh NSo k pos op g nxt) (main t r) σ),
+          rv (efOf (rget (Q4 * Q4) ((comR Kc NSh NSo pos) (main t r) σ) H / Q4)) (efOf (rget (Q4 * Q4) ((comR Kc NSh NSo pos) (main t r) σ) H % Q4))
+            r t)))))) +
+    (Q4 * Q4) ^ Kc * ((NSh * (NSo * Kc ^ nc)) * (e1 + e2) + Q4 * Q4 * (NR * (Q4 ^ m * (NSo * (Kc ^ nc * (2 * (s * k))))))) := by
+  have hcom : ComHidesA (NSh * (NSo * Kc ^ nc)) (NSo * (Kc ^ nc * (2 * (s * k)))) (comR Kc NSh NSo pos) := fun d d' E =>
+    Nat.le_trans (Nat.le_of_eq (comR_hides hKc pos hpos d d' E)) (Nat.le_add_right _ _)
+  have hrange : ∀ d σ, comR Kc NSh NSo pos d σ < Kc := fun d σ => Nat.mod_lt _ hKc
+  exact fs_openA (comR Kc NSh NSo pos) (pfR Kc NSh NSo k pos op g nxt) op sd d0 hcom (pfR_hidesA hKc pos hpos op g hs nxt) hrange ov hovn main hsd sop h1 h2 hrv hsv hrvo hsvo E
 
 end Circuit
