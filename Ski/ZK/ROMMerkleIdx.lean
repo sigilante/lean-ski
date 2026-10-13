@@ -34,10 +34,8 @@ off every trace domain (`xsL_off`, by `lde_off_trace`), and the tallest
 group's `2 ^ (bl k0 + 1)` points are distinct (`xsL_inj`, `revBits_inj`).
 The faithful choice is `bl k` the group's LDE log height less one and
 `sh k = bl 0 - bl k`, group 0 the tallest (for the Sudoku circuit,
-`sudBl`, `sud_fri_leaves_std`, which assumes `tP ≤ 15`: evaluated, the
-Sudoku program table has `progTp = 14` with no clues and with all 81, its
-heap `24063` and `24225` cells, but no theorem bounds it below `23` for
-every puzzle); `sud_fri_leaves` holds for any `bl`, `sh`
+`sudBl`, `sud_fri_leaves_std`, which assumes `tP ≤ 15`; every accepting
+run gives it, the heap fitting the `2 ^ 16` memory, `sud_progTp_le15`); `sud_fri_leaves` holds for any `bl`, `sh`
 with `sh 0 = 0`, which at that choice asks the program table no
 taller than `2 ^ 16` (`tP ≤ 15`), and `bl 0 ≤ 26` asks a log blowup of at
 most 11.  For the Sudoku circuit with its query
@@ -233,6 +231,52 @@ def friS (bl sh : Nat → Nat) (idx : Nat → List Nat) (k c4 : Nat) : List F :=
 
 section
 open B Air Stmt Mach Sudoku SudokuText Compose CompM Wit
+
+theorem pow2From_leK {n K : Nat} (hn : n ≤ 2 ^ K) : ∀ f e, e ≤ K → pow2From f (2 ^ e) n ≤ 2 ^ K
+  | 0, e, he => Nat.pow_le_pow_right (by decide) he
+  | f + 1, e, he => by
+    unfold pow2From
+    split
+    · next hlt =>
+      have he' : e < K := by
+        rcases Nat.lt_or_ge e K with h | h
+        · exact h
+        · have := Nat.pow_le_pow_right (show 0 < 2 by decide) h; omega
+      rw [show 2 * 2 ^ e = 2 ^ (e + 1) by rw [Nat.pow_succ, Nat.mul_comm]]
+      exact pow2From_leK hn f (e + 1) he'
+    · exact Nat.pow_le_pow_right (by decide) he
+
+/-- **The Sudoku program table is no taller than the traces**: a run over
+    `2 ^ 16` cells holds the statement heap, so its public cells pad to at
+    most `2 ^ 16` rows, `progTp ≤ 15`. -/
+theorem sud_progTp_le15 {puzzle : List Nat} (hc : CluesOK (cluesOf puzzle)) {ρ : Nat → Bool} {A : List Cell}
+    {k : Nat} {row : Nat → Air.Row} (hA : AcceptsFrom A (stmtMachine ρ 729 (sudokuExpr (cluesOf puzzle)) ACC REJ) k row)
+    (hlen : A.length = 2 ^ 16) :
+    progTp (stmtMachine (fun _ => false) 729 (sudokuExpr (cluesOf puzzle)) ACC REJ).heap ≤ 15 := by
+  have hh := (sud_prog_height hc hA hlen).2
+  generalize hheap : (stmtMachine (fun _ => false) 729 (sudokuExpr (cluesOf puzzle)) ACC REJ).heap = heap at hh ⊢
+  obtain ⟨_, _, hlenm, _⟩ := stmtMachine_public ρ (fun _ => false) 729 (sudokuExpr (cluesOf puzzle)) ACC REJ
+  have h0 : A.take (stmtMachine ρ 729 (sudokuExpr (cluesOf puzzle)) ACC REJ).heap.length =
+      (stmtMachine ρ 729 (sudokuExpr (cluesOf puzzle)) ACC REJ).heap := by rw [← hA.ctr0]; exact hA.heap0
+  have hml := congrArg List.length h0
+  rw [List.length_take] at hml
+  have hlh : heap.length ≤ 2 ^ 16 := by
+    rw [← hheap, ← hlenm, ← hml, ← hlen]; exact Nat.min_le_right _ _
+  have hn : (heap.zipIdx.filter fun x => !(3 ≤ x.2 && x.2 < 3 + 729)).length ≤ 2 ^ 16 :=
+    Nat.le_trans (List.length_filter_le _ _) (by rw [List.length_zipIdx]; exact hlh)
+  have hrows : (progTableS heap).h ≤ 2 ^ 16 := by
+    show (progRowsS heap).length ≤ _
+    unfold progRowsS
+    simp only [List.length_append, List.length_map, List.length_replicate]
+    have hge := pow2From_ge_n 64 1 (heap.zipIdx.filter fun x => !(3 ≤ x.2 && x.2 < 3 + 729)).length
+      (Nat.le_trans hn (by rw [Nat.one_mul]; exact Nat.pow_le_pow_right (by decide) (by decide)))
+    rw [Nat.add_sub_cancel' hge]
+    exact pow2From_leK hn 64 0 (Nat.zero_le _)
+  rw [hh] at hrows
+  rcases Nat.lt_or_ge (progTp heap) 16 with h | h
+  · exact Nat.le_of_lt_succ h
+  · have h17 : 2 ^ 17 ≤ 2 ^ (progTp heap + 1) := Nat.pow_le_pow_right (by decide) (Nat.succ_le_succ h)
+    exact absurd (Nat.le_trans h17 hrows) (by decide)
 
 /-- **The Sudoku circuit's `hposO` at FRI's queried leaves**: its first
     round opens groups `0, 2, 4, 6` (`S16`, `S16`, `S10`, `SP`); when each

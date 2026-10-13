@@ -1305,5 +1305,5 @@ open Ski.Audit
 #audit_clean Circuit.qSets_getD Circuit.isOfRows_of_mem Circuit.mem_of_isOfRows Circuit.isOfRows_iff
   Circuit.isOfRows_qSets_iff Circuit.xsSh_inj Circuit.isOfRows_xsSh_iff Circuit.xsW_inj Circuit.sud_hposO_idx
   Circuit.wit_hposO_idx Circuit.comp_hposO_idx Circuit.sud_opened_iff Circuit.wit_opened_iff Circuit.comp_opened_iff
-  Circuit.sud_opened_iff_xsW Circuit.revBits_lt Circuit.revBits_inj Circuit.xsL_off Circuit.mul31_cancel Circuit.xsL_inj Circuit.sud_fri_leaves Circuit.sud_fri_leaves_std Circuit.sud_fs_open4ROMM_fri Circuit.wit_fri_leaves Circuit.wit_fs_open4ROMM_fri
+  Circuit.sud_opened_iff_xsW Circuit.revBits_lt Circuit.revBits_inj Circuit.xsL_off Circuit.mul31_cancel Circuit.xsL_inj Circuit.sud_fri_leaves Circuit.sud_fri_leaves_std Circuit.pow2From_leK Circuit.sud_progTp_le15 Circuit.sud_fs_open4ROMM_fri Circuit.wit_fri_leaves Circuit.wit_fs_open4ROMM_fri
   Circuit.comp_fri_leaves Circuit.comp_fs_open4ROMM_fri
