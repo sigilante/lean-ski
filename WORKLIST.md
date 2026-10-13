@@ -146,8 +146,9 @@ is built; this file records what is next. Last revised 2026-10-13.
   reading the opening at the drawn challenge only; the circuits' four-round instances:
   `sud_fs_open4ROM`, `wit_fs_open4ROM`, `comp_fs_open4ROM` (`rom4_transfer`); two proofs:
   `fs_open4_twoROM` (`pair_transfer`, `comI_spread_sm`); `n` copies: `fs_open4_powROM`
-  (`pow_transfer`, `zkb_rom`); `n` proofs of different statements (`read4_powD`) over the
-  oracle's commitments are not yet done); FRI's
+  (`pow_transfer`, `zkb_rom`); `n` proofs of different statements: `read4_powDROM`
+  (`powD_transfer`), each proof's transfer a hypothesis; the circuits' `n`-statement
+  instances, here as without the oracle's commitment, are not yet done); FRI's
   folding challenges hashed with the transcript before FRI (from its own layer commitments,
   against a table of its own, they fit already: `fs_pow`); FRI's layer commitments and final polynomial in the query hash's
   input (every opening at `ζ` is in it, `pcsFri_ood`, `pcsFri_oodT`,

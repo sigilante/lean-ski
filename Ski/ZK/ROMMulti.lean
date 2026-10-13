@@ -16,7 +16,9 @@ a draw; one direction; the two proofs' commitment tables apart from each
 other and from the Fiat–Shamir tables, the commitments' range `KQ` shared.
 For `n` copies, `pow_transfer` moves every copy's view, newest first, and
 `zkb_rom` carries `fs_open4_pow`'s bound at the ideal opening to the real
-one (`fs_open4_powROM`).
+one (`fs_open4_powROM`); for `n` proofs of different statements,
+`powD_transfer` and `read4_powDROM`, each proof's transfer a hypothesis
+that `rom4_step` gives.
 -/
 
 namespace Circuit
@@ -614,4 +616,97 @@ theorem fs_open4_powROM {PV PB D1 O1 Pq D2 O2 P2 D3 O3 P3 W : Type} {NR m e1 e2 
     (fun H x => view4 KQ NS2 K2 K3 K4 n2 φ rv oz ov1 main1 Com2 Pf2 ov2 main2 Com3 Pf3 ov3 main3 Com1 Pf1 H x) (fun H x => view4 KQ NS2 K2 K3 K4 n2 φ rv oz ov1 main1 Com2 Pf2 ov2 main2 Com3 Pf3 ov3 main3 Cmi Pfi H x)
     (fun H G => rom4_step (NR := NR) (m := m) (NSh := NSh) (NSo := NSo) (s := sQ) (k := kQ) (n := nQ) (NS2 := NS2) (NS3 := NS3) (K2 := K2) (K3 := K3) (K4 := K4) (n2 := n2) hKQ φ rv oz pos hpos g hs nxt op1 ov1 main1 Com2 Pf2 ov2 main2 Com3 Pf3 ov3 main3 H G) n) E
 
+
+/-- The transfers' error over `n` proofs of different statements. -/
+def errTD {T X : Type} (Kt e : Nat → Nat) (ST : (T → Nat) → Nat) (smR smI : Nat → (X → Nat) → Nat) : Nat → Nat
+  | 0 => 0
+  | n + 1 => KPowD Kt n * (e n * ST (fun _ => smPowD (X := fun _ => X) smR n (fun _ => 1))) +
+      errTD Kt e ST smR smI n * smI n (fun _ => 1)
+
+/-- **`n` transfers inside the count of proofs of different statements**:
+    each proof's real view moved to its ideal one, newest first. -/
+theorem powD_transfer {T X V : Type} {Kt e : Nat → Nat} (ST : (T → Nat) → Nat) (hST : Lin ST)
+    (smR smI : Nat → (X → Nat) → Nat) (hR : ∀ i, Lin (smR i)) (hI : ∀ i, Lin (smI i))
+    (hC : ∀ i, Comm (smI i) ST) (hCR : ∀ i j, Comm (smI i) (smR j)) (hII : ∀ i j, Comm (smI i) (smI j))
+    (vR vI : Nat → T → X → V)
+    (hA : ∀ i H (G : V → Bool), Kt i * smR i (fun x => indB (G (vR i H x))) ≤
+      smI i (fun x => indB (G (vI i H x))) + e i) :
+    ∀ n (E : T → PowD (fun _ => V) n → Bool),
+      KPowD Kt n * ST (fun H => smPowD (X := fun _ => X) smR n (fun xs => indB (E H (rvPowD vR n H xs)))) ≤
+      ST (fun H => smPowD (X := fun _ => X) smI n (fun xs => indB (E H (rvPowD vI n H xs)))) + errTD Kt e ST smR smI n
+  | 0, E => by simp only [KPowD, Nat.one_mul, errTD, Nat.add_zero]; exact Nat.le_refl _
+  | n + 1, E => by
+    have hRn := lin_smPowD (X := fun _ => X) hR n
+    have s1 : Kt n * ST (fun H => smPowD (X := fun _ => X) smR n (fun rest => smR n (fun x =>
+        indB (E H (vR n H x, rvPowD vR n H rest))))) ≤
+        ST (fun H => smPowD (X := fun _ => X) smR n (fun rest => smI n (fun x =>
+          indB (E H (vI n H x, rvPowD vR n H rest))))) +
+          e n * ST (fun _ => smPowD (X := fun _ => X) smR n (fun _ => 1)) := by
+      rw [← smK ST hST, ← smK ST hST, ← sm_add ST hST]
+      refine sm_mono ST hST (fun H => ?_)
+      rw [← smK _ hRn, ← smC _ hRn, ← sm_add _ hRn]
+      exact sm_mono _ hRn (fun rest => hA n H (fun v => E H (v, rvPowD vR n H rest)))
+    have hCn : Comm (smI n) (smPowD (X := fun _ => X) smR n) := comm_smPowD' (fun j => hCR n j) n
+    have hCI : Comm (smI n) (smPowD (X := fun _ => X) smI n) := comm_smPowD' (fun j => hII n j) n
+    have s2 : KPowD Kt n * ST (fun H => smPowD (X := fun _ => X) smR n (fun rest => smI n (fun x =>
+        indB (E H (vI n H x, rvPowD vR n H rest))))) ≤
+        ST (fun H => smPowD (X := fun _ => X) smI n (fun rest => smI n (fun x =>
+          indB (E H (vI n H x, rvPowD vI n H rest))))) +
+          errTD Kt e ST smR smI n * smI n (fun _ => 1) := by
+      have l : ∀ (sm : (PowD (fun _ => X) n → Nat) → Nat), Comm (smI n) sm → ∀ f : T → PowD (fun _ => X) n → X → Nat,
+          ST (fun H => sm (fun rest => smI n (fun x => f H rest x))) =
+            smI n (fun x => ST (fun H => sm (fun rest => f H rest x))) :=
+        fun sm hc f => (congrArg ST (funext fun H => hc (fun x rest => f H rest x))).trans
+          (hC n (fun x H => sm (fun rest => f H rest x)))
+      rw [l _ hCn, l _ hCI, ← smK (smI n) (hI n), ← smC (smI n) (hI n), ← sm_add (smI n) (hI n)]
+      exact sm_mono (smI n) (hI n) (fun x => powD_transfer ST hST smR smI hR hI hC hCR hII vR vI hA n
+        (fun H w => E H (vI n H x, w)))
+    show KPowD Kt n * Kt n * ST (fun H => smPowD (X := fun _ => X) smR n (fun rest => smR n (fun x =>
+        indB (E H (vR n H x, rvPowD vR n H rest))))) ≤
+      ST (fun H => smPowD (X := fun _ => X) smI n (fun rest => smI n (fun x =>
+        indB (E H (vI n H x, rvPowD vI n H rest))))) +
+        (KPowD Kt n * (e n * ST (fun _ => smPowD (X := fun _ => X) smR n (fun _ => 1))) +
+          errTD Kt e ST smR smI n * smI n (fun _ => 1))
+    rw [Nat.mul_assoc]
+    refine Nat.le_trans (Nat.mul_le_mul_left _ s1) ?_
+    rw [Nat.mul_add]
+    refine Nat.le_trans (Nat.add_le_add_right s2 _) (Nat.le_of_eq ?_)
+    ac_rfl
+/-- **`n` four-round proofs of different statements, each first commitment
+    drawn from the oracle** (`read4_powD` through `powD_transfer` and
+    `zkb_rom`): `read4_powD`'s hypotheses on the ideal counts `sm i`, and for
+    each proof a transfer from its real view (`vR i`, over its real draws
+    `smR i`) to its ideal one, as `rom4_step` gives for a four-round proof;
+    the bound gains each transfer's error over the other proofs' draws
+    (`errTD`); one direction. -/
+theorem read4_powDROM {X C O : Type} {K1 K2 K3 K4 : Nat} (K : Nat → Nat) (h1 : 0 < K1) (h2 : 0 < K2) (h3 : 0 < K3)
+    (h4 : 0 < K4)
+    (ST : (Nat × Nat × Nat × Nat → Nat) → Nat) (hST : Lin ST)
+    (sm : Nat → (X → Nat) → Nat) (hs : ∀ i, Lin (sm i)) (sc : (C → Nat) → Nat) (hc : Lin sc)
+    (c1 : ∀ i j, Comm (sm i) (sm j)) (c2 : ∀ i, Comm ST (sm i)) (c3 : ∀ i, Comm sc (sm i)) (c4 : Comm ST sc)
+    (c7 : ∀ i, Comm (sm i) sc)
+    (m1 : Nat → X → Nat) (m2 : Nat → Nat → X → Nat) (m3 : Nat → Nat → Nat → X → Nat)
+    (q : Nat → Nat → Nat → Nat → X → Nat) (out : Nat → Nat → Nat → Nat → Nat → X → O)
+    (pts : Nat → C → X → Nat × Nat × Nat × Nat) (cv : C → Nat × Nat × Nat × Nat)
+    (sv : Nat → C → X → Nat × Nat × Nat × O) (ε : Nat → Nat)
+    (hzk : ∀ i, ZKB ST (K i) (sm i) sc (read4 K1 K2 K3 K4 (m1 i) (m2 i) (m3 i) (q i) (out i))
+      (fun H c x => prog4 K1 K2 K3 K4 H (pts i c x) (cv c)) (sv i) (ε i))
+    (ok : C → Bool) (hok : ∀ f g : C → Nat, (∀ c, ok c = true → f c ≤ g c) → sc f ≤ sc g)
+    (hcv : ∀ c, ok c = true → (cv c).1 < K1 ∧ (cv c).2.1 < K2 ∧ (cv c).2.2.1 < K3 ∧ (cv c).2.2.2 < K4)
+    (hp2 : ∀ j n c xa c1 x, m2 j c1 x = (pts n c xa).2.1 → m1 j x = (pts n c xa).1)
+    (hp3 : ∀ j n c xa c1 c2 x, m3 j c1 c2 x = (pts n c xa).2.2.1 → m1 j x = (pts n c xa).1)
+    (hp4 : ∀ j n c xa c1 c2 c3 x, q j c1 c2 c3 x = (pts n c xa).2.2.2 → m1 j x = (pts n c xa).1)
+    (δ₀ : Nat → Nat) (hsp : ∀ j v, sm j (fun x => indB (decide (m1 j x = v))) ≤ δ₀ j)
+    (smR : Nat → (X → Nat) → Nat) (hR : ∀ i, Lin (smR i)) (hCR : ∀ i j, Comm (sm i) (smR j))
+    (hCS : ∀ i, Comm (sm i) ST) (Kt e : Nat → Nat) (vR : Nat → Nat × Nat × Nat × Nat → X → Nat × Nat × Nat × O)
+    (hA : ∀ i H (G : Nat × Nat × Nat × O → Bool), Kt i * smR i (fun x => indB (G (vR i H x))) ≤
+      sm i (fun x => indB (G (read4 K1 K2 K3 K4 (m1 i) (m2 i) (m3 i) (q i) (out i) H x))) + e i) :
+    ∀ n (E : Nat × Nat × Nat × Nat → PowD (fun _ => Nat × Nat × Nat × O) n → Bool),
+    KPowD Kt n * KPowD K n * ST (fun H => smPowD (X := fun _ => X) smR n (fun xs => indB (E H (rvPowD vR n H xs)))) ≤
+      ST (fun H => scPowD (C := fun _ => C) (fun _ => sc) n (fun c => smPowD (X := fun _ => X) sm n (fun x =>
+        indB (E (pgPowD (fun i H c x => prog4 K1 K2 K3 K4 H (pts i c x) (cv c)) n H c x) (svPowD sv n c x))))) +
+      ((errPowD K sm (fun _ => sc) ε (fun j => sc (fun _ => sm j (fun _ => ST (fun _ => hitBD sm δ₀ j)))) n) + KPowD K n * errTD Kt e ST smR sm n) := by
+  intro n E
+  exact zkb_rom (read4_powD K h1 h2 h3 h4 ST hST sm hs sc hc c1 c2 c3 c4 c7 m1 m2 m3 q out pts cv sv ε hzk ok hok hcv hp2 hp3 hp4 δ₀ hsp n)
+    (powD_transfer ST hST smR sm hR hs hCS hCR c1 vR (fun i => read4 K1 K2 K3 K4 (m1 i) (m2 i) (m3 i) (q i) (out i)) hA n) E
 end Circuit
