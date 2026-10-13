@@ -1,0 +1,336 @@
+import Ski.ZK.SpongeRandom
+
+/-!
+# Sponge chains under one permutation: the birthday bound
+
+`SpongeRandom` gave each absorption its own round-function table; Plonky3
+calls one permutation at every step.  Here both chains read one uniform
+table, a step's query possibly repeating an earlier one.
+
+- **Lazy sampling.** A position chosen from the table's other entries
+  reads a value in a set of at most `k` it does not fix on at most `k/K`
+  of the tables (`fresh_count`).
+- **Birthday bound.** `k` adaptive queries (`runAdp`, each position chosen
+  from the answers so far) see two distinct positions answer alike on at
+  most `(0 + 1 + ⋯ + (k-1)) / K` of the tables (`colP_count`): a new
+  collision is an old one, or a fresh answer among the old.
+- **Two chains.** Two sponge chains from distinct states below `K`, their
+  queries alternating as one run (`nxt2`), that meet after `L` absorptions
+  saw such a collision (`two_meet_col`), so they meet on at most
+  `(0 + ⋯ + (2L-1)) / K`, order `(2L)²/(2K)`, of the tables
+  (`two_meet_count`); `two_meet_sat` meets the hypotheses.
+
+The model's state is the capacity and its next value the table's answer
+at the block and the capacity, as in `SpongeRandom`; the table is the
+permutation's capacity output as a random function.  Not shown: the
+permutation as a permutation (its PRP/PRF switching term), partial-rate
+absorptions, a squeezed index, and any step to `SudChallenger`'s `hφsp`,
+which bounds at every table how many salts reach one index.
+-/
+
+set_option autoImplicit false
+
+namespace Circuit
+open ZKF
+
+theorem sumTo_split_pos {n : Nat} (p : Nat → Nat) (hp : ∀ H, p H < n) (T : Nat) (f : Nat → Nat) :
+    sumTo T f = sumTo n (fun p0 => sumTo T (fun H => indB (decide (p H = p0)) * f H)) := by
+  rw [sumTo_exch (fun p0 H => indB (decide (p H = p0)) * f H) T n]
+  refine sumTo_congr _ (fun H _ => ?_)
+  have key : ∀ m, sumTo m (fun p0 => indB (decide (p H = p0)) * f H) = if p H < m then f H else 0 := by
+    intro m
+    induction m with
+    | zero => simp [sumTo]
+    | succ m ih =>
+      show sumTo m _ + indB (decide (p H = m)) * f H = _
+      rw [ih]
+      by_cases e : p H = m
+      · subst e; simp [indB]
+      · by_cases hl : p H < m
+        · rw [if_pos hl, if_pos (Nat.lt_succ_of_lt hl), decide_eq_false e]; simp [indB]
+        · have hl' : ¬ p H < m + 1 := fun h => hl (Nat.lt_of_le_of_ne (Nat.le_of_lt_succ h) e)
+          rw [if_neg hl, if_neg hl', decide_eq_false e]; simp [indB]
+  rw [key, if_pos (hp H)]
+
+theorem count_mem (K : Nat) : ∀ (S : List Nat), sumTo K (fun c => indB (decide (c ∈ S))) ≤ S.length
+  | [] => by simp [indB, sumTo_const]
+  | a :: S => by
+    have ih := count_mem K S
+    have pt : ∀ c, indB (decide (c ∈ a :: S)) ≤ indB (decide (c = a)) + indB (decide (c ∈ S)) := fun c => by
+      by_cases h1 : c = a
+      · subst h1; simp [indB]
+      · by_cases h2 : c ∈ S
+        · simp [indB, h1, h2]
+        · simp [indB, h1, h2]
+    refine Nat.le_trans (sumTo_mono _ (fun c _ => pt c)) ?_
+    rw [sumTo_add, List.length_cons, Nat.add_comm S.length]
+    exact Nat.add_le_add (sumTo_indEq a K).1 ih
+
+/-- **A fresh position's answer lies in a small invariant set rarely**:
+    `K` times the tables where the guard holds and the answer at `p H` lies
+    in `S H` is at most `k K^n`, the guard, the position and the set
+    unchanged by resetting the table at `p H`. -/
+theorem fresh_count {K n k : Nat} (hK : 0 < K) (p : Nat → Nat) (hp : ∀ H, p H < n) (g : Nat → Bool)
+    (S : Nat → List Nat) (hS : ∀ H, (S H).length ≤ k)
+    (hinv : ∀ H u, u < K → g H = true →
+      p (rset K (p H) H u) = p H ∧ S (rset K (p H) H u) = S H ∧ g (rset K (p H) H u) = true) :
+    K * sumTo (K ^ n) (fun H => indB (g H && decide (rget K (p H) H ∈ S H))) ≤ k * K ^ n := by
+  rw [sumTo_split_pos p hp, sumTo_mul]
+  have each : ∀ p0, p0 < n → K * sumTo (K ^ n) (fun H => indB (decide (p H = p0)) * indB (g H && decide (rget K (p H) H ∈ S H))) ≤
+      k * sumTo (K ^ n) (fun H => indB (decide (p H = p0))) := by
+    intro p0 hp0
+    let f := fun (c H : Nat) => indB (decide (p H = p0) && g H && decide (c ∈ S H))
+    have e := reprog_swap (n := n) hK hp0 f
+    have lhs : K * sumTo (K ^ n) (fun H => indB (decide (p H = p0)) * indB (g H && decide (rget K (p H) H ∈ S H))) ≤
+        sumTo (K ^ n) (fun H => sumTo K (fun u => f (rget K p0 H) (rset K p0 H u))) := by
+      rw [sumTo_mul]
+      refine sumTo_mono _ (fun H _ => ?_)
+      rw [← sumTo_const _ K]
+      refine sumTo_mono _ (fun u hu => ?_)
+      by_cases hpH : p H = p0
+      · cases hg : g H
+        · simp [indB]
+        · obtain ⟨h1, h2, h3⟩ := hinv H u hu hg
+          rw [hpH] at h1 h2 h3
+          simp only [f, decide_eq_true hpH, h1, h2, h3, Bool.true_and]
+          rw [hpH]; simp [indB]
+      · simp [indB, hpH]
+    refine Nat.le_trans lhs ?_
+    rw [e]
+    have rhs : ∀ H, sumTo K (fun c => f c H) ≤ k * indB (decide (p H = p0)) := fun H => by
+      by_cases hpH : p H = p0
+      · cases hg : g H
+        · simp only [f, hg, Bool.and_false, Bool.false_and]
+          exact Nat.le_trans (Nat.le_of_eq (by rw [show (fun _ : Nat => indB false) = fun _ => 0 from rfl, sumTo_const, Nat.mul_zero])) (Nat.zero_le _)
+        · simp only [f, decide_eq_true hpH, hg, Bool.true_and]
+          rw [show indB true = 1 from rfl, Nat.mul_one]
+          exact Nat.le_trans (count_mem K (S H)) (hS H)
+      · simp only [f, decide_eq_false hpH, Bool.false_and]
+        rw [show (fun _ : Nat => indB false) = fun _ => 0 from rfl, sumTo_const, Nat.mul_zero]
+        exact Nat.zero_le _
+    refine Nat.le_trans (sumTo_mono _ (fun H _ => rhs H)) (Nat.le_of_eq ?_)
+    rw [sumTo_mul]
+  refine Nat.le_trans (sumTo_mono _ each) ?_
+  have e := sumTo_split_pos p hp (K ^ n) (fun _ => 1)
+  simp only [Nat.mul_one] at e
+  rw [← sumTo_mul, ← e, sumTo_const, Nat.mul_one]
+  exact Nat.le_refl _
+
+/-- An adaptive run's queries, newest first: each position chosen from the
+    answers so far, answered by the table. -/
+def runAdp (K : Nat) (nxt : List Nat → Nat) (H : Nat) : Nat → List (Nat × Nat)
+  | 0 => []
+  | k + 1 =>
+    let a := (runAdp K nxt H k).map Prod.snd
+    (nxt a, rget K (nxt a) H) :: runAdp K nxt H k
+
+theorem runAdp_length (K : Nat) (nxt : List Nat → Nat) (H : Nat) : ∀ k, (runAdp K nxt H k).length = k
+  | 0 => rfl
+  | k + 1 => by show (runAdp K nxt H k).length + 1 = k + 1; rw [runAdp_length K nxt H k]
+
+/-- Every answer is the table's at its position. -/
+theorem runAdp_ans (K : Nat) (nxt : List Nat → Nat) (H : Nat) : ∀ k, ∀ y ∈ runAdp K nxt H k, y.2 = rget K y.1 H
+  | 0, _, h => absurd h List.not_mem_nil
+  | k + 1, y, h => by
+    rcases List.mem_cons.1 h with e | e
+    · rw [e]
+    · exact runAdp_ans K nxt H k y e
+
+/-- **Resetting an unqueried position leaves the run as it was.** -/
+theorem runAdp_rset {K : Nat} (hK : 0 < K) (nxt : List Nat → Nat) {q u : Nat} (hu : u < K) :
+    ∀ k H, q ∉ (runAdp K nxt H k).map Prod.fst → runAdp K nxt (rset K q H u) k = runAdp K nxt H k
+  | 0, _, _ => rfl
+  | k + 1, H, hq => by
+    have hq' : q ∉ (runAdp K nxt H k).map Prod.fst := fun h => hq (List.mem_cons_of_mem _ h)
+    have ih := runAdp_rset hK nxt hu k H hq'
+    have hne : nxt ((runAdp K nxt H k).map Prod.snd) ≠ q := fun e => hq (by
+      show q ∈ (nxt ((runAdp K nxt H k).map Prod.snd) :: (runAdp K nxt H k).map Prod.fst)
+      rw [e]; exact List.mem_cons_self)
+    show (nxt ((runAdp K nxt (rset K q H u) k).map Prod.snd),
+        rget K (nxt ((runAdp K nxt (rset K q H u) k).map Prod.snd)) (rset K q H u)) :: runAdp K nxt (rset K q H u) k =
+      (nxt ((runAdp K nxt H k).map Prod.snd), rget K (nxt ((runAdp K nxt H k).map Prod.snd)) H) :: runAdp K nxt H k
+    rw [ih, rget_rset_ne hK hne hu]
+
+/-- Two queries at distinct positions with equal answers. -/
+def colP : List (Nat × Nat) → Bool
+  | [] => false
+  | x :: rest => colP rest || rest.any (fun y => y.1 != x.1 && y.2 == x.2)
+
+theorem colP_of_mem : ∀ (l : List (Nat × Nat)) (y z : Nat × Nat), y ∈ l → z ∈ l → y.1 ≠ z.1 → y.2 = z.2 → colP l = true
+  | [], _, _, h, _, _, _ => absurd h List.not_mem_nil
+  | x :: rest, y, z, hy, hz, hne, heq => by
+    show (colP rest || rest.any (fun w => w.1 != x.1 && w.2 == x.2)) = true
+    rcases List.mem_cons.1 hy with ey | ey <;> rcases List.mem_cons.1 hz with ez | ez
+    · subst ey; subst ez; exact absurd rfl hne
+    · subst ey
+      have : rest.any (fun w => w.1 != y.1 && w.2 == y.2) = true :=
+        List.any_eq_true.2 ⟨z, ez, by
+          rw [Bool.and_eq_true]; exact ⟨bne_iff_ne.2 (Ne.symm hne), beq_iff_eq.2 heq.symm⟩⟩
+      rw [this, Bool.or_true]
+    · subst ez
+      have : rest.any (fun w => w.1 != z.1 && w.2 == z.2) = true :=
+        List.any_eq_true.2 ⟨y, ey, by
+          rw [Bool.and_eq_true]; exact ⟨bne_iff_ne.2 hne, beq_iff_eq.2 heq⟩⟩
+      rw [this, Bool.or_true]
+    · rw [colP_of_mem rest y z ey ez hne heq, Bool.true_or]
+
+/-- **The birthday bound for an adaptive run**: `k` queries, each position
+    chosen from the answers so far, see two distinct positions answer
+    alike on at most `(0 + 1 + ⋯ + (k-1)) / K` of the tables. -/
+theorem colP_count {K n : Nat} (hK : 0 < K) (nxt : List Nat → Nat) (hnx : ∀ l, nxt l < n) :
+    ∀ k, K * sumTo (K ^ n) (fun H => indB (colP (runAdp K nxt H k))) ≤ sumTo k (fun j => j) * K ^ n
+  | 0 => by simp [colP, runAdp, indB, sumTo_const]
+  | k + 1 => by
+    have ih := colP_count hK nxt hnx k
+    let p := fun H => nxt ((runAdp K nxt H k).map Prod.snd)
+    let g := fun H => !decide (p H ∈ (runAdp K nxt H k).map Prod.fst)
+    let S := fun H => (runAdp K nxt H k).map Prod.snd
+    have hinv : ∀ H u, u < K → g H = true →
+        p (rset K (p H) H u) = p H ∧ S (rset K (p H) H u) = S H ∧ g (rset K (p H) H u) = true := by
+      intro H u hu hg
+      have hnot : p H ∉ (runAdp K nxt H k).map Prod.fst := by
+        intro h; simp only [g, h, decide_true, Bool.not_true] at hg; exact Bool.false_ne_true hg
+      have e := runAdp_rset hK nxt hu k H hnot
+      refine ⟨by simp only [p, e], by simp only [S, e], ?_⟩
+      simp only [g, p, e]; exact hg
+    have fc := fresh_count (n := n) (k := k) hK p (fun H => hnx _) g S
+      (fun H => by simp only [S, List.length_map, runAdp_length]; exact Nat.le_refl _) hinv
+    -- a new collision is an old one or a fresh answer among the old
+    have pt : ∀ H, indB (colP (runAdp K nxt H (k + 1))) ≤ indB (colP (runAdp K nxt H k)) +
+        indB (g H && decide (rget K (p H) H ∈ S H)) := by
+      intro H
+      show indB (colP (runAdp K nxt H k) || (runAdp K nxt H k).any (fun y => y.1 != p H && y.2 == rget K (p H) H)) ≤ _
+      cases hc : colP (runAdp K nxt H k)
+      · simp only [Bool.false_or]
+        cases hn : (runAdp K nxt H k).any (fun y => y.1 != p H && y.2 == rget K (p H) H)
+        · exact Nat.zero_le _
+        · obtain ⟨y, hy, hyc⟩ := List.any_eq_true.1 hn
+          simp only [Bool.and_eq_true, bne_iff_ne, ne_eq, beq_iff_eq] at hyc
+          have hS' : rget K (p H) H ∈ S H := List.mem_map.2 ⟨y, hy, hyc.2⟩
+          cases hg : g H
+          · -- the position was queried before: its earlier answer collides with `y`
+            exfalso
+            have hm : p H ∈ (runAdp K nxt H k).map Prod.fst := by
+              simp only [g, Bool.not_eq_false', decide_eq_true_eq] at hg; exact hg
+            obtain ⟨z, hz, hzp⟩ := List.mem_map.1 hm
+            have hza : z.2 = rget K (p H) H := by rw [runAdp_ans K nxt H k z hz, hzp]
+            have : colP (runAdp K nxt H k) = true :=
+              colP_of_mem _ y z hy hz (by rw [hzp]; exact hyc.1) (by rw [hza]; exact hyc.2)
+            rw [hc] at this; exact Bool.false_ne_true this
+          · simp [indB, hS']
+      · simp only [Bool.true_or]; simp [indB]
+    refine Nat.le_trans (Nat.mul_le_mul_left _ (sumTo_mono _ (fun H _ => pt H))) ?_
+    rw [sumTo_add, Nat.mul_add]
+    refine Nat.le_trans (Nat.add_le_add ih fc) (Nat.le_of_eq ?_)
+    show sumTo k (fun j => j) * K ^ n + k * K ^ n = (sumTo k (fun j => j) + k) * K ^ n
+    rw [Nat.add_mul]
+
+/-- Two sponge chains under one table, as one adaptive run: queries alternate,
+    chain `a` from `sa` then chain `b` from `sb`, each at its last answer
+    (newest first: the other chain's answer sits between). -/
+def nxt2 (inner : Nat → Nat → Nat) (sa sb : Nat) (xs : List Nat) (l : List Nat) : Nat :=
+  if l.length % 2 = 0 then inner (if l.length = 0 then sa else l.getD 1 0) (xs.getD (l.length / 2) 0)
+  else inner (if l.length = 1 then sb else l.getD 1 0) (xs.getD (l.length / 2) 0)
+
+theorem nxt2_def (inner : Nat → Nat → Nat) (sa sb : Nat) (xs l : List Nat) : nxt2 inner sa sb xs l =
+    if l.length % 2 = 0 then inner (if l.length = 0 then sa else l.getD 1 0) (xs.getD (l.length / 2) 0)
+    else inner (if l.length = 1 then sb else l.getD 1 0) (xs.getD (l.length / 2) 0) := rfl
+
+/-- Chain `a`'s and `b`'s states after `i` steps. -/
+def stA (K : Nat) (inner : Nat → Nat → Nat) (sa sb : Nat) (xs : List Nat) (H i : Nat) : Nat :=
+  if i = 0 then sa else ((runAdp K (nxt2 inner sa sb xs) H (2 * i)).map Prod.snd).getD 1 0
+def stB (K : Nat) (inner : Nat → Nat → Nat) (sa sb : Nat) (xs : List Nat) (H i : Nat) : Nat :=
+  if i = 0 then sb else ((runAdp K (nxt2 inner sa sb xs) H (2 * i)).map Prod.snd).getD 0 0
+
+theorem two_step (K : Nat) (inner : Nat → Nat → Nat) (sa sb : Nat) (xs : List Nat) (H i : Nat) :
+    runAdp K (nxt2 inner sa sb xs) H (2 * (i + 1)) =
+      (inner (stB K inner sa sb xs H i) (xs.getD i 0), rget K (inner (stB K inner sa sb xs H i) (xs.getD i 0)) H) ::
+      (inner (stA K inner sa sb xs H i) (xs.getD i 0), rget K (inner (stA K inner sa sb xs H i) (xs.getD i 0)) H) ::
+      runAdp K (nxt2 inner sa sb xs) H (2 * i) := by
+  have hl := runAdp_length K (nxt2 inner sa sb xs) H (2 * i)
+  have h2 : 2 * (i + 1) = (2 * i + 1) + 1 := by omega
+  rw [h2]
+  show (nxt2 inner sa sb xs ((runAdp K (nxt2 inner sa sb xs) H (2 * i + 1)).map Prod.snd), _) ::
+    (nxt2 inner sa sb xs ((runAdp K (nxt2 inner sa sb xs) H (2 * i)).map Prod.snd), _) :: _ = _
+  have ea : nxt2 inner sa sb xs ((runAdp K (nxt2 inner sa sb xs) H (2 * i)).map Prod.snd) =
+      inner (stA K inner sa sb xs H i) (xs.getD i 0) := by
+    rw [nxt2_def, List.length_map, hl, if_pos (by omega), show 2 * i / 2 = i by omega]
+    unfold stA
+    by_cases hi : i = 0
+    · rw [if_pos (by omega), if_pos hi]
+    · rw [if_neg (by omega), if_neg hi]
+  have eb : nxt2 inner sa sb xs ((runAdp K (nxt2 inner sa sb xs) H (2 * i + 1)).map Prod.snd) =
+      inner (stB K inner sa sb xs H i) (xs.getD i 0) := by
+    rw [nxt2_def, List.length_map, runAdp_length, if_neg (by omega), show (2 * i + 1) / 2 = i by omega]
+    unfold stB
+    by_cases hi : i = 0
+    · rw [if_pos (by omega), if_pos hi]
+    · rw [if_neg (by omega), if_neg hi]
+      rfl
+  rw [eb, ea]
+
+theorem colP_cons (x : Nat × Nat) (l : List (Nat × Nat)) (h : colP l = true) : colP (x :: l) = true := by
+  show (colP l || _) = true; rw [h, Bool.true_or]
+
+/-- **Two chains that meet saw a collision**: from distinct states below
+    `K`, positions injective in the state, chains equal after `i` steps
+    put two distinct positions with equal answers in the run. -/
+theorem two_meet_col {K : Nat} (hK : 0 < K) (inner : Nat → Nat → Nat)
+    (hinj : ∀ x s s', s < K → s' < K → inner s x = inner s' x → s = s') {sa sb : Nat} (hsa : sa < K) (hsb : sb < K)
+    (hne : sa ≠ sb) (xs : List Nat) (H : Nat) :
+    ∀ i, stA K inner sa sb xs H i = stB K inner sa sb xs H i → colP (runAdp K (nxt2 inner sa sb xs) H (2 * i)) = true
+  | 0, h => absurd h (by simp [stA, stB]; exact hne)
+  | i + 1, h => by
+    have hA : ∀ j, stA K inner sa sb xs H j < K := fun j => by
+      unfold stA; split
+      · exact hsa
+      · rcases j with _ | j
+        · contradiction
+        · rw [two_step]; exact rget_lt hK _ _
+    have hB : ∀ j, stB K inner sa sb xs H j < K := fun j => by
+      unfold stB; split
+      · exact hsb
+      · rcases j with _ | j
+        · contradiction
+        · rw [two_step]; exact rget_lt hK _ _
+    have eA : stA K inner sa sb xs H (i + 1) = rget K (inner (stA K inner sa sb xs H i) (xs.getD i 0)) H := by
+      unfold stA; rw [if_neg (by omega), two_step]; rfl
+    have eB : stB K inner sa sb xs H (i + 1) = rget K (inner (stB K inner sa sb xs H i) (xs.getD i 0)) H := by
+      unfold stB; rw [if_neg (by omega), two_step]; rfl
+    rw [two_step]
+    by_cases hi : stA K inner sa sb xs H i = stB K inner sa sb xs H i
+    · exact colP_cons _ _ (colP_cons _ _ (two_meet_col hK inner hinj hsa hsb hne xs H i hi))
+    · have hp : inner (stB K inner sa sb xs H i) (xs.getD i 0) ≠ inner (stA K inner sa sb xs H i) (xs.getD i 0) :=
+        fun e => hi (hinj _ _ _ (hA i) (hB i) e.symm)
+      exact colP_of_mem _ _ _ List.mem_cons_self (List.mem_cons_of_mem _ List.mem_cons_self) hp
+        (by rw [← eA, ← eB]; exact h.symm)
+
+/-- **Two sponge chains under one table meet rarely**: from distinct states
+    below `K`, over `L` absorptions, they meet on at most
+    `(0 + 1 + ⋯ + (2L-1)) / K` of the tables, Plonky3's one permutation's
+    birthday term. -/
+theorem two_meet_count {K n : Nat} (hK : 0 < K) (inner : Nat → Nat → Nat) (hin : ∀ s x, inner s x < n)
+    (hinj : ∀ x s s', s < K → s' < K → inner s x = inner s' x → s = s') {sa sb : Nat} (hsa : sa < K) (hsb : sb < K)
+    (hne : sa ≠ sb) (xs : List Nat) (L : Nat) :
+    K * sumTo (K ^ n) (fun H => indB (decide (stA K inner sa sb xs H L = stB K inner sa sb xs H L))) ≤
+      sumTo (2 * L) (fun j => j) * K ^ n := by
+  refine Nat.le_trans (Nat.mul_le_mul_left _ (sumTo_mono _ (fun H _ => ?_)))
+    (colP_count (n := n) hK (nxt2 inner sa sb xs) (fun l => by rw [nxt2_def]; split <;> exact hin _ _) (2 * L))
+  cases e : decide (stA K inner sa sb xs H L = stB K inner sa sb xs H L)
+  · exact Nat.zero_le _
+  · rw [two_meet_col hK inner hinj hsa hsb hne xs H L (of_decide_eq_true e)]
+    exact Nat.le_refl _
+
+/-- **`two_meet_count`'s hypotheses are met** by
+    `inner s x = (x % X) K + s % K`: positions below `X K` at every state,
+    injective in the state below `K`. -/
+theorem two_meet_sat {K X : Nat} (hK : 0 < K) (hX : 0 < X) :
+    (∀ s x, (x % X) * K + s % K < X * K) ∧
+      (∀ x s s', s < K → s' < K → (x % X) * K + s % K = (x % X) * K + s' % K → s = s') := by
+  refine ⟨fun s x => ?_, fun x s s' hs hs' h => ?_⟩
+  · calc (x % X) * K + s % K < (x % X) * K + K := Nat.add_lt_add_left (Nat.mod_lt _ hK) _
+      _ = (x % X + 1) * K := by rw [Nat.succ_mul]
+      _ ≤ X * K := Nat.mul_le_mul_right _ (Nat.mod_lt _ hX)
+  · rw [Nat.mod_eq_of_lt hs, Nat.mod_eq_of_lt hs'] at h; omega
+
+end Circuit

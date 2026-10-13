@@ -153,6 +153,7 @@ import Ski.ZK.SudChallenger
 import Ski.ZK.FriCommit
 import Ski.ZK.SpongeSpread
 import Ski.ZK.SpongeRandom
+import Ski.ZK.SpongePerm
 import Ski.ZK.FSQueryAbsT
 import Ski.ZK.FSQueryPowT
 import Ski.ZK.ROMFamilyT
@@ -1370,3 +1371,6 @@ open Ski.Audit
 
 -- Two sponge chains meet rarely under random round functions (SpongeRandom)
 #audit_clean Circuit.pair_count Circuit.sumTabs_mono Circuit.sumTabs_const Circuit.sumTabs_add Circuit.sumTabs_mul Circuit.rget_lt Circuit.chainL_meet Circuit.chainL_meet_digit Circuit.chainL_sat
+
+-- Sponge chains under one permutation: the birthday bound (SpongePerm)
+#audit_clean Circuit.sumTo_split_pos Circuit.count_mem Circuit.fresh_count Circuit.runAdp_length Circuit.runAdp_ans Circuit.runAdp_rset Circuit.colP_of_mem Circuit.colP_count Circuit.two_step Circuit.colP_cons Circuit.two_meet_col Circuit.two_meet_count Circuit.two_meet_sat
