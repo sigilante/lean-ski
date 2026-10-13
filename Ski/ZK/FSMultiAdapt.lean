@@ -49,7 +49,9 @@ theorem.  The sum of the statements' errors is tight
 for these hypotheses: `S` statements each meeting `ZKBT` with error `1`
 can make the picked real count `S` with every confirmed simulation `0`
 (`zkbT_adaptive_tight`).  A tighter bound needs a joint hypothesis across
-the statements, as when their errors share one collision event; not shown.
+the statements: when every statement's real count matches its simulation
+away from one shared bad event, its mass is charged once
+(`zkbT_adaptive_joint`).
 -/
 
 set_option autoImplicit false
@@ -392,15 +394,18 @@ theorem zkbT_adaptiveV_massR {T X C V : Type} {K S R : Nat} {ST : (T → Nat) �
     statement `j`'s real view flagging table `j` and its simulation never,
     each meet `ZKBT` with error `1`; the pick `ix H = H % S` then makes the
     real count `S`, while every confirmed simulation counts `0`, so
-    `zkbT_adaptive`'s bound `sumTo S ε = S` is met with equality.  From
+    `zkbT_adaptive`'s bound `sumTo S ε = S` is met with equality (its
+    remaining hypotheses: the pick below `S`, the last conjunct; `ST`,
+    `sm` linear sums).  From
     per-statement bounds no single statement's error can replace the
     sum. -/
 theorem zkbT_adaptive_tight (S : Nat) (hS : 0 < S) :
     (∀ j, j < S → ZKBT (fun f : Nat → Nat => sumTo S f) 1 (fun f : Unit → Nat => f ()) (fun g : Unit → Nat => g ())
       (fun H _ => decide (H = j)) (fun H _ _ => H) (fun _ _ _ => false) 1) ∧
     1 * sumTo S (fun H => indB ((fun _ (p : Nat × Bool) => p.2) H (H % S, decide (H = H % S)))) = sumTo S (fun _ => 1) ∧
-    sumTo S (fun j => sumTo S (fun H => indB ((fun _ (p : Nat × Bool) => p.2) H (j, false) && decide (H % S = j)))) = 0 := by
-  refine ⟨fun j hj E => ?_, ?_, ?_⟩
+    sumTo S (fun j => sumTo S (fun H => indB ((fun _ (p : Nat × Bool) => p.2) H (j, false) && decide (H % S = j)))) = 0 ∧
+    (∀ H, H % S < S) := by
+  refine ⟨fun j hj E => ?_, ?_, ?_, fun H => Nat.mod_lt H hS⟩
   · show 1 * sumTo S (fun H => indB (E H (decide (H = j)))) ≤ sumTo S (fun H => indB (E H false)) + 1
     rw [Nat.one_mul]
     have key : ∀ n, sumTo n (fun H => indB (E H (decide (H = j)))) ≤
@@ -437,6 +442,69 @@ theorem zkbT_adaptive_tight (S : Nat) (hS : 0 < S) :
     rw [← z S]
     refine sumTo_congr _ (fun H _ => ?_)
     rfl
+
+/-- **One shared error for a picked statement**: when every statement's
+    real count matches its simulation away from one bad event (`h`, error
+    `0` there), the bad event's mass `β` (`hbad`) is charged once, not once
+    per statement as `zkbT_adaptive`'s per-statement errors are. -/
+theorem zkbT_adaptive_joint {T X C V : Type} {K S β : Nat} {ST : (T → Nat) → Nat} (hST : Lin ST)
+    {sm : (X → Nat) → Nat} (hsm : Lin sm) {SC : (C → Nat) → Nat}
+    (rv : Nat → T → X → V) (pg : Nat → T → C → X → T) (sv : Nat → T → C → X → V) (bad : T → X → Bool)
+    (h : ∀ j, j < S → ∀ E : T → V → Bool, K * ST (fun H => sm (fun x => indB (E H (rv j H x) && !bad H x))) ≤
+      ST (fun H => SC (fun c => sm (fun x => indB (E (pg j H c x) (sv j H c x))))))
+    (hbad : K * ST (fun H => sm (fun x => indB (bad H x))) ≤ β)
+    (ix : T → Nat) (hix : ∀ H, ix H < S) (E : T → Nat × V → Bool) :
+    K * ST (fun H => sm (fun x => indB (E H (ix H, rv (ix H) H x)))) ≤
+      sumTo S (fun j => ST (fun H => SC (fun c => sm (fun x =>
+        indB (E (pg j H c x) (j, sv j H c x) && decide (ix (pg j H c x) = j)))))) + β := by
+  -- off the bad event, the real count splits by the statement picked
+  have split : ∀ H x, indB (E H (ix H, rv (ix H) H x) && !bad H x) =
+      sumTo S (fun j => indB ((E H (j, rv j H x) && decide (ix H = j)) && !bad H x)) := by
+    intro H x
+    have key : ∀ n, ix H < n → sumTo n (fun j => indB ((E H (j, rv j H x) && decide (ix H = j)) && !bad H x)) =
+        indB (E H (ix H, rv (ix H) H x) && !bad H x) := by
+      intro n
+      induction n with
+      | zero => intro hn; exact absurd hn (Nat.not_lt_zero _)
+      | succ n ih =>
+        intro hn
+        show sumTo n _ + indB ((E H (n, rv n H x) && decide (ix H = n)) && !bad H x) = _
+        rcases Nat.lt_or_ge (ix H) n with hl | hl
+        · rw [ih hl, decide_eq_false (Nat.ne_of_lt hl), Bool.and_false, Bool.false_and]; rfl
+        · have he : ix H = n := Nat.le_antisymm (Nat.le_of_lt_succ hn) hl
+          have z : ∀ m, m ≤ n → sumTo m (fun j => indB ((E H (j, rv j H x) && decide (ix H = j)) && !bad H x)) = 0 := by
+            intro m
+            induction m with
+            | zero => intro _; rfl
+            | succ m ihm =>
+              intro hm
+              have hne : ix H ≠ m := by rw [he]; exact Nat.ne_of_gt hm
+              show sumTo m _ + indB ((E H (m, rv m H x) && decide (ix H = m)) && !bad H x) = 0
+              rw [ihm (Nat.le_of_succ_le hm), decide_eq_false hne, Bool.and_false, Bool.false_and]; rfl
+          rw [z n (Nat.le_refl n), Nat.zero_add, he, decide_eq_true rfl, Bool.and_true]
+    exact (key S (hix H)).symm
+  have pt : ∀ H x, indB (E H (ix H, rv (ix H) H x)) ≤ indB (E H (ix H, rv (ix H) H x) && !bad H x) + indB (bad H x) :=
+    fun H x => by cases E H (ix H, rv (ix H) H x) <;> cases bad H x <;> decide
+  have each : ∀ j, j < S → K * ST (fun H => sm (fun x => indB ((E H (j, rv j H x) && decide (ix H = j)) && !bad H x))) ≤
+      ST (fun H => SC (fun c => sm (fun x =>
+        indB (E (pg j H c x) (j, sv j H c x) && decide (ix (pg j H c x) = j))))) :=
+    fun j hj => h j hj (fun H v => E H (j, v) && decide (ix H = j))
+  calc K * ST (fun H => sm (fun x => indB (E H (ix H, rv (ix H) H x))))
+      ≤ K * ST (fun H => sm (fun x => indB (E H (ix H, rv (ix H) H x) && !bad H x) + indB (bad H x))) :=
+        Nat.mul_le_mul_left _ (sm_mono ST hST (fun H => sm_mono sm hsm (fun x => pt H x)))
+    _ = K * ST (fun H => sm (fun x => sumTo S (fun j => indB ((E H (j, rv j H x) && decide (ix H = j)) && !bad H x)))) +
+        K * ST (fun H => sm (fun x => indB (bad H x))) := by
+        rw [← Nat.mul_add]; congr 1
+        rw [← sm_add ST hST]; congr 1; funext H
+        rw [← sm_add sm hsm]; congr 1; funext x
+        rw [split]
+    _ = sumTo S (fun j => K * ST (fun H => sm (fun x => indB ((E H (j, rv j H x) && decide (ix H = j)) && !bad H x)))) +
+        K * ST (fun H => sm (fun x => indB (bad H x))) := by
+        congr 1
+        rw [show (fun H => sm (fun x => sumTo S (fun j => indB ((E H (j, rv j H x) && decide (ix H = j)) && !bad H x)))) =
+            fun H => sumTo S (fun j => sm (fun x => indB ((E H (j, rv j H x) && decide (ix H = j)) && !bad H x))) from
+          funext fun H => hsm S _, hST S _, sumTo_mul]
+    _ ≤ _ := Nat.add_le_add (sumTo_mono _ each) hbad
 
 /-- **Two statements picked in turn** meet `zkbT_adaptiveF`'s `hfix`: the
     statements indexed `j1 + S1 j2`, the first pick read from the view every

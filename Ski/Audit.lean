@@ -1349,7 +1349,7 @@ open Ski.Audit
 #audit_clean Circuit.fs4_postInterleave Circuit.zkbT_postAll Circuit.zkbT_powQ Circuit.rvQ_prog Circuit.rdQ_length Circuit.zkbT_powQ_rd Circuit.fs4_powQ
 
 -- Statements chosen after seeing the tables (FSMultiAdapt)
-#audit_clean Circuit.zkbT_adaptive Circuit.indB_add_not Circuit.zkbT_rev Circuit.sum_indB_eq Circuit.zkbT_adaptive_mass Circuit.zkbT_adaptiveR Circuit.zkbT_adaptiveFR Circuit.zkbT_adaptiveV_massR Circuit.zkbT_adaptive_tight Circuit.zkbT_adaptiveV Circuit.zkbT_adaptiveV_mass Circuit.zkbT_adaptiveF Circuit.seqPick_fix Circuit.digits_eq Circuit.seqPick_step
+#audit_clean Circuit.zkbT_adaptive Circuit.indB_add_not Circuit.zkbT_rev Circuit.sum_indB_eq Circuit.zkbT_adaptive_mass Circuit.zkbT_adaptiveR Circuit.zkbT_adaptiveFR Circuit.zkbT_adaptiveV_massR Circuit.zkbT_adaptive_tight Circuit.zkbT_adaptive_joint Circuit.zkbT_adaptiveV Circuit.zkbT_adaptiveV_mass Circuit.zkbT_adaptiveF Circuit.seqPick_fix Circuit.digits_eq Circuit.seqPick_step
   Circuit.seqPick_one
 
 -- Sudoku statements share their draws (SudDraws)
