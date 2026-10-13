@@ -1321,4 +1321,4 @@ open Ski.Audit
 
 -- Outputs with read lists are interleaving components (FSMultiOpenRd)
 #audit_clean Circuit.rd4G_hrd Circuit.pfRdM_eq Circuit.pfRdM_ok Circuit.pfRdMReads_length Circuit.pfRdM_prog Circuit.sudFS4T_houtL Circuit.sudFS4T_hrd
-  Circuit.sud_rd_length
+  Circuit.sud_rd_length Circuit.pfRdReads_length Circuit.pfRd_progD Circuit.sudFS4T_houtD Circuit.sudFS4T_hrdD
