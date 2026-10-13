@@ -154,9 +154,10 @@ is built; this file records what is next. Last revised 2026-10-13.
   (`fs_openROML`); a Merkle opening, the opened leaves' data and salts shown, the opened set
   fixed: `Ski/ZK/ROMMerkleOpen.lean`, one round (`fs_openROMM`, the root hashed:
   `fs_openROMMR`), with a leaf index in the hash input (Plonky3's leaf hash carries none: without
-  it, unopened leaves with equal data and salts share a hash, a term not counted); not yet: the
-  opened set chosen by a later challenge, the multi-round theorems over it; internal-node
-  hashing apart from the leaves' table stays an assumption); FRI's
+  it, unopened leaves with equal data and salts share a hash, a term not counted); four rounds, the
+  opened set read at the query challenge: `Ski/ZK/ROMMerkle4.lean` (`fs_open4ROMM`); not yet:
+  the circuits' and the multi-proof theorems over the Merkle commitment; internal-node hashing
+  apart from the leaves' table stays an assumption); FRI's
   folding challenges hashed with the transcript before FRI (from its own layer commitments,
   against a table of its own, they fit already: `fs_pow`); FRI's layer commitments and final polynomial in the query hash's
   input (every opening at `ζ` is in it, `pcsFri_ood`, `pcsFri_oodT`,
