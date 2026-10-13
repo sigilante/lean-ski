@@ -177,10 +177,16 @@ is built; this file records what is next. Last revised 2026-10-13.
   table read at a function of the third message and the view, `Ski/ZK/ROMFSRead4.lean`
   (`fs_open4T`, `fs_open4ROMT`); the circuits' single-proof theorems over them,
   `Ski/ZK/FSQueryT.lean` and `Ski/ZK/ROMInstT.lean` (`sud_fs_open4ROMT` and the others); the
-  multi-proof theorems over them (as `FSQueryAbs`, `ROMFamily` take `fs_open4ROM`) not yet:
-  `read4_powD` keeps a proof's view when another proof programs the tables only because the
-  view reads them at its own messages; an opening reading a whole table needs its reads
-  modelled as query points, collisions with the other proofs' programmed points in the error);
+  multi-proof theorems over them: `read4_powD` keeps a proof's view when another proof
+  programs the tables only because the view reads them at its own messages, so
+  `Ski/ZK/FSMultiT.lean` flags an output's table reads (`hq`), asks the output unchanged where
+  they miss (`hout`) and a hit to carry the reader's first message (`hpq`), and lets the
+  simulated views read the tables (`ZKBT`); `read4T_powD`, the circuits' `*_fs_open4_absT`
+  and `fs4_powDT` (`Ski/ZK/FSQueryAbsT.lean`) hold, with the distinguisher's queries
+  only after every programming (queries between the proofs not modelled); the circuits' `n`-statement theorems over
+  them (`sud_fs_open4_powD`'s analogue, with `hq`, `hout`, `hpq` for the openings, whose reads
+  must then sit at points with their own first commitment as low digit) and the
+  oracle-commitment versions (`ROMMulti`, `ROMFamily`) not yet);
   FRI's
   folding challenges hashed with the transcript before FRI (from its own layer commitments,
   against a table of its own, they fit already: `fs_pow`); FRI's layer commitments and final polynomial in the query hash's
