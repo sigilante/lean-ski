@@ -36,8 +36,12 @@ view the first determines (`seqPick_fix`, statements indexed `j1 + S1 j2`);
 (S1⋯S_{i-1}))`, by `k - 1` steps from one pick (`seqPick_one`,
 `seqPick_step`, whose conclusions are its own hypotheses over the larger
 range).  The statements number `S1 S2` (`S1⋯Sk` for `k` picks), all sharing
-their draws and challenges, and so does the error's factor.  Not shown: a
-tighter bound; picks that read draws outside the view.
+their draws and challenges, and so does the error's factor.  A pick with
+coins of its own sums fixed picks over the coins (`zkbT_adaptiveR`).  A pick
+reading the draws beyond the view is no distinguisher's, which sees the
+tables and the views alone.  Not shown: one statement's error in place of
+the sum; the split applies a `ZKBT` bound once per statement, and the bound
+holds event by event, each event charged the full error.
 -/
 
 set_option autoImplicit false
@@ -191,6 +195,22 @@ theorem zkbT_adaptive_mass {T X C V : Type} {K S : Nat} {ST : (T → Nat) → Na
   rw [← hsm S (fun j _ => indB (decide (ix H = j)))]
   congr 1; funext _
   exact sum_indB_eq (ix H) S (hix H)
+
+/-- **A pick with coins of its own**: the distinguisher draws `r < R` and
+    picks `ix r H`; its count, summed over the coins, is the sum over the
+    coins of `zkbT_adaptive`'s bound at each fixed pick, the error `R` times
+    each pick's. -/
+theorem zkbT_adaptiveR {T X C V : Type} {K S R : Nat} {ST : (T → Nat) → Nat} (hST : Lin ST)
+    {sm : (X → Nat) → Nat} (hsm : Lin sm) {SC : (C → Nat) → Nat}
+    (rv : Nat → T → X → V) (pg : Nat → T → C → X → T) (sv : Nat → T → C → X → V) (ε : Nat → Nat)
+    (h : ∀ j, j < S → ZKBT ST K sm SC (rv j) (pg j) (sv j) (ε j)) (ix : Nat → T → Nat)
+    (hix : ∀ r H, ix r H < S) (E : Nat → T → Nat × V → Bool) :
+    K * sumTo R (fun r => ST (fun H => sm (fun x => indB (E r H (ix r H, rv (ix r H) H x))))) ≤
+      sumTo R (fun r => sumTo S (fun j => ST (fun H => SC (fun c => sm (fun x =>
+        indB (E r (pg j H c x) (j, sv j H c x) && decide (ix r (pg j H c x) = j))))))) +
+        R * sumTo S ε := by
+  rw [sumTo_mul, ← sumTo_const (sumTo S ε) R, ← sumTo_add]
+  exact sumTo_mono R (fun r _ => zkbT_adaptive hST hsm rv pg sv ε h (ix r) (hix r) (E r))
 
 /-- **A statement picked from the view**: the pick `ix H v < S` reads the
     tables and the view, but only the part every statement's view shares
