@@ -18,9 +18,11 @@ tables, `runR4_prog`).  The queries depend on the tables alone, so with every
 coordinate of the programmed points spreading over the draws the hits number
 at most `k δq` at each table (`advHit_count`).
 
-Query phases interleaved with several proofs: `FSMultiInterleave`.  Not
-shown: queries chosen from earlier proofs' views; a query count or strategy
-that varies.
+Query phases interleaved with several proofs: `FSMultiInterleave`; queries
+chosen from earlier proofs' views: `FSMultiViews`; a count the
+distinguisher chooses, stopping adaptively within `k`: `FSMultiStop`.  A strategy drawn
+at random: `zkbT_mix`.  The strategy may depend on the statements, fixed in
+advance.  Not shown: statements chosen after seeing the tables.
 -/
 
 set_option autoImplicit false

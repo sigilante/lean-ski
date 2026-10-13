@@ -17,8 +17,9 @@ The queries depend on the tables and the earlier draws, not on the later
 proof's draw, so they add at most `k δq` hits, `δq` the later proof's spread
 (`post_hits_le`).  Applied stage by stage, each result feeding the next as
 its earlier stage, queries chosen from every earlier view and answer
-interleave with the proofs; no `n`-fold theorem packages this, each stage
-supplying its own reads and counts.  Not modelled: statements chosen from
+interleave with the proofs; `FSMultiPost`'s `fs4_postInterleave` packages
+`n` proofs, each followed by queries chosen from its own view, in one
+theorem.  Not modelled: statements chosen from
 earlier views (each proof's statement is fixed); a query count or strategy
 shape that varies (`k` fixed).
 -/

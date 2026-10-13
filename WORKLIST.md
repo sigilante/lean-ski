@@ -210,7 +210,9 @@ is built; this file records what is next. Last revised 2026-10-13.
   after every programming (queries before a proof: `Ski/ZK/FSMultiQueries.lean`,
   `zkbT_queries`, `advHit_count`; interleaved with several proofs, each hit charged to the
   programmer: `Ski/ZK/FSMultiInterleave.lean`, `zkbT_powD_rd`; chosen from earlier proofs'
-  views: `Ski/ZK/FSMultiViews.lean`, `zkbT_post`, `zkbT_post_pair`); the circuits'
+  views: `Ski/ZK/FSMultiViews.lean`, `zkbT_post`, `zkbT_post_pair`; a count the distinguisher
+  chooses, stopping within `k`: `Ski/ZK/FSMultiStop.lean`, `zkbT_queries_stop`; `n` Sudoku proofs
+  and query phases interleaved: `Ski/ZK/FSMultiMixSud.lean`, `sud_interleave`); the circuits'
   `n`-statement theorems over them, `Ski/ZK/FSQueryPowT.lean` (`sud_fs_open4_powDT` and the
   others), `hout` and `hpq` hypotheses on the openings (met by reads of the first three
   tables at points with the reader's first commitment as low digit, `read2_hout` for one
@@ -344,6 +346,16 @@ and its claim table moves to the docs, where `release/README.md` already holds i
   to someone who lacks the log.
 - Proven 100-bit parameters: 203 queries at rate 1/2; the masks then need 422 points,
   within the `2^9` floor (`bench/plonky3/README.md`).
+- FRI at the proof level, kept at its present scope (2026-10-14): `sud_interleaveFRI`
+  (`Ski/ZK/FriProof.lean`) covers slot 3's data only, its queries drawn at `c4` before
+  the commit phase. Plonky3's FRI fails its premise `hp3`, which must hold at every
+  table. A faithful version needs one of three changes: hiding averaged over the
+  tables; `hp3` restricted to degree-bounded data, with the `ζ`-values opened; or
+  codewords drawn from the opening's salt.
+- Statements chosen after seeing the tables, kept at the general theorem (2026-10-14):
+  `zkbT_adaptive_tbl` (`Ski/ZK/AdaptDraws.lean`) charges the error once when each
+  statement's bad events are bounded at every table. No circuit meets that condition,
+  since LogUp's error depends on `α` and `β`.
 - FRI's soundness and round-by-round soundness, proved rather than assumed;
   Fiat–Shamir.
 - Probe segments under the hiding; ∀ over public inputs; aggregation.

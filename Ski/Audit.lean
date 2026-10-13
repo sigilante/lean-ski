@@ -152,6 +152,30 @@ import Ski.ZK.FSMultiQueries
 import Ski.ZK.FSMultiInterleave
 import Ski.ZK.FSMultiViews
 import Ski.ZK.FSMultiOpen
+import Ski.ZK.FSMultiStop
+import Ski.ZK.FSMultiOpenRd
+import Ski.ZK.FSMultiMix
+import Ski.ZK.FSMultiMixSud
+import Ski.ZK.FSMultiOpenROM
+import Ski.ZK.FSMultiPost
+import Ski.ZK.FSMultiAdapt
+import Ski.ZK.SudDraws
+import Ski.ZK.SudAdapt
+import Ski.ZK.SudChallenger
+import Ski.ZK.FriCommit
+import Ski.ZK.SpongeSpread
+import Ski.ZK.SpongeRandom
+import Ski.ZK.SpongePerm
+import Ski.ZK.SpongePermT
+import Ski.ZK.SpongeIndex
+import Ski.ZK.SpongeAvg
+import Ski.ZK.SpongeMany
+import Ski.ZK.SpongeLoad
+import Ski.ZK.SpongeLoadL
+import Ski.ZK.SpongeTree
+import Ski.ZK.SpongeUnion
+import Ski.ZK.FriProof
+import Ski.ZK.AdaptDraws
 import Ski.ZK.FSQueryAbsT
 import Ski.ZK.FSQueryPowT
 import Ski.ZK.ROMFamilyT
@@ -1328,6 +1352,84 @@ open Ski.Audit
 #audit_clean Circuit.rom4_stepQ Circuit.rom4_read4Q Circuit.pfIQ_hidesP Circuit.pfIQ_hides Circuit.sud_fs_open4_powDROMQ Circuit.wit_fs_open4_powDROMQ Circuit.comp_fs_open4_powDROMQ
 -- The hypotheses, met
 #audit_clean Circuit.inj_le_one Circuit.hposW Circuit.hsW Circuit.hndW Circuit.hlenW Circuit.hltW Circuit.hsLW Circuit.hdistM Circuit.hltM Circuit.hsM Circuit.hposOM Circuit.hφW Circuit.hφsW Circuit.hposF Circuit.hsF Circuit.hposOW Circuit.hsd1W
+
+-- A query count the distinguisher chooses (FSMultiStop)
+#audit_clean Circuit.runR4_dropA Circuit.stopUp_ge Circuit.stopUp_le Circuit.stopUp_congr Circuit.stopTime_le Circuit.truncStop_advRun Circuit.zkbT_queries_stop Circuit.zkbT_mix
+  Circuit.zkbT_queriesV Circuit.truncStop_prog Circuit.zkbT_queries_stopT Circuit.readsR4_drop Circuit.advHitS_le
+
+-- Outputs with read lists are interleaving components (FSMultiOpenRd)
+#audit_clean Circuit.rd4G_hrd Circuit.pfRdM_eq Circuit.pfRdM_ok Circuit.pfRdMReads_length Circuit.pfRdM_prog Circuit.sudFS4T_houtL Circuit.sudFS4T_hrd
+  Circuit.sud_rd_length Circuit.pfRdAReads_length Circuit.pfRdA_prog Circuit.pfRdM_eq_A Circuit.sudFS4T_houtA
+  Circuit.sudFS4T_hrdA Circuit.pfRdReads_length Circuit.pfRd_progD Circuit.sudFS4T_houtD Circuit.sudFS4T_hrdD
+
+-- Proofs and query phases interleaved (FSMultiMix)
+#audit_clean Circuit.lin_mul Circuit.lin_const Circuit.fs4_interleave Circuit.coord_digit Circuit.sudFS4T_hsp Circuit.sud_interleave Circuit.sud_interleaveD Circuit.sud_interleaveA Circuit.sud_powQ Circuit.wit_powQ Circuit.comp_powQ Circuit.sud_powQD Circuit.sud_powQA Circuit.wit_powQD Circuit.comp_powQD
+  Circuit.witFS4T_houtL Circuit.witFS4T_hrd Circuit.witFS4T_hsp Circuit.wit_interleave
+  Circuit.compFS4T_houtL Circuit.compFS4T_hrd Circuit.compFS4T_hsp Circuit.comp_interleave
+  Circuit.witFS4T_houtD Circuit.witFS4T_hrdD Circuit.wit_interleaveD Circuit.compFS4T_houtD Circuit.compFS4T_hrdD
+  Circuit.comp_interleaveD
+
+-- Commitment-table queries reading the Fiat–Shamir tables (FSMultiOpenROM)
+#audit_clean Circuit.nxtRd_eq_pfRd Circuit.nxtRd_prog Circuit.pfI_nxtRd Circuit.sudFS4T_houtROM Circuit.sud_fs_open4_powDROMQT
+  Circuit.witFS4T_houtROM Circuit.wit_fs_open4_powDROMQT Circuit.compFS4T_houtROM Circuit.comp_fs_open4_powDROMQT
+
+-- n proofs, each followed by queries chosen from its view (FSMultiPost)
+#audit_clean Circuit.fs4_postInterleave Circuit.zkbT_postAll Circuit.zkbT_powQ Circuit.rvQ_prog Circuit.rdQ_length Circuit.zkbT_powQ_rd Circuit.fs4_powQ
+
+-- Statements chosen after seeing the tables (FSMultiAdapt)
+#audit_clean Circuit.zkbT_adaptive Circuit.indB_add_not Circuit.zkbT_rev Circuit.sum_indB_eq Circuit.zkbT_adaptive_mass Circuit.zkbT_adaptiveR Circuit.zkbT_adaptiveFR Circuit.zkbT_adaptiveV_massR Circuit.zkbT_adaptive_tight Circuit.zkbT_adaptive_joint Circuit.zkbT_adaptiveV Circuit.zkbT_adaptiveV_mass Circuit.zkbT_adaptiveF Circuit.seqPick_fix Circuit.digits_eq Circuit.seqPick_step
+  Circuit.seqPick_one
+
+-- Sudoku statements share their draws (SudDraws)
+#audit_clean Circuit.pbuild_length Circuit.osz_all Circuit.osz_clues Circuit.osz_fixed Circuit.stmtMachine_heap Circuit.sudHeap_length Circuit.zipIdx_filter_length Circuit.pubCells_length Circuit.filter_length_mono Circuit.range'_filter_lt Circuit.cluesOf_length_le Circuit.sud_progTp Circuit.sudKs_eq Circuit.sudNR_eq Circuit.sudFS4T_sm Circuit.sud_sm_eq
+
+-- Sudoku statements picked after seeing the tables (SudAdapt)
+#audit_clean Circuit.zkbT_sm_congr Circuit.sudD_sm Circuit.sud_adaptive
+
+-- The programmed points' spread, whatever the challenger (SudChallenger)
+#audit_clean Circuit.spread_sumG Circuit.hφsp_of_hdg Circuit.coord_digit012 Circuit.sudFS4T_hspS Circuit.sud_interleaveS Circuit.witFS4T_hspS Circuit.wit_interleaveS Circuit.compFS4T_hspS Circuit.comp_interleaveS
+
+-- FRI's commit phase as an opening that reads the tables (FriCommit)
+#audit_clean Circuit.friBetas_length Circuit.friCommit_run Circuit.friCommitPf_eq Circuit.friCommit_reads Circuit.runR4_length Circuit.friCommitC_first3 Circuit.msg_nest Circuit.friCommitC_msgs Circuit.friCommitNxtC_layer Circuit.friBetas_c4 Circuit.friCommitQ_eq Circuit.friCommitQ_reads Circuit.friCommitQ_c4 Circuit.friCommitQ_seed Circuit.runR4_dropA Circuit.friCommitQC_c4 Circuit.friCommitQC_seed Circuit.friCommitQC_reads
+
+-- A duplex sponge meets the challenger's spread (SpongeSpread)
+#audit_clean Circuit.sum_pos_exists Circuit.hφsp_of_inj Circuit.add_mod_cancel Circuit.foldlA_lt Circuit.foldlA_inj Circuit.spongeA_inj Circuit.spongeA_hφsp Circuit.spongeA_lt Circuit.spongeA_sat Circuit.foldlG_inj Circuit.spongeG_hφsp
+
+-- Two sponge chains meet rarely under random round functions (SpongeRandom)
+#audit_clean Circuit.pair_countT Circuit.sumTabs_mono Circuit.sumTabs_const Circuit.sumTabs_add Circuit.sumTabs_mul Circuit.rget_lt Circuit.chainL_meet Circuit.chainL_meet_digit Circuit.chainL_sat
+
+-- Sponge chains under one permutation: the birthday bound (SpongePerm)
+#audit_clean Circuit.sumTo_split_pos Circuit.count_mem Circuit.fresh_count Circuit.runAdp_length Circuit.runAdp_ans Circuit.runAdp_rset Circuit.colP_of_mem Circuit.colP_count Circuit.two_step Circuit.colP_cons Circuit.two_meet_col Circuit.stA_lt Circuit.stB_lt Circuit.two_meet_count Circuit.two_meet_digit Circuit.two_meet_sat Circuit.colK_of_mem Circuit.colK_cons Circuit.range_map_sum Circuit.nearK_length Circuit.colK_count Circuit.two_meet_colK Circuit.two_meet_countK Circuit.two_meet_digitK Circuit.two_meet_satK Circuit.two_meet_satKP Circuit.colR_of_mem Circuit.colR_of_colK Circuit.nearR_length Circuit.colR_count Circuit.two_squeeze_count Circuit.squeeze_sat
+
+-- Sponge chains under a uniform permutation (SpongePermT)
+#audit_clean Circuit.tab_lt Circuit.rget_tab Circuit.digit_ext Circuit.swapV_swapV Circuit.rget_vswap Circuit.vswap_lt Circuit.vswap_vswap Circuit.permB_inj Circuit.permB_of_inj Circuit.permB_vswap Circuit.le_sumTo Circuit.count_notmem Circuit.fresh_countP Circuit.runAdp_pos Circuit.runAdp_vswap Circuit.colR_countP Circuit.two_meet_countKP Circuit.two_meet_digitKP Circuit.two_squeeze_countP Circuit.permB_id Circuit.two_meet_satPT Circuit.two_meet_satPT_k0
+
+-- The overwrite sponge's index over the first commitment (SpongeIndex)
+#audit_clean Circuit.stA_chain Circuit.stB_chain Circuit.preimage_le_pairs Circuit.spread_pairs Circuit.pairs_countP Circuit.spread_countP Circuit.spread_satPT Circuit.chain1_congr Circuit.xsOf_getD Circuit.xsOf_cover Circuit.hφsp_sponge Circuit.pairsAll_countP Circuit.sponge_hsp Circuit.sponge_δs_countP
+
+-- Composites averaged over the permutation (SpongeAvg)
+#audit_clean Circuit.zkbT_avg Circuit.errPowD_avg Circuit.sud_interleaveP Circuit.errPowD_mono Circuit.avg_err_bound Circuit.nested_const Circuit.wrap_scale Circuit.zkbT_err_le Circuit.sud_interleavePN
+
+-- Many near-collisions are rare under a uniform permutation (SpongeMany)
+#audit_clean Circuit.fresh_countPG Circuit.indB_and' Circuit.chs_le_pow Circuit.chs_step Circuit.nearN_le Circuit.count_lt Circuit.weight_split Circuit.nearN_moment Circuit.chs_pos Circuit.pow_succ_ge Circuit.eS_le Circuit.nearN_tail
+
+-- The load of one capacity value under a uniform permutation (SpongeLoad)
+#audit_clean Circuit.hitN_le Circuit.hitN_moment Circuit.eC_le Circuit.hitN_tail Circuit.runAdp_nxt0 Circuit.runAdp_nxt0_fst Circuit.hitN_nxt0 Circuit.fib_length Circuit.idx1_eq Circuit.idx1_preimage Circuit.loadM_countP Circuit.load_hsp Circuit.load_δs_countP Circuit.load_satPT Circuit.zkbT_avgW Circuit.permB_of_indB Circuit.sud_interleaveL Circuit.sud_interleaveLN
+
+-- The load over several absorptions (SpongeLoadL)
+#audit_clean Circuit.rget_posJ Circuit.runJ_eq Circuit.sumTo_point Circuit.hitN_eq_sum Circuit.sum_le_one Circuit.count_inj Circuit.stepPos_succ Circuit.posJ_stepPos Circuit.stepPos_mem Circuit.runJ_ok Circuit.anc_step Circuit.preimage_good Circuit.preimage_loadML Circuit.preimage_loadMA Circuit.loadA_hsp Circuit.loadMA_countP Circuit.loadA_δs_countP Circuit.sud_interleaveLA Circuit.sud_interleaveLAN
+
+-- Chains that all meet saw near-collisions (SpongeTree)
+#audit_clean Circuit.rget_posS Circuit.runS_eq Circuit.sumTo_or Circuit.posIn_cons Circuit.clIn_cons Circuit.posIn_iff Circuit.block_count Circuit.runS_block Circuit.posIn_blockS Circuit.posS_step Circuit.posS_next Circuit.allMeet_near Circuit.allMeet_countP Circuit.rget_split Circuit.split_mod_div Circuit.injT_ne Circuit.allT_mem Circuit.ffac_le Circuit.ffac_mono Circuit.ffac_preimage Circuit.preimage_loadT Circuit.meetM_countP Circuit.loadT_countP Circuit.sep_of_tags Circuit.tagOK_xsOf Circuit.preimage_loadTA Circuit.meet_markov Circuit.loadTA_countP Circuit.loadTA_hsp Circuit.loadTA_δs_countP Circuit.tag_satPT Circuit.sud_interleaveLT Circuit.sud_interleaveLTN
+
+-- Chains that meet saw near-collisions, without domain separation (SpongeUnion)
+#audit_clean Circuit.present_merge Circuit.dcount_merge Circuit.dcount_merge_le Circuit.dcount_merge_ge Circuit.dcount_merge_both Circuit.dcount_add Circuit.dcount_add_eq Circuit.firstOld_spec Circuit.oldB_spec Circuit.labR_lt Circuit.labR_coh Circuit.visB_succ Circuit.visB_add Circuit.visB_other Circuit.dcount_id Circuit.dcount_none Circuit.present_of Circuit.visB_of Circuit.mergeL_self Circuit.labR_inv Circuit.labR_final Circuit.nearN_runS Circuit.allMeet_near2 Circuit.allMeet_countP2 Circuit.meetM_countP2 Circuit.cf_of_tags Circuit.nzOK_xsOf Circuit.preimage_loadTU Circuit.meet_markov2 Circuit.loadTU_countP Circuit.loadTU_hsp Circuit.loadTU_δs_countP Circuit.hpk2_satPT Circuit.sud_interleaveLU Circuit.sud_interleaveLUN
+
+-- The Sudoku proofs with FRI in Plonky3's order as an opening (FriProof)
+#audit_clean Circuit.sud_interleaveFRI Circuit.comPf_op
+
+-- A picked statement's bad events, bounded at every table, cost one statement's (AdaptDraws)
+#audit_clean Circuit.zkbT_adaptive_tbl Circuit.zkbT_adaptive_draws
 #audit_clean Circuit.rom4_transferM Circuit.sud_fs_open4ROMM Circuit.wit_fs_open4ROMM Circuit.comp_fs_open4ROMM
 #audit_clean Circuit.rom4_transferMR Circuit.sud_fs_open4ROMMR Circuit.wit_fs_open4ROMMR Circuit.comp_fs_open4ROMMR
 #audit_clean Circuit.rgetL_spread Circuit.posAll_nodup Circuit.comM_spreadL Circuit.comMI_spreadL Circuit.rom4_stepM Circuit.sud_fs_open4_powDROMM Circuit.wit_fs_open4_powDROMM Circuit.comp_fs_open4_powDROMM
