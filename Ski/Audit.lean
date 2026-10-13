@@ -120,6 +120,7 @@ import Ski.ZK.ROMHide
 import Ski.ZK.ROMRounds
 import Ski.ZK.ROMInst
 import Ski.ZK.ROMMulti
+import Ski.ZK.FSQueryAbs
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -1248,3 +1249,6 @@ open Ski.Audit
   Circuit.pair_transfer Circuit.rom4_step Circuit.two_comm4 Circuit.two_le4 Circuit.fs_open4_twoROM
   Circuit.zkb_rom Circuit.pow_transfer Circuit.fs_open4_powROM
   Circuit.powD_transfer Circuit.read4_powDROM Circuit.rom4_read4
+-- The circuits' proofs as simulation bounds; n composed statements
+#audit_clean Circuit.sud_fs_open4_abs Circuit.wit_fs_open4_abs Circuit.comp_fs_open4_abs Circuit.fs4_powD
+  Circuit.comp_fs4 Circuit.comp_fs_open4_powD
