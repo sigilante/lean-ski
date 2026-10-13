@@ -14,6 +14,14 @@ table, a step's query possibly repeating an earlier one.
   from the answers so far) see two distinct positions answer alike on at
   most `(0 + 1 + ⋯ + (k-1)) / K` of the tables (`colP_count`): a new
   collision is an old one, or a fresh answer among the old.
+- **Partial-rate absorptions.** A block filling only part of the rate
+  leaves old rate entries in the next call, so the position is injective
+  only in a projection `κ` of the state, at least the capacity.  Two
+  distinct positions answering alike under `κ`, its fibres at most `F`,
+  occur on at most `(0 + ⋯ + (k-1)) F / K` of the tables (`colK_count`),
+  and chains apart under `κ` that meet saw one (`two_meet_colK`): they meet
+  after `L` absorptions on at most `(0 + ⋯ + (2L-1)) / |capacity|` of the
+  tables (`two_meet_countK`, `two_meet_satK`).
 - **Two chains.** Two sponge chains, their queries alternating as one run
   (`nxt2`, each chain over its own blocks), that query distinct positions
   at the first step and wherever their states differ, and meet, saw such
@@ -24,13 +32,15 @@ table, a step's query possibly repeating an earlier one.
   distinct positions, then shared blocks (`two_meet_digit`);
   `two_meet_sat` meets the hypotheses.
 
-The model's state is the capacity and its next value the table's answer
-at the block and the capacity, as in `SpongeRandom`; the table is the
-permutation's capacity output as a random function, its `1/K` per
-capacity value.  Not shown: the permutation as a permutation (its PRP/PRF
-switching term, over the full width), partial-rate
-absorptions, a squeezed index, and any step to `SudChallenger`'s `hφsp`,
-which bounds at every table how many salts reach one index.
+In the full-overwrite results the state is the capacity, its next value
+the table's answer at the block and the capacity (as in `SpongeRandom`),
+`1/K` per capacity value; in the partial-rate results the state is the
+whole state, the table's answers its next values, and `κ` its capacity,
+`F / K = 1 / |capacity|`.  The table stands for the permutation as a
+random function.  Not shown: the permutation as a permutation (its PRP/PRF
+switching term, over the full width), a squeezed index, and any step to
+`SudChallenger`'s `hφsp`, which bounds at every table how many salts reach
+one index.
 -/
 
 set_option autoImplicit false
@@ -379,5 +389,201 @@ theorem two_meet_sat {K X : Nat} (hK : 0 < K) (hX : 0 < X) :
   · rw [Nat.mod_eq_of_lt hs, Nat.mod_eq_of_lt hs'] at h; omega
   · rw [Nat.mod_eq_of_lt ha, Nat.mod_eq_of_lt hb] at h
     exact Nat.eq_of_mul_eq_mul_right hK (by omega)
+
+/-! ### Collisions under a projection: partial-rate absorptions -/
+
+/-- Two queries at distinct positions whose answers agree under `κ`. -/
+def colK (κ : Nat → Nat) : List (Nat × Nat) → Bool
+  | [] => false
+  | x :: rest => colK κ rest || rest.any (fun y => y.1 != x.1 && κ y.2 == κ x.2)
+
+theorem colK_of_mem (κ : Nat → Nat) : ∀ (l : List (Nat × Nat)) (y z : Nat × Nat), y ∈ l → z ∈ l → y.1 ≠ z.1 →
+    κ y.2 = κ z.2 → colK κ l = true
+  | [], _, _, h, _, _, _ => absurd h List.not_mem_nil
+  | x :: rest, y, z, hy, hz, hne, heq => by
+    show (colK κ rest || rest.any (fun w => w.1 != x.1 && κ w.2 == κ x.2)) = true
+    rcases List.mem_cons.1 hy with ey | ey <;> rcases List.mem_cons.1 hz with ez | ez
+    · subst ey; subst ez; exact absurd rfl hne
+    · subst ey
+      have : rest.any (fun w => w.1 != y.1 && κ w.2 == κ y.2) = true :=
+        List.any_eq_true.2 ⟨z, ez, by rw [Bool.and_eq_true]; exact ⟨bne_iff_ne.2 (Ne.symm hne), beq_iff_eq.2 heq.symm⟩⟩
+      rw [this, Bool.or_true]
+    · subst ez
+      have : rest.any (fun w => w.1 != z.1 && κ w.2 == κ z.2) = true :=
+        List.any_eq_true.2 ⟨y, ey, by rw [Bool.and_eq_true]; exact ⟨bne_iff_ne.2 hne, beq_iff_eq.2 heq⟩⟩
+      rw [this, Bool.or_true]
+    · rw [colK_of_mem κ rest y z ey ez hne heq, Bool.true_or]
+
+theorem colK_cons (κ : Nat → Nat) (x : Nat × Nat) (l : List (Nat × Nat)) (h : colK κ l = true) : colK κ (x :: l) = true := by
+  show (colK κ l || _) = true; rw [h, Bool.true_or]
+
+theorem range_map_sum (f : Nat → Bool) : ∀ K, ((List.range K).map (fun u => indB (f u))).sum = sumTo K (fun u => indB (f u))
+  | 0 => rfl
+  | K + 1 => by rw [List.range_succ, List.map_append, List.sum_append, range_map_sum f K]; simp [sumTo]
+
+/-- The answers below `K` whose projection meets the earlier answers'. -/
+def nearK (K : Nat) (κ : Nat → Nat) (as : List Nat) : List Nat :=
+  (List.range K).filter (fun u => as.any (fun a => κ u == κ a))
+
+theorem nearK_length {K F : Nat} (κ : Nat → Nat) (hF : ∀ v, sumTo K (fun u => indB (decide (κ u = v))) ≤ F) :
+    ∀ as : List Nat, (nearK K κ as).length ≤ as.length * F := by
+  intro as
+  have hlen : ∀ (l : List Nat) (f : Nat → Bool), (l.filter f).length = (l.map (fun u => indB (f u))).sum := by
+    intro l f
+    induction l with
+    | nil => rfl
+    | cons u l ih => cases hf : f u <;> simp [hf, ih, indB] <;> omega
+  have hsum := fun f => range_map_sum f K
+  unfold nearK
+  rw [hlen, hsum]
+  induction as with
+  | nil => simp [indB, sumTo_const]
+  | cons a as ih =>
+    have pt : ∀ u, indB ((a :: as).any (fun a' => κ u == κ a')) ≤
+        indB (decide (κ u = κ a)) + indB (as.any (fun a' => κ u == κ a')) := fun u => by
+      rw [List.any_cons]
+      cases h1 : (κ u == κ a) <;> cases h2 : as.any (fun a' => κ u == κ a') <;>
+        simp_all [indB]
+    refine Nat.le_trans (sumTo_mono _ (fun u _ => pt u)) ?_
+    rw [sumTo_add, List.length_cons, Nat.succ_mul, Nat.add_comm (as.length * F)]
+    exact Nat.add_le_add (hF _) ih
+
+/-- **The birthday bound under a projection**: `k` adaptive queries see
+    two distinct positions whose answers agree under `κ`, its fibres below
+    `K` at most `F`, on at most `(0 + ⋯ + (k-1)) F / K` of the tables. -/
+theorem colK_count {K n F : Nat} (hK : 0 < K) (κ : Nat → Nat) (hF : ∀ v, sumTo K (fun u => indB (decide (κ u = v))) ≤ F)
+    (nxt : List Nat → Nat) (hnx : ∀ l, nxt l < n) :
+    ∀ k, K * sumTo (K ^ n) (fun H => indB (colK κ (runAdp K nxt H k))) ≤ sumTo k (fun j => j) * F * K ^ n
+  | 0 => by simp [colK, runAdp, indB, sumTo_const]
+  | k + 1 => by
+    have ih := colK_count hK κ hF nxt hnx k
+    let p := fun H => nxt ((runAdp K nxt H k).map Prod.snd)
+    let g := fun H => !decide (p H ∈ (runAdp K nxt H k).map Prod.fst)
+    let S := fun H => nearK K κ ((runAdp K nxt H k).map Prod.snd)
+    have hinv : ∀ H u, u < K → g H = true →
+        p (rset K (p H) H u) = p H ∧ S (rset K (p H) H u) = S H ∧ g (rset K (p H) H u) = true := by
+      intro H u hu hg
+      have hnot : p H ∉ (runAdp K nxt H k).map Prod.fst := by
+        intro h; simp only [g, h, decide_true, Bool.not_true] at hg; exact Bool.false_ne_true hg
+      have e := runAdp_rset hK nxt hu k H hnot
+      refine ⟨by simp only [p, e], by simp only [S, e], ?_⟩
+      simp only [g, p, e]; exact hg
+    have fc := fresh_count (n := n) (k := k * F) hK p (fun H => hnx _) g S
+      (fun H => by
+        refine Nat.le_trans (nearK_length κ hF _) ?_
+        rw [List.length_map, runAdp_length]; exact Nat.le_refl _) hinv
+    have pt : ∀ H, indB (colK κ (runAdp K nxt H (k + 1))) ≤ indB (colK κ (runAdp K nxt H k)) +
+        indB (g H && decide (rget K (p H) H ∈ S H)) := by
+      intro H
+      show indB (colK κ (runAdp K nxt H k) ||
+        (runAdp K nxt H k).any (fun y => y.1 != p H && κ y.2 == κ (rget K (p H) H))) ≤ _
+      cases hc : colK κ (runAdp K nxt H k)
+      · simp only [Bool.false_or]
+        cases hn : (runAdp K nxt H k).any (fun y => y.1 != p H && κ y.2 == κ (rget K (p H) H))
+        · exact Nat.zero_le _
+        · obtain ⟨y, hy, hyc⟩ := List.any_eq_true.1 hn
+          simp only [Bool.and_eq_true, bne_iff_ne, ne_eq, beq_iff_eq] at hyc
+          have hS' : rget K (p H) H ∈ S H := by
+            show rget K (p H) H ∈ nearK K κ ((runAdp K nxt H k).map Prod.snd)
+            unfold nearK
+            rw [List.mem_filter]
+            refine ⟨List.mem_range.2 (rget_lt hK _ _), List.any_eq_true.2 ⟨y.2, List.mem_map.2 ⟨y, hy, rfl⟩, ?_⟩⟩
+            exact beq_iff_eq.2 hyc.2.symm
+          cases hg : g H
+          · exfalso
+            have hm : p H ∈ (runAdp K nxt H k).map Prod.fst := by
+              simp only [g, Bool.not_eq_false', decide_eq_true_eq] at hg; exact hg
+            obtain ⟨z, hz, hzp⟩ := List.mem_map.1 hm
+            have hza : z.2 = rget K (p H) H := by rw [runAdp_ans K nxt H k z hz, hzp]
+            have : colK κ (runAdp K nxt H k) = true :=
+              colK_of_mem κ _ y z hy hz (by rw [hzp]; exact hyc.1) (by rw [hza]; exact hyc.2)
+            rw [hc] at this; exact Bool.false_ne_true this
+          · simp [indB, hS']
+      · simp only [Bool.true_or]; simp [indB]
+    refine Nat.le_trans (Nat.mul_le_mul_left _ (sumTo_mono _ (fun H _ => pt H))) ?_
+    rw [sumTo_add, Nat.mul_add]
+    refine Nat.le_trans (Nat.add_le_add ih fc) (Nat.le_of_eq ?_)
+    show sumTo k (fun j => j) * F * K ^ n + k * F * K ^ n = (sumTo k (fun j => j) + k) * F * K ^ n
+    rw [Nat.add_mul, Nat.add_mul]
+
+/-- **Chains that meet saw a collision under the projection**: positions
+    equal only where the states agree under `κ` (`hpk`, a partial-rate
+    absorption keeping at least `κ` of the state), the starting states apart
+    under `κ`. -/
+theorem two_meet_colK {K : Nat} (inner : Nat → Nat → Nat) (κ : Nat → Nat) {sa sb : Nat} (xs : List Nat) (H : Nat)
+    (hpk : ∀ x s s', inner s x = inner s' x → κ s = κ s') (hk0 : κ sa ≠ κ sb) :
+    ∀ i, stA K inner sa sb xs xs H (i + 1) = stB K inner sa sb xs xs H (i + 1) →
+      colK κ (runAdp K (nxt2 inner sa sb xs xs) H (2 * (i + 1))) = true := by
+  have eA : ∀ j, stA K inner sa sb xs xs H (j + 1) = rget K (inner (stA K inner sa sb xs xs H j) (xs.getD j 0)) H :=
+    fun j => by unfold stA; rw [if_neg (by omega), two_step]; rfl
+  have eB : ∀ j, stB K inner sa sb xs xs H (j + 1) = rget K (inner (stB K inner sa sb xs xs H j) (xs.getD j 0)) H :=
+    fun j => by unfold stB; rw [if_neg (by omega), two_step]; rfl
+  -- a meeting where the positions differ is a collision at this step
+  have here : ∀ i, inner (stB K inner sa sb xs xs H i) (xs.getD i 0) ≠ inner (stA K inner sa sb xs xs H i) (xs.getD i 0) →
+      stA K inner sa sb xs xs H (i + 1) = stB K inner sa sb xs xs H (i + 1) →
+      colK κ (runAdp K (nxt2 inner sa sb xs xs) H (2 * (i + 1))) = true := fun i hp h => by
+    rw [two_step]
+    exact colK_of_mem κ _ _ _ List.mem_cons_self (List.mem_cons_of_mem _ List.mem_cons_self) hp
+      (by rw [← eA, ← eB, h])
+  intro i
+  induction i with
+  | zero =>
+    intro h
+    refine here 0 (fun hp => hk0 ?_) h
+    have := (hpk _ _ _ hp).symm
+    simpa [stA, stB] using this
+  | succ j ih =>
+    intro h
+    by_cases hs : stA K inner sa sb xs xs H (j + 1) = stB K inner sa sb xs xs H (j + 1)
+    · rw [two_step]; exact colK_cons κ _ _ (colK_cons κ _ _ (ih hs))
+    · by_cases hp : inner (stB K inner sa sb xs xs H (j + 1)) (xs.getD (j + 1) 0) =
+          inner (stA K inner sa sb xs xs H (j + 1)) (xs.getD (j + 1) 0)
+      · have hκ := hpk _ _ _ hp
+        have hpj : inner (stB K inner sa sb xs xs H j) (xs.getD j 0) ≠ inner (stA K inner sa sb xs xs H j) (xs.getD j 0) :=
+          fun e => hs (by rw [eA, eB, e])
+        rw [two_step, two_step]
+        refine colK_cons κ _ _ (colK_cons κ _ _ (colK_of_mem κ _ _ _ List.mem_cons_self
+          (List.mem_cons_of_mem _ List.mem_cons_self) hpj ?_))
+        rw [← eA, ← eB]; exact hκ
+      · exact here (j + 1) hp h
+
+/-- **Partial-rate sponge chains under one table meet rarely**: positions
+    injective in the projection `κ` only (old rate entries left in), `κ`'s
+    fibres below `K` at most `F`, from states apart under `κ`, after `L + 1`
+    absorptions the chains meet on at most `(0 + ⋯ + (2L+1)) F / K` of the
+    tables: `κ` the capacity, `F / K = 1 / |capacity|`. -/
+theorem two_meet_countK {K n F : Nat} (hK : 0 < K) (inner : Nat → Nat → Nat) (hin : ∀ s x, inner s x < n)
+    (κ : Nat → Nat) (hF : ∀ v, sumTo K (fun u => indB (decide (κ u = v))) ≤ F)
+    (hpk : ∀ x s s', inner s x = inner s' x → κ s = κ s') {sa sb : Nat} (hk0 : κ sa ≠ κ sb) (xs : List Nat) (L : Nat) :
+    K * sumTo (K ^ n) (fun H => indB (decide (stA K inner sa sb xs xs H (L + 1) = stB K inner sa sb xs xs H (L + 1)))) ≤
+      sumTo (2 * (L + 1)) (fun j => j) * F * K ^ n := by
+  refine Nat.le_trans (Nat.mul_le_mul_left _ (sumTo_mono _ (fun H _ => ?_)))
+    (colK_count (n := n) hK κ hF (nxt2 inner sa sb xs xs) (fun l => by rw [nxt2_def]; split <;> exact hin _ _) (2 * (L + 1)))
+  cases e : decide (stA K inner sa sb xs xs H (L + 1) = stB K inner sa sb xs xs H (L + 1))
+  · exact Nat.zero_le _
+  · rw [two_meet_colK inner κ xs H hpk hk0 L (of_decide_eq_true e)]
+    exact Nat.le_refl _
+
+/-- **The partial-rate hypotheses are met** at every state by a state
+    `r + R c`, the capacity `κ s = (s / R) % C` with fibres `R` below `R C`, a
+    full overwrite keeping only the capacity:
+    `inner s x = (x % X) C + (s / R) % C`. -/
+theorem two_meet_satK {R C X : Nat} (hR : 0 < R) (hC : 0 < C) (hX : 0 < X) :
+    (∀ s x, (x % X) * C + (s / R) % C < X * C) ∧
+      (∀ x s s', (x % X) * C + (s / R) % C = (x % X) * C + (s' / R) % C → (s / R) % C = (s' / R) % C) ∧
+      (∀ v, sumTo (R * C) (fun u => indB (decide ((u / R) % C = v))) ≤ R) := by
+  refine ⟨fun s x => ?_, fun x s s' h => by omega, fun v => ?_⟩
+  · calc (x % X) * C + (s / R) % C < (x % X) * C + C := Nat.add_lt_add_left (Nat.mod_lt _ hC) _
+      _ = (x % X + 1) * C := by rw [Nat.succ_mul]
+      _ ≤ X * C := Nat.mul_le_mul_right _ (Nat.mod_lt _ hX)
+  · rw [sumTo_split R _ C]
+    have each : ∀ c, c < C → sumTo R (fun r => indB (decide (((r + R * c) / R) % C = v))) = R * indB (decide (c = v)) :=
+      fun c hc => by
+      refine Eq.trans (sumTo_congr _ (fun r hr => ?_)) (sumTo_const (indB (decide (c = v))) R)
+      show indB (decide (((r + R * c) / R) % C = v)) = indB (decide (c = v))
+      rw [Nat.add_mul_div_left _ _ hR, Nat.div_eq_of_lt hr, Nat.zero_add, Nat.mod_eq_of_lt hc]
+    rw [sumTo_congr _ (fun c hc => each c hc), ← sumTo_mul]
+    calc R * sumTo C (fun c => indB (decide (c = v))) ≤ R * 1 := Nat.mul_le_mul_left _ (sumTo_indEq v C).1
+      _ = R := Nat.mul_one R
 
 end Circuit
