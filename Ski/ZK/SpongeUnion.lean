@@ -12,7 +12,8 @@ first commitments' tag.
   chain's label with the position's first visitor's (`labR`,
   `labR_coh`).  The invariant `t + Σ_v0 (labels among v0's visitors - 1) ≤
   fresh near queries + labels` holds query by query (`labR_inv`): a fresh
-  query adds a visitor only together with a near query, and a merge that
+  query raises a projection's surplus only together with a near query, and
+  a merge that
   lowers the label count lowers some projection's visitor labels too,
   because the two chains' previous positions answered alike under `κ`.
   Chains that end at one position therefore made at least `t - 1` fresh
@@ -611,8 +612,8 @@ theorem allMeet_countP2 {K Kc F : Nat} (hK : 0 < K) (inner : Nat → Nat → Nat
     rw [decide_eq_true this]; exact Nat.le_refl _
 
 /-- **Meeting tuples averaged over a uniform permutation, without domain
-    separation**: first positions never revisited (`hcfC`), `(t-1)! (K - L t)^(t-1)` times
-    the summed `meetM` is at most `n1^t ((0 + ⋯ + (L t - 1)) F)^(t-1)` per
+    separation**: first positions never revisited (`hcfC`), `(t-1)! (K - t (L+1))^(t-1)` times
+    the summed `meetM` is at most `n1^t ((0 + ⋯ + (t (L+1) - 1)) F)^(t-1)` per
     permutation table. -/
 theorem meetM_countP2 {K Kc F : Nat} (hK : 0 < K) (inner : Nat → Nat → Nat) (hin : ∀ s x, inner s x < K) (κ : Nat → Nat)
     (hκ : ∀ u, κ u < Kc) (hF : ∀ v, sumTo K (fun u => indB (decide (κ u = v))) ≤ F)
@@ -731,9 +732,9 @@ theorem meet_markov2 {K Kc F : Nat} (hK : 0 < K) (inner : Nat → Nat → Nat) (
         Nat.mul_assoc _ _ _
     _ ≤ _ := by rw [Nat.mul_assoc (n1 ^ t)]; exact hm0
 
-/-- **The nonzero-tagged tuple load averaged**: `Q = (t-1)! (K - L t)^(t-1)`, `f =
-    s0 (s0-1) ⋯ (s0-t+1)`; `Q f` times the summed `loadTU` is at most
-    `Q f (s0 - 1) + n1 X^L n1^t ((0 + ⋯ + (L t - 1)) F)^(t-1)` per
+/-- **The nonzero-tagged tuple load averaged**: `Q = (t-1)! (K - t (L+1))^(t-1)`,
+    `f = s0 (s0-1) ⋯ (s0-t+1)`; `Q f` times the summed `loadTU` is at most
+    `Q f (s0 - 1) + n1 X^L n1^t ((0 + ⋯ + (t (L+1) - 1)) F)^(t-1)` per
     permutation table. -/
 theorem loadTU_countP {K Kc F : Nat} (hK : 0 < K) (inner : Nat → Nat → Nat) (hin : ∀ s x, inner s x < K) (κ : Nat → Nat)
     (hκ : ∀ u, κ u < Kc) (hF : ∀ v, sumTo K (fun u => indB (decide (κ u = v))) ≤ F)
@@ -785,7 +786,7 @@ theorem loadTU_countP {K Kc F : Nat} (hK : 0 < K) (inner : Nat → Nat → Nat) 
 /-- **`SudChallenger`'s spread hypotheses at every permutation table, `L + 1`
     absorptions**: the index `φ m w` the state after the first commitment
     `m % n1` and the later blocks `enc (m / n1) w`, each below `X` and
-    nonzero-tagged by its step; the table's `δs' = δs loadTU` meets `hsp1` and
+    tagged nonzero; the table's `δs' = δs loadTU` meets `hsp1` and
     `hφsp` for every `d`, `rest`, `w` and `v` (`s0 ≥ 2`). -/
 theorem loadTU_hsp {D W : Type} {K NS1 n1 δs X : Nat} (inner : Nat → Nat → Nat) (iv : Nat) (tb : Nat → Nat) (hX : 0 < X) (L t : Nat)
     (enc : Nat → W → List Nat) (henc : ∀ r w i, i < L → (enc r w).getD i 0 < X)
