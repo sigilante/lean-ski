@@ -71,6 +71,10 @@ import Ski.ZK.Fri
 import Ski.ZK.MaskFri
 import Ski.ZK.MaskGen
 import Ski.ZK.MaskCom
+import Ski.ZK.MaskRec
+import Ski.ZK.MaskCoset
+import Ski.ZK.MaskSplit
+import Ski.ZK.MaskCis
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -867,6 +871,19 @@ open Ski.Audit
 #audit_clean Circuit.M4.det_rev Circuit.mz_det_eq Circuit.mz_generic Circuit.generic_ofF_ne Circuit.generic_apow_ne
   Circuit.pcsCloseN_fri_generic Circuit.cset_ok_of_generic Circuit.nongeneric_count
 #audit_clean Circuit.PCSCloseN.commit
+-- Honest chunks meet RecOK: the recombination is the quotient
+#audit_clean Circuit.rpoly_val Circuit.rpoly_on Circuit.rpoly_len Circuit.rpoly_quot Circuit.rpoly_valE
+  Circuit.nsum_allL Circuit.nsumE_allL Circuit.shows_of_quot Circuit.shows_of_honest Circuit.shows_congr
+  Circuit.recOK_of_honest
+-- On cosets the selectors are normalized from each first point
+#audit_clean Circuit.fval_coset Circuit.pr_rot Circuit.pr_inv Circuit.coset_const Circuit.opv_congr
+  Circuit.sel_of_coset Circuit.quotOK_of_coset Circuit.cdiv Circuit.cdivE Circuit.qtg_ctg Circuit.qtgE_ctgE
+  Circuit.chunkOf_eval Circuit.dis_of_nodup Circuit.quotOK_honest
+-- Plonky3's split domains: cosets of one subgroup, no repeated points (BabyBear's generators)
+#audit_clean Circuit.fpow_inj Circuit.split_nodup Circuit.split_pow Circuit.quotOK_split Circuit.bbGen_chain
+  Circuit.bbGen_half Circuit.bb_split
+-- Plonky3's selector weights normalize at each first point
+#audit_clean Circuit.opv_ne Circuit.first_of_cis
 
 -- Part II's interface with an additive distance: the errors add, the hybrid argument proved
 #audit_clean Compose.lsum_le Compose.lsum_add Compose.lsum_const Compose.lsum_comm Compose.lsum_prod

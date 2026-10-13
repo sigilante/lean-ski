@@ -26,6 +26,20 @@ is built; this file records what is next. Last revised 2026-10-10.
   (`pcsCloseN_chunks`, `*_transcriptG_chunks`), when `|S| + 4 ≤ n`, `ζ` generates the
   extension (`solve_spec`, `mz_gen_det`; a uniform `ζ` fails with probability about
   `2^-62`), and the honest chunks show the quotient (`RecOK`, read from Plonky3's source).
+- **Honest chunks meet `RecOK`** (`Ski/ZK/MaskRec.lean`): chunks that equal the quotient
+  `Qp` on their own disjoint domains, below the degree bound, with normalized selectors,
+  recombine to `Qp` itself (`rpoly_quot`). They show `Qp / (κ ∏_j v_j)` off every domain
+  (`shows_of_quot`), so `RecOK` holds for every column (`recOK_of_honest`). Left as
+  hypotheses: the verifier's targets equal these values of `Qp`, and the selectors are
+  normalized. On cosets of one subgroup the normalization follows from each domain's first
+  point, as `get_zp_cis` computes it (`Ski/ZK/MaskCoset.lean`, `sel_of_coset`,
+  `quotOK_of_coset`). With each chunk the quotient interpolated on its domain (`chunkOf`),
+  `quotOK_honest` discharges the interpolation, the chunks' degrees and the disjointness.
+  On Plonky3's split domains over BabyBear the domains are cosets of one subgroup without
+  repeated points (`Ski/ZK/MaskSplit.lean`, `quotOK_split`, `bb_split`); left are the
+  quotient's degree and the selectors at each first point. Plonky3's weights,
+  `μ_k = cis_k / κ`, meet the first-point condition (`Ski/ZK/MaskCis.lean`,
+  `first_of_cis`).
 - **The quotient's recombined values hide** (`Ski/ZK/MaskQuot.lean`): the chunks sit
   at the committed trace's height, so a query opens them at the trace's point `s`, where they
   recombine to a function of the terminals and the masked columns at `s` and `g s`.
@@ -133,9 +147,11 @@ and its claim table moves to the docs, where `release/README.md` already holds i
   Arvo binds nothing here; it replays its log. Needed only to prove a kernel's history
   to someone who lacks the log.
 - Instantiate `pcsCloseN_fri` for each circuit with one group a committed matrix (main
-  and permutation traces apart) and `RecOK` discharged from a model of Plonky3's quotient
-  split; today both are read from Plonky3's source. The Merkle salts and Fiat–Shamir are
-  cryptographic assumptions (hiding hash, random oracle).
+  and permutation traces apart), and discharge `recOK_of_honest`'s hypotheses: `QuotOK`
+  for Plonky3's coset split (`κ = cis_l`, `m_i = cis_i / cis_l`; `quotOK_of_coset` reduces
+  the normalization to each first point, with `c_j = s_j⁻ⁿ`), and the targets: each
+  `CSet`'s `JS`, `Jζ` computing `ctg`, `ctgE` from the openings (`qtg_ctg`, `qtgE_ctgE`). The Merkle salts and Fiat–Shamir are cryptographic assumptions
+  (hiding hash, random oracle).
 - Proven 100-bit parameters: 203 queries at rate 1/2; the masks then need 422 points,
   within the `2^9` floor (`bench/plonky3/README.md`).
 - FRI's soundness and round-by-round soundness, proved rather than assumed;
