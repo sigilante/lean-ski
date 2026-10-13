@@ -195,10 +195,13 @@ is built; this file records what is next. Last revised 2026-10-13.
   they miss (`hout`) and a hit to carry the reader's first message (`hpq`), and lets the
   simulated views read the tables (`ZKBT`); `read4T_powD`, the circuits' `*_fs_open4_absT`
   and `fs4_powDT` (`Ski/ZK/FSQueryAbsT.lean`) hold, with the distinguisher's queries
-  only after every programming (queries between the proofs not modelled); the circuits' `n`-statement theorems over
-  them (`sud_fs_open4_powD`'s analogue, with `hq`, `hout`, `hpq` for the openings, whose reads
-  must then sit at points with their own first commitment as low digit) and the
-  oracle-commitment versions (`ROMMulti`, `ROMFamily`) not yet);
+  only after every programming (queries between the proofs not modelled); the circuits'
+  `n`-statement theorems over them, `Ski/ZK/FSQueryPowT.lean` (`sud_fs_open4_powDT` and the
+  others), `hout` and `hpq` hypotheses on the openings (met by reads of the first three
+  tables at points with the reader's first commitment as low digit, `read2_hout` for one
+  read of the second; a fourth-table read must sit at `φ m w` with `m` carrying it), no
+  circuit's openings yet shown to meet them; the oracle-commitment versions
+  (`ROMMulti`, `ROMFamily`) not yet);
   FRI's
   folding challenges hashed with the transcript before FRI (from its own layer commitments,
   against a table of its own, they fit already: `fs_pow`); FRI's layer commitments and final polynomial in the query hash's
