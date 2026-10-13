@@ -19,6 +19,8 @@ statements (`sudFS4`, `sud_fs_open4_powD`) and `n` hidden-term statements
 (`witFS4`, `wit_fs_open4_powD`).
 -/
 
+set_option autoImplicit false
+
 namespace Circuit
 open ZKF
 section
@@ -1152,7 +1154,7 @@ def compFS4 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) (R : Nat) (shp :
 
 set_option maxRecDepth 100000 in
 /-- One composed statement's first committed data (`compFS4`'s `main1`). -/
-def compMain1 (off : EF → String → EF) (R : Nat) (shp : BT) (Ps : List Term) (W : Nat) (A : List Cell) (e : Nat → Nat) (row : Nat → Air.Row) (tbM : Nat) (tbC : Nat) (tpP : Nat) (tpS : Nat) (SM : Nat → List F) (SC : Nat → List F) (S9 : Nat → List F) (SP : Nat → List F) (SS : Nat → List F) (qv : EF → EF → List EF → F → List F → List F → List EF) (wm : Nat → List (EF → EF → List F)) (wc : Nat → List (EF → EF → List F)) (ww : Nat → List (EF → EF → List F)) (wp : Nat → List (EF → EF → List F)) (wsg : Nat → List (EF → EF → List F)) (ncw : Nat) (αd : Nat → EF) (fri : Nat → EF → EF → List (EF → EF) → V) (NR2 : Nat) (Rb : Nat → EF → EF → Nat → List (EF → EF)) (Ro : Nat → EF → EF → Nat → Wv) : (Nat → Tup) → Nat → List (List (List F)) :=
+def compMain1 (V Wv : Type) (off : EF → String → EF) (R : Nat) (shp : BT) (Ps : List Term) (W : Nat) (A : List Cell) (e : Nat → Nat) (row : Nat → Air.Row) (tbM : Nat) (tbC : Nat) (tpP : Nat) (tpS : Nat) (SM : Nat → List F) (SC : Nat → List F) (S9 : Nat → List F) (SP : Nat → List F) (SS : Nat → List F) (qv : EF → EF → List EF → F → List F → List F → List EF) (wm : Nat → List (EF → EF → List F)) (wc : Nat → List (EF → EF → List F)) (ww : Nat → List (EF → EF → List F)) (wp : Nat → List (EF → EF → List F)) (wsg : Nat → List (EF → EF → List F)) (ncw : Nat) (αd : Nat → EF) (fri : Nat → EF → EF → List (EF → EF) → V) (NR2 : Nat) (Rb : Nat → EF → EF → Nat → List (EF → EF)) (Ro : Nat → EF → EF → Nat → Wv) : (Nat → Tup) → Nat → List (List (List F)) :=
     let m := blankM shp W Ps
     let roots := blankRoots shp W Ps
     let N := BT.nleaves shp
@@ -1278,7 +1280,7 @@ theorem comp_fs_open4_powD {V Wv P1 P2 P3 : Type}  (off : EF → String → EF) 
     (fun ix c x => (Nat.add_mul_mod_self_left _ _ _).trans (Nat.mod_eq_of_lt (hr1 ix _ _)))
     (fun i j c1 c2 c3 x c xa h => hφs i j _ _ _ _ h)
     (fun ix => (compFS4 off (R ix) (shp ix) (Ps ix) (W ix) (A ix) (e ix) (row ix) (tbM ix) (tbC ix) (tpP ix) (tpS ix) (SM ix) (SC ix) (S9 ix) (SP ix) (SS ix) (qv ix) (wm ix) (wc ix) (ww ix) (wp ix) (wsg ix) K2 K4 (φ ix) N4 (ncw ix) (αd ix) (B4 ix) (fri ix) (NR2 ix) (Rb ix) (Ro ix) (NS1 ix) (NS2 ix) (NS3 ix) n1 n2 n3 (Com1 ix) (Pf1 ix) (Com2 ix) (Pf2 ix) (Com3 ix) (Pf3 ix)).NS * ((compFS4 off (R ix) (shp ix) (Ps ix) (W ix) (A ix) (e ix) (row ix) (tbM ix) (tbC ix) (tpP ix) (tpS ix) (SM ix) (SC ix) (S9 ix) (SP ix) (SS ix) (qv ix) (wm ix) (wc ix) (ww ix) (wp ix) (wsg ix) K2 K4 (φ ix) N4 (ncw ix) (αd ix) (B4 ix) (fri ix) (NR2 ix) (Rb ix) (Ro ix) (NS1 ix) (NS2 ix) (NS3 ix) n1 n2 n3 (Com1 ix) (Pf1 ix) (Com2 ix) (Pf2 ix) (Com3 ix) (Pf3 ix)).NR * (Q4 ^ 2 * δs ix)))
-    (fun ix v => spread_sum (Com1 ix) (compMain1 off (R ix) (shp ix) (Ps ix) (W ix) (A ix) (e ix) (row ix) (tbM ix) (tbC ix) (tpP ix) (tpS ix) (SM ix) (SC ix) (S9 ix) (SP ix) (SS ix) (qv ix) (wm ix) (wc ix) (ww ix) (wp ix) (wsg ix) (ncw ix) (αd ix) (fri ix) (NR2 ix) (Rb ix) (Ro ix)) (hsp ix) v)
+    (fun ix v => spread_sum (Com1 ix) (compMain1 V Wv off (R ix) (shp ix) (Ps ix) (W ix) (A ix) (e ix) (row ix) (tbM ix) (tbC ix) (tpP ix) (tpS ix) (SM ix) (SC ix) (S9 ix) (SP ix) (SS ix) (qv ix) (wm ix) (wc ix) (ww ix) (wp ix) (wsg ix) (ncw ix) (αd ix) (fri ix) (NR2 ix) (Rb ix) (Ro ix)) (hsp ix) v)
     (fun ix => comp_fs4 off (hR ix) (hrl ix) (hr ix) (hA ix) (hlen ix) (hLm ix) (hK ix) (hNW ix) (htM ix) (htC ix) (htP ix) (htS ix) (SM ix) (SC ix) (S9 ix) (SP ix) (SS ix) (qv ix) (wm ix) (wc ix) (ww ix) (wp ix) (wsg ix) (hlwm ix) (hlwc ix) (hlww ix) (hlwp ix) (hlwsg ix) hK2 hK4 (φ ix) (hφ ix) (hSM ix) (hSC ix) (hS9 ix) (hSP ix) (hSS ix) (hszM ix) (hszC ix) (hsz9 ix) (hszP ix) (hszS ix) (αd ix) (hB4 ix) (fri ix) (hncw ix) (NR2 ix) (Rb ix) (Ro ix) (Com1 ix) (Pf1 ix) (hc1 ix) (hp1 ix) (hr1 ix) (d1 ix) (Com2 ix) (Pf2 ix) (hc2 ix) (hp2 ix) (hr2 ix) (d2 ix) (Com3 ix) (Pf3 ix) (hc3 ix) (hp3 ix) (hr3 ix) (d3 ix)) n
 set_option maxRecDepth 100000 in
 /-- One Sudoku statement's four-round data (`sud_fs_open4_abs`'s). -/
@@ -1398,7 +1400,7 @@ def sudFS4 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) (puzzle : List Na
 
 set_option maxRecDepth 100000 in
 /-- One Sudoku statement's first committed data (`sudFS4`'s `main1`). -/
-def sudMain1 (off : EF → String → EF) (puzzle : List Nat) (A : List Cell) (k : Nat) (row : Nat → Air.Row) (tP : Nat) (S16 : Nat → List F) (S10 : Nat → List F) (SP : Nat → List F) (qv : EF → EF → List EF → F → List F → List F → List EF) (wm : Nat → List (EF → EF → List F)) (wc : Nat → List (EF → EF → List F)) (ww : Nat → List (EF → EF → List F)) (wp : Nat → List (EF → EF → List F)) (ncw : Nat) (αd : Nat → EF) (fri : Nat → EF → EF → List (EF → EF) → V) (NR2 : Nat) (Rb : Nat → EF → EF → Nat → List (EF → EF)) (Ro : Nat → EF → EF → Nat → Wv) : (Nat → Tup) → Nat → List (List (List F)) :=
+def sudMain1 (V Wv : Type) (off : EF → String → EF) (puzzle : List Nat) (A : List Cell) (k : Nat) (row : Nat → Air.Row) (tP : Nat) (S16 : Nat → List F) (S10 : Nat → List F) (SP : Nat → List F) (qv : EF → EF → List EF → F → List F → List F → List EF) (wm : Nat → List (EF → EF → List F)) (wc : Nat → List (EF → EF → List F)) (ww : Nat → List (EF → EF → List F)) (wp : Nat → List (EF → EF → List F)) (ncw : Nat) (αd : Nat → EF) (fri : Nat → EF → EF → List (EF → EF) → V) (NR2 : Nat) (Rb : Nat → EF → EF → Nat → List (EF → EF)) (Ro : Nat → EF → EF → Nat → Wv) : (Nat → Tup) → Nat → List (List (List F)) :=
     let blank := stmtMachine (fun _ => false) 729 (sudokuExpr (cluesOf puzzle)) ACC REJ
     let C := cpuTableW A row k (2 ^ 16)
     let Pg := progTableS blank.heap
@@ -1507,7 +1509,7 @@ theorem sud_fs_open4_powD {V Wv P1 P2 P3 : Type}  (off : EF → String → EF) {
     (fun ix c x => (Nat.add_mul_mod_self_left _ _ _).trans (Nat.mod_eq_of_lt (hr1 ix _ _)))
     (fun i j c1 c2 c3 x c xa h => hφs i j _ _ _ _ h)
     (fun ix => (sudFS4 off (puzzle ix) (A ix) (k ix) (row ix) (tP ix) (S16 ix) (S10 ix) (SP ix) (qv ix) (wm ix) (wc ix) (ww ix) (wp ix) K2 K4 (φ ix) N4 (ncw ix) (αd ix) (B4 ix) (fri ix) (NR2 ix) (Rb ix) (Ro ix) (NS1 ix) (NS2 ix) (NS3 ix) n1 n2 n3 (Com1 ix) (Pf1 ix) (Com2 ix) (Pf2 ix) (Com3 ix) (Pf3 ix)).NS * ((sudFS4 off (puzzle ix) (A ix) (k ix) (row ix) (tP ix) (S16 ix) (S10 ix) (SP ix) (qv ix) (wm ix) (wc ix) (ww ix) (wp ix) K2 K4 (φ ix) N4 (ncw ix) (αd ix) (B4 ix) (fri ix) (NR2 ix) (Rb ix) (Ro ix) (NS1 ix) (NS2 ix) (NS3 ix) n1 n2 n3 (Com1 ix) (Pf1 ix) (Com2 ix) (Pf2 ix) (Com3 ix) (Pf3 ix)).NR * (Q4 ^ 2 * δs ix)))
-    (fun ix v => spread_sum (Com1 ix) (sudMain1 off (puzzle ix) (A ix) (k ix) (row ix) (tP ix) (S16 ix) (S10 ix) (SP ix) (qv ix) (wm ix) (wc ix) (ww ix) (wp ix) (ncw ix) (αd ix) (fri ix) (NR2 ix) (Rb ix) (Ro ix)) (hsp ix) v)
+    (fun ix v => spread_sum (Com1 ix) (sudMain1 V Wv off (puzzle ix) (A ix) (k ix) (row ix) (tP ix) (S16 ix) (S10 ix) (SP ix) (qv ix) (wm ix) (wc ix) (ww ix) (wp ix) (ncw ix) (αd ix) (fri ix) (NR2 ix) (Rb ix) (Ro ix)) (hsp ix) v)
     (fun ix => sud_fs4 off (hc ix) (hA ix) (hacc ix) (hlen ix) (hk ix) (htp ix) (S16 ix) (S10 ix) (SP ix) (qv ix) (wm ix) (wc ix) (ww ix) (wp ix) (hlwm ix) (hlwc ix) (hlww ix) (hlwp ix) hK2 hK4 (φ ix) (hφ ix) (hS16 ix) (hS10 ix) (hSP ix) (hsz16 ix) (hsz ix) (hszP ix) (αd ix) (hB4 ix) (fri ix) (hncw ix) (NR2 ix) (Rb ix) (Ro ix) (Com1 ix) (Pf1 ix) (hc1 ix) (hp1 ix) (hr1 ix) (d1 ix) (Com2 ix) (Pf2 ix) (hc2 ix) (hp2 ix) (hr2 ix) (d2 ix) (Com3 ix) (Pf3 ix) (hc3 ix) (hp3 ix) (hr3 ix) (d3 ix)) n
 
 set_option maxRecDepth 100000 in
@@ -1630,7 +1632,7 @@ def witFS4 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) (Vt : Term) (x : 
 
 set_option maxRecDepth 100000 in
 /-- One hidden-term statement's first committed data (`witFS4`'s `main1`). -/
-def witMain1 (off : EF → String → EF) (Vt : Term) (x : Term) (W : Nat) (A : List Cell) (k : Nat) (row : Nat → Air.Row) (tP : Nat) (S10 : Nat → List F) (S9 : Nat → List F) (SP : Nat → List F) (qv : EF → EF → List EF → F → List F → List F → List EF) (wm : Nat → List (EF → EF → List F)) (wc : Nat → List (EF → EF → List F)) (ww : Nat → List (EF → EF → List F)) (wp : Nat → List (EF → EF → List F)) (ncw : Nat) (αd : Nat → EF) (fri : Nat → EF → EF → List (EF → EF) → V) (NR2 : Nat) (Rb : Nat → EF → EF → Nat → List (EF → EF)) (Ro : Nat → EF → EF → Nat → Wv) : (Nat → Tup) → Nat → List (List (List F)) :=
+def witMain1 (V Wv : Type) (off : EF → String → EF) (Vt : Term) (x : Term) (W : Nat) (A : List Cell) (k : Nat) (row : Nat → Air.Row) (tP : Nat) (S10 : Nat → List F) (S9 : Nat → List F) (SP : Nat → List F) (qv : EF → EF → List EF → F → List F → List F → List EF) (wm : Nat → List (EF → EF → List F)) (wc : Nat → List (EF → EF → List F)) (ww : Nat → List (EF → EF → List F)) (wp : Nat → List (EF → EF → List F)) (ncw : Nat) (αd : Nat → EF) (fri : Nat → EF → EF → List (EF → EF) → V) (NR2 : Nat) (Rb : Nat → EF → EF → Nat → List (EF → EF)) (Ro : Nat → EF → EF → Nat → Wv) : (Nat → Tup) → Nat → List (List (List F)) :=
     let blank := wMachine (List.replicate W .S) (Vt ⬝ x)
     let C := cpuTableW A row k (2 ^ 10)
     let Pg := progTableW blank.heap W
@@ -1740,7 +1742,7 @@ theorem wit_fs_open4_powD {V Wv P1 P2 P3 : Type}  (off : EF → String → EF) {
     (fun ix c x => (Nat.add_mul_mod_self_left _ _ _).trans (Nat.mod_eq_of_lt (hr1 ix _ _)))
     (fun i j c1 c2 c3 x c xa h => hφs i j _ _ _ _ h)
     (fun ix => (witFS4 off (Vt ix) (x ix) (W ix) (A ix) (k ix) (row ix) (tP ix) (S10 ix) (S9 ix) (SP ix) (qv ix) (wm ix) (wc ix) (ww ix) (wp ix) K2 K4 (φ ix) N4 (ncw ix) (αd ix) (B4 ix) (fri ix) (NR2 ix) (Rb ix) (Ro ix) (NS1 ix) (NS2 ix) (NS3 ix) n1 n2 n3 (Com1 ix) (Pf1 ix) (Com2 ix) (Pf2 ix) (Com3 ix) (Pf3 ix)).NS * ((witFS4 off (Vt ix) (x ix) (W ix) (A ix) (k ix) (row ix) (tP ix) (S10 ix) (S9 ix) (SP ix) (qv ix) (wm ix) (wc ix) (ww ix) (wp ix) K2 K4 (φ ix) N4 (ncw ix) (αd ix) (B4 ix) (fri ix) (NR2 ix) (Rb ix) (Ro ix) (NS1 ix) (NS2 ix) (NS3 ix) n1 n2 n3 (Com1 ix) (Pf1 ix) (Com2 ix) (Pf2 ix) (Com3 ix) (Pf3 ix)).NR * (Q4 ^ 2 * δs ix)))
-    (fun ix v => spread_sum (Com1 ix) (witMain1 off (Vt ix) (x ix) (W ix) (A ix) (k ix) (row ix) (tP ix) (S10 ix) (S9 ix) (SP ix) (qv ix) (wm ix) (wc ix) (ww ix) (wp ix) (ncw ix) (αd ix) (fri ix) (NR2 ix) (Rb ix) (Ro ix)) (hsp ix) v)
+    (fun ix v => spread_sum (Com1 ix) (witMain1 V Wv off (Vt ix) (x ix) (W ix) (A ix) (k ix) (row ix) (tP ix) (S10 ix) (S9 ix) (SP ix) (qv ix) (wm ix) (wc ix) (ww ix) (wp ix) (ncw ix) (αd ix) (fri ix) (NR2 ix) (Rb ix) (Ro ix)) (hsp ix) v)
     (fun ix => wit_fs4 off (hwf ix) (hwl ix) (hW8 ix) (hA ix) (hK ix) (hlen ix) (hk ix) (htp ix) (S10 ix) (S9 ix) (SP ix) (qv ix) (wm ix) (wc ix) (ww ix) (wp ix) (hlwm ix) (hlwc ix) (hlww ix) (hlwp ix) hK2 hK4 (φ ix) (hφ ix) (hS10 ix) (hS9 ix) (hSP ix) (hsz10 ix) (hsz9 ix) (hszP ix) (αd ix) (hB4 ix) (fri ix) (hncw ix) (NR2 ix) (Rb ix) (Ro ix) (Com1 ix) (Pf1 ix) (hc1 ix) (hp1 ix) (hr1 ix) (d1 ix) (Com2 ix) (Pf2 ix) (hc2 ix) (hp2 ix) (hr2 ix) (d2 ix) (Com3 ix) (Pf3 ix) (hc3 ix) (hp3 ix) (hr3 ix) (d3 ix)) n
 
 end

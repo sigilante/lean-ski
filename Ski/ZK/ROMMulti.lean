@@ -21,6 +21,8 @@ one (`fs_open4_powROM`); for `n` proofs of different statements,
 that `rom4_step` gives (`rom4_read4`).
 -/
 
+set_option autoImplicit false
+
 namespace Circuit
 open ZKF
 theorem sumTo_indEq (v : Nat) : ∀ N, sumTo N (fun c => indB (decide (c = v))) ≤ 1 ∧

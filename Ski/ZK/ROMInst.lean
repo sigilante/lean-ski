@@ -18,6 +18,8 @@ the commitment, no query answers where the prover aborts, the later
 commitments primitives, the commitment's table apart from the Fiat–Shamir
 tables, one hash and no Merkle path.
 -/
+set_option autoImplicit false
+
 namespace Circuit
 open ZKF
 

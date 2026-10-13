@@ -17,6 +17,8 @@ later commitments stay primitives, and the commitment's table is apart from the
 Fiat–Shamir tables, as a domain-separated oracle's.
 -/
 
+set_option autoImplicit false
+
 namespace Circuit
 open ZKF
 
@@ -68,7 +70,7 @@ theorem smT_one (NS NR m : Nat) : smT NS NR m (fun _ => 1) = NS * (NR * (Q4 ^ m 
     opening and its commitment, no query answers where the prover aborts,
     `Com2` a primitive, the commitment's table apart from the Fiat–Shamir
     tables, one hash and no Merkle path. -/
-theorem fs_open2ROM {PV PB D O P D2 O2 P2 : Type} {NR m e1 e2 NSh NSo s k n NS2 K2 n2 : Nat}
+theorem fs_open2ROM {PV PB D O P D2 O2 P2 : Type} {K NR m e1 e2 NSh NSo s k n NS2 K2 n2 : Nat}
     (hK : 0 < K) (hK2 : 0 < K2)
     (rv sv : Nat → EF → EF → Nat → (Nat → Tup) → TViewN PV PB) (gz : Nat → Bool)
     (hrv : ∀ c2 α β r t, rv c2 α β r t = none ∨ ∃ p x y, rv c2 α β r t = some (p, α, β, x, y))
@@ -200,7 +202,7 @@ theorem fs_open2ROM {PV PB D O P D2 O2 P2 : Type} {NR m e1 e2 NSh NSo s k n NS2 
     over the draws the guard `gd` admits (as `fs_open3`'s); one direction,
     with `fs_open2ROM`'s limits. -/
 theorem fs_open3ROM {PV PB D O P D2 O2 P2 D3 O3 P3 : Type}
-    {NR m e1 e2 NSh NSo s k n NS2 NS3 K2 K3 n2 n3 : Nat}
+    {K NR m e1 e2 NSh NSo s k n NS2 NS3 K2 K3 n2 n3 : Nat}
     (hK : 0 < K) (hK2 : 0 < K2) (hK3 : 0 < K3)
     (rv sv : Nat → Nat → EF → EF → Nat → (Nat → Tup) → TViewN PV PB) (gz : Nat → Nat → Bool)
     (hrv : ∀ c2 c3 α β r t, rv c2 c3 α β r t = none ∨ ∃ p x y, rv c2 c3 α β r t = some (p, α, β, x, y))
@@ -403,7 +405,7 @@ theorem transferRc_in {Y D O P : Type} {K n NSh NSo s k : Nat} (hK : 0 < K) (so 
     one direction, with no draw guard (as `fs_open4`'s), and `fs_open2ROM`'s
     other limits. -/
 theorem fs_open4ROM {PV PB D O Pq D2 O2 P2 D3 O3 P3 W : Type}
-    {NR m e1 e2 NSh NSo s k n NS2 NS3 K2 K3 K4 n2 n3 : Nat}
+    {K NR m e1 e2 NSh NSo s k n NS2 NS3 K2 K3 K4 n2 n3 : Nat}
     (hK : 0 < K) (hK2 : 0 < K2) (hK3 : 0 < K3) (hK4 : 0 < K4)
     (φ : Nat → W → Nat) {N4 : Nat} (hφ : ∀ m w, φ m w < N4)
     (rv sv : Nat → Nat → Nat → EF → EF → Nat → (Nat → Tup) → TViewN PV PB) (gz : Nat → Nat → Bool)
