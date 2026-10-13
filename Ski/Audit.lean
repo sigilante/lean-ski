@@ -146,6 +146,7 @@ import Ski.ZK.FSMultiMix
 import Ski.ZK.FSMultiMixSud
 import Ski.ZK.FSMultiOpenROM
 import Ski.ZK.FSMultiPost
+import Ski.ZK.FSMultiAdapt
 import Ski.ZK.FSQueryAbsT
 import Ski.ZK.FSQueryPowT
 import Ski.ZK.ROMFamilyT
@@ -1341,3 +1342,6 @@ open Ski.Audit
 
 -- n proofs, each followed by queries chosen from its view (FSMultiPost)
 #audit_clean Circuit.fs4_postInterleave
+
+-- Statements chosen after seeing the tables (FSMultiAdapt)
+#audit_clean Circuit.zkbT_adaptive Circuit.indB_add_not Circuit.zkbT_rev Circuit.sum_indB_eq Circuit.zkbT_adaptive_mass
