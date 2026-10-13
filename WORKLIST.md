@@ -148,8 +148,8 @@ is built; this file records what is next. Last revised 2026-10-13.
   `fs_open4_twoROM` (`pair_transfer`, `comI_spread_sm`); `n` copies: `fs_open4_powROM`
   (`pow_transfer`, `zkb_rom`); `n` proofs of different statements: `read4_powDROM`
   (`powD_transfer`), each proof's transfer a hypothesis; `n` statements of
-  each circuit: `*_fs_open4_powD` (`Ski/ZK/FSQueryAbs.lean`); those families over the
-  oracle's commitment are not yet done); FRI's
+  each circuit: `*_fs_open4_powD` (`Ski/ZK/FSQueryAbs.lean`), and over the oracle's
+  commitments: `*_fs_open4_powDROM` (`Ski/ZK/ROMFamily.lean`)); FRI's
   folding challenges hashed with the transcript before FRI (from its own layer commitments,
   against a table of its own, they fit already: `fs_pow`); FRI's layer commitments and final polynomial in the query hash's
   input (every opening at `ζ` is in it, `pcsFri_ood`, `pcsFri_oodT`,

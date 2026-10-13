@@ -121,6 +121,7 @@ import Ski.ZK.ROMRounds
 import Ski.ZK.ROMInst
 import Ski.ZK.ROMMulti
 import Ski.ZK.FSQueryAbs
+import Ski.ZK.ROMFamily
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -1253,3 +1254,5 @@ open Ski.Audit
 #audit_clean Circuit.sud_fs_open4_abs Circuit.wit_fs_open4_abs Circuit.comp_fs_open4_abs Circuit.fs4_powD
   Circuit.comp_fs4 Circuit.comp_fs_open4_powD Circuit.sud_fs4 Circuit.sud_fs_open4_powD Circuit.wit_fs4
   Circuit.wit_fs_open4_powD
+-- n statements of each circuit over the oracle's commitments
+#audit_clean Circuit.sud_fs_open4_powDROM Circuit.wit_fs_open4_powDROM Circuit.comp_fs_open4_powDROM
