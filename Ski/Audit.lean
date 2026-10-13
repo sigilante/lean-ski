@@ -1385,4 +1385,4 @@ open Ski.Audit
 #audit_clean Circuit.stA_chain Circuit.stB_chain Circuit.preimage_le_pairs Circuit.spread_pairs Circuit.pairs_countP Circuit.spread_countP Circuit.spread_satPT Circuit.chain1_congr Circuit.xsOf_getD Circuit.xsOf_cover Circuit.hφsp_sponge Circuit.pairsAll_countP Circuit.sponge_hsp Circuit.sponge_δs_countP
 
 -- Composites averaged over the permutation (SpongeAvg)
-#audit_clean Circuit.zkbT_avg Circuit.errPowD_avg Circuit.sud_interleaveP
+#audit_clean Circuit.zkbT_avg Circuit.errPowD_avg Circuit.sud_interleaveP Circuit.errPowD_mono Circuit.avg_err_bound Circuit.nested_const Circuit.wrap_scale Circuit.zkbT_err_le Circuit.sud_interleavePN
