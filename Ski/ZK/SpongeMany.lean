@@ -3,11 +3,9 @@ import Ski.ZK.SpongeAvg
 /-!
 # Many near-collisions are rare under a uniform permutation
 
-`SpongeIndex` bounds the index's preimage by one plus the meeting pairs,
-which costs `n1²` and fails at Plonky3's widths.  A sharper count needs
-many near-collisions to be rare together.  Here an adaptive run under a
-uniform permutation makes `B` fresh answers near an earlier one (`nearN`),
-each answer near at most `F` of the `K` values.
+An adaptive run under a uniform permutation makes `B` fresh answers near
+an earlier one (`nearN`), each answer near at most `F` of the `K` values.
+This bounds how often many near-collisions occur together.
 
 - **Lazy sampling kept on the guard.** `fresh_countPG` is `fresh_countP`
   with its right side restricted to the guard's tables, so a guard may
@@ -22,10 +20,15 @@ each answer near at most `F` of the `K` values.
   `((0 + ⋯ + (k-1)) F)^m / (m! (K - k)^m)` of the permutation tables
   (`nearN_tail`): the `m`-th power of the birthday term over `m!`.
 
-Not shown: the step from this tail to the index's preimage.  Running all
-`n1` first commitments as one adaptive run, `s` chains reaching one state
-should need `s - 1` near-collisions, which would bound the preimage by
-`m` outside an event of mass `(birthday term)^m / m!`.
+Not shown: the step from this tail to the sponge index's preimage.
+Running all `n1` first commitments as one adaptive run, `s` chains reaching
+one state appear to need `s - 1` near-collisions (random tests on small
+parameters find no counterexample; no proof).  Even so, the run has about
+`n1² (L+1)² / (2 |capacity|)` expected near-collisions, so the tail bounds
+the preimage usefully only while `n1²` stays below the capacity, the same
+condition as `SpongeIndex`'s pairs.  At Plonky3's widths, `n1` near the
+capacity, a useful bound needs a count local to one target value, not the
+run's total.
 -/
 
 set_option autoImplicit false
@@ -147,8 +150,8 @@ theorem chs_step (n m : Nat) (b : Bool) : chs (n + indB b) (m + 1) = chs n (m + 
   · show chs (n + 1) (m + 1) = chs n (m + 1) + 1 * chs n m
     rw [Nat.one_mul, Nat.add_comm (chs n (m + 1))]; rfl
 
-/-- The queries, oldest first, that are fresh and answer near an earlier
-    answer: near under `cl`, below `K`. -/
+/-- The queries of a newest-first run that are fresh and answer near an
+    earlier answer: near under `cl`, below `K`. -/
 def nearN (K : Nat) (cl : Nat → Nat → Bool) : List (Nat × Nat) → Nat
   | [] => 0
   | x :: rest => nearN K cl rest +
