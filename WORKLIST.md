@@ -198,7 +198,7 @@ is built; this file records what is next. Last revised 2026-10-13.
   after every programming (queries before a proof: `Ski/ZK/FSMultiQueries.lean`,
   `zkbT_queries`, `advHit_count`; interleaved with several proofs, each hit charged to the
   programmer: `Ski/ZK/FSMultiInterleave.lean`, `zkbT_powD_rd`; chosen from earlier proofs'
-  views, not yet); the circuits'
+  views: `Ski/ZK/FSMultiViews.lean`, `zkbT_post`, `zkbT_post_pair`); the circuits'
   `n`-statement theorems over them, `Ski/ZK/FSQueryPowT.lean` (`sud_fs_open4_powDT` and the
   others), `hout` and `hpq` hypotheses on the openings (met by reads of the first three
   tables at points with the reader's first commitment as low digit, `read2_hout` for one
