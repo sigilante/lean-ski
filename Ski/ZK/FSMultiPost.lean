@@ -7,18 +7,24 @@ import Ski.ZK.FSMultiViews
 `FSMultiViews` composes a proof with queries chosen from an earlier view
 stage by stage.  Here the own-view case composes in one theorem: `n`
 four-round proofs, each followed by `kq` adaptive queries its distinguisher
-chooses from that proof's own view (`postRun`): a component's view is the proof's view with the
-answers (`postV`, its simulated view `postSv`), its bound unchanged
-(`zkbT_post`), its reads the proof's and the queries' (`rdP i H x ++
-advRd …`, the queries' made at the tables from the view there,
-`postRun_read`), so `zkbT_powD_rd` composes them (`fs4_postInterleave`).
-The queries' hits on the later proofs' points are charged to their spread,
-`kq` more reads per proof.  Queries chosen from all `n` views at once,
-made after the proofs, add nothing to any composite bound
-(`zkbT_postAll`).  Not shown: queries chosen from several earlier views or
-earlier phases' answers at once, made between proofs (`zkbT_post_pair`, stage by stage,
-allows that); query counts varying by phase; pure query phases between
-proofs here (`fs4_interleave` has them); statements chosen from views.
+chooses from that proof's own view (`postRun`): a component's view is the
+proof's view with the answers (`postV`, its simulated view `postSv`), its
+bound unchanged (`zkbT_post`), its reads the proof's and the queries' (`rdP
+i H x ++ advRd …`, the queries' made at the tables from the view there,
+`postRun_read`), so `zkbT_powD_rd` composes them (`fs4_postInterleave`). The
+queries' hits on the later proofs' points are charged to their spread, `kq`
+more reads per proof.  Queries chosen from all `n` views at once, made after
+the proofs, add nothing to any composite bound (`zkbT_postAll`).  Queries
+chosen from every earlier view and answer at once, made between proofs,
+compose `n`-fold as `zkbT_powD` does, `zkbT_post_pair` iterated (`VQ`,
+`rvQ`, `svQ`, `zkbT_powQ`), each stage's hit flag `col` and collision bound
+`hcol` hypotheses as in `zkbT_powD`.  Not shown: those discharged from read
+lists and spread for the circuits (`post_hits_le` bounds a phase's own
+share, `kq δq`; a read list for `rvQ` in the manner of `zkbT_powD_rd`,
+flagging every earlier proof's and phase's reads, is not built); query
+counts varying by phase; pure query phases between proofs here
+(`fs4_interleave` has them); statements chosen from views are
+`FSMultiAdapt`'s.
 -/
 
 set_option autoImplicit false
@@ -103,5 +109,75 @@ theorem zkbT_postAll {X C V : Type} {K ε kq K1 K2 K3 K4 : Nat} {ST : (Nat × Na
     ZKBT ST K sm SC (fun H x => (rv H x, postRun K1 K2 K3 K4 kq nxt (rv H x) H)) pg
       (fun H c x => (sv H c x, postRun K1 K2 K3 K4 kq nxt (sv H c x) (pg H c x))) ε :=
   zkbT_post h (fun v H => postRun K1 K2 K3 K4 kq nxt v H)
+
+/-- The composite view with queries between proofs: before proof `n`
+    programs, `kq` queries chosen from the whole view so far, every earlier
+    proof's and every earlier answer. -/
+def VQ (V : Nat → Type) : Nat → Type
+  | 0 => Unit
+  | n + 1 => V n × (VQ V n × List Nat)
+
+/-- Its real view. -/
+def rvQ {X V : Nat → Type} (K1 K2 K3 K4 kq : Nat) (rv : (i : Nat) → Nat × Nat × Nat × Nat → X i → V i)
+    (nxt : (n : Nat) → VQ V n → List Nat → Nat × Nat × Unit) :
+    (n : Nat) → Nat × Nat × Nat × Nat → PowD X n → VQ V n
+  | 0, _, _ => ()
+  | n + 1, H, x => (rv n H x.1, (rvQ K1 K2 K3 K4 kq rv nxt n H x.2,
+      postRun K1 K2 K3 K4 kq (nxt n) (rvQ K1 K2 K3 K4 kq rv nxt n H x.2) H))
+
+/-- Its simulated view, each stage at the tables the earlier stages
+    programmed. -/
+def svQ {X C V : Nat → Type} (K1 K2 K3 K4 kq : Nat)
+    (pts : (i : Nat) → C i → X i → Nat × Nat × Nat × Nat) (cv : (i : Nat) → C i → Nat × Nat × Nat × Nat)
+    (sv : (i : Nat) → Nat × Nat × Nat × Nat → C i → X i → V i)
+    (nxt : (n : Nat) → VQ V n → List Nat → Nat × Nat × Unit) :
+    (n : Nat) → Nat × Nat × Nat × Nat → PowD C n → PowD X n → VQ V n
+  | 0, _, _, _ => ()
+  | n + 1, H, c, x =>
+    (sv n (pgPowD (fun i H c x => prog4 K1 K2 K3 K4 H (pts i c x) (cv i c)) n H c.2 x.2) c.1 x.1,
+     (svQ K1 K2 K3 K4 kq pts cv sv nxt n H c.2 x.2,
+      postRun K1 K2 K3 K4 kq (nxt n) (svQ K1 K2 K3 K4 kq pts cv sv nxt n H c.2 x.2)
+        (pgPowD (fun i H c x => prog4 K1 K2 K3 K4 H (pts i c x) (cv i c)) n H c.2 x.2)))
+
+/-- **`n` proofs with queries chosen from every earlier view between them**
+    (`zkbT_post_pair` iterated as `zkbT_powD` iterates `zkbT_pair`): before
+    proof `n` programs, `kq` queries chosen from the whole view so far.  The
+    composite view's reads, flagged by `col n` (`hread`), and the queries'
+    reads count toward each stage's collisions (`hcol`). -/
+theorem zkbT_powQ {X C V : Nat → Type} {K1 K2 K3 K4 kq : Nat} (h1 : 0 < K1) (h2 : 0 < K2) (h3 : 0 < K3) (h4 : 0 < K4)
+    (K : Nat → Nat) (ST : (Nat × Nat × Nat × Nat → Nat) → Nat) (hST : Lin ST)
+    (sm : (i : Nat) → (X i → Nat) → Nat) (hs : ∀ i, Lin (sm i))
+    (sc : (i : Nat) → (C i → Nat) → Nat) (hc : ∀ i, Lin (sc i))
+    (c1 : ∀ i j, Comm (sm i) (sm j)) (c2 : ∀ i, Comm ST (sm i)) (c3 : ∀ i j, Comm (sc i) (sm j))
+    (c4 : ∀ i, Comm ST (sc i)) (c7 : ∀ i j, Comm (sm i) (sc j))
+    (rv : (i : Nat) → Nat × Nat × Nat × Nat → X i → V i)
+    (pts : (i : Nat) → C i → X i → Nat × Nat × Nat × Nat) (cv : (i : Nat) → C i → Nat × Nat × Nat × Nat)
+    (sv : (i : Nat) → Nat × Nat × Nat × Nat → C i → X i → V i)
+    (ε δ : Nat → Nat)
+    (hzk : ∀ i, ZKBT ST (K i) (sm i) (sc i) (rv i) (fun H c x => prog4 K1 K2 K3 K4 H (pts i c x) (cv i c)) (sv i) (ε i))
+    (nxt : (n : Nat) → VQ V n → List Nat → Nat × Nat × Unit)
+    (ok : (i : Nat) → C i → Bool) (hok : ∀ i (f g : C i → Nat), (∀ c, ok i c = true → f c ≤ g c) → sc i f ≤ sc i g)
+    (hcv : ∀ i c, ok i c = true → (cv i c).1 < K1 ∧ (cv i c).2.1 < K2 ∧ (cv i c).2.2.1 < K3 ∧ (cv i c).2.2.2 < K4)
+    (col : (n : Nat) → Nat × Nat × Nat × Nat → C n → X n → PowD X n → Bool)
+    (hread : ∀ n H ca xa xb, ok n ca = true → col n H ca xa xb = false →
+      rvQ K1 K2 K3 K4 kq rv nxt n (prog4 K1 K2 K3 K4 H (pts n ca xa) (cv n ca)) xb = rvQ K1 K2 K3 K4 kq rv nxt n H xb)
+    (hcol : ∀ n, sc n (fun ca => sm n (fun xa => ST (fun H => smPowD sm n (fun xb => indB (col n H ca xa xb ||
+      (advRd K1 K2 K3 K4 kq (nxt n (rvQ K1 K2 K3 K4 kq rv nxt n H xb)) H).any
+        (fun r => decide (coord4 r.1 (pts n ca xa) = r.2))))))) ≤ δ n) :
+    ∀ n, ZKBT ST (KPowD K n) (smPowD sm n) (scPowD sc n) (rvQ K1 K2 K3 K4 kq rv nxt n)
+      (pgPowD (fun i H c x => prog4 K1 K2 K3 K4 H (pts i c x) (cv i c)) n)
+      (svQ K1 K2 K3 K4 kq pts cv sv nxt n) (errPowD K sm sc ε δ n)
+  | 0 => fun E => by
+    show 1 * ST (fun H => indB (E H ())) ≤ ST (fun H => indB (E H ())) + 0
+    rw [Nat.one_mul, Nat.add_zero]; exact Nat.le_refl _
+  | n + 1 => by
+    have ih := zkbT_powQ h1 h2 h3 h4 K ST hST sm hs sc hc c1 c2 c3 c4 c7 rv pts cv sv ε δ hzk nxt ok hok hcv col
+      hread hcol n
+    exact zkbT_post_pair h1 h2 h3 h4 ST hST (sm n) (hs n) (smPowD sm n) (lin_smPowD hs n) (sc n) (hc n) (scPowD sc n)
+      (comm_smPowD' (fun i => c1 n i) n) (comm_smPowD' c2 n) (comm_smPowD' (fun i => c3 n i) n) (c4 n) (c2 n)
+      (comm_scPowD' (fun i => c7 n i) n)
+      (rv n) (pts n) (cv n) (sv n) (rvQ K1 K2 K3 K4 kq rv nxt n)
+      (pgPowD (fun i H c x => prog4 K1 K2 K3 K4 H (pts i c x) (cv i c)) n) (svQ K1 K2 K3 K4 kq pts cv sv nxt n)
+      (hzk n) ih (nxt n) (col n) (ok n) (hok n) (hcv n) (hread n) (hcol n)
 
 end Circuit
