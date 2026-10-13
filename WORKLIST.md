@@ -140,8 +140,13 @@ is built; this file records what is next. Last revised 2026-10-13.
   `k` adaptive queries is proved: `Ski/ZK/ROMHide.lean`, `rom_hideQ`; given its openings:
   `rom_hidePfQ`; one round under approximate hiding: `fs_openA`; one round with the commitment
   drawn from the oracle: `fs_openROM`; every round through the ideal opening (`pfI_hides`) and
-  the transfer `pfR_pfI` with its hit bound `hit_bound`, not yet written into each
-  theorem); FRI's
+  the transfer `pfR_pfI` with its hit bound `hit_bound`, written into two and three
+  rounds: `fs_open2ROM`, `fs_open3ROM`; four rounds wait on a model, since `fs_open4`'s
+  first opening reads the query challenge `c4`, hashed from the commitment, and hides at
+  each `c4` alone, while the ideal opening's queries would read every `c4`'s opening:
+  either the queries read the opening at the drawn `c4` only, with a transfer whose
+  opening is chosen by the commitment's value, or the opening hides jointly over every
+  `c4`); FRI's
   folding challenges hashed with the transcript before FRI (from its own layer commitments,
   against a table of its own, they fit already: `fs_pow`); FRI's layer commitments and final polynomial in the query hash's
   input (every opening at `ζ` is in it, `pcsFri_ood`, `pcsFri_oodT`,

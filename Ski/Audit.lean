@@ -1237,4 +1237,4 @@ open Ski.Audit
   Circuit.digit_dec Circuit.pfI_hides Circuit.pfR_pfI Circuit.comI_hides Circuit.rset_back Circuit.hit_rset
   Circuit.hit_bound Circuit.transferR
 -- Two rounds, the first commitment drawn from the oracle
-#audit_clean Circuit.transferR_in Circuit.smT_lin Circuit.smT_one Circuit.fs_open2ROM
+#audit_clean Circuit.transferR_in Circuit.smT_lin Circuit.smT_one Circuit.fs_open2ROM Circuit.fs_open3ROM
