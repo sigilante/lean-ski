@@ -24,7 +24,12 @@ with such openings then meets `hout'` (`sudFS4T_houtL`) and `hrd` with `4 +
 query phases in `zkbT_powD_rd`.  Openings whose strategy also reads their
 data and salt (`pfRd`), as FRI's layer-root challenges need, are components
 too: the read list names each opening's data (`sudMain1` …) and salt
-(`pfRdReads`, `pfRd_progD`, `sudFS4T_houtD`, `sudFS4T_hrdD`).  The composed
+(`pfRdReads`, `pfRd_progD`, `sudFS4T_houtD`, `sudFS4T_hrdD`).  No digit is needed
+here: an opening reading at points of any digit its strategy picks (a
+function of `c4` and `M`; with the data and salt as well, not shown) is a
+component too, its hits charged to the programmers' spread (`pfRdA`,
+`pfRdA_prog`, `sudFS4T_houtA`, `sudFS4T_hrdA`; `pfRdM` its own-digit case,
+`pfRdM_eq_A`).  The composed
 theorem is `FSMultiMix`'s `fs4_interleave`.  Not shown: its spread `hsp` for
 these proofs (each programmed coordinate: the first three the first
 commitment's, the fourth through a digit read-back on `φ` of `hdg`'s kind);
@@ -130,6 +135,49 @@ theorem pfRdM_prog {D P W : Type} {K1 K2 K3 K4 n1 k : Nat} (h1 : 0 < K1) (h2 : 0
     List.any_eq_true.2 ⟨(r.1, pt4 n1 φ (M % n1) r), List.mem_map.2 ⟨r, hr, rfl⟩, decide_eq_true e⟩
   rw [hm] at hit; exact Bool.false_ne_true hit
 
+/-- An opening reading the tables at points of any digit `μ c4 M` its
+    strategy picks (not only its own, `pfRdM`): `k` reads by `runR4` at
+    `μ c4 M`, the strategy a function of the fourth challenge and
+    the third message alone, as challenges drawn from earlier transcript
+    points are; the result any function of the reads, the data and the
+    salt. -/
+def pfRdA {D P W : Type} (K1 K2 K3 K4 n1 k : Nat) (φ : Nat → W → Nat)
+    (μ : Nat → Nat → Nat) (nxt : Nat → Nat → List Nat → Nat × Nat × W) (G : Nat → Nat → D → Nat → List Nat → P)
+    (c4 T1 T2 T3 T4 M : Nat) (d : D) (σ : Nat) : P :=
+  G c4 M d σ (runR4 K1 K2 K3 K4 n1 (μ c4 M) φ (nxt c4 M) (T1, T2, T3, T4) k)
+
+/-- Its reads, `(table, point)`. -/
+def pfRdAReads {W : Type} (K1 K2 K3 K4 n1 k : Nat) (φ : Nat → W → Nat) (μ : Nat → Nat → Nat) (nxt : Nat → Nat → List Nat → Nat × Nat × W)
+    (H : Nat × Nat × Nat × Nat) (c4 M : Nat) : List (Nat × Nat) :=
+  (readsR4 K1 K2 K3 K4 n1 (μ c4 M) φ (nxt c4 M) H k).map (fun r => (r.1, pt4 n1 φ (μ c4 M) r))
+
+theorem pfRdAReads_length {W : Type} (K1 K2 K3 K4 n1 k : Nat) (φ : Nat → W → Nat)
+    (μ : Nat → Nat → Nat) (nxt : Nat → Nat → List Nat → Nat × Nat × W) (H : Nat × Nat × Nat × Nat) (c4 M : Nat) :
+    (pfRdAReads K1 K2 K3 K4 n1 k φ μ nxt H c4 M).length = k := by
+  unfold pfRdAReads; rw [List.length_map, readsR4_length]
+
+/-- **The opening is unchanged by a programming its reads miss.** -/
+theorem pfRdA_prog {D P W : Type} {K1 K2 K3 K4 n1 k : Nat} (h1 : 0 < K1) (h2 : 0 < K2) (h3 : 0 < K3) (h4 : 0 < K4)
+    (φ : Nat → W → Nat) (μ : Nat → Nat → Nat) (nxt : Nat → Nat → List Nat → Nat × Nat × W) (G : Nat → Nat → D → Nat → List Nat → P)
+    (H p a : Nat × Nat × Nat × Nat) (ha : a.1 < K1 ∧ a.2.1 < K2 ∧ a.2.2.1 < K3 ∧ a.2.2.2 < K4) (c4 M : Nat)
+    (hm : (pfRdAReads K1 K2 K3 K4 n1 k φ μ nxt H c4 M).any (fun r => decide (coord4 r.1 p = r.2)) = false) :
+    pfRdA K1 K2 K3 K4 n1 k φ μ nxt G c4 (prog4 K1 K2 K3 K4 H p a).1 (prog4 K1 K2 K3 K4 H p a).2.1
+      (prog4 K1 K2 K3 K4 H p a).2.2.1 (prog4 K1 K2 K3 K4 H p a).2.2.2 M =
+      pfRdA K1 K2 K3 K4 n1 k φ μ nxt G c4 H.1 H.2.1 H.2.2.1 H.2.2.2 M := by
+  funext d σ
+  unfold pfRdA
+  congr 1
+  refine runR4_prog h1 h2 h3 h4 φ (nxt c4 M) H p a ha k (fun r hr e => ?_)
+  have hit : (pfRdAReads K1 K2 K3 K4 n1 k φ μ nxt H c4 M).any (fun r => decide (coord4 r.1 p = r.2)) = true :=
+    List.any_eq_true.2 ⟨(r.1, pt4 n1 φ (μ c4 M) r), List.mem_map.2 ⟨r, hr, rfl⟩, decide_eq_true e⟩
+  rw [hm] at hit; exact Bool.false_ne_true hit
+
+
+/-- `pfRdM` is `pfRdA` at its own digit. -/
+theorem pfRdM_eq_A {D P W : Type} (K1 K2 K3 K4 n1 k : Nat) (φ : Nat → W → Nat)
+    (nxt : Nat → Nat → List Nat → Nat × Nat × W) (G : Nat → Nat → D → Nat → List Nat → P) :
+    pfRdM K1 K2 K3 K4 n1 k φ nxt G = pfRdA K1 K2 K3 K4 n1 k φ (fun _ M => M % n1) nxt G := rfl
+
 section
 open B Air Stmt Mach Sudoku SudokuText Compose CompM Wit
 
@@ -178,6 +226,52 @@ theorem sudFS4T_hrd {V Wv P1 P2 P3 W1 W2 W3 : Type} (off : EF → String → EF)
         read4T (Q4 * Q4) K2 Q4 K4 (sudFS4T off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 K4 φ N4 ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 (pfRdM (Q4 * Q4) K2 Q4 K4 n1 kq φ1 nx1 G1) Com2 (pfRdM (Q4 * Q4) K2 Q4 K4 n1 kq φ2 nx2 G2) Com3 (pfRdM (Q4 * Q4) K2 Q4 K4 n1 kq φ3 nx3 G3) hqr).m1 (sudFS4T off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 K4 φ N4 ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 (pfRdM (Q4 * Q4) K2 Q4 K4 n1 kq φ1 nx1 G1) Com2 (pfRdM (Q4 * Q4) K2 Q4 K4 n1 kq φ2 nx2 G2) Com3 (pfRdM (Q4 * Q4) K2 Q4 K4 n1 kq φ3 nx3 G3) hqr).m2 (sudFS4T off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 K4 φ N4 ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 (pfRdM (Q4 * Q4) K2 Q4 K4 n1 kq φ1 nx1 G1) Com2 (pfRdM (Q4 * Q4) K2 Q4 K4 n1 kq φ2 nx2 G2) Com3 (pfRdM (Q4 * Q4) K2 Q4 K4 n1 kq φ3 nx3 G3) hqr).m3 (sudFS4T off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 K4 φ N4 ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 (pfRdM (Q4 * Q4) K2 Q4 K4 n1 kq φ1 nx1 G1) Com2 (pfRdM (Q4 * Q4) K2 Q4 K4 n1 kq φ2 nx2 G2) Com3 (pfRdM (Q4 * Q4) K2 Q4 K4 n1 kq φ3 nx3 G3) hqr).q (sudFS4T off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 K4 φ N4 ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 (pfRdM (Q4 * Q4) K2 Q4 K4 n1 kq φ1 nx1 G1) Com2 (pfRdM (Q4 * Q4) K2 Q4 K4 n1 kq φ2 nx2 G2) Com3 (pfRdM (Q4 * Q4) K2 Q4 K4 n1 kq φ3 nx3 G3) hqr).out H x :=
   fun H p a x ha hm => rd4G_hrd h1 h2 h3 h4 _ _ _ _ _ _
     (sudFS4T_houtL off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 K4 φ N4 ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 Com2 Com3 hqr h1 h2 h3 h4 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3) H p a ha x hm
+
+set_option maxRecDepth 100000 in
+/-- **The Sudoku proof with any-digit-reading openings (`pfRdA`) meets
+    `FSMultiInterleave`'s `hout'`**: its output's reads at the challenges
+    read are the three openings' reads at the third message. -/
+theorem sudFS4T_houtA {V Wv P1 P2 P3 W1 W2 W3 : Type} (off : EF → String → EF) (puzzle : List Nat) (A : List Cell) (k : Nat) (row : Nat → Air.Row) (tP : Nat) (S16 : Nat → List F) (S10 : Nat → List F) (SP : Nat → List F) (qv : EF → EF → List EF → F → List F → List F → List EF) (wm : Nat → List (EF → EF → List F)) (wc : Nat → List (EF → EF → List F)) (ww : Nat → List (EF → EF → List F)) (wp : Nat → List (EF → EF → List F)) (K2 : Nat) (K4 : Nat) (φ : Nat → Option (List (List (List EF)) × List (List (List (List EF))) × List (List (List EF))) → Nat) (N4 : Nat) (ncw : Nat) (αd : Nat → EF) (B4 : Nat) (fri : Nat → EF → EF → List (EF → EF) → V) (NR2 : Nat) (Rb : Nat → EF → EF → Nat → List (EF → EF)) (Ro : Nat → EF → EF → Nat → Wv) (NS1 : Nat) (NS2 : Nat) (NS3 : Nat) (n1 : Nat) (n2 : Nat) (n3 : Nat) (Com1 : List (List (List F)) → Nat → Nat)  (Com2 : List (List (List F)) → Nat → Nat)  (Com3 : List (List (List (List F))) × List (List (List F)) → Nat → Nat)  (hqr : Nat × Nat × Nat × Nat → Nat × Nat × Nat × Nat → Nat × Nat × Nat × (Nat → Tup) → Bool)
+    {kq : Nat} (h1 : 0 < Q4 * Q4) (h2 : 0 < K2) (h3 : 0 < Q4) (h4 : 0 < K4)
+    (φ1 : Nat → W1 → Nat) (μ1 : Nat → Nat → Nat) (nx1 : Nat → Nat → List Nat → Nat × Nat × W1) (G1 : Nat → Nat → List (List (List F)) → Nat → List Nat → P1)
+    (φ2 : Nat → W2 → Nat) (μ2 : Nat → Nat → Nat) (nx2 : Nat → Nat → List Nat → Nat × Nat × W2) (G2 : Nat → Nat → List (List (List F)) → Nat → List Nat → P2)
+    (φ3 : Nat → W3 → Nat) (μ3 : Nat → Nat → Nat) (nx3 : Nat → Nat → List Nat → Nat × Nat × W3)
+    (G3 : Nat → Nat → List (List (List (List F))) × List (List (List F)) → Nat → List Nat → P3) :
+    ∀ H p a c4 c1 c2 c3 x, a.1 < Q4 * Q4 ∧ a.2.1 < K2 ∧ a.2.2.1 < Q4 ∧ a.2.2.2 < K4 →
+      (pfRdAReads (Q4 * Q4) K2 Q4 K4 n1 kq φ1 μ1 nx1 H c4 ((sudFS4T off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 K4 φ N4 ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ1 μ1 nx1 G1) Com2 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ2 μ2 nx2 G2) Com3 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ3 μ3 nx3 G3) hqr).m3 c1 c2 x) ++
+        pfRdAReads (Q4 * Q4) K2 Q4 K4 n1 kq φ2 μ2 nx2 H c4 ((sudFS4T off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 K4 φ N4 ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ1 μ1 nx1 G1) Com2 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ2 μ2 nx2 G2) Com3 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ3 μ3 nx3 G3) hqr).m3 c1 c2 x) ++
+        pfRdAReads (Q4 * Q4) K2 Q4 K4 n1 kq φ3 μ3 nx3 H c4 ((sudFS4T off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 K4 φ N4 ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ1 μ1 nx1 G1) Com2 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ2 μ2 nx2 G2) Com3 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ3 μ3 nx3 G3) hqr).m3 c1 c2 x)).any
+        (fun r => decide (coord4 r.1 p = r.2)) = false →
+      (sudFS4T off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 K4 φ N4 ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ1 μ1 nx1 G1) Com2 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ2 μ2 nx2 G2) Com3 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ3 μ3 nx3 G3) hqr).out (prog4 (Q4 * Q4) K2 Q4 K4 H p a) c4 c1 c2 c3 x = (sudFS4T off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 K4 φ N4 ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ1 μ1 nx1 G1) Com2 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ2 μ2 nx2 G2) Com3 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ3 μ3 nx3 G3) hqr).out H c4 c1 c2 c3 x := by
+  intro H p a c4 c1 c2 c3 x ha hm
+  rw [List.any_append, List.any_append, Bool.or_eq_false_iff, Bool.or_eq_false_iff] at hm
+  have e1 := pfRdA_prog h1 h2 h3 h4 φ1 μ1 nx1 G1 H p a ha c4 _ hm.1.1
+  have e2 := pfRdA_prog h1 h2 h3 h4 φ2 μ2 nx2 G2 H p a ha c4 _ hm.1.2
+  have e3 := pfRdA_prog h1 h2 h3 h4 φ3 μ3 nx3 G3 H p a ha c4 _ hm.2
+  dsimp only [sudFS4T] at e1 e2 e3 ⊢
+  rw [e1, e2, e3]
+
+set_option maxRecDepth 100000 in
+/-- **The Sudoku proof with any-digit-reading openings (`pfRdA`) is an interleaving
+    component**: its view meets `hrd` (`rd4G_hrd` at `sudFS4T_houtA`), the
+    messages' four reads and the openings' `3 kq` at the challenges read. -/
+theorem sudFS4T_hrdA {V Wv P1 P2 P3 W1 W2 W3 : Type} (off : EF → String → EF) (puzzle : List Nat) (A : List Cell) (k : Nat) (row : Nat → Air.Row) (tP : Nat) (S16 : Nat → List F) (S10 : Nat → List F) (SP : Nat → List F) (qv : EF → EF → List EF → F → List F → List F → List EF) (wm : Nat → List (EF → EF → List F)) (wc : Nat → List (EF → EF → List F)) (ww : Nat → List (EF → EF → List F)) (wp : Nat → List (EF → EF → List F)) (K2 : Nat) (K4 : Nat) (φ : Nat → Option (List (List (List EF)) × List (List (List (List EF))) × List (List (List EF))) → Nat) (N4 : Nat) (ncw : Nat) (αd : Nat → EF) (B4 : Nat) (fri : Nat → EF → EF → List (EF → EF) → V) (NR2 : Nat) (Rb : Nat → EF → EF → Nat → List (EF → EF)) (Ro : Nat → EF → EF → Nat → Wv) (NS1 : Nat) (NS2 : Nat) (NS3 : Nat) (n1 : Nat) (n2 : Nat) (n3 : Nat) (Com1 : List (List (List F)) → Nat → Nat)  (Com2 : List (List (List F)) → Nat → Nat)  (Com3 : List (List (List (List F))) × List (List (List F)) → Nat → Nat)  (hqr : Nat × Nat × Nat × Nat → Nat × Nat × Nat × Nat → Nat × Nat × Nat × (Nat → Tup) → Bool)
+    {kq : Nat} (h1 : 0 < Q4 * Q4) (h2 : 0 < K2) (h3 : 0 < Q4) (h4 : 0 < K4)
+    (φ1 : Nat → W1 → Nat) (μ1 : Nat → Nat → Nat) (nx1 : Nat → Nat → List Nat → Nat × Nat × W1) (G1 : Nat → Nat → List (List (List F)) → Nat → List Nat → P1)
+    (φ2 : Nat → W2 → Nat) (μ2 : Nat → Nat → Nat) (nx2 : Nat → Nat → List Nat → Nat × Nat × W2) (G2 : Nat → Nat → List (List (List F)) → Nat → List Nat → P2)
+    (φ3 : Nat → W3 → Nat) (μ3 : Nat → Nat → Nat) (nx3 : Nat → Nat → List Nat → Nat × Nat × W3)
+    (G3 : Nat → Nat → List (List (List (List F))) × List (List (List F)) → Nat → List Nat → P3) :
+    ∀ H p a x, a.1 < Q4 * Q4 ∧ a.2.1 < K2 ∧ a.2.2.1 < Q4 ∧ a.2.2.2 < K4 →
+      (rd4 (Q4 * Q4) K2 Q4 (sudFS4T off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 K4 φ N4 ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ1 μ1 nx1 G1) Com2 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ2 μ2 nx2 G2) Com3 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ3 μ3 nx3 G3) hqr).m1 (sudFS4T off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 K4 φ N4 ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ1 μ1 nx1 G1) Com2 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ2 μ2 nx2 G2) Com3 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ3 μ3 nx3 G3) hqr).m2 (sudFS4T off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 K4 φ N4 ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ1 μ1 nx1 G1) Com2 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ2 μ2 nx2 G2) Com3 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ3 μ3 nx3 G3) hqr).m3 (sudFS4T off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 K4 φ N4 ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ1 μ1 nx1 G1) Com2 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ2 μ2 nx2 G2) Com3 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ3 μ3 nx3 G3) hqr).q H x ++
+        rdOutG (Q4 * Q4) K2 Q4 K4 (sudFS4T off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 K4 φ N4 ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ1 μ1 nx1 G1) Com2 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ2 μ2 nx2 G2) Com3 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ3 μ3 nx3 G3) hqr).m1 (sudFS4T off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 K4 φ N4 ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ1 μ1 nx1 G1) Com2 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ2 μ2 nx2 G2) Com3 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ3 μ3 nx3 G3) hqr).m2 (sudFS4T off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 K4 φ N4 ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ1 μ1 nx1 G1) Com2 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ2 μ2 nx2 G2) Com3 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ3 μ3 nx3 G3) hqr).m3 (sudFS4T off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 K4 φ N4 ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ1 μ1 nx1 G1) Com2 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ2 μ2 nx2 G2) Com3 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ3 μ3 nx3 G3) hqr).q
+          (fun H c4 c1 c2 _ x => pfRdAReads (Q4 * Q4) K2 Q4 K4 n1 kq φ1 μ1 nx1 H c4 ((sudFS4T off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 K4 φ N4 ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ1 μ1 nx1 G1) Com2 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ2 μ2 nx2 G2) Com3 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ3 μ3 nx3 G3) hqr).m3 c1 c2 x) ++
+            pfRdAReads (Q4 * Q4) K2 Q4 K4 n1 kq φ2 μ2 nx2 H c4 ((sudFS4T off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 K4 φ N4 ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ1 μ1 nx1 G1) Com2 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ2 μ2 nx2 G2) Com3 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ3 μ3 nx3 G3) hqr).m3 c1 c2 x) ++
+            pfRdAReads (Q4 * Q4) K2 Q4 K4 n1 kq φ3 μ3 nx3 H c4 ((sudFS4T off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 K4 φ N4 ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ1 μ1 nx1 G1) Com2 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ2 μ2 nx2 G2) Com3 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ3 μ3 nx3 G3) hqr).m3 c1 c2 x)) H x).any
+        (fun r => decide (coord4 r.1 p = r.2)) = false →
+      read4T (Q4 * Q4) K2 Q4 K4 (sudFS4T off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 K4 φ N4 ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ1 μ1 nx1 G1) Com2 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ2 μ2 nx2 G2) Com3 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ3 μ3 nx3 G3) hqr).m1 (sudFS4T off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 K4 φ N4 ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ1 μ1 nx1 G1) Com2 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ2 μ2 nx2 G2) Com3 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ3 μ3 nx3 G3) hqr).m2 (sudFS4T off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 K4 φ N4 ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ1 μ1 nx1 G1) Com2 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ2 μ2 nx2 G2) Com3 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ3 μ3 nx3 G3) hqr).m3 (sudFS4T off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 K4 φ N4 ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ1 μ1 nx1 G1) Com2 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ2 μ2 nx2 G2) Com3 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ3 μ3 nx3 G3) hqr).q (sudFS4T off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 K4 φ N4 ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ1 μ1 nx1 G1) Com2 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ2 μ2 nx2 G2) Com3 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ3 μ3 nx3 G3) hqr).out (prog4 (Q4 * Q4) K2 Q4 K4 H p a) x =
+        read4T (Q4 * Q4) K2 Q4 K4 (sudFS4T off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 K4 φ N4 ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ1 μ1 nx1 G1) Com2 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ2 μ2 nx2 G2) Com3 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ3 μ3 nx3 G3) hqr).m1 (sudFS4T off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 K4 φ N4 ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ1 μ1 nx1 G1) Com2 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ2 μ2 nx2 G2) Com3 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ3 μ3 nx3 G3) hqr).m2 (sudFS4T off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 K4 φ N4 ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ1 μ1 nx1 G1) Com2 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ2 μ2 nx2 G2) Com3 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ3 μ3 nx3 G3) hqr).m3 (sudFS4T off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 K4 φ N4 ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ1 μ1 nx1 G1) Com2 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ2 μ2 nx2 G2) Com3 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ3 μ3 nx3 G3) hqr).q (sudFS4T off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 K4 φ N4 ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ1 μ1 nx1 G1) Com2 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ2 μ2 nx2 G2) Com3 (pfRdA (Q4 * Q4) K2 Q4 K4 n1 kq φ3 μ3 nx3 G3) hqr).out H x :=
+  fun H p a x ha hm => rd4G_hrd h1 h2 h3 h4 _ _ _ _ _ _
+    (sudFS4T_houtA off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 K4 φ N4 ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 Com2 Com3 hqr h1 h2 h3 h4 φ1 μ1 nx1 G1 φ2 μ2 nx2 G2 φ3 μ3 nx3 G3) H p a ha x hm
 
 /-- The component's read count: `4 + 3 kq`. -/
 theorem sud_rd_length {W1 W2 W3 X : Type} (K1 K2 K3 K4 n1 kq : Nat) (m1 : X → Nat) (m2 : Nat → X → Nat)
