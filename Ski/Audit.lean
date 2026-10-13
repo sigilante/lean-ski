@@ -158,6 +158,7 @@ import Ski.ZK.SpongePermT
 import Ski.ZK.SpongeIndex
 import Ski.ZK.SpongeAvg
 import Ski.ZK.SpongeMany
+import Ski.ZK.SpongeLoad
 import Ski.ZK.FSQueryAbsT
 import Ski.ZK.FSQueryPowT
 import Ski.ZK.ROMFamilyT
@@ -1390,3 +1391,6 @@ open Ski.Audit
 
 -- Many near-collisions are rare under a uniform permutation (SpongeMany)
 #audit_clean Circuit.fresh_countPG Circuit.indB_and' Circuit.chs_le_pow Circuit.chs_step Circuit.nearN_le Circuit.count_lt Circuit.weight_split Circuit.nearN_moment Circuit.chs_pos Circuit.pow_succ_ge Circuit.eS_le Circuit.nearN_tail
+
+-- The load of one capacity value under a uniform permutation (SpongeLoad)
+#audit_clean Circuit.hitN_le Circuit.hitN_moment Circuit.eC_le Circuit.hitN_tail Circuit.runAdp_nxt0 Circuit.runAdp_nxt0_fst Circuit.hitN_nxt0 Circuit.fib_length Circuit.idx1_eq Circuit.idx1_preimage Circuit.loadM_countP Circuit.load_hsp Circuit.load_δs_countP Circuit.load_satPT Circuit.zkbT_avgW Circuit.permB_of_indB Circuit.sud_interleaveL Circuit.sud_interleaveLN
