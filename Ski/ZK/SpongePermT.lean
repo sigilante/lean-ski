@@ -20,15 +20,17 @@ width `K` is the whole state, so no PRP/PRF switching term enters.
   positions whose answers are related, each answer related to at most `F`,
   on at most `(0 + ⋯ + (k-1)) F / (K - k)` of the permutation tables
   (`colR_countP`).
-- **Sponge chains.** With the state the permutation's input, a block
-  overwriting part of the rate, and `κ` the capacity (`F / K` one over its
+- **Sponge chains.** With the state the permutation's output, the next
+  input the state with a block overwriting part of the rate, and `κ` the capacity (`F / K` one over its
   size): chains from distinct capacities over shared blocks meet after
   `L + 1` absorptions on at most `(0 + ⋯ + (2L+1)) F / (K - 2(L+1))` of the
   permutation tables (`two_meet_countKP`); so do two digits absorbed at
   distinct positions (`two_meet_digitKP`); squeezed outputs `σ` agree on at
   most `(0 + ⋯ + (2L+1)) (Fκ + Fσ) / (K - 2(L+1))` (`two_squeeze_countP`).
   `two_meet_satPT` meets the hypotheses with a genuine partial-rate
-  absorption at full width, and shows permutation tables exist.
+  absorption at full width, and shows permutation tables exist;
+  `two_meet_satPT_k0` gives two states apart under `κ` once the capacity
+  has two values.
 
 Not shown: inverse queries to the permutation (an honest sponge makes
 none), and any step to `SudChallenger`'s `hφsp`, which bounds at every
@@ -380,7 +382,7 @@ theorem rel_symm (κ : Nat → Nat) (a b : Nat) : decide (κ a = κ b) = decide 
   · rw [decide_eq_false h, decide_eq_false (fun e => h e.symm)]
 
 /-- **Partial-rate sponge chains under a uniform permutation meet rarely**:
-    the state the whole permutation input, positions injective in the
+    the state the permutation's whole output, positions injective in the
     projection `κ` only, `κ`'s fibres below `K` at most `F`, from states
     apart under `κ` over shared blocks; after `L + 1` absorptions the
     chains meet on at most `(0 + ⋯ + (2L+1)) F / (K - 2(L+1))` of the
@@ -487,5 +489,16 @@ theorem two_meet_satPT {R1 R2 C : Nat} (hR1 : 0 < R1) (hR2 : 0 < R2) (hC : 0 < C
   refine ⟨h1, h2, h3, Nat.lt_of_lt_of_le ?_ (le_sumTo (fun H => indB (permB (R1 * (R2 * C)) H)) _ hl)⟩
   show 0 < indB (permB (R1 * (R2 * C)) (tab (R1 * (R2 * C)) (fun m => m) (R1 * (R2 * C))))
   rw [hp]; exact Nat.one_pos
+
+/-- **Two states apart under the capacity**: with `C ≥ 2`, the states `0`
+    and `R1 R2` have capacities `0` and `1`, so `two_meet_countKP`'s `hk0`
+    holds at `two_meet_satPT`'s instance. -/
+theorem two_meet_satPT_k0 {R1 R2 C : Nat} (hR1 : 0 < R1) (hR2 : 0 < R2) (hC : 1 < C) :
+    ((0 / R1) % (R2 * C)) / R2 ≠ (((R1 * R2) / R1) % (R2 * C)) / R2 := by
+  have hlt : R2 < R2 * C := by
+    calc R2 = R2 * 1 := (Nat.mul_one R2).symm
+      _ < R2 * C := Nat.mul_lt_mul_of_pos_left hC hR2
+  rw [Nat.zero_div, Nat.zero_mod, Nat.zero_div, Nat.mul_div_cancel_left _ hR1, Nat.mod_eq_of_lt hlt, Nat.div_self hR2]
+  exact Nat.zero_ne_one
 
 end Circuit
