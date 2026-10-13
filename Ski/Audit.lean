@@ -1349,4 +1349,4 @@ open Ski.Audit
   Circuit.seqPick_one
 
 -- Sudoku statements share their draws (SudDraws)
-#audit_clean Circuit.pbuild_length Circuit.osz_all Circuit.osz_clues Circuit.osz_fixed Circuit.stmtMachine_heap Circuit.sudHeap_length Circuit.zipIdx_filter_length Circuit.pubCells_length Circuit.pow2From_leK Circuit.sud_progTp Circuit.sudKs_eq Circuit.sudNR_eq Circuit.sudFS4T_sm Circuit.sud_sm_eq
+#audit_clean Circuit.pbuild_length Circuit.osz_all Circuit.osz_clues Circuit.osz_fixed Circuit.stmtMachine_heap Circuit.sudHeap_length Circuit.zipIdx_filter_length Circuit.pubCells_length Circuit.pow2From_leK Circuit.filter_length_mono Circuit.range'_filter_lt Circuit.cluesOf_length_le Circuit.sud_progTp Circuit.sudKs_eq Circuit.sudNR_eq Circuit.sudFS4T_sm Circuit.sud_sm_eq
