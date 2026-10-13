@@ -1327,3 +1327,5 @@ open Ski.Audit
 
 -- Proofs and query phases interleaved (FSMultiMix)
 #audit_clean Circuit.lin_mul Circuit.lin_const Circuit.fs4_interleave Circuit.coord_digit Circuit.sudFS4T_hsp Circuit.sud_interleave Circuit.sud_interleaveD
+  Circuit.witFS4T_houtL Circuit.witFS4T_hrd Circuit.witFS4T_hsp Circuit.wit_interleave
+  Circuit.compFS4T_houtL Circuit.compFS4T_hrd Circuit.compFS4T_hsp Circuit.comp_interleave
