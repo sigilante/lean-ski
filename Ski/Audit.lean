@@ -148,6 +148,7 @@ import Ski.ZK.FSMultiOpenROM
 import Ski.ZK.FSMultiPost
 import Ski.ZK.FSMultiAdapt
 import Ski.ZK.SudDraws
+import Ski.ZK.SudAdapt
 import Ski.ZK.FSQueryAbsT
 import Ski.ZK.FSQueryPowT
 import Ski.ZK.ROMFamilyT
@@ -1350,3 +1351,6 @@ open Ski.Audit
 
 -- Sudoku statements share their draws (SudDraws)
 #audit_clean Circuit.pbuild_length Circuit.osz_all Circuit.osz_clues Circuit.osz_fixed Circuit.stmtMachine_heap Circuit.sudHeap_length Circuit.zipIdx_filter_length Circuit.pubCells_length Circuit.pow2From_leK Circuit.filter_length_mono Circuit.range'_filter_lt Circuit.cluesOf_length_le Circuit.sud_progTp Circuit.sudKs_eq Circuit.sudNR_eq Circuit.sudFS4T_sm Circuit.sud_sm_eq
+
+-- Sudoku statements picked after seeing the tables (SudAdapt)
+#audit_clean Circuit.zkbT_sm_congr Circuit.sudD_sm Circuit.sud_adaptive

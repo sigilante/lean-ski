@@ -19,9 +19,8 @@ rows pad to `2^15` (`sud_progTp`, `tP = 14`).  Two Sudoku proofs with the
 same parameters, whatever their puzzles, witnesses and runs, therefore
 count the same draws (`sudFS4T_sm`, `sud_sm_eq`).  A family's draws
 `smPowD (fun i => (sudD … i).sm 2) n` then agree across families by
-`funext` over `i`, with these hypotheses at every `i`.  Not shown: a Sudoku
-adaptive theorem itself, rewriting each family's `ZKBT` into the shared
-draws.
+`funext` over `i`, with these hypotheses at every `i`.  `SudAdapt` rewrites
+each family's `ZKBT` into the shared draws and applies `zkbT_adaptive`.
 -/
 
 set_option autoImplicit false
