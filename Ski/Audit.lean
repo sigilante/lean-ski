@@ -1217,3 +1217,4 @@ open Ski.Audit
 #audit_clean Circuit.rget_digit_ne Circuit.rget_rset_ne Circuit.smK Circuit.smC Circuit.oracle_reprog_get
   Circuit.reprog_beside Circuit.fs_zk_two Circuit.col_spread Circuit.fs_two Circuit.lin_sumN Circuit.lin_sumTo
   Circuit.lin_sm Circuit.comm_sm Circuit.comm_sum4 Circuit.lin_sum4 Circuit.fs_open4_abs Circuit.fs_open4_two
+  Circuit.zkb_pair Circuit.lin_pair Circuit.comm_pair Circuit.comm_pair' Circuit.mono_pair

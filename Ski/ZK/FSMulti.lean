@@ -25,6 +25,13 @@ answers.  Over `fs_open4`, two four-round proofs on the same four tables
 commitment as its low digits, so a collision in any round puts the second
 proof's first commitment at the first's simulated one, which the
 commitment's spread over its salts bounds.
+
+A proof's bound is a predicate (`ZKB`), closed under pairing (`zkb_pair`):
+two proofs make one, its draws, challenges, views and programming the
+pairs', and the pair's counts are again counts that commute and are
+monotone over the valid challenges (`lin_pair`, `comm_pair`, `comm_pair'`,
+`mono_pair`).  So any number of proofs under one oracle follows by
+pairing them one at a time, one collision term per pair.
 -/
 
 namespace Circuit
@@ -330,6 +337,91 @@ theorem fs_two {T XA XB CA CB VA VB : Type} {KA KB εA εB : Nat}
       have := Nat.add_le_add_right s3 (KB * (εA * smB (fun _ => 1)))
       refine Nat.le_trans this (Nat.le_of_eq ?_)
       ac_rfl
+/-- **A proof's Fiat–Shamir simulation bound**: the real count against
+    every event of the tables and the view, `K` times, is within `ε` of the
+    simulator's, which programs the tables. -/
+def ZKB {T X C V : Type} (ST : (T → Nat) → Nat) (K : Nat) (sm : (X → Nat) → Nat) (SC : (C → Nat) → Nat)
+    (rv : T → X → V) (pg : T → C → X → T) (sv : C → X → V) (ε : Nat) : Prop :=
+  ∀ E : T → V → Bool, K * ST (fun H => sm (fun x => indB (E H (rv H x)))) ≤
+    ST (fun H => SC (fun c => sm (fun x => indB (E (pg H c x) (sv c x))))) + ε
+
+/-- **Two proofs make one**: the pair's draws counted B over A, its
+    challenges A over B, its view both views, the second proof's answers
+    programmed and then the first's.  Its error is both errors over the
+    other's draws and the collisions. -/
+theorem zkb_pair {T XA XB CA CB VA VB : Type} {KA KB εA εB δ : Nat}
+    (ST : (T → Nat) → Nat) (hST : Lin ST)
+    (smA : (XA → Nat) → Nat) (hsA : Lin smA) (smB : (XB → Nat) → Nat) (hsB : Lin smB)
+    (SCA : (CA → Nat) → Nat) (hcA : Lin SCA) (SCB : (CB → Nat) → Nat)
+    (c1 : Comm smA smB) (c2 : Comm ST smB) (c3 : Comm SCA smB) (c4 : Comm ST SCA) (c5 : Comm ST smA)
+    (c7 : Comm smA SCB)
+    (rvA : T → XA → VA) (pgA : T → CA → XA → T) (svA : CA → XA → VA)
+    (rvB : T → XB → VB) (pgB : T → CB → XB → T) (svB : CB → XB → VB)
+    (hA : ZKB ST KA smA SCA rvA pgA svA εA) (hB : ZKB ST KB smB SCB rvB pgB svB εB)
+    (col : T → CA → XA → XB → Bool) (okA : CA → Bool)
+    (hokA : ∀ f g : CA → Nat, (∀ c, okA c = true → f c ≤ g c) → SCA f ≤ SCA g)
+    (hread : ∀ H ca xa xb, okA ca = true → col H ca xa xb = false → rvB (pgA H ca xa) xb = rvB H xb)
+    (hcol : SCA (fun ca => smA (fun xa => ST (fun H => smB (fun xb => indB (col H ca xa xb))))) ≤ δ) :
+    ZKB ST (KB * KA) (fun f : XA × XB → Nat => smB (fun xb => smA (fun xa => f (xa, xb))))
+      (fun g : CA × CB → Nat => SCA (fun ca => SCB (fun cb => g (ca, cb))))
+      (fun H x => (rvA H x.1, rvB H x.2)) (fun H c x => pgA (pgB H c.2 x.2) c.1 x.1)
+      (fun c x => (svA c.1 x.1, svB c.2 x.2))
+      (KB * (εA * smB (fun _ => 1)) + εB * SCA (fun _ => smA (fun _ => 1)) + KB * δ) := by
+  intro E
+  have h := fs_two ST hST smA hsA smB hsB SCA hcA SCB c1 c2 c3 c4 c5 rvA pgA svA rvB pgB svB hA hB col okA hokA
+    hread (fun H a b => E H (a, b))
+  rw [Nat.mul_assoc]
+  refine Nat.le_trans h ?_
+  have e : SCA (fun ca => smA (fun xa => ST (fun H => SCB (fun cb => smB (fun xb =>
+      indB (E (pgA (pgB H cb xb) ca xa) (svA ca xa, svB cb xb))))))) =
+      ST (fun H => SCA (fun ca => SCB (fun cb => smB (fun xb => smA (fun xa =>
+        indB (E (pgA (pgB H cb xb) ca xa) (svA ca xa, svB cb xb))))))) := by
+    let G := fun (ca : CA) (xa : XA) (H : T) (cb : CB) (xb : XB) =>
+      indB (E (pgA (pgB H cb xb) ca xa) (svA ca xa, svB cb xb))
+    calc SCA (fun ca => smA (fun xa => ST (fun H => SCB (fun cb => smB (fun xb => G ca xa H cb xb)))))
+        = SCA (fun ca => ST (fun H => smA (fun xa => SCB (fun cb => smB (fun xb => G ca xa H cb xb))))) :=
+          congrArg SCA (funext fun ca => c5 (fun H xa => SCB (fun cb => smB (fun xb => G ca xa H cb xb))))
+      _ = ST (fun H => SCA (fun ca => smA (fun xa => SCB (fun cb => smB (fun xb => G ca xa H cb xb))))) :=
+          c4 (fun H ca => smA (fun xa => SCB (fun cb => smB (fun xb => G ca xa H cb xb))))
+      _ = ST (fun H => SCA (fun ca => SCB (fun cb => smA (fun xa => smB (fun xb => G ca xa H cb xb))))) :=
+          congrArg ST (funext fun H => congrArg SCA (funext fun ca =>
+            (c7 (fun xa cb => smB (fun xb => G ca xa H cb xb))).symm))
+      _ = _ := congrArg ST (funext fun H => congrArg SCA (funext fun ca => congrArg SCB (funext fun cb =>
+            (c1 (fun xa xb => G ca xa H cb xb)).symm)))
+  rw [e]
+  have := Nat.mul_le_mul_left KB hcol
+  dsimp only
+  omega
+
+/-- The pair's count of draws, `B` over `A`, is a count. -/
+theorem lin_pair {X Y : Type} {sx : (X → Nat) → Nat} {sy : (Y → Nat) → Nat} (hx : Lin sx) (hy : Lin sy) :
+    Lin (fun f : X × Y → Nat => sy (fun y => sx (fun x => f (x, y)))) := fun N f => by
+  show sy (fun y => sx (fun x => sumTo N (fun i => f i (x, y)))) = _
+  simp only [hx N, hy N]
+
+/-- The pair's count commutes with whatever both counts commute with. -/
+theorem comm_pair {X Y Z : Type} {sx : (X → Nat) → Nat} {sy : (Y → Nat) → Nat} {sz : (Z → Nat) → Nat}
+    (hx : Comm sx sz) (hy : Comm sy sz) :
+    Comm (fun f : X × Y → Nat => sy (fun y => sx (fun x => f (x, y)))) sz := fun f => by
+  show sz (fun z => sy (fun y => sx (fun x => f (x, y) z))) = sy (fun y => sx (fun x => sz (fun z => f (x, y) z)))
+  rw [hy]; exact congrArg sy (funext fun y => hx _)
+
+theorem comm_pair' {X Y Z : Type} {sx : (X → Nat) → Nat} {sy : (Y → Nat) → Nat} {sz : (Z → Nat) → Nat}
+    (hx : Comm sz sx) (hy : Comm sz sy) :
+    Comm sz (fun f : X × Y → Nat => sy (fun y => sx (fun x => f (x, y)))) := fun f => by
+  show sy (fun y => sx (fun x => sz (fun z => f z (x, y)))) = sz (fun z => sy (fun y => sx (fun x => f z (x, y))))
+  rw [show (fun y => sx (fun x => sz (fun z => f z (x, y)))) = (fun y => sz (fun z => sx (fun x => f z (x, y))))
+    from funext fun y => hx _]
+  exact hy _
+
+/-- The pair's challenges are monotone over the valid ones. -/
+theorem mono_pair {CA CB : Type} {SCA : (CA → Nat) → Nat} {SCB : (CB → Nat) → Nat} {okA : CA → Bool} {okB : CB → Bool}
+    (hA : ∀ f g : CA → Nat, (∀ c, okA c = true → f c ≤ g c) → SCA f ≤ SCA g)
+    (hB : ∀ f g : CB → Nat, (∀ c, okB c = true → f c ≤ g c) → SCB f ≤ SCB g) :
+    ∀ f g : CA × CB → Nat, (∀ c, (okA c.1 && okB c.2) = true → f c ≤ g c) →
+      SCA (fun ca => SCB (fun cb => f (ca, cb))) ≤ SCA (fun ca => SCB (fun cb => g (ca, cb))) :=
+  fun f g h => hA _ _ (fun ca ha => hB _ _ (fun cb hb => h (ca, cb) (by simp [ha, hb])))
+
 theorem lin_sumN {Y : Type} {sy : (Y → Nat) → Nat} (h : Lin sy) :
     ∀ (m : Nat) (g : (Nat → Tup) → Y → Nat), sy (fun y => sumN m (fun t => g t y)) = sumN m (fun t => sy (g t))
   | 0, _ => rfl
