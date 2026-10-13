@@ -14,15 +14,23 @@ challenges (`friBetas`; `layer` may return the whole root history).  It is
 `k` layers (`friCommit_reads`), so it fits a slot of the data-reading
 composites (`sud_interleaveD` and its kin), all slots making `kr` reads.
 
-A strategy may first read the earlier challenges: the first three tables
-at the first, second and third messages (`friCommitNxtC`,
-`friCommitC_first3`, the points the protocol's messages, `msg_nest`), so
-the roots also read `c1`, `c2`, `c3`, the out-of-domain point among them.
+A strategy may first read the earlier challenges (`friCommitNxtC`): the
+first three tables at points that are the first, second and third messages
+when the commitments lie in their digits' ranges (`Com1 < n1`, `Com2 < n2`:
+`friCommitC_first3`, `msg_nest`, `friCommitC_msgs`), so its roots also read
+`c1`, `c2`, `c3`, the out-of-domain point `ζ = efOf c3` among them; layer
+`i` reads at `φ M (Rᵢ, i)` (`friCommitNxtC_layer`).  It costs `3 + k`
+reads for `k` layers, so the slots' common `kr` is at least that.  The
+link of these reads to `sudFS4T`'s challenges is by the messages' layout,
+not stated as one theorem.
 
 Not shown, and needed before this is Plonky3's FRI:
 - the roots read one commitment's data, not the other commitments', which
-  FRI's batched DEEP codeword reads;
-- the hash point is `(M, Rᵢ, i)`, not the full transcript;
+  FRI's batched DEEP codeword reads (and, with `friCommitNxt`, not the
+  earlier challenges either);
+- the hash point is `(M, Rᵢ, i)`, not the full transcript: the opened
+  values at `ζ`, which Plonky3 observes before FRI's batching challenge
+  and folding challenges, are not hashed;
 - the query indices `c4` are drawn before the commit phase, where Plonky3
   samples them after it;
 - the proof's view keeps its own FRI (`fri c4`, `Rb c4` in `sudFS4T`);
@@ -154,5 +162,31 @@ theorem msg_nest {n1 n2 m1 a b : Nat} (hm1 : m1 < n1) (ha : a < n2) :
     rw [Nat.add_mul_div_left _ _ hp, Nat.div_eq_of_lt hm1, Nat.zero_add]
   refine ⟨e1, ?_⟩
   rw [e1, e2, Nat.add_mul_mod_self_left, Nat.mod_eq_of_lt ha]
+
+/-- **The first three reads at the protocol's messages**: with
+    `M = m1 + n1 (a + n2 b)`, `m1 < n1` and `a < n2` (the commitments in
+    range, `hr1`, `hr2`), they read the first table at the first message,
+    the second at the second, the third at the third. -/
+theorem friCommitC_msgs {D R : Type} (K1 K2 K3 K4 n1 n2 : Nat) (φ : Nat → Option R × Nat → Nat)
+    (layer : Nat → List Nat → D → Nat → List Nat → R) (H : Nat × Nat × Nat × Nat) (c4 : Nat) (d : D) (σ : Nat)
+    {m1 a b : Nat} (hm1 : m1 < n1) (ha : a < n2) :
+    runR4 K1 K2 K3 K4 n1 ((m1 + n1 * (a + n2 * b)) % n1) φ
+        (friCommitNxtC n1 n2 layer c4 (m1 + n1 * (a + n2 * b)) d σ) H 3 =
+      [rget K3 (m1 + n1 * (a + n2 * b)) H.2.2.1, rget K2 (m1 + n1 * a) H.2.1, rget K1 m1 H.1] := by
+  rw [friCommitC_first3, (msg_nest (b := b) hm1 ha).2, (msg_nest (b := b) hm1 ha).1]
+
+/-- **A layer's read**: after the three challenges and `i` layers, the
+    fourth table at `φ M (Rᵢ, i)`. -/
+theorem friCommitNxtC_layer {D R : Type} (n1 n2 : Nat) (φ : Nat → Option R × Nat → Nat)
+    (layer : Nat → List Nat → D → Nat → List Nat → R) (c4 M : Nat) (d : D) (σ : Nat) (prev : List Nat) (i : Nat)
+    (hl : prev.length = i + 3) :
+    (friCommitNxtC n1 n2 layer c4 M d σ prev).1 = 3 ∧
+      pt4 n1 φ (M % n1) (friCommitNxtC n1 n2 layer c4 M d σ prev) =
+        φ M (some (layer c4 (prev.reverse.take 3) d σ (prev.reverse.drop 3)), i) := by
+  unfold friCommitNxtC
+  rw [hl]
+  refine ⟨rfl, ?_⟩
+  show φ (M % n1 + n1 * (M / n1)) _ = _
+  rw [Nat.mod_add_div]
 
 end Circuit
