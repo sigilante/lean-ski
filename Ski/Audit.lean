@@ -1357,4 +1357,4 @@ open Ski.Audit
 #audit_clean Circuit.zkbT_sm_congr Circuit.sudD_sm Circuit.sud_adaptive
 
 -- The programmed points' spread, whatever the challenger (SudChallenger)
-#audit_clean Circuit.spread_sumG Circuit.hφsp_of_hdg Circuit.coord_digit012 Circuit.sudFS4T_hspS Circuit.sud_interleaveS
+#audit_clean Circuit.spread_sumG Circuit.hφsp_of_hdg Circuit.coord_digit012 Circuit.sudFS4T_hspS Circuit.sud_interleaveS Circuit.witFS4T_hspS Circuit.wit_interleaveS Circuit.compFS4T_hspS Circuit.comp_interleaveS
