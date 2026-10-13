@@ -13,8 +13,10 @@ keeps `zkbT_queries`'s bound with no added error (`zkbT_queries_stop`): the
 queries it never makes are padding, charged as the `k`-run's hits.  A
 strategy (or rule) drawn uniformly from `R`, each meeting a bound at the
 same programming, meets it at `R` times the draws and the error, the same
-fraction (`zkbT_mix`).  Not shown: a tighter error counting only the
-queries made; a strategy chosen by the statement.
+fraction (`zkbT_mix`).  The strategy may depend on the statements, which
+are fixed before the tables are drawn (`nxt` is any function).  Not shown:
+a tighter error counting only the queries made; statements chosen after
+seeing the tables.
 -/
 
 set_option autoImplicit false

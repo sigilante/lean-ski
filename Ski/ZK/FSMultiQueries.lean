@@ -21,7 +21,8 @@ at most `k δq` at each table (`advHit_count`).
 Query phases interleaved with several proofs: `FSMultiInterleave`; queries
 chosen from earlier proofs' views: `FSMultiViews`; a count the
 distinguisher chooses, stopping adaptively within `k`: `FSMultiStop`.  A strategy drawn
-at random: `zkbT_mix`.  Not shown: a strategy chosen by the statement.
+at random: `zkbT_mix`.  The strategy may depend on the statements, fixed in
+advance.  Not shown: statements chosen after seeing the tables.
 -/
 
 set_option autoImplicit false
