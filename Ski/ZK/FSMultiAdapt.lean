@@ -17,11 +17,14 @@ stays bounded: with each statement's counts normalized, a `ZKBT` bound read
 backwards bounds the simulation by the real count (`zkbT_rev`), so the
 confirmed runs over all guesses number at most `K` times the real draws plus
 the errors (`zkbT_adaptive_mass`).  The bounds may be composites
-(`fs4_interleave`, `fs4_postInterleave`, `zkbT_pair`), the index `j` the
-statement of any one proof in them: a pick made between proofs reads the
-same tables in the real world, where nothing is programmed, and the
-simulation checks it at the composite's programmed tables.  Not shown: a
-tighter bound; several statements picked in turn.
+(`fs4_interleave`, `fs4_postInterleave`, `zkbT_pair`), `j` indexing the
+statement of one proof in them, the others fixed, all `S` composites
+sharing their draws and challenges.  The pick reads only the tables, so
+making it between proofs gains nothing over making it first: the real world
+programs nothing, and the simulator fixes every programmed point before the
+run and answers the pick at the composite's fully programmed tables, the
+later proofs' included.  Not shown: a pick reading earlier proofs'
+transcripts; several statements picked in turn; a tighter bound.
 -/
 
 set_option autoImplicit false
