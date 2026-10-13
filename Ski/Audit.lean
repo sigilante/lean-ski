@@ -145,6 +145,7 @@ import Ski.ZK.FSMultiOpenRd
 import Ski.ZK.FSMultiMix
 import Ski.ZK.FSMultiMixSud
 import Ski.ZK.FSMultiOpenROM
+import Ski.ZK.FSMultiPost
 import Ski.ZK.FSQueryAbsT
 import Ski.ZK.FSQueryPowT
 import Ski.ZK.ROMFamilyT
@@ -1336,3 +1337,6 @@ open Ski.Audit
 -- Commitment-table queries reading the Fiat–Shamir tables (FSMultiOpenROM)
 #audit_clean Circuit.nxtRd_eq_pfRd Circuit.nxtRd_prog Circuit.pfI_nxtRd Circuit.sudFS4T_houtROM Circuit.sud_fs_open4_powDROMQ
   Circuit.witFS4T_houtROM Circuit.wit_fs_open4_powDROMQ Circuit.compFS4T_houtROM Circuit.comp_fs_open4_powDROMQ
+
+-- n proofs, each followed by queries chosen from its view (FSMultiPost)
+#audit_clean Circuit.fs4_postInterleave
