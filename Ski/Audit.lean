@@ -1251,4 +1251,5 @@ open Ski.Audit
   Circuit.powD_transfer Circuit.read4_powDROM Circuit.rom4_read4
 -- The circuits' proofs as simulation bounds; n composed statements
 #audit_clean Circuit.sud_fs_open4_abs Circuit.wit_fs_open4_abs Circuit.comp_fs_open4_abs Circuit.fs4_powD
-  Circuit.comp_fs4 Circuit.comp_fs_open4_powD
+  Circuit.comp_fs4 Circuit.comp_fs_open4_powD Circuit.sud_fs4 Circuit.sud_fs_open4_powD Circuit.wit_fs4
+  Circuit.wit_fs_open4_powD

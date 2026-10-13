@@ -135,8 +135,8 @@ is built; this file records what is next. Last revised 2026-10-13.
   first: the circuits' `n`-proof instances (two of each: `Ski/ZK/FSMultiInst.lean`,
   `*_fs_open4_two`; `n` copies of a four-round proof: `fs_open4_pow`; `n` four-round proofs of
   different statements and shapes: `read4_pow`, `read4_powD`, each proof's bound from
-  `fs_open4_abs`; the circuits' per-proof bounds in that form: `*_fs_open4_abs`; `n` composed
-  statements: `comp_fs_open4_powD`; the Sudoku and hidden-term families are not yet proved); `Com` from the same oracle composed with the Fiat–Shamir theorems (hiding against
+  `fs_open4_abs`; the circuits' per-proof bounds in that form: `*_fs_open4_abs`; `n` statements
+  of each circuit: `comp_fs_open4_powD`, `sud_fs_open4_powD`, `wit_fs_open4_powD`); `Com` from the same oracle composed with the Fiat–Shamir theorems (hiding against
   `k` adaptive queries is proved: `Ski/ZK/ROMHide.lean`, `rom_hideQ`; given its openings:
   `rom_hidePfQ`; one round under approximate hiding: `fs_openA`; one round with the commitment
   drawn from the oracle: `fs_openROM`; every round through the ideal opening (`pfI_hides`) and
@@ -147,9 +147,9 @@ is built; this file records what is next. Last revised 2026-10-13.
   `sud_fs_open4ROM`, `wit_fs_open4ROM`, `comp_fs_open4ROM` (`rom4_transfer`); two proofs:
   `fs_open4_twoROM` (`pair_transfer`, `comI_spread_sm`); `n` copies: `fs_open4_powROM`
   (`pow_transfer`, `zkb_rom`); `n` proofs of different statements: `read4_powDROM`
-  (`powD_transfer`), each proof's transfer a hypothesis; `n` composed statements:
-  `comp_fs_open4_powD` (`Ski/ZK/FSQueryAbs.lean`); the Sudoku and hidden-term families and
-  the composed family over the oracle's commitment are not yet done); FRI's
+  (`powD_transfer`), each proof's transfer a hypothesis; `n` statements of
+  each circuit: `*_fs_open4_powD` (`Ski/ZK/FSQueryAbs.lean`); those families over the
+  oracle's commitment are not yet done); FRI's
   folding challenges hashed with the transcript before FRI (from its own layer commitments,
   against a table of its own, they fit already: `fs_pow`); FRI's layer commitments and final polynomial in the query hash's
   input (every opening at `ζ` is in it, `pcsFri_ood`, `pcsFri_oodT`,
