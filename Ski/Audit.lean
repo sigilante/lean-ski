@@ -122,6 +122,7 @@ import Ski.ZK.ROMInst
 import Ski.ZK.ROMMulti
 import Ski.ZK.FSQueryAbs
 import Ski.ZK.ROMFamily
+import Ski.ZK.ROMMerkle
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -1256,3 +1257,8 @@ open Ski.Audit
   Circuit.wit_fs_open4_powD
 -- n statements of each circuit over the oracle's commitments
 #audit_clean Circuit.sud_fs_open4_powDROM Circuit.wit_fs_open4_powDROM Circuit.comp_fs_open4_powDROM
+-- A commitment to several leaves drawn from the oracle
+#audit_clean Circuit.rgetL_rset Circuit.reprog_swapL Circuit.pfIL_hides Circuit.comIL_hides Circuit.runQ_rsetL
+  Circuit.hitL_false Circuit.pfRL_pfIL Circuit.rget_mul_le Circuit.rset_comm Circuit.rset_rsetL Circuit.rsetL_back
+  Circuit.hitL_rsetL Circuit.any_le_sum Circuit.hitL_bound Circuit.transferRL Circuit.rgetL_lt Circuit.pfRL_hidesA
+  Circuit.fs_openROML

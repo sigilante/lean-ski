@@ -69,7 +69,8 @@ theorem smT_one (NS NR m : Nat) : smT NS NR m (fun _ => 1) = NS * (NR * (Q4 ^ m 
     guard `gd` admits.  One direction, as `fs_open2`'s.  `ROMHide`'s limits hold: the queries read only the first
     opening and its commitment, no query answers where the prover aborts,
     `Com2` a primitive, the commitment's table apart from the Fiat–Shamir
-    tables, one hash and no Merkle path. -/
+    tables, one hash (a commitment to several
+    leaves, a Merkle tree's: `ROMMerkle`, one round). -/
 theorem fs_open2ROM {PV PB D O P D2 O2 P2 : Type} {K NR m e1 e2 NSh NSo s k n NS2 K2 n2 : Nat}
     (hK : 0 < K) (hK2 : 0 < K2)
     (rv sv : Nat → EF → EF → Nat → (Nat → Tup) → TViewN PV PB) (gz : Nat → Bool)

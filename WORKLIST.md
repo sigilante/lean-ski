@@ -149,7 +149,9 @@ is built; this file records what is next. Last revised 2026-10-13.
   (`pow_transfer`, `zkb_rom`); `n` proofs of different statements: `read4_powDROM`
   (`powD_transfer`), each proof's transfer a hypothesis; `n` statements of
   each circuit: `*_fs_open4_powD` (`Ski/ZK/FSQueryAbs.lean`), and over the oracle's
-  commitments: `*_fs_open4_powDROM` (`Ski/ZK/ROMFamily.lean`)); FRI's
+  commitments: `*_fs_open4_powDROM` (`Ski/ZK/ROMFamily.lean`); a commitment to several
+  leaves, a Merkle tree's, every leaf hash shown: `Ski/ZK/ROMMerkle.lean`, one round
+  (`fs_openROML`); its multi-round, circuit and multi-proof theorems are not yet done); FRI's
   folding challenges hashed with the transcript before FRI (from its own layer commitments,
   against a table of its own, they fit already: `fs_pow`); FRI's layer commitments and final polynomial in the query hash's
   input (every opening at `ζ` is in it, `pcsFri_ood`, `pcsFri_oodT`,
