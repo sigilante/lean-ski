@@ -1326,4 +1326,4 @@ open Ski.Audit
   Circuit.sud_rd_length Circuit.pfRdReads_length Circuit.pfRd_progD Circuit.sudFS4T_houtD Circuit.sudFS4T_hrdD
 
 -- Proofs and query phases interleaved (FSMultiMix)
-#audit_clean Circuit.lin_mul Circuit.lin_const Circuit.fs4_interleave Circuit.coord_digit Circuit.sudFS4T_hsp
+#audit_clean Circuit.lin_mul Circuit.lin_const Circuit.fs4_interleave Circuit.coord_digit Circuit.sudFS4T_hsp Circuit.sud_interleave
