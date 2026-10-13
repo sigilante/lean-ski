@@ -163,7 +163,9 @@ is built; this file records what is next. Last revised 2026-10-13.
   `pcsCloseN_fri`), a joint statement not yet written; internal-node hashing
   apart from the leaves' table stays an assumption; query answers shown where the proof
   aborts: `Ski/ZK/ROMAbort.lean`, one round (`fs_openROMQ`), four over the oracle
-  (`fs_open4ROMQ`, on `fs_open4Q`); the circuits' and multi-proof theorems with it not yet;
+  (`fs_open4ROMQ`, on `fs_open4Q`); the circuits' single-proof theorems with it,
+  `Ski/ZK/FSQueryQ.lean` and `Ski/ZK/ROMInstQ.lean` (`sud_fs_open4ROMQ` and the others); the
+  multi-proof theorems with it not yet;
   queries that read the Fiat–Shamir side, a route: after `fs_real` the real view is read at
   the table `rset H m c`, which is `H` but at the message, so a view that reads the table is,
   for each `H`, a view of `(c, x)` (`rv (rset H (msg x) c) c x`) and `fs_zk` holds with the
@@ -175,7 +177,10 @@ is built; this file records what is next. Last revised 2026-10-13.
   table read at a function of the third message and the view, `Ski/ZK/ROMFSRead4.lean`
   (`fs_open4T`, `fs_open4ROMT`); the circuits' single-proof theorems over them,
   `Ski/ZK/FSQueryT.lean` and `Ski/ZK/ROMInstT.lean` (`sud_fs_open4ROMT` and the others); the
-  multi-proof theorems over them (as `FSQueryAbs`, `ROMFamily` take `fs_open4ROM`) not yet);
+  multi-proof theorems over them (as `FSQueryAbs`, `ROMFamily` take `fs_open4ROM`) not yet:
+  `read4_powD` keeps a proof's view when another proof programs the tables only because the
+  view reads them at its own messages; an opening reading a whole table needs its reads
+  modelled as query points, collisions with the other proofs' programmed points in the error);
   FRI's
   folding challenges hashed with the transcript before FRI (from its own layer commitments,
   against a table of its own, they fit already: `fs_pow`); FRI's layer commitments and final polynomial in the query hash's
