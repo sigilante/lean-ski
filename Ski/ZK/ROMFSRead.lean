@@ -251,4 +251,75 @@ theorem fs_openROMT {PV PB D O P : Type} {NR m e1 e2 K n NSh NSo s k : Nat} (hK 
   refine Nat.le_trans (Nat.mul_le_mul_left _ (sumTo_mono _ (fun H _ => step H))) ?_
   rw [sumTo_add, sumTo_const, Nat.mul_add]
   exact Nat.add_le_add_right fo _
+
+/-- **Fiat–Shamir over two rounds, the views reading both tables**
+    (`fs_zk2` as `fs_zkT` takes `fs_zk`): after both reprogrammings the real
+    view reads the tables with their answers at the messages set to the
+    challenges, so the hypothesis is taken at each pair of tables. -/
+theorem fs_zk2T {X Vw : Type} {K1 K2 n1 n2 ε : Nat} (hK1 : 0 < K1) (hK2 : 0 < K2) (sm : (X → Nat) → Nat)
+    (hsm : ∀ (N : Nat) (f : Nat → X → Nat), sm (fun x => sumTo N (fun i => f i x)) = sumTo N (fun i => sm (f i)))
+    (m1 : X → Nat) (m2 : Nat → X → Nat) (hm1 : ∀ x, m1 x < n1) (hm2 : ∀ c x, m2 c x < n2)
+    (s1 s2 : Nat → Nat → X → Nat) (rvT svT : Nat → Nat → Nat → Nat → X → Vw) (gd : Nat → Nat → Bool)
+    (h : ∀ (H1 H2 : Nat) (F : Nat → Nat → Nat → Nat → Vw → Bool),
+      sumTo K1 (fun c1 => sumTo K2 (fun c2 => sm (fun x => indB (gd c1 c2 && F c1 c2 (m1 x) (m2 c1 x)
+        (rvT (rset K1 (m1 x) H1 c1) (rset K2 (m2 c1 x) H2 c2) c1 c2 x))))) ≤
+        sumTo K1 (fun c1 => sumTo K2 (fun c2 => sm (fun x =>
+          indB (gd c1 c2 && F c1 c2 (s1 c1 c2 x) (s2 c1 c2 x)
+            (svT (rset K1 (s1 c1 c2 x) H1 c1) (rset K2 (s2 c1 c2 x) H2 c2) c1 c2 x))))) + ε)
+    (E : Nat → Nat → Nat → Nat → Vw → Bool) :
+    K1 * (K2 * sumTo (K1 ^ n1) (fun H1 => sumTo (K2 ^ n2) (fun H2 => sm (fun x =>
+      indB (gd (rget K1 (m1 x) H1) (rget K2 (m2 (rget K1 (m1 x) H1) x) H2) &&
+        E H1 H2 (m1 x) (m2 (rget K1 (m1 x) H1) x)
+          (rvT H1 H2 (rget K1 (m1 x) H1) (rget K2 (m2 (rget K1 (m1 x) H1) x) H2) x)))))) ≤
+    sumTo (K1 ^ n1) (fun H1 => sumTo (K2 ^ n2) (fun H2 => sumTo K1 (fun c1 => sumTo K2 (fun c2 => sm (fun x =>
+      indB (gd c1 c2 && E (rset K1 (s1 c1 c2 x) H1 c1) (rset K2 (s2 c1 c2 x) H2 c2) (s1 c1 c2 x) (s2 c1 c2 x)
+        (svT (rset K1 (s1 c1 c2 x) H1 c1) (rset K2 (s2 c1 c2 x) H2 c2) c1 c2 x))))))) + K1 ^ n1 * (K2 ^ n2 * ε) := by
+  have inner : ∀ H1, K2 * sumTo (K2 ^ n2) (fun H2 => sm (fun x =>
+      indB (gd (rget K1 (m1 x) H1) (rget K2 (m2 (rget K1 (m1 x) H1) x) H2) &&
+        E H1 H2 (m1 x) (m2 (rget K1 (m1 x) H1) x)
+          (rvT H1 H2 (rget K1 (m1 x) H1) (rget K2 (m2 (rget K1 (m1 x) H1) x) H2) x)))) =
+      sumTo (K2 ^ n2) (fun H2 => sumTo K2 (fun c2 => sm (fun x =>
+        indB (gd (rget K1 (m1 x) H1) c2 && E H1 (rset K2 (m2 (rget K1 (m1 x) H1) x) H2 c2) (m1 x)
+          (m2 (rget K1 (m1 x) H1) x) (rvT H1 (rset K2 (m2 (rget K1 (m1 x) H1) x) H2 c2) (rget K1 (m1 x) H1) c2 x))))) :=
+    fun H1 => fs_real (Vw := Nat × Nat × X) hK2 sm hsm (fun x => m2 (rget K1 (m1 x) H1) x) (fun x => hm2 _ x)
+      (fun _ x => (m1 x, rget K1 (m1 x) H1, x))
+      (fun H2 mm c2 w => gd w.2.1 c2 && E H1 H2 w.1 mm (rvT H1 H2 w.2.1 c2 w.2.2))
+  let sm' : (Nat × Nat × X → Nat) → Nat := fun g =>
+    sumTo (K2 ^ n2) (fun H2 => sumTo K2 (fun c2 => sm (fun x => g (H2, c2, x))))
+  have hsm' : ∀ (N : Nat) (f : Nat → Nat × Nat × X → Nat),
+      sm' (fun y => sumTo N (fun i => f i y)) = sumTo N (fun i => sm' (f i)) := fun N f => by
+    show sumTo (K2 ^ n2) (fun H2 => sumTo K2 (fun c2 => sm (fun x => sumTo N (fun i => f i (H2, c2, x))))) =
+      sumTo N (fun i => sumTo (K2 ^ n2) (fun H2 => sumTo K2 (fun c2 => sm (fun x => f i (H2, c2, x)))))
+    simp only [hsm N]
+    have e1 : ∀ H2, sumTo K2 (fun c2 => sumTo N (fun i => sm (fun x => f i (H2, c2, x)))) =
+        sumTo N (fun i => sumTo K2 (fun c2 => sm (fun x => f i (H2, c2, x)))) := fun H2 => sumTo_exch _ N K2
+    rw [sumTo_congr _ (fun H2 _ => e1 H2)]
+    exact sumTo_exch _ N (K2 ^ n2)
+  have outer := fs_real (X := Nat × Nat × X) (Vw := Nat × Nat × Nat × X) hK1 sm' hsm' (fun y => m1 y.2.2)
+    (fun y => hm1 _) (fun c1 y => (y.1, y.2.1, m2 c1 y.2.2, y.2.2))
+    (fun H1 mm c1 w => gd c1 w.2.1 && E H1 (rset K2 w.2.2.1 w.1 w.2.1) mm w.2.2.1
+      (rvT H1 (rset K2 w.2.2.1 w.1 w.2.1) c1 w.2.1 w.2.2.2))
+  have step1 : K1 * (K2 * sumTo (K1 ^ n1) (fun H1 => sumTo (K2 ^ n2) (fun H2 => sm (fun x =>
+      indB (gd (rget K1 (m1 x) H1) (rget K2 (m2 (rget K1 (m1 x) H1) x) H2) &&
+        E H1 H2 (m1 x) (m2 (rget K1 (m1 x) H1) x)
+          (rvT H1 H2 (rget K1 (m1 x) H1) (rget K2 (m2 (rget K1 (m1 x) H1) x) H2) x)))))) =
+      sumTo (K1 ^ n1) (fun H1 => sumTo (K2 ^ n2) (fun H2 => sumTo K1 (fun c1 => sumTo K2 (fun c2 => sm (fun x =>
+        indB (gd c1 c2 && E (rset K1 (m1 x) H1 c1) (rset K2 (m2 c1 x) H2 c2) (m1 x) (m2 c1 x)
+          (rvT (rset K1 (m1 x) H1 c1) (rset K2 (m2 c1 x) H2 c2) c1 c2 x))))))) := by
+    rw [sumTo_mul, sumTo_congr _ (fun H1 _ => inner H1)]
+    refine Eq.trans outer ?_
+    refine sumTo_congr _ (fun H1 _ => ?_)
+    show sumTo K1 (fun c1 => sumTo (K2 ^ n2) (fun H2 => sumTo K2 (fun c2 => sm (fun x => _)))) = _
+    rw [sumTo_exch _ (K2 ^ n2) K1]
+  rw [step1]
+  calc sumTo (K1 ^ n1) (fun H1 => sumTo (K2 ^ n2) (fun H2 => sumTo K1 (fun c1 => sumTo K2 (fun c2 => sm (fun x =>
+        indB (gd c1 c2 && E (rset K1 (m1 x) H1 c1) (rset K2 (m2 c1 x) H2 c2) (m1 x) (m2 c1 x)
+          (rvT (rset K1 (m1 x) H1 c1) (rset K2 (m2 c1 x) H2 c2) c1 c2 x)))))))
+      ≤ sumTo (K1 ^ n1) (fun H1 => sumTo (K2 ^ n2) (fun H2 => sumTo K1 (fun c1 => sumTo K2 (fun c2 => sm (fun x =>
+        indB (gd c1 c2 && E (rset K1 (s1 c1 c2 x) H1 c1) (rset K2 (s2 c1 c2 x) H2 c2) (s1 c1 c2 x) (s2 c1 c2 x)
+          (svT (rset K1 (s1 c1 c2 x) H1 c1) (rset K2 (s2 c1 c2 x) H2 c2) c1 c2 x))))) + ε)) :=
+        sumTo_mono _ (fun H1 _ => sumTo_mono _ (fun H2 _ =>
+          h H1 H2 (fun c1 c2 a b v => E (rset K1 a H1 c1) (rset K2 b H2 c2) a b v)))
+    _ = _ := by
+      simp only [sumTo_add, sumTo_const]
 end Circuit

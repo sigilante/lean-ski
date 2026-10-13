@@ -1275,6 +1275,6 @@ open Ski.Audit
 #audit_clean Circuit.open_realQ Circuit.openEvQ_and Circuit.open_real_tQ Circuit.open_sim_tQ Circuit.fs_openQ Circuit.runQ_length Circuit.runQ_pre Circuit.runQ_split Circuit.smRT_lin Circuit.smRT_one Circuit.fs_openROMQ Circuit.open_real2Q Circuit.openEv2_andQ Circuit.openEv2_someQ Circuit.open_two_coreQ Circuit.fs_open2Q
   Circuit.ComHides_toP Circuit.ComPfHides_toP Circuit.fs_open3Q Circuit.fs_open3UQ Circuit.fs_open4Q Circuit.fs_open4ROMQ
 -- The distinguisher's queries reading the Fiat–Shamir table
-#audit_clean Circuit.fs_zkT Circuit.sum_pick Circuit.comPf_choose Circuit.open_real_tC Circuit.open_sim_tC Circuit.fs_openT Circuit.fs_openROMT
+#audit_clean Circuit.fs_zkT Circuit.sum_pick Circuit.comPf_choose Circuit.open_real_tC Circuit.open_sim_tC Circuit.fs_openT Circuit.fs_openROMT Circuit.fs_zk2T
 -- The hypotheses, met
 #audit_clean Circuit.inj_le_one Circuit.hposW Circuit.hsW Circuit.hndW Circuit.hlenW Circuit.hltW Circuit.hsLW Circuit.hdistM Circuit.hltM Circuit.hsM Circuit.hposOM Circuit.hφW Circuit.hφsW Circuit.hposF Circuit.hsF Circuit.hposOW Circuit.hsd1W
