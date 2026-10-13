@@ -143,8 +143,9 @@ is built; this file records what is next. Last revised 2026-10-13.
   the transfer `pfR_pfI` with its hit bound `hit_bound`, written into two, three and four
   rounds: `fs_open2ROM`, `fs_open3ROM`, `fs_open4ROM`, the last with the opening chosen
   by the commitment's value through the query challenge (`transferRc`) and the queries
-  reading the opening at the drawn challenge only; the multi-proof theorems and the
-  circuits' instances over the oracle's commitment are not yet done); FRI's
+  reading the opening at the drawn challenge only; the circuits' four-round instances:
+  `sud_fs_open4ROM`, `wit_fs_open4ROM`, `comp_fs_open4ROM` (`rom4_transfer`); the
+  multi-proof theorems over the oracle's commitment are not yet done); FRI's
   folding challenges hashed with the transcript before FRI (from its own layer commitments,
   against a table of its own, they fit already: `fs_pow`); FRI's layer commitments and final polynomial in the query hash's
   input (every opening at `ζ` is in it, `pcsFri_ood`, `pcsFri_oodT`,

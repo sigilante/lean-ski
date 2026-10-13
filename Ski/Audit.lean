@@ -118,6 +118,7 @@ import Ski.ZK.FSMulti
 import Ski.ZK.FSMultiInst
 import Ski.ZK.ROMHide
 import Ski.ZK.ROMRounds
+import Ski.ZK.ROMInst
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -1239,3 +1240,5 @@ open Ski.Audit
 -- Two rounds, the first commitment drawn from the oracle
 #audit_clean Circuit.transferR_in Circuit.smT_lin Circuit.smT_one Circuit.fs_open2ROM Circuit.fs_open3ROM
   Circuit.runQ_congr Circuit.comI_digit Circuit.transferRc Circuit.transferRc_in Circuit.fs_open4ROM
+-- The circuits' four-round proofs over the oracle's commitment
+#audit_clean Circuit.rom4_transfer Circuit.sud_fs_open4ROM Circuit.wit_fs_open4ROM Circuit.comp_fs_open4ROM
