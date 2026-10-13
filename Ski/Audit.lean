@@ -149,6 +149,7 @@ import Ski.ZK.FSMultiPost
 import Ski.ZK.FSMultiAdapt
 import Ski.ZK.SudDraws
 import Ski.ZK.SudAdapt
+import Ski.ZK.SudChallenger
 import Ski.ZK.FSQueryAbsT
 import Ski.ZK.FSQueryPowT
 import Ski.ZK.ROMFamilyT
@@ -1354,3 +1355,6 @@ open Ski.Audit
 
 -- Sudoku statements picked after seeing the tables (SudAdapt)
 #audit_clean Circuit.zkbT_sm_congr Circuit.sudD_sm Circuit.sud_adaptive
+
+-- The programmed points' spread, whatever the challenger (SudChallenger)
+#audit_clean Circuit.spread_sumG Circuit.hφsp_of_hdg Circuit.coord_digit012 Circuit.sudFS4T_hspS Circuit.sud_interleaveS
