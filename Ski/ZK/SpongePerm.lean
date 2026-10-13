@@ -39,7 +39,8 @@ table, a step's query possibly repeating an earlier one.
 
 - **Squeezed outputs.** Two chains' outputs `σ` of their final states
   agree only if they met or two distinct final answers agree under `σ`,
-  so on at most `(0 + ⋯ + (2L-1)) (Fκ + Fσ) / K` of the tables, one over
+  so after `L ≥ 1` absorptions over shared blocks on at most
+  `(0 + ⋯ + (2L-1)) (Fκ + Fσ) / K` of the tables, one over
   the capacity's size plus one over the output's (`colR_count`,
   `two_squeeze_count`; `squeeze_sat`, a squeeze of the first rate part).
 
@@ -776,7 +777,8 @@ theorem colR_count {K n F : Nat} (hK : 0 < K) (cl : Nat → Nat → Bool) (hsym 
 /-- **Two chains' squeezed outputs agree rarely**: outputs `σ` of the final
     states, chains from distinct capacities under partial-rate absorption;
     equal outputs mean the chains met (a `κ`-collision) or two distinct
-    final answers agree under `σ`, so on at most
+    final answers agree under `σ`, so after `L + 1` absorptions over shared
+    blocks on at most
     `(0 + ⋯ + (2L+1)) (Fκ + Fσ) / K` of the tables, `Fκ / K` and `Fσ / K` one
     over the capacity's and the output's sizes. -/
 theorem two_squeeze_count {K n Fk Fs : Nat} (hK : 0 < K) (inner : Nat → Nat → Nat) (hin : ∀ s x, inner s x < n)
@@ -793,7 +795,7 @@ theorem two_squeeze_count {K n Fk Fs : Nat} (hK : 0 < K) (inner : Nat → Nat �
   have hF : ∀ a, sumTo K (fun u => indB (cl a u)) ≤ Fk + Fs := fun a => by
     have pt : ∀ u, indB (cl a u) ≤ indB (decide (κ u = κ a)) + indB (decide (σ u = σ a)) := fun u => by
       simp only [cl]
-      by_cases h1 : κ a = κ u <;> by_cases h2 : σ a = σ u <;> simp [h1, h2, indB, eq_comm]
+      by_cases h1 : κ a = κ u <;> by_cases h2 : σ a = σ u <;> simp [h1, h2, indB]
     refine Nat.le_trans (sumTo_mono _ (fun u _ => pt u)) ?_
     rw [sumTo_add]; exact Nat.add_le_add (hFk _) (hFs _)
   refine Nat.le_trans (Nat.mul_le_mul_left _ (sumTo_mono _ (fun H _ => ?_)))
@@ -819,7 +821,7 @@ theorem two_squeeze_count {K n Fk Fs : Nat} (hK : 0 < K) (inner : Nat → Nat �
 
 /-- **A squeeze of the first rate part meets the output hypothesis**:
     `σ s = s % R1` has fibres `M` below `R1 M`. -/
-theorem squeeze_sat {R1 M : Nat} (hR1 : 0 < R1) (v : Nat) :
+theorem squeeze_sat {R1 M : Nat} (v : Nat) :
     sumTo (R1 * M) (fun u => indB (decide (u % R1 = v))) ≤ M := by
   rw [sumTo_split R1 _ M]
   have each : ∀ m, sumTo R1 (fun r => indB (decide ((r + R1 * m) % R1 = v))) ≤ 1 := fun m => by
