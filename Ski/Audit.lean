@@ -160,6 +160,7 @@ import Ski.ZK.SpongeAvg
 import Ski.ZK.SpongeMany
 import Ski.ZK.SpongeLoad
 import Ski.ZK.SpongeLoadL
+import Ski.ZK.SpongeTree
 import Ski.ZK.FSQueryAbsT
 import Ski.ZK.FSQueryPowT
 import Ski.ZK.ROMFamilyT
@@ -1398,3 +1399,6 @@ open Ski.Audit
 
 -- The load over several absorptions (SpongeLoadL)
 #audit_clean Circuit.rget_posJ Circuit.runJ_eq Circuit.sumTo_point Circuit.hitN_eq_sum Circuit.sum_le_one Circuit.count_inj Circuit.stepPos_succ Circuit.posJ_stepPos Circuit.stepPos_mem Circuit.runJ_ok Circuit.anc_step Circuit.preimage_good Circuit.preimage_loadML Circuit.preimage_loadMA Circuit.loadA_hsp Circuit.loadMA_countP Circuit.loadA_δs_countP Circuit.sud_interleaveLA Circuit.sud_interleaveLAN
+
+-- Chains that all meet saw near-collisions (SpongeTree)
+#audit_clean Circuit.rget_posS Circuit.runS_eq Circuit.sumTo_or Circuit.posIn_cons Circuit.clIn_cons Circuit.posIn_iff Circuit.block_count Circuit.runS_block Circuit.posIn_blockS Circuit.posS_step Circuit.posS_next Circuit.allMeet_near Circuit.allMeet_countP Circuit.rget_split Circuit.split_mod_div Circuit.injT_ne Circuit.allT_mem Circuit.ffac_le Circuit.ffac_mono Circuit.ffac_preimage Circuit.preimage_loadT Circuit.meetM_countP Circuit.loadT_countP Circuit.sep_of_tags Circuit.tagOK_xsOf Circuit.preimage_loadTA Circuit.meet_markov Circuit.loadTA_countP Circuit.loadTA_hsp Circuit.loadTA_δs_countP Circuit.tag_satPT Circuit.sud_interleaveLT Circuit.sud_interleaveLTN
