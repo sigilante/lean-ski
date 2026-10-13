@@ -14,16 +14,21 @@ table, a step's query possibly repeating an earlier one.
   from the answers so far) see two distinct positions answer alike on at
   most `(0 + 1 + ⋯ + (k-1)) / K` of the tables (`colP_count`): a new
   collision is an old one, or a fresh answer among the old.
-- **Two chains.** Two sponge chains from distinct states below `K`, their
-  queries alternating as one run (`nxt2`), that meet after `L` absorptions
-  saw such a collision (`two_meet_col`), so they meet on at most
+- **Two chains.** Two sponge chains, their queries alternating as one run
+  (`nxt2`, each chain over its own blocks), that query distinct positions
+  at the first step and wherever their states differ, and meet, saw such
+  a collision (`two_meet_col`).  So chains from distinct states below `K`
+  over shared blocks meet after `L` absorptions on at most
   `(0 + ⋯ + (2L-1)) / K`, order `(2L)²/(2K)`, of the tables
-  (`two_meet_count`); `two_meet_sat` meets the hypotheses.
+  (`two_meet_count`), and so do two digits absorbed from one state at
+  distinct positions, then shared blocks (`two_meet_digit`);
+  `two_meet_sat` meets the hypotheses.
 
 The model's state is the capacity and its next value the table's answer
 at the block and the capacity, as in `SpongeRandom`; the table is the
-permutation's capacity output as a random function.  Not shown: the
-permutation as a permutation (its PRP/PRF switching term), partial-rate
+permutation's capacity output as a random function, its `1/K` per
+capacity value.  Not shown: the permutation as a permutation (its PRP/PRF
+switching term, over the full width), partial-rate
 absorptions, a squeezed index, and any step to `SudChallenger`'s `hφsp`,
 which bounds at every table how many salts reach one index.
 -/
@@ -226,41 +231,42 @@ theorem colP_count {K n : Nat} (hK : 0 < K) (nxt : List Nat → Nat) (hnx : ∀ 
     rw [Nat.add_mul]
 
 /-- Two sponge chains under one table, as one adaptive run: queries alternate,
-    chain `a` from `sa` then chain `b` from `sb`, each at its last answer
-    (newest first: the other chain's answer sits between). -/
-def nxt2 (inner : Nat → Nat → Nat) (sa sb : Nat) (xs : List Nat) (l : List Nat) : Nat :=
-  if l.length % 2 = 0 then inner (if l.length = 0 then sa else l.getD 1 0) (xs.getD (l.length / 2) 0)
-  else inner (if l.length = 1 then sb else l.getD 1 0) (xs.getD (l.length / 2) 0)
+    chain `a` from `sa` over blocks `xa`, then chain `b` from `sb` over `xb`,
+    each at its last answer (newest first: the other chain's answer sits
+    between). -/
+def nxt2 (inner : Nat → Nat → Nat) (sa sb : Nat) (xa xb : List Nat) (l : List Nat) : Nat :=
+  if l.length % 2 = 0 then inner (if l.length = 0 then sa else l.getD 1 0) (xa.getD (l.length / 2) 0)
+  else inner (if l.length = 1 then sb else l.getD 1 0) (xb.getD (l.length / 2) 0)
 
-theorem nxt2_def (inner : Nat → Nat → Nat) (sa sb : Nat) (xs l : List Nat) : nxt2 inner sa sb xs l =
-    if l.length % 2 = 0 then inner (if l.length = 0 then sa else l.getD 1 0) (xs.getD (l.length / 2) 0)
-    else inner (if l.length = 1 then sb else l.getD 1 0) (xs.getD (l.length / 2) 0) := rfl
+theorem nxt2_def (inner : Nat → Nat → Nat) (sa sb : Nat) (xa xb l : List Nat) : nxt2 inner sa sb xa xb l =
+    if l.length % 2 = 0 then inner (if l.length = 0 then sa else l.getD 1 0) (xa.getD (l.length / 2) 0)
+    else inner (if l.length = 1 then sb else l.getD 1 0) (xb.getD (l.length / 2) 0) := rfl
 
 /-- Chain `a`'s and `b`'s states after `i` steps. -/
-def stA (K : Nat) (inner : Nat → Nat → Nat) (sa sb : Nat) (xs : List Nat) (H i : Nat) : Nat :=
-  if i = 0 then sa else ((runAdp K (nxt2 inner sa sb xs) H (2 * i)).map Prod.snd).getD 1 0
-def stB (K : Nat) (inner : Nat → Nat → Nat) (sa sb : Nat) (xs : List Nat) (H i : Nat) : Nat :=
-  if i = 0 then sb else ((runAdp K (nxt2 inner sa sb xs) H (2 * i)).map Prod.snd).getD 0 0
+def stA (K : Nat) (inner : Nat → Nat → Nat) (sa sb : Nat) (xa xb : List Nat) (H i : Nat) : Nat :=
+  if i = 0 then sa else ((runAdp K (nxt2 inner sa sb xa xb) H (2 * i)).map Prod.snd).getD 1 0
+def stB (K : Nat) (inner : Nat → Nat → Nat) (sa sb : Nat) (xa xb : List Nat) (H i : Nat) : Nat :=
+  if i = 0 then sb else ((runAdp K (nxt2 inner sa sb xa xb) H (2 * i)).map Prod.snd).getD 0 0
 
-theorem two_step (K : Nat) (inner : Nat → Nat → Nat) (sa sb : Nat) (xs : List Nat) (H i : Nat) :
-    runAdp K (nxt2 inner sa sb xs) H (2 * (i + 1)) =
-      (inner (stB K inner sa sb xs H i) (xs.getD i 0), rget K (inner (stB K inner sa sb xs H i) (xs.getD i 0)) H) ::
-      (inner (stA K inner sa sb xs H i) (xs.getD i 0), rget K (inner (stA K inner sa sb xs H i) (xs.getD i 0)) H) ::
-      runAdp K (nxt2 inner sa sb xs) H (2 * i) := by
-  have hl := runAdp_length K (nxt2 inner sa sb xs) H (2 * i)
+theorem two_step (K : Nat) (inner : Nat → Nat → Nat) (sa sb : Nat) (xa xb : List Nat) (H i : Nat) :
+    runAdp K (nxt2 inner sa sb xa xb) H (2 * (i + 1)) =
+      (inner (stB K inner sa sb xa xb H i) (xb.getD i 0), rget K (inner (stB K inner sa sb xa xb H i) (xb.getD i 0)) H) ::
+      (inner (stA K inner sa sb xa xb H i) (xa.getD i 0), rget K (inner (stA K inner sa sb xa xb H i) (xa.getD i 0)) H) ::
+      runAdp K (nxt2 inner sa sb xa xb) H (2 * i) := by
+  have hl := runAdp_length K (nxt2 inner sa sb xa xb) H (2 * i)
   have h2 : 2 * (i + 1) = (2 * i + 1) + 1 := by omega
   rw [h2]
-  show (nxt2 inner sa sb xs ((runAdp K (nxt2 inner sa sb xs) H (2 * i + 1)).map Prod.snd), _) ::
-    (nxt2 inner sa sb xs ((runAdp K (nxt2 inner sa sb xs) H (2 * i)).map Prod.snd), _) :: _ = _
-  have ea : nxt2 inner sa sb xs ((runAdp K (nxt2 inner sa sb xs) H (2 * i)).map Prod.snd) =
-      inner (stA K inner sa sb xs H i) (xs.getD i 0) := by
+  show (nxt2 inner sa sb xa xb ((runAdp K (nxt2 inner sa sb xa xb) H (2 * i + 1)).map Prod.snd), _) ::
+    (nxt2 inner sa sb xa xb ((runAdp K (nxt2 inner sa sb xa xb) H (2 * i)).map Prod.snd), _) :: _ = _
+  have ea : nxt2 inner sa sb xa xb ((runAdp K (nxt2 inner sa sb xa xb) H (2 * i)).map Prod.snd) =
+      inner (stA K inner sa sb xa xb H i) (xa.getD i 0) := by
     rw [nxt2_def, List.length_map, hl, if_pos (by omega), show 2 * i / 2 = i by omega]
     unfold stA
     by_cases hi : i = 0
     · rw [if_pos (by omega), if_pos hi]
     · rw [if_neg (by omega), if_neg hi]
-  have eb : nxt2 inner sa sb xs ((runAdp K (nxt2 inner sa sb xs) H (2 * i + 1)).map Prod.snd) =
-      inner (stB K inner sa sb xs H i) (xs.getD i 0) := by
+  have eb : nxt2 inner sa sb xa xb ((runAdp K (nxt2 inner sa sb xa xb) H (2 * i + 1)).map Prod.snd) =
+      inner (stB K inner sa sb xa xb H i) (xb.getD i 0) := by
     rw [nxt2_def, List.length_map, runAdp_length, if_neg (by omega), show (2 * i + 1) / 2 = i by omega]
     unfold stB
     by_cases hi : i = 0
@@ -272,53 +278,90 @@ theorem two_step (K : Nat) (inner : Nat → Nat → Nat) (sa sb : Nat) (xs : Lis
 theorem colP_cons (x : Nat × Nat) (l : List (Nat × Nat)) (h : colP l = true) : colP (x :: l) = true := by
   show (colP l || _) = true; rw [h, Bool.true_or]
 
-/-- **Two chains that meet saw a collision**: from distinct states below
-    `K`, positions injective in the state, chains equal after `i` steps
-    put two distinct positions with equal answers in the run. -/
-theorem two_meet_col {K : Nat} (hK : 0 < K) (inner : Nat → Nat → Nat)
-    (hinj : ∀ x s s', s < K → s' < K → inner s x = inner s' x → s = s') {sa sb : Nat} (hsa : sa < K) (hsb : sb < K)
-    (hne : sa ≠ sb) (xs : List Nat) (H : Nat) :
-    ∀ i, stA K inner sa sb xs H i = stB K inner sa sb xs H i → colP (runAdp K (nxt2 inner sa sb xs) H (2 * i)) = true
-  | 0, h => absurd h (by simp [stA, stB]; exact hne)
-  | i + 1, h => by
-    have hA : ∀ j, stA K inner sa sb xs H j < K := fun j => by
-      unfold stA; split
-      · exact hsa
-      · rcases j with _ | j
-        · contradiction
-        · rw [two_step]; exact rget_lt hK _ _
-    have hB : ∀ j, stB K inner sa sb xs H j < K := fun j => by
-      unfold stB; split
-      · exact hsb
-      · rcases j with _ | j
-        · contradiction
-        · rw [two_step]; exact rget_lt hK _ _
-    have eA : stA K inner sa sb xs H (i + 1) = rget K (inner (stA K inner sa sb xs H i) (xs.getD i 0)) H := by
+/-- **Two chains that meet saw a collision**: if at the first step, and at
+    every step where their states differ, the two chains query distinct
+    positions (`hpos`), chains equal after `i ≥ 1` steps put two distinct
+    positions with equal answers in the run. -/
+theorem two_meet_col {K : Nat} (inner : Nat → Nat → Nat) {sa sb : Nat} (xa xb : List Nat) (H : Nat)
+    (hpos : ∀ i, (i = 0 ∨ stA K inner sa sb xa xb H i ≠ stB K inner sa sb xa xb H i) →
+      inner (stB K inner sa sb xa xb H i) (xb.getD i 0) ≠ inner (stA K inner sa sb xa xb H i) (xa.getD i 0)) :
+    ∀ i, stA K inner sa sb xa xb H (i + 1) = stB K inner sa sb xa xb H (i + 1) →
+      colP (runAdp K (nxt2 inner sa sb xa xb) H (2 * (i + 1))) = true
+  | i, h => by
+    have eA : stA K inner sa sb xa xb H (i + 1) = rget K (inner (stA K inner sa sb xa xb H i) (xa.getD i 0)) H := by
       unfold stA; rw [if_neg (by omega), two_step]; rfl
-    have eB : stB K inner sa sb xs H (i + 1) = rget K (inner (stB K inner sa sb xs H i) (xs.getD i 0)) H := by
+    have eB : stB K inner sa sb xa xb H (i + 1) = rget K (inner (stB K inner sa sb xa xb H i) (xb.getD i 0)) H := by
       unfold stB; rw [if_neg (by omega), two_step]; rfl
     rw [two_step]
-    by_cases hi : stA K inner sa sb xs H i = stB K inner sa sb xs H i
-    · exact colP_cons _ _ (colP_cons _ _ (two_meet_col hK inner hinj hsa hsb hne xs H i hi))
-    · have hp : inner (stB K inner sa sb xs H i) (xs.getD i 0) ≠ inner (stA K inner sa sb xs H i) (xs.getD i 0) :=
-        fun e => hi (hinj _ _ _ (hA i) (hB i) e.symm)
-      exact colP_of_mem _ _ _ List.mem_cons_self (List.mem_cons_of_mem _ List.mem_cons_self) hp
+    by_cases hi : i = 0 ∨ stA K inner sa sb xa xb H i ≠ stB K inner sa sb xa xb H i
+    · exact colP_of_mem _ _ _ List.mem_cons_self (List.mem_cons_of_mem _ List.mem_cons_self) (hpos i hi)
         (by rw [← eA, ← eB]; exact h.symm)
+    · have hi0 : i ≠ 0 := fun e => hi (Or.inl e)
+      have heq : stA K inner sa sb xa xb H i = stB K inner sa sb xa xb H i := Decidable.byContradiction (fun e => hi (Or.inr e))
+      obtain ⟨j, rfl⟩ : ∃ j, i = j + 1 := ⟨i - 1, by omega⟩
+      exact colP_cons _ _ (colP_cons _ _ (two_meet_col inner xa xb H hpos j heq))
+
+theorem stA_lt {K : Nat} (hK : 0 < K) (inner : Nat → Nat → Nat) {sa sb : Nat} (hsa : sa < K) (xa xb : List Nat) (H : Nat) :
+    ∀ j, stA K inner sa sb xa xb H j < K
+  | 0 => hsa
+  | j + 1 => by unfold stA; rw [if_neg (by omega), two_step]; exact rget_lt hK _ _
+theorem stB_lt {K : Nat} (hK : 0 < K) (inner : Nat → Nat → Nat) {sa sb : Nat} (hsb : sb < K) (xa xb : List Nat) (H : Nat) :
+    ∀ j, stB K inner sa sb xa xb H j < K
+  | 0 => hsb
+  | j + 1 => by unfold stB; rw [if_neg (by omega), two_step]; exact rget_lt hK _ _
 
 /-- **Two sponge chains under one table meet rarely**: from distinct states
-    below `K`, over `L` absorptions, they meet on at most
-    `(0 + 1 + ⋯ + (2L-1)) / K` of the tables, Plonky3's one permutation's
-    birthday term. -/
+    below `K` over shared blocks, after `L + 1` absorptions, they meet on at
+    most `(0 + 1 + ⋯ + (2L+1)) / K` of the tables, Plonky3's one
+    permutation's birthday term. -/
 theorem two_meet_count {K n : Nat} (hK : 0 < K) (inner : Nat → Nat → Nat) (hin : ∀ s x, inner s x < n)
     (hinj : ∀ x s s', s < K → s' < K → inner s x = inner s' x → s = s') {sa sb : Nat} (hsa : sa < K) (hsb : sb < K)
     (hne : sa ≠ sb) (xs : List Nat) (L : Nat) :
-    K * sumTo (K ^ n) (fun H => indB (decide (stA K inner sa sb xs H L = stB K inner sa sb xs H L))) ≤
-      sumTo (2 * L) (fun j => j) * K ^ n := by
+    K * sumTo (K ^ n) (fun H => indB (decide (stA K inner sa sb xs xs H (L + 1) = stB K inner sa sb xs xs H (L + 1)))) ≤
+      sumTo (2 * (L + 1)) (fun j => j) * K ^ n := by
   refine Nat.le_trans (Nat.mul_le_mul_left _ (sumTo_mono _ (fun H _ => ?_)))
-    (colP_count (n := n) hK (nxt2 inner sa sb xs) (fun l => by rw [nxt2_def]; split <;> exact hin _ _) (2 * L))
-  cases e : decide (stA K inner sa sb xs H L = stB K inner sa sb xs H L)
+    (colP_count (n := n) hK (nxt2 inner sa sb xs xs) (fun l => by rw [nxt2_def]; split <;> exact hin _ _) (2 * (L + 1)))
+  cases e : decide (stA K inner sa sb xs xs H (L + 1) = stB K inner sa sb xs xs H (L + 1))
   · exact Nat.zero_le _
-  · rw [two_meet_col hK inner hinj hsa hsb hne xs H L (of_decide_eq_true e)]
+  · have hpos : ∀ i, (i = 0 ∨ stA K inner sa sb xs xs H i ≠ stB K inner sa sb xs xs H i) →
+        inner (stB K inner sa sb xs xs H i) (xs.getD i 0) ≠ inner (stA K inner sa sb xs xs H i) (xs.getD i 0) := by
+      intro i hi he
+      have hst := hinj _ _ _ (stB_lt hK inner hsb xs xs H i) (stA_lt hK inner hsa xs xs H i) he
+      rcases hi with hi | hi
+      · subst hi; exact hne (by simpa [stA, stB] using hst.symm)
+      · exact hi hst.symm
+    rw [two_meet_col inner xs xs H hpos L (of_decide_eq_true e)]
+    exact Nat.le_refl _
+
+/-- **Two digits absorbed from one state under one table meet rarely**: from
+    `iv`, the digits `a`, `b` at distinct positions, then shared blocks,
+    the chains meet after `L + 1` absorptions on at most
+    `(0 + ⋯ + (2L+1)) / K` of the tables. -/
+theorem two_meet_digit {K n : Nat} (hK : 0 < K) (inner : Nat → Nat → Nat) (hin : ∀ s x, inner s x < n)
+    (hinj : ∀ x s s', s < K → s' < K → inner s x = inner s' x → s = s') {iv a b : Nat} (hiv : iv < K)
+    (hd : inner iv a ≠ inner iv b) (xs : List Nat) (L : Nat) :
+    K * sumTo (K ^ n) (fun H =>
+        indB (decide (stA K inner iv iv (a :: xs) (b :: xs) H (L + 1) = stB K inner iv iv (a :: xs) (b :: xs) H (L + 1)))) ≤
+      sumTo (2 * (L + 1)) (fun j => j) * K ^ n := by
+  refine Nat.le_trans (Nat.mul_le_mul_left _ (sumTo_mono _ (fun H _ => ?_)))
+    (colP_count (n := n) hK (nxt2 inner iv iv (a :: xs) (b :: xs)) (fun l => by rw [nxt2_def]; split <;> exact hin _ _)
+      (2 * (L + 1)))
+  cases e : decide (stA K inner iv iv (a :: xs) (b :: xs) H (L + 1) = stB K inner iv iv (a :: xs) (b :: xs) H (L + 1))
+  · exact Nat.zero_le _
+  · have hpos : ∀ i, (i = 0 ∨ stA K inner iv iv (a :: xs) (b :: xs) H i ≠ stB K inner iv iv (a :: xs) (b :: xs) H i) →
+        inner (stB K inner iv iv (a :: xs) (b :: xs) H i) ((b :: xs).getD i 0) ≠
+          inner (stA K inner iv iv (a :: xs) (b :: xs) H i) ((a :: xs).getD i 0) := by
+      intro i hi he
+      rcases hi with hi | hi
+      · subst hi; exact hd (by simpa [stA, stB] using he.symm)
+      · obtain ⟨j, rfl⟩ : ∃ j, i = j + 1 := by
+          rcases i with _ | j
+          · exact absurd (by simp [stA, stB]) hi
+          · exact ⟨j, rfl⟩
+        have hst := hinj _ _ _ (stB_lt hK inner hiv (a :: xs) (b :: xs) H (j + 1))
+          (stA_lt hK inner hiv (a :: xs) (b :: xs) H (j + 1)) (by simpa using he)
+        exact hi hst.symm
+    rw [two_meet_col inner (a :: xs) (b :: xs) H hpos L (of_decide_eq_true e)]
     exact Nat.le_refl _
 
 /-- **`two_meet_count`'s hypotheses are met** by

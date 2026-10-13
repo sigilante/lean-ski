@@ -17,8 +17,8 @@ The model's state is the capacity, the next capacity the round function's
 answer at the block and the capacity: an overwriting sponge whose blocks
 fill the rate.  Not shown:
 - Plonky3's one permutation in place of independent per-step round
-  functions (Plonky3 feeds no step counter); with one permutation a step's
-  query may repeat an earlier one, a birthday term of order `(2L)²/K`;
+  functions (Plonky3 feeds no step counter): shown in `SpongePerm`, a
+  birthday term of order `(2L)²/(2K)`;
 - partial-rate absorptions, where old rate elements enter the next call;
 - a squeezed index shorter than the capacity;
 - `SudChallenger`'s `hφsp`: it bounds, at every table, how many salts
