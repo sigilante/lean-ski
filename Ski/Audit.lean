@@ -1207,6 +1207,7 @@ open Ski.Audit
   Circuit.genB_count_mod Circuit.fs_pow Circuit.ComHides.post Circuit.ComPfHides.post
   Circuit.openAll_ood Circuit.openMulti_ood Circuit.quotPost_snd Circuit.pcsFri_ood Circuit.firstView_ood
   Circuit.chunksView_ood Circuit.csView_ood Circuit.sets_shape Circuit.tabsView_ood Circuit.pcsFri_oodT
+  Circuit.openPolys_ood Circuit.traceInfo_Z Circuit.tabsInfo_Z Circuit.pcsFri_oodC
   Circuit.fs_open4 Circuit.fs_open4R
   Circuit.sud_fs_open4
 #audit_clean Circuit.wit_data_q Circuit.wit_same_d Circuit.wit_fs_open4 Circuit.comp_data_q Circuit.comp_same_d

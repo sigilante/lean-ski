@@ -23,8 +23,8 @@ such table and summed over them (`fs_pow`, a usage note rather than one
 composed theorem).  The lookup nonce, before the LogUp challenges, enters
 the same way through the first commitment (`ComHides.post`,
 `ComPfHides.post`).  The query hash also reads the openings at `ζ`, the trace groups' and
-the quotient chunks', which do not read the query points (`pcsFri_ood`,
-`pcsFri_oodT`).
+the quotient chunks' and the codewords', which do not read the query
+points (`pcsFri_ood`, `pcsFri_oodT`, `pcsFri_oodC`).
 -/
 
 namespace Circuit
@@ -368,6 +368,66 @@ theorem pcsFri_oodT {V V' : Type} (off : EF → String → EF) (tv : (String →
   rw [h.ms, h.cr, hq]
   exact tabsView_ood _ _ _ _ h.shape hz
 
+theorem openPolys_ood : ∀ (ms ms' : List Mat) (Cs : List (List (List F))),
+    ms.map Mat.Z = ms'.map Mat.Z →
+    (List.zipWith (fun (m : Mat) C => openPolys m.S m.Z C) ms Cs).map (List.map Prod.snd) =
+      (List.zipWith (fun (m : Mat) C => openPolys m.S m.Z C) ms' Cs).map (List.map Prod.snd)
+  | m :: ms, m' :: ms', C :: Cs, h => by
+    simp only [List.map_cons, List.cons.injEq] at h
+    simp only [List.zipWith_cons_cons, List.map_cons]
+    rw [openPolys_ood ms ms' Cs h.2]
+    simp only [openPolys, List.map_map, Function.comp_def, h.1]
+  | [], [], _, _ => rfl
+  | _ :: _, _ :: _, [], _ => rfl
+  | [], _ :: _, _, h => by simp at h
+  | _ :: _, [], _, h => by simp at h
+
+theorem traceInfo_Z (ncw : Nat) : ∀ (gs gs' : List MGroup) (ks : List Nat),
+    gs.map MGroup.Z = gs'.map MGroup.Z → (traceInfo ncw gs ks).map Mat.Z = (traceInfo ncw gs' ks).map Mat.Z
+  | g :: gs, g' :: gs', k :: ks, h => by
+    simp only [List.map_cons, List.cons.injEq] at h
+    simp only [traceInfo, List.map_cons, h.1, traceInfo_Z ncw gs gs' ks h.2]
+  | [], [], _, _ => rfl
+  | _ :: _, _ :: _, [], _ => rfl
+  | [], _ :: _, _, h => by simp at h
+  | _ :: _, [], _, h => by simp at h
+
+theorem tabsInfo_Z (ncw : Nat) : ∀ (tabs tabs' : List QTab),
+    tabs.map tShape = tabs'.map tShape → tabs.map (·.ζ) = tabs'.map (·.ζ) →
+    (tabsInfo ncw tabs).map Mat.Z = (tabsInfo ncw tabs').map Mat.Z
+  | T :: tabs, T' :: tabs', h, hz => by
+    simp only [List.map_cons, List.cons.injEq] at h hz
+    have hc : T.cs = T'.cs := by have := h.1; simp only [tShape, Prod.mk.injEq] at this; exact this.2.1
+    simp only [tabsInfo, tInfo, List.map_append, List.map_replicate, hc, hz.1, tabsInfo_Z ncw tabs tabs' h.2 hz.2]
+  | [], [], _, _ => rfl
+  | [], _ :: _, h, _ => by simp at h
+  | _ :: _, [], h, _ => by simp at h
+
+/-- **The codewords' openings at `ζ` in the PCS view read neither the query
+    points nor FRI.** -/
+theorem pcsFri_oodC {V V' : Type} (off : EF → String → EF) (tv : (String → EF) → EF → (Nat → Tup) → List EF)
+    (qs qs' : List QGroup) (ks : List Nat) (cols : (Nat → Tup) → EF → EF → List (List (List F)))
+    (tabs tabs' : List QTab) (qdT qdT' : (Nat → Tup) → EF → EF → List F → List (List (List (List F) × List F)))
+    (ncw : Nat) (αb αb' : EF) (fri : EF → EF → List (EF → EF) → V) (fri' : EF → EF → List (EF → EF) → V')
+    (h : SameData qs qs' tabs tabs')
+    (hZ : (qs.map QGroup.ext).map (fun g => (g.T, g.R, g.Z, g.n)) = (qs'.map QGroup.ext).map (fun g => (g.T, g.R, g.Z, g.n)))
+    (hz : tabs.map (·.ζ) = tabs'.map (·.ζ)) (t : Nat → Tup) (α β : EF) (r : Nat) :
+    (pcsFri off tv qs ks cols tabs qdT ncw αb fri t α β r).2.1.map (List.map Prod.snd) =
+      (pcsFri off tv qs' ks cols tabs' qdT' ncw αb' fri' t α β r).2.1.map (List.map Prod.snd) := by
+  show (List.zipWith (fun (m : Mat) C => openPolys m.S m.Z C)
+      (traceInfo ncw (qs.map QGroup.ext) ks ++ tabsInfo ncw tabs)
+      (traceCws ncw (qs.map QGroup.ext) (ctF qs ks tabs ncw r) ++ tabsCws ncw tabs (ccF qs ks tabs ncw r))).map _ =
+    (List.zipWith (fun (m : Mat) C => openPolys m.S m.Z C)
+      (traceInfo ncw (qs'.map QGroup.ext) ks ++ tabsInfo ncw tabs')
+      (traceCws ncw (qs'.map QGroup.ext) (ctF qs' ks tabs' ncw r) ++ tabsCws ncw tabs' (ccF qs' ks tabs' ncw r))).map _
+  rw [h.ct, h.cc, traceCws_congr ncw _ _ _ h.dom, tabsCws_congr ncw _ _ _ h.shape]
+  have hgZ : (qs.map QGroup.ext).map MGroup.Z = (qs'.map QGroup.ext).map MGroup.Z := by
+    have := congrArg (List.map (fun x : List F × List F × List EF × Nat => x.2.2.1)) hZ
+    simp only [List.map_map] at this ⊢
+    exact this
+  apply openPolys_ood
+  rw [List.map_append, List.map_append, traceInfo_Z ncw _ _ ks hgZ, tabsInfo_Z ncw _ _ h.shape hz]
+
 /-- **Fiat–Shamir over four rounds, every commitment opened**: `fs_open3U`
     with the query points a fourth challenge `c4`, hashed into a fourth
     table at `φ` of the third message and `oz` of the view, which must not
@@ -650,6 +710,7 @@ theorem fs_open4R {PV PB D1 O1 P1 D2 O2 P2 D3 O3 P3 W : Type} {NR m e1 e2 NS1 NS
 
 
 
+
 section
 open B Air Stmt Mach Sudoku SudokuText
 
@@ -658,7 +719,7 @@ set_option maxRecDepth 100000 in
     hashed**: `sud_fs_open3` with the query points a fourth challenge `c4`,
     drawn from a fourth table at a function `φ` of the commitments'
     transcript and the openings at `ζ`, which do not read the query points
-    (`pcsFri_ood`, `pcsFri_oodT`); `φ` may carry a proof-of-work nonce ground
+    (`pcsFri_ood`, `pcsFri_oodT`, `pcsFri_oodC`); `φ` may carry a proof-of-work nonce ground
     against a table of its own, independent of the query table (`fs_pow`).
     The points are decoded by
     `S16 S10 SP` (`fs_open4`, `fs_open4R`).  The opening proofs (`Pf`, the
@@ -669,9 +730,9 @@ set_option maxRecDepth 100000 in
     commitment hiding given its openings and opening proof there.  Both
     ways, both counts unguarded, the non-generic `β` and `ζ` in the bound.
     Assumed besides `sud_fs_open3`'s: the fourth table's input is the
-    commitments' transcript and the openings at `ζ` (the trace groups' and
-    the quotient chunks'), without FRI's layer commitments or its final
-    polynomial.  The FRI challenge is hashed
+    commitments' transcript and every opening at `ζ` (the trace groups',
+    the quotient chunks' and the codewords'), without FRI's layer
+    commitments or its final polynomial.  The FRI challenge is hashed
     too, decoded from `c4` by `αd`; the draws where it fails the verifier's
     test, at most `B4` of the `K4`, enter the bound as their whole count;
     Plonky3 samples it before FRI's layers, from the openings at `ζ`
@@ -688,7 +749,7 @@ theorem sud_fs_open4 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {puzzle
     (wm wc ww wp : Nat → List (EF → EF → List F)) {Lwm Lwc Lww Lwp : Nat} (hlwm : ∀ c, (wm c).length = Lwm)
     (hlwc : ∀ c, (wc c).length = Lwc) (hlww : ∀ c, (ww c).length = Lww) (hlwp : ∀ c, (wp c).length = Lwp)
     {K2 K4 : Nat} (hK2 : 0 < K2) (hK4 : 0 < K4)
-    (φ : Nat → Option (List (List (List EF)) × List (List (List (List EF)))) → Nat) {N4 : Nat} (hφ : ∀ m w, φ m w < N4)
+    (φ : Nat → Option (List (List (List EF)) × List (List (List (List EF))) × List (List (List EF))) → Nat) {N4 : Nat} (hφ : ∀ m w, φ m w < N4)
     (hS16 : ∀ c4, ∀ x ∈ S16 c4, x ∉ cosetL 1 (bbGen 16) (2 ^ 16)) (hS10 : ∀ c4, ∀ x ∈ S10 c4, x ∉ cosetL 1 (bbGen 10) (2 ^ 10))
     (hSP : ∀ c4, ∀ x ∈ SP c4, x ∉ cosetL 1 (bbGen (tP + 1)) (2 ^ (tP + 1)))
     (hsz16 : ∀ c4, 2 * (S16 c4).length + 8 ≤ 2 ^ 16) (hsz : ∀ c4, 2 * (S10 c4).length + 8 ≤ 2 ^ 10)
@@ -771,8 +832,9 @@ theorem sud_fs_open4 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {puzzle
       realVN off tabs tv tp (pcsZ c4 c2 (efOf c3)) α β r t
     let svF := fun (c4 c2 c3 : Nat) (α β : EF) (r : Nat) (t : Nat → Tup) =>
       simVN off tp chainBus (fun _ => false) chainPar 3 tp (psimZ c4 c2 (efOf c3)) α β r t
-    let ozF : TViewN (SudPV (V × Wv)) EF → Option (List (List (List EF)) × List (List (List (List EF)))) := fun v => match v with
-      | some (pv, _) => some (pv.1.1.map (fun g => g.1.map Prod.snd), pv.1.2.map (List.map (List.map Prod.snd)))
+    let ozF : TViewN (SudPV (V × Wv)) EF → Option (List (List (List EF)) × List (List (List (List EF))) × List (List (List EF))) := fun v => match v with
+      | some (pv, _) => some (pv.1.1.map (fun g => g.1.map Prod.snd), pv.1.2.map (List.map (List.map Prod.snd)),
+        pv.2.1.map (List.map Prod.snd))
       | none => none
     let op3 := fun (c4 : Nat) (d : List (List (List (List F))) × List (List (List F))) =>
       (opQ (SsT c4) d.1, opCw (SsC c4) d.2)
@@ -968,7 +1030,10 @@ theorem sud_fs_open4 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {puzzle
         hd rfl rfl t α β (r % NR0), pcsFri_oodT off (fun pre β t => sudViewN pre β blank.hd blank.stk blank.heap.length C Mm Wt t) (sudGroups tP (S16 c4) (S10 c4) (SP c4) (efOf c3) qv) (sudGroups tP (S16 0) (S10 0) (SP 0) (efOf c3) qv) ks cols
         ((sudTs off blank.hd blank.stk blank.heap.length blank.heap C Mm Wt tP (S16 c4) (S10 c4) (SP c4) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wp c2)).map Prod.fst) ((sudTs off blank.hd blank.stk blank.heap.length blank.heap C Mm Wt tP (S16 0) (S10 0) (SP 0) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wp c2)).map Prod.fst) _ _ ncw (αd c4) (αd 0) _ _
         hd (by simp only [sudTs, bbTab, airQTabG, List.map_cons, List.map_nil]) t α β (r % NR0)
-        (sud_data_q off blank.hd blank.stk blank.heap.length blank.heap C Mm Wt tP (S16 c4) (S10 c4) (SP c4) (S16 0) (S10 0) (SP 0) (efOf c3) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wp c2) t _ _ _ hA)⟩
+        (sud_data_q off blank.hd blank.stk blank.heap.length blank.heap C Mm Wt tP (S16 c4) (S10 c4) (SP c4) (S16 0) (S10 0) (SP 0) (efOf c3) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wp c2) t _ _ _ hA),
+        pcsFri_oodC off (fun pre β t => sudViewN pre β blank.hd blank.stk blank.heap.length C Mm Wt t) (sudGroups tP (S16 c4) (S10 c4) (SP c4) (efOf c3) qv) (sudGroups tP (S16 0) (S10 0) (SP 0) (efOf c3) qv) ks cols
+        ((sudTs off blank.hd blank.stk blank.heap.length blank.heap C Mm Wt tP (S16 c4) (S10 c4) (SP c4) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wp c2)).map Prod.fst) ((sudTs off blank.hd blank.stk blank.heap.length blank.heap C Mm Wt tP (S16 0) (S10 0) (SP 0) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wp c2)).map Prod.fst) _ _ ncw (αd c4) (αd 0) _ _
+        hd rfl (by simp only [sudTs, bbTab, airQTabG, List.map_cons, List.map_nil]) t α β (r % NR0)⟩
     · rfl
   have hgz : sumTo K2 (fun _ => sumTo Q4 (fun c3 => indB (!genB (efOf c3)))) ≤ K2 * (P * P) := by
     rw [genB_count, sumTo_const]; exact Nat.le_refl _

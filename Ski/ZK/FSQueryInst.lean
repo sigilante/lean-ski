@@ -44,7 +44,7 @@ set_option maxRecDepth 100000 in
     hashed**: `wit_fs_open3` with the query points a fourth challenge `c4`,
     drawn from a fourth table at a function `φ` of the commitments'
     transcript and the openings at `ζ`, which do not read the query points
-    (`pcsFri_ood`, `pcsFri_oodT`); `φ` may carry a proof-of-work nonce ground
+    (`pcsFri_ood`, `pcsFri_oodT`, `pcsFri_oodC`); `φ` may carry a proof-of-work nonce ground
     against a table of its own, independent of the query table (`fs_pow`).
     The points are decoded by
     `S10 S9 SP` (`fs_open4`, `fs_open4R`).  The opening proofs (`Pf`, the
@@ -55,9 +55,9 @@ set_option maxRecDepth 100000 in
     commitment hiding given its openings and opening proof there.  Both
     ways, both counts unguarded, the non-generic `β` and `ζ` in the bound.
     Assumed besides `wit_fs_open3`'s: the fourth table's input is the
-    commitments' transcript and the openings at `ζ` (the trace groups' and
-    the quotient chunks'), without FRI's layer commitments or its final
-    polynomial.  The FRI challenge is hashed
+    commitments' transcript and every opening at `ζ` (the trace groups',
+    the quotient chunks' and the codewords'), without FRI's layer
+    commitments or its final polynomial.  The FRI challenge is hashed
     too, decoded from `c4` by `αd`; the draws where it fails the verifier's
     test, at most `B4` of the `K4`, enter the bound as their whole count;
     Plonky3 samples it before FRI's layers, from the openings at `ζ`
@@ -74,7 +74,7 @@ theorem wit_fs_open4 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {Vt x :
     (wm wc ww wp : Nat → List (EF → EF → List F)) {Lwm Lwc Lww Lwp : Nat} (hlwm : ∀ c, (wm c).length = Lwm)
     (hlwc : ∀ c, (wc c).length = Lwc) (hlww : ∀ c, (ww c).length = Lww) (hlwp : ∀ c, (wp c).length = Lwp)
     {K2 K4 : Nat} (hK2 : 0 < K2) (hK4 : 0 < K4)
-    (φ : Nat → Option (List (List (List EF)) × List (List (List (List EF)))) → Nat) {N4 : Nat} (hφ : ∀ m w, φ m w < N4)
+    (φ : Nat → Option (List (List (List EF)) × List (List (List (List EF))) × List (List (List EF))) → Nat) {N4 : Nat} (hφ : ∀ m w, φ m w < N4)
     (hS10 : ∀ c4, ∀ x ∈ S10 c4, x ∉ cosetL 1 (bbGen 10) (2 ^ 10)) (hS9 : ∀ c4, ∀ x ∈ S9 c4, x ∉ cosetL 1 (bbGen 9) (2 ^ 9))
     (hSP : ∀ c4, ∀ x ∈ SP c4, x ∉ cosetL 1 (bbGen (tP + 1)) (2 ^ (tP + 1)))
     (hsz10 : ∀ c4, 2 * (S10 c4).length + 8 ≤ 2 ^ 10) (hsz9 : ∀ c4, 2 * (S9 c4).length + 8 ≤ 2 ^ 9)
@@ -158,8 +158,9 @@ theorem wit_fs_open4 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {Vt x :
       realVN off tabs tv ptm (pcsZ c4 c2 (efOf c3)) α β r t
     let svF := fun (c4 c2 c3 : Nat) (α β : EF) (r : Nat) (t : Nat → Tup) =>
       simVN off ptm chainBus (fun _ => false) chainPar 3 ptm (psimZ c4 c2 (efOf c3)) α β r t
-    let ozF : TViewN (PcsPV (V × Wv)) EF → Option (List (List (List EF)) × List (List (List (List EF)))) := fun v => match v with
-      | some (pv, _) => some (pv.1.1.map (fun g => g.1.map Prod.snd), pv.1.2.map (List.map (List.map Prod.snd)))
+    let ozF : TViewN (PcsPV (V × Wv)) EF → Option (List (List (List EF)) × List (List (List (List EF))) × List (List (List EF))) := fun v => match v with
+      | some (pv, _) => some (pv.1.1.map (fun g => g.1.map Prod.snd), pv.1.2.map (List.map (List.map Prod.snd)),
+        pv.2.1.map (List.map Prod.snd))
       | none => none
     let op3 := fun (c4 : Nat) (d : List (List (List (List F))) × List (List (List F))) =>
       (opQ (SsT c4) d.1, opCw (SsC c4) d.2)
@@ -354,7 +355,10 @@ theorem wit_fs_open4 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {Vt x :
         hd rfl rfl t α β (r % NR0), pcsFri_oodT off (fun pre β t => witViewN pre β blank.hd blank.stk blank.heap.length W C Mm Wt t) (wGroups tP (S10 c4) (S9 c4) (SP c4) (efOf c3) qv) (wGroups tP (S10 0) (S9 0) (SP 0) (efOf c3) qv) ks cols
         ((wTs off blank.hd blank.stk blank.heap.length blank.heap W C Mm Wt tP (S10 c4) (S9 c4) (SP c4) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wp c2)).map Prod.fst) ((wTs off blank.hd blank.stk blank.heap.length blank.heap W C Mm Wt tP (S10 0) (S9 0) (SP 0) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wp c2)).map Prod.fst) _ _ ncw (αd c4) (αd 0) _ _
         hd (by simp only [wTs, bbTab, airQTabG, List.map_cons, List.map_nil]) t α β (r % NR0)
-        (wit_data_q off blank.hd blank.stk blank.heap.length blank.heap W C Mm Wt tP (S10 c4) (S9 c4) (SP c4) (S10 0) (S9 0) (SP 0) (efOf c3) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wp c2) t _ _ _ hA)⟩
+        (wit_data_q off blank.hd blank.stk blank.heap.length blank.heap W C Mm Wt tP (S10 c4) (S9 c4) (SP c4) (S10 0) (S9 0) (SP 0) (efOf c3) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wp c2) t _ _ _ hA),
+        pcsFri_oodC off (fun pre β t => witViewN pre β blank.hd blank.stk blank.heap.length W C Mm Wt t) (wGroups tP (S10 c4) (S9 c4) (SP c4) (efOf c3) qv) (wGroups tP (S10 0) (S9 0) (SP 0) (efOf c3) qv) ks cols
+        ((wTs off blank.hd blank.stk blank.heap.length blank.heap W C Mm Wt tP (S10 c4) (S9 c4) (SP c4) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wp c2)).map Prod.fst) ((wTs off blank.hd blank.stk blank.heap.length blank.heap W C Mm Wt tP (S10 0) (S9 0) (SP 0) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wp c2)).map Prod.fst) _ _ ncw (αd c4) (αd 0) _ _
+        hd rfl (by simp only [wTs, bbTab, airQTabG, List.map_cons, List.map_nil]) t α β (r % NR0)⟩
     · rfl
   have hgz : sumTo K2 (fun _ => sumTo Q4 (fun c3 => indB (!genB (efOf c3)))) ≤ K2 * (P * P) := by
     rw [genB_count, sumTo_const]; exact Nat.le_refl _
@@ -405,7 +409,7 @@ set_option maxRecDepth 100000 in
     hashed**: `comp_fs_open3` with the query points a fourth challenge `c4`,
     drawn from a fourth table at a function `φ` of the commitments'
     transcript and the openings at `ζ`, which do not read the query points
-    (`pcsFri_ood`, `pcsFri_oodT`); `φ` may carry a proof-of-work nonce ground
+    (`pcsFri_ood`, `pcsFri_oodT`, `pcsFri_oodC`); `φ` may carry a proof-of-work nonce ground
     against a table of its own, independent of the query table (`fs_pow`).
     The points are decoded by
     `SM SC S9 SP SS` (`fs_open4`, `fs_open4R`).  The opening proofs (`Pf`, the
@@ -416,9 +420,9 @@ set_option maxRecDepth 100000 in
     commitment hiding given its openings and opening proof there.  Both
     ways, both counts unguarded, the non-generic `β` and `ζ` in the bound.
     Assumed besides `comp_fs_open3`'s: the fourth table's input is the
-    commitments' transcript and the openings at `ζ` (the trace groups' and
-    the quotient chunks'), without FRI's layer commitments or its final
-    polynomial.  The FRI challenge is hashed
+    commitments' transcript and every opening at `ζ` (the trace groups',
+    the quotient chunks' and the codewords'), without FRI's layer
+    commitments or its final polynomial.  The FRI challenge is hashed
     too, decoded from `c4` by `αd`; the draws where it fails the verifier's
     test, at most `B4` of the `K4`, enter the bound as their whole count;
     Plonky3 samples it before FRI's layers, from the openings at `ζ`
@@ -440,7 +444,7 @@ theorem comp_fs_open4 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {R Lm 
     (hlwc : ∀ c, (wc c).length = Lwc) (hlww : ∀ c, (ww c).length = Lww) (hlwp : ∀ c, (wp c).length = Lwp)
     (hlwsg : ∀ c, (wsg c).length = Lwsg)
     {K2 K4 : Nat} (hK2 : 0 < K2) (hK4 : 0 < K4)
-    (φ : Nat → Option (List (List (List EF)) × List (List (List (List EF)))) → Nat) {N4 : Nat} (hφ : ∀ m w, φ m w < N4)
+    (φ : Nat → Option (List (List (List EF)) × List (List (List (List EF))) × List (List (List EF))) → Nat) {N4 : Nat} (hφ : ∀ m w, φ m w < N4)
     (hSM : ∀ c4, ∀ x ∈ SM c4, x ∉ cosetL 1 (bbGen (tbM + 1)) (2 ^ (tbM + 1)))
     (hSC : ∀ c4, ∀ x ∈ SC c4, x ∉ cosetL 1 (bbGen (tbC + 1)) (2 ^ (tbC + 1)))
     (hS9 : ∀ c4, ∀ x ∈ S9 c4, x ∉ cosetL 1 (bbGen 9) (2 ^ 9))
@@ -534,8 +538,9 @@ theorem comp_fs_open4 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {R Lm 
       realVN off tabs tv pb (pcsZ c4 c2 (efOf c3)) α β r t
     let svF := fun (c4 c2 c3 : Nat) (α β : EF) (r : Nat) (t : Nat → Tup) =>
       simVN off pb chainBus (fun _ => false) chainPar 3 ptm (psimZ c4 c2 (efOf c3)) α β r t
-    let ozF : TViewN (PcsPV (V × Wv)) (EF × EF) → Option (List (List (List EF)) × List (List (List (List EF)))) := fun v => match v with
-      | some (pv, _) => some (pv.1.1.map (fun g => g.1.map Prod.snd), pv.1.2.map (List.map (List.map Prod.snd)))
+    let ozF : TViewN (PcsPV (V × Wv)) (EF × EF) → Option (List (List (List EF)) × List (List (List (List EF))) × List (List (List EF))) := fun v => match v with
+      | some (pv, _) => some (pv.1.1.map (fun g => g.1.map Prod.snd), pv.1.2.map (List.map (List.map Prod.snd)),
+        pv.2.1.map (List.map Prod.snd))
       | none => none
     let op3 := fun (c4 : Nat) (d : List (List (List (List F))) × List (List (List F))) =>
       (opQ (SsT c4) d.1, opCw (SsC c4) d.2)
@@ -733,7 +738,10 @@ theorem comp_fs_open4 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {R Lm 
         hd rfl rfl t α β (r % NR0), pcsFri_oodT off (fun pre β t => compViewN pre β m.hd m.stk m.heap.length roots.length m.stk N W C Mm Wt t) (cGroups tbM tbC tpP tpS (SM c4) (SC c4) (S9 c4) (SP c4) (SS c4) (efOf c3) qv) (cGroups tbM tbC tpP tpS (SM 0) (SC 0) (S9 0) (SP 0) (SS 0) (efOf c3) qv) ks cols
         ((cTs off m.hd m.stk m.heap.length roots.length m.stk m.heap N W roots C Mm Wt tbM tbC tpP tpS (SM c4) (SC c4) (S9 c4) (SP c4) (SS c4) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wp c2) (wsg c2)).map Prod.fst) ((cTs off m.hd m.stk m.heap.length roots.length m.stk m.heap N W roots C Mm Wt tbM tbC tpP tpS (SM 0) (SC 0) (S9 0) (SP 0) (SS 0) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wp c2) (wsg c2)).map Prod.fst) _ _ ncw (αd c4) (αd 0) _ _
         hd (by simp only [cTs, bbTab, airQTabG, List.map_cons, List.map_nil]) t α β (r % NR0)
-        (comp_data_q off m.hd m.stk m.heap.length roots.length m.stk m.heap N W roots C Mm Wt tbM tbC tpP tpS (SM c4) (SC c4) (S9 c4) (SP c4) (SS c4) (SM 0) (SC 0) (S9 0) (SP 0) (SS 0) (efOf c3) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wp c2) (wsg c2) t _ _ _ hA)⟩
+        (comp_data_q off m.hd m.stk m.heap.length roots.length m.stk m.heap N W roots C Mm Wt tbM tbC tpP tpS (SM c4) (SC c4) (S9 c4) (SP c4) (SS c4) (SM 0) (SC 0) (S9 0) (SP 0) (SS 0) (efOf c3) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wp c2) (wsg c2) t _ _ _ hA),
+        pcsFri_oodC off (fun pre β t => compViewN pre β m.hd m.stk m.heap.length roots.length m.stk N W C Mm Wt t) (cGroups tbM tbC tpP tpS (SM c4) (SC c4) (S9 c4) (SP c4) (SS c4) (efOf c3) qv) (cGroups tbM tbC tpP tpS (SM 0) (SC 0) (S9 0) (SP 0) (SS 0) (efOf c3) qv) ks cols
+        ((cTs off m.hd m.stk m.heap.length roots.length m.stk m.heap N W roots C Mm Wt tbM tbC tpP tpS (SM c4) (SC c4) (S9 c4) (SP c4) (SS c4) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wp c2) (wsg c2)).map Prod.fst) ((cTs off m.hd m.stk m.heap.length roots.length m.stk m.heap N W roots C Mm Wt tbM tbC tpP tpS (SM 0) (SC 0) (S9 0) (SP 0) (SS 0) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wp c2) (wsg c2)).map Prod.fst) _ _ ncw (αd c4) (αd 0) _ _
+        hd rfl (by simp only [cTs, bbTab, airQTabG, List.map_cons, List.map_nil]) t α β (r % NR0)⟩
     · rfl
   have hgz : sumTo K2 (fun _ => sumTo Q4 (fun c3 => indB (!genB (efOf c3)))) ≤ K2 * (P * P) := by
     rw [genB_count, sumTo_const]; exact Nat.le_refl _
