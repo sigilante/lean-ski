@@ -10,8 +10,11 @@ run's answers after `j` queries are its last `j` (`runR4_drop`), so its view
 is the `k`-run's view truncated (`truncStop`), at the first `j` where `s`
 fires (`truncStop_advRun`, `stopTime`).  A function of the `k`-run's view, it
 keeps `zkbT_queries`'s bound with no added error (`zkbT_queries_stop`): the
-queries it never makes are padding, charged as the `k`-run's hits.  Not
-shown: a tighter error counting only the queries made.
+queries it never makes are padding, charged as the `k`-run's hits.  A
+strategy (or rule) drawn uniformly from `R`, each meeting a bound at the
+same programming, meets it at `R` times the draws and the error, the same
+fraction (`zkbT_mix`).  Not shown: a tighter error counting only the
+queries made; a strategy chosen by the statement.
 -/
 
 set_option autoImplicit false
@@ -94,5 +97,28 @@ theorem zkbT_queries_stop {XA CA VA : Type} {K1 K2 K3 K4 KA εA δ k : Nat} (h1 
       (εA + δ) := fun E =>
   zkbT_queries h1 h2 h3 h4 ST hST smA hsA SCA hcA c4 c5 rvA pts cv svA hA okA hokA hcv nxt hcol
     (fun H v => E H (v.1, truncStop s k v.2))
+
+/-- **A strategy drawn at random keeps the bound**: if each of `R`
+    strategies (or rules, or any index `r` of the view) meets a `ZKBT` bound
+    at the same programming, the strategy drawn uniformly, its index shown
+    in the view, meets it over `R` times the draws at `R` times the error,
+    the same fraction. -/
+theorem zkbT_mix {T X C V : Type} {K ε R : Nat} {ST : (T → Nat) → Nat} (hST : Lin ST) {sm : (X → Nat) → Nat}
+    {SC : (C → Nat) → Nat} (hSC : Lin SC) {pg : T → C → X → T}
+    (rv : Nat → T → X → V) (sv : Nat → T → C → X → V)
+    (h : ∀ r, r < R → ZKBT ST K sm SC (rv r) pg (sv r) ε) :
+    ZKBT ST K (fun f : Nat × X → Nat => sumTo R (fun r => sm (fun x => f (r, x)))) SC
+      (fun H rx => (rx.1, rv rx.1 H rx.2)) (fun H c rx => pg H c rx.2) (fun H c rx => (rx.1, sv rx.1 H c rx.2))
+      (R * ε) := by
+  intro E
+  show K * ST (fun H => sumTo R (fun r => sm (fun x => indB (E H (r, rv r H x))))) ≤
+    ST (fun H => SC (fun c => sumTo R (fun r => sm (fun x => indB (E (pg H c x) (r, sv r H c x)))))) + R * ε
+  rw [hST R (fun r H => sm (fun x => indB (E H (r, rv r H x)))), sumTo_mul]
+  have e2 : (fun H => SC (fun c => sumTo R (fun r => sm (fun x => indB (E (pg H c x) (r, sv r H c x)))))) =
+      fun H => sumTo R (fun r => SC (fun c => sm (fun x => indB (E (pg H c x) (r, sv r H c x))))) :=
+    funext fun H => hSC R (fun r c => sm (fun x => indB (E (pg H c x) (r, sv r H c x))))
+  rw [e2, hST R (fun r H => SC (fun c => sm (fun x => indB (E (pg H c x) (r, sv r H c x))))),
+    ← sumTo_const ε R, ← sumTo_add]
+  exact sumTo_mono _ (fun r hr => h r hr (fun H v => E H (r, v)))
 
 end Circuit
