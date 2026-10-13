@@ -64,11 +64,16 @@ indices uniformly and independently.  With `idx := qIdx (bl 0 + 1) q`,
 ask `2 q + 8` at most each group's trace height (`qIdx_fri_conds`); the
 draw is onto (`qIdx_onto`).
 
-Not shown: Plonky3's proof-of-work grind before the draw; that `2 ^ (B q)`
-divides `K4` with the batching challenge `αd` reading only `c4 / 2 ^ (B q)`
-(in Plonky3 it is drawn before the query indices, independent of them;
-here `αd c4` may depend on them, and a `K4` not a multiple of `2 ^ (B q)`
-biases the blocks); Plonky3's draw of `q` separate field elements, whose
+When `K4 = m · 2 ^ (B q)` and the batching challenge reads
+`c4 / 2 ^ (B q)`, the draw reads only the low bits (`qIdx_add_mul`) and
+any count reading the fourth challenge only through the batching challenge
+and the indices factors into the batching challenge's range times the
+indices' (`qIdx_split`): the two are independent, as in
+Plonky3, which draws the batching challenge first.
+
+Not shown: Plonky3's proof-of-work grind before the draw; that the
+circuits' `αd` is instantiated so (they take any `αd : Nat → EF`, and a
+`K4` not a multiple of `2 ^ (B q)` biases the blocks); Plonky3's draw of `q` separate field elements, whose
 low bits are uniform only up to a statistical distance near `q / P`; the indices drawn
 below the first round's tallest height, assumed to be the global maximum
 Plonky3 draws below; FRI's own layer
@@ -313,6 +318,28 @@ theorem qIdx_inj (B q : Nat) {c c' : Nat} (hc : c < 2 ^ (B * q)) (hc' : c' < 2 ^
 theorem qIdx_onto (B q : Nat) (t : List Nat) (hl : t.length = q) (ht : ∀ l ∈ t, l < 2 ^ B) :
     ∃ c, c < 2 ^ (B * q) ∧ qIdx B q c = t :=
   ⟨qEnc B t, hl ▸ qEnc_lt B t ht, hl ▸ qIdx_qEnc B t ht⟩
+
+/-- The draw reads only the low `B q` bits. -/
+theorem qIdx_add_mul (B : Nat) : ∀ q c a, qIdx B q (c + 2 ^ (B * q) * a) = qIdx B q c
+  | 0, _, _ => rfl
+  | q + 1, c, a => by
+    have hp : 0 < 2 ^ B := Nat.two_pow_pos B
+    have e : c + 2 ^ (B * (q + 1)) * a = c + 2 ^ B * (2 ^ (B * q) * a) := by
+      rw [Nat.mul_succ, Nat.pow_add, Nat.mul_comm (2 ^ (B * q)) (2 ^ B), Nat.mul_assoc]
+    simp only [qIdx]
+    rw [e, Nat.add_mul_mod_self_left, Nat.add_mul_div_left _ _ hp, qIdx_add_mul B q]
+
+/-- **The batching challenge and the query indices range independently**:
+    with the fourth challenge `c4 < m · 2 ^ (B q)` split as `c + 2 ^ (B q) a`,
+    a quantity reading the batching challenge at `c4 / 2 ^ (B q)` and the
+    indices at `qIdx B q c4` sums as the product of the two ranges, as when
+    Plonky3 draws the batching challenge before the query indices. -/
+theorem qIdx_split (B q m : Nat) (G : Nat → List Nat → Nat) :
+    sumTo (m * 2 ^ (B * q)) (fun c4 => G (c4 / 2 ^ (B * q)) (qIdx B q c4)) =
+      sumTo m (fun a => sumTo (2 ^ (B * q)) (fun c => G a (qIdx B q c))) := by
+  rw [sum_digit]
+  refine sumTo_congr _ (fun a _ => sumTo_congr _ (fun c hc => ?_))
+  rw [qIdx_add_mul, Nat.add_mul_div_left _ _ (Nat.two_pow_pos _), Nat.div_eq_of_lt hc, Nat.zero_add]
 
 /-- The query sets at the drawn indices hold `q` points each: the circuits'
     size conditions `hsz16` … become `2 q + 8 ≤` each group's height. -/
