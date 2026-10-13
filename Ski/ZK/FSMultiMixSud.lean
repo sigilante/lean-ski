@@ -24,9 +24,10 @@ openings reading at any digit `μ c4 M`, `sudDA`, `sud_interleaveA`.  With a
 query phase before each proof chosen from every earlier view and answer
 (`FSMultiPost`'s `fs4_powQ`): at transcript points, `sud_powQ`, `wit_powQ`,
 `comp_powQ`; reading data and salt, `sud_powQD`, `wit_powQD`,
-`comp_powQD`; at any digit, `sud_powQA`.  FRI's commit phase is a
-data-reading opening (`FriCommit`'s `friCommitPf`), so the `D` versions
-compose it.
+`comp_powQD`; at any digit, `sud_powQA`.  A commit phase of FRI's shape
+over one commitment's data is a data-reading opening (`FriCommit`'s
+`friCommitPf`), which the `D` versions compose; it does not replace the
+proof's own FRI.
 -/
 
 set_option autoImplicit false
