@@ -162,7 +162,8 @@ is built; this file records what is next. Last revised 2026-10-13.
   positions to those rows and the opened rows' hiding comes from the PCS layer (`MaskFri`,
   `pcsCloseN_fri`), a joint statement not yet written; internal-node hashing
   apart from the leaves' table stays an assumption; query answers shown where the proof
-  aborts: `Ski/ZK/ROMAbort.lean`, one round (`fs_openROMQ`), the multi-round theorems not yet);
+  aborts: `Ski/ZK/ROMAbort.lean`, one round (`fs_openROMQ`), four over the oracle
+  (`fs_open4ROMQ`, on `fs_open4Q`); the circuits' and multi-proof theorems with it not yet);
   FRI's
   folding challenges hashed with the transcript before FRI (from its own layer commitments,
   against a table of its own, they fit already: `fs_pow`); FRI's layer commitments and final polynomial in the query hash's
