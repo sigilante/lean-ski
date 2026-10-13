@@ -197,10 +197,22 @@ is built; this file records what is next. Last revised 2026-10-13.
   they miss (`hout`) and a hit to carry the reader's first message (`hpq`), and lets the
   simulated views read the tables (`ZKBT`); `read4T_powD`, the circuits' `*_fs_open4_absT`
   and `fs4_powDT` (`Ski/ZK/FSQueryAbsT.lean`) hold, with the distinguisher's queries
-  only after every programming (queries between the proofs not modelled); the circuits' `n`-statement theorems over
-  them (`sud_fs_open4_powD`'s analogue, with `hq`, `hout`, `hpq` for the openings, whose reads
-  must then sit at points with their own first commitment as low digit) and the
-  oracle-commitment versions (`ROMMulti`, `ROMFamily`) not yet);
+  after every programming (queries before a proof: `Ski/ZK/FSMultiQueries.lean`,
+  `zkbT_queries`, `advHit_count`; interleaved with several proofs, each hit charged to the
+  programmer: `Ski/ZK/FSMultiInterleave.lean`, `zkbT_powD_rd`; chosen from earlier proofs'
+  views: `Ski/ZK/FSMultiViews.lean`, `zkbT_post`, `zkbT_post_pair`); the circuits'
+  `n`-statement theorems over them, `Ski/ZK/FSQueryPowT.lean` (`sud_fs_open4_powDT` and the
+  others), `hout` and `hpq` hypotheses on the openings (met by reads of the first three
+  tables at points with the reader's first commitment as low digit, `read2_hout` for one
+  read of the second; a fourth-table read must sit at `φ m w` with `m` carrying it), no
+  circuit's openings yet shown to meet them (a class of outputs that does, reading the first
+  three tables at points carrying their first message, fixed, challenge-chosen or adaptive:
+  `Ski/ZK/FSMultiReads.lean`, `outR_*`, `outRA_*`, `outRQ_*`, and the fourth table at the query
+  hash of such a message, `outR4_*`); over the oracle's commitment,
+  `Ski/ZK/ROMFamilyT.lean` (`sud_fs_open4_powDROMT` and the others); `ROMMulti`'s generic
+  theorems (`fs_open4_twoROM`, `fs_open4_powROM`, `read4_powDROM`, `rom4_read4`) have no
+  table-reading versions, the family theorems composing `zkbT_rom` and `powD_transfer`
+  directly);
   FRI's
   folding challenges hashed with the transcript before FRI (from its own layer commitments,
   against a table of its own, they fit already: `fs_pow`); FRI's layer commitments and final polynomial in the query hash's

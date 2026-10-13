@@ -135,7 +135,13 @@ import Ski.ZK.ROMInstT
 import Ski.ZK.FSQueryQ
 import Ski.ZK.ROMInstQ
 import Ski.ZK.FSMultiT
+import Ski.ZK.FSMultiReads
+import Ski.ZK.FSMultiQueries
+import Ski.ZK.FSMultiInterleave
+import Ski.ZK.FSMultiViews
 import Ski.ZK.FSQueryAbsT
+import Ski.ZK.FSQueryPowT
+import Ski.ZK.ROMFamilyT
 import Ski.ZK.FSQueryAbsQ
 import Ski.ZK.ROMFamilyQ
 import Ski.ComposeDist
@@ -1291,7 +1297,15 @@ open Ski.Audit
 #audit_clean Circuit.sud_fs_open4T Circuit.wit_fs_open4T Circuit.comp_fs_open4T Circuit.rom4_transferT Circuit.sud_fs_open4ROMT Circuit.wit_fs_open4ROMT Circuit.comp_fs_open4ROMT
 #audit_clean Circuit.sud_fs_open4Q Circuit.wit_fs_open4Q Circuit.comp_fs_open4Q Circuit.rom4_transferQ Circuit.sud_fs_open4ROMQ Circuit.wit_fs_open4ROMQ Circuit.comp_fs_open4ROMQ
 #audit_clean Circuit.fs_twoT Circuit.zkbT_pair Circuit.zkbT_powD Circuit.read4T_beside Circuit.read2_hout Circuit.read4T_powD Circuit.fs_open4_absT
+#audit_clean Circuit.rgetT_prog Circuit.outR_hout Circuit.outR_hpq Circuit.outRA_hout Circuit.outRA_hpq Circuit.runR_prog Circuit.outRQ_hout Circuit.outRQ_hpq
+#audit_clean Circuit.rget4_prog Circuit.runR4_prog Circuit.outR4_hout Circuit.outR4_hpq Circuit.hpD_of_hφs
+#audit_clean Circuit.zkbT_queries Circuit.readsR4_length Circuit.any_hits_le Circuit.advHit_count
+#audit_clean Circuit.readPowDH Circuit.indB_or_le Circuit.reads_hits_le Circuit.hitPowDH_le Circuit.zkbT_powD_rd Circuit.advRd_hrd Circuit.advRd_length Circuit.rd4_hrd Circuit.rd4_length
+#audit_clean Circuit.count_zero Circuit.adv_zkbT Circuit.length_flatMap_range_le Circuit.rdOut_length Circuit.hqR4_rdOut Circuit.rd4T_hrd
+#audit_clean Circuit.zkbT_post Circuit.postRun_read Circuit.zkbT_post_pair Circuit.post_hits_le
 #audit_clean Circuit.sud_fs_open4_absT Circuit.wit_fs_open4_absT Circuit.comp_fs_open4_absT Circuit.fs4_powDT
+#audit_clean Circuit.sud_fs4T Circuit.wit_fs4T Circuit.comp_fs4T Circuit.sud_fs_open4_powDT Circuit.wit_fs_open4_powDT Circuit.comp_fs_open4_powDT
+#audit_clean Circuit.zkbT_rom Circuit.rom4_stepT Circuit.sud_fs_open4_powDROMT Circuit.wit_fs_open4_powDROMT Circuit.comp_fs_open4_powDROMT
 #audit_clean Circuit.fs_open4_absQ Circuit.sud_fs_open4_absQ Circuit.wit_fs_open4_absQ Circuit.comp_fs_open4_absQ Circuit.sud_fs4Q Circuit.wit_fs4Q Circuit.comp_fs4Q Circuit.sud_fs_open4_powDQ Circuit.wit_fs_open4_powDQ Circuit.comp_fs_open4_powDQ
 #audit_clean Circuit.rom4_stepQ Circuit.rom4_read4Q Circuit.pfIQ_hidesP Circuit.pfIQ_hides Circuit.sud_fs_open4_powDROMQ Circuit.wit_fs_open4_powDROMQ Circuit.comp_fs_open4_powDROMQ
 -- The hypotheses, met
