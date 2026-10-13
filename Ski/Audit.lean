@@ -112,6 +112,8 @@ import Ski.ZK.FSOpen2Inst2
 import Ski.ZK.FSRounds3
 import Ski.ZK.FSOpen3
 import Ski.ZK.FSOpen3Inst
+import Ski.ZK.FSQuery
+import Ski.ZK.FSQueryInst
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -1198,3 +1200,10 @@ open Ski.Audit
 -- The hidden-term and composed proofs over three Fiat–Shamir rounds, every commitment opened
 #audit_clean Circuit.wit_same_w Circuit.wit_fs_open3 Circuit.comp_same_w Circuit.comp_fs_open3
   Circuit.wTs_pre Circuit.cTs_pre
+-- The query points under Fiat–Shamir
+#audit_clean Circuit.SameData.hn Circuit.SameData.ht Circuit.SameData.n1 Circuit.SameData.n2 Circuit.SameData.ms
+  Circuit.SameData.ct Circuit.SameData.cr Circuit.SameData.cc Circuit.SameData.dataF2 Circuit.SameData.dataP2
+  Circuit.sud_data_q Circuit.sud_same_d Circuit.fs_last Circuit.fs_lastR Circuit.fs_open4 Circuit.fs_open4R
+  Circuit.sud_fs_open4
+#audit_clean Circuit.wit_data_q Circuit.wit_same_d Circuit.wit_fs_open4 Circuit.comp_data_q Circuit.comp_same_d
+  Circuit.comp_fs_open4
