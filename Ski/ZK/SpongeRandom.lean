@@ -24,8 +24,10 @@ fill the rate.  Not shown:
 - `SudChallenger`'s `hφsp`: it bounds, at every table, how many salts
   reach one index, while these bounds average over the tables whether one
   pair of chains meets; pair collisions bound the squared fibre sizes, so
-  even averaged they give fibres of order `NS1 √((L+1)/K)`, and a
-  worst-case table defeats `hφsp` outright.
+  even averaged they give fibres of order `NS1 √((L+1)/K)` beyond the
+  first commitment's own fibre (equal digits meet surely), the digits
+  must lie below the sponge's digit range, and a worst-case table defeats
+  `hφsp` outright.
 -/
 
 set_option autoImplicit false
@@ -85,7 +87,7 @@ def sumTabs (T : Nat) : Nat → (List Nat → Nat) → Nat
 
 theorem sumTabs_mono (T : Nat) : ∀ (L : Nat) (f g : List Nat → Nat), (∀ hs, f hs ≤ g hs) → sumTabs T L f ≤ sumTabs T L g
   | 0, _, _, h => h []
-  | L + 1, f, g, h => sumTo_mono _ (fun x _ => sumTabs_mono T L _ _ (fun hs => h (x :: hs)))
+  | L + 1, _, _, h => sumTo_mono _ (fun x _ => sumTabs_mono T L _ _ (fun hs => h (x :: hs)))
 
 theorem sumTabs_const (T c : Nat) : ∀ L, sumTabs T L (fun _ => c) = T ^ L * c
   | 0 => by show c = 1 * c; rw [Nat.one_mul]
