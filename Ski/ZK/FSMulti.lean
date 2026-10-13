@@ -47,7 +47,8 @@ and the commitment's salt spread bounds the hits (`spread_sum`,
 `hitPow_le`).  For `n` four-round proofs of different statements
 (`read4_pow`): each proof its own messages, programmed points and bound,
 a hit of one proof's message on another's programmed point putting its
-first commitment there (`readPowI`, `hitPowI_le`).
+first commitment there (`readPowI`, `hitPowI_le`).  For proofs of different shapes, each with its
+own types and counts (`PowD`, `zkb_powD`; four rounds: `read4_powD`).
 -/
 
 namespace Circuit
@@ -821,6 +822,203 @@ theorem read4_pow {X C O : Type} {K K1 K2 K3 K4 : Nat} (h1 : 0 < K1) (h2 : 0 < K
   exact zkb_pow ST hST sm hs sc hc c1 c2 c3 c4 c7 (fun i => read4 K1 K2 K3 K4 (m1 i) (m2 i) (m3 i) (q i) (out i))
     (fun i H c x => prog4 K1 K2 K3 K4 H (pts i c x) (cv c)) sv ε _ hzk ok hok
     (fun n H ca xa xb => hitPowI (hit n H ca xa) n xb) hread hcol
+
+/-- `n` proofs' types, proof `i`'s at `i`. -/
+def PowD (X : Nat → Type) : Nat → Type
+  | 0 => Unit
+  | n + 1 => X n × PowD X n
+
+def smPowD {X : Nat → Type} (sm : (i : Nat) → (X i → Nat) → Nat) : (n : Nat) → (PowD X n → Nat) → Nat
+  | 0, f => f ()
+  | n + 1, f => smPowD sm n (fun rest => sm n (fun x => f (x, rest)))
+
+def scPowD {C : Nat → Type} (sc : (i : Nat) → (C i → Nat) → Nat) : (n : Nat) → (PowD C n → Nat) → Nat
+  | 0, g => g ()
+  | n + 1, g => sc n (fun c => scPowD sc n (fun rest => g (c, rest)))
+
+def rvPowD {T : Type} {X V : Nat → Type} (rv : (i : Nat) → T → X i → V i) : (n : Nat) → T → PowD X n → PowD V n
+  | 0, _, _ => ()
+  | n + 1, H, x => (rv n H x.1, rvPowD rv n H x.2)
+
+def svPowD {X C V : Nat → Type} (sv : (i : Nat) → C i → X i → V i) : (n : Nat) → PowD C n → PowD X n → PowD V n
+  | 0, _, _ => ()
+  | n + 1, c, x => (sv n c.1 x.1, svPowD sv n c.2 x.2)
+
+def pgPowD {T : Type} {X C : Nat → Type} (pg : (i : Nat) → T → C i → X i → T) :
+    (n : Nat) → T → PowD C n → PowD X n → T
+  | 0, H, _, _ => H
+  | n + 1, H, c, x => pg n (pgPowD pg n H c.2 x.2) c.1 x.1
+
+def okPowD {C : Nat → Type} (ok : (i : Nat) → C i → Bool) : (n : Nat) → PowD C n → Bool
+  | 0, _ => true
+  | n + 1, c => ok n c.1 && okPowD ok n c.2
+
+def KPowD (K : Nat → Nat) : Nat → Nat
+  | 0 => 1
+  | n + 1 => KPowD K n * K n
+
+/-- The error of `n` proofs of different shapes. -/
+def errPowD {X C : Nat → Type} (K : Nat → Nat) (sm : (i : Nat) → (X i → Nat) → Nat)
+    (sc : (i : Nat) → (C i → Nat) → Nat) (ε δ : Nat → Nat) : Nat → Nat
+  | 0 => 0
+  | n + 1 => KPowD K n * (ε n * smPowD sm n (fun _ => 1)) +
+      errPowD K sm sc ε δ n * sc n (fun _ => sm n (fun _ => 1)) + KPowD K n * δ n
+
+theorem lin_smPowD {X : Nat → Type} {sm : (i : Nat) → (X i → Nat) → Nat} (h : ∀ i, Lin (sm i)) :
+    ∀ n, Lin (smPowD sm n)
+  | 0 => fun _ _ => rfl
+  | n + 1 => fun N f => by
+    show smPowD sm n (fun rest => sm n (fun x => sumTo N (fun i => f i (x, rest)))) = _
+    simp only [h n N]
+    exact lin_smPowD h n N _
+
+theorem comm_smPowD' {X : Nat → Type} {Z : Type} {sm : (i : Nat) → (X i → Nat) → Nat} {sz : (Z → Nat) → Nat}
+    (h : ∀ i, Comm sz (sm i)) : ∀ n, Comm sz (smPowD sm n)
+  | 0 => fun _ => rfl
+  | n + 1 => fun f => by
+    show smPowD sm n (fun rest => sm n (fun x => sz (fun z => f z (x, rest)))) =
+      sz (fun z => smPowD sm n (fun rest => sm n (fun x => f z (x, rest))))
+    rw [show (fun rest => sm n (fun x => sz (fun z => f z (x, rest)))) =
+      (fun rest => sz (fun z => sm n (fun x => f z (x, rest)))) from funext fun rest => h n _]
+    exact comm_smPowD' h n _
+
+theorem comm_scPowD' {C : Nat → Type} {Z : Type} {sc : (i : Nat) → (C i → Nat) → Nat} {sz : (Z → Nat) → Nat}
+    (h : ∀ i, Comm sz (sc i)) : ∀ n, Comm sz (scPowD sc n)
+  | 0 => fun _ => rfl
+  | n + 1 => fun f => by
+    show sc n (fun c => scPowD sc n (fun rest => sz (fun z => f z (c, rest)))) =
+      sz (fun z => sc n (fun c => scPowD sc n (fun rest => f z (c, rest))))
+    rw [show (fun c => scPowD sc n (fun rest => sz (fun z => f z (c, rest)))) =
+      (fun c => sz (fun z => scPowD sc n (fun rest => f z (c, rest)))) from funext fun c => comm_scPowD' h n _]
+    exact h n _
+
+/-- **`n` proofs of different shapes under one oracle**: proof `i` with its
+    own draws, challenges, views, programming and bound; each pair of
+    counts commuting.  Together they keep the bound, the error `errPowD`. -/
+theorem zkb_powD {T : Type} {X C V : Nat → Type} (K : Nat → Nat) (ST : (T → Nat) → Nat) (hST : Lin ST)
+    (sm : (i : Nat) → (X i → Nat) → Nat) (hs : ∀ i, Lin (sm i))
+    (sc : (i : Nat) → (C i → Nat) → Nat) (hc : ∀ i, Lin (sc i))
+    (c1 : ∀ i j, Comm (sm i) (sm j)) (c2 : ∀ i, Comm ST (sm i)) (c3 : ∀ i j, Comm (sc i) (sm j))
+    (c4 : ∀ i, Comm ST (sc i)) (c7 : ∀ i j, Comm (sm i) (sc j))
+    (rv : (i : Nat) → T → X i → V i) (pg : (i : Nat) → T → C i → X i → T) (sv : (i : Nat) → C i → X i → V i)
+    (ε δ : Nat → Nat) (hzk : ∀ i, ZKB ST (K i) (sm i) (sc i) (rv i) (pg i) (sv i) (ε i))
+    (ok : (i : Nat) → C i → Bool) (hok : ∀ i (f g : C i → Nat), (∀ c, ok i c = true → f c ≤ g c) → sc i f ≤ sc i g)
+    (col : (n : Nat) → T → C n → X n → PowD X n → Bool)
+    (hread : ∀ n H ca xa xb, ok n ca = true → col n H ca xa xb = false →
+      rvPowD rv n (pg n H ca xa) xb = rvPowD rv n H xb)
+    (hcol : ∀ n, sc n (fun ca => sm n (fun xa => ST (fun H => smPowD sm n (fun xb => indB (col n H ca xa xb))))) ≤
+      δ n) :
+    ∀ n, ZKB ST (KPowD K n) (smPowD sm n) (scPowD sc n) (rvPowD rv n) (pgPowD pg n) (svPowD sv n)
+      (errPowD K sm sc ε δ n)
+  | 0 => fun E => by
+    show 1 * ST (fun H => indB (E H ())) ≤ ST (fun H => indB (E H ())) + 0
+    rw [Nat.one_mul, Nat.add_zero]; exact Nat.le_refl _
+  | n + 1 => by
+    have ih := zkb_powD K ST hST sm hs sc hc c1 c2 c3 c4 c7 rv pg sv ε δ hzk ok hok col hread hcol n
+    exact zkb_pair ST hST (sm n) (hs n) (smPowD sm n) (lin_smPowD hs n) (sc n) (hc n) (scPowD sc n)
+      (comm_smPowD' (fun i => c1 n i) n) (comm_smPowD' c2 n) (comm_smPowD' (fun i => c3 n i) n) (c4 n) (c2 n)
+      (comm_scPowD' (fun i => c7 n i) n)
+      (rv n) (pg n) (sv n) (rvPowD rv n) (pgPowD pg n) (svPowD sv n) (hzk n) ih (col n) (ok n) (hok n) (hread n)
+      (hcol n)
+
+def hitPowD {X : Type} (hit : Nat → X → Bool) : (n : Nat) → PowD (fun _ => X) n → Bool
+  | 0, _ => false
+  | n + 1, x => hit n x.1 || hitPowD hit n x.2
+
+theorem readPowD {T X : Type} {V : Nat → Type} (rv : (i : Nat) → T → X → V i) (H H' : T) (hit : Nat → X → Bool)
+    (h : ∀ j x, hit j x = false → rv j H' x = rv j H x) :
+    ∀ n xs, hitPowD hit n xs = false → rvPowD rv n H' xs = rvPowD rv n H xs
+  | 0, _, _ => rfl
+  | n + 1, xs, hx => by
+    simp only [hitPowD, Bool.or_eq_false_iff] at hx
+    show (rv n H' xs.1, rvPowD rv n H' xs.2) = (rv n H xs.1, rvPowD rv n H xs.2)
+    rw [h n xs.1 hx.1, readPowD rv H H' hit h n xs.2 hx.2]
+
+def hitBD {X : Type} (sm : Nat → (X → Nat) → Nat) (δ₀ : Nat → Nat) : Nat → Nat
+  | 0 => 0
+  | n + 1 => δ₀ n * smPowD sm n (fun _ => 1) + sm n (fun _ => 1) * hitBD sm δ₀ n
+
+theorem smPowD_const {X : Type} {sm : Nat → (X → Nat) → Nat} (h : ∀ i, Lin (sm i)) (n c : Nat) :
+    smPowD (X := fun _ => X) sm n (fun _ => c) = c * smPowD (X := fun _ => X) sm n (fun _ => 1) := by
+  rw [← smK (smPowD (X := fun _ => X) sm n) (lin_smPowD h n) c (fun _ => 1)]; simp only [Nat.mul_one]
+
+theorem hitPowD_le {X : Type} {sm : Nat → (X → Nat) → Nat} (h : ∀ i, Lin (sm i)) (hit : Nat → X → Bool)
+    {δ₀ : Nat → Nat} (hd : ∀ j, sm j (fun x => indB (hit j x)) ≤ δ₀ j) :
+    ∀ n, smPowD (X := fun _ => X) sm n (fun xs => indB (hitPowD hit n xs)) ≤ hitBD sm δ₀ n
+  | 0 => Nat.le_refl _
+  | n + 1 => by
+    show smPowD (X := fun _ => X) sm n (fun rest => sm n (fun x => indB (hit n x || hitPowD hit n rest))) ≤
+      δ₀ n * smPowD (X := fun _ => X) sm n (fun _ => 1) + sm n (fun _ => 1) * hitBD sm δ₀ n
+    have hpt : ∀ rest, sm n (fun x => indB (hit n x || hitPowD hit n rest)) ≤
+        δ₀ n + sm n (fun _ => 1) * indB (hitPowD hit n rest) := fun rest => by
+      cases hr : hitPowD hit n rest
+      · simp only [Bool.or_false, indB]
+        exact hd n
+      · show sm n (fun x => indB (hit n x || true)) ≤ δ₀ n + sm n (fun _ => 1) * 1
+        simp only [Bool.or_true, Nat.mul_one]
+        exact Nat.le_add_left _ _
+    refine Nat.le_trans (sm_mono (smPowD (X := fun _ => X) sm n) (lin_smPowD h n) hpt) ?_
+    rw [sm_add (smPowD (X := fun _ => X) sm n) (lin_smPowD h n), smPowD_const h n (δ₀ n),
+      smK (smPowD (X := fun _ => X) sm n) (lin_smPowD h n)]
+    exact Nat.add_le_add_left (Nat.mul_le_mul_left _ (hitPowD_le h hit hd n)) _
+
+/-- **`n` four-round proofs of different statements and shapes under one
+    oracle**: `read4_pow` with each proof's own count of draws (`sm i`),
+    error and collision bound. -/
+theorem read4_powD {X C O : Type} {K1 K2 K3 K4 : Nat} (K : Nat → Nat) (h1 : 0 < K1) (h2 : 0 < K2) (h3 : 0 < K3)
+    (h4 : 0 < K4)
+    (ST : (Nat × Nat × Nat × Nat → Nat) → Nat) (hST : Lin ST)
+    (sm : Nat → (X → Nat) → Nat) (hs : ∀ i, Lin (sm i)) (sc : (C → Nat) → Nat) (hc : Lin sc)
+    (c1 : ∀ i j, Comm (sm i) (sm j)) (c2 : ∀ i, Comm ST (sm i)) (c3 : ∀ i, Comm sc (sm i)) (c4 : Comm ST sc)
+    (c7 : ∀ i, Comm (sm i) sc)
+    (m1 : Nat → X → Nat) (m2 : Nat → Nat → X → Nat) (m3 : Nat → Nat → Nat → X → Nat)
+    (q : Nat → Nat → Nat → Nat → X → Nat) (out : Nat → Nat → Nat → Nat → Nat → X → O)
+    (pts : Nat → C → X → Nat × Nat × Nat × Nat) (cv : C → Nat × Nat × Nat × Nat)
+    (sv : Nat → C → X → Nat × Nat × Nat × O) (ε : Nat → Nat)
+    (hzk : ∀ i, ZKB ST (K i) (sm i) sc (read4 K1 K2 K3 K4 (m1 i) (m2 i) (m3 i) (q i) (out i))
+      (fun H c x => prog4 K1 K2 K3 K4 H (pts i c x) (cv c)) (sv i) (ε i))
+    (ok : C → Bool) (hok : ∀ f g : C → Nat, (∀ c, ok c = true → f c ≤ g c) → sc f ≤ sc g)
+    (hcv : ∀ c, ok c = true → (cv c).1 < K1 ∧ (cv c).2.1 < K2 ∧ (cv c).2.2.1 < K3 ∧ (cv c).2.2.2 < K4)
+    (hp2 : ∀ j n c xa c1 x, m2 j c1 x = (pts n c xa).2.1 → m1 j x = (pts n c xa).1)
+    (hp3 : ∀ j n c xa c1 c2 x, m3 j c1 c2 x = (pts n c xa).2.2.1 → m1 j x = (pts n c xa).1)
+    (hp4 : ∀ j n c xa c1 c2 c3 x, q j c1 c2 c3 x = (pts n c xa).2.2.2 → m1 j x = (pts n c xa).1)
+    (δ₀ : Nat → Nat) (hsp : ∀ j v, sm j (fun x => indB (decide (m1 j x = v))) ≤ δ₀ j) :
+    ∀ n, ZKB ST (KPowD K n) (smPowD (X := fun _ => X) sm n) (scPowD (C := fun _ => C) (fun _ => sc) n)
+      (rvPowD (fun i => read4 K1 K2 K3 K4 (m1 i) (m2 i) (m3 i) (q i) (out i)) n)
+      (pgPowD (fun i H c x => prog4 K1 K2 K3 K4 H (pts i c x) (cv c)) n) (svPowD sv n)
+      (errPowD K sm (fun _ => sc) ε (fun j => sc (fun _ => sm j (fun _ => ST (fun _ => hitBD sm δ₀ j)))) n) := by
+  let hit := fun (n : Nat) (H : Nat × Nat × Nat × Nat) (c : C) (xa : X) (j : Nat) (x : X) =>
+    hit4 K1 K2 K3 (m1 j) (m2 j) (m3 j) (q j) H (pts n c xa) x
+  have hread : ∀ n H ca xa xb, ok ca = true → hitPowD (hit n H ca xa) n xb = false →
+      rvPowD (fun i => read4 K1 K2 K3 K4 (m1 i) (m2 i) (m3 i) (q i) (out i)) n
+        (prog4 K1 K2 K3 K4 H (pts n ca xa) (cv ca)) xb =
+      rvPowD (fun i => read4 K1 K2 K3 K4 (m1 i) (m2 i) (m3 i) (q i) (out i)) n H xb :=
+    fun n H ca xa xb hok hx => readPowD _ H _ (hit n H ca xa)
+      (fun j x hj => read4_beside h1 h2 h3 h4 (m1 j) (m2 j) (m3 j) (q j) (out j) H (pts n ca xa) (cv ca)
+        (hcv ca hok) x hj) n xb hx
+  have hhit : ∀ n H ca xa j x, indB (hit n H ca xa j x) ≤ indB (decide (m1 j x = (pts n ca xa).1)) := by
+    intro n H ca xa j x
+    cases hh : hit n H ca xa j x
+    · exact Nat.zero_le _
+    · have e : m1 j x = (pts n ca xa).1 := by
+        simp only [hit, hit4, Bool.or_eq_true, decide_eq_true_eq] at hh
+        rcases hh with ((e | e) | e) | e
+        · exact e
+        · exact hp2 j n ca xa _ x e
+        · exact hp3 j n ca xa _ _ x e
+        · exact hp4 j n ca xa _ _ _ x e
+      have ed : decide (m1 j x = (pts n ca xa).1) = true := decide_eq_true e
+      rw [ed]; exact Nat.le_refl _
+  have hcol : ∀ n, sc (fun ca => sm n (fun xa => ST (fun H => smPowD (X := fun _ => X) sm n (fun xb =>
+      indB (hitPowD (hit n H ca xa) n xb))))) ≤ sc (fun _ => sm n (fun _ => ST (fun _ => hitBD sm δ₀ n))) :=
+    fun n => sm_mono sc hc (fun ca => sm_mono (sm n) (hs n) (fun xa => sm_mono ST hST (fun H =>
+      hitPowD_le hs (hit n H ca xa) (fun j => Nat.le_trans (sm_mono (sm j) (hs j) (hhit n H ca xa j))
+        (hsp j _)) n)))
+  exact zkb_powD (X := fun _ => X) (C := fun _ => C) K ST hST sm hs (fun _ => sc) (fun _ => hc) c1 c2
+    (fun _ j => c3 j) (fun _ => c4) (fun i _ => c7 i)
+    (fun i => read4 K1 K2 K3 K4 (m1 i) (m2 i) (m3 i) (q i) (out i))
+    (fun i H c x => prog4 K1 K2 K3 K4 H (pts i c x) (cv c)) sv ε _ hzk (fun _ => ok) (fun _ => hok)
+    (fun n H ca xa xb => hitPowD (hit n H ca xa) n xb) hread hcol
 
 /-- **`fs_open4` in `fs_two`'s shape**: the four tables one, counted by `ST`,
     the four challenges one, counted by `SC`; the real view reads the

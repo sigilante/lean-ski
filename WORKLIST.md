@@ -134,8 +134,9 @@ is built; this file records what is next. Last revised 2026-10-13.
   protocols on the same four tables (`fs_two`, `fs_open4_two`). Open, most exploitable
   first: the circuits' `n`-proof instances (two of each: `Ski/ZK/FSMultiInst.lean`,
   `*_fs_open4_two`; `n` copies of a four-round proof: `fs_open4_pow`; `n` four-round proofs of
-  different statements: `read4_pow`, each proof's bound from `fs_open4_abs`; the circuits'
-  `n`-statement instances, which supply those per-proof bounds, are not yet proved); `Com` from the same oracle (bounded queries, a ROM-hiding term); FRI's
+  different statements and shapes: `read4_pow`, `read4_powD`, each proof's bound from
+  `fs_open4_abs`; the circuits' `n`-statement instances, which supply those per-proof bounds,
+  are not yet proved); `Com` from the same oracle (bounded queries, a ROM-hiding term); FRI's
   folding challenges hashed with the transcript before FRI (from its own layer commitments,
   against a table of its own, they fit already: `fs_pow`); FRI's layer commitments and final polynomial in the query hash's
   input (every opening at `ζ` is in it, `pcsFri_ood`, `pcsFri_oodT`,

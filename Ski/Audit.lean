@@ -1223,5 +1223,7 @@ open Ski.Audit
   Circuit.lin_smPow Circuit.lin_scPow Circuit.comm_smPow Circuit.comm_smPow' Circuit.comm_scPow' Circuit.mono_scPow
   Circuit.zkb_pow Circuit.readPow Circuit.smPow_const Circuit.hitPow_le Circuit.read4_beside Circuit.spread_sum
   Circuit.fs_open4_pow Circuit.readPowI Circuit.hitPowI_le Circuit.read4_pow
+  Circuit.lin_smPowD Circuit.comm_smPowD' Circuit.comm_scPowD' Circuit.zkb_powD Circuit.readPowD Circuit.smPowD_const
+  Circuit.hitPowD_le Circuit.read4_powD
 -- Two proofs of each circuit under one oracle
 #audit_clean Circuit.sud_fs_open4_two Circuit.wit_fs_open4_two Circuit.comp_fs_open4_two
