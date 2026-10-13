@@ -141,6 +141,7 @@ import Ski.ZK.FSMultiInterleave
 import Ski.ZK.FSMultiViews
 import Ski.ZK.FSMultiOpen
 import Ski.ZK.FSMultiStop
+import Ski.ZK.FSMultiOpenRd
 import Ski.ZK.FSQueryAbsT
 import Ski.ZK.FSQueryPowT
 import Ski.ZK.ROMFamilyT
@@ -1317,3 +1318,7 @@ open Ski.Audit
 -- A query count the distinguisher chooses (FSMultiStop)
 #audit_clean Circuit.runR4_drop Circuit.stopUp_ge Circuit.stopUp_le Circuit.stopUp_congr Circuit.stopTime_le Circuit.truncStop_advRun Circuit.zkbT_queries_stop Circuit.zkbT_mix
   Circuit.zkbT_queriesV Circuit.truncStop_prog Circuit.zkbT_queries_stopT Circuit.readsR4_drop Circuit.advHitS_le
+
+-- Outputs with read lists are interleaving components (FSMultiOpenRd)
+#audit_clean Circuit.rd4G_hrd Circuit.pfRdM_eq Circuit.pfRdM_ok Circuit.pfRdMReads_length Circuit.pfRdM_prog Circuit.sudFS4T_houtL Circuit.sudFS4T_hrd
+  Circuit.sud_rd_length
