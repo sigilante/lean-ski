@@ -116,14 +116,16 @@ is built; this file records what is next. Last revised 2026-10-13.
   `ζ` hashed from both commitments, each proof keeps its simulation error, summed over
   generic `ζ` (`Ski/ZK/FSRound2.lean`, `Ski/ZK/FSRound2Inst.lean`, `*_fs2`), both
   commitments unopened, the folding challenge's round merged, the non-generic `ζ` excluded.
-  Open: the second commitment opened (the permutation and quotient matrices); the folding
-  challenge hashed; the FRI layers hashed; `Com` from the same oracle (bounded queries, a
-  ROM-hiding term); several proofs per oracle (a hybrid and a collision term); the later
-  rounds under the oracle (the FRI challenge, the query points); the lookup proof-of-work
-  nonce. The groups' trace and mask points (`hT`, `hRq`) are tied to the committed matrices:
-  the masked column is the interpolant of Plonky3's interleaved column over the `2n`-point
-  domain (`Ski/ZK/Interleave.lean`, `bb_ileave_mcol`); that Plonky3 interleaves, trace rows
-  even and random rows odd, is read from its source.
+  With both commitments opened, the second of the permutation groups' and quotient chunks'
+  matrices with their codewords, the Sudoku proof keeps it too (`Ski/ZK/FSOpen2Inst.lean`,
+  `sud_fs_open2`). Open: the hidden-term and composed proofs with both commitments opened;
+  the folding challenge hashed; the FRI layers hashed; `Com` from the same oracle (bounded
+  queries, a ROM-hiding term); several proofs per oracle (a hybrid and a collision term);
+  the later rounds under the oracle (the FRI challenge, the query points); the lookup
+  proof-of-work nonce. The groups' trace and mask points (`hT`, `hRq`) are tied to the
+  committed matrices: the masked column is the interpolant of Plonky3's interleaved column
+  over the `2n`-point domain (`Ski/ZK/Interleave.lean`, `bb_ileave_mcol`); that Plonky3
+  interleaves, trace rows even and random rows odd, is read from its source.
 - **The quotient's recombined values hide** (`Ski/ZK/MaskQuot.lean`): the chunks sit at the
   committed trace's height, so a query opens them at the trace's point `s`, where they
   recombine to a function of the terminals and the masked columns at `s` and `g s`. Masks

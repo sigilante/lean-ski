@@ -107,6 +107,7 @@ import Ski.ZK.FSRound2
 import Ski.ZK.FSRound2Inst
 import Ski.ZK.FSOpen2
 import Ski.ZK.FSOpenFri2
+import Ski.ZK.FSOpen2Inst
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -1177,3 +1178,6 @@ open Ski.Audit
 #audit_clean Circuit.csView_setsP Circuit.tabsView_open Circuit.openPolys_fst Circuit.tabsView_ovQ Circuit.tabsPolys_congr
   Circuit.traceInfo_len Circuit.traceCws_len Circuit.tabsInfo_S Circuit.cw_openQ Circuit.tabsCws_congr Circuit.pcsFri_ovP
   Circuit.interp_vals Circuit.zipWith_fgf Circuit.op2_sd2 Circuit.pcsFri_ovR2 Circuit.psimFri_ovR2
+-- The Sudoku proof over two Fiat–Shamir rounds, both commitments opened
+#audit_clean Circuit.mpolysMulti_congr Circuit.traceCws_congr Circuit.SameShape.n1 Circuit.SameShape.n2
+  Circuit.SameShape.dataF2 Circuit.SameShape.dataP2 Circuit.sud_same Circuit.sud_data_zeta Circuit.sud_fs_open2
