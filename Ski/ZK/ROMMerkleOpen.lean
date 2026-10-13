@@ -10,7 +10,8 @@ alone (`pos d l a`, distinct across leaves, `hdist`: a leaf index in the
 hash input, which Plonky3's leaf hash does not carry; a strengthening, not a
 conservative simplification: without it two unopened leaves with equal data
 and equal salts share a hash, a term of about the equal-data pairs over
-`NSl` this module does not count); the commitment is
+`NSl` this module does not count; `ROMMerkleColl` counts it for one round);
+the commitment is
 the leaves' answers in leaf order (`comM`).  The opening opens a fixed set
 of leaves (`isO`): their data, through `op`, which fixes their positions
 (`hposO`), and their salts (`shownS`), as a Merkle opening shows them.  The

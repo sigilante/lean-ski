@@ -24,8 +24,8 @@ tree, which hashes a shorter matrix's rows into the internal layer of its
 height (`compress_and_inject`) rather than into the leaf, the per-group
 point `xs l k` standing for the row shift; its per-matrix salts, here one
 salt per leaf; the leaf index in the hash input (Plonky3 hashes the row and
-salt alone, so leaves with equal rows and salts collide, a term not
-counted); and the hash's binding, which zero knowledge does not use.
+salt alone, so leaves with equal rows and salts collide, a term counted
+for one round in `ROMMerkleColl`, not in these four-round bounds); and the hash's binding, which zero knowledge does not use.
 -/
 
 set_option autoImplicit false
