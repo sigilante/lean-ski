@@ -18,7 +18,7 @@ table, a step's query possibly repeating an earlier one.
   (`nxt2`, each chain over its own blocks), that query distinct positions
   at the first step and wherever their states differ, and meet, saw such
   a collision (`two_meet_col`).  So chains from distinct states below `K`
-  over shared blocks meet after `L` absorptions on at most
+  over shared blocks meet after `L ≥ 1` absorptions on at most
   `(0 + ⋯ + (2L-1)) / K`, order `(2L)²/(2K)`, of the tables
   (`two_meet_count`), and so do two digits absorbed from one state at
   distinct positions, then shared blocks (`two_meet_digit`);
@@ -364,16 +364,20 @@ theorem two_meet_digit {K n : Nat} (hK : 0 < K) (inner : Nat → Nat → Nat) (h
     rw [two_meet_col inner (a :: xs) (b :: xs) H hpos L (of_decide_eq_true e)]
     exact Nat.le_refl _
 
-/-- **`two_meet_count`'s hypotheses are met** by
+/-- **`two_meet_count`'s and `two_meet_digit`'s hypotheses are met** by
     `inner s x = (x % X) K + s % K`: positions below `X K` at every state,
-    injective in the state below `K`. -/
+    injective in the state below `K`, distinct digits below `X` at
+    distinct positions. -/
 theorem two_meet_sat {K X : Nat} (hK : 0 < K) (hX : 0 < X) :
     (∀ s x, (x % X) * K + s % K < X * K) ∧
-      (∀ x s s', s < K → s' < K → (x % X) * K + s % K = (x % X) * K + s' % K → s = s') := by
-  refine ⟨fun s x => ?_, fun x s s' hs hs' h => ?_⟩
+      (∀ x s s', s < K → s' < K → (x % X) * K + s % K = (x % X) * K + s' % K → s = s') ∧
+      (∀ iv a b, a < X → b < X → a ≠ b → (a % X) * K + iv % K ≠ (b % X) * K + iv % K) := by
+  refine ⟨fun s x => ?_, fun x s s' hs hs' h => ?_, fun iv a b ha hb hab h => hab ?_⟩
   · calc (x % X) * K + s % K < (x % X) * K + K := Nat.add_lt_add_left (Nat.mod_lt _ hK) _
       _ = (x % X + 1) * K := by rw [Nat.succ_mul]
       _ ≤ X * K := Nat.mul_le_mul_right _ (Nat.mod_lt _ hX)
   · rw [Nat.mod_eq_of_lt hs, Nat.mod_eq_of_lt hs'] at h; omega
+  · rw [Nat.mod_eq_of_lt ha, Nat.mod_eq_of_lt hb] at h
+    exact Nat.eq_of_mul_eq_mul_right hK (by omega)
 
 end Circuit
