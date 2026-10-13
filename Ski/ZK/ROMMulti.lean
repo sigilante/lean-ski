@@ -1,7 +1,7 @@
 import Ski.ZK.ROMInst
 
 /-!
-# Two four-round proofs, each first commitment drawn from the oracle
+# Several four-round proofs, each first commitment drawn from the oracle
 
 `fs_open4_two` composes two four-round proofs under shared Fiat–Shamir
 tables, each first commitment a primitive that hides and whose values
@@ -14,6 +14,9 @@ answers spreading: `rget_spread`, `comR_spread`), and `fs_open4_two` holds
 at the ideal openings (`fs_open4_twoROM`).  Each transfer adds `s k / NSh`
 a draw; one direction; the two proofs' commitment tables apart from each
 other and from the Fiat–Shamir tables, the commitments' range `KQ` shared.
+For `n` copies, `pow_transfer` moves every copy's view, newest first, and
+`zkb_rom` carries `fs_open4_pow`'s bound at the ideal opening to the real
+one (`fs_open4_powROM`).
 -/
 
 namespace Circuit
@@ -422,5 +425,193 @@ theorem fs_open4_twoROM {PVA PBA D1A O1A PqA D2A O2A P2A D3A O3A P3A WA : Type} 
   rw [Nat.add_assoc] at pt
   rw [two_comm4]
   exact Nat.le_trans (Nat.mul_le_mul_left _ (Nat.mul_le_mul_left _ pt)) (two_le4 fo)
+
+
+/-- **A simulation bound moves to the real opening**: a bound at the ideal
+    view and a transfer from the real view to it bound the real count, `Kt`
+    times, the transfer's error `K` times. -/
+theorem zkb_rom {T X C V : Type} {K Kt ε et : Nat} {ST : (T → Nat) → Nat} {smR smI : (X → Nat) → Nat}
+    {SC : (C → Nat) → Nat} {rvR rvI : T → X → V} {pg : T → C → X → T} {sv : C → X → V}
+    (hz : ZKB ST K smI SC rvI pg sv ε)
+    (ht : ∀ E : T → V → Bool, Kt * ST (fun H => smR (fun x => indB (E H (rvR H x)))) ≤
+      ST (fun H => smI (fun x => indB (E H (rvI H x)))) + et) (E : T → V → Bool) :
+    Kt * K * ST (fun H => smR (fun x => indB (E H (rvR H x)))) ≤
+      ST (fun H => SC (fun c => smI (fun x => indB (E (pg H c x) (sv c x))))) + (ε + K * et) := by
+  calc Kt * K * ST (fun H => smR (fun x => indB (E H (rvR H x))))
+      = K * (Kt * ST (fun H => smR (fun x => indB (E H (rvR H x))))) := by rw [Nat.mul_comm Kt K, Nat.mul_assoc]
+    _ ≤ K * (ST (fun H => smI (fun x => indB (E H (rvI H x)))) + et) := Nat.mul_le_mul_left _ (ht E)
+    _ = K * ST (fun H => smI (fun x => indB (E H (rvI H x)))) + K * et := Nat.mul_add _ _ _
+    _ ≤ _ := by
+      rw [← Nat.add_assoc]
+      exact Nat.add_le_add_right (hz E) _
+
+/-- The transfer's error over `n` proofs: each step's over the older
+    proofs' real draws and the newer ones' ideal draws. -/
+def errT {T X : Type} (K e : Nat) (ST : (T → Nat) → Nat) (smR smI : (X → Nat) → Nat) : Nat → Nat
+  | 0 => 0
+  | n + 1 => K ^ n * (e * ST (fun _ => smPow smR n (fun _ => 1))) + errT K e ST smR smI n * smI (fun _ => 1)
+
+/-- **`n` transfers inside the proofs' count**: each proof's real view
+    moved to its ideal one, newest first. -/
+theorem pow_transfer {T X V : Type} {K e : Nat} (ST : (T → Nat) → Nat) (hST : Lin ST)
+    (smR smI : (X → Nat) → Nat) (hR : Lin smR) (hI : Lin smI) (hC : Comm smI ST) (hCR : Comm smR smI)
+    (hII : Comm smI smI)
+    (vR vI : T → X → V)
+    (hA : ∀ H (G : V → Bool), K * smR (fun x => indB (G (vR H x))) ≤ smI (fun x => indB (G (vI H x))) + e) :
+    ∀ n (E : T → PowT V n → Bool), K ^ n * ST (fun H => smPow smR n (fun xs => indB (E H (rvPow (fun _ => vR) n H xs)))) ≤
+      ST (fun H => smPow smI n (fun xs => indB (E H (rvPow (fun _ => vI) n H xs)))) + errT K e ST smR smI n
+  | 0, E => by simp only [Nat.pow_zero, Nat.one_mul, errT, Nat.add_zero]; exact Nat.le_refl _
+  | n + 1, E => by
+    have hRn := lin_smPow hR n
+    have hIn := lin_smPow hI n
+    -- the newest proof's transfer, inside
+    have s1 : K * ST (fun H => smPow smR n (fun rest => smR (fun x =>
+        indB (E H (vR H x, rvPow (fun _ => vR) n H rest))))) ≤
+        ST (fun H => smPow smR n (fun rest => smI (fun x => indB (E H (vI H x, rvPow (fun _ => vR) n H rest))))) +
+          e * ST (fun _ => smPow smR n (fun _ => 1)) := by
+      rw [← smK ST hST, ← smK ST hST, ← sm_add ST hST]
+      refine sm_mono ST hST (fun H => ?_)
+      rw [← smK _ hRn, ← smC _ hRn, ← sm_add _ hRn]
+      exact sm_mono _ hRn (fun rest => hA H (fun v => E H (v, rvPow (fun _ => vR) n H rest)))
+    -- the older proofs', the newest's ideal count outside
+    have hCn : Comm smI (smPow smR n) := comm_smPow' (fun f => (hCR (fun a b => f b a)).symm) n
+    have hCI : Comm smI (smPow smI n) := comm_smPow' hII n
+    have s2 : K ^ n * ST (fun H => smPow smR n (fun rest => smI (fun x =>
+        indB (E H (vI H x, rvPow (fun _ => vR) n H rest))))) ≤
+        ST (fun H => smPow smI n (fun rest => smI (fun x => indB (E H (vI H x, rvPow (fun _ => vI) n H rest))))) +
+          errT K e ST smR smI n * smI (fun _ => 1) := by
+      have l : ∀ (sm : (PowT X n → Nat) → Nat), Comm smI sm → ∀ f : T → PowT X n → X → Nat,
+          ST (fun H => sm (fun rest => smI (fun x => f H rest x))) = smI (fun x => ST (fun H => sm (fun rest => f H rest x))) :=
+        fun sm hc f => (congrArg ST (funext fun H => hc (fun x rest => f H rest x))).trans
+          (hC (fun x H => sm (fun rest => f H rest x)))
+      rw [l _ hCn, l _ hCI, ← smK smI hI, ← smC smI hI, ← sm_add smI hI]
+      exact sm_mono smI hI (fun x => pow_transfer ST hST smR smI hR hI hC hCR hII vR vI hA n
+        (fun H w => E H (vI H x, w)))
+    show K ^ (n + 1) * ST (fun H => smPow smR n (fun rest => smR (fun x =>
+        indB (E H (vR H x, rvPow (fun _ => vR) n H rest))))) ≤
+      ST (fun H => smPow smI n (fun rest => smI (fun x => indB (E H (vI H x, rvPow (fun _ => vI) n H rest))))) +
+        (K ^ n * (e * ST (fun _ => smPow smR n (fun _ => 1))) + errT K e ST smR smI n * smI (fun _ => 1))
+    rw [Nat.pow_succ, Nat.mul_assoc]
+    refine Nat.le_trans (Nat.mul_le_mul_left _ s1) ?_
+    rw [Nat.mul_add]
+    refine Nat.le_trans (Nat.add_le_add_right s2 _) (Nat.le_of_eq ?_)
+    ac_rfl
+set_option maxRecDepth 100000 in
+/-- **`n` copies of a four-round proof, the first commitment drawn from the
+    oracle** (`fs_open4_pow` through `pow_transfer` and `zkb_rom`): `KQ^n`
+    times the real count is at most `fs_open4_pow`'s bound at the ideal
+    opening, its spread from `comI_spread`, plus the transfers' errors
+    (`errT`): each copy's `s k / NSh` a draw over the others; one direction.
+    Each copy's commitment table is its own draw, with its salt. -/
+theorem fs_open4_powROM {PV PB D1 O1 Pq D2 O2 P2 D3 O3 P3 W : Type} {NR m e1 e2 NSh NSo sQ kQ nQ NS2 NS3 K2 K3 K4 KQ n2 n3 : Nat}
+    (hKQ : 0 < KQ) (hK2 : 0 < K2) (hK3 : 0 < K3) (hK4 : 0 < K4)
+    (φ : Nat → W → Nat) {N4 : Nat} (hφ : ∀ m w, φ m w < N4)
+    (rv sv : Nat → Nat → Nat → EF → EF → Nat → (Nat → Tup) → TViewN PV PB) (gz : Nat → Nat → Bool)
+    {Bz : Nat} (hgz : sumTo K2 (fun c2 => sumTo K3 (fun c3 => indB (!gz c2 c3))) ≤ Bz)
+    (g4 : Nat → Bool) {B4 : Nat} (hB4 : sumTo K4 (fun c4 => indB (!g4 c4)) ≤ B4)
+    (hrv : ∀ c4 c2 c3 α β r t, rv c4 c2 c3 α β r t = none ∨ ∃ p x y, rv c4 c2 c3 α β r t = some (p, α, β, x, y))
+    (hsv : ∀ c4 c2 c3 α β r t, ∃ p x y, sv c4 c2 c3 α β r t = some (p, α, β, x, y))
+    (oz : TViewN PV PB → W) (hoz : ∀ c4 c2 c3 α β r t, oz (rv c4 c2 c3 α β r t) = oz (rv 0 c2 c3 α β r t))
+    (h1 : ∀ c4 c2 c3, g4 c4 = true → gz c2 c3 = true → ∀ E : TViewN PV PB → Bool,
+      tsumN NR m (fun α β r t => indB (genB β && E (rv c4 c2 c3 α β r t))) ≤
+        tsumN NR m (fun α β r t => indB (genB β && E (sv c4 c2 c3 α β r t))) + e1 + e2)
+    (h2 : ∀ c4 c2 c3, g4 c4 = true → gz c2 c3 = true → ∀ E : TViewN PV PB → Bool,
+      tsumN NR m (fun α β r t => indB (genB β && E (sv c4 c2 c3 α β r t))) ≤
+        tsumN NR m (fun α β r t => indB (genB β && E (rv c4 c2 c3 α β r t))) + e1 + e2)
+    (op1 : Nat → D1 → O1) (sd1 : Nat → O1 → D1) (d1 : D1)
+    (pos : D1 → Nat → Nat → Nat) (hpos : ∀ d σo σh, pos d σo σh < nQ) (g : O1 → Nat → Pq)
+    (hs : ∀ d σo v, sumTo NSh (fun σh => indB (decide (pos d σo σh = v))) ≤ sQ)
+    (nxt : Pq → Nat → List Nat → Nat)
+    (ov1 : Nat → TViewN PV PB → Option O1) (hov1 : ∀ c4, ov1 c4 none = none) (main1 : (Nat → Tup) → Nat → D1)
+    (hsd1 : ∀ c4 t r, op1 c4 (sd1 c4 (op1 c4 (main1 t r))) = op1 c4 (main1 t r))
+    (Com2 : D2 → Nat → Nat) (Pf2 : Nat → D2 → Nat → P2) (op2 : Nat → D2 → O2) (sd2 : Nat → O2 → D2) (d2 : D2)
+    (hc2 : ComHides NS2 Com2) (hp2 : ∀ c4, ComPfHides NS2 Com2 (Pf2 c4) (op2 c4)) (hr2 : ∀ d σ, Com2 d σ < n2)
+    (ov2 : Nat → TViewN PV PB → Option O2) (hov2 : ∀ c4, ov2 c4 none = none) (main2 : Nat → (Nat → Tup) → Nat → D2)
+    (hsd2 : ∀ c4 c t r, op2 c4 (sd2 c4 (op2 c4 (main2 c t r))) = op2 c4 (main2 c t r))
+    (Com3 : D3 → Nat → Nat) (Pf3 : Nat → D3 → Nat → P3) (op3 : Nat → D3 → O3) (sd3 : Nat → O3 → D3) (d3 : D3)
+    (hc3 : ComHides NS3 Com3) (hp3 : ∀ c4, ComPfHides NS3 Com3 (Pf3 c4) (op3 c4)) (hr3 : ∀ d σ, Com3 d σ < n3)
+    (ov3 : Nat → TViewN PV PB → Option O3) (hov3 : ∀ c4, ov3 c4 none = none) (main3 : Nat → Nat → (Nat → Tup) → Nat → D3)
+    (hsd3 : ∀ c4 c c' t r, op3 c4 (sd3 c4 (op3 c4 (main3 c c' t r))) = op3 c4 (main3 c c' t r))
+    (hvo1 : ∀ c4 c2 c3 c r t, rv c4 c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t = none ∨
+      ov1 c4 (rv c4 c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t) = some (op1 c4 (main1 t r)))
+    (hvo2 : ∀ c4 c2 c3 c r t, rv c4 c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t = none ∨
+      ov2 c4 (rv c4 c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t) = some (op2 c4 (main2 c t r)))
+    (hvo3 : ∀ c4 c2 c3 c r t, rv c4 c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t = none ∨
+      ov3 c4 (rv c4 c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t) = some (op3 c4 (main3 c c2 t r)))
+    (sop1 : Nat → Nat → Nat → Nat → (Nat → Tup) → O1) (sop2 : Nat → Nat → Nat → Nat → Nat → (Nat → Tup) → O2)
+    (sop3 : Nat → Nat → Nat → Nat → Nat → (Nat → Tup) → O3)
+    (hsvo1 : ∀ c4 c2 c3 c r t, ov1 c4 (sv c4 c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t) = some (sop1 c4 c2 c3 r t))
+    (hsvo2 : ∀ c4 c2 c3 c r t, ov2 c4 (sv c4 c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t) = some (sop2 c4 c2 c3 c r t))
+    (hsvo3 : ∀ c4 c2 c3 c r t, ov3 c4 (sv c4 c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t) = some (sop3 c4 c2 c3 c r t))
+    (hφs : ∀ m w m' w', φ m w = φ m' w' → m % KQ = m' % KQ) :
+    let Com1 := comR KQ NSh NSo pos
+    let Pf1 := fun (c4 : Nat) => pfR KQ NSh NSo kQ pos (op1 c4) g nxt
+    let Cmi := comI KQ NSh NSo pos
+    let Pfi := fun (c4 : Nat) => pfI KQ NSh NSo kQ pos (op1 c4) g nxt
+    let sm := fun (g : Nat × Nat × Nat × (Nat → Tup) → Nat) =>
+      sumTo (NSh * (NSo * KQ ^ nQ) * KQ) (fun σ1 => sumTo (NS2 * NS3) (fun σ => sumTo NR (fun r => sumN m (fun t => g (σ1, σ, r, t)))))
+    let smR := fun (g : Nat × Nat × Nat × (Nat → Tup) → Nat) =>
+      sumTo (NSh * (NSo * KQ ^ nQ)) (fun σ1 => sumTo (NS2 * NS3) (fun σ => sumTo NR (fun r => sumN m (fun t => g (σ1, σ, r, t)))))
+    let m1 := fun (x : Nat × Nat × Nat × (Nat → Tup)) => Com1 (main1 x.2.2.2 x.2.2.1) x.1
+    let m2 := fun (c1 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
+      m1 x + KQ * Com2 (main2 c1 x.2.2.2 x.2.2.1) (x.2.1 % NS2)
+    let m3 := fun (c1 c2 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
+      m1 x + KQ * comPair NS2 n2 Com2 Com3 (main2 c1 x.2.2.2 x.2.2.1, main3 c1 c2 x.2.2.2 x.2.2.1) x.2.1
+    let rvo := fun (c4 c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
+      ((ov1 c4 (rv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)).map (fun _ => Pf1 c4 (main1 x.2.2.2 x.2.2.1) x.1),
+       (ovPair (ov2 c4) (ov3 c4) (rv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)).map
+         (fun _ => pfPair NS2 (Pf2 c4) (Pf3 c4) (main2 c1 x.2.2.2 x.2.2.1, main3 c1 c2 x.2.2.2 x.2.2.1) x.2.1),
+       rv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)
+    let s1 := fun (c4 c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) => Cmi (sd1 c4 (sop1 c4 c2 c3 x.2.2.1 x.2.2.2)) x.1
+    let s2 := fun (c4 c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
+      s1 c4 c1 c2 c3 x + KQ * Com2 (sd2 c4 (sop2 c4 c2 c3 c1 x.2.2.1 x.2.2.2)) (x.2.1 % NS2)
+    let s3 := fun (c4 c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
+      s1 c4 c1 c2 c3 x + KQ * comPair NS2 n2 Com2 Com3
+        (sd2 c4 (sop2 c4 c2 c3 c1 x.2.2.1 x.2.2.2), sd3 c4 (sop3 c4 c2 c3 c1 x.2.2.1 x.2.2.2)) x.2.1
+    let svo := fun (c4 c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
+      (some (Pfi c4 (sd1 c4 (sop1 c4 c2 c3 x.2.2.1 x.2.2.2)) x.1),
+       some (pfPair NS2 (Pf2 c4) (Pf3 c4) (sd2 c4 (sop2 c4 c2 c3 c1 x.2.2.1 x.2.2.2), sd3 c4 (sop3 c4 c2 c3 c1 x.2.2.1 x.2.2.2)) x.2.1),
+       sv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)
+    let sm4 := fun (g : Nat × Nat × Nat × (Nat × Nat × Nat × (Nat → Tup)) → Nat) =>
+      sumTo ((Q4 * Q4) ^ KQ) (fun H1 => sumTo (K2 ^ (KQ * n2)) (fun H2 =>
+        sumTo (K3 ^ (KQ * (n2 * n3))) (fun H3 => sm (fun x => g (H1, H2, H3, x)))))
+    let r1 := fun (y : Nat × Nat × Nat × (Nat × Nat × Nat × (Nat → Tup))) => rget (Q4 * Q4) (m1 y.2.2.2) y.1
+    let r2 := fun (y : Nat × Nat × Nat × (Nat × Nat × Nat × (Nat → Tup))) => rget K2 (m2 (r1 y) y.2.2.2) y.2.1
+    let r3 := fun (y : Nat × Nat × Nat × (Nat × Nat × Nat × (Nat → Tup))) => rget K3 (m3 (r1 y) (r2 y) y.2.2.2) y.2.2.1
+    let Mq := fun (y : Nat × Nat × Nat × (Nat × Nat × Nat × (Nat → Tup))) => φ (m3 (r1 y) (r2 y) y.2.2.2)
+      (oz (rv 0 (r2 y) (r3 y) (efOf (r1 y / Q4)) (efOf (r1 y % Q4)) y.2.2.2.2.2.1 y.2.2.2.2.2.2))
+    let ST := fun (f : Nat × Nat × Nat × Nat → Nat) => sumTo (K4 ^ N4) (fun H4 => sumTo ((Q4 * Q4) ^ KQ) (fun H1 =>
+      sumTo (K2 ^ (KQ * n2)) (fun H2 => sumTo (K3 ^ (KQ * (n2 * n3))) (fun H3 => f (H1, H2, H3, H4)))))
+    let SC := fun (f : Nat × Nat × Nat × Nat → Nat) => sumTo K4 (fun c4 => sumTo (Q4 * Q4) (fun c1 =>
+      sumTo K2 (fun c2 => sumTo K3 (fun c3 => f (c1, c2, c3, c4)))))
+    let rvT := fun (H : Nat × Nat × Nat × Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
+      (m1 x, m2 (r1 (H.1, H.2.1, H.2.2.1, x)) x, m3 (r1 (H.1, H.2.1, H.2.2.1, x)) (r2 (H.1, H.2.1, H.2.2.1, x)) x,
+       rvo (rget K4 (Mq (H.1, H.2.1, H.2.2.1, x)) H.2.2.2) (r1 (H.1, H.2.1, H.2.2.1, x)) (r2 (H.1, H.2.1, H.2.2.1, x))
+         (r3 (H.1, H.2.1, H.2.2.1, x)) x)
+    let pgT := fun (H : Nat × Nat × Nat × Nat) (c : Nat × Nat × Nat × Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
+      (rset (Q4 * Q4) (s1 c.2.2.2 c.1 c.2.1 c.2.2.1 x) H.1 c.1, rset K2 (s2 c.2.2.2 c.1 c.2.1 c.2.2.1 x) H.2.1 c.2.1,
+       rset K3 (s3 c.2.2.2 c.1 c.2.1 c.2.2.1 x) H.2.2.1 c.2.2.1,
+       rset K4 (φ (s3 c.2.2.2 c.1 c.2.1 c.2.2.1 x) (oz (sv c.2.2.2 c.2.1 c.2.2.1 (efOf (c.1 / Q4)) (efOf (c.1 % Q4))
+         x.2.2.1 x.2.2.2))) H.2.2.2 c.2.2.2)
+    let svT := fun (c : Nat × Nat × Nat × Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
+      (s1 c.2.2.2 c.1 c.2.1 c.2.2.1 x, s2 c.2.2.2 c.1 c.2.1 c.2.2.1 x, s3 c.2.2.2 c.1 c.2.1 c.2.2.1 x,
+       svo c.2.2.2 c.1 c.2.1 c.2.2.1 x)
+    let q := fun (c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
+      φ (m3 c1 c2 x) (oz (rv 0 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2))
+    let pts := fun (c : Nat × Nat × Nat × Nat) (x : Nat × Nat × Nat × (Nat → Tup)) => (s1 c.2.2.2 c.1 c.2.1 c.2.2.1 x, s2 c.2.2.2 c.1 c.2.1 c.2.2.1 x, s3 c.2.2.2 c.1 c.2.1 c.2.2.1 x, φ (s3 c.2.2.2 c.1 c.2.1 c.2.2.1 x) (oz (sv c.2.2.2 c.2.1 c.2.2.1 (efOf (c.1 / Q4)) (efOf (c.1 % Q4)) x.2.2.1 x.2.2.2)))
+    let δ₀ := NS2 * NS3 * (NR * (Q4 ^ m * (NSh * (NSo * KQ ^ nQ))))
+    ∀ n (E : Nat × Nat × Nat × Nat → PowT (Nat × Nat × Nat × (Option (Pq × List Nat) × Option (P2 × P3) × TViewN PV PB)) n → Bool),
+    KQ ^ n * (K4 * (Q4 * Q4 * (K2 * K3))) ^ n * ST (fun H => smPow smR n (fun x => indB (E H (rvPow (fun _ => rvT) n H x)))) ≤
+      ST (fun H => scPow SC n (fun c => smPow sm n (fun x => indB (E (pgPow (fun _ => pgT) n H c x) (svPow (fun _ => svT) n c x))))) +
+      ((errPow (K4 * (Q4 * Q4 * (K2 * K3))) sm SC (fun _ => K4 ^ N4 * (K4 * ((Q4 * Q4) ^ KQ * (K2 ^ (KQ * n2) * (K3 ^ (KQ * (n2 * n3)) *
+        (K2 * (K3 * ((NSh * (NSo * KQ ^ nQ) * KQ) * (NS2 * NS3 * (e1 + e2)))) +
+          (Q4 * (P * P) * (K2 * K3) + Q4 * Q4 * Bz) * ((NSh * (NSo * KQ ^ nQ) * KQ) * (NS2 * NS3 * (NR * (Q4 ^ m * 1)))))))) +
+          B4 * (Q4 * Q4 * (K2 * K3) * sm4 (fun _ => 1)))) (fun j => SC (fun _ => sm (fun _ => ST (fun _ => hitB sm δ₀ j)))) n) + (K4 * (Q4 * Q4 * (K2 * K3))) ^ n * errT KQ (KQ * (NSo * (KQ ^ nQ * (sQ * kQ))) * (NS2 * NS3 * (NR * (Q4 ^ m * 1)))) ST smR sm n) := by
+  intro Com1 Pf1 Cmi Pfi sm smR m1 m2 m3 rvo s1 s2 s3 svo sm4 r1 r2 r3 Mq ST SC rvT pgT svT q pts δ₀ n E
+  have fo := fs_open4_pow hK2 hK3 hK4 φ hφ rv sv gz hgz g4 hB4 hrv hsv oz hoz h1 h2 Cmi Pfi op1 sd1 d1 (comI_hides hKQ pos hpos) (fun c4 => pfI_hides hKQ pos hpos (op1 c4) g nxt) (fun _ _ => Nat.mod_lt _ hKQ) ov1 hov1 main1 hsd1 Com2 Pf2 op2 sd2 d2 hc2 hp2 hr2 ov2 hov2 main2 hsd2 Com3 Pf3 op3 sd3 d3 hc3 hp3 hr3 ov3 hov3 main3 hsd3 hvo1 hvo2 hvo3 sop1 sop2 sop3 hsvo1 hsvo2 hsvo3 hφs (fun d v => comI_spread hKQ pos hpos d v) n
+  exact zkb_rom fo (pow_transfer ST (lin_sum4 _ _ _ _) smR sm (lin_sm _ _ _ _) (lin_sm _ _ _ _)
+    (comm_sm (lin_sum4 _ _ _ _) _ _ _ _) (comm_sm (lin_sm _ _ _ _) _ _ _ _) (comm_sm (lin_sm _ _ _ _) _ _ _ _)
+    (fun H x => view4 KQ NS2 K2 K3 K4 n2 φ rv oz ov1 main1 Com2 Pf2 ov2 main2 Com3 Pf3 ov3 main3 Com1 Pf1 H x) (fun H x => view4 KQ NS2 K2 K3 K4 n2 φ rv oz ov1 main1 Com2 Pf2 ov2 main2 Com3 Pf3 ov3 main3 Cmi Pfi H x)
+    (fun H G => rom4_step (NR := NR) (m := m) (NSh := NSh) (NSo := NSo) (s := sQ) (k := kQ) (n := nQ) (NS2 := NS2) (NS3 := NS3) (K2 := K2) (K3 := K3) (K4 := K4) (n2 := n2) hKQ φ rv oz pos hpos g hs nxt op1 ov1 main1 Com2 Pf2 ov2 main2 Com3 Pf3 ov3 main3 H G) n) E
 
 end Circuit
