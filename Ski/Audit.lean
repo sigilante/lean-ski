@@ -161,6 +161,7 @@ import Ski.ZK.SpongeMany
 import Ski.ZK.SpongeLoad
 import Ski.ZK.SpongeLoadL
 import Ski.ZK.SpongeTree
+import Ski.ZK.SpongeUnion
 import Ski.ZK.FSQueryAbsT
 import Ski.ZK.FSQueryPowT
 import Ski.ZK.ROMFamilyT
@@ -1402,3 +1403,6 @@ open Ski.Audit
 
 -- Chains that all meet saw near-collisions (SpongeTree)
 #audit_clean Circuit.rget_posS Circuit.runS_eq Circuit.sumTo_or Circuit.posIn_cons Circuit.clIn_cons Circuit.posIn_iff Circuit.block_count Circuit.runS_block Circuit.posIn_blockS Circuit.posS_step Circuit.posS_next Circuit.allMeet_near Circuit.allMeet_countP Circuit.rget_split Circuit.split_mod_div Circuit.injT_ne Circuit.allT_mem Circuit.ffac_le Circuit.ffac_mono Circuit.ffac_preimage Circuit.preimage_loadT Circuit.meetM_countP Circuit.loadT_countP Circuit.sep_of_tags Circuit.tagOK_xsOf Circuit.preimage_loadTA Circuit.meet_markov Circuit.loadTA_countP Circuit.loadTA_hsp Circuit.loadTA_δs_countP Circuit.tag_satPT Circuit.sud_interleaveLT Circuit.sud_interleaveLTN
+
+-- Chains that meet saw near-collisions, without domain separation (SpongeUnion)
+#audit_clean Circuit.present_merge Circuit.dcount_merge Circuit.dcount_merge_le Circuit.dcount_merge_ge Circuit.dcount_merge_both Circuit.dcount_add Circuit.dcount_add_eq Circuit.firstOld_spec Circuit.oldB_spec Circuit.labR_lt Circuit.labR_coh Circuit.visB_succ Circuit.visB_add Circuit.visB_other Circuit.dcount_id Circuit.dcount_none Circuit.present_of Circuit.visB_of Circuit.mergeL_self Circuit.labR_inv Circuit.labR_final Circuit.nearN_runS Circuit.allMeet_near2 Circuit.allMeet_countP2 Circuit.meetM_countP2 Circuit.cf_of_tags Circuit.nzOK_xsOf Circuit.preimage_loadTU Circuit.meet_markov2 Circuit.loadTU_countP Circuit.loadTU_hsp Circuit.loadTU_δs_countP Circuit.hpk2_satPT Circuit.sud_interleaveLU Circuit.sud_interleaveLUN
