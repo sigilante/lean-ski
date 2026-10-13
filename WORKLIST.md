@@ -133,8 +133,8 @@ is built; this file records what is next. Last revised 2026-10-13.
   a collision term (`Ski/ZK/FSMulti.lean`, `fs_zk_two`, `col_spread`), and two four-round
   protocols on the same four tables (`fs_two`, `fs_open4_two`). Open, most exploitable
   first: the circuits' `n`-proof instances (two of each: `Ski/ZK/FSMultiInst.lean`,
-  `*_fs_open4_two`; `n` proofs of one shape in general: `zkb_pow`, each step's collision term
-  covering the newest proof against the earlier ones); `Com` from the same oracle (bounded queries, a ROM-hiding term); FRI's
+  `*_fs_open4_two`; `n` copies of a four-round proof: `fs_open4_pow`; `n` proofs of
+  different statements of one circuit are not drawn); `Com` from the same oracle (bounded queries, a ROM-hiding term); FRI's
   folding challenges hashed with the transcript before FRI (from its own layer commitments,
   against a table of its own, they fit already: `fs_pow`); FRI's layer commitments and final polynomial in the query hash's
   input (every opening at `ζ` is in it, `pcsFri_ood`, `pcsFri_oodT`,

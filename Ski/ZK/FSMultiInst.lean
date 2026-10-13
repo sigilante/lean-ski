@@ -13,30 +13,6 @@ namespace Circuit
 
 open ZKF
 
-/-- **A commitment's salt spread over a proof's draws**: if at most `δs` of
-    the salts commit any data to any one value, the first commitment of a
-    proof's data hits a value for at most `δs` of its first salts at every
-    other draw. -/
-theorem spread_sum {D : Type} {NS1 NS2 NR m δs : Nat} (Com : D → Nat → Nat) (main : (Nat → Tup) → Nat → D)
-    (h : ∀ d v, sumTo NS1 (fun σ => indB (decide (Com d σ = v))) ≤ δs) (v : Nat) :
-    sumTo NS1 (fun σ1 => sumTo NS2 (fun σ => sumTo NR (fun r => sumN m (fun t =>
-      indB (decide (Com (main t r) σ1 = v)))))) ≤ NS2 * (NR * (Q4 ^ m * δs)) := by
-  have e : sumTo NS1 (fun σ1 => sumTo NS2 (fun σ => sumTo NR (fun r => sumN m (fun t =>
-      indB (decide (Com (main t r) σ1 = v)))))) =
-      sumTo NS2 (fun σ => sumTo NR (fun r => sumN m (fun t => sumTo NS1 (fun σ1 =>
-        indB (decide (Com (main t r) σ1 = v)))))) := by
-    rw [sumTo_exch _ NS2 NS1]
-    refine sumTo_congr _ (fun σ _ => ?_)
-    rw [sumTo_exch _ NR NS1]
-    refine sumTo_congr _ (fun r _ => ?_)
-    exact sumTo_sumN m NS1 _
-  rw [e]
-  calc sumTo NS2 (fun σ => sumTo NR (fun r => sumN m (fun t => sumTo NS1 (fun σ1 =>
-        indB (decide (Com (main t r) σ1 = v))))))
-      ≤ sumTo NS2 (fun σ => sumTo NR (fun r => sumN m (fun t => δs))) :=
-        sumTo_mono _ (fun σ _ => sumTo_mono _ (fun r _ => sumN_mono m (fun t => h _ _)))
-    _ = _ := by rw [sumTo_congr _ (fun σ _ => sumTo_congr _ (fun r _ => sumN_const m δs)), sumTo_congr _
-        (fun σ _ => sumTo_const _ NR), sumTo_const]
 section
 open B Air Stmt Mach Sudoku SudokuText
 
