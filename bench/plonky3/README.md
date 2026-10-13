@@ -923,7 +923,10 @@ byte the one `compj-prove … TABLE` writes; `compj-prove-table` proves it,
 reading each instantiation row from the table as `jet-prove` does. Avon's
 `make zk-jet-witness-check` runs `and`, `or` and `split8` through both.
 
-Measured, `and` and `or` 2026-09-30, `split8` and `csplit8` 2026-10-11:
+Measured, `and` and `or` 2026-09-30, `split8` and `csplit8` 2026-10-11, for
+the witness `a = 123, b = 77, r = 181` then released; the release now draws its
+witnesses in secret and proves `csplit8` with jets at `2^18 2^19 2^15 2^16`
+(`release/README.md`):
 
 ```
 statement             CPU rows (INST)   POP      INSTW    memory    heights CPU mem POP INSTW   prove     proof

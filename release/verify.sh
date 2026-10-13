@@ -42,9 +42,10 @@
 #      refused;
 #   8. a committed split (release/skilark/csplit8): Lean compiles the
 #      SKIjack source of `csplit` and checks that the statement is the
-#      predicate `vcsplitB` for x = 200 and the knapsack commitment c = 255
-#      over 24 literal bits, weights from seed 1 (`lake exe skilark
-#      cstatement`), and refuses it for c = 256; ski-air composed-verify
+#      predicate `vcsplitB` for x = 200 and the knapsack commitment c that
+#      commitment.txt names, over 24 literal bits, weights from seed 1
+#      (`lake exe skilark cstatement`), and refuses it for c + 1; the
+#      producer drew the witness, and so c, in secret; ski-air composed-verify
 #      checks the proof; with one byte changed, it is refused;
 #   9. a Sudoku in zero knowledge (release/sudoku): the statement is Lean's
 #      of Wikipedia's puzzle (`lake exe sudoku emit`, and `lake exe sudoku
@@ -400,15 +401,17 @@ else
     refused "$tmp/sf.log" 'verify: [A-Z]|deserialize: |bytes after the proof' "the split8 proof with one byte changed is refused"
 fi
 
-echo "--- 8. a committed split: a + b = 200, a in a toy knapsack commitment c = 255"
+echo "--- 8. a committed split: a + b = 200, a in a toy knapsack commitment"
 S=release/skilark/csplit8
-lake exe skilark cstatement "$S/source.ski" 8 8 1 200 255 "$S/public.txt" > "$tmp/cs.log" \
+C=$(cat "$S/commitment.txt")
+case "$C" in ''|*[!0-9]*) no "release/skilark/csplit8/commitment.txt names no commitment"; C=0 ;; esac
+lake exe skilark cstatement "$S/source.ski" 8 8 1 200 "$C" "$S/public.txt" > "$tmp/cs.log" \
     && ok "$(head -c 100 "$tmp/cs.log")" \
     || no "release/skilark/csplit8/public.txt is not the statement of its source ($(head -c 80 "$tmp/cs.log"))"
-if lake exe skilark cstatement "$S/source.ski" 8 8 1 200 256 "$S/public.txt" > "$tmp/cs2.log"; then
-    no "the statement read as c = 256"
+if lake exe skilark cstatement "$S/source.ski" 8 8 1 200 $((C + 1)) "$S/public.txt" > "$tmp/cs2.log"; then
+    no "the statement read as c = $((C + 1))"
 else
-    ok "the statement is not the one for c = 256 ($(head -c 60 "$tmp/cs2.log"))"
+    ok "the statement is not the one for c = $((C + 1)) ($(head -c 60 "$tmp/cs2.log"))"
 fi
 "$SKI_AIR" composed-verify "$S/public.txt" "$S/csplit8.proof" > "$tmp/cv8.log" \
     && ok "the csplit8 proof verifies from its file" \
@@ -509,9 +512,16 @@ if [ -z "${QUICK:-}" ]; then
 echo "--- 11. csplit8 with jets, under hiding (about 8 s; QUICK=1 skips it)"
 S=release/skilark/csplit8
 J=$S/jets
-lake exe skilark cstatement "$S/source.ski" 8 8 1 200 255 "$J/public.txt" > "$tmp/jcs.log" \
+C=$(cat "$J/commitment.txt")
+case "$C" in ''|*[!0-9]*) no "release/skilark/csplit8/jets/commitment.txt names no commitment"; C=0 ;; esac
+lake exe skilark cstatement "$S/source.ski" 8 8 1 200 "$C" "$J/public.txt" > "$tmp/jcs.log" \
     && ok "$(head -c 100 "$tmp/jcs.log") … $(grep -o 'budgets 2^[0-9]* and 2^[0-9]*' "$tmp/jcs.log")" \
     || no "release/skilark/csplit8/jets/public.txt is not the statement of its source ($(head -c 80 "$tmp/jcs.log"))"
+if lake exe skilark cstatement "$S/source.ski" 8 8 1 200 $((C + 1)) "$J/public.txt" > "$tmp/jcs2.log"; then
+    no "the statement with jets read as c = $((C + 1))"
+else
+    ok "the statement with jets is not the one for c = $((C + 1)) ($(head -c 60 "$tmp/jcs2.log"))"
+fi
 "$SKI_AIR" compj-verify "$J/public.txt" "$J/csplit8.jets" "$S/source.ski" "$J/csplit8.proof" > "$tmp/jcv.log" \
     && ok "the csplit8 proof with jets verifies from its files ($(head -c 40 "$tmp/jcv.log"))" \
     || no "the csplit8 proof with jets does not verify ($(head -c 80 "$tmp/jcv.log"))"
