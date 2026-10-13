@@ -37,13 +37,19 @@ table, a step's query possibly repeating an earlier one.
   distinct positions, then shared blocks (`two_meet_digit`);
   `two_meet_sat` meets the hypotheses.
 
+- **Squeezed outputs.** Two chains' outputs `σ` of their final states
+  agree only if they met or two distinct final answers agree under `σ`,
+  so on at most `(0 + ⋯ + (2L-1)) (Fκ + Fσ) / K` of the tables, one over
+  the capacity's size plus one over the output's (`colR_count`,
+  `two_squeeze_count`; `squeeze_sat`, a squeeze of the first rate part).
+
 In the full-overwrite results the state is the capacity, its next value
 the table's answer at the block and the capacity (as in `SpongeRandom`),
 `1/K` per capacity value; in the partial-rate results the state is the
 whole state, the table's answers its next values, and `κ` its capacity,
 `F / K = 1 / |capacity|`.  The table stands for the permutation as a
 random function.  Not shown: the permutation as a permutation (its PRP/PRF
-switching term, over the full width), a squeezed index, and any step to
+switching term, over the full width), and any step to
 `SudChallenger`'s `hφsp`, which bounds at every table how many salts reach
 one index.
 -/
@@ -644,5 +650,184 @@ theorem two_meet_satKP {R1 R2 C X : Nat} (hR1 : 0 < R1) (hR2 : 0 < R2) (hC : 0 <
     calc R1 * (R2 * sumTo C (fun c => indB (decide (c = v)))) ≤ R1 * (R2 * 1) :=
           Nat.mul_le_mul_left _ (Nat.mul_le_mul_left _ (sumTo_indEq v C).1)
       _ = R1 * R2 := by rw [Nat.mul_one]
+
+/-! ### Collisions under a symmetric relation: squeezed outputs -/
+
+/-- Two queries at distinct positions whose answers are related by `cl`. -/
+def colR (cl : Nat → Nat → Bool) : List (Nat × Nat) → Bool
+  | [] => false
+  | x :: rest => colR cl rest || rest.any (fun y => y.1 != x.1 && cl y.2 x.2)
+
+theorem colR_of_mem (cl : Nat → Nat → Bool) (hsym : ∀ a b, cl a b = cl b a) :
+    ∀ (l : List (Nat × Nat)) (y z : Nat × Nat), y ∈ l → z ∈ l → y.1 ≠ z.1 → cl y.2 z.2 = true → colR cl l = true
+  | [], _, _, h, _, _, _ => absurd h List.not_mem_nil
+  | x :: rest, y, z, hy, hz, hne, hc => by
+    show (colR cl rest || rest.any (fun w => w.1 != x.1 && cl w.2 x.2)) = true
+    rcases List.mem_cons.1 hy with ey | ey <;> rcases List.mem_cons.1 hz with ez | ez
+    · subst ey; subst ez; exact absurd rfl hne
+    · subst ey
+      have : rest.any (fun w => w.1 != y.1 && cl w.2 y.2) = true :=
+        List.any_eq_true.2 ⟨z, ez, by rw [Bool.and_eq_true, hsym]; exact ⟨bne_iff_ne.2 (Ne.symm hne), hc⟩⟩
+      rw [this, Bool.or_true]
+    · subst ez
+      have : rest.any (fun w => w.1 != z.1 && cl w.2 z.2) = true :=
+        List.any_eq_true.2 ⟨y, ey, by rw [Bool.and_eq_true]; exact ⟨bne_iff_ne.2 hne, hc⟩⟩
+      rw [this, Bool.or_true]
+    · rw [colR_of_mem cl hsym rest y z ey ez hne hc, Bool.true_or]
+
+/-- A collision under `κ` is one under any relation `κ`-equality implies. -/
+theorem colR_of_colK (κ : Nat → Nat) (cl : Nat → Nat → Bool) (himp : ∀ a b, κ a = κ b → cl a b = true) :
+    ∀ l : List (Nat × Nat), colK κ l = true → colR cl l = true
+  | [], h => h
+  | x :: rest, h => by
+    show (colR cl rest || rest.any (fun y => y.1 != x.1 && cl y.2 x.2)) = true
+    have h' : (colK κ rest || rest.any (fun y => y.1 != x.1 && κ y.2 == κ x.2)) = true := h
+    rcases Bool.or_eq_true_iff.1 h' with h1 | h1
+    · rw [colR_of_colK κ cl himp rest h1, Bool.true_or]
+    · obtain ⟨y, hy, hyc⟩ := List.any_eq_true.1 h1
+      rw [Bool.and_eq_true, beq_iff_eq] at hyc
+      have : rest.any (fun y => y.1 != x.1 && cl y.2 x.2) = true :=
+        List.any_eq_true.2 ⟨y, hy, by rw [Bool.and_eq_true]; exact ⟨hyc.1, himp _ _ hyc.2⟩⟩
+      rw [this, Bool.or_true]
+
+/-- The answers below `K` related to an earlier answer. -/
+def nearR (K : Nat) (cl : Nat → Nat → Bool) (as : List Nat) : List Nat :=
+  (List.range K).filter (fun u => as.any (fun a => cl a u))
+
+theorem nearR_length {K F : Nat} (cl : Nat → Nat → Bool) (hF : ∀ a, sumTo K (fun u => indB (cl a u)) ≤ F) :
+    ∀ as : List Nat, (nearR K cl as).length ≤ as.length * F := by
+  intro as
+  have hlen : ∀ (l : List Nat) (f : Nat → Bool), (l.filter f).length = (l.map (fun u => indB (f u))).sum := by
+    intro l f
+    induction l with
+    | nil => rfl
+    | cons u l ih => cases hf : f u <;> simp [hf, ih, indB] <;> omega
+  unfold nearR
+  rw [hlen, range_map_sum]
+  induction as with
+  | nil => simp [indB, sumTo_const]
+  | cons a as ih =>
+    have pt : ∀ u, indB ((a :: as).any (fun a' => cl a' u)) ≤ indB (cl a u) + indB (as.any (fun a' => cl a' u)) :=
+      fun u => by
+      rw [List.any_cons]
+      cases cl a u <;> cases as.any (fun a' => cl a' u) <;> simp [indB]
+    refine Nat.le_trans (sumTo_mono _ (fun u _ => pt u)) ?_
+    rw [sumTo_add, List.length_cons, Nat.succ_mul, Nat.add_comm (as.length * F)]
+    exact Nat.add_le_add (hF _) ih
+
+/-- **The birthday bound under a relation**: `k` adaptive queries see two
+    distinct positions whose answers are related by `cl`, each answer
+    related to at most `F` below `K`, on at most `(0 + ⋯ + (k-1)) F / K` of
+    the tables. -/
+theorem colR_count {K n F : Nat} (hK : 0 < K) (cl : Nat → Nat → Bool) (hsym : ∀ a b, cl a b = cl b a)
+    (hF : ∀ a, sumTo K (fun u => indB (cl a u)) ≤ F) (nxt : List Nat → Nat) (hnx : ∀ l, nxt l < n) :
+    ∀ k, K * sumTo (K ^ n) (fun H => indB (colR cl (runAdp K nxt H k))) ≤ sumTo k (fun j => j) * F * K ^ n
+  | 0 => by simp [colR, runAdp, indB, sumTo_const]
+  | k + 1 => by
+    have ih := colR_count hK cl hsym hF nxt hnx k
+    let p := fun H => nxt ((runAdp K nxt H k).map Prod.snd)
+    let g := fun H => !decide (p H ∈ (runAdp K nxt H k).map Prod.fst)
+    let S := fun H => nearR K cl ((runAdp K nxt H k).map Prod.snd)
+    have hinv : ∀ H u, u < K → g H = true →
+        p (rset K (p H) H u) = p H ∧ S (rset K (p H) H u) = S H ∧ g (rset K (p H) H u) = true := by
+      intro H u hu hg
+      have hnot : p H ∉ (runAdp K nxt H k).map Prod.fst := by
+        intro h; simp only [g, h, decide_true, Bool.not_true] at hg; exact Bool.false_ne_true hg
+      have e := runAdp_rset hK nxt hu k H hnot
+      refine ⟨by simp only [p, e], by simp only [S, e], ?_⟩
+      simp only [g, p, e]; exact hg
+    have fc := fresh_count (n := n) (k := k * F) hK p (fun H => hnx _) g S
+      (fun H => by
+        refine Nat.le_trans (nearR_length cl hF _) ?_
+        rw [List.length_map, runAdp_length]; exact Nat.le_refl _) hinv
+    have pt : ∀ H, indB (colR cl (runAdp K nxt H (k + 1))) ≤ indB (colR cl (runAdp K nxt H k)) +
+        indB (g H && decide (rget K (p H) H ∈ S H)) := by
+      intro H
+      show indB (colR cl (runAdp K nxt H k) ||
+        (runAdp K nxt H k).any (fun y => y.1 != p H && cl y.2 (rget K (p H) H))) ≤ _
+      cases hc : colR cl (runAdp K nxt H k)
+      · simp only [Bool.false_or]
+        cases hn : (runAdp K nxt H k).any (fun y => y.1 != p H && cl y.2 (rget K (p H) H))
+        · exact Nat.zero_le _
+        · obtain ⟨y, hy, hyc⟩ := List.any_eq_true.1 hn
+          rw [Bool.and_eq_true, bne_iff_ne] at hyc
+          have hS' : rget K (p H) H ∈ S H := by
+            show rget K (p H) H ∈ nearR K cl ((runAdp K nxt H k).map Prod.snd)
+            unfold nearR
+            rw [List.mem_filter]
+            exact ⟨List.mem_range.2 (rget_lt hK _ _), List.any_eq_true.2 ⟨y.2, List.mem_map.2 ⟨y, hy, rfl⟩, hyc.2⟩⟩
+          cases hg : g H
+          · exfalso
+            have hm : p H ∈ (runAdp K nxt H k).map Prod.fst := by
+              simp only [g, Bool.not_eq_false', decide_eq_true_eq] at hg; exact hg
+            obtain ⟨z, hz, hzp⟩ := List.mem_map.1 hm
+            have hza : z.2 = rget K (p H) H := by rw [runAdp_ans K nxt H k z hz, hzp]
+            have : colR cl (runAdp K nxt H k) = true :=
+              colR_of_mem cl hsym _ y z hy hz (by rw [hzp]; exact hyc.1) (by rw [hza]; exact hyc.2)
+            rw [hc] at this; exact Bool.false_ne_true this
+          · simp [indB, hS']
+      · simp only [Bool.true_or]; simp [indB]
+    refine Nat.le_trans (Nat.mul_le_mul_left _ (sumTo_mono _ (fun H _ => pt H))) ?_
+    rw [sumTo_add, Nat.mul_add]
+    refine Nat.le_trans (Nat.add_le_add ih fc) (Nat.le_of_eq ?_)
+    show sumTo k (fun j => j) * F * K ^ n + k * F * K ^ n = (sumTo k (fun j => j) + k) * F * K ^ n
+    rw [Nat.add_mul, Nat.add_mul]
+
+/-- **Two chains' squeezed outputs agree rarely**: outputs `σ` of the final
+    states, chains from distinct capacities under partial-rate absorption;
+    equal outputs mean the chains met (a `κ`-collision) or two distinct
+    final answers agree under `σ`, so on at most
+    `(0 + ⋯ + (2L+1)) (Fκ + Fσ) / K` of the tables, `Fκ / K` and `Fσ / K` one
+    over the capacity's and the output's sizes. -/
+theorem two_squeeze_count {K n Fk Fs : Nat} (hK : 0 < K) (inner : Nat → Nat → Nat) (hin : ∀ s x, inner s x < n)
+    (κ σ : Nat → Nat) (hFk : ∀ v, sumTo K (fun u => indB (decide (κ u = v))) ≤ Fk)
+    (hFs : ∀ v, sumTo K (fun u => indB (decide (σ u = v))) ≤ Fs)
+    (hpk : ∀ x s s', inner s x = inner s' x → κ s = κ s') {sa sb : Nat} (hk0 : κ sa ≠ κ sb) (xs : List Nat) (L : Nat) :
+    K * sumTo (K ^ n) (fun H =>
+        indB (decide (σ (stA K inner sa sb xs xs H (L + 1)) = σ (stB K inner sa sb xs xs H (L + 1))))) ≤
+      sumTo (2 * (L + 1)) (fun j => j) * (Fk + Fs) * K ^ n := by
+  let cl := fun a b => decide (κ a = κ b) || decide (σ a = σ b)
+  have hsym : ∀ a b, cl a b = cl b a := fun a b => by
+    simp only [cl]
+    by_cases h1 : κ a = κ b <;> by_cases h2 : σ a = σ b <;> simp [h1, h2, Ne.symm, eq_comm]
+  have hF : ∀ a, sumTo K (fun u => indB (cl a u)) ≤ Fk + Fs := fun a => by
+    have pt : ∀ u, indB (cl a u) ≤ indB (decide (κ u = κ a)) + indB (decide (σ u = σ a)) := fun u => by
+      simp only [cl]
+      by_cases h1 : κ a = κ u <;> by_cases h2 : σ a = σ u <;> simp [h1, h2, indB, eq_comm]
+    refine Nat.le_trans (sumTo_mono _ (fun u _ => pt u)) ?_
+    rw [sumTo_add]; exact Nat.add_le_add (hFk _) (hFs _)
+  refine Nat.le_trans (Nat.mul_le_mul_left _ (sumTo_mono _ (fun H _ => ?_)))
+    (colR_count (n := n) hK cl hsym hF (nxt2 inner sa sb xs xs) (fun l => by rw [nxt2_def]; split <;> exact hin _ _)
+      (2 * (L + 1)))
+  cases e : decide (σ (stA K inner sa sb xs xs H (L + 1)) = σ (stB K inner sa sb xs xs H (L + 1)))
+  · exact Nat.zero_le _
+  · have hσ := of_decide_eq_true e
+    by_cases hm : stA K inner sa sb xs xs H (L + 1) = stB K inner sa sb xs xs H (L + 1)
+    · have hk := two_meet_colK inner κ xs xs H hpk (fun _ _ => rfl) (fun hp => hk0 (hpk _ _ _ hp).symm) L hm
+      rw [colR_of_colK κ cl (fun a b h => by simp [cl, h]) _ hk]
+      exact Nat.le_refl _
+    · have eA : stA K inner sa sb xs xs H (L + 1) = rget K (inner (stA K inner sa sb xs xs H L) (xs.getD L 0)) H := by
+        unfold stA; rw [if_neg (by omega), two_step]; rfl
+      have eB : stB K inner sa sb xs xs H (L + 1) = rget K (inner (stB K inner sa sb xs xs H L) (xs.getD L 0)) H := by
+        unfold stB; rw [if_neg (by omega), two_step]; rfl
+      have hp : inner (stB K inner sa sb xs xs H L) (xs.getD L 0) ≠ inner (stA K inner sa sb xs xs H L) (xs.getD L 0) :=
+        fun h => hm (by rw [eA, eB, h])
+      rw [two_step]
+      rw [colR_of_mem cl hsym _ _ _ List.mem_cons_self (List.mem_cons_of_mem _ List.mem_cons_self) hp
+        (by show cl _ _ = true; rw [← eA, ← eB]; simp [cl, hσ])]
+      exact Nat.le_refl _
+
+/-- **A squeeze of the first rate part meets the output hypothesis**:
+    `σ s = s % R1` has fibres `M` below `R1 M`. -/
+theorem squeeze_sat {R1 M : Nat} (hR1 : 0 < R1) (v : Nat) :
+    sumTo (R1 * M) (fun u => indB (decide (u % R1 = v))) ≤ M := by
+  rw [sumTo_split R1 _ M]
+  have each : ∀ m, sumTo R1 (fun r => indB (decide ((r + R1 * m) % R1 = v))) ≤ 1 := fun m => by
+    refine Nat.le_trans (Nat.le_of_eq (sumTo_congr _ (fun r hr => ?_))) (sumTo_indEq v R1).1
+    show indB (decide ((r + R1 * m) % R1 = v)) = indB (decide (r = v))
+    rw [Nat.add_mul_mod_self_left, Nat.mod_eq_of_lt hr]
+  calc sumTo M (fun m => sumTo R1 (fun r => indB (decide ((r + R1 * m) % R1 = v)))) ≤ sumTo M (fun _ => 1) :=
+        sumTo_mono _ (fun m _ => each m)
+    _ = M := by rw [sumTo_const, Nat.mul_one]
 
 end Circuit
