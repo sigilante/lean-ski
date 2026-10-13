@@ -56,9 +56,11 @@ set_option maxRecDepth 100000 in
     ways, both counts unguarded, the non-generic `β` and `ζ` in the bound.
     Assumed besides `wit_fs_open3`'s: the fourth table's input is the
     commitments' transcript and the trace openings at `ζ`, without the
-    quotient chunks' openings or FRI's layer commitments.  The FRI challenge is hashed
+    quotient chunks' openings, FRI's layer commitments or its final
+    polynomial.  The FRI challenge is hashed
     too, decoded from `c4` by `αd`; the draws where it fails the verifier's
-    test, at most `B4` of the `K4`, enter the bound as their whole count
+    test, at most `B4` of the `K4`, enter the bound as their whole count;
+    Plonky3 samples it before FRI's layers, from the openings at `ζ`
     (decoded uniformly, `P²` in every `Q4`: `genB_count_mod`).
     FRI's folding challenges are read from `c4` through `Rb`, as one draw
     with the query points, not each hashed after its layer. -/
@@ -411,9 +413,11 @@ set_option maxRecDepth 100000 in
     ways, both counts unguarded, the non-generic `β` and `ζ` in the bound.
     Assumed besides `comp_fs_open3`'s: the fourth table's input is the
     commitments' transcript and the trace openings at `ζ`, without the
-    quotient chunks' openings or FRI's layer commitments.  The FRI challenge is hashed
+    quotient chunks' openings, FRI's layer commitments or its final
+    polynomial.  The FRI challenge is hashed
     too, decoded from `c4` by `αd`; the draws where it fails the verifier's
-    test, at most `B4` of the `K4`, enter the bound as their whole count
+    test, at most `B4` of the `K4`, enter the bound as their whole count;
+    Plonky3 samples it before FRI's layers, from the openings at `ζ`
     (decoded uniformly, `P²` in every `Q4`: `genB_count_mod`).
     FRI's folding challenges are read from `c4` through `Rb`, as one draw
     with the query points, not each hashed after its layer. -/
