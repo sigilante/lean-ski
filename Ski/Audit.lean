@@ -1238,3 +1238,4 @@ open Ski.Audit
   Circuit.hit_bound Circuit.transferR
 -- Two rounds, the first commitment drawn from the oracle
 #audit_clean Circuit.transferR_in Circuit.smT_lin Circuit.smT_one Circuit.fs_open2ROM Circuit.fs_open3ROM
+  Circuit.runQ_congr Circuit.comI_digit Circuit.transferRc Circuit.transferRc_in Circuit.fs_open4ROM
