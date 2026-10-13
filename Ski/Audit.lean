@@ -1233,4 +1233,5 @@ open Ski.Audit
   Circuit.qposQ_length Circuit.salts_in Circuit.rom_hideQ Circuit.rom_hidePfQ Circuit.ComHides.approx Circuit.ComPfHides.approx
   Circuit.open_realA Circuit.open_real_tA Circuit.fs_openA Circuit.sum_salt Circuit.sum_salt' Circuit.sum_salt_eq
   Circuit.salt_dec Circuit.comR_hides Circuit.pfR_hidesA Circuit.fs_openROM Circuit.reprog_swap Circuit.sum_digit
-  Circuit.digit_dec Circuit.pfI_hides Circuit.pfR_pfI Circuit.comI_hides
+  Circuit.digit_dec Circuit.pfI_hides Circuit.pfR_pfI Circuit.comI_hides Circuit.rset_back Circuit.hit_rset
+  Circuit.hit_bound

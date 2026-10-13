@@ -45,10 +45,13 @@ answer re-randomized by one more salt digit (`comI`, `pfI`); the
 re-randomized table is uniform and apart from the commitment
 (`reprog_swap`), so the pair hides exactly (`comI_hides`, `pfI_hides`) and
 every exact Fiat–Shamir theorem here applies to it unchanged, every round
-and every instance.  The real opening differs from the ideal only where a
-query hits the commitment's answer (`pfR_pfI`), so each real count moves to
-the real oracle's at `K` per hitting draw.  That last step, written into
-each theorem's statement, is not yet done.
+and every instance.  The real opening differs from the ideal only where the distinguisher's run
+queries the commitment's own position (`pfR_pfI`), and those runs are few:
+at most `NSo Kⁿ s k` over the salts and the table, `s k / NSh` normalized
+(`rset_back`, `hit_rset`, `hit_bound`).  So each theorem's real count with
+the commitment drawn from the oracle is its count with the ideal opening,
+to which the exact theorem applies, up to the hits.  Writing that transfer
+into each theorem's statement is not yet done.
 -/
 
 namespace Circuit
@@ -669,4 +672,76 @@ theorem comI_hides {D : Type} {K n NSh NSo : Nat} (hK : 0 < K) (pos : D → Nat 
       (sumTo_const _ K).symm]
     exact sumTo_congr _ (fun u hu => by simp only [comI, (digit_dec (σ := σ) hu).1])
   rw [e d, e d', comR_hides hK pos hpos d d' E]
+/-- Setting an answer and setting it back restores the table. -/
+theorem rset_back {K p H u : Nat} (hK : 0 < K) (hu : u < K) :
+    rset K p (rset K p H u) (rget K p H) = H := by
+  have hpos : 0 < K ^ p := Nat.pow_pos hK
+  have h1 := Nat.mod_add_div H (K ^ p)
+  have h2 := Nat.mod_add_div (H / K ^ p) K
+  have hH : H = H % K ^ p + K ^ p * (H / K ^ p % K + K * (H / K ^ p / K)) := by rw [h2]; exact h1.symm
+  obtain ⟨g0, s0⟩ := split_digit (m := p) hK (Nat.mod_lt H hpos) (Nat.mod_lt (H / K ^ p) hK) (hi := H / K ^ p / K)
+  rw [← hH] at g0 s0
+  rw [s0 u, (split_digit hK (Nat.mod_lt H hpos) hu).2, g0, ← hH]
+
+/-- **Whether a run hits `p` does not read the answer at `p`.** -/
+theorem hit_rset {K p a : Nat} (hK : 0 < K) (ha : a < K) (nxt : Nat → List Nat → Nat) (c k H : Nat) :
+    (p ∈ qposQ K nxt c k (rset K p H a)) ↔ (p ∈ qposQ K nxt c k H) := by
+  constructor
+  · intro h
+    by_cases h' : p ∈ qposQ K nxt c k H
+    · exact h'
+    · rw [(runQ_rset hK ha nxt c k H h').2] at h
+      exact absurd h h'
+  · intro h
+    by_cases h' : p ∈ qposQ K nxt c k (rset K p H a)
+    · exact h'
+    · have hb := (runQ_rset (a := rget K p H) hK (Nat.mod_lt _ hK) nxt c k (rset K p H a) h').2
+      rw [rset_back hK ha] at hb
+      rw [← hb] at h'
+      exact absurd h h'
+
+/-- **The hitting draws are few**: over the salts and the commitment's
+    table, the runs that query the commitment's own position number at most
+    `NSo Kⁿ s k`; normalized, `s k / NSh`. -/
+theorem hit_bound {D P : Type} {K n NSh NSo s k : Nat} (hK : 0 < K) (pos : D → Nat → Nat → Nat)
+    (hpos : ∀ d σo σh, pos d σo σh < n)
+    (hs : ∀ d σo v, sumTo NSh (fun σh => indB (decide (pos d σo σh = v))) ≤ s)
+    (pf : Nat → P) (nxt : P → Nat → List Nat → Nat) (d : D) :
+    sumTo (NSh * (NSo * K ^ n)) (fun σ => indB (decide (pos d (saltO NSh NSo σ) (saltH NSh σ) ∈
+      qposQ K (nxt (pf (saltO NSh NSo σ))) (comR K NSh NSo pos d σ) k (saltT NSh NSo σ)))) ≤
+      NSo * (K ^ n * (s * k)) := by
+  rw [sum_salt_eq]
+  have key : ∀ o σh, K * sumTo (K ^ n) (fun h => indB (decide (pos d o σh ∈
+      qposQ K (nxt (pf o)) (rget K (pos d o σh) h) k h))) =
+      sumTo (K ^ n) (fun H => sumTo K (fun c => indB (decide (pos d o σh ∈ qposQ K (nxt (pf o)) c k H))))
+      := fun o σh => by
+    rw [← reprog_swap hK (hpos d o σh) (fun c H => indB (decide (pos d o σh ∈ qposQ K (nxt (pf o)) c k H))),
+      sumTo_mul]
+    refine sumTo_congr _ (fun h _ => ?_)
+    rw [show K * indB (decide (pos d o σh ∈ qposQ K (nxt (pf o)) (rget K (pos d o σh) h) k h)) =
+      sumTo K (fun _ => indB (decide (pos d o σh ∈ qposQ K (nxt (pf o)) (rget K (pos d o σh) h) k h))) from
+      (sumTo_const _ K).symm]
+    refine sumTo_congr _ (fun u hu => ?_)
+    simp only [hit_rset hK hu]
+  have per : ∀ o, o < NSo → K * sumTo NSh (fun σh => sumTo (K ^ n) (fun h => indB (decide (pos d o σh ∈
+      qposQ K (nxt (pf o)) (rget K (pos d o σh) h) k h)))) ≤ K * (K ^ n * (s * k)) := fun o ho => by
+    rw [sumTo_mul, sumTo_congr _ (fun σh _ => key o σh), sumTo_exch _ (K ^ n) NSh]
+    rw [show K * (K ^ n * (s * k)) = sumTo (K ^ n) (fun _ => K * (s * k)) by rw [sumTo_const]; ac_rfl]
+    refine sumTo_mono _ (fun H _ => ?_)
+    rw [sumTo_exch _ K NSh, ← sumTo_const (s * k) K]
+    refine sumTo_mono _ (fun c _ => ?_)
+    have h := salts_in (pos d o) (hs d o) (qposQ K (nxt (pf o)) c k H)
+    rwa [qposQ_length] at h
+  rw [← sumTo_const (K ^ n * (s * k)) NSo]
+  refine sumTo_mono _ (fun o ho => ?_)
+  have e : sumTo NSh (fun σh => sumTo (K ^ n) (fun h => indB (decide (pos d (saltO NSh NSo (σh + NSh * (o + NSo * h)))
+      (saltH NSh (σh + NSh * (o + NSo * h))) ∈ qposQ K (nxt (pf (saltO NSh NSo (σh + NSh * (o + NSo * h)))))
+        (comR K NSh NSo pos d (σh + NSh * (o + NSo * h))) k (saltT NSh NSo (σh + NSh * (o + NSo * h))))))) =
+      sumTo NSh (fun σh => sumTo (K ^ n) (fun h => indB (decide (pos d o σh ∈
+        qposQ K (nxt (pf o)) (rget K (pos d o σh) h) k h)))) :=
+    sumTo_congr _ (fun σh hh => sumTo_congr _ (fun h _ => by
+      obtain ⟨a, b, c⟩ := salt_dec (h := h) hh ho
+      simp only [comR, a, b, c]))
+  rw [e]
+  exact Nat.le_of_mul_le_mul_left (per o ho) hK
 end Circuit
