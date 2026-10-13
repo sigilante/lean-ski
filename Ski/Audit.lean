@@ -1315,4 +1315,5 @@ open Ski.Audit
 #audit_clean Circuit.inj_le_one Circuit.hposW Circuit.hsW Circuit.hndW Circuit.hlenW Circuit.hltW Circuit.hsLW Circuit.hdistM Circuit.hltM Circuit.hsM Circuit.hposOM Circuit.hφW Circuit.hφsW Circuit.hposF Circuit.hsF Circuit.hposOW Circuit.hsd1W
 
 -- A query count the distinguisher chooses (FSMultiStop)
-#audit_clean Circuit.runR4_drop Circuit.find?_congr Circuit.stopTime_le Circuit.truncStop_advRun Circuit.zkbT_queries_stop Circuit.zkbT_mix
+#audit_clean Circuit.runR4_drop Circuit.stopUp_ge Circuit.stopUp_le Circuit.stopUp_congr Circuit.stopTime_le Circuit.truncStop_advRun Circuit.zkbT_queries_stop Circuit.zkbT_mix
+  Circuit.zkbT_queriesV Circuit.truncStop_prog Circuit.zkbT_queries_stopT Circuit.readsR4_drop Circuit.advHitS_le
