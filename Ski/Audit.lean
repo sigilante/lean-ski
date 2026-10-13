@@ -75,6 +75,48 @@ import Ski.ZK.MaskRec
 import Ski.ZK.MaskCoset
 import Ski.ZK.MaskSplit
 import Ski.ZK.MaskCis
+import Ski.ZK.QuotPoly
+import Ski.ZK.VanishPow
+import Ski.ZK.QuotSat
+import Ski.ZK.QuotFold
+import Ski.ZK.QuotOpen
+import Ski.ZK.QuotInst
+import Ski.ZK.QuotP3
+import Ski.ZK.QuotBase
+import Ski.ZK.QuotTwo
+import Ski.ZK.LogUpAir
+import Ski.ZK.LogUpBase
+import Ski.ZK.HideP3
+import Ski.ZK.HideWire
+import Ski.ZK.BbGroup
+import Ski.ZK.SudRun
+import Ski.ZK.SudInst
+import Ski.ZK.WitRun
+import Ski.ZK.WitInst
+import Ski.ZK.CompRunSat
+import Ski.ZK.CompInst
+import Ski.ZK.PreOpen
+import Ski.ZK.Interleave
+import Ski.ZK.FSZK
+import Ski.ZK.FSInst
+import Ski.ZK.FSOpen
+import Ski.ZK.FSOpenFri
+import Ski.ZK.FSOpenInst
+import Ski.ZK.FSRounds
+import Ski.ZK.FSRound2
+import Ski.ZK.FSRound2Inst
+import Ski.ZK.FSOpen2
+import Ski.ZK.FSOpenFri2
+import Ski.ZK.FSOpen2Inst
+import Ski.ZK.FSOpen2Inst2
+import Ski.ZK.FSRounds3
+import Ski.ZK.FSOpen3
+import Ski.ZK.FSOpen3Inst
+import Ski.ZK.FSQuery
+import Ski.ZK.FSQueryInst
+import Ski.ZK.FSMulti
+import Ski.ZK.FSMultiInst
+import Ski.ZK.ROMHide
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -884,6 +926,51 @@ open Ski.Audit
   Circuit.bbGen_half Circuit.bb_split
 -- Plonky3's selector weights normalize at each first point
 #audit_clean Circuit.opv_ne Circuit.first_of_cis
+-- The honest quotient of an AIR: its identity, its size, its targets from the openings
+#audit_clean Circuit.fval_fshift Circuit.fvalE_fshift Circuit.fval_epoly Circuit.fvalE_epoly Circuit.epoly_length
+  Circuit.fval_fdivH Circuit.fdivH_length Circuit.fdivH_rel Circuit.fval_cpoly Circuit.fvalE_cpoly Circuit.cpoly_length
+  Circuit.air_quot Circuit.fval_stdRho Circuit.fvalE_stdRho Circuit.shows_air
+-- A coset's vanishing polynomial is xⁿ - sⁿ; Plonky3's selectors
+#audit_clean Circuit.fval_lowv Circuit.fvan_coset_pow Circuit.sel_first Circuit.sel_last
+-- The constraints vanish on the trace domain, from Sat
+#audit_clean Circuit.p3Sels Circuit.hvan_of_sat Circuit.quot_length_le Circuit.shows_sat Circuit.p3_deg
+  Circuit.epoly_plen Circuit.cpoly_plen Circuit.quot_fits
+-- The base coordinates fold back to the verifier's check
+#audit_clean Circuit.recomb_step Circuit.fold_back Circuit.recomb_mul Circuit.airTgE_back Circuit.wq_step
+  Circuit.fold_ext Circuit.airTgE_ext Circuit.hvan_eq4 Circuit.foldEE_append Circuit.airTgE_mixed
+-- The targets from the opened values
+#audit_clean Circuit.idxIn_spec Circuit.eval_win Circuit.ρOpen_honest Circuit.ρOpenE_honest Circuit.airTg_open
+  Circuit.airTgE_open Circuit.mcol_on_T Circuit.mpolys_getD Circuit.sat_cut Circuit.shows_open
+-- An AIR's quotient table in the composed hiding PCS
+#audit_clean Circuit.ppoly_allL Circuit.airTg_qs Circuit.airTgE_qs Circuit.openMulti_at Circuit.coord_shows
+  Circuit.recOK_air Circuit.tabsHonest_air Circuit.pcsCloseN_fri_air Circuit.tabsHonest_cons
+  Circuit.friN_air Circuit.pcsCloseN_fri_air_draw Circuit.fallback Circuit.tabsHonest_list Circuit.pcsCloseN_fri_tabs
+-- Plonky3's chunks built; BabyBear's trace domain and masks
+#audit_clean Circuit.airQTab_ok Circuit.opv_hc Circuit.p3_doms Circuit.p3_allL Circuit.p3_static Circuit.bb_trace Circuit.bb_masks
+  Circuit.pcsCloseN_fri_bb
+-- The corpus circuit's AIR facts
+#audit_clean Circuit.base_p3ok Circuit.base_facts Circuit.pcsCloseN_fri_base Circuit.base_lup
+-- Quotient tables over several groups (the main and permutation traces)
+#audit_clean Circuit.openAll_honest Circuit.honest_append Circuit.ρOpen_honest_gen Circuit.ρOpenE_honest_gen
+  Circuit.airTg_open_gen Circuit.airTgE_open_gen Circuit.coord_shows_gen Circuit.colsOn_mpolys Circuit.honest_cat
+  Circuit.colsOn_cat Circuit.recOK_airG Circuit.tabsHonest_gen Circuit.tabsHonest_canon Circuit.pcsCloseN_fri_gen
+-- LogUp's constraints as constraints: completeness and shape
+#audit_clean Circuit.fracQ_eval Circuit.lup_rows Circuit.lup_sat Circuit.QP_mul Circuit.lup_shape
+  Circuit.corpus_lup_ok Circuit.base_lup_shape Circuit.corpus_withLup_shape Circuit.combV_horner
+  Circuit.accV_terminal Circuit.lup_sat_terminal Circuit.cols_withPerm Circuit.hsatT_lup Circuit.corpus_plain
+  Circuit.tabsHonest_corpus Circuit.goodLup_of_noAbort Circuit.pcsCloseN_fri_corpus Circuit.p3_facts Circuit.base_P3
+-- The hiding circuits' AIRs meet the composed PCS's checks
+#audit_clean Circuit.sud_P3 Circuit.wit_P3 Circuit.comp_P3 Circuit.sat_setBlind Circuit.blind_ok Circuit.setBlind_h_pre
+  Circuit.sud_wire Circuit.wit_wire Circuit.comp_wire Circuit.preInterp_spec Circuit.tabsHonest_corpus_ite
+-- A BabyBear trace group; one private table, every domain, chunk and group fact discharged
+#audit_clean Circuit.bbGroup_OK Circuit.bbGroup_hgrp Circuit.bb_chunks Circuit.airQTabG_ok Circuit.tabsHonest_bb
+  Circuit.gen31_pow27 Circuit.lde_off_trace
+-- One Sudoku run: Balanced, Unblinded, Sat, the blinded tables and the terminals
+#audit_clean Circuit.sud_run_sats Circuit.sud_run_wire
+-- The Sudoku proof over its composed hiding PCS, end to end
+#audit_clean Circuit.sudCols_shaped Circuit.sud_airs_P3 Circuit.sud_pcs Circuit.sud_hiding Circuit.preInterp_pre
+  Circuit.sudPsim_pre
+#audit_clean Circuit.lgF_pow Circuit.pow2From_pow Circuit.pow2From_ge_n Circuit.progS_height Circuit.sud_prog_height
 
 -- Part II's interface with an additive distance: the errors add, the hybrid argument proved
 #audit_clean Compose.lsum_le Compose.lsum_add Compose.lsum_const Compose.lsum_comm Compose.lsum_prod
@@ -1060,3 +1147,91 @@ open Ski.Audit
 #audit_clean Entropy.hd_red Entropy.tl_red Entropy.pairT_cong Entropy.consT_cong Entropy.convT_one
   Entropy.convT_succ Entropy.convT_red Entropy.entropyV_red Entropy.entropyV_iff Entropy.entropyV_iff'
   Circuit.entropyExport_sound Circuit.checkEntropy_sound
+-- One hidden-term run: Sat at the heights 2^10, 2^10, 2^9
+#audit_clean Circuit.wit_run_sats
+-- The hidden-term proof over its composed hiding PCS, end to end
+#audit_clean Circuit.padPow Circuit.progW_height Circuit.wit_prog_height Circuit.wCols_shaped Circuit.wit_airs_P3
+  Circuit.wit_pcs Circuit.wPsim_pre Circuit.wit_hiding
+-- The composed proof over its composed hiding PCS, end to end
+#audit_clean Circuit.comp_run_sats Circuit.progC_height Circuit.segsC_height Circuit.cCols_shaped Circuit.comp_airs_P3
+  Circuit.comp_pcs Circuit.comp_pub_heights Circuit.cPsim_pre Circuit.comp_hiding
+-- The witness-free matrices: preprocessed columns and randomization
+#audit_clean Circuit.sud_pcsX Circuit.wit_pcsX Circuit.comp_pcsX Circuit.sud_hidingX Circuit.wit_hidingX Circuit.comp_hidingX
+  Circuit.sud_hidingXG Circuit.wit_hidingXG Circuit.comp_hidingXG
+-- The masked column is Plonky3's interleaved column
+#audit_clean Circuit.ileave_perm Circuit.zip_ileave Circuit.coset_ileave Circuit.ileave_mcol_coef Circuit.ileave_mcol Circuit.bb_ileave_mcol
+-- Fiat–Shamir keeps the simulation, programmable random oracle
+#audit_clean Circuit.split_digit Circuit.rget_rset Circuit.oracle_reprog Circuit.fs_real Circuit.fs_zk Circuit.fs_zk'
+  Circuit.tsumN_ab Circuit.efIdx_efOf Circuit.sumQ2 Circuit.sm_exch Circuit.com_swap Circuit.csum_tsumN
+  Circuit.fs_transcript Circuit.fs_transcript' Circuit.fs_pair Circuit.realVN_cases Circuit.simVN_some
+  Circuit.sud_fs Circuit.wit_fs Circuit.comp_fs
+-- Fiat–Shamir with the commitment opened
+#audit_clean Circuit.sig_in Circuit.open_real Circuit.openEv_and Circuit.open_real_t Circuit.open_sim_t Circuit.fs_open
+-- The opened main columns of the composed PCS
+#audit_clean Circuit.quot_open Circuit.mpolysMulti_getD Circuit.zip_map_self Circuit.pcsFri_ov Circuit.psimFri_ov Circuit.opF_sdF
+  Circuit.finterp_eval_cons Circuit.cw_open Circuit.pcsFri_ov2 Circuit.psimFri_ov2 Circuit.mainZ2_verifies
+  Circuit.sim_opening_verifies
+-- Each circuit under Fiat–Shamir, the commitment opened
+#audit_clean Circuit.sudCols_main Circuit.witCols_main Circuit.compCols_main Circuit.sud_fs_open Circuit.wit_fs_open
+  Circuit.comp_fs_open
+-- Fiat–Shamir over two rounds
+#audit_clean Circuit.fs_zkc Circuit.fs_zk2
+-- The second round under Fiat–Shamir
+#audit_clean Circuit.pc_two_core Circuit.pc_two Circuit.mtotal_congr Circuit.traceCw_congr Circuit.tabsCr_congr
+  Circuit.tabsCw_congr Circuit.sudNR_zeta Circuit.sud_fs2 Circuit.pair_lt
+-- The hidden-term and composed proofs over two Fiat–Shamir rounds
+#audit_clean Circuit.wNR_zeta Circuit.cNR_zeta Circuit.wit_fs2 Circuit.comp_fs2
+-- Two Fiat–Shamir rounds, both commitments opened
+#audit_clean Circuit.open_real2 Circuit.openEv2_and Circuit.openEv2_some Circuit.open_two_core Circuit.fs_open2
+-- The second commitment's openings: permutation groups and quotient chunks
+#audit_clean Circuit.csView_setsP Circuit.tabsView_open Circuit.openPolys_fst Circuit.tabsView_ovQ Circuit.tabsPolys_congr
+  Circuit.traceInfo_len Circuit.traceCws_len Circuit.tabsInfo_S Circuit.cw_openQ Circuit.tabsCws_congr Circuit.pcsFri_ovP
+  Circuit.interp_vals Circuit.zipWith_fgf Circuit.op2_sd2 Circuit.pcsFri_ovR2 Circuit.psimFri_ovR2
+-- The Sudoku proof over two Fiat–Shamir rounds, both commitments opened
+#audit_clean Circuit.mpolysMulti_congr Circuit.traceCws_congr Circuit.SameShape.n1 Circuit.SameShape.n2
+  Circuit.SameShape.dataF2 Circuit.SameShape.dataP2 Circuit.sud_same Circuit.sud_data_zeta Circuit.sud_fs_open2
+  Circuit.sud_SsT Circuit.sud_SsC
+-- The hidden-term and composed proofs over two Fiat–Shamir rounds, both commitments opened
+#audit_clean Circuit.wit_same Circuit.wit_data_zeta Circuit.wit_SsT Circuit.wit_SsC Circuit.wit_fs_open2
+  Circuit.comp_same Circuit.comp_data_zeta Circuit.comp_SsT Circuit.comp_SsC Circuit.comp_fs_open2
+-- Fiat–Shamir over three rounds
+#audit_clean Circuit.fs_real2 Circuit.fs_real3 Circuit.fs_zk3 Circuit.sm_add Circuit.sm_mono Circuit.fs_zk3U
+-- Three Fiat–Shamir rounds, every commitment opened
+#audit_clean Circuit.split_salt Circuit.ComHides.prod Circuit.ComPfHides.prod Circuit.comPair_mod Circuit.fs_open3
+  Circuit.genB_count Circuit.bad3_count Circuit.fs_open3U Circuit.rev_le Circuit.fs_open3R
+  Circuit.sud_same_w Circuit.sud_fs_open3 Circuit.sudTs_pre
+-- The hidden-term and composed proofs over three Fiat–Shamir rounds, every commitment opened
+#audit_clean Circuit.wit_same_w Circuit.wit_fs_open3 Circuit.comp_same_w Circuit.comp_fs_open3
+  Circuit.wTs_pre Circuit.cTs_pre
+-- The query points under Fiat–Shamir
+#audit_clean Circuit.SameData.hn Circuit.SameData.ht Circuit.SameData.n1 Circuit.SameData.n2 Circuit.SameData.ms
+  Circuit.SameData.ct Circuit.SameData.cr Circuit.SameData.cc Circuit.SameData.dataF2 Circuit.SameData.dataP2
+  Circuit.sud_data_q Circuit.sud_same_d Circuit.fs_last Circuit.fs_lastR Circuit.fs_lastG Circuit.fs_lastGR
+  Circuit.genB_count_mod Circuit.fs_pow Circuit.ComHides.post Circuit.ComPfHides.post
+  Circuit.openAll_ood Circuit.openMulti_ood Circuit.quotPost_snd Circuit.pcsFri_ood Circuit.firstView_ood
+  Circuit.chunksView_ood Circuit.csView_ood Circuit.sets_shape Circuit.tabsView_ood Circuit.pcsFri_oodT
+  Circuit.openPolys_ood Circuit.traceInfo_Z Circuit.tabsInfo_Z Circuit.pcsFri_oodC
+  Circuit.fs_open4 Circuit.fs_open4R
+  Circuit.sud_fs_open4
+#audit_clean Circuit.wit_data_q Circuit.wit_same_d Circuit.wit_fs_open4 Circuit.comp_data_q Circuit.comp_same_d
+  Circuit.comp_fs_open4
+-- Several proofs under one oracle
+#audit_clean Circuit.rget_digit_ne Circuit.rget_rset_ne Circuit.smK Circuit.smC Circuit.oracle_reprog_get
+  Circuit.reprog_beside Circuit.fs_zk_two Circuit.col_spread Circuit.fs_two Circuit.lin_sumN Circuit.lin_sumTo
+  Circuit.lin_sm Circuit.comm_sm Circuit.comm_sum4 Circuit.lin_sum4 Circuit.fs_open4_abs Circuit.fs_open4_two
+  Circuit.zkb_pair Circuit.lin_pair Circuit.comm_pair Circuit.comm_pair' Circuit.mono_pair
+  Circuit.lin_pairL Circuit.comm_pairL Circuit.comm_pairL'
+  Circuit.lin_smPow Circuit.lin_scPow Circuit.comm_smPow Circuit.comm_smPow' Circuit.comm_scPow' Circuit.mono_scPow
+  Circuit.zkb_pow Circuit.readPow Circuit.smPow_const Circuit.hitPow_le Circuit.read4_beside Circuit.spread_sum
+  Circuit.fs_open4_pow Circuit.readPowI Circuit.hitPowI_le Circuit.read4_pow
+  Circuit.lin_smPowD Circuit.comm_smPowD' Circuit.comm_scPowD' Circuit.zkb_powD Circuit.readPowD Circuit.smPowD_const
+  Circuit.hitPowD_le Circuit.read4_powD
+-- Two proofs of each circuit under one oracle
+#audit_clean Circuit.sud_fs_open4_two Circuit.wit_fs_open4_two Circuit.comp_fs_open4_two
+-- A commitment drawn from the random oracle hides
+#audit_clean Circuit.rom_off Circuit.rom_hide Circuit.runQ_rset Circuit.rom_offQ Circuit.rom_offQ'
+  Circuit.qposQ_length Circuit.salts_in Circuit.rom_hideQ Circuit.rom_hidePfQ Circuit.ComHides.approx Circuit.ComPfHides.approx
+  Circuit.open_realA Circuit.open_real_tA Circuit.fs_openA Circuit.sum_salt Circuit.sum_salt' Circuit.sum_salt_eq
+  Circuit.salt_dec Circuit.comR_hides Circuit.pfR_hidesA Circuit.fs_openROM Circuit.reprog_swap Circuit.sum_digit
+  Circuit.digit_dec Circuit.pfI_hides Circuit.pfR_pfI Circuit.comI_hides Circuit.rset_back Circuit.hit_rset
+  Circuit.hit_bound Circuit.transferR
