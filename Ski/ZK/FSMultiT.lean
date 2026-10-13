@@ -21,8 +21,9 @@ is the reader's first commitment (an opening reading a whole table cannot
 meet it; one reading `rget K2 (m1 x + n1 k) H.2` can), so each opening's
 reads must be confined to such points (a read fixed before that commitment
 is absorbed breaks it).  The distinguisher sees the final tables and the
-views; queries made before or between the proofs, which a programming could
-overwrite, are not modelled.  The statements are fixed in advance, and the
+views; queries made before a proof's programming are `FSMultiQueries`'
+(`zkbT_queries`), and queries interleaved with several proofs are not
+modelled.  The statements are fixed in advance, and the
 simulator's witness-freedom is each instance's to check.
 -/
 

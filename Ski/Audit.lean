@@ -136,6 +136,7 @@ import Ski.ZK.FSQueryQ
 import Ski.ZK.ROMInstQ
 import Ski.ZK.FSMultiT
 import Ski.ZK.FSMultiReads
+import Ski.ZK.FSMultiQueries
 import Ski.ZK.FSQueryAbsT
 import Ski.ZK.FSQueryPowT
 import Ski.ZK.ROMFamilyT
@@ -1294,6 +1295,7 @@ open Ski.Audit
 #audit_clean Circuit.fs_twoT Circuit.zkbT_pair Circuit.zkbT_powD Circuit.read4T_beside Circuit.read2_hout Circuit.read4T_powD Circuit.fs_open4_absT
 #audit_clean Circuit.rgetT_prog Circuit.outR_hout Circuit.outR_hpq Circuit.outRA_hout Circuit.outRA_hpq Circuit.runR_prog Circuit.outRQ_hout Circuit.outRQ_hpq
 #audit_clean Circuit.rget4_prog Circuit.runR4_prog Circuit.outR4_hout Circuit.outR4_hpq Circuit.hpD_of_hφs
+#audit_clean Circuit.zkbT_queries Circuit.readsR4_length Circuit.any_hits_le Circuit.advHit_count
 #audit_clean Circuit.sud_fs_open4_absT Circuit.wit_fs_open4_absT Circuit.comp_fs_open4_absT Circuit.fs4_powDT
 #audit_clean Circuit.sud_fs4T Circuit.wit_fs4T Circuit.comp_fs4T Circuit.sud_fs_open4_powDT Circuit.wit_fs_open4_powDT Circuit.comp_fs_open4_powDT
 #audit_clean Circuit.zkbT_rom Circuit.rom4_stepT Circuit.sud_fs_open4_powDROMT Circuit.wit_fs_open4_powDROMT Circuit.comp_fs_open4_powDROMT
