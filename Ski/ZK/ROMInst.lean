@@ -21,8 +21,8 @@ tables, one hash and no Merkle path.
 namespace Circuit
 open ZKF
 
-/-- The four-round real count of `fs_open4`'s left side, its first
-    commitment `Com1` and opening `Pf1` at salt range `NS1`. -/
+/-- The four-round real count of `fs_open4`'s left side at `n1 = K`, its
+    first commitment `Com1` and opening `Pf1` at salt range `NS1`. -/
 def real4 {PV PB D O1 P1 D2 O2 P2 D3 O3 P3 W : Type} (K NR m NS2 NS3 K2 K3 K4 N4 n2 n3 : Nat)
     (φ : Nat → W → Nat) (rv : Nat → Nat → Nat → EF → EF → Nat → (Nat → Tup) → TViewN PV PB)
     (oz : TViewN PV PB → W) (ov1 : Nat → TViewN PV PB → Option O1) (main1 : (Nat → Tup) → Nat → D)
