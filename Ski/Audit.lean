@@ -127,6 +127,7 @@ import Ski.ZK.ROMMerkleOpen
 import Ski.ZK.ROMWitness
 import Ski.ZK.ROMMerkle4
 import Ski.ZK.ROMInstM
+import Ski.ZK.ROMFamilyM
 import Ski.ZK.ROMAbort
 import Ski.ZK.ROMFSRead
 import Ski.ZK.ROMFSRead2
@@ -1295,3 +1296,4 @@ open Ski.Audit
 #audit_clean Circuit.inj_le_one Circuit.hposW Circuit.hsW Circuit.hndW Circuit.hlenW Circuit.hltW Circuit.hsLW Circuit.hdistM Circuit.hltM Circuit.hsM Circuit.hposOM Circuit.hφW Circuit.hφsW Circuit.hposF Circuit.hsF Circuit.hposOW Circuit.hsd1W
 #audit_clean Circuit.rom4_transferM Circuit.sud_fs_open4ROMM Circuit.wit_fs_open4ROMM Circuit.comp_fs_open4ROMM
 #audit_clean Circuit.rom4_transferMR Circuit.sud_fs_open4ROMMR Circuit.wit_fs_open4ROMMR Circuit.comp_fs_open4ROMMR
+#audit_clean Circuit.rgetL_head_le Circuit.comM_spread Circuit.comMI_spread Circuit.rom4_stepM Circuit.sud_fs_open4_powDROMM Circuit.wit_fs_open4_powDROMM Circuit.comp_fs_open4_powDROMM

@@ -174,7 +174,9 @@ is built; this file records what is next. Last revised 2026-10-13.
   (the leaves the committed matrix's low-degree-extension rows, the opened set the query
   indices' rows, each read off the openings `op1` names: the circuits' opened points
   identified with FRI's query points and kept consistent with the PCS openings, `pcsZ`,
-  `friX`), and the multi-proof theorems over the Merkle commitment; internal-node hashing
+  `friX`). Done: `n` statements of each circuit over the leaves, `Ski/ZK/ROMFamilyM.lean`
+  (`sud_fs_open4_powDROMM` and the others); its collision term uses one leaf's spread
+  (`1/KA`), where `hdist` would give `1/KA^L` through a list `oracle_reprog_get`, not yet; internal-node hashing
   apart from the leaves' table stays an assumption; query answers shown where the proof
   aborts: `Ski/ZK/ROMAbort.lean`, one round (`fs_openROMQ`), four over the oracle
   (`fs_open4ROMQ`, on `fs_open4Q`); the circuits' single-proof theorems with it,
