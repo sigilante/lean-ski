@@ -162,6 +162,7 @@ import Ski.ZK.SpongeLoad
 import Ski.ZK.SpongeLoadL
 import Ski.ZK.SpongeTree
 import Ski.ZK.SpongeUnion
+import Ski.ZK.FriProof
 import Ski.ZK.FSQueryAbsT
 import Ski.ZK.FSQueryPowT
 import Ski.ZK.ROMFamilyT
@@ -1406,3 +1407,6 @@ open Ski.Audit
 
 -- Chains that meet saw near-collisions, without domain separation (SpongeUnion)
 #audit_clean Circuit.present_merge Circuit.dcount_merge Circuit.dcount_merge_le Circuit.dcount_merge_ge Circuit.dcount_merge_both Circuit.dcount_add Circuit.dcount_add_eq Circuit.firstOld_spec Circuit.oldB_spec Circuit.labR_lt Circuit.labR_coh Circuit.visB_succ Circuit.visB_add Circuit.visB_other Circuit.dcount_id Circuit.dcount_none Circuit.present_of Circuit.visB_of Circuit.mergeL_self Circuit.labR_inv Circuit.labR_final Circuit.nearN_runS Circuit.allMeet_near2 Circuit.allMeet_countP2 Circuit.meetM_countP2 Circuit.cf_of_tags Circuit.nzOK_xsOf Circuit.preimage_loadTU Circuit.meet_markov2 Circuit.loadTU_countP Circuit.loadTU_hsp Circuit.loadTU_δs_countP Circuit.hpk2_satPT Circuit.sud_interleaveLU Circuit.sud_interleaveLUN
+
+-- The Sudoku proofs with FRI in Plonky3's order as an opening (FriProof)
+#audit_clean Circuit.sud_interleaveFRI

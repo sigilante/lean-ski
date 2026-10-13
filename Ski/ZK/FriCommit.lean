@@ -47,7 +47,8 @@ Not shown, and needed before this is Plonky3's FRI:
   read at a point that holds the final root alone, where Plonky3 samples
   each index after observing the final polynomial and the proof of work;
 - the proof's view keeps its own FRI (`fri c4`, `Rb c4` in `sudFS4T`);
-  nothing here replaces it;
+  `FriProof` sets it constant and runs `friCommitQCPf` as the third
+  opening instead, the opened rows still from `c4`;
 - the opening's hiding given the opened values (`hp`) is a hypothesis,
   not derived from `MaskFri`.
 -/
