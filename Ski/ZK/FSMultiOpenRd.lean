@@ -24,12 +24,12 @@ with such openings then meets `hout'` (`sudFS4T_houtL`) and `hrd` with `4 +
 query phases in `zkbT_powD_rd`.  Openings whose strategy also reads their
 data and salt (`pfRd`), as FRI's layer-root challenges need, are components
 too: the read list names each opening's data (`sudMain1` …) and salt
-(`pfRdReads`, `pfRd_progD`, `sudFS4T_houtD`, `sudFS4T_hrdD`).  Not shown:
-the composed theorem itself (it needs `zkbT_powD_rd`'s spread `hsp` on each
-programmed coordinate: the first three the first commitment's, the fourth
-through a digit read-back on `φ` of `hdg`'s kind); that FRI's challenges are
-such a strategy (FRI's commit phase is not modelled); the hidden-term and
-composed circuits.
+(`pfRdReads`, `pfRd_progD`, `sudFS4T_houtD`, `sudFS4T_hrdD`).  The composed
+theorem is `FSMultiMix`'s `fs4_interleave`.  Not shown: its spread `hsp` for
+these proofs (each programmed coordinate: the first three the first
+commitment's, the fourth through a digit read-back on `φ` of `hdg`'s kind);
+that FRI's challenges are such a strategy (FRI's commit phase is not
+modelled); the hidden-term and composed circuits.
 -/
 
 set_option autoImplicit false
