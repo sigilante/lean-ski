@@ -21,7 +21,15 @@ Limits, beyond the instantiation:
   output's distribution over the salt alone to hide it.  Plonky3's FRI
   masks with codewords inside that data and publishes its final polynomial
   and query values, deterministic in the data; it appears not to meet
-  `hp3`.  Only an opening drawing its masks from the salt can.
+  `hp3`.  Worse, `hp3` must hold for every `c4` while the opening ignores
+  `c4`: data agreeing at one challenge's points and data agreeing at
+  another's are then linked, and by interpolation every two data of one
+  shape are, so only an opening whose distribution does not depend on the
+  data meets `hp3`.  Masks drawn from the opening's salt do not help, for
+  the same reason; `MaskFri`'s shift keeps FRI's batched polynomial at the
+  challenge `α`, not the masked datum.  A faithful version needs the
+  opening to read `c4` (the rows FRI opens) or the PCS's hiding argument
+  run across the proof.
 - **Coverage.**  The opening sees slot 3's data only (the quotient table's
   chunks and codewords, through `pfPair`; the binder `d3` is unused); the
   trace polynomials and codewords of slots 1 and 2 and the matrices `Rb`
