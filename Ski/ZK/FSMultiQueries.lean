@@ -18,10 +18,9 @@ tables, `runR4_prog`).  The queries depend on the tables alone, so with every
 coordinate of the programmed points spreading over the draws the hits number
 at most `k δq` at each table (`advHit_count`).
 
-Not shown: query phases interleaved with several proofs (`zkbT_powD`'s
-collision side charges a hit to the reader's first message, and a query
-carries none, so a mixed bound is needed); queries chosen from earlier
-proofs' views; a query count or strategy that varies.
+Query phases interleaved with several proofs: `FSMultiInterleave`.  Not
+shown: queries chosen from earlier proofs' views; a query count or strategy
+that varies.
 -/
 
 set_option autoImplicit false

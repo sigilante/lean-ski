@@ -196,8 +196,9 @@ is built; this file records what is next. Last revised 2026-10-13.
   simulated views read the tables (`ZKBT`); `read4T_powD`, the circuits' `*_fs_open4_absT`
   and `fs4_powDT` (`Ski/ZK/FSQueryAbsT.lean`) hold, with the distinguisher's queries
   after every programming (queries before a proof: `Ski/ZK/FSMultiQueries.lean`,
-  `zkbT_queries`, `advHit_count`; interleaved with several proofs, or chosen from earlier
-  proofs' views, not yet); the circuits'
+  `zkbT_queries`, `advHit_count`; interleaved with several proofs, each hit charged to the
+  programmer: `Ski/ZK/FSMultiInterleave.lean`, `zkbT_powD_rd`; chosen from earlier proofs'
+  views, not yet); the circuits'
   `n`-statement theorems over them, `Ski/ZK/FSQueryPowT.lean` (`sud_fs_open4_powDT` and the
   others), `hout` and `hpq` hypotheses on the openings (met by reads of the first three
   tables at points with the reader's first commitment as low digit, `read2_hout` for one
