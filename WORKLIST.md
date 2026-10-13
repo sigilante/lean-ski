@@ -167,12 +167,14 @@ is built; this file records what is next. Last revised 2026-10-13.
   fixed: `Ski/ZK/ROMMerkleOpen.lean`, one round (`fs_openROMM`, the root hashed:
   `fs_openROMMR`), with a leaf index in the hash input (Plonky3's leaf hash carries none: without
   it, unopened leaves with equal data and salts share a hash, a term not counted); four rounds, the
-  opened set read at the query challenge: `Ski/ZK/ROMMerkle4.lean` (`fs_open4ROMM`; the root hashed: `fs_open4ROMMR`); not yet:
-  the circuits' and the multi-proof theorems over the Merkle commitment: there the leaves are
-  the committed matrix's low-degree-extension rows, the opened data the rows at the query
-  indices beside the openings at `ζ` the instances' `op1` names, so `hposO` ties the leaf
-  positions to those rows and the opened rows' hiding comes from the PCS layer (`MaskFri`,
-  `pcsCloseN_fri`), a joint statement not yet written; internal-node hashing
+  opened set read at the query challenge: `Ski/ZK/ROMMerkle4.lean` (`fs_open4ROMM`; the root hashed: `fs_open4ROMMR`); the
+  circuits over it with the tie of the leaves to the committed rows a hypothesis (`hposO`):
+  `Ski/ZK/ROMInstM.lean` (`sud_fs_open4ROMM`, with the root hashed `sud_fs_open4ROMMR`, and the
+  others); that tie met by the rows (each leaf the committed polynomials' values at its
+  points, the opened leaves those at the query points): `Ski/ZK/ROMMerkleRows.lean`
+  (`posRows_hposO` and the rest); not yet: that FRI's query indices pick exactly those
+  leaves (the points and the query sets agreeing with `pcsZ`, `friX`). Done: `n` statements of each circuit over the leaves, `Ski/ZK/ROMFamilyM.lean`
+  (`sud_fs_open4_powDROMM` and the others, the collision term `1/n1` from `comMI_spreadL`); internal-node hashing
   apart from the leaves' table stays an assumption; query answers shown where the proof
   aborts: `Ski/ZK/ROMAbort.lean`, one round (`fs_openROMQ`), four over the oracle
   (`fs_open4ROMQ`, on `fs_open4Q`); the circuits' single-proof theorems with it,
