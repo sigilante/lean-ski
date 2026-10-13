@@ -35,7 +35,8 @@ Not shown, and needed before this is Plonky3's FRI:
   layers, then the query seed, its layers given those challenges, the
   data and the salt, nothing reading `c4` (`runR4_dropA`, `friCommitQC_c4`,
   `friCommitQC_seed`, `friCommitQC_reads`; there the seed's point holds
-  whatever the last layer returns, and the batching challenge is a first
+  whatever the last layer returns, a strategy may read `q` seeds, one per
+  query, each after every root, and the batching challenge is a first
   folding read whose layer returns no root);
 - the proof's query indices `c4` are drawn before the commit phase, where
   Plonky3 samples them after it.  A strategy may draw its own after
@@ -291,7 +292,10 @@ theorem friCommitQC_c4 {D R P : Type} (K1 K2 K3 K4 n1 n2 k : Nat) (φ : Nat → 
     `φ M (R_k, k)`, `R_k` the layer of the three earlier challenges (the
     first table at `M % n1`, the second at `M % n1 + n1 ((M / n1) % n2)`,
     the third at `M`: the three messages when the commitments lie in range,
-    `friCommitC_msgs`) and all `k` folding challenges, oldest first. -/
+    `friCommitC_msgs`) and all `k` folding challenges, oldest first.  As `k`
+    is any number, this is every read past the three challenges: with
+    `friCommitQCPf … (k + q - 1)`, reads `k + 3` onward are `q` query seeds,
+    each after every root and the seeds before it. -/
 theorem friCommitQC_seed {D R : Type} (K1 K2 K3 K4 n1 n2 k : Nat) (φ : Nat → Option R × Nat → Nat)
     (layer0 : List Nat → D → Nat → List Nat → R) (H : Nat × Nat × Nat × Nat) (c4 M : Nat) (d : D) (σ : Nat) :
     let run := runR4 K1 K2 K3 K4 n1 (M % n1) φ (friCommitNxtC n1 n2 (fun _ => layer0) c4 M d σ) H (k + 3)
