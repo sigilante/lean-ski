@@ -52,8 +52,8 @@ at most `NSo Kⁿ s k` over the salts and the table, `s k / NSh` normalized
 the commitment drawn from the oracle is its count with the ideal opening,
 to which the exact theorem applies, up to the hits: for any event of the
 commitment and its opening, both ways (`transferR`).  Writing that
-transfer into each theorem's statement, its event's other arguments summed
-outside, is not yet done.
+transfer into a theorem's statement, its event's other arguments summed
+outside, is done for two rounds (`Ski/ZK/ROMRounds.lean`, `fs_open2ROM`).
 -/
 
 namespace Circuit

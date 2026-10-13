@@ -117,6 +117,7 @@ import Ski.ZK.FSQueryInst
 import Ski.ZK.FSMulti
 import Ski.ZK.FSMultiInst
 import Ski.ZK.ROMHide
+import Ski.ZK.ROMRounds
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -1235,3 +1236,5 @@ open Ski.Audit
   Circuit.salt_dec Circuit.comR_hides Circuit.pfR_hidesA Circuit.fs_openROM Circuit.reprog_swap Circuit.sum_digit
   Circuit.digit_dec Circuit.pfI_hides Circuit.pfR_pfI Circuit.comI_hides Circuit.rset_back Circuit.hit_rset
   Circuit.hit_bound Circuit.transferR
+-- Two rounds, the first commitment drawn from the oracle
+#audit_clean Circuit.transferR_in Circuit.smT_lin Circuit.smT_one Circuit.fs_open2ROM
