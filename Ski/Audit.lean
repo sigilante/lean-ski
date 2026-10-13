@@ -1330,7 +1330,7 @@ open Ski.Audit
   Circuit.sudFS4T_hrdA Circuit.pfRdReads_length Circuit.pfRd_progD Circuit.sudFS4T_houtD Circuit.sudFS4T_hrdD
 
 -- Proofs and query phases interleaved (FSMultiMix)
-#audit_clean Circuit.lin_mul Circuit.lin_const Circuit.fs4_interleave Circuit.coord_digit Circuit.sudFS4T_hsp Circuit.sud_interleave Circuit.sud_interleaveD Circuit.sud_interleaveA
+#audit_clean Circuit.lin_mul Circuit.lin_const Circuit.fs4_interleave Circuit.coord_digit Circuit.sudFS4T_hsp Circuit.sud_interleave Circuit.sud_interleaveD Circuit.sud_interleaveA Circuit.sud_powQ
   Circuit.witFS4T_houtL Circuit.witFS4T_hrd Circuit.witFS4T_hsp Circuit.wit_interleave
   Circuit.compFS4T_houtL Circuit.compFS4T_hrd Circuit.compFS4T_hsp Circuit.comp_interleave
   Circuit.witFS4T_houtD Circuit.witFS4T_hrdD Circuit.wit_interleaveD Circuit.compFS4T_houtD Circuit.compFS4T_hrdD
@@ -1341,7 +1341,7 @@ open Ski.Audit
   Circuit.witFS4T_houtROM Circuit.wit_fs_open4_powDROMQ Circuit.compFS4T_houtROM Circuit.comp_fs_open4_powDROMQ
 
 -- n proofs, each followed by queries chosen from its view (FSMultiPost)
-#audit_clean Circuit.fs4_postInterleave Circuit.zkbT_postAll Circuit.zkbT_powQ Circuit.rvQ_prog Circuit.rdQ_length Circuit.zkbT_powQ_rd
+#audit_clean Circuit.fs4_postInterleave Circuit.zkbT_postAll Circuit.zkbT_powQ Circuit.rvQ_prog Circuit.rdQ_length Circuit.zkbT_powQ_rd Circuit.fs4_powQ
 
 -- Statements chosen after seeing the tables (FSMultiAdapt)
 #audit_clean Circuit.zkbT_adaptive Circuit.indB_add_not Circuit.zkbT_rev Circuit.sum_indB_eq Circuit.zkbT_adaptive_mass Circuit.zkbT_adaptiveV Circuit.zkbT_adaptiveV_mass Circuit.zkbT_adaptiveF Circuit.seqPick_fix Circuit.digits_eq Circuit.seqPick_step

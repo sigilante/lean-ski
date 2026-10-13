@@ -22,10 +22,11 @@ compose `n`-fold as `zkbT_powD` does, `zkbT_post_pair` iterated (`VQ`,
 (`rdQ`, every proof's reads and every phase's queries, `rvQ_prog`,
 `rdQ_length`), the hit flag and the collisions discharge: each stage's
 collisions at most the earlier reads and its own queries times the next
-proof's spread (`zkbT_powQ_rd`).  Not shown: the circuits instanced (their
-read lists and spread are `FSMultiOpenRd`'s and `FSMultiMixSud`'s); query
-counts varying by phase (consecutive phases merge into one adaptive phase of
-their total count); queries after the last proof come from `zkbT_postAll`;
+proof's spread (`zkbT_powQ_rd`).  Instanced for the Sudoku proofs
+(`fs4_powQ`, `FSMultiMixSud`'s `sud_powQ`).  Not shown: the hidden-term and
+composed circuits, and the other opening variants, instanced; query counts
+varying by phase (consecutive phases merge into one adaptive phase of their
+total count); queries after the last proof come from `zkbT_postAll`;
 statements chosen from views are `FSMultiAdapt`'s.
 -/
 
@@ -274,5 +275,56 @@ theorem zkbT_powQ_rd {X C V : Nat → Type} {K1 K2 K3 K4 kq : Nat} (h1 : 0 < K1)
   refine Nat.mul_le_mul_right _ ?_
   simp only [L, List.length_append, advRd_length]
   exact Nat.add_le_add_right (rdQ_length (K1 := K1) (K2 := K2) (K3 := K3) (K4 := K4) (kq := kq) rv nxt rdP RP hRP H n xb) _
+
+/-- **`zkbT_powQ_rd` over `fs4_powDT`'s proofs**: `n` four-round proofs
+    with read lists and spread, a query phase before each chosen from every
+    earlier view and answer. -/
+theorem fs4_powQ {O : Type} {m K2 K4 N4 T1 T2 T3 kq : Nat} (hK2 : 0 < K2) (hK4 : 0 < K4) (D : Nat → FS4DT O)
+    (nxt : (n : Nat) → VQ (fun _ => Nat × Nat × Nat × O) n → List Nat → Nat × Nat × Unit)
+    (rdP : Nat → Nat × Nat × Nat × Nat → Nat × Nat × Nat × (Nat → Tup) → List (Nat × Nat))
+    (hrdP : ∀ i H p a x, a.1 < Q4 * Q4 ∧ a.2.1 < K2 ∧ a.2.2.1 < Q4 ∧ a.2.2.2 < K4 →
+      (rdP i H x).any (fun r => decide (coord4 r.1 p = r.2)) = false →
+      read4T (Q4 * Q4) K2 Q4 K4 (D i).m1 (D i).m2 (D i).m3 (D i).q (D i).out (prog4 (Q4 * Q4) K2 Q4 K4 H p a) x =
+        read4T (Q4 * Q4) K2 Q4 K4 (D i).m1 (D i).m2 (D i).m3 (D i).q (D i).out H x)
+    (RP : Nat → Nat) (hRP : ∀ i H x, (rdP i H x).length ≤ RP i)
+    (δq : Nat → Nat)
+    (hsp : ∀ n c tab v, (D n).sm m (fun x => indB (decide (coord4 tab ((D n).pts c x) = v))) ≤ δq n) :
+    let ST := fun (f : Nat × Nat × Nat × Nat → Nat) => sumTo (K4 ^ N4) (fun H4 => sumTo T1 (fun H1 =>
+      sumTo T2 (fun H2 => sumTo T3 (fun H3 => f (H1, H2, H3, H4)))))
+    let SC := fun (f : Nat × Nat × Nat × Nat → Nat) => sumTo K4 (fun c4 => sumTo (Q4 * Q4) (fun c1 =>
+      sumTo K2 (fun c2 => sumTo Q4 (fun c3 => f (c1, c2, c3, c4)))))
+    let K := K4 * (Q4 * Q4 * (K2 * Q4))
+    (∀ i, ZKBT ST K ((D i).sm m) SC (read4T (Q4 * Q4) K2 Q4 K4 (D i).m1 (D i).m2 (D i).m3 (D i).q (D i).out)
+      (fun H c x => prog4 (Q4 * Q4) K2 Q4 K4 H ((D i).pts c x) c) (D i).sv (D i).ε) →
+    ∀ n, ZKBT ST (KPowD (fun _ => K) n) (smPowD (X := fun _ => Nat × Nat × Nat × (Nat → Tup)) (fun i => (D i).sm m) n)
+      (scPowD (C := fun _ => Nat × Nat × Nat × Nat) (fun _ => SC) n)
+      (rvQ (Q4 * Q4) K2 Q4 K4 kq (fun i => read4T (Q4 * Q4) K2 Q4 K4 (D i).m1 (D i).m2 (D i).m3 (D i).q (D i).out) nxt n)
+      (pgPowD (fun i H c x => prog4 (Q4 * Q4) K2 Q4 K4 H ((D i).pts c x) c) n)
+      (svQ (Q4 * Q4) K2 Q4 K4 kq (fun i => (D i).pts) (fun _ c => c) (fun i => (D i).sv) nxt n)
+      (errPowD (fun _ => K) (fun i => (D i).sm m) (fun _ => SC) (fun i => (D i).ε)
+        (fun n => SC (fun _ => ST (fun _ => smPowD (X := fun _ => Nat × Nat × Nat × (Nat → Tup)) (fun i => (D i).sm m) n
+          (fun _ => (rSum (fun i => RP i + kq) n + kq) * δq n)))) n) := by
+  intro ST SC K hzk
+  have hQ : 0 < Q4 * Q4 := Nat.mul_pos Q4_pos Q4_pos
+  have hSC : Lin SC := lin_sum4 _ _ _ _
+  let ok := fun (c : Nat × Nat × Nat × Nat) =>
+    decide (c.1 < Q4 * Q4) && decide (c.2.1 < K2) && decide (c.2.2.1 < Q4) && decide (c.2.2.2 < K4)
+  have hok : ∀ f g : Nat × Nat × Nat × Nat → Nat, (∀ c, ok c = true → f c ≤ g c) → SC f ≤ SC g := by
+    intro f g h
+    refine sumTo_mono _ (fun c4 h4 => sumTo_mono _ (fun c1 h1 => sumTo_mono _ (fun c2 h2 => sumTo_mono _ (fun c3 h3 =>
+      h _ ?_))))
+    simp only [ok, h1, h2, h3, h4, decide_true, Bool.and_self]
+  have hcv : ∀ c, ok c = true → c.1 < Q4 * Q4 ∧ c.2.1 < K2 ∧ c.2.2.1 < Q4 ∧ c.2.2.2 < K4 := by
+    intro c h
+    simp only [ok, Bool.and_eq_true, decide_eq_true_eq] at h
+    exact ⟨h.1.1.1, h.1.1.2, h.1.2, h.2⟩
+  exact zkbT_powQ_rd hQ hK2 Q4_pos hK4 (fun _ => K) ST (lin_sum4 _ _ _ _) (fun i => (D i).sm m)
+    (fun i => lin_sm _ _ _ _) (fun _ => SC) (fun _ => hSC)
+    (fun i j => comm_sm (lin_sm _ _ _ _) _ _ _ _) (fun i => comm_sum4 (lin_sm _ _ _ _) _ _ _ _)
+    (fun i j => comm_sum4 (lin_sm _ _ _ _) _ _ _ _) (fun i => comm_sum4 (lin_sum4 _ _ _ _) _ _ _ _)
+    (fun i j => comm_sm (lin_sum4 _ _ _ _) _ _ _ _)
+    (fun i => read4T (Q4 * Q4) K2 Q4 K4 (D i).m1 (D i).m2 (D i).m3 (D i).q (D i).out) (fun i => (D i).pts)
+    (fun _ c => c) (fun i => (D i).sv) (fun i => (D i).ε) hzk nxt (fun _ => ok) (fun _ => hok) (fun _ => hcv)
+    rdP hrdP RP hRP δq hsp
 
 end Circuit
