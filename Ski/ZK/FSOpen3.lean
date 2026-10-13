@@ -239,8 +239,8 @@ theorem bad3_count {K2 K3 Bz : Nat} (gz : Nat → Nat → Bool)
     draws' public-coin mass in the bound.  `β` fails the verifier's test at
     `P²` of the `Q4` draws (`genB_count`) and the later pair at most `Bz`
     of its `K2 K3` (`hgz`), so the bound gains `(Q4 P² K2 K3 + Q4² Bz)`
-    times the randomness count, per table triple.  One direction only; one
-    proof per oracle. -/
+    times the randomness count, per table triple.  One proof per oracle;
+    the other direction is `fs_open3R`. -/
 theorem fs_open3U {PV PB D1 O1 P1 D2 O2 P2 D3 O3 P3 : Type} {NR m e1 e2 NS1 NS2 NS3 K2 K3 n1 n2 n3 : Nat}
     (hK2 : 0 < K2) (hK3 : 0 < K3)
     (rv sv : Nat → Nat → EF → EF → Nat → (Nat → Tup) → TViewN PV PB) (gz : Nat → Nat → Bool)
@@ -370,6 +370,129 @@ theorem fs_open3U {PV PB D1 O1 P1 D2 O2 P2 D3 O3 P3 : Type} {NR m e1 e2 NS1 NS2 
     exact Nat.mul_le_mul_left _ (bad3_count gz hgz)
 
 
+/-- An inequality between complements turns over when the totals agree. -/
+theorem rev_le {a a' b b' e T : Nat} (ha : a + a' = T) (hb : b + b' = T) (h : a' ≤ b' + e) : b ≤ a + e := by
+  omega
+
+/-- **`fs_open3U` the other way**: the simulator's count is at most `Q4²
+    K2 K3` times the real count plus the same error.  Both counts total
+    the same over an event and its complement, so `fs_open3U` at `¬E`
+    gives it. -/
+theorem fs_open3R {PV PB D1 O1 P1 D2 O2 P2 D3 O3 P3 : Type} {NR m e1 e2 NS1 NS2 NS3 K2 K3 n1 n2 n3 : Nat}
+    (hK2 : 0 < K2) (hK3 : 0 < K3)
+    (rv sv : Nat → Nat → EF → EF → Nat → (Nat → Tup) → TViewN PV PB) (gz : Nat → Nat → Bool)
+    {Bz : Nat} (hgz : sumTo K2 (fun c2 => sumTo K3 (fun c3 => indB (!gz c2 c3))) ≤ Bz)
+    (hrv : ∀ c2 c3 α β r t, rv c2 c3 α β r t = none ∨ ∃ p x y, rv c2 c3 α β r t = some (p, α, β, x, y))
+    (hsv : ∀ c2 c3 α β r t, ∃ p x y, sv c2 c3 α β r t = some (p, α, β, x, y))
+    (h1 : ∀ c2 c3, gz c2 c3 = true → ∀ E : TViewN PV PB → Bool,
+      tsumN NR m (fun α β r t => indB (genB β && E (rv c2 c3 α β r t))) ≤
+        tsumN NR m (fun α β r t => indB (genB β && E (sv c2 c3 α β r t))) + e1 + e2)
+    (h2 : ∀ c2 c3, gz c2 c3 = true → ∀ E : TViewN PV PB → Bool,
+      tsumN NR m (fun α β r t => indB (genB β && E (sv c2 c3 α β r t))) ≤
+        tsumN NR m (fun α β r t => indB (genB β && E (rv c2 c3 α β r t))) + e1 + e2)
+    (Com1 : D1 → Nat → Nat) (Pf1 : D1 → Nat → P1) (op1 : D1 → O1) (sd1 : O1 → D1) (d1 : D1)
+    (hc1 : ComHides NS1 Com1) (hp1 : ComPfHides NS1 Com1 Pf1 op1) (hr1 : ∀ d σ, Com1 d σ < n1)
+    (ov1 : TViewN PV PB → Option O1) (hov1 : ov1 none = none) (main1 : (Nat → Tup) → Nat → D1)
+    (hsd1 : ∀ t r, op1 (sd1 (op1 (main1 t r))) = op1 (main1 t r))
+    (Com2 : D2 → Nat → Nat) (Pf2 : D2 → Nat → P2) (op2 : D2 → O2) (sd2 : O2 → D2) (d2 : D2)
+    (hc2 : ComHides NS2 Com2) (hp2 : ComPfHides NS2 Com2 Pf2 op2) (hr2 : ∀ d σ, Com2 d σ < n2)
+    (ov2 : TViewN PV PB → Option O2) (hov2 : ov2 none = none) (main2 : Nat → (Nat → Tup) → Nat → D2)
+    (hsd2 : ∀ c t r, op2 (sd2 (op2 (main2 c t r))) = op2 (main2 c t r))
+    (Com3 : D3 → Nat → Nat) (Pf3 : D3 → Nat → P3) (op3 : D3 → O3) (sd3 : O3 → D3) (d3 : D3)
+    (hc3 : ComHides NS3 Com3) (hp3 : ComPfHides NS3 Com3 Pf3 op3) (hr3 : ∀ d σ, Com3 d σ < n3)
+    (ov3 : TViewN PV PB → Option O3) (hov3 : ov3 none = none) (main3 : Nat → Nat → (Nat → Tup) → Nat → D3)
+    (hsd3 : ∀ c c' t r, op3 (sd3 (op3 (main3 c c' t r))) = op3 (main3 c c' t r))
+    (hvo1 : ∀ c2 c3 c r t, rv c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t = none ∨
+      ov1 (rv c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t) = some (op1 (main1 t r)))
+    (hvo2 : ∀ c2 c3 c r t, rv c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t = none ∨
+      ov2 (rv c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t) = some (op2 (main2 c t r)))
+    (hvo3 : ∀ c2 c3 c r t, rv c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t = none ∨
+      ov3 (rv c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t) = some (op3 (main3 c c2 t r)))
+    (sop1 : Nat → Nat → Nat → (Nat → Tup) → O1) (sop2 : Nat → Nat → Nat → Nat → (Nat → Tup) → O2)
+    (sop3 : Nat → Nat → Nat → Nat → (Nat → Tup) → O3)
+    (hsvo1 : ∀ c2 c3 c r t, ov1 (sv c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t) = some (sop1 c2 c3 r t))
+    (hsvo2 : ∀ c2 c3 c r t, ov2 (sv c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t) = some (sop2 c2 c3 c r t))
+    (hsvo3 : ∀ c2 c3 c r t, ov3 (sv c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t) = some (sop3 c2 c3 c r t))
+    (E : Nat → Nat → Nat → Nat → Nat → Nat → Option P1 × Option (P2 × P3) × TViewN PV PB → Bool) :
+    let sm := fun (g : Nat × Nat × Nat × (Nat → Tup) → Nat) =>
+      sumTo NS1 (fun σ1 => sumTo (NS2 * NS3) (fun σ => sumTo NR (fun r => sumN m (fun t => g (σ1, σ, r, t)))))
+    let m1 := fun (x : Nat × Nat × Nat × (Nat → Tup)) => Com1 (main1 x.2.2.2 x.2.2.1) x.1
+    let m2 := fun (c1 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
+      m1 x + n1 * Com2 (main2 c1 x.2.2.2 x.2.2.1) (x.2.1 % NS2)
+    let m3 := fun (c1 c2 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
+      m1 x + n1 * comPair NS2 n2 Com2 Com3 (main2 c1 x.2.2.2 x.2.2.1, main3 c1 c2 x.2.2.2 x.2.2.1) x.2.1
+    let rvo := fun (c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
+      ((ov1 (rv c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)).map (fun _ => Pf1 (main1 x.2.2.2 x.2.2.1) x.1),
+       (ovPair ov2 ov3 (rv c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)).map
+         (fun _ => pfPair NS2 Pf2 Pf3 (main2 c1 x.2.2.2 x.2.2.1, main3 c1 c2 x.2.2.2 x.2.2.1) x.2.1),
+       rv c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)
+    let s1 := fun (c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) => Com1 (sd1 (sop1 c2 c3 x.2.2.1 x.2.2.2)) x.1
+    let s2 := fun (c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
+      s1 c1 c2 c3 x + n1 * Com2 (sd2 (sop2 c2 c3 c1 x.2.2.1 x.2.2.2)) (x.2.1 % NS2)
+    let s3 := fun (c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
+      s1 c1 c2 c3 x + n1 * comPair NS2 n2 Com2 Com3
+        (sd2 (sop2 c2 c3 c1 x.2.2.1 x.2.2.2), sd3 (sop3 c2 c3 c1 x.2.2.1 x.2.2.2)) x.2.1
+    let svo := fun (c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
+      (some (Pf1 (sd1 (sop1 c2 c3 x.2.2.1 x.2.2.2)) x.1),
+       some (pfPair NS2 Pf2 Pf3 (sd2 (sop2 c2 c3 c1 x.2.2.1 x.2.2.2), sd3 (sop3 c2 c3 c1 x.2.2.1 x.2.2.2)) x.2.1),
+       sv c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)
+    let gd := fun (c1 c2 c3 : Nat) => genB (efOf (c1 % Q4)) && gz c2 c3
+    sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (K2 ^ (n1 * n2)) (fun H2 => sumTo (K3 ^ (n1 * (n2 * n3))) (fun H3 =>
+      sumTo (Q4 * Q4) (fun c1 => sumTo K2 (fun c2 => sumTo K3 (fun c3 => sm (fun x =>
+        indB (E (rset (Q4 * Q4) (s1 c1 c2 c3 x) H1 c1) (rset K2 (s2 c1 c2 c3 x) H2 c2)
+          (rset K3 (s3 c1 c2 c3 x) H3 c3) (s1 c1 c2 c3 x) (s2 c1 c2 c3 x) (s3 c1 c2 c3 x) (svo c1 c2 c3 x))))))))) ≤
+  (Q4 * Q4) * (K2 * (K3 * sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (K2 ^ (n1 * n2)) (fun H2 =>
+      sumTo (K3 ^ (n1 * (n2 * n3))) (fun H3 => sm (fun x =>
+      indB (E H1 H2 H3 (m1 x) (m2 (rget (Q4 * Q4) (m1 x) H1) x)
+          (m3 (rget (Q4 * Q4) (m1 x) H1) (rget K2 (m2 (rget (Q4 * Q4) (m1 x) H1) x) H2) x)
+          (rvo (rget (Q4 * Q4) (m1 x) H1) (rget K2 (m2 (rget (Q4 * Q4) (m1 x) H1) x) H2)
+            (rget K3 (m3 (rget (Q4 * Q4) (m1 x) H1) (rget K2 (m2 (rget (Q4 * Q4) (m1 x) H1) x) H2) x) H3) x)))))))) +
+      (Q4 * Q4) ^ n1 * (K2 ^ (n1 * n2) * (K3 ^ (n1 * (n2 * n3)) *
+        (K2 * (K3 * (NS1 * (NS2 * NS3 * (e1 + e2)))) +
+          (Q4 * (P * P) * (K2 * K3) + Q4 * Q4 * Bz) * (NS1 * (NS2 * NS3 * (NR * (Q4 ^ m * 1))))))) := by
+  intro sm m1 m2 m3 rvo s1 s2 s3 svo
+  have hsm : ∀ (N : Nat) (f : Nat → Nat × Nat × Nat × (Nat → Tup) → Nat),
+      sm (fun x => sumTo N (fun i => f i x)) = sumTo N (fun i => sm (f i)) := fun N f => by
+    show sumTo NS1 (fun σ1 => sumTo (NS2 * NS3) (fun σ => sumTo NR (fun r => sumN m (fun t =>
+      sumTo N (fun i => f i (σ1, σ, r, t)))))) = _
+    rw [sumTo_congr _ (fun σ1 _ => sm_exch (NS := NS2 * NS3) (NR := NR) (m := m) (N := N)
+      (fun i σ r t => f i (σ1, σ, r, t)))]
+    exact sumTo_exch _ N NS1
+  have f := fs_open3U hK2 hK3 rv sv gz hgz hrv hsv h1 h2 Com1 Pf1 op1 sd1 d1 hc1 hp1 hr1 ov1 hov1 main1 hsd1 Com2 Pf2 op2 sd2 d2 hc2 hp2 hr2 ov2 hov2 main2 hsd2 Com3 Pf3 op3 sd3 d3 hc3 hp3 hr3 ov3 hov3 main3 hsd3 hvo1 hvo2 hvo3 sop1 sop2 sop3 hsvo1 hsvo2 hsvo3 (fun H1 H2 H3 a b c v => !E H1 H2 H3 a b c v)
+  have h1x : ∀ y : Bool, indB y + indB (!y) = 1 := fun y => by cases y <;> rfl
+  have tr : ∀ G : Nat → Nat → Nat → (Nat × Nat × Nat × (Nat → Tup)) → Bool,
+      sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (K2 ^ (n1 * n2)) (fun H2 =>
+        sumTo (K3 ^ (n1 * (n2 * n3))) (fun H3 => sm (fun x => indB (G H1 H2 H3 x))))) +
+      sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (K2 ^ (n1 * n2)) (fun H2 =>
+        sumTo (K3 ^ (n1 * (n2 * n3))) (fun H3 => sm (fun x => indB (!G H1 H2 H3 x))))) =
+      (Q4 * Q4) ^ n1 * (K2 ^ (n1 * n2) * (K3 ^ (n1 * (n2 * n3)) * sm (fun _ => 1))) := fun G => by
+    simp only [← sumTo_add, ← sm_add sm hsm, h1x, sumTo_const]
+  have ts : ∀ G : Nat → Nat → Nat → Nat → Nat → Nat → (Nat × Nat × Nat × (Nat → Tup)) → Bool,
+      sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (K2 ^ (n1 * n2)) (fun H2 =>
+        sumTo (K3 ^ (n1 * (n2 * n3))) (fun H3 => sumTo (Q4 * Q4) (fun c1 => sumTo K2 (fun c2 => sumTo K3 (fun c3 =>
+          sm (fun x => indB (G H1 H2 H3 c1 c2 c3 x)))))))) +
+      sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (K2 ^ (n1 * n2)) (fun H2 =>
+        sumTo (K3 ^ (n1 * (n2 * n3))) (fun H3 => sumTo (Q4 * Q4) (fun c1 => sumTo K2 (fun c2 => sumTo K3 (fun c3 =>
+          sm (fun x => indB (!G H1 H2 H3 c1 c2 c3 x)))))))) =
+      (Q4 * Q4) ^ n1 * (K2 ^ (n1 * n2) * (K3 ^ (n1 * (n2 * n3)) * (Q4 * Q4 * (K2 * (K3 * sm (fun _ => 1)))))) :=
+    fun G => by
+    simp only [← sumTo_add, ← sm_add sm hsm, h1x, sumTo_const]
+  have e1 := tr (fun H1 H2 H3 x => E H1 H2 H3 (m1 x) (m2 (rget (Q4 * Q4) (m1 x) H1) x)
+    (m3 (rget (Q4 * Q4) (m1 x) H1) (rget K2 (m2 (rget (Q4 * Q4) (m1 x) H1) x) H2) x)
+    (rvo (rget (Q4 * Q4) (m1 x) H1) (rget K2 (m2 (rget (Q4 * Q4) (m1 x) H1) x) H2)
+      (rget K3 (m3 (rget (Q4 * Q4) (m1 x) H1) (rget K2 (m2 (rget (Q4 * Q4) (m1 x) H1) x) H2) x) H3) x))
+  have e2 := ts (fun H1 H2 H3 c1 c2 c3 x => E (rset (Q4 * Q4) (s1 c1 c2 c3 x) H1 c1) (rset K2 (s2 c1 c2 c3 x) H2 c2)
+    (rset K3 (s3 c1 c2 c3 x) H3 c3) (s1 c1 c2 c3 x) (s2 c1 c2 c3 x) (s3 c1 c2 c3 x) (svo c1 c2 c3 x))
+  have e1' := congrArg (fun z => Q4 * Q4 * (K2 * (K3 * z))) e1
+  simp only [Nat.mul_add] at e1'
+  have hT : Q4 * Q4 * (K2 * (K3 * ((Q4 * Q4) ^ n1 * (K2 ^ (n1 * n2) * (K3 ^ (n1 * (n2 * n3)) * sm (fun _ => 1)))))) =
+      (Q4 * Q4) ^ n1 * (K2 ^ (n1 * n2) * (K3 ^ (n1 * (n2 * n3)) * (Q4 * Q4 * (K2 * (K3 * sm (fun _ => 1)))))) := by
+    generalize sm (fun _ => 1) = z; generalize Q4 * Q4 = Q; generalize Q ^ n1 = A
+    generalize K2 ^ (n1 * n2) = B; generalize K3 ^ (n1 * (n2 * n3)) = C
+    ac_rfl
+  rw [hT] at e1'
+  exact rev_le e1' e2 f
+
 section
 open B Air Stmt Mach Sudoku SudokuText
 
@@ -418,8 +541,9 @@ set_option maxRecDepth 100000 in
     transcript with the quotient chunks' commitment; each commitment
     opened beside the view; the simulator commits and opens interpolants
     through its own view's openings and programs all three tables
-    (`fs_open3U`).  Both counts are unguarded: the draws with `β` or `ζ`
-    non-generic, at most `2/P²` of all, enter the bound as its last term.
+    (`fs_open3U`, `fs_open3R`).  The bound holds both ways, and both
+    counts are unguarded: the draws with `β` or `ζ` non-generic, at most
+    `2/P²` of all, enter it as its last term.
     Assumed: each commitment hides alone and given its openings at the
     real query points, perfectly, and is a primitive apart from the
     oracle; the weights a family of fixed lengths; the FRI challenge `αb`
@@ -542,19 +666,32 @@ theorem sud_fs_open3 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {puzzle
       (some (Pf1 ((sdF Ss0 mk1) (sop1 c2 c3 x.2.2.1 x.2.2.2)) x.1),
        some (pfPair NS2 Pf2 Pf3 ((sdF Ss0 mk2) (sop2 c2 c3 c1 x.2.2.1 x.2.2.2), sd3 (sop3 c2 c3 c1 x.2.2.1 x.2.2.2)) x.2.1),
        svF c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)
-    (Q4 * Q4) * (K2 * (Q4 * sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (K2 ^ (n1 * n2)) (fun H2 =>
-      sumTo (Q4 ^ (n1 * (n2 * n3))) (fun H3 => sm (fun x =>
-      indB (E H1 H2 H3 (m1 x) (m2 (rget (Q4 * Q4) (m1 x) H1) x)
-          (m3 (rget (Q4 * Q4) (m1 x) H1) (rget K2 (m2 (rget (Q4 * Q4) (m1 x) H1) x) H2) x)
-          (rvo (rget (Q4 * Q4) (m1 x) H1) (rget K2 (m2 (rget (Q4 * Q4) (m1 x) H1) x) H2)
-            (rget Q4 (m3 (rget (Q4 * Q4) (m1 x) H1) (rget K2 (m2 (rget (Q4 * Q4) (m1 x) H1) x) H2) x) H3) x)))))))) ≤
-    sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (K2 ^ (n1 * n2)) (fun H2 => sumTo (Q4 ^ (n1 * (n2 * n3))) (fun H3 =>
-      sumTo (Q4 * Q4) (fun c1 => sumTo K2 (fun c2 => sumTo Q4 (fun c3 => sm (fun x =>
-        indB (E (rset (Q4 * Q4) (s1 c1 c2 c3 x) H1 c1) (rset K2 (s2 c1 c2 c3 x) H2 c2)
-          (rset Q4 (s3 c1 c2 c3 x) H3 c3) (s1 c1 c2 c3 x) (s2 c1 c2 c3 x) (s3 c1 c2 c3 x) (svo c1 c2 c3 x))))))))) +
-      (Q4 * Q4) ^ n1 * (K2 ^ (n1 * n2) * (Q4 ^ (n1 * (n2 * n3)) *
-        (K2 * (Q4 * (NS1 * (NS2 * NS3 * ((Q4 * (NR * (Q4 ^ 2 * M)) + Q4 * (Q4 * (Q4 ^ 2 * 0))))))) +
-          (Q4 * (P * P) * (K2 * Q4) + Q4 * Q4 * (K2 * (P * P))) * (NS1 * (NS2 * NS3 * (NR * (Q4 ^ 2 * 1))))))) := by
+    ((Q4 * Q4) * (K2 * (Q4 * sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (K2 ^ (n1 * n2)) (fun H2 =>
+        sumTo (Q4 ^ (n1 * (n2 * n3))) (fun H3 => sm (fun x =>
+        indB (E H1 H2 H3 (m1 x) (m2 (rget (Q4 * Q4) (m1 x) H1) x)
+            (m3 (rget (Q4 * Q4) (m1 x) H1) (rget K2 (m2 (rget (Q4 * Q4) (m1 x) H1) x) H2) x)
+            (rvo (rget (Q4 * Q4) (m1 x) H1) (rget K2 (m2 (rget (Q4 * Q4) (m1 x) H1) x) H2)
+              (rget Q4 (m3 (rget (Q4 * Q4) (m1 x) H1) (rget K2 (m2 (rget (Q4 * Q4) (m1 x) H1) x) H2) x) H3) x)))))))) ≤
+      sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (K2 ^ (n1 * n2)) (fun H2 => sumTo (Q4 ^ (n1 * (n2 * n3))) (fun H3 =>
+        sumTo (Q4 * Q4) (fun c1 => sumTo K2 (fun c2 => sumTo Q4 (fun c3 => sm (fun x =>
+          indB (E (rset (Q4 * Q4) (s1 c1 c2 c3 x) H1 c1) (rset K2 (s2 c1 c2 c3 x) H2 c2)
+            (rset Q4 (s3 c1 c2 c3 x) H3 c3) (s1 c1 c2 c3 x) (s2 c1 c2 c3 x) (s3 c1 c2 c3 x) (svo c1 c2 c3 x))))))))) +
+        (Q4 * Q4) ^ n1 * (K2 ^ (n1 * n2) * (Q4 ^ (n1 * (n2 * n3)) *
+          (K2 * (Q4 * (NS1 * (NS2 * NS3 * ((Q4 * (NR * (Q4 ^ 2 * M)) + Q4 * (Q4 * (Q4 ^ 2 * 0))))))) +
+            (Q4 * (P * P) * (K2 * Q4) + Q4 * Q4 * (K2 * (P * P))) * (NS1 * (NS2 * NS3 * (NR * (Q4 ^ 2 * 1)))))))) ∧
+    (sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (K2 ^ (n1 * n2)) (fun H2 => sumTo (Q4 ^ (n1 * (n2 * n3))) (fun H3 =>
+        sumTo (Q4 * Q4) (fun c1 => sumTo K2 (fun c2 => sumTo Q4 (fun c3 => sm (fun x =>
+          indB (E (rset (Q4 * Q4) (s1 c1 c2 c3 x) H1 c1) (rset K2 (s2 c1 c2 c3 x) H2 c2)
+            (rset Q4 (s3 c1 c2 c3 x) H3 c3) (s1 c1 c2 c3 x) (s2 c1 c2 c3 x) (s3 c1 c2 c3 x) (svo c1 c2 c3 x))))))))) ≤
+      (Q4 * Q4) * (K2 * (Q4 * sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (K2 ^ (n1 * n2)) (fun H2 =>
+        sumTo (Q4 ^ (n1 * (n2 * n3))) (fun H3 => sm (fun x =>
+        indB (E H1 H2 H3 (m1 x) (m2 (rget (Q4 * Q4) (m1 x) H1) x)
+            (m3 (rget (Q4 * Q4) (m1 x) H1) (rget K2 (m2 (rget (Q4 * Q4) (m1 x) H1) x) H2) x)
+            (rvo (rget (Q4 * Q4) (m1 x) H1) (rget K2 (m2 (rget (Q4 * Q4) (m1 x) H1) x) H2)
+              (rget Q4 (m3 (rget (Q4 * Q4) (m1 x) H1) (rget K2 (m2 (rget (Q4 * Q4) (m1 x) H1) x) H2) x) H3) x)))))))) +
+        (Q4 * Q4) ^ n1 * (K2 ^ (n1 * n2) * (Q4 ^ (n1 * (n2 * n3)) *
+          (K2 * (Q4 * (NS1 * (NS2 * NS3 * ((Q4 * (NR * (Q4 ^ 2 * M)) + Q4 * (Q4 * (Q4 ^ 2 * 0))))))) +
+            (Q4 * (P * P) * (K2 * Q4) + Q4 * Q4 * (K2 * (P * P))) * (NS1 * (NS2 * NS3 * (NR * (Q4 ^ 2 * 1)))))))) := by
   intro blank C Pg Wt Mm NR0 pcsZ psimZ NR tabs tv tp M q0 Ss0 ks cols tqZ qdZ SsT0 SsC0 mk1 mk2 main1 main2 main3 vS qZ sop1 sop2 sop3 ov1 ov2 ov3 rvF svF op3 sd3
   obtain ⟨hbal, hun⟩ := sud_honest_zk hc hA hlen hk
   obtain ⟨sc, sms, sw⟩ := sud_run_sats hc hA hacc hlen hk
@@ -672,12 +809,18 @@ theorem sud_fs_open3 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {puzzle
     rw [e1, e2]; exact hp3
   have hgz : sumTo K2 (fun _ => sumTo Q4 (fun c3 => indB (!genB (efOf c3)))) ≤ K2 * (P * P) := by
     rw [genB_count, sumTo_const]; exact Nat.le_refl _
-  exact fs_open3U hK2 Q4_pos rvF svF (fun c2 c3 => genB (efOf c3)) hgz
+  exact ⟨fs_open3U hK2 Q4_pos rvF svF (fun c2 c3 => genB (efOf c3)) hgz
     (fun c2 c3 α β r t => realVN_cases _ _ _ _ _ α β r t) (fun c2 c3 α β r t => simVN_some _ _ _ _ _ _ _ _ α β r t)
     (fun c2 c3 hg => (hb c2 c3 hg).1) (fun c2 c3 hg => (hb c2 c3 hg).2)
     Com1 Pf1 (opF Ss0 mk1) (sdF Ss0 mk1) d1 hc1 hp1 hr1 ov1 rfl main1 hsd1
     Com2 Pf2 (opF Ss0 mk2) (sdF Ss0 mk2) d2 hc2 hp2 hr2 ov2 rfl main2 hsd2
-    Com3 Pf3 op3 sd3 d3 hc3 hp3' hr3 ov3 rfl main3 hsd3 hvo1 hvo2 hvo3 sop1 sop2 sop3 hsvo1 hsvo2 hsvo3 E
+    Com3 Pf3 op3 sd3 d3 hc3 hp3' hr3 ov3 rfl main3 hsd3 hvo1 hvo2 hvo3 sop1 sop2 sop3 hsvo1 hsvo2 hsvo3 E,
+    fs_open3R hK2 Q4_pos rvF svF (fun c2 c3 => genB (efOf c3)) hgz
+    (fun c2 c3 α β r t => realVN_cases _ _ _ _ _ α β r t) (fun c2 c3 α β r t => simVN_some _ _ _ _ _ _ _ _ α β r t)
+    (fun c2 c3 hg => (hb c2 c3 hg).1) (fun c2 c3 hg => (hb c2 c3 hg).2)
+    Com1 Pf1 (opF Ss0 mk1) (sdF Ss0 mk1) d1 hc1 hp1 hr1 ov1 rfl main1 hsd1
+    Com2 Pf2 (opF Ss0 mk2) (sdF Ss0 mk2) d2 hc2 hp2 hr2 ov2 rfl main2 hsd2
+    Com3 Pf3 op3 sd3 d3 hc3 hp3' hr3 ov3 rfl main3 hsd3 hvo1 hvo2 hvo3 sop1 sop2 sop3 hsvo1 hsvo2 hsvo3 E⟩
 end
 
 end Circuit

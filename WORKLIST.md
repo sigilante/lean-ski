@@ -123,7 +123,7 @@ is built; this file records what is next. Last revised 2026-10-13.
   commitments apart and the constraint-folding challenge hashed from the transcript with the
   permutation commitment, every commitment opened, every proof keeps it too
   (`Ski/ZK/FSOpen3.lean`, `Ski/ZK/FSOpen3Inst.lean`, `*_fs_open3`), unguarded, the non-generic
-  `β` and `ζ` (at most `2/P²`) in the bound (`fs_open3U`). Open: the FRI layers hashed; `Com` from the same
+  `β` and `ζ` (at most `2/P²`) in the bound, both ways (`fs_open3U`, `fs_open3R`). Open: the FRI layers hashed; `Com` from the same
   oracle (bounded queries, a ROM-hiding term); several proofs per oracle (a hybrid and a
   collision term); the later rounds under the oracle (the FRI challenge, the query points);
   the lookup proof-of-work nonce. The groups' trace and mask points (`hT`, `hRq`) are tied

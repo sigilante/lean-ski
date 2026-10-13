@@ -1193,7 +1193,7 @@ open Ski.Audit
 #audit_clean Circuit.fs_real2 Circuit.fs_real3 Circuit.fs_zk3 Circuit.sm_add Circuit.sm_mono Circuit.fs_zk3U
 -- Three Fiat–Shamir rounds, every commitment opened
 #audit_clean Circuit.split_salt Circuit.ComHides.prod Circuit.ComPfHides.prod Circuit.comPair_mod Circuit.fs_open3
-  Circuit.genB_count Circuit.bad3_count Circuit.fs_open3U
+  Circuit.genB_count Circuit.bad3_count Circuit.fs_open3U Circuit.rev_le Circuit.fs_open3R
   Circuit.sud_same_w Circuit.sud_fs_open3 Circuit.sudTs_pre
 -- The hidden-term and composed proofs over three Fiat–Shamir rounds, every commitment opened
 #audit_clean Circuit.wit_same_w Circuit.wit_fs_open3 Circuit.comp_same_w Circuit.comp_fs_open3
