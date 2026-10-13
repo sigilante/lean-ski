@@ -167,17 +167,29 @@ is built; this file records what is next. Last revised 2026-10-13.
   fixed: `Ski/ZK/ROMMerkleOpen.lean`, one round (`fs_openROMM`, the root hashed:
   `fs_openROMMR`), with a leaf index in the hash input (Plonky3's leaf hash carries none: without
   it, unopened leaves with equal data and salts share a hash, a term not counted); four rounds, the
-  opened set read at the query challenge: `Ski/ZK/ROMMerkle4.lean` (`fs_open4ROMM`; the root hashed: `fs_open4ROMMR`); not yet:
-  the circuits' and the multi-proof theorems over the Merkle commitment: there the leaves are
-  the committed matrix's low-degree-extension rows, the opened data the rows at the query
-  indices beside the openings at `ζ` the instances' `op1` names, so `hposO` ties the leaf
-  positions to those rows and the opened rows' hiding comes from the PCS layer (`MaskFri`,
-  `pcsCloseN_fri`), a joint statement not yet written; internal-node hashing
+  opened set read at the query challenge: `Ski/ZK/ROMMerkle4.lean` (`fs_open4ROMM`; the root hashed: `fs_open4ROMMR`); the
+  circuits over it with the tie of the leaves to the committed rows a hypothesis (`hposO`):
+  `Ski/ZK/ROMInstM.lean` (`sud_fs_open4ROMM`, with the root hashed `sud_fs_open4ROMMR`, and the
+  others); that tie met by the rows (each leaf the committed polynomials' values at its
+  points, the opened leaves those at the query points): `Ski/ZK/ROMMerkleRows.lean`
+  (`posRows_hposO` and the rest); `hposO` at the queried indices when each opened group's
+  query set holds those leaves' points, and the opened real leaves exactly the queried ones
+  when one group separates them: `Ski/ZK/ROMMerkleIdx.lean` (`sud_hposO_idx`,
+  `isOfRows_iff`, `isOfRows_xsSh_iff`, `sud_opened_iff` and the others; at FRI's LDE points
+  `31 · ωʳ`, rows bit-reversed, off every trace domain, `sud_fri_leaves`; the circuits' bounds over
+  them, `sud_fs_open4ROMM_fri`, `wit_fs_open4ROMM_fri`, `comp_fs_open4ROMM_fri`; the indices `q` blocks of
+  bits of the fourth challenge, `qIdx`, a bijection onto lists of leaves, `qIdx_inj`;
+  the batching challenge independent of them, `qIdx_split`; the bounds at both,
+  `sud_fs_open4ROMM_qIdx`, `wit_fs_open4ROMM_qIdx`, `comp_fs_open4ROMM_qIdx`); not yet: that the query sets are the points of indices FRI draws from the fourth
+  challenge (`pcsZ`, `friX`), and FRI's own layer commitments. Done: `n` statements of each circuit over the leaves, `Ski/ZK/ROMFamilyM.lean`
+  (`sud_fs_open4_powDROMM` and the others, the collision term `1/n1` from `comMI_spreadL`); internal-node hashing
   apart from the leaves' table stays an assumption; query answers shown where the proof
   aborts: `Ski/ZK/ROMAbort.lean`, one round (`fs_openROMQ`), four over the oracle
   (`fs_open4ROMQ`, on `fs_open4Q`); the circuits' single-proof theorems with it,
-  `Ski/ZK/FSQueryQ.lean` and `Ski/ZK/ROMInstQ.lean` (`sud_fs_open4ROMQ` and the others); the
-  multi-proof theorems with it not yet;
+  `Ski/ZK/FSQueryQ.lean` and `Ski/ZK/ROMInstQ.lean` (`sud_fs_open4ROMQ` and the others); `n`
+  statements with the shown part a given hiding primitive, `Ski/ZK/FSQueryAbsQ.lean`
+  (`sud_fs_open4_powDQ` and the others), and over the oracle's commitment
+  `Ski/ZK/ROMFamilyQ.lean` (`sud_fs_open4_powDROMQ` and the others);
   queries that read the Fiat–Shamir side, a route: after `fs_real` the real view is read at
   the table `rset H m c`, which is `H` but at the message, so a view that reads the table is,
   for each `H`, a view of `(c, x)` (`rv (rset H (msg x) c) c x`) and `fs_zk` holds with the
@@ -334,6 +346,16 @@ and its claim table moves to the docs, where `release/README.md` already holds i
   to someone who lacks the log.
 - Proven 100-bit parameters: 203 queries at rate 1/2; the masks then need 422 points,
   within the `2^9` floor (`bench/plonky3/README.md`).
+- FRI at the proof level, kept at its present scope (2026-10-14): `sud_interleaveFRI`
+  (`Ski/ZK/FriProof.lean`) covers slot 3's data only, its queries drawn at `c4` before
+  the commit phase. Plonky3's FRI fails its premise `hp3`, which must hold at every
+  table. A faithful version needs one of three changes: hiding averaged over the
+  tables; `hp3` restricted to degree-bounded data, with the `ζ`-values opened; or
+  codewords drawn from the opening's salt.
+- Statements chosen after seeing the tables, kept at the general theorem (2026-10-14):
+  `zkbT_adaptive_tbl` (`Ski/ZK/AdaptDraws.lean`) charges the error once when each
+  statement's bad events are bounded at every table. No circuit meets that condition,
+  since LogUp's error depends on `α` and `β`.
 - FRI's soundness and round-by-round soundness, proved rather than assumed;
   Fiat–Shamir.
 - Probe segments under the hiding; ∀ over public inputs; aggregation.

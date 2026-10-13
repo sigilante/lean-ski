@@ -1,4 +1,5 @@
 import Ski.ZK.FSQueryPowT
+import Ski.ZK.ROMMerkleIdx
 
 /-!
 # Sudoku statements share their draws
@@ -129,20 +130,6 @@ theorem pubCells_length (heap : List Cell) (m : Nat) (hl : heap.length = 732 + m
     have : ¬ (i < 3 + 729) := by omega
     simp [this]
   rw [h1, h2, List.length_range']
-
-theorem pow2From_leK {n K : Nat} (hn : n ≤ 2 ^ K) : ∀ f e, e ≤ K → pow2From f (2 ^ e) n ≤ 2 ^ K
-  | 0, e, he => Nat.pow_le_pow_right (by decide) he
-  | f + 1, e, he => by
-    unfold pow2From
-    split
-    · next hlt =>
-      have he' : e < K := by
-        rcases Nat.lt_or_ge e K with h | h
-        · exact h
-        · have := Nat.pow_le_pow_right (show 0 < 2 by decide) h; omega
-      rw [show 2 * 2 ^ e = 2 ^ (e + 1) by rw [Nat.pow_succ, Nat.mul_comm]]
-      exact pow2From_leK hn f (e + 1) he'
-    · exact Nat.pow_le_pow_right (by decide) he
 
 theorem filter_length_mono {α : Type} (p q : α → Bool) : ∀ (l : List α), (∀ x ∈ l, p x = true → q x = true) →
     (l.filter p).length ≤ (l.filter q).length

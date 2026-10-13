@@ -126,6 +126,18 @@ import Ski.ZK.ROMMerkle
 import Ski.ZK.ROMMerkleOpen
 import Ski.ZK.ROMWitness
 import Ski.ZK.ROMMerkle4
+import Ski.ZK.ROMMerkleColl
+import Ski.ZK.FSOpenA
+import Ski.ZK.FSQueryA
+import Ski.ZK.ROMInstMC
+import Ski.ZK.FSQueryAbsA
+import Ski.ZK.ROMFamilyMC
+import Ski.ZK.ROMMerkleRowsP
+import Ski.ZK.ROMMerkleIdxC
+import Ski.ZK.ROMInstM
+import Ski.ZK.ROMFamilyM
+import Ski.ZK.ROMMerkleRows
+import Ski.ZK.ROMMerkleIdx
 import Ski.ZK.ROMAbort
 import Ski.ZK.ROMFSRead
 import Ski.ZK.ROMFSRead2
@@ -167,6 +179,8 @@ import Ski.ZK.AdaptDraws
 import Ski.ZK.FSQueryAbsT
 import Ski.ZK.FSQueryPowT
 import Ski.ZK.ROMFamilyT
+import Ski.ZK.FSQueryAbsQ
+import Ski.ZK.ROMFamilyQ
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -1334,6 +1348,8 @@ open Ski.Audit
 #audit_clean Circuit.sud_fs_open4_absT Circuit.wit_fs_open4_absT Circuit.comp_fs_open4_absT Circuit.fs4_powDT
 #audit_clean Circuit.sud_fs4T Circuit.wit_fs4T Circuit.comp_fs4T Circuit.sud_fs_open4_powDT Circuit.wit_fs_open4_powDT Circuit.comp_fs_open4_powDT
 #audit_clean Circuit.zkbT_rom Circuit.rom4_stepT Circuit.sud_fs_open4_powDROMT Circuit.wit_fs_open4_powDROMT Circuit.comp_fs_open4_powDROMT
+#audit_clean Circuit.fs_open4_absQ Circuit.sud_fs_open4_absQ Circuit.wit_fs_open4_absQ Circuit.comp_fs_open4_absQ Circuit.sud_fs4Q Circuit.wit_fs4Q Circuit.comp_fs4Q Circuit.sud_fs_open4_powDQ Circuit.wit_fs_open4_powDQ Circuit.comp_fs_open4_powDQ
+#audit_clean Circuit.rom4_stepQ Circuit.rom4_read4Q Circuit.pfIQ_hidesP Circuit.pfIQ_hides Circuit.sud_fs_open4_powDROMQ Circuit.wit_fs_open4_powDROMQ Circuit.comp_fs_open4_powDROMQ
 -- The hypotheses, met
 #audit_clean Circuit.inj_le_one Circuit.hposW Circuit.hsW Circuit.hndW Circuit.hlenW Circuit.hltW Circuit.hsLW Circuit.hdistM Circuit.hltM Circuit.hsM Circuit.hposOM Circuit.hφW Circuit.hφsW Circuit.hposF Circuit.hsF Circuit.hposOW Circuit.hsd1W
 
@@ -1354,8 +1370,8 @@ open Ski.Audit
   Circuit.comp_interleaveD
 
 -- Commitment-table queries reading the Fiat–Shamir tables (FSMultiOpenROM)
-#audit_clean Circuit.nxtRd_eq_pfRd Circuit.nxtRd_prog Circuit.pfI_nxtRd Circuit.sudFS4T_houtROM Circuit.sud_fs_open4_powDROMQ
-  Circuit.witFS4T_houtROM Circuit.wit_fs_open4_powDROMQ Circuit.compFS4T_houtROM Circuit.comp_fs_open4_powDROMQ
+#audit_clean Circuit.nxtRd_eq_pfRd Circuit.nxtRd_prog Circuit.pfI_nxtRd Circuit.sudFS4T_houtROM Circuit.sud_fs_open4_powDROMQT
+  Circuit.witFS4T_houtROM Circuit.wit_fs_open4_powDROMQT Circuit.compFS4T_houtROM Circuit.comp_fs_open4_powDROMQT
 
 -- n proofs, each followed by queries chosen from its view (FSMultiPost)
 #audit_clean Circuit.fs4_postInterleave Circuit.zkbT_postAll Circuit.zkbT_powQ Circuit.rvQ_prog Circuit.rdQ_length Circuit.zkbT_powQ_rd Circuit.fs4_powQ
@@ -1365,7 +1381,7 @@ open Ski.Audit
   Circuit.seqPick_one
 
 -- Sudoku statements share their draws (SudDraws)
-#audit_clean Circuit.pbuild_length Circuit.osz_all Circuit.osz_clues Circuit.osz_fixed Circuit.stmtMachine_heap Circuit.sudHeap_length Circuit.zipIdx_filter_length Circuit.pubCells_length Circuit.pow2From_leK Circuit.filter_length_mono Circuit.range'_filter_lt Circuit.cluesOf_length_le Circuit.sud_progTp Circuit.sudKs_eq Circuit.sudNR_eq Circuit.sudFS4T_sm Circuit.sud_sm_eq
+#audit_clean Circuit.pbuild_length Circuit.osz_all Circuit.osz_clues Circuit.osz_fixed Circuit.stmtMachine_heap Circuit.sudHeap_length Circuit.zipIdx_filter_length Circuit.pubCells_length Circuit.filter_length_mono Circuit.range'_filter_lt Circuit.cluesOf_length_le Circuit.sud_progTp Circuit.sudKs_eq Circuit.sudNR_eq Circuit.sudFS4T_sm Circuit.sud_sm_eq
 
 -- Sudoku statements picked after seeing the tables (SudAdapt)
 #audit_clean Circuit.zkbT_sm_congr Circuit.sudD_sm Circuit.sud_adaptive
@@ -1380,7 +1396,7 @@ open Ski.Audit
 #audit_clean Circuit.sum_pos_exists Circuit.hφsp_of_inj Circuit.add_mod_cancel Circuit.foldlA_lt Circuit.foldlA_inj Circuit.spongeA_inj Circuit.spongeA_hφsp Circuit.spongeA_lt Circuit.spongeA_sat Circuit.foldlG_inj Circuit.spongeG_hφsp
 
 -- Two sponge chains meet rarely under random round functions (SpongeRandom)
-#audit_clean Circuit.pair_count Circuit.sumTabs_mono Circuit.sumTabs_const Circuit.sumTabs_add Circuit.sumTabs_mul Circuit.rget_lt Circuit.chainL_meet Circuit.chainL_meet_digit Circuit.chainL_sat
+#audit_clean Circuit.pair_countT Circuit.sumTabs_mono Circuit.sumTabs_const Circuit.sumTabs_add Circuit.sumTabs_mul Circuit.rget_lt Circuit.chainL_meet Circuit.chainL_meet_digit Circuit.chainL_sat
 
 -- Sponge chains under one permutation: the birthday bound (SpongePerm)
 #audit_clean Circuit.sumTo_split_pos Circuit.count_mem Circuit.fresh_count Circuit.runAdp_length Circuit.runAdp_ans Circuit.runAdp_rset Circuit.colP_of_mem Circuit.colP_count Circuit.two_step Circuit.colP_cons Circuit.two_meet_col Circuit.stA_lt Circuit.stB_lt Circuit.two_meet_count Circuit.two_meet_digit Circuit.two_meet_sat Circuit.colK_of_mem Circuit.colK_cons Circuit.range_map_sum Circuit.nearK_length Circuit.colK_count Circuit.two_meet_colK Circuit.two_meet_countK Circuit.two_meet_digitK Circuit.two_meet_satK Circuit.two_meet_satKP Circuit.colR_of_mem Circuit.colR_of_colK Circuit.nearR_length Circuit.colR_count Circuit.two_squeeze_count Circuit.squeeze_sat
@@ -1414,3 +1430,26 @@ open Ski.Audit
 
 -- A picked statement's bad events, bounded at every table, cost one statement's (AdaptDraws)
 #audit_clean Circuit.zkbT_adaptive_tbl Circuit.zkbT_adaptive_draws
+#audit_clean Circuit.rom4_transferM Circuit.sud_fs_open4ROMM Circuit.wit_fs_open4ROMM Circuit.comp_fs_open4ROMM
+#audit_clean Circuit.rom4_transferMR Circuit.sud_fs_open4ROMMR Circuit.wit_fs_open4ROMMR Circuit.comp_fs_open4ROMMR
+#audit_clean Circuit.rgetL_spread Circuit.posAll_nodup Circuit.comM_spreadL Circuit.comMI_spreadL Circuit.rom4_stepM Circuit.sud_fs_open4_powDROMM Circuit.wit_fs_open4_powDROMM Circuit.comp_fs_open4_powDROMM
+#audit_clean Circuit.rowAt_opF Circuit.posRows_dist Circuit.posRows_lt Circuit.posRows_spread Circuit.posRows_hposO
+
+-- FRI's query indices pick the opened leaves (ROMMerkleIdx)
+#audit_clean Circuit.qSets_getD Circuit.isOfRows_of_mem Circuit.mem_of_isOfRows Circuit.isOfRows_iff
+  Circuit.isOfRows_qSets_iff Circuit.xsSh_inj Circuit.isOfRows_xsSh_iff Circuit.xsW_inj Circuit.sud_hposO_idx
+  Circuit.wit_hposO_idx Circuit.comp_hposO_idx Circuit.sud_opened_iff Circuit.wit_opened_iff Circuit.comp_opened_iff
+  Circuit.sud_opened_iff_xsW Circuit.revBits_lt Circuit.revBits_inj Circuit.xsL_off Circuit.mul31_cancel Circuit.xsL_inj Circuit.sud_fri_leaves Circuit.sud_fri_leaves_std Circuit.pow2From_leK Circuit.sud_progTp_le15
+  Circuit.qIdx_length Circuit.qIdx_lt Circuit.qIdx_qEnc Circuit.qEnc_lt Circuit.qEnc_qIdx Circuit.qIdx_inj
+  Circuit.qIdx_onto Circuit.qIdx_add_mul Circuit.qIdx_split Circuit.hB4_split Circuit.sud_fs_open4ROMM_qIdx Circuit.wit_fs_open4ROMM_qIdx Circuit.comp_fs_open4ROMM_qIdx Circuit.friS_qIdx_length Circuit.qIdx_fri_conds Circuit.sud_fs_open4ROMM_fri Circuit.wit_fri_leaves Circuit.wit_fs_open4ROMM_fri
+  Circuit.comp_fri_leaves Circuit.comp_fs_open4ROMM_fri
+
+-- Leaves that may share a hash (ROMMerkleColl)
+#audit_clean Circuit.posU_nodupS Circuit.posU_not_memS Circuit.pfMI_hidesA Circuit.pfMIP_hidesA Circuit.rgetL_enc Circuit.comM_val Circuit.hitLeaf_boundC Circuit.hitM_boundC Circuit.transferMC Circuit.collB_dist Circuit.pair_count Circuit.collB_count Circuit.pfM_hidesC Circuit.fs_openROMMC Circuit.collide_sat Circuit.hitLeafc_boundC Circuit.hitMc_boundC Circuit.transferMcC Circuit.transferMc_inC Circuit.fs_open4ROMMC
+
+-- Fiat–Shamir with the first commitment hiding up to η (FSOpenA)
+#audit_clean Circuit.open_real2A Circuit.open_two_coreA Circuit.fs_open3UA Circuit.fs_open4A
+#audit_clean Circuit.sud_fs_open4A Circuit.wit_fs_open4A Circuit.comp_fs_open4A Circuit.rom4_transferMC Circuit.sud_fs_open4ROMMC Circuit.wit_fs_open4ROMMC Circuit.comp_fs_open4ROMMC
+#audit_clean Circuit.comM_spreadLC Circuit.comMI_spreadLC
+#audit_clean Circuit.fs_open4_absA Circuit.sud_fs_open4_absA Circuit.wit_fs_open4_absA Circuit.comp_fs_open4_absA Circuit.sud_fs4A Circuit.wit_fs4A Circuit.comp_fs4A Circuit.sud_fs_open4_powDA Circuit.wit_fs_open4_powDA Circuit.comp_fs_open4_powDA Circuit.rom4_stepMC Circuit.sud_fs_open4_powDROMMC Circuit.wit_fs_open4_powDROMMC Circuit.comp_fs_open4_powDROMMC
+#audit_clean Circuit.posRowsP_lt Circuit.posRowsP_spread Circuit.posRowsP_hposO Circuit.posRowsP_meet Circuit.posRowsP_of_posRows Circuit.sud_fs_open4ROMMC_fri Circuit.wit_fs_open4ROMMC_fri Circuit.comp_fs_open4ROMMC_fri

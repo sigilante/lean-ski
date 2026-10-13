@@ -9,7 +9,7 @@ reads its own uniformly drawn table, the step's round function, at a
 position injective in the state below `K` for the block (`inner`).  Two
 chains from distinct states below `K` meet on at most `L/K` of the tables
 over `L` absorptions (`chainL_meet`): at the first step where they meet,
-two distinct positions of a fresh table agree (`pair_count`).  Two digits
+two distinct positions of a fresh table agree (`pair_countT`).  Two digits
 absorbed from one state at distinct positions meet on at most `(L+1)/K`
 (`chainL_meet_digit`).  `chainL_sat` meets the hypotheses.
 
@@ -37,7 +37,7 @@ open ZKF
 
 /-- **Two distinct positions of a uniform table agree on `1/K` of the
     tables.** -/
-theorem pair_count {K n p q : Nat} (hK : 0 < K) (hp : p < n) (hpq : p ≠ q) :
+theorem pair_countT {K n p q : Nat} (hK : 0 < K) (hp : p < n) (hpq : p ≠ q) :
     K * sumTo (K ^ n) (fun H => indB (decide (rget K p H = rget K q H))) ≤ K ^ n := by
   have hq : q < n ∨ n ≤ q := Nat.lt_or_ge q n
   rcases hq with hq | hq
@@ -155,7 +155,7 @@ theorem chainL_meet {K M : Nat} (hK : 0 < K) (inner : Nat → Nat → Nat) (hin 
     rw [sumTo_mul]
     refine Nat.le_trans (sumTo_mono _ step) ?_
     rw [sumTo_add, sumTo_const, ← sumTo_mul, ← sumTo_mul]
-    have pc := pair_count (n := M) hK (hin s x hs) hpq
+    have pc := pair_countT (n := M) hK (hin s x hs) hpq
     have e2 : K * ((K ^ M) ^ xs.length * sumTo (K ^ M) (fun h => indB (decide (rget K p h = rget K q h)))) ≤
         (K ^ M) ^ xs.length * K ^ M := by
       rw [Nat.mul_left_comm]; exact Nat.mul_le_mul_left _ pc
@@ -204,7 +204,7 @@ theorem chainL_meet_digit {K M : Nat} (hK : 0 < K) (inner : Nat → Nat → Nat)
   rw [sumTo_mul]
   refine Nat.le_trans (sumTo_mono _ step) ?_
   rw [sumTo_add, sumTo_const, ← sumTo_mul, ← sumTo_mul]
-  have pc := pair_count (n := M) hK (hin iv a hiv) hpq
+  have pc := pair_countT (n := M) hK (hin iv a hiv) hpq
   have e2 : K * ((K ^ M) ^ xs.length * sumTo (K ^ M) (fun h => indB (decide (rget K p h = rget K q h)))) ≤
       (K ^ M) ^ xs.length * K ^ M := by
     rw [Nat.mul_left_comm]; exact Nat.mul_le_mul_left _ pc
