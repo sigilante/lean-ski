@@ -32,11 +32,12 @@ over (`zkbT_adaptiveV_mass`). The split needs only that the pick read off
 statement `j`'s own view confirms `j` exactly at the real pick
 (`zkbT_adaptiveF`), which two picks in turn meet, the second read from the
 view the first determines (`seqPick_fix`, statements indexed `j1 + S1 j2`);
-more picks in turn, indexed in mixed radix with each pick reading `rv (j %
-(S1⋯S_{i-1}))`, should follow by the same argument (not shown).  The
-statements number `S1 S2` (`S1⋯Sk` for `k` picks), all sharing their draws
-and challenges, and so does the error's factor.  Not shown: a tighter bound;
-picks that read draws outside the view.
+`k` picks in turn, indexed in mixed radix with each pick reading `rv (j %
+(S1⋯S_{i-1}))`, by `k - 1` steps from one pick (`seqPick_one`,
+`seqPick_step`, whose conclusions are its own hypotheses over the larger
+range).  The statements number `S1 S2` (`S1⋯Sk` for `k` picks), all sharing
+their draws and challenges, and so does the error's factor.  Not shown: a
+tighter bound; picks that read draws outside the view.
 -/
 
 set_option autoImplicit false
@@ -352,5 +353,64 @@ theorem seqPick_fix {T X V : Type} {S1 S2 : Nat} (rv : Nat → T → X → V) (i
     · intro e
       have hj : j % S1 = ix1 H (rv 0 H x) := by rw [e, hmod _ _ ha]
       rw [hj, ← e]
+
+theorem digits_eq {S a b c d : Nat} (ha : a < S) (hc : c < S) (e : a + S * b = c + S * d) : a = c ∧ b = d := by
+  have hS : 0 < S := Nat.lt_of_le_of_lt (Nat.zero_le _) ha
+  have e1 := congrArg (· % S) e
+  simp only [Nat.add_mul_mod_self_left, Nat.mod_eq_of_lt ha, Nat.mod_eq_of_lt hc] at e1
+  have e2 := congrArg (· / S) e
+  simp only [Nat.add_mul_div_left _ _ hS, Nat.div_eq_of_lt ha, Nat.div_eq_of_lt hc, Nat.zero_add] at e2
+  exact ⟨e1, e2⟩
+
+/-- **One more pick in turn**: a stage of picks `ixA` over `SA` statements
+    meeting the fixed-point condition (`hfixA`, real pick `rA`) and reading
+    its views only through `j % SA` (`hcA`), followed by a pick `ix2 < S2`
+    read from the view the stage determines (`hc2`), is again such a stage
+    over `SA S2` statements (`j % SA + SA (j / SA)`).  From one pick reading
+    the shared view (`seqPick_one`), `k` picks in turn by `k - 1` steps. -/
+theorem seqPick_step {T X V : Type} {SA S2 : Nat} (rv : Nat → T → X → V) (ixA ix2 : T → V → Nat) (rA : T → X → Nat)
+    (hA : ∀ H v, ixA H v < SA) (h2 : ∀ H v, ix2 H v < S2) (hrA : ∀ H x, rA H x < SA)
+    (hfixA : ∀ H x j, j < SA → (ixA H (rv j H x) = j ↔ j = rA H x))
+    (hcA : ∀ j H x, ixA H (rv j H x) = ixA H (rv (j % SA) H x))
+    (hc2 : ∀ j H x, ix2 H (rv j H x) = ix2 H (rv (j % SA) H x)) :
+    (∀ H x, rA H x + SA * ix2 H (rv (rA H x) H x) < SA * S2) ∧
+    (∀ H x j, j < SA * S2 → (ixA H (rv j H x) + SA * ix2 H (rv j H x) = j ↔
+      j = rA H x + SA * ix2 H (rv (rA H x) H x))) ∧
+    (∀ j H x, ixA H (rv j H x) + SA * ix2 H (rv j H x) =
+      ixA H (rv (j % (SA * S2)) H x) + SA * ix2 H (rv (j % (SA * S2)) H x)) ∧
+    (∀ H v, ixA H v + SA * ix2 H v < SA * S2) := by
+  refine ⟨fun H x => ?_, fun H x j _ => ?_, fun j H x => ?_, fun H v => ?_⟩
+  · calc rA H x + SA * ix2 H (rv (rA H x) H x) < SA + SA * ix2 H (rv (rA H x) H x) := Nat.add_lt_add_right (hrA H x) _
+      _ = SA * (ix2 H (rv (rA H x) H x) + 1) := by rw [Nat.mul_succ, Nat.add_comm]
+      _ ≤ SA * S2 := Nat.mul_le_mul_left _ (h2 _ _)
+  · have hS : 0 < SA := Nat.lt_of_le_of_lt (Nat.zero_le _) (hrA H x)
+    have ja : j % SA < SA := Nat.mod_lt _ hS
+    have jd : j = j % SA + SA * (j / SA) := (Nat.mod_add_div j SA).symm
+    rw [hcA j H x, hc2 j H x]
+    constructor
+    · intro e
+      have e' : ixA H (rv (j % SA) H x) + SA * ix2 H (rv (j % SA) H x) = j % SA + SA * (j / SA) := e.trans jd
+      obtain ⟨d1, d2⟩ := digits_eq (hA H _) ja e'
+      have hra : j % SA = rA H x := (hfixA H x (j % SA) ja).1 d1
+      calc j = j % SA + SA * (j / SA) := jd
+        _ = rA H x + SA * ix2 H (rv (rA H x) H x) := by rw [← d2, hra]
+    · intro e
+      have hjm : j % SA = rA H x := by rw [e, Nat.add_mul_mod_self_left, Nat.mod_eq_of_lt (hrA H x)]
+      have hfa : ixA H (rv (j % SA) H x) = j % SA := (hfixA H x (j % SA) ja).2 hjm
+      rw [hfa, hjm]
+      exact e.symm
+  · have hm : j % (SA * S2) % SA = j % SA := Nat.mod_mul_right_mod j SA S2
+    rw [hcA j H x, hc2 j H x, hcA (j % (SA * S2)) H x, hc2 (j % (SA * S2)) H x, hm]
+  · calc ixA H v + SA * ix2 H v < SA + SA * ix2 H v := Nat.add_lt_add_right (hA H v) _
+      _ = SA * (ix2 H v + 1) := by rw [Nat.mul_succ, Nat.add_comm]
+      _ ≤ SA * S2 := Nat.mul_le_mul_left _ (h2 H v)
+
+/-- One pick reading the view every statement shares starts the stages. -/
+theorem seqPick_one {T X V : Type} {S1 : Nat} (rv : Nat → T → X → V) (ix1 : T → V → Nat)
+    (hc1 : ∀ j H x, ix1 H (rv j H x) = ix1 H (rv 0 H x)) :
+    (∀ H x j, j < S1 → (ix1 H (rv j H x) = j ↔ j = ix1 H (rv 0 H x))) ∧
+    (∀ j H x, ix1 H (rv j H x) = ix1 H (rv (j % S1) H x)) :=
+  ⟨fun H x j _ => by rw [hc1 j H x]; exact ⟨fun e => e.symm, fun e => e.symm⟩,
+   fun j H x => by rw [hc1 j H x, hc1 (j % S1) H x]⟩
 
 end Circuit
