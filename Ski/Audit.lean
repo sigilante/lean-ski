@@ -154,6 +154,7 @@ import Ski.ZK.FriCommit
 import Ski.ZK.SpongeSpread
 import Ski.ZK.SpongeRandom
 import Ski.ZK.SpongePerm
+import Ski.ZK.SpongePermT
 import Ski.ZK.FSQueryAbsT
 import Ski.ZK.FSQueryPowT
 import Ski.ZK.ROMFamilyT
@@ -1374,3 +1375,6 @@ open Ski.Audit
 
 -- Sponge chains under one permutation: the birthday bound (SpongePerm)
 #audit_clean Circuit.sumTo_split_pos Circuit.count_mem Circuit.fresh_count Circuit.runAdp_length Circuit.runAdp_ans Circuit.runAdp_rset Circuit.colP_of_mem Circuit.colP_count Circuit.two_step Circuit.colP_cons Circuit.two_meet_col Circuit.stA_lt Circuit.stB_lt Circuit.two_meet_count Circuit.two_meet_digit Circuit.two_meet_sat Circuit.colK_of_mem Circuit.colK_cons Circuit.range_map_sum Circuit.nearK_length Circuit.colK_count Circuit.two_meet_colK Circuit.two_meet_countK Circuit.two_meet_digitK Circuit.two_meet_satK Circuit.two_meet_satKP Circuit.colR_of_mem Circuit.colR_of_colK Circuit.nearR_length Circuit.colR_count Circuit.two_squeeze_count Circuit.squeeze_sat
+
+-- Sponge chains under a uniform permutation (SpongePermT)
+#audit_clean Circuit.tab_lt Circuit.rget_tab Circuit.digit_ext Circuit.swapV_swapV Circuit.rget_vswap Circuit.vswap_lt Circuit.vswap_vswap Circuit.permB_inj Circuit.permB_of_inj Circuit.permB_vswap Circuit.le_sumTo Circuit.count_notmem Circuit.fresh_countP Circuit.runAdp_pos Circuit.runAdp_vswap Circuit.colR_countP Circuit.two_meet_countKP Circuit.two_meet_digitKP Circuit.two_squeeze_countP Circuit.permB_id Circuit.two_meet_satPT

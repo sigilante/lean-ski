@@ -49,10 +49,9 @@ the table's answer at the block and the capacity (as in `SpongeRandom`),
 `1/K` per capacity value; in the partial-rate results the state is the
 whole state, the table's answers its next values, and `κ` its capacity,
 `F / K = 1 / |capacity|`.  The table stands for the permutation as a
-random function.  Not shown: the permutation as a permutation (its PRP/PRF
-switching term, over the full width), and any step to
-`SudChallenger`'s `hφsp`, which bounds at every table how many salts reach
-one index.
+random function; `SpongePermT` averages over the permutations themselves,
+at full width.  Not shown: any step to `SudChallenger`'s `hφsp`, which
+bounds at every table how many salts reach one index.
 -/
 
 set_option autoImplicit false
