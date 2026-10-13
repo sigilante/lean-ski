@@ -30,10 +30,10 @@ the fourth challenge and the third message, is a component too, its hits
 charged to the programmers' spread (`pfRdA`, `pfRdA_prog`, `sudFS4T_houtA`,
 `sudFS4T_hrdA`; `pfRdM` its own-digit case, `pfRdM_eq_A`).  The composed
 theorem is `FSMultiMix`'s `fs4_interleave`; `FSMultiMixSud` gives the
-spread `hsp` and the hidden-term and composed circuits.  Not shown: an
-any-digit opening that also reads its data and salt; any-digit openings
-for the hidden-term and composed circuits; that FRI's challenges are such
-a strategy (FRI's commit phase is not modelled).
+spread `hsp` and the hidden-term and composed circuits.  FRI's commit phase is such
+a strategy (`FriCommit`).  Not shown: an any-digit opening that also reads
+its data and salt; any-digit openings for the hidden-term and composed
+circuits.
 -/
 
 set_option autoImplicit false
