@@ -25,8 +25,19 @@ normalized).  Composed for one round (`fs_openROM`): the commitment's
 table and both salt parts folded into the salt (`comR`), the proof carrying
 the distinguisher's `k` queries into that table, chosen after the opening
 and the commitment (`pfR`), so the bare commitment hides exactly
-(`comR_hides`) and the opened one up to the slack (`pfR_hidesA`).  The
-later rounds are not yet composed.
+(`comR_hides`) and the opened one up to the slack (`pfR_hidesA`).
+
+What this covers, and what it leaves out:
+* a single-hash commitment, one oracle position per datum and salt, that
+  opens to some values and part of its salt; a Merkle tree's
+  authentication path and its positions read off child hashes are not
+  modelled;
+* the distinguisher's queries read the opening, the commitment and their
+  earlier answers, not the Fiat–Shamir table or the view;
+* where the prover aborts, the distinguisher sees the commitment and no
+  query answers;
+* one round; the commitment's table apart from the Fiat–Shamir table, as a
+  domain-separated oracle's.
 -/
 
 namespace Circuit
@@ -192,7 +203,7 @@ theorem rom_hideQ {D : Type} {K n NS s k : Nat} (hK : 0 < K) (pos : D → Nat �
   rw [sumTo_const, Nat.mul_left_comm]
 /-- **A commitment from the oracle hides given its openings, against `k`
     adaptive queries**: the salt split into the part the opening shows
-    (`σo`, the opened leaves' salts) and the part it hides (`σh`); the
+    (`σo`) and the part it hides (`σh`); the
     commitment the oracle's answer at `pos d σo σh`; the opening proof
     `g (op d) σo`, reading only the opened values and the shown salts.  The
     distinguisher sees the opening, the commitment and a run of `k` queries
