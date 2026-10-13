@@ -129,6 +129,7 @@ import Ski.ZK.ROMMerkle4
 import Ski.ZK.ROMInstM
 import Ski.ZK.ROMFamilyM
 import Ski.ZK.ROMMerkleRows
+import Ski.ZK.ROMMerkleIdx
 import Ski.ZK.ROMAbort
 import Ski.ZK.ROMFSRead
 import Ski.ZK.ROMFSRead2
@@ -1299,3 +1300,9 @@ open Ski.Audit
 #audit_clean Circuit.rom4_transferMR Circuit.sud_fs_open4ROMMR Circuit.wit_fs_open4ROMMR Circuit.comp_fs_open4ROMMR
 #audit_clean Circuit.rgetL_spread Circuit.posAll_nodup Circuit.comM_spreadL Circuit.comMI_spreadL Circuit.rom4_stepM Circuit.sud_fs_open4_powDROMM Circuit.wit_fs_open4_powDROMM Circuit.comp_fs_open4_powDROMM
 #audit_clean Circuit.rowAt_opF Circuit.posRows_dist Circuit.posRows_lt Circuit.posRows_spread Circuit.posRows_hposO
+
+-- FRI's query indices pick the opened leaves (ROMMerkleIdx)
+#audit_clean Circuit.qSets_getD Circuit.isOfRows_of_mem Circuit.mem_of_isOfRows Circuit.isOfRows_iff
+  Circuit.isOfRows_qSets_iff Circuit.xsSh_inj Circuit.isOfRows_xsSh_iff Circuit.xsW_inj Circuit.sud_hposO_idx
+  Circuit.wit_hposO_idx Circuit.comp_hposO_idx Circuit.sud_opened_iff Circuit.wit_opened_iff Circuit.comp_opened_iff
+  Circuit.sud_opened_iff_xsW
