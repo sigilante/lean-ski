@@ -170,11 +170,10 @@ is built; this file records what is next. Last revised 2026-10-13.
   opened set read at the query challenge: `Ski/ZK/ROMMerkle4.lean` (`fs_open4ROMM`; the root hashed: `fs_open4ROMMR`); the
   circuits over it with the tie of the leaves to the committed rows a hypothesis (`hposO`):
   `Ski/ZK/ROMInstM.lean` (`sud_fs_open4ROMM`, with the root hashed `sud_fs_open4ROMMR`, and the
-  others); not yet: that tie's instance
-  (the leaves the committed matrix's low-degree-extension rows, the opened set the query
-  indices' rows, each read off the openings `op1` names: the circuits' opened points
-  identified with FRI's query points and kept consistent with the PCS openings, `pcsZ`,
-  `friX`). Done: `n` statements of each circuit over the leaves, `Ski/ZK/ROMFamilyM.lean`
+  others); that tie met by the rows (each leaf the committed polynomials' values at its
+  points, the opened leaves those at the query points): `Ski/ZK/ROMMerkleRows.lean`
+  (`posRows_hposO` and the rest); not yet: that FRI's query indices pick exactly those
+  leaves (the points and the query sets agreeing with `pcsZ`, `friX`). Done: `n` statements of each circuit over the leaves, `Ski/ZK/ROMFamilyM.lean`
   (`sud_fs_open4_powDROMM` and the others, the collision term `1/n1` from `comMI_spreadL`); internal-node hashing
   apart from the leaves' table stays an assumption; query answers shown where the proof
   aborts: `Ski/ZK/ROMAbort.lean`, one round (`fs_openROMQ`), four over the oracle
