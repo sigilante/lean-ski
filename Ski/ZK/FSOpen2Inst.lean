@@ -171,10 +171,16 @@ set_option maxRecDepth 100000 in
     permutation groups' and the quotient chunks' with their codewords,
     each opened beside the view; the simulator commits and opens
     interpolants through its own view's openings and programs both
-    tables (`fs_open2`).  Assumed: each commitment hides alone and given
-    its openings, perfectly;
-    generic `β` and `ζ`; the folding challenge's round merged; the FRI
-    challenge and the query points fixed; one proof per oracle. -/
+    tables (`fs_open2`).  The simulator's committed interpolants agree with
+    its own polynomials at every opened point; Plonky3 opens the input
+    matrices at the query rows only (FRI's fold siblings come from FRI's
+    own layers), so by `ComPfHides` committing the interpolants or its own
+    polynomials is the same.  Assumed: each commitment hides alone and
+    given its openings at the real query points, perfectly, and is a
+    primitive apart from the oracle; generic `β` and `ζ`; the permutation
+    and quotient commitments fused into one; the constraint-folding
+    challenge, the FRI challenge `αb` and the query points fixed
+    parameters, unhashed; one proof per oracle. -/
 theorem sud_fs_open2 {V Wv P1 P2 : Type} (off : EF → String → EF) {puzzle : List Nat} (hc : CluesOK (cluesOf puzzle))
     {ρ : Nat → Bool} {A : List Cell} {k : Nat} {row : Nat → Air.Row}
     (hA : AcceptsFrom A (stmtMachine ρ 729 (sudokuExpr (cluesOf puzzle)) ACC REJ) k row)

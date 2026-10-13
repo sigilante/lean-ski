@@ -16,8 +16,8 @@ view (`ComHides`, as `Ski/ZK/FSInst.lean` for the first round): the
 quotient values at `ζ` the view shows are not tied to the second
 commitment, a step back from `Ski/ZK/FSOpenInst.lean`.  Plonky3 draws the
 constraint-folding challenge between the permutation and quotient
-commitments; here that round is merged into the second and the folding
-challenge stays a fixed parameter, as do the FRI challenge and the query
+commitments; here the two commitments are fused into the second and the
+constraint-folding challenge stays a fixed parameter, unhashed, as do the FRI challenge and the query
 points.  The count is guarded at generic `β` and generic `ζ`: the
 non-generic `ζ` (`x1 = x3 = 0`, `P²` of `P⁴`, mass `1/P²`) are left out
 as the non-generic `β` are, an assumed exclusion; Plonky3 neither rejects
