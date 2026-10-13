@@ -131,8 +131,9 @@ is built; this file records what is next. Last revised 2026-10-13.
   proof-of-work nonce among them, its table independent of the query table (`fs_pow`), and the lookup
   nonce through the first commitment (`ComHides.post`). Open, most exploitable first: several proofs per oracle (a hybrid and a
   collision term); `Com` from the same oracle (bounded queries, a ROM-hiding term); FRI's
-  folding challenges each hashed after its layer; the opened values and FRI's layer
-  commitments in the query hash's input. The groups' trace and mask points (`hT`, `hRq`) are tied
+  folding challenges each hashed after its layer; the quotient chunks' openings at `ζ`
+  and FRI's layer commitments in the query hash's input (the trace openings at `ζ` are in it,
+  `pcsFri_ood`). The groups' trace and mask points (`hT`, `hRq`) are tied
   to the committed matrices: the masked column is the interpolant of Plonky3's interleaved
   column over the `2n`-point domain (`Ski/ZK/Interleave.lean`, `bb_ileave_mcol`); that
   Plonky3 interleaves, trace rows even and random rows odd, is read from its source.

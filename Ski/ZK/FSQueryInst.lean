@@ -43,9 +43,10 @@ set_option maxRecDepth 100000 in
 /-- **The hidden-term proof over four Fiat–Shamir rounds, the query points
     hashed**: `wit_fs_open3` with the query points a fourth challenge `c4`,
     drawn from a fourth table at a function `φ` of the commitments'
-    transcript (which may carry a proof-of-work nonce ground against a
-    table of its own, independent of the query table: `fs_pow`) and
-    decoded by
+    transcript and the trace groups' openings at `ζ`, which do not read the
+    query points (`pcsFri_ood`); `φ` may carry a proof-of-work nonce ground
+    against a table of its own, independent of the query table (`fs_pow`).
+    The points are decoded by
     `S10 S9 SP` (`fs_open4`, `fs_open4R`).  The opening proofs (`Pf`, the
     Merkle paths at the drawn indices) and FRI's openings and randomness
     (`fri`, `Rb`, `Ro`) read `c4`; the committed data do not
@@ -54,8 +55,8 @@ set_option maxRecDepth 100000 in
     commitment hiding given its openings and opening proof there.  Both
     ways, both counts unguarded, the non-generic `β` and `ζ` in the bound.
     Assumed besides `wit_fs_open3`'s: the fourth table's input is the
-    commitments' transcript, without the opened values or FRI's layer
-    commitments.  The FRI challenge is hashed
+    commitments' transcript and the trace openings at `ζ`, without the
+    quotient chunks' openings or FRI's layer commitments.  The FRI challenge is hashed
     too, decoded from `c4` by `αd`; the draws where it fails the verifier's
     test, at most `B4` of the `K4`, enter the bound as their whole count
     (decoded uniformly, `P²` in every `Q4`: `genB_count_mod`).
@@ -71,7 +72,7 @@ theorem wit_fs_open4 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {Vt x :
     (wm wc ww wp : Nat → List (EF → EF → List F)) {Lwm Lwc Lww Lwp : Nat} (hlwm : ∀ c, (wm c).length = Lwm)
     (hlwc : ∀ c, (wc c).length = Lwc) (hlww : ∀ c, (ww c).length = Lww) (hlwp : ∀ c, (wp c).length = Lwp)
     {K2 K4 : Nat} (hK2 : 0 < K2) (hK4 : 0 < K4)
-    (φ : Nat → Nat) {N4 : Nat} (hφ : ∀ m, φ m < N4)
+    (φ : Nat → Option (List (List (List EF))) → Nat) {N4 : Nat} (hφ : ∀ m w, φ m w < N4)
     (hS10 : ∀ c4, ∀ x ∈ S10 c4, x ∉ cosetL 1 (bbGen 10) (2 ^ 10)) (hS9 : ∀ c4, ∀ x ∈ S9 c4, x ∉ cosetL 1 (bbGen 9) (2 ^ 9))
     (hSP : ∀ c4, ∀ x ∈ SP c4, x ∉ cosetL 1 (bbGen (tP + 1)) (2 ^ (tP + 1)))
     (hsz10 : ∀ c4, 2 * (S10 c4).length + 8 ≤ 2 ^ 10) (hsz9 : ∀ c4, 2 * (S9 c4).length + 8 ≤ 2 ^ 9)
@@ -155,6 +156,9 @@ theorem wit_fs_open4 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {Vt x :
       realVN off tabs tv ptm (pcsZ c4 c2 (efOf c3)) α β r t
     let svF := fun (c4 c2 c3 : Nat) (α β : EF) (r : Nat) (t : Nat → Tup) =>
       simVN off ptm chainBus (fun _ => false) chainPar 3 ptm (psimZ c4 c2 (efOf c3)) α β r t
+    let ozF : TViewN (PcsPV (V × Wv)) EF → Option (List (List (List EF))) := fun v => match v with
+      | some (pv, _) => some (pv.1.1.map (fun g => g.1.map Prod.snd))
+      | none => none
     let op3 := fun (c4 : Nat) (d : List (List (List (List F))) × List (List (List F))) =>
       (opQ (SsT c4) d.1, opCw (SsC c4) d.2)
     let sd3 := fun (c4 : Nat) (o : List (List (List (List F))) × List (List (List F))) =>
@@ -186,8 +190,9 @@ theorem wit_fs_open4 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {Vt x :
         sumTo (Q4 ^ (n1 * (n2 * n3))) (fun H3 => sm (fun x => g (H1, H2, H3, x)))))
     let r1 := fun (y : Nat × Nat × Nat × (Nat × Nat × Nat × (Nat → Tup))) => rget (Q4 * Q4) (m1 y.2.2.2) y.1
     let r2 := fun (y : Nat × Nat × Nat × (Nat × Nat × Nat × (Nat → Tup))) => rget K2 (m2 (r1 y) y.2.2.2) y.2.1
-    let Mq := fun (y : Nat × Nat × Nat × (Nat × Nat × Nat × (Nat → Tup))) => φ (m3 (r1 y) (r2 y) y.2.2.2)
     let r3 := fun (y : Nat × Nat × Nat × (Nat × Nat × Nat × (Nat → Tup))) => rget Q4 (m3 (r1 y) (r2 y) y.2.2.2) y.2.2.1
+    let Mq := fun (y : Nat × Nat × Nat × (Nat × Nat × Nat × (Nat → Tup))) => φ (m3 (r1 y) (r2 y) y.2.2.2)
+      (ozF (rvF 0 (r2 y) (r3 y) (efOf (r1 y / Q4)) (efOf (r1 y % Q4)) y.2.2.2.2.2.1 y.2.2.2.2.2.2))
     (K4 * (Q4 * Q4 * (K2 * Q4) * sumTo (K4 ^ N4) (fun H4 => sm4 (fun y =>
         indB (E y.1 y.2.1 y.2.2.1 H4 (m1 y.2.2.2) (m2 (r1 y) y.2.2.2) (m3 (r1 y) (r2 y) y.2.2.2)
           (rvo (rget K4 (Mq y) H4) (r1 y) (r2 y) (r3 y) y.2.2.2))))) ≤
@@ -195,7 +200,7 @@ theorem wit_fs_open4 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {Vt x :
         sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (K2 ^ (n1 * n2)) (fun H2 => sumTo (Q4 ^ (n1 * (n2 * n3))) (fun H3 =>
         sumTo (Q4 * Q4) (fun c1 => sumTo K2 (fun c2 => sumTo Q4 (fun c3 => sm (fun x =>
           indB (E (rset (Q4 * Q4) (s1 c4 c1 c2 c3 x) H1 c1) (rset K2 (s2 c4 c1 c2 c3 x) H2 c2)
-            (rset Q4 (s3 c4 c1 c2 c3 x) H3 c3) (rset K4 (φ (s3 c4 c1 c2 c3 x)) H4 c4)
+            (rset Q4 (s3 c4 c1 c2 c3 x) H3 c3) (rset K4 (φ (s3 c4 c1 c2 c3 x) (ozF (svF c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2))) H4 c4)
             (s1 c4 c1 c2 c3 x) (s2 c4 c1 c2 c3 x) (s3 c4 c1 c2 c3 x) (svo c4 c1 c2 c3 x))))))))))) +
         K4 ^ N4 * (K4 * ((Q4 * Q4) ^ n1 * (K2 ^ (n1 * n2) * (Q4 ^ (n1 * (n2 * n3)) *
           (K2 * (Q4 * (NS1 * (NS2 * NS3 * (Q4 * (NR * (Q4 ^ 2 * M)) + Q4 * (Q4 * (Q4 ^ 2 * 0)))))) +
@@ -205,7 +210,7 @@ theorem wit_fs_open4 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {Vt x :
         sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (K2 ^ (n1 * n2)) (fun H2 => sumTo (Q4 ^ (n1 * (n2 * n3))) (fun H3 =>
         sumTo (Q4 * Q4) (fun c1 => sumTo K2 (fun c2 => sumTo Q4 (fun c3 => sm (fun x =>
           indB (E (rset (Q4 * Q4) (s1 c4 c1 c2 c3 x) H1 c1) (rset K2 (s2 c4 c1 c2 c3 x) H2 c2)
-            (rset Q4 (s3 c4 c1 c2 c3 x) H3 c3) (rset K4 (φ (s3 c4 c1 c2 c3 x)) H4 c4)
+            (rset Q4 (s3 c4 c1 c2 c3 x) H3 c3) (rset K4 (φ (s3 c4 c1 c2 c3 x) (ozF (svF c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2))) H4 c4)
             (s1 c4 c1 c2 c3 x) (s2 c4 c1 c2 c3 x) (s3 c4 c1 c2 c3 x) (svo c4 c1 c2 c3 x))))))))))) ≤
         K4 * (Q4 * Q4 * (K2 * Q4) * sumTo (K4 ^ N4) (fun H4 => sm4 (fun y =>
         indB (E y.1 y.2.1 y.2.2.1 H4 (m1 y.2.2.2) (m2 (r1 y) y.2.2.2) (m3 (r1 y) (r2 y) y.2.2.2)
@@ -214,7 +219,7 @@ theorem wit_fs_open4 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {Vt x :
           (K2 * (Q4 * (NS1 * (NS2 * NS3 * (Q4 * (NR * (Q4 ^ 2 * M)) + Q4 * (Q4 * (Q4 ^ 2 * 0)))))) +
             (Q4 * (P * P) * (K2 * Q4) + Q4 * Q4 * (K2 * (P * P))) * (NS1 * (NS2 * NS3 * (NR * (Q4 ^ 2 * 1)))))))) +
             B4 * (Q4 * Q4 * (K2 * Q4) * sm4 (fun _ => 1)))) := by
-  intro blank C Pg Wt Mm NR0 pcsZ psimZ NR tabs tv ptm M q0 qZ Ss ks cols tqZ qdZ SsT SsC mk1 mk2 main1 main2 main3 vS sop1 sop2 sop3 ov1 ov2 ov3 rvF svF op3 sd3
+  intro blank C Pg Wt Mm NR0 pcsZ psimZ NR tabs tv ptm M q0 qZ Ss ks cols tqZ qdZ SsT SsC mk1 mk2 main1 main2 main3 vS sop1 sop2 sop3 ov1 ov2 ov3 rvF svF ozF op3 sd3
   obtain ⟨hbal, hun⟩ := wit_honest_zk hwf hwl hW8 hA hlen hk
   obtain ⟨sc, sms, sw, hWh⟩ := wit_run_sats hwf hwl hW8 hA hK hlen hk
   obtain ⟨_, hP23, hPg⟩ := wit_prog_height hwl hA hlen
@@ -335,17 +340,27 @@ theorem wit_fs_open4 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {Vt x :
     have e2 : SsC c4 = wSsC tP (S10 c4) (S9 c4) (SP c4) := wit_SsC off blank.hd blank.stk blank.heap.length blank.heap W C Mm Wt tP (S10 c4) (S9 c4) (SP c4) EF.zero qv (wm 0) (wc 0) (ww 0) (wp 0) ncw
     show ComPfHides NS3 Com3 (Pf3 c4) (fun d => (opQ (SsT c4) d.1, opCw (SsC c4) d.2))
     rw [e1, e2]; exact hp3 c4
+  have hoz : ∀ c4 c2 c3 α β r t, ozF (rvF c4 c2 c3 α β r t) = ozF (rvF 0 c2 c3 α β r t) := by
+    intro c4 c2 c3 α β r t
+    simp only [rvF]
+    unfold realVN
+    cases hA : Aborts (prefixOf α (off β)) β (tabs t)
+    · simp only [Bool.false_eq_true, ↓reduceIte, ozF, Option.some.injEq]
+      exact pcsFri_ood off (fun pre β t => witViewN pre β blank.hd blank.stk blank.heap.length W C Mm Wt t) (wGroups tP (S10 c4) (S9 c4) (SP c4) (efOf c3) qv) (wGroups tP (S10 0) (S9 0) (SP 0) (efOf c3) qv) ks cols
+        ((wTs off blank.hd blank.stk blank.heap.length blank.heap W C Mm Wt tP (S10 c4) (S9 c4) (SP c4) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wp c2)).map Prod.fst) ((wTs off blank.hd blank.stk blank.heap.length blank.heap W C Mm Wt tP (S10 0) (S9 0) (SP 0) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wp c2)).map Prod.fst) _ _ ncw (αd c4) (αd 0) _ _
+        (wit_same_d off blank.hd blank.stk blank.heap.length blank.heap W C Mm Wt tP (S10 c4) (S9 c4) (SP c4) (S10 0) (S9 0) (SP 0) (efOf c3) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wp c2) (wm c2) (wc c2) (ww c2) (wp c2) rfl rfl rfl rfl) rfl rfl t α β (r % NR0)
+    · rfl
   have hgz : sumTo K2 (fun _ => sumTo Q4 (fun c3 => indB (!genB (efOf c3)))) ≤ K2 * (P * P) := by
     rw [genB_count, sumTo_const]; exact Nat.le_refl _
   exact ⟨fs_open4 hK2 Q4_pos hK4 φ hφ rvF svF (fun c2 c3 => genB (efOf c3)) hgz (fun c4 => genB (αd c4)) hB4
     (fun c4 c2 c3 α β r t => realVN_cases _ _ _ _ _ α β r t) (fun c4 c2 c3 α β r t => simVN_some _ _ _ _ _ _ _ _ α β r t)
-    (fun c4 c2 c3 hg4 hg => (hb c4 c2 c3 hg4 hg).1) (fun c4 c2 c3 hg4 hg => (hb c4 c2 c3 hg4 hg).2)
+    ozF hoz (fun c4 c2 c3 hg4 hg => (hb c4 c2 c3 hg4 hg).1) (fun c4 c2 c3 hg4 hg => (hb c4 c2 c3 hg4 hg).2)
     Com1 Pf1 (fun c4 => opF (Ss c4) mk1) (fun c4 => sdF (Ss c4) mk1) d1 hc1 hp1 hr1 ov1 (fun _ => rfl) main1 hsd1
     Com2 Pf2 (fun c4 => opF (Ss c4) mk2) (fun c4 => sdF (Ss c4) mk2) d2 hc2 hp2 hr2 ov2 (fun _ => rfl) main2 hsd2
     Com3 Pf3 op3 sd3 d3 hc3 hp3' hr3 ov3 (fun _ => rfl) main3 hsd3 hvo1 hvo2 hvo3 sop1 sop2 sop3 hsvo1 hsvo2 hsvo3 E,
     fs_open4R hK2 Q4_pos hK4 φ hφ rvF svF (fun c2 c3 => genB (efOf c3)) hgz (fun c4 => genB (αd c4)) hB4
     (fun c4 c2 c3 α β r t => realVN_cases _ _ _ _ _ α β r t) (fun c4 c2 c3 α β r t => simVN_some _ _ _ _ _ _ _ _ α β r t)
-    (fun c4 c2 c3 hg4 hg => (hb c4 c2 c3 hg4 hg).1) (fun c4 c2 c3 hg4 hg => (hb c4 c2 c3 hg4 hg).2)
+    ozF hoz (fun c4 c2 c3 hg4 hg => (hb c4 c2 c3 hg4 hg).1) (fun c4 c2 c3 hg4 hg => (hb c4 c2 c3 hg4 hg).2)
     Com1 Pf1 (fun c4 => opF (Ss c4) mk1) (fun c4 => sdF (Ss c4) mk1) d1 hc1 hp1 hr1 ov1 (fun _ => rfl) main1 hsd1
     Com2 Pf2 (fun c4 => opF (Ss c4) mk2) (fun c4 => sdF (Ss c4) mk2) d2 hc2 hp2 hr2 ov2 (fun _ => rfl) main2 hsd2
     Com3 Pf3 op3 sd3 d3 hc3 hp3' hr3 ov3 (fun _ => rfl) main3 hsd3 hvo1 hvo2 hvo3 sop1 sop2 sop3 hsvo1 hsvo2 hsvo3 E⟩
@@ -383,9 +398,10 @@ set_option maxRecDepth 100000 in
 /-- **The composed proof over four Fiat–Shamir rounds, the query points
     hashed**: `comp_fs_open3` with the query points a fourth challenge `c4`,
     drawn from a fourth table at a function `φ` of the commitments'
-    transcript (which may carry a proof-of-work nonce ground against a
-    table of its own, independent of the query table: `fs_pow`) and
-    decoded by
+    transcript and the trace groups' openings at `ζ`, which do not read the
+    query points (`pcsFri_ood`); `φ` may carry a proof-of-work nonce ground
+    against a table of its own, independent of the query table (`fs_pow`).
+    The points are decoded by
     `SM SC S9 SP SS` (`fs_open4`, `fs_open4R`).  The opening proofs (`Pf`, the
     Merkle paths at the drawn indices) and FRI's openings and randomness
     (`fri`, `Rb`, `Ro`) read `c4`; the committed data do not
@@ -394,8 +410,8 @@ set_option maxRecDepth 100000 in
     commitment hiding given its openings and opening proof there.  Both
     ways, both counts unguarded, the non-generic `β` and `ζ` in the bound.
     Assumed besides `comp_fs_open3`'s: the fourth table's input is the
-    commitments' transcript, without the opened values or FRI's layer
-    commitments.  The FRI challenge is hashed
+    commitments' transcript and the trace openings at `ζ`, without the
+    quotient chunks' openings or FRI's layer commitments.  The FRI challenge is hashed
     too, decoded from `c4` by `αd`; the draws where it fails the verifier's
     test, at most `B4` of the `K4`, enter the bound as their whole count
     (decoded uniformly, `P²` in every `Q4`: `genB_count_mod`).
@@ -416,7 +432,7 @@ theorem comp_fs_open4 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {R Lm 
     (hlwc : ∀ c, (wc c).length = Lwc) (hlww : ∀ c, (ww c).length = Lww) (hlwp : ∀ c, (wp c).length = Lwp)
     (hlwsg : ∀ c, (wsg c).length = Lwsg)
     {K2 K4 : Nat} (hK2 : 0 < K2) (hK4 : 0 < K4)
-    (φ : Nat → Nat) {N4 : Nat} (hφ : ∀ m, φ m < N4)
+    (φ : Nat → Option (List (List (List EF))) → Nat) {N4 : Nat} (hφ : ∀ m w, φ m w < N4)
     (hSM : ∀ c4, ∀ x ∈ SM c4, x ∉ cosetL 1 (bbGen (tbM + 1)) (2 ^ (tbM + 1)))
     (hSC : ∀ c4, ∀ x ∈ SC c4, x ∉ cosetL 1 (bbGen (tbC + 1)) (2 ^ (tbC + 1)))
     (hS9 : ∀ c4, ∀ x ∈ S9 c4, x ∉ cosetL 1 (bbGen 9) (2 ^ 9))
@@ -510,6 +526,9 @@ theorem comp_fs_open4 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {R Lm 
       realVN off tabs tv pb (pcsZ c4 c2 (efOf c3)) α β r t
     let svF := fun (c4 c2 c3 : Nat) (α β : EF) (r : Nat) (t : Nat → Tup) =>
       simVN off pb chainBus (fun _ => false) chainPar 3 ptm (psimZ c4 c2 (efOf c3)) α β r t
+    let ozF : TViewN (PcsPV (V × Wv)) (EF × EF) → Option (List (List (List EF))) := fun v => match v with
+      | some (pv, _) => some (pv.1.1.map (fun g => g.1.map Prod.snd))
+      | none => none
     let op3 := fun (c4 : Nat) (d : List (List (List (List F))) × List (List (List F))) =>
       (opQ (SsT c4) d.1, opCw (SsC c4) d.2)
     let sd3 := fun (c4 : Nat) (o : List (List (List (List F))) × List (List (List F))) =>
@@ -541,8 +560,9 @@ theorem comp_fs_open4 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {R Lm 
         sumTo (Q4 ^ (n1 * (n2 * n3))) (fun H3 => sm (fun x => g (H1, H2, H3, x)))))
     let r1 := fun (y : Nat × Nat × Nat × (Nat × Nat × Nat × (Nat → Tup))) => rget (Q4 * Q4) (m1 y.2.2.2) y.1
     let r2 := fun (y : Nat × Nat × Nat × (Nat × Nat × Nat × (Nat → Tup))) => rget K2 (m2 (r1 y) y.2.2.2) y.2.1
-    let Mq := fun (y : Nat × Nat × Nat × (Nat × Nat × Nat × (Nat → Tup))) => φ (m3 (r1 y) (r2 y) y.2.2.2)
     let r3 := fun (y : Nat × Nat × Nat × (Nat × Nat × Nat × (Nat → Tup))) => rget Q4 (m3 (r1 y) (r2 y) y.2.2.2) y.2.2.1
+    let Mq := fun (y : Nat × Nat × Nat × (Nat × Nat × Nat × (Nat → Tup))) => φ (m3 (r1 y) (r2 y) y.2.2.2)
+      (ozF (rvF 0 (r2 y) (r3 y) (efOf (r1 y / Q4)) (efOf (r1 y % Q4)) y.2.2.2.2.2.1 y.2.2.2.2.2.2))
     (K4 * (Q4 * Q4 * (K2 * Q4) * sumTo (K4 ^ N4) (fun H4 => sm4 (fun y =>
         indB (E y.1 y.2.1 y.2.2.1 H4 (m1 y.2.2.2) (m2 (r1 y) y.2.2.2) (m3 (r1 y) (r2 y) y.2.2.2)
           (rvo (rget K4 (Mq y) H4) (r1 y) (r2 y) (r3 y) y.2.2.2))))) ≤
@@ -550,7 +570,7 @@ theorem comp_fs_open4 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {R Lm 
         sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (K2 ^ (n1 * n2)) (fun H2 => sumTo (Q4 ^ (n1 * (n2 * n3))) (fun H3 =>
         sumTo (Q4 * Q4) (fun c1 => sumTo K2 (fun c2 => sumTo Q4 (fun c3 => sm (fun x =>
           indB (E (rset (Q4 * Q4) (s1 c4 c1 c2 c3 x) H1 c1) (rset K2 (s2 c4 c1 c2 c3 x) H2 c2)
-            (rset Q4 (s3 c4 c1 c2 c3 x) H3 c3) (rset K4 (φ (s3 c4 c1 c2 c3 x)) H4 c4)
+            (rset Q4 (s3 c4 c1 c2 c3 x) H3 c3) (rset K4 (φ (s3 c4 c1 c2 c3 x) (ozF (svF c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2))) H4 c4)
             (s1 c4 c1 c2 c3 x) (s2 c4 c1 c2 c3 x) (s3 c4 c1 c2 c3 x) (svo c4 c1 c2 c3 x))))))))))) +
         K4 ^ N4 * (K4 * ((Q4 * Q4) ^ n1 * (K2 ^ (n1 * n2) * (Q4 ^ (n1 * (n2 * n3)) *
           (K2 * (Q4 * (NS1 * (NS2 * NS3 * (Q4 * (NR * (Q4 ^ 2 * M)) + Q4 * (Q4 * (Q4 ^ 2 * 0)))))) +
@@ -560,7 +580,7 @@ theorem comp_fs_open4 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {R Lm 
         sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (K2 ^ (n1 * n2)) (fun H2 => sumTo (Q4 ^ (n1 * (n2 * n3))) (fun H3 =>
         sumTo (Q4 * Q4) (fun c1 => sumTo K2 (fun c2 => sumTo Q4 (fun c3 => sm (fun x =>
           indB (E (rset (Q4 * Q4) (s1 c4 c1 c2 c3 x) H1 c1) (rset K2 (s2 c4 c1 c2 c3 x) H2 c2)
-            (rset Q4 (s3 c4 c1 c2 c3 x) H3 c3) (rset K4 (φ (s3 c4 c1 c2 c3 x)) H4 c4)
+            (rset Q4 (s3 c4 c1 c2 c3 x) H3 c3) (rset K4 (φ (s3 c4 c1 c2 c3 x) (ozF (svF c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2))) H4 c4)
             (s1 c4 c1 c2 c3 x) (s2 c4 c1 c2 c3 x) (s3 c4 c1 c2 c3 x) (svo c4 c1 c2 c3 x))))))))))) ≤
         K4 * (Q4 * Q4 * (K2 * Q4) * sumTo (K4 ^ N4) (fun H4 => sm4 (fun y =>
         indB (E y.1 y.2.1 y.2.2.1 H4 (m1 y.2.2.2) (m2 (r1 y) y.2.2.2) (m3 (r1 y) (r2 y) y.2.2.2)
@@ -569,7 +589,7 @@ theorem comp_fs_open4 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {R Lm 
           (K2 * (Q4 * (NS1 * (NS2 * NS3 * (Q4 * (NR * (Q4 ^ 2 * M)) + Q4 * (Q4 * (Q4 ^ 2 * 0)))))) +
             (Q4 * (P * P) * (K2 * Q4) + Q4 * Q4 * (K2 * (P * P))) * (NS1 * (NS2 * NS3 * (NR * (Q4 ^ 2 * 1)))))))) +
             B4 * (Q4 * Q4 * (K2 * Q4) * sm4 (fun _ => 1)))) := by
-  intro m roots N C Pg Wt Mm NR0 pcsZ psimZ NR tabs tv pb ptm M q0 qZ Ss ks cols tqZ qdZ SsT SsC mk1 mk2 main1 main2 main3 vS sop1 sop2 sop3 ov1 ov2 ov3 rvF svF op3 sd3
+  intro m roots N C Pg Wt Mm NR0 pcsZ psimZ NR tabs tv pb ptm M q0 qZ Ss ks cols tqZ qdZ SsT SsC mk1 mk2 main1 main2 main3 vS sop1 sop2 sop3 ov1 ov2 ov3 rvF svF ozF op3 sd3
   obtain ⟨hbal, hun⟩ := comp_honest_zk hR hrl hr hA hlen hLm hK hNW
   obtain ⟨sc, sms, sw, hWh, _⟩ := comp_run_sats hR hrl hr hA hlen hLm hK hNW
   obtain ⟨p1, p2, s1, s2⟩ := comp_pub_heights hR hrl hA hlen hLm hK
@@ -693,17 +713,27 @@ theorem comp_fs_open4 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {R Lm 
     have e2 : SsC c4 = cSsC tbM tbC tpP tpS (SM c4) (SC c4) (S9 c4) (SP c4) (SS c4) := comp_SsC off m.hd m.stk m.heap.length roots.length m.stk m.heap N W roots C Mm Wt tbM tbC tpP tpS (SM c4) (SC c4) (S9 c4) (SP c4) (SS c4) EF.zero qv (wm 0) (wc 0) (ww 0) (wp 0) (wsg 0) ncw
     show ComPfHides NS3 Com3 (Pf3 c4) (fun d => (opQ (SsT c4) d.1, opCw (SsC c4) d.2))
     rw [e1, e2]; exact hp3 c4
+  have hoz : ∀ c4 c2 c3 α β r t, ozF (rvF c4 c2 c3 α β r t) = ozF (rvF 0 c2 c3 α β r t) := by
+    intro c4 c2 c3 α β r t
+    simp only [rvF]
+    unfold realVN
+    cases hA : Aborts (prefixOf α (off β)) β (tabs t)
+    · simp only [Bool.false_eq_true, ↓reduceIte, ozF, Option.some.injEq]
+      exact pcsFri_ood off (fun pre β t => compViewN pre β m.hd m.stk m.heap.length roots.length m.stk N W C Mm Wt t) (cGroups tbM tbC tpP tpS (SM c4) (SC c4) (S9 c4) (SP c4) (SS c4) (efOf c3) qv) (cGroups tbM tbC tpP tpS (SM 0) (SC 0) (S9 0) (SP 0) (SS 0) (efOf c3) qv) ks cols
+        ((cTs off m.hd m.stk m.heap.length roots.length m.stk m.heap N W roots C Mm Wt tbM tbC tpP tpS (SM c4) (SC c4) (S9 c4) (SP c4) (SS c4) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wp c2) (wsg c2)).map Prod.fst) ((cTs off m.hd m.stk m.heap.length roots.length m.stk m.heap N W roots C Mm Wt tbM tbC tpP tpS (SM 0) (SC 0) (S9 0) (SP 0) (SS 0) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wp c2) (wsg c2)).map Prod.fst) _ _ ncw (αd c4) (αd 0) _ _
+        (comp_same_d off m.hd m.stk m.heap.length roots.length m.stk m.heap N W roots C Mm Wt tbM tbC tpP tpS (SM c4) (SC c4) (S9 c4) (SP c4) (SS c4) (SM 0) (SC 0) (S9 0) (SP 0) (SS 0) (efOf c3) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wp c2) (wsg c2) (wm c2) (wc c2) (ww c2) (wp c2) (wsg c2) rfl rfl rfl rfl rfl) rfl rfl t α β (r % NR0)
+    · rfl
   have hgz : sumTo K2 (fun _ => sumTo Q4 (fun c3 => indB (!genB (efOf c3)))) ≤ K2 * (P * P) := by
     rw [genB_count, sumTo_const]; exact Nat.le_refl _
   exact ⟨fs_open4 hK2 Q4_pos hK4 φ hφ rvF svF (fun c2 c3 => genB (efOf c3)) hgz (fun c4 => genB (αd c4)) hB4
     (fun c4 c2 c3 α β r t => realVN_cases _ _ _ _ _ α β r t) (fun c4 c2 c3 α β r t => simVN_some _ _ _ _ _ _ _ _ α β r t)
-    (fun c4 c2 c3 hg4 hg => (hb c4 c2 c3 hg4 hg).1) (fun c4 c2 c3 hg4 hg => (hb c4 c2 c3 hg4 hg).2)
+    ozF hoz (fun c4 c2 c3 hg4 hg => (hb c4 c2 c3 hg4 hg).1) (fun c4 c2 c3 hg4 hg => (hb c4 c2 c3 hg4 hg).2)
     Com1 Pf1 (fun c4 => opF (Ss c4) mk1) (fun c4 => sdF (Ss c4) mk1) d1 hc1 hp1 hr1 ov1 (fun _ => rfl) main1 hsd1
     Com2 Pf2 (fun c4 => opF (Ss c4) mk2) (fun c4 => sdF (Ss c4) mk2) d2 hc2 hp2 hr2 ov2 (fun _ => rfl) main2 hsd2
     Com3 Pf3 op3 sd3 d3 hc3 hp3' hr3 ov3 (fun _ => rfl) main3 hsd3 hvo1 hvo2 hvo3 sop1 sop2 sop3 hsvo1 hsvo2 hsvo3 E,
     fs_open4R hK2 Q4_pos hK4 φ hφ rvF svF (fun c2 c3 => genB (efOf c3)) hgz (fun c4 => genB (αd c4)) hB4
     (fun c4 c2 c3 α β r t => realVN_cases _ _ _ _ _ α β r t) (fun c4 c2 c3 α β r t => simVN_some _ _ _ _ _ _ _ _ α β r t)
-    (fun c4 c2 c3 hg4 hg => (hb c4 c2 c3 hg4 hg).1) (fun c4 c2 c3 hg4 hg => (hb c4 c2 c3 hg4 hg).2)
+    ozF hoz (fun c4 c2 c3 hg4 hg => (hb c4 c2 c3 hg4 hg).1) (fun c4 c2 c3 hg4 hg => (hb c4 c2 c3 hg4 hg).2)
     Com1 Pf1 (fun c4 => opF (Ss c4) mk1) (fun c4 => sdF (Ss c4) mk1) d1 hc1 hp1 hr1 ov1 (fun _ => rfl) main1 hsd1
     Com2 Pf2 (fun c4 => opF (Ss c4) mk2) (fun c4 => sdF (Ss c4) mk2) d2 hc2 hp2 hr2 ov2 (fun _ => rfl) main2 hsd2
     Com3 Pf3 op3 sd3 d3 hc3 hp3' hr3 ov3 (fun _ => rfl) main3 hsd3 hvo1 hvo2 hvo3 sop1 sop2 sop3 hsvo1 hsvo2 hsvo3 E⟩
