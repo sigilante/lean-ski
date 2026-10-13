@@ -126,6 +126,7 @@ import Ski.ZK.ROMMerkle
 import Ski.ZK.ROMMerkleOpen
 import Ski.ZK.ROMWitness
 import Ski.ZK.ROMMerkle4
+import Ski.ZK.ROMAbort
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -1269,5 +1270,7 @@ open Ski.Audit
 #audit_clean Circuit.rget_rsetL_not Circuit.rget_rsetL_at Circuit.rgetL_congr Circuit.mem_lr Circuit.lr_mem Circuit.lr_nodup Circuit.nodup_filter Circuit.nodup_map_on Circuit.posU_nodup Circuit.unop_index Circuit.getD_mapN Circuit.lr_length Circuit.lr_getD_lt Circuit.posU_not_mem Circuit.pfMI_hides Circuit.pfM_pfMI Circuit.lsalt_at Circuit.lsalt_lt Circuit.lsalt_gt Circuit.sum_split_digit Circuit.lsalt_ne Circuit.shownS_eq Circuit.comM_eq Circuit.hitLeaf_bound Circuit.unop_mem Circuit.hitM_bound Circuit.transferM Circuit.pfM_hidesA Circuit.posAll_length Circuit.fs_openROMM Circuit.merkleOpen_sat Circuit.fs_openROMMR
 -- Four rounds over a Merkle tree's leaves, the opened set read at the challenge
 #audit_clean Circuit.mod_mul_div Circuit.rsetL_mod Circuit.unop_le Circuit.pfMIP_hides Circuit.pfMc_pfMI Circuit.any_unop_le Circuit.hitLeafc_bound Circuit.hitMc_bound Circuit.transferMc Circuit.transferMc_in Circuit.fs_open4ROMM Circuit.fs_open4ROMMR
+-- Query answers shown where the proof aborts
+#audit_clean Circuit.open_realQ Circuit.openEvQ_and Circuit.open_real_tQ Circuit.open_sim_tQ Circuit.fs_openQ Circuit.runQ_length Circuit.runQ_pre Circuit.runQ_split Circuit.smRT_lin Circuit.smRT_one Circuit.fs_openROMQ
 -- The hypotheses, met
 #audit_clean Circuit.inj_le_one Circuit.hposW Circuit.hsW Circuit.hndW Circuit.hlenW Circuit.hltW Circuit.hsLW Circuit.hdistM Circuit.hltM Circuit.hsM Circuit.hposOM Circuit.hφW Circuit.hφsW Circuit.hposF Circuit.hsF Circuit.hposOW Circuit.hsd1W

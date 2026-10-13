@@ -161,7 +161,9 @@ is built; this file records what is next. Last revised 2026-10-13.
   indices beside the openings at `ζ` the instances' `op1` names, so `hposO` ties the leaf
   positions to those rows and the opened rows' hiding comes from the PCS layer (`MaskFri`,
   `pcsCloseN_fri`), a joint statement not yet written; internal-node hashing
-  apart from the leaves' table stays an assumption); FRI's
+  apart from the leaves' table stays an assumption; query answers shown where the proof
+  aborts: `Ski/ZK/ROMAbort.lean`, one round (`fs_openROMQ`), the multi-round theorems not yet);
+  FRI's
   folding challenges hashed with the transcript before FRI (from its own layer commitments,
   against a table of its own, they fit already: `fs_pow`); FRI's layer commitments and final polynomial in the query hash's
   input (every opening at `ζ` is in it, `pcsFri_ood`, `pcsFri_oodT`,
