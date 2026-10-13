@@ -34,8 +34,11 @@ Not shown, and needed before this is Plonky3's FRI:
 - the proof's query indices `c4` are drawn before the commit phase, where
   Plonky3 samples them after it.  A strategy may draw its own after
   (`friCommitQPf`: `k` layers, then a query seed read at `φ M (R_k, k)`,
-  nothing reading `c4`; `friBetas_c4`, `friCommitQ_eq`,
-  `friCommitQ_reads`), but the proof's view still reads `c4`;
+  nothing reading `c4`; `friBetas_c4`, `friCommitQ_eq`, `friCommitQ_c4`,
+  `friCommitQ_seed`, `friCommitQ_reads`), but the proof's view still reads
+  `c4`.  That strategy derives every query index from one value below `K4`,
+  read at a point that holds the final root alone, where Plonky3 samples
+  each index after observing the final polynomial and the proof of work;
 - the proof's view keeps its own FRI (`fri c4`, `Rb c4` in `sudFS4T`);
   nothing here replaces it;
 - the opening's hiding given the opened values (`hp`) is a hypothesis,
@@ -225,10 +228,31 @@ theorem friCommitQ_eq {D R P : Type} (K1 K2 K3 K4 n1 k : Nat) (φ : Nat → R ×
   rw [friCommitPf_eq, friBetas_c4 K4 φ layer0 _ c4 0 M d σ (k + 1)]
   rfl
 
-/-- **Its reads**: `k + 1`, the last the query seed. -/
+/-- **Its reads**: `k + 1` of them. -/
 theorem friCommitQ_reads {D R : Type} (K1 K2 K3 K4 n1 k : Nat) (φ : Nat → R × Nat → Nat)
     (layer0 : D → Nat → List Nat → R) (H : Nat × Nat × Nat × Nat) (c4 M : Nat) (d : D) (σ : Nat) :
     (pfRdReads K1 K2 K3 K4 n1 (k + 1) φ (friCommitNxt n1 (fun _ => layer0)) H c4 M d σ).length = k + 1 :=
   pfRdReads_length _ _ _ _ _ _ _ _ _ _ _ _ _
+
+/-- **The strategy does not read `c4`.** -/
+theorem friCommitQ_c4 {D R P : Type} (K1 K2 K3 K4 n1 k : Nat) (φ : Nat → R × Nat → Nat) (layer0 : D → Nat → List Nat → R)
+    (out : Nat → D → Nat → List Nat → Nat → P) (c4 c4' : Nat) :
+    friCommitQPf K1 K2 K3 K4 n1 k φ layer0 out c4 = friCommitQPf K1 K2 K3 K4 n1 k φ layer0 out c4' := rfl
+
+/-- **The newest read is the query seed**: the fourth table at
+    `φ M (R_k, k)`, `R_k` the root after all `k` folding challenges. -/
+theorem friCommitQ_seed {D R : Type} (K1 K2 K3 K4 n1 k : Nat) (φ : Nat → R × Nat → Nat)
+    (layer0 : D → Nat → List Nat → R) (H : Nat × Nat × Nat × Nat) (c4 M : Nat) (d : D) (σ : Nat) :
+    (pfRdReads K1 K2 K3 K4 n1 (k + 1) φ (friCommitNxt n1 (fun _ => layer0)) H c4 M d σ).head? =
+      some (3, φ M (layer0 d σ (friBetas K4 φ (fun _ => layer0) H 0 M d σ k).reverse, k)) := by
+  unfold pfRdReads
+  show some (3, pt4 n1 φ (M % n1) (friCommitNxt n1 (fun _ => layer0) c4 M d σ
+      (runR4 K1 K2 K3 K4 n1 (M % n1) φ (friCommitNxt n1 (fun _ => layer0) c4 M d σ) H k))) = _
+  rw [friCommit_run]
+  show some (3, φ (M % n1 + n1 * (M / n1)) _) = _
+  rw [Nat.mod_add_div]
+  show some (3, φ M (layer0 d σ (friBetas K4 φ (fun _ => layer0) H c4 M d σ k).reverse,
+    (friBetas K4 φ (fun _ => layer0) H c4 M d σ k).length)) = _
+  rw [friBetas_length, friBetas_c4 K4 φ layer0 H c4 0 M d σ k]
 
 end Circuit
