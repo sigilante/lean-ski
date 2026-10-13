@@ -15,7 +15,8 @@ an unopened leaf, the opened set read off the commitment on both sides
 its position leaving the opened set, the opened data and the shown salts
 free of that salt (`hitLeafc_bound`), `L s k / NSl` in all (`hitMc_bound`);
 the transfer runs inside the other draws' count (`transferMc_in`), and
-`fs_open4` holds at the padded ideal openings (`fs_open4ROMM`).
+`fs_open4` holds at the padded ideal openings (`fs_open4ROMM`), and with a
+root of the leaves hashed in their place (`fs_open4ROMMR`).
 -/
 
 set_option autoImplicit false
@@ -428,6 +429,172 @@ theorem fs_open4ROMM {PV PB D O Pq D2 O2 P2 D3 O3 P3 W : Type}
       K4 * (Q4 * Q4 * (K2 * K3) * sumTo (K4 ^ N4) (fun H4 =>
       sumTo ((Q4 * Q4) ^ (KA ^ L)) (fun H1 => sumTo (K2 ^ ((KA ^ L) * n2)) (fun H2 =>
         sumTo (K3 ^ ((KA ^ L) * (n2 * n3))) (fun H3 => (KA ^ L) * X H4 H1 H2 H3))))) := fun X => by
+    rw [Nat.mul_left_comm (KA ^ L) K4, Nat.mul_left_comm (KA ^ L) (Q4 * Q4 * (K2 * K3)), sumTo_mul]
+    exact congrArg (fun z => K4 * (Q4 * Q4 * (K2 * K3) * z)) (sumTo_congr _ (fun H4 _ =>
+      (sumTo_mul _ _ _).trans (sumTo_congr _ (fun H1 _ =>
+        (sumTo_mul _ _ _).trans (sumTo_congr _ (fun H2 _ => sumTo_mul _ _ _))))))
+  rw [hb]
+  refine Nat.le_trans (Nat.mul_le_mul_left _ (Nat.mul_le_mul_left _
+    (sumTo_mono _ (fun H4 _ => sumTo_mono _ (fun H1 _ => sumTo_mono _ (fun H2 _ =>
+      sumTo_mono _ (fun H3 _ => step H4 H1 H2 H3))))))) ?_
+  simp only [sumTo_add, sumTo_const]
+  rw [Nat.mul_add (Q4 * Q4 * (K2 * K3)), Nat.mul_add K4]
+  exact Nat.add_le_add_right fo _
+
+/-- **Four Fiat–Shamir rounds over a Merkle tree's root drawn from the
+    oracle**: `fs_open4ROMM` with the root `R` of the leaves' answers hashed
+    in their place, its range `K`; the transfer pads with `KT = KA^L` digits.
+    Normalized, the bound gains `L s k / NSl` a draw; one direction. -/
+theorem fs_open4ROMMR {PV PB D O Pq D2 O2 P2 D3 O3 P3 W : Type}
+    {K KA KT NR m e1 e2 NSl L s k n NS2 NS3 K2 K3 K4 n2 n3 : Nat}
+    (hKA : 0 < KA) (hN : 0 < NSl) (hKT : KT = KA ^ L) (R : Nat → Nat) (hR : ∀ c, R c < K) (hK2 : 0 < K2) (hK3 : 0 < K3) (hK4 : 0 < K4)
+    (φ : Nat → W → Nat) {N4 : Nat} (hφ : ∀ m w, φ m w < N4)
+    (rv sv : Nat → Nat → Nat → EF → EF → Nat → (Nat → Tup) → TViewN PV PB) (gz : Nat → Nat → Bool)
+    {Bz : Nat} (hgz : sumTo K2 (fun c2 => sumTo K3 (fun c3 => indB (!gz c2 c3))) ≤ Bz)
+    (g4 : Nat → Bool) {B4 : Nat} (hB4 : sumTo K4 (fun c4 => indB (!g4 c4)) ≤ B4)
+    (hrv : ∀ c4 c2 c3 α β r t, rv c4 c2 c3 α β r t = none ∨ ∃ p x y, rv c4 c2 c3 α β r t = some (p, α, β, x, y))
+    (hsv : ∀ c4 c2 c3 α β r t, ∃ p x y, sv c4 c2 c3 α β r t = some (p, α, β, x, y))
+    (oz : TViewN PV PB → W) (hoz : ∀ c4 c2 c3 α β r t, oz (rv c4 c2 c3 α β r t) = oz (rv 0 c2 c3 α β r t))
+    (h1 : ∀ c4 c2 c3, g4 c4 = true → gz c2 c3 = true → ∀ E : TViewN PV PB → Bool,
+      tsumN NR m (fun α β r t => indB (genB β && E (rv c4 c2 c3 α β r t))) ≤
+        tsumN NR m (fun α β r t => indB (genB β && E (sv c4 c2 c3 α β r t))) + e1 + e2)
+    (h2 : ∀ c4 c2 c3, g4 c4 = true → gz c2 c3 = true → ∀ E : TViewN PV PB → Bool,
+      tsumN NR m (fun α β r t => indB (genB β && E (sv c4 c2 c3 α β r t))) ≤
+        tsumN NR m (fun α β r t => indB (genB β && E (rv c4 c2 c3 α β r t))) + e1 + e2)
+    (pos : D → Nat → Nat → Nat)
+    (hdist : ∀ d l l' a b, l < L → l' < L → l ≠ l' → pos d l a ≠ pos d l' b)
+    (hlt : ∀ d l a, l < L → pos d l a < n) (g : O → List Nat → Pq)
+    (hs : ∀ d l v, sumTo NSl (fun x => indB (decide (pos d l x = v))) ≤ s)
+    (nxt : Pq → Nat → List Nat → Nat) (op1 : Nat → D → O) (isOf : Nat → Nat → Bool)
+    (hposO : ∀ c4 d d', op1 c4 d = op1 c4 d' → ∀ l a, isOf c4 l = true → pos d l a = pos d' l a) (sd1 : Nat → O → D) (d1 : D)
+    (ov1 : Nat → TViewN PV PB → Option O) (hov1 : ∀ c4, ov1 c4 none = none) (main1 : (Nat → Tup) → Nat → D)
+    (hsd1 : ∀ c4 t r, op1 c4 (sd1 c4 (op1 c4 (main1 t r))) = op1 c4 (main1 t r))
+    (Com2 : D2 → Nat → Nat) (Pf2 : Nat → D2 → Nat → P2) (op2 : Nat → D2 → O2) (sd2 : Nat → O2 → D2) (d2 : D2)
+    (hc2 : ComHides NS2 Com2) (hp2 : ∀ c4, ComPfHides NS2 Com2 (Pf2 c4) (op2 c4)) (hr2 : ∀ d σ, Com2 d σ < n2)
+    (ov2 : Nat → TViewN PV PB → Option O2) (hov2 : ∀ c4, ov2 c4 none = none) (main2 : Nat → (Nat → Tup) → Nat → D2)
+    (hsd2 : ∀ c4 c t r, op2 c4 (sd2 c4 (op2 c4 (main2 c t r))) = op2 c4 (main2 c t r))
+    (Com3 : D3 → Nat → Nat) (Pf3 : Nat → D3 → Nat → P3) (op3 : Nat → D3 → O3) (sd3 : Nat → O3 → D3) (d3 : D3)
+    (hc3 : ComHides NS3 Com3) (hp3 : ∀ c4, ComPfHides NS3 Com3 (Pf3 c4) (op3 c4)) (hr3 : ∀ d σ, Com3 d σ < n3)
+    (ov3 : Nat → TViewN PV PB → Option O3) (hov3 : ∀ c4, ov3 c4 none = none) (main3 : Nat → Nat → (Nat → Tup) → Nat → D3)
+    (hsd3 : ∀ c4 c c' t r, op3 c4 (sd3 c4 (op3 c4 (main3 c c' t r))) = op3 c4 (main3 c c' t r))
+    (hvo1 : ∀ c4 c2 c3 c r t, rv c4 c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t = none ∨
+      ov1 c4 (rv c4 c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t) = some (op1 c4 (main1 t r)))
+    (hvo2 : ∀ c4 c2 c3 c r t, rv c4 c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t = none ∨
+      ov2 c4 (rv c4 c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t) = some (op2 c4 (main2 c t r)))
+    (hvo3 : ∀ c4 c2 c3 c r t, rv c4 c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t = none ∨
+      ov3 c4 (rv c4 c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t) = some (op3 c4 (main3 c c2 t r)))
+    (sop1 : Nat → Nat → Nat → Nat → (Nat → Tup) → O) (sop2 : Nat → Nat → Nat → Nat → Nat → (Nat → Tup) → O2)
+    (sop3 : Nat → Nat → Nat → Nat → Nat → (Nat → Tup) → O3)
+    (hsvo1 : ∀ c4 c2 c3 c r t, ov1 c4 (sv c4 c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t) = some (sop1 c4 c2 c3 r t))
+    (hsvo2 : ∀ c4 c2 c3 c r t, ov2 c4 (sv c4 c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t) = some (sop2 c4 c2 c3 c r t))
+    (hsvo3 : ∀ c4 c2 c3 c r t, ov3 c4 (sv c4 c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t) = some (sop3 c4 c2 c3 c r t))
+    (E : Nat → Nat → Nat → Nat → Nat → Nat → Nat → Option (Pq × List Nat) × Option (P2 × P3) × TViewN PV PB → Bool) :
+    let Com1 := rootM R KA NSl L pos
+    let Pf1 := fun c4 => pfM KA NSl L k pos (isOf c4) (op1 c4) g nxt
+    let Cmi := fun (d : D) (σ : Nat) => R (comMI KA NSl L L pos d σ)
+    let Pfi := fun c4 => pfMI KA NSl L L k pos (isOf c4) (op1 c4) g nxt
+    let smR := fun (f : Nat × Nat × Nat × (Nat → Tup) → Nat) =>
+      sumTo (NSl ^ L * KA ^ n) (fun σ1 => sumTo (NS2 * NS3) (fun σ => sumTo NR (fun r => sumN m (fun t =>
+        f (σ1, σ, r, t)))))
+    let smI := fun (f : Nat × Nat × Nat × (Nat → Tup) → Nat) =>
+      sumTo (NSl ^ L * KA ^ n * KT) (fun σ1 => sumTo (NS2 * NS3) (fun σ => sumTo NR (fun r => sumN m (fun t =>
+        f (σ1, σ, r, t)))))
+    let m1 := fun (x : Nat × Nat × Nat × (Nat → Tup)) => Com1 (main1 x.2.2.2 x.2.2.1) x.1
+    let m2 := fun (c1 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
+      m1 x + K * Com2 (main2 c1 x.2.2.2 x.2.2.1) (x.2.1 % NS2)
+    let m3 := fun (c1 c2 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
+      m1 x + K * comPair NS2 n2 Com2 Com3 (main2 c1 x.2.2.2 x.2.2.1, main3 c1 c2 x.2.2.2 x.2.2.1) x.2.1
+    let rvo := fun (c4 c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
+      ((ov1 c4 (rv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)).map (fun _ => Pf1 c4 (main1 x.2.2.2 x.2.2.1) x.1),
+       (ovPair (ov2 c4) (ov3 c4) (rv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)).map
+         (fun _ => pfPair NS2 (Pf2 c4) (Pf3 c4) (main2 c1 x.2.2.2 x.2.2.1, main3 c1 c2 x.2.2.2 x.2.2.1) x.2.1),
+       rv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)
+    let s1 := fun (c4 _c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) => Cmi (sd1 c4 (sop1 c4 c2 c3 x.2.2.1 x.2.2.2)) x.1
+    let s2 := fun (c4 c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
+      s1 c4 c1 c2 c3 x + K * Com2 (sd2 c4 (sop2 c4 c2 c3 c1 x.2.2.1 x.2.2.2)) (x.2.1 % NS2)
+    let s3 := fun (c4 c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
+      s1 c4 c1 c2 c3 x + K * comPair NS2 n2 Com2 Com3
+        (sd2 c4 (sop2 c4 c2 c3 c1 x.2.2.1 x.2.2.2), sd3 c4 (sop3 c4 c2 c3 c1 x.2.2.1 x.2.2.2)) x.2.1
+    let svo := fun (c4 c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
+      (some (Pfi c4 (sd1 c4 (sop1 c4 c2 c3 x.2.2.1 x.2.2.2)) x.1),
+       some (pfPair NS2 (Pf2 c4) (Pf3 c4) (sd2 c4 (sop2 c4 c2 c3 c1 x.2.2.1 x.2.2.2), sd3 c4 (sop3 c4 c2 c3 c1 x.2.2.1 x.2.2.2)) x.2.1),
+       sv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)
+    let sm4 := fun (g : Nat × Nat × Nat × (Nat × Nat × Nat × (Nat → Tup)) → Nat) =>
+      sumTo ((Q4 * Q4) ^ K) (fun H1 => sumTo (K2 ^ (K * n2)) (fun H2 =>
+        sumTo (K3 ^ (K * (n2 * n3))) (fun H3 => smR (fun x => g (H1, H2, H3, x)))))
+    let sm4I := fun (g : Nat × Nat × Nat × (Nat × Nat × Nat × (Nat → Tup)) → Nat) =>
+      sumTo ((Q4 * Q4) ^ K) (fun H1 => sumTo (K2 ^ (K * n2)) (fun H2 =>
+        sumTo (K3 ^ (K * (n2 * n3))) (fun H3 => smI (fun x => g (H1, H2, H3, x)))))
+    let r1 := fun (y : Nat × Nat × Nat × (Nat × Nat × Nat × (Nat → Tup))) => rget (Q4 * Q4) (m1 y.2.2.2) y.1
+    let r2 := fun (y : Nat × Nat × Nat × (Nat × Nat × Nat × (Nat → Tup))) => rget K2 (m2 (r1 y) y.2.2.2) y.2.1
+    let r3 := fun (y : Nat × Nat × Nat × (Nat × Nat × Nat × (Nat → Tup))) => rget K3 (m3 (r1 y) (r2 y) y.2.2.2) y.2.2.1
+    let Mq := fun (y : Nat × Nat × Nat × (Nat × Nat × Nat × (Nat → Tup))) => φ (m3 (r1 y) (r2 y) y.2.2.2)
+      (oz (rv 0 (r2 y) (r3 y) (efOf (r1 y / Q4)) (efOf (r1 y % Q4)) y.2.2.2.2.2.1 y.2.2.2.2.2.2))
+    KT * (K4 * (Q4 * Q4 * (K2 * K3) * sumTo (K4 ^ N4) (fun H4 => sm4 (fun y =>
+      indB (E y.1 y.2.1 y.2.2.1 H4 (m1 y.2.2.2) (m2 (r1 y) y.2.2.2) (m3 (r1 y) (r2 y) y.2.2.2)
+        (rvo (rget K4 (Mq y) H4) (r1 y) (r2 y) (r3 y) y.2.2.2)))))) ≤
+    sumTo (K4 ^ N4) (fun H4 => sumTo K4 (fun c4 =>
+      sumTo ((Q4 * Q4) ^ K) (fun H1 => sumTo (K2 ^ (K * n2)) (fun H2 => sumTo (K3 ^ (K * (n2 * n3))) (fun H3 =>
+      sumTo (Q4 * Q4) (fun c1 => sumTo K2 (fun c2 => sumTo K3 (fun c3 => smI (fun x =>
+        indB (E (rset (Q4 * Q4) (s1 c4 c1 c2 c3 x) H1 c1) (rset K2 (s2 c4 c1 c2 c3 x) H2 c2)
+          (rset K3 (s3 c4 c1 c2 c3 x) H3 c3) (rset K4 (φ (s3 c4 c1 c2 c3 x) (oz (sv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2))) H4 c4)
+          (s1 c4 c1 c2 c3 x) (s2 c4 c1 c2 c3 x) (s3 c4 c1 c2 c3 x) (svo c4 c1 c2 c3 x))))))))))) +
+      K4 ^ N4 * (K4 * ((Q4 * Q4) ^ K * (K2 ^ (K * n2) * (K3 ^ (K * (n2 * n3)) *
+        (K2 * (K3 * (NSl ^ L * KA ^ n * KT * (NS2 * NS3 * (e1 + e2)))) +
+          (Q4 * (P * P) * (K2 * K3) + Q4 * Q4 * Bz) * (NSl ^ L * KA ^ n * KT * (NS2 * NS3 * (NR * (Q4 ^ m * 1)))))))) +
+          B4 * (Q4 * Q4 * (K2 * K3) * sm4I (fun _ => 1))) +
+      K4 * (Q4 * Q4 * (K2 * K3) * (K4 ^ N4 * ((Q4 * Q4) ^ K * (K2 ^ (K * n2) * (K3 ^ (K * (n2 * n3)) *
+        (KT * (L * (KA ^ n * (NSl ^ (L - 1) * (s * k)))) * (NS2 * NS3 * (NR * (Q4 ^ m * 1))))))))) := by
+  subst hKT
+  have hc1 : ComHides (NSl ^ L * KA ^ n * KA ^ L) (fun (d : D) (σ : Nat) => R (comMI KA NSl L L pos d σ)) := fun d d' E =>
+    pfMIP_hides (k := 0) (O := Unit) (P := Unit) hKA pos hdist hlt (fun _ => false) (fun _ => ())
+      (fun _ _ _ _ _ h => absurd h Bool.false_ne_true) (fun _ _ => ()) (fun _ _ _ => 0) d d' rfl (fun c _ => E (R c))
+  have hp1 : ∀ c4, ComPfHides (NSl ^ L * KA ^ n * KA ^ L) (fun (d : D) (σ : Nat) => R (comMI KA NSl L L pos d σ))
+      (pfMI KA NSl L L k pos (isOf c4) (op1 c4) g nxt) (op1 c4) := fun c4 d d' hop E =>
+    pfMIP_hides hKA pos hdist hlt (isOf c4) (op1 c4) (hposO c4) g nxt d d' hop (fun c pf => E (R c) pf)
+  intro Com1 Pf1 Cmi Pfi smR smI m1 m2 m3 rvo s1 s2 s3 svo sm4 sm4I r1 r2 r3 Mq
+  have fo := fs_open4 (NS1 := NSl ^ L * KA ^ n * (KA ^ L)) (n1 := K) hK2 hK3 hK4 φ hφ rv sv gz hgz g4 hB4 hrv hsv oz hoz
+    h1 h2 Cmi Pfi op1 sd1 d1 hc1 hp1 (fun _ _ => hR _) ov1 hov1 main1 hsd1
+    Com2 Pf2 op2 sd2 d2 hc2 hp2 hr2 ov2 hov2 main2 hsd2 Com3 Pf3 op3 sd3 d3 hc3 hp3 hr3 ov3 hov3 main3 hsd3
+    hvo1 hvo2 hvo3 sop1 sop2 sop3 hsvo1 hsvo2 hsvo3 E
+  -- the query challenge and the event, read off the first commitment's value `c`
+  let c4f := fun (H1 H2 H3 H4 : Nat) (y : Nat × Nat × (Nat → Tup)) (c : Nat) =>
+    let c1 := rget (Q4 * Q4) c H1
+    let c2 := rget K2 (c + K * Com2 (main2 c1 y.2.2 y.2.1) (y.1 % NS2)) H2
+    let mm3 := c + K * comPair NS2 n2 Com2 Com3 (main2 c1 y.2.2 y.2.1, main3 c1 c2 y.2.2 y.2.1) y.1
+    let c3 := rget K3 mm3 H3
+    rget K4 (φ mm3 (oz (rv 0 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) y.2.1 y.2.2))) H4
+  let ev := fun (H1 H2 H3 H4 : Nat) (y : Nat × Nat × (Nat → Tup)) (c : Nat) (pf : Pq × List Nat) =>
+    let c1 := rget (Q4 * Q4) c H1
+    let mm2 := c + K * Com2 (main2 c1 y.2.2 y.2.1) (y.1 % NS2)
+    let c2 := rget K2 mm2 H2
+    let mm3 := c + K * comPair NS2 n2 Com2 Com3 (main2 c1 y.2.2 y.2.1, main3 c1 c2 y.2.2 y.2.1) y.1
+    let c3 := rget K3 mm3 H3
+    let c4 := c4f H1 H2 H3 H4 y c
+    E H1 H2 H3 H4 c mm2 mm3
+      ((ov1 c4 (rv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) y.2.1 y.2.2)).map (fun _ => pf),
+       (ovPair (ov2 c4) (ov3 c4) (rv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) y.2.1 y.2.2)).map
+         (fun _ => pfPair NS2 (Pf2 c4) (Pf3 c4) (main2 c1 y.2.2 y.2.1, main3 c1 c2 y.2.2 y.2.1) y.1),
+       rv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) y.2.1 y.2.2)
+  have hso := smT_lin (NS2 * NS3) NR m
+  have so1 := smT_one (NS2 * NS3) NR m
+  have step : ∀ H4 H1 H2 H3,
+      (KA ^ L) * smR (fun x => indB (ev H1 H2 H3 H4 x.2 (Com1 (main1 x.2.2.2 x.2.2.1) x.1)
+        (Pf1 (c4f H1 H2 H3 H4 x.2 (Com1 (main1 x.2.2.2 x.2.2.1) x.1)) (main1 x.2.2.2 x.2.2.1) x.1))) ≤
+      smI (fun x => indB (ev H1 H2 H3 H4 x.2 (Cmi (main1 x.2.2.2 x.2.2.1) x.1)
+        (Pfi (c4f H1 H2 H3 H4 x.2 (Cmi (main1 x.2.2.2 x.2.2.1) x.1)) (main1 x.2.2.2 x.2.2.1) x.1))) +
+        (KA ^ L) * (L * (KA ^ n * (NSl ^ (L - 1) * (s * k)))) * (NS2 * NS3 * (NR * (Q4 ^ m * 1))) := fun H4 H1 H2 H3 => by
+    have tr := transferMc_in (n := n) (NSl := NSl) (L := L) (s := s) (k := k) hKA hN (smT (NS2 * NS3) NR m) hso
+      pos hdist hlt hs isOf op1 g nxt (fun y => main1 y.2.2 y.2.1) (fun y c => c4f H1 H2 H3 H4 y (R c))
+      (fun y c pf => ev H1 H2 H3 H4 y (R c) pf)
+    rw [hso, hso, so1] at tr
+    exact tr
+  have hb : ∀ X : Nat → Nat → Nat → Nat → Nat, (KA ^ L) * (K4 * (Q4 * Q4 * (K2 * K3) * sumTo (K4 ^ N4) (fun H4 =>
+      sumTo ((Q4 * Q4) ^ K) (fun H1 => sumTo (K2 ^ (K * n2)) (fun H2 =>
+        sumTo (K3 ^ (K * (n2 * n3))) (fun H3 => X H4 H1 H2 H3)))))) =
+      K4 * (Q4 * Q4 * (K2 * K3) * sumTo (K4 ^ N4) (fun H4 =>
+      sumTo ((Q4 * Q4) ^ K) (fun H1 => sumTo (K2 ^ (K * n2)) (fun H2 =>
+        sumTo (K3 ^ (K * (n2 * n3))) (fun H3 => (KA ^ L) * X H4 H1 H2 H3))))) := fun X => by
     rw [Nat.mul_left_comm (KA ^ L) K4, Nat.mul_left_comm (KA ^ L) (Q4 * Q4 * (K2 * K3)), sumTo_mul]
     exact congrArg (fun z => K4 * (Q4 * Q4 * (K2 * K3) * z)) (sumTo_congr _ (fun H4 _ =>
       (sumTo_mul _ _ _).trans (sumTo_congr _ (fun H1 _ =>
