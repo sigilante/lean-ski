@@ -32,7 +32,8 @@ spread `hs` alone.
 
 The circuit instances: `ROMInstMC` (`sud_fs_open4ROMMC`,
 `wit_fs_open4ROMMC`, `comp_fs_open4ROMMC`); the families: `ROMFamilyMC`,
-the commitment's spread holding up to the meeting salt vectors.
+the commitment's spread holding up to the meeting salt vectors.  Plonky3's positions, no index: `ROMMerkleRowsP`;
+the Sudoku proof at FRI's leaves there: `ROMMerkleIdxC`.
 -/
 
 set_option autoImplicit false
