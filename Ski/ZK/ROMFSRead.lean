@@ -6,7 +6,7 @@ import Ski.ZK.ROMAbort
 The theorems so far let the distinguisher's queries into the commitment's
 table read the opening and the commitment, not the Fiat–Shamir table.
 Here they may.  After the reprogramming (`fs_real`) the real view reads
-`rset H m c`, the table `H` but at the message, so for each `H` it is a view
+`rset H m c`, the table `H` with its answer at the message set to `c`, so for each `H` it is a view
 of the challenge and the draw, and `fs_zk` holds with its hypothesis taken
 at each table (`fs_zkT`).  An opening that reads the table then reads it
 through the commitment's value, and hides when it hides at each table
@@ -14,8 +14,12 @@ through the commitment's value, and hides when it hides at each table
 with the commitment opened holds (`fs_openT`), and over the oracle's
 commitment, the distinguisher's queries `nxtT H` chosen from the table, the
 transfer runs at each table and `fs_openT` at the ideal opening
-(`fs_openROMT`).  One round; the multi-round theorems over table-reading
-views are not yet written.
+(`fs_openROMT`).  The queries read the table, and through it the
+challenges, the commitment and the opening, not the transcript's other
+messages; their answers are shown where the proof does not abort
+(`ROMAbort` shows them there, apart); `ROMHide`'s other limits hold.  One
+round; the multi-round theorems over table-reading views are not yet
+written.
 -/
 
 set_option autoImplicit false
@@ -46,6 +50,7 @@ theorem fs_zkT {X Vw : Type} {K n ε : Nat} (hK : 0 < K) (sm : (X → Nat) → N
         sumTo_mono _ (fun H _ => h H (fun c m v => E (rset K m H c) m c v))
     _ = _ := by rw [sumTo_add, sumTo_const]
 
+/-- Picking the term at `a` out of a sum of indicators. -/
 theorem sum_pick (g : Nat → Bool) : ∀ (n a : Nat), a < n →
     sumTo n (fun v => indB (decide (a = v) && g v)) = indB (g a)
   | 0, _, h => absurd h (Nat.not_lt_zero _)
@@ -179,7 +184,8 @@ theorem fs_openT {PV PB D O Pp : Type} {NR m NS n e1 e2 : Nat} (Com : D → Nat 
     distinguisher's queries reading the Fiat–Shamir table** (`nxtT H`): the
     transfer at each table, then `fs_openT` at the ideal opening, whose
     queries read the table the simulator programs.  `K` times the real count
-    is at most the simulator's plus `fs_open`'s error and `s k / NSh` a
+    is at most the simulator's, which commits through the ideal opening
+    (`comI`, `pfI`), plus `fs_open`'s error and `s k / NSh` a
     draw; one direction. -/
 theorem fs_openROMT {PV PB D O P : Type} {NR m e1 e2 K n NSh NSo s k : Nat} (hK : 0 < K)
     (pos : D → Nat → Nat → Nat) (hpos : ∀ d σo σh, pos d σo σh < n) (g : O → Nat → P)
