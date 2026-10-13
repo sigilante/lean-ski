@@ -163,6 +163,7 @@ import Ski.ZK.SpongeLoadL
 import Ski.ZK.SpongeTree
 import Ski.ZK.SpongeUnion
 import Ski.ZK.FriProof
+import Ski.ZK.AdaptDraws
 import Ski.ZK.FSQueryAbsT
 import Ski.ZK.FSQueryPowT
 import Ski.ZK.ROMFamilyT
@@ -1410,3 +1411,6 @@ open Ski.Audit
 
 -- The Sudoku proofs with FRI in Plonky3's order as an opening (FriProof)
 #audit_clean Circuit.sud_interleaveFRI
+
+-- A picked statement's draw-only bad events cost one statement's (AdaptDraws)
+#audit_clean Circuit.zkbT_adaptive_draws
