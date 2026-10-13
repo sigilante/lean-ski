@@ -1229,5 +1229,5 @@ open Ski.Audit
 -- Two proofs of each circuit under one oracle
 #audit_clean Circuit.sud_fs_open4_two Circuit.wit_fs_open4_two Circuit.comp_fs_open4_two
 -- A commitment drawn from the random oracle hides
-#audit_clean Circuit.rom_off Circuit.rom_hide Circuit.runQ_rset Circuit.qposQ_rset Circuit.rom_offQ Circuit.rom_offQ'
+#audit_clean Circuit.rom_off Circuit.rom_hide Circuit.runQ_rset Circuit.rom_offQ Circuit.rom_offQ'
   Circuit.qposQ_length Circuit.salts_in Circuit.rom_hideQ
