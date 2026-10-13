@@ -78,8 +78,10 @@ def ovPair {PV PB O2 O3 : Type} (ov2 : TViewN PV PB → Option O2) (ov3 : TViewN
     The simulator commits and opens data through its own view's openings
     and programs all three tables.  Where the transcript bound holds at
     each guarded pair of later challenges, `Q4² K2 K3` times the real
-    count is within `(Q4²)^n1 K2^(n1 n2) K3^(n1 n2 n3) K2 K3 NS1 NS2 NS3
-    (e1 + e2)` of the simulator's. -/
+    count is at most the simulator's plus `(Q4²)^n1 K2^(n1 n2)
+    K3^(n1 n2 n3) K2 K3 NS1 NS2 NS3 (e1 + e2)`; one direction only.  One proof per oracle.  The guard `gz`
+    drops the excluded challenges from both counts; their mass is not in
+    the bound. -/
 theorem fs_open3 {PV PB D1 O1 P1 D2 O2 P2 D3 O3 P3 : Type} {NR m e1 e2 NS1 NS2 NS3 K2 K3 n1 n2 n3 : Nat}
     (hK2 : 0 < K2) (hK3 : 0 < K3)
     (rv sv : Nat → Nat → EF → EF → Nat → (Nat → Tup) → TViewN PV PB) (gz : Nat → Nat → Bool)
@@ -237,9 +239,14 @@ set_option maxRecDepth 100000 in
     through its own view's openings and programs all three tables
     (`fs_open3`).  Assumed: each commitment hides alone and given its
     openings at the real query points, perfectly, and is a primitive apart
-    from the oracle; generic `β` and `ζ`; the weights a family of fixed
-    lengths; the FRI challenge `αb` and the query points fixed
-    parameters, unhashed; one proof per oracle. -/
+    from the oracle; generic `β` and `ζ`, the other draws dropped from
+    both counts, their mass outside the bound; the weights a family of
+    fixed lengths; the FRI challenge `αb` and the query points fixed
+    parameters, unhashed; one proof per oracle.  The third commitment's
+    data are taken at `ζ = 0`: without an abort they equal the data at
+    every `ζ` (`sud_data_zeta`), and with one only the commitment shows.
+    Not shown here: that the simulator reads only the tables'
+    preprocessed columns (`sudPsim_pre` covers `sudPsim`). -/
 theorem sud_fs_open3 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {puzzle : List Nat} (hc : CluesOK (cluesOf puzzle))
     {ρ : Nat → Bool} {A : List Cell} {k : Nat} {row : Nat → Air.Row}
     (hA : AcceptsFrom A (stmtMachine ρ 729 (sudokuExpr (cluesOf puzzle)) ACC REJ) k row)

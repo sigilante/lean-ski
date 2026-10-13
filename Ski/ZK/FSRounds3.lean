@@ -122,8 +122,10 @@ theorem fs_real3 {X Vw : Type} {K1 K2 K3 n1 n2 n3 : Nat} (hK1 : 0 < K1) (hK2 : 0
 /-- **Fiat–Shamir over three rounds**, three oracle tables: the real proof's
     messages `m1 x`, `m2 c1 x`, `m3 c1 c2 x`, each challenge the table's
     answer at its message; the simulator's messages read all three
-    challenges.  `K1 K2 K3` times the real count is within
-    `K1^n1 K2^n2 K3^n3 ε` of the simulator's, which programs every table. -/
+    challenges.  `K1 K2 K3` times the real count is at most the
+    simulator's, which programs every table, plus `K1^n1 K2^n2 K3^n3 ε`;
+    one direction only.
+    One proof per oracle: each table is programmed at one point. -/
 theorem fs_zk3 {X Vw : Type} {K1 K2 K3 n1 n2 n3 ε : Nat} (hK1 : 0 < K1) (hK2 : 0 < K2) (hK3 : 0 < K3)
     (sm : (X → Nat) → Nat)
     (hsm : ∀ (N : Nat) (f : Nat → X → Nat), sm (fun x => sumTo N (fun i => f i x)) = sumTo N (fun i => sm (f i)))

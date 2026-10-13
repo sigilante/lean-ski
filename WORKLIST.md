@@ -119,8 +119,10 @@ is built; this file records what is next. Last revised 2026-10-13.
   constraint-folding challenge fixed, the non-generic `ζ` excluded. With both commitments
   opened, the second of the permutation groups' and quotient chunks' matrices with their
   codewords, every proof keeps it too (`Ski/ZK/FSOpen2Inst.lean`,
-  `Ski/ZK/FSOpen2Inst2.lean`, `*_fs_open2`). Open: the permutation and quotient commitments
-  apart, the constraint-folding challenge hashed; the FRI layers hashed; `Com` from the same
+  `Ski/ZK/FSOpen2Inst2.lean`, `*_fs_open2`). Over three rounds, the permutation and quotient
+  commitments apart and the constraint-folding challenge hashed from the transcript with the
+  permutation commitment, every commitment opened, every proof keeps it too
+  (`Ski/ZK/FSOpen3.lean`, `Ski/ZK/FSOpen3Inst.lean`, `*_fs_open3`). Open: the FRI layers hashed; `Com` from the same
   oracle (bounded queries, a ROM-hiding term); several proofs per oracle (a hybrid and a
   collision term); the later rounds under the oracle (the FRI challenge, the query points);
   the lookup proof-of-work nonce. The groups' trace and mask points (`hT`, `hRq`) are tied

@@ -43,9 +43,14 @@ set_option maxRecDepth 100000 in
     through its own view's openings and programs all three tables
     (`fs_open3`).  Assumed: each commitment hides alone and given its
     openings at the real query points, perfectly, and is a primitive apart
-    from the oracle; generic `β` and `ζ`; the weights a family of fixed
-    lengths; the FRI challenge `αb` and the query points fixed
-    parameters, unhashed; one proof per oracle. -/
+    from the oracle; generic `β` and `ζ`, the other draws dropped from
+    both counts, their mass outside the bound; the weights a family of
+    fixed lengths; the FRI challenge `αb` and the query points fixed
+    parameters, unhashed; one proof per oracle.  The third commitment's
+    data are taken at `ζ = 0`: without an abort they equal the data at
+    every `ζ` (`wit_data_zeta`), and with one only the commitment shows.
+    Not shown here: that the simulator reads only the tables'
+    preprocessed columns (`wPsim_pre` covers `wPsim`). -/
 theorem wit_fs_open3 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {Vt x : Term} {W : Nat} {ws : List Cell} (hwf : WF ws)
     (hwl : ws.length = W) (hW8 : W ≤ 2 ^ 8) {A : List Cell} {k : Nat} {row : Nat → Air.Row}
     (hA : AcceptsFrom A (wMachine ws (Vt ⬝ x)) k row)
@@ -328,9 +333,14 @@ set_option maxRecDepth 100000 in
     through its own view's openings and programs all three tables
     (`fs_open3`).  Assumed: each commitment hides alone and given its
     openings at the real query points, perfectly, and is a primitive apart
-    from the oracle; generic `β` and `ζ`; the weights a family of fixed
-    lengths; the FRI challenge `αb` and the query points fixed
-    parameters, unhashed; one proof per oracle. -/
+    from the oracle; generic `β` and `ζ`, the other draws dropped from
+    both counts, their mass outside the bound; the weights a family of
+    fixed lengths; the FRI challenge `αb` and the query points fixed
+    parameters, unhashed; one proof per oracle.  The third commitment's
+    data are taken at `ζ = 0`: without an abort they equal the data at
+    every `ζ` (`comp_data_zeta`), and with one only the commitment shows.
+    Not shown here: that the simulator reads only the tables'
+    preprocessed columns (`cPsim_pre` covers `cPsim`). -/
 theorem comp_fs_open3 {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {R Lm : Nat} (hR : R ≤ 20) {shp : BT} {Ps : List Term}
     {W : Nat} {ρ : Nat → Bool} {region : List Cell} (hrl : region.length = W)
     (hr : ∀ i c, region[i]? = some c → cellOK (BT.nleaves shp + 3 + i) c = true)
