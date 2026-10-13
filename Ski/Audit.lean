@@ -143,6 +143,7 @@ import Ski.ZK.FSMultiOpen
 import Ski.ZK.FSMultiStop
 import Ski.ZK.FSMultiOpenRd
 import Ski.ZK.FSMultiMix
+import Ski.ZK.FSMultiMixSud
 import Ski.ZK.FSQueryAbsT
 import Ski.ZK.FSQueryPowT
 import Ski.ZK.ROMFamilyT
@@ -1325,4 +1326,4 @@ open Ski.Audit
   Circuit.sud_rd_length Circuit.pfRdReads_length Circuit.pfRd_progD Circuit.sudFS4T_houtD Circuit.sudFS4T_hrdD
 
 -- Proofs and query phases interleaved (FSMultiMix)
-#audit_clean Circuit.lin_mul Circuit.lin_const Circuit.fs4_interleave
+#audit_clean Circuit.lin_mul Circuit.lin_const Circuit.fs4_interleave Circuit.coord_digit Circuit.sudFS4T_hsp

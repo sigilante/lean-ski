@@ -18,9 +18,8 @@ proof's point is the real and simulated views' only difference; a hit on an
 earlier proof's point reads the programmed table in both).  The bound is
 unnormalized: a query phase's unused draws and challenges multiply both
 sides alike and cancel.  Each proof's own bound is `fs4_powDT`'s hypothesis (the circuits'
-`sud_fs4T` and the others).  Not shown: the spread `hsp` discharged for the
-circuits (the first three coordinates from the first commitment's spread,
-the fourth through a digit read-back on `φ`); query phases reading at
+`sud_fs4T` and the others).  The Sudoku proof's spread: `FSMultiMixSud`'s
+`sudFS4T_hsp`.  Not shown: the hidden-term and composed circuits' spread; query phases reading at
 points chosen from earlier views (`FSMultiViews`, stage by stage).
 -/
 
