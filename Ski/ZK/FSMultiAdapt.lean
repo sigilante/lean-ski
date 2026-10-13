@@ -49,9 +49,13 @@ theorem.  The sum of the statements' errors is tight
 for these hypotheses: `S` statements each meeting `ZKBT` with error `1`
 can make the picked real count `S` with every confirmed simulation `0`
 (`zkbT_adaptive_tight`).  A tighter bound needs a joint hypothesis across
-the statements: when every statement's real count matches its simulation
-away from one shared bad event, its mass is charged once
-(`zkbT_adaptive_joint`).
+the statements: when every statement's real count is at most its
+simulation away from one shared bad event, its mass is charged once
+(`zkbT_adaptive_joint`).  No component here supplies that hypothesis yet:
+their errors are numbers, or collisions read at the simulator's
+challenges, and a hit on a statement's own programmed point is not
+shared, so the union of the statements' events costs their sum again.  The
+saving needs a bad event independent of the statement.
 -/
 
 set_option autoImplicit false
@@ -444,7 +448,7 @@ theorem zkbT_adaptive_tight (S : Nat) (hS : 0 < S) :
     rfl
 
 /-- **One shared error for a picked statement**: when every statement's
-    real count matches its simulation away from one bad event (`h`, error
+    real count is at most its simulation away from one bad event (`h`, error
     `0` there), the bad event's mass `β` (`hbad`) is charged once, not once
     per statement as `zkbT_adaptive`'s per-statement errors are. -/
 theorem zkbT_adaptive_joint {T X C V : Type} {K S β : Nat} {ST : (T → Nat) → Nat} (hST : Lin ST)
