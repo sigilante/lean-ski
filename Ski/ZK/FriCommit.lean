@@ -14,9 +14,13 @@ challenges (`friBetas`; `layer` may return the whole root history).  It is
 `k` layers (`friCommit_reads`), so it fits a slot of the data-reading
 composites (`sud_interleaveD` and its kin), all slots making `kr` reads.
 
+A strategy may first read the earlier challenges: the first three tables
+at the first, second and third messages (`friCommitNxtC`,
+`friCommitC_first3`, the points the protocol's messages, `msg_nest`), so
+the roots also read `c1`, `c2`, `c3`, the out-of-domain point among them.
+
 Not shown, and needed before this is Plonky3's FRI:
-- the roots read one commitment's data and `c4`, not the out-of-domain
-  point, the other challenges or the other commitments' data, which
+- the roots read one commitment's data, not the other commitments', which
   FRI's batched DEEP codeword reads;
 - the hash point is `(M, Rᵢ, i)`, not the full transcript;
 - the query indices `c4` are drawn before the commit phase, where Plonky3
@@ -89,5 +93,66 @@ theorem friCommit_reads {D R : Type} (K1 K2 K3 K4 n1 k : Nat) (φ : Nat → R ×
     (layer : Nat → D → Nat → List Nat → R) (H : Nat × Nat × Nat × Nat) (c4 M : Nat) (d : D) (σ : Nat) :
     (pfRdReads K1 K2 K3 K4 n1 k φ (friCommitNxt n1 layer) H c4 M d σ).length = k :=
   pfRdReads_length _ _ _ _ _ _ _ _ _ _ _ _ _
+
+/-- **The commit phase reading the earlier challenges first**: reads `0`,
+    `1`, `2` take the first three tables at the first, second and third
+    messages (the digit `M % n1`, then `M % n1 + n1 ((M / n1) % n2)`, then
+    `M`), so they are the challenges `c1`, `c2`, `c3` where the messages
+    nest as the protocol's do; layer `i` then reads the fourth table at
+    `φ M (Rᵢ, i)`, its root a function of `c4`, those three challenges,
+    the data and salt, and the folding challenges so far. -/
+def friCommitNxtC {D R : Type} (n1 n2 : Nat) (layer : Nat → List Nat → D → Nat → List Nat → R) :
+    Nat → Nat → D → Nat → List Nat → Nat × Nat × (Option R × Nat) :=
+  fun c4 M d σ prev =>
+    match prev.length with
+    | 0 => (0, 0, (none, 0))
+    | 1 => (1, (M / n1) % n2, (none, 1))
+    | 2 => (2, M / n1, (none, 2))
+    | i + 3 => (3, M / n1, (some (layer c4 (prev.reverse.take 3) d σ (prev.reverse.drop 3)), i))
+
+theorem runR4_length {W : Type} (K1 K2 K3 K4 n1 m : Nat) (φ : Nat → W → Nat) (nxt : List Nat → Nat × Nat × W)
+    (H : Nat × Nat × Nat × Nat) : ∀ k, (runR4 K1 K2 K3 K4 n1 m φ nxt H k).length = k
+  | 0 => rfl
+  | k + 1 => by
+    show (runR4 K1 K2 K3 K4 n1 m φ nxt H k).length + 1 = k + 1
+    rw [runR4_length K1 K2 K3 K4 n1 m φ nxt H k]
+
+/-- **Its first three reads are the earlier challenges**: the first
+    table at the digit, the second at `M % n1 + n1 ((M / n1) % n2)`, the
+    third at `M`. -/
+theorem friCommitC_first3 {D R : Type} (K1 K2 K3 K4 n1 n2 : Nat) (φ : Nat → Option R × Nat → Nat)
+    (layer : Nat → List Nat → D → Nat → List Nat → R) (H : Nat × Nat × Nat × Nat) (c4 M : Nat) (d : D) (σ : Nat) :
+    runR4 K1 K2 K3 K4 n1 (M % n1) φ (friCommitNxtC n1 n2 layer c4 M d σ) H 3 =
+      [rget K3 M H.2.2.1, rget K2 (M % n1 + n1 * ((M / n1) % n2)) H.2.1, rget K1 (M % n1) H.1] := by
+  have e0 : runR4 K1 K2 K3 K4 n1 (M % n1) φ (friCommitNxtC n1 n2 layer c4 M d σ) H 0 = [] := rfl
+  have e1 : runR4 K1 K2 K3 K4 n1 (M % n1) φ (friCommitNxtC n1 n2 layer c4 M d σ) H 1 = [rget K1 (M % n1) H.1] := by
+    show rget4 K1 K2 K3 K4 H 0 (pt4 n1 φ (M % n1) (0, 0, (none, 0))) :: [] = _
+    show [rget K1 (M % n1 + n1 * 0) H.1] = _
+    rw [Nat.mul_zero, Nat.add_zero]
+  have e2 : runR4 K1 K2 K3 K4 n1 (M % n1) φ (friCommitNxtC n1 n2 layer c4 M d σ) H 2 =
+      [rget K2 (M % n1 + n1 * ((M / n1) % n2)) H.2.1, rget K1 (M % n1) H.1] := by
+    show rget4 K1 K2 K3 K4 H (friCommitNxtC n1 n2 layer c4 M d σ (runR4 K1 K2 K3 K4 n1 (M % n1) φ (friCommitNxtC n1 n2 layer c4 M d σ) H 1)).1
+      (pt4 n1 φ (M % n1) (friCommitNxtC n1 n2 layer c4 M d σ (runR4 K1 K2 K3 K4 n1 (M % n1) φ (friCommitNxtC n1 n2 layer c4 M d σ) H 1))) ::
+      runR4 K1 K2 K3 K4 n1 (M % n1) φ (friCommitNxtC n1 n2 layer c4 M d σ) H 1 = _
+    rw [e1]; rfl
+  show rget4 K1 K2 K3 K4 H (friCommitNxtC n1 n2 layer c4 M d σ (runR4 K1 K2 K3 K4 n1 (M % n1) φ (friCommitNxtC n1 n2 layer c4 M d σ) H 2)).1
+    (pt4 n1 φ (M % n1) (friCommitNxtC n1 n2 layer c4 M d σ (runR4 K1 K2 K3 K4 n1 (M % n1) φ (friCommitNxtC n1 n2 layer c4 M d σ) H 2))) ::
+    runR4 K1 K2 K3 K4 n1 (M % n1) φ (friCommitNxtC n1 n2 layer c4 M d σ) H 2 = _
+  rw [e2]
+  show [rget K3 (M % n1 + n1 * (M / n1)) H.2.2.1, _, _] = _
+  rw [Nat.mod_add_div]
+
+/-- **The messages nest**: with the third message `M = m1 + n1 (a + n2 b)`
+    (`m1 < n1`, `a < n2`), as `comPair` builds it, the reads' points are
+    the first message `m1` and the second `m1 + n1 a`. -/
+theorem msg_nest {n1 n2 m1 a b : Nat} (hm1 : m1 < n1) (ha : a < n2) :
+    (m1 + n1 * (a + n2 * b)) % n1 = m1 ∧
+      (m1 + n1 * (a + n2 * b)) % n1 + n1 * ((m1 + n1 * (a + n2 * b)) / n1 % n2) = m1 + n1 * a := by
+  have hp : 0 < n1 := Nat.lt_of_le_of_lt (Nat.zero_le _) hm1
+  have e1 : (m1 + n1 * (a + n2 * b)) % n1 = m1 := by rw [Nat.add_mul_mod_self_left, Nat.mod_eq_of_lt hm1]
+  have e2 : (m1 + n1 * (a + n2 * b)) / n1 = a + n2 * b := by
+    rw [Nat.add_mul_div_left _ _ hp, Nat.div_eq_of_lt hm1, Nat.zero_add]
+  refine ⟨e1, ?_⟩
+  rw [e1, e2, Nat.add_mul_mod_self_left, Nat.mod_eq_of_lt ha]
 
 end Circuit

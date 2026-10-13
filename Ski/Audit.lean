@@ -1362,7 +1362,7 @@ open Ski.Audit
 #audit_clean Circuit.spread_sumG Circuit.hφsp_of_hdg Circuit.coord_digit012 Circuit.sudFS4T_hspS Circuit.sud_interleaveS Circuit.witFS4T_hspS Circuit.wit_interleaveS Circuit.compFS4T_hspS Circuit.comp_interleaveS
 
 -- FRI's commit phase as an opening that reads the tables (FriCommit)
-#audit_clean Circuit.friBetas_length Circuit.friCommit_run Circuit.friCommitPf_eq Circuit.friCommit_reads
+#audit_clean Circuit.friBetas_length Circuit.friCommit_run Circuit.friCommitPf_eq Circuit.friCommit_reads Circuit.runR4_length Circuit.friCommitC_first3 Circuit.msg_nest
 
 -- A duplex sponge meets the challenger's spread (SpongeSpread)
 #audit_clean Circuit.sum_pos_exists Circuit.hφsp_of_inj Circuit.add_mod_cancel Circuit.foldlA_lt Circuit.foldlA_inj Circuit.spongeA_inj Circuit.spongeA_hφsp Circuit.spongeA_lt Circuit.spongeA_sat Circuit.foldlG_inj Circuit.spongeG_hφsp
