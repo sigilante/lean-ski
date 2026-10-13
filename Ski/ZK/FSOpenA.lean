@@ -8,8 +8,8 @@ import Ski.ZK.ROMHide
 `ComPfHides`).  A Merkle commitment whose leaves may share a hash hides
 only up to `η` (`ROMMerkleColl`'s `pfM_hidesC`).  Here the first
 commitment hides up to `η` (`ComHidesA`, `ComPfHidesA`) and the bound
-gains `η` at each draw of the other salts, the transcript randomness and
-the challenges: `open_real2A`, `open_two_coreA`, `fs_open3UA`,
+gains `η` at each draw of the other salts, the transcript randomness, the
+challenges and the tables: `open_real2A`, `open_two_coreA`, `fs_open3UA`,
 `fs_open4A`, one direction each.
 -/
 
@@ -44,10 +44,9 @@ theorem open_real2A {PV PB D O Pp : Type} {NS NR m η : Nat} (Com : D → Nat �
   refine Nat.le_trans (sumN_mono m (fun t => key r t)) (Nat.le_of_eq ?_)
   exact sm_add (sumN m) (fun N f => (sumTo_sumN m N f).symm) _ _
 
-/-- **Two opened commitments beside a transcript**, at one second
-    challenge: the real count, both commitments and their openings shown,
-    is within `NS1 · NS2 · (e1 + e2)` of the simulator's, which commits
-    and opens data through its own view's openings. -/
+/-- **`open_two_core` with the first commitment hiding up to `η`**: the
+    real count is within `NS1 NS2 (e1 + e2) + Q4² NS2 NR Q4^m η` of the
+    simulator's, the second commitment hiding exactly; one direction. -/
 theorem open_two_coreA {PV PB D1 O1 P1 D2 O2 P2 : Type} {NR m e1 e2 NS1 NS2 η : Nat}
     (rv sv : EF → EF → Nat → (Nat → Tup) → TViewN PV PB)
     (hrv : ∀ α β r t, rv α β r t = none ∨ ∃ p x y, rv α β r t = some (p, α, β, x, y))
@@ -159,8 +158,8 @@ theorem open_two_coreA {PV PB D1 O1 P1 D2 O2 P2 : Type} {NR m e1 e2 NS1 NS2 η :
     draws' public-coin mass in the bound.  `β` fails the verifier's test at
     `P²` of the `Q4` draws (`genB_count`) and the later pair at most `Bz`
     of its `K2 K3` (`hgz`), so the bound gains `(Q4 P² K2 K3 + Q4² Bz)`
-    times the randomness count, per table triple.  One proof per oracle;
-    the other direction is `fs_open3R`. -/
+    times the randomness count, per table triple.  One proof per oracle,
+    one direction. -/
 theorem fs_open3UA {PV PB D1 O1 P1 D2 O2 P2 D3 O3 P3 : Type} {NR m e1 e2 NS1 NS2 NS3 K2 K3 n1 n2 n3 η : Nat}
     (hK2 : 0 < K2) (hK3 : 0 < K3)
     (rv sv : Nat → Nat → EF → EF → Nat → (Nat → Tup) → TViewN PV PB) (gz : Nat → Nat → Bool)
@@ -289,19 +288,12 @@ theorem fs_open3UA {PV PB D1 O1 P1 D2 O2 P2 D3 O3 P3 : Type} {NR m e1 e2 NS1 NS2
     rw [Nat.mul_comm _ (NS1 * _)]
     exact Nat.mul_le_mul_left _ (bad3_count gz hgz)
 
-/-- **`fs_open4` with the first commitment hiding up to `η`** (`fs_open3UA`).
-     **Fiat–Shamir over four rounds, every commitment opened**: `fs_open3U`
-    with the query points a fourth challenge `c4`, hashed into a fourth
-    table at `φ` of the third message and `oz` of the view, which must not
-    read `c4` (`hoz`): any function of the commitments' transcript and,
-    say, the openings at `ζ`, with a proof-of-work nonce ground against a
-    table of its own.  The
-    commitments do not read `c4`; the views, their opened values, the
-    opening proofs (Merkle paths at the drawn indices) and the simulator's
-    openings do.  Each commitment hides given its openings and opening
-    proof at every `c4`; the transcript bounds `h1`, `h2` hold at the `c4`
-    the guard `g4` admits, and the others, at most `B4`, enter the bound
-    as their whole count.  Unguarded; one proof per oracle. -/
+/-- **`fs_open4` with the first commitment hiding up to `η`**
+    (`fs_open3UA`): `fs_open4`'s four Fiat–Shamir rounds, the query points a
+    fourth challenge `c4` hashed into a fourth table; the first commitment
+    hides given its openings up to `η` at every `c4`, the others exactly,
+    and the error gains `Q4² NS2 NS3 NR Q4^m η` at each draw of the
+    challenges and tables.  One direction. -/
 theorem fs_open4A {PV PB D1 O1 P1 D2 O2 P2 D3 O3 P3 W : Type} {NR m e1 e2 NS1 NS2 NS3 K2 K3 K4 n1 n2 n3 η : Nat}
     (hK2 : 0 < K2) (hK3 : 0 < K3) (hK4 : 0 < K4)
     (φ : Nat → W → Nat) {N4 : Nat} (hφ : ∀ m w, φ m w < N4)

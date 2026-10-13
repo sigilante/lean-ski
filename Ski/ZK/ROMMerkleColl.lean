@@ -1,4 +1,5 @@
 import Ski.ZK.ROMMerkle4
+import Ski.ZK.FSOpenA
 
 /-!
 # Leaves that may share a hash
@@ -24,13 +25,15 @@ spread `hs` alone.
   shape, a leaf's position its salt and its row's hash, and two leaves
   meeting.
 
-Not shown: the four-round theorems (`ROMMerkle4`, the circuit families)
-without `hdist`.  They need three more pieces: an approximate `fs_open4`
-for the hiding here; collision versions of the hit bounds with the opened
-set read off the commitment (`hitLeafc_bound`, `hitMc_bound`,
-`transferMc`); and an approximate spread of the commitment
-(`comM_spreadL`), whose full `K^L` fails when two leaves share an
-answer.
+- Four rounds with the opened set read at the query challenge: the hits
+  likewise (`hitLeafc_boundC`, `hitMc_boundC`, `transferMcC`,
+  `transferMc_inC`), the padded ideal opening hiding up to the meeting
+  salt vectors, entering through `FSOpenA`'s `fs_open4A`
+  (`fs_open4ROMMC`).
+
+Not shown: the circuit instances (`ROMInstM`, `ROMFamilyM`) without
+`hdist`; the families also need an approximate spread of the commitment
+(`comM_spreadL`), whose full `K^L` fails when two leaves share an answer.
 -/
 
 set_option autoImplicit false
@@ -540,5 +543,327 @@ theorem collide_sat (L NSl M : Nat) (hL : 2 ≤ L) (hN : 0 < NSl) (hM : 0 < M) (
     simp only [op, hO, if_true] at this
     show a % NSl + NSl * (d l % M) = a % NSl + NSl * (d' l % M)
     rw [this]
+
+/-- **`hitLeafc_bound` without `hdist`**: with the opened set read off the
+    commitment, the salts at which leaf `l` meets another leaf's position
+    counted through `hs`; `s (k + L)` in place of `s k`. -/
+theorem hitLeafc_boundC {D O P : Type} {K n NSl L k s : Nat} (hK : 0 < K) (hN : 0 < NSl) (pos : D → Nat → Nat → Nat)
+    (hlt : ∀ d l a, l < L → pos d l a < n)
+    (hs : ∀ d l v, sumTo NSl (fun x => indB (decide (pos d l x = v))) ≤ s)
+    (isOf : Nat → Nat → Bool) (op1 : Nat → D → O) (c4f : Nat → Nat) (g : O → List Nat → P)
+    (nxt : P → Nat → List Nat → Nat) (d : D) {l : Nat} (hl : l < L) :
+    sumTo (NSl ^ L) (fun σh => sumTo (K ^ n) (fun h =>
+      indB (!isOf (c4f (rgetL K (posAll pos L NSl d σh) h)) l &&
+        decide (pos d l (lsalt NSl l σh) ∈ qposQ K (nxt (g (op1 (c4f (rgetL K (posAll pos L NSl d σh) h)) d)
+          (shownS NSl L (isOf (c4f (rgetL K (posAll pos L NSl d σh) h))) σh))) (rgetL K (posAll pos L NSl d σh) h) k h)))) ≤
+      K ^ n * (NSl ^ (L - l - 1) * (NSl ^ l * (s * (k + L)))) := by
+  let Ev := fun (σh : Nat) (c H : Nat) => !isOf (c4f c) l &&
+    decide (pos d l (lsalt NSl l σh) ∈ qposQ K (nxt (g (op1 (c4f c) d) (shownS NSl L (isOf (c4f c)) σh))) c k H)
+  let f := fun (σh a H : Nat) => indB (Ev σh (rgetL K (posAll pos L NSl d σh) (rset K (pos d l (lsalt NSl l σh)) H a)) H)
+  have swap : ∀ σh, K * sumTo (K ^ n) (fun h => indB (Ev σh (rgetL K (posAll pos L NSl d σh) h) h)) =
+      sumTo (K ^ n) (fun H => sumTo K (fun a => f σh a H)) := fun σh => by
+    rw [← reprog_swap hK (hlt d l (lsalt NSl l σh) hl) (fun a H => f σh a H), sumTo_mul]
+    refine sumTo_congr _ (fun h _ => ?_)
+    rw [← sumTo_const _ K]
+    refine sumTo_congr _ (fun u hu => ?_)
+    show _ = indB (Ev σh (rgetL K (posAll pos L NSl d σh) (rset K (pos d l (lsalt NSl l σh))
+      (rset K (pos d l (lsalt NSl l σh)) h u) (rget K (pos d l (lsalt NSl l σh)) h))) (rset K (pos d l (lsalt NSl l σh)) h u))
+    rw [rset_back hK hu]
+    simp only [Ev, decide_eq_decide.2 (hit_rset hK hu _ _ k h)]
+  have per : ∀ H a, a < K → sumTo (NSl ^ L) (fun σh => f σh a H) ≤ NSl ^ (L - l - 1) * (NSl ^ l * (s * (k + L))) := by
+    intro H a ha
+    rw [sum_split_digit NSl L l hl, ← sumTo_const (NSl ^ l * (s * (k + L))) (NSl ^ (L - l - 1))]
+    refine sumTo_mono _ (fun hi _ => ?_)
+    rw [sumTo_exch _ (NSl ^ l) NSl, ← sumTo_const (s * (k + L)) (NSl ^ l)]
+    refine sumTo_mono _ (fun lo hlo => ?_)
+    let σ0 := lo + NSl ^ l * (0 + NSl * hi)
+    let c0 := encL K ((lr L).map (fun l' => if l' = l then a else rget K (pos d l' (lsalt NSl l' σ0)) H))
+    let Q := qposQ K (nxt (g (op1 (c4f c0) d) (shownS NSl L (isOf (c4f c0)) σ0))) c0 k H
+    let coll := fun x => (lr L).any (fun l' => l' != l && decide (pos d l' (lsalt NSl l' σ0) = pos d l x))
+    have e : ∀ x, x < NSl → f (lo + NSl ^ l * (x + NSl * hi)) a H ≤
+        indB (!isOf (c4f c0) l && decide (pos d l x ∈ Q)) + indB (coll x) := fun x hx => by
+      cases hc : coll x
+      · have hgood : ∀ l', l' ∈ lr L → l' ≠ l → pos d l' (lsalt NSl l' σ0) ≠ pos d l x := fun l' hl' hne e' => by
+          have : coll x = true := List.any_eq_true.2 ⟨l', hl', by simp [hne, e']⟩
+          rw [hc] at this; exact Bool.false_ne_true this
+        show indB (Ev (lo + NSl ^ l * (x + NSl * hi)) (rgetL K (posAll pos L NSl d (lo + NSl ^ l * (x + NSl * hi)))
+          (rset K (pos d l (lsalt NSl l (lo + NSl ^ l * (x + NSl * hi)))) H a)) H) ≤ _
+        rw [lsalt_at hlo hx, comM_val hK hN pos d hlo hx ha hgood]
+        show indB (!isOf (c4f c0) l && decide (pos d l (lsalt NSl l (lo + NSl ^ l * (x + NSl * hi))) ∈ _)) ≤ _
+        cases hO : isOf (c4f c0) l
+        · rw [lsalt_at hlo hx, shownS_eq hN hO hlo hx]; exact Nat.le_add_right _ _
+        · simp only [Bool.not_true, Bool.false_and]; exact Nat.zero_le _
+      · exact Nat.le_trans (indB_le _) (Nat.le_add_left _ _)
+    refine Nat.le_trans (sumTo_mono _ e) ?_
+    rw [sumTo_add, Nat.mul_add]
+    refine Nat.add_le_add ?_ ?_
+    · cases hO : isOf (c4f c0) l
+      · simp only [Bool.not_false, Bool.true_and]
+        have h := salts_in (pos d l) (hs d l) Q
+        rwa [qposQ_length] at h
+      · simp only [Bool.not_true, Bool.false_and, indB, sumTo_const]; exact Nat.zero_le _
+    · have hc : ∀ x, indB (coll x) ≤ sumTo (lr L).length (fun j =>
+          indB (decide (pos d l x = pos d ((lr L).getD j 0) (lsalt NSl ((lr L).getD j 0) σ0)))) := fun x => by
+        refine Nat.le_trans (any_le_sum (fun l' => l' != l && decide (pos d l' (lsalt NSl l' σ0) = pos d l x)) (lr L))
+          (sumTo_mono _ (fun j _ => ?_))
+        cases hb : ((lr L).getD j 0 != l) <;>
+          cases he : decide (pos d ((lr L).getD j 0) (lsalt NSl ((lr L).getD j 0) σ0) = pos d l x) <;>
+          simp_all [indB]
+      refine Nat.le_trans (sumTo_mono _ (fun x _ => hc x)) ?_
+      rw [sumTo_exch _ (lr L).length NSl, lr_length, Nat.mul_comm s L, ← sumTo_const s L]
+      exact sumTo_mono _ (fun j _ => hs d l _)
+  refine Nat.le_of_mul_le_mul_left ?_ hK
+  rw [sumTo_mul, sumTo_congr _ (fun σh _ => swap σh), sumTo_exch _ (K ^ n) (NSl ^ L)]
+  rw [show K * (K ^ n * (NSl ^ (L - l - 1) * (NSl ^ l * (s * (k + L))))) =
+    sumTo (K ^ n) (fun _ => sumTo K (fun _ => NSl ^ (L - l - 1) * (NSl ^ l * (s * (k + L))))) by
+      rw [sumTo_const, sumTo_const]; ac_rfl]
+  refine sumTo_mono _ (fun H _ => ?_)
+  rw [sumTo_exch _ K (NSl ^ L)]
+  exact sumTo_mono _ (fun a ha => per H a ha)
+
+/-- **With the opened set read off the commitment, the draws that hit an
+    unopened leaf are few**: `L Kⁿ NSl^(L-1) s (k + L)`, `L s (k + L) / NSl` normalized. -/
+theorem hitMc_boundC {D O P : Type} {K n NSl L k s : Nat} (hK : 0 < K) (hN : 0 < NSl) (pos : D → Nat → Nat → Nat)
+    (hlt : ∀ d l a, l < L → pos d l a < n)
+    (hs : ∀ d l v, sumTo NSl (fun x => indB (decide (pos d l x = v))) ≤ s)
+    (isOf : Nat → Nat → Bool) (op1 : Nat → D → O) (c4f : Nat → Nat) (g : O → List Nat → P)
+    (nxt : P → Nat → List Nat → Nat) (d : D) :
+    sumTo (NSl ^ L * K ^ n) (fun σ => indB (hitL K (posU pos L NSl (isOf (c4f (comM K NSl L pos d σ))) d (σ % NSl ^ L))
+      (nxt (g (op1 (c4f (comM K NSl L pos d σ)) d) (shownS NSl L (isOf (c4f (comM K NSl L pos d σ))) (σ % NSl ^ L))))
+      (comM K NSl L pos d σ) k (σ / NSl ^ L))) ≤ L * (K ^ n * (NSl ^ (L - 1) * (s * (k + L)))) := by
+  rw [sumTo_split (NSl ^ L), sumTo_exch _ (NSl ^ L) (K ^ n)]
+  have e : ∀ σh, σh < NSl ^ L → ∀ h, indB (hitL K (posU pos L NSl (isOf (c4f (comM K NSl L pos d (σh + NSl ^ L * h)))) d
+      ((σh + NSl ^ L * h) % NSl ^ L)) (nxt (g (op1 (c4f (comM K NSl L pos d (σh + NSl ^ L * h))) d)
+      (shownS NSl L (isOf (c4f (comM K NSl L pos d (σh + NSl ^ L * h)))) ((σh + NSl ^ L * h) % NSl ^ L))))
+      (comM K NSl L pos d (σh + NSl ^ L * h)) k ((σh + NSl ^ L * h) / NSl ^ L)) ≤
+      sumTo L (fun l => indB (!isOf (c4f (rgetL K (posAll pos L NSl d σh) h)) l &&
+        decide (pos d l (lsalt NSl l σh) ∈ qposQ K (nxt (g (op1 (c4f (rgetL K (posAll pos L NSl d σh) h)) d)
+          (shownS NSl L (isOf (c4f (rgetL K (posAll pos L NSl d σh) h))) σh))) (rgetL K (posAll pos L NSl d σh) h) k h))) :=
+    fun σh hσ h => by
+    obtain ⟨f1, f2⟩ := digit_dec (σ := h) hσ
+    simp only [comM, f1, f2]
+    exact any_unop_le _ _ _ L
+  refine Nat.le_trans (sumTo_mono _ (fun σh hσ => sumTo_mono _ (fun h _ => e σh hσ h))) ?_
+  rw [sumTo_congr _ (fun σh _ => sumTo_exch _ _ _), sumTo_exch _ L (NSl ^ L),
+    ← sumTo_const (K ^ n * (NSl ^ (L - 1) * (s * (k + L)))) L]
+  refine sumTo_mono _ (fun l hl => ?_)
+  refine Nat.le_trans (hitLeafc_boundC (k := k) hK hN pos hlt hs isOf op1 c4f g nxt d hl) (Nat.le_of_eq ?_)
+  rw [← Nat.mul_assoc (NSl ^ (L - l - 1)), ← Nat.pow_add]
+  congr 3; omega
+
+/-- **The transfer with the opened set read off the commitment**:
+    `K^L` times the real count is at most the padded ideal count plus
+    `K^L L Kⁿ NSl^(L-1) s (k + L)`. -/
+theorem transferMcC {D O P : Type} {K n NSl L k s : Nat} (hK : 0 < K) (hN : 0 < NSl) (pos : D → Nat → Nat → Nat)
+    (hlt : ∀ d l a, l < L → pos d l a < n)
+    (hs : ∀ d l v, sumTo NSl (fun x => indB (decide (pos d l x = v))) ≤ s)
+    (isOf : Nat → Nat → Bool) (op1 : Nat → D → O) (c4f : Nat → Nat) (g : O → List Nat → P)
+    (nxt : P → Nat → List Nat → Nat) (F : Nat → P × List Nat → Bool) (d : D) :
+    K ^ L * sumTo (NSl ^ L * K ^ n) (fun σ => indB (F (comM K NSl L pos d σ)
+      (pfM K NSl L k pos (isOf (c4f (comM K NSl L pos d σ))) (op1 (c4f (comM K NSl L pos d σ))) g nxt d σ))) ≤
+      sumTo (NSl ^ L * K ^ n * K ^ L) (fun σ => indB (F (comMI K NSl L L pos d σ)
+        (pfMI K NSl L L k pos (isOf (c4f (comMI K NSl L L pos d σ))) (op1 (c4f (comMI K NSl L L pos d σ))) g nxt d σ))) +
+        K ^ L * (L * (K ^ n * (NSl ^ (L - 1) * (s * (k + L))))) := by
+  have hb := hitMc_boundC (n := n) (L := L) (k := k) hK hN pos hlt hs isOf op1 c4f g nxt d
+  have hk := Nat.mul_le_mul_left (K ^ L) hb
+  rw [sum_digit (K ^ L) (NSl ^ L * K ^ n), sumTo_mul (K ^ L) _ (NSl ^ L * K ^ n)]
+  refine Nat.le_trans (sumTo_mono _ (fun σ _ => pfMc_pfMI (NSl := NSl) (L := L) (k := k) hK pos isOf op1 c4f g nxt F d σ)) ?_
+  rw [sumTo_add]
+  exact Nat.add_le_add_left (Nat.le_trans (Nat.le_of_eq (sumTo_mul (K ^ L) _ _).symm) hk) _
+
+/-- `transferMc` inside a count of the other draws, the data, the choice
+    of opened set and the event read off them. -/
+theorem transferMc_inC {Y D O P : Type} {K n NSl L k s : Nat} (hK : 0 < K) (hN : 0 < NSl) (so : (Y → Nat) → Nat)
+    (hso : Lin so) (pos : D → Nat → Nat → Nat)
+    (hlt : ∀ d l a, l < L → pos d l a < n)
+    (hs : ∀ d l v, sumTo NSl (fun x => indB (decide (pos d l x = v))) ≤ s)
+    (isOf : Nat → Nat → Bool) (op1 : Nat → D → O) (g : O → List Nat → P) (nxt : P → Nat → List Nat → Nat)
+    (dat : Y → D) (c4f : Y → Nat → Nat) (G : Y → Nat → P × List Nat → Bool) :
+    K ^ L * so (fun y => sumTo (NSl ^ L * K ^ n) (fun σ => indB (G y (comM K NSl L pos (dat y) σ)
+      (pfM K NSl L k pos (isOf (c4f y (comM K NSl L pos (dat y) σ))) (op1 (c4f y (comM K NSl L pos (dat y) σ))) g nxt
+        (dat y) σ)))) ≤
+      so (fun y => sumTo (NSl ^ L * K ^ n * K ^ L) (fun σ => indB (G y (comMI K NSl L L pos (dat y) σ)
+        (pfMI K NSl L L k pos (isOf (c4f y (comMI K NSl L L pos (dat y) σ))) (op1 (c4f y (comMI K NSl L L pos (dat y) σ)))
+          g nxt (dat y) σ)))) +
+        K ^ L * (L * (K ^ n * (NSl ^ (L - 1) * (s * (k + L))))) * so (fun _ => 1) := by
+  have t := fun y => transferMcC (n := n) (k := k) hK hN pos hlt hs isOf op1 (c4f y) g nxt (G y) (dat y)
+  have eE := smC so hso (K ^ L * (L * (K ^ n * (NSl ^ (L - 1) * (s * (k + L))))))
+  rw [← smK so hso, ← eE, ← sm_add so hso]
+  exact sm_mono so hso t
+
+/-- **`fs_open4ROMM` without `hdist`**: leaves may share a hash; the first
+    commitment hides up to the meeting salt vectors (`pfMIP_hidesA`,
+    `collB_count`, through `fs_open4A`) and the hits gain `L` queries' worth
+    (`transferMc_inC`).
+     **Four Fiat–Shamir rounds over a Merkle tree's leaves drawn from the
+    oracle**: `fs_open4ROM` with the first commitment the leaves' answers
+    (`comM`, its range `K = KA^L`), the opened set and data read at the drawn
+    query challenge (`isOf c4`, `op1 c4`), and so off the commitment's
+    value (`transferMc_in`); the ideal opening, padded to `L` digits, hides
+    at each challenge (`pfMIP_hides`).  Normalized, the bound gains
+    `L s k / NSl` a draw; one direction. -/
+theorem fs_open4ROMMC {PV PB D O Pq D2 O2 P2 D3 O3 P3 W : Type}
+    {K KA NR m e1 e2 NSl L s k n NS2 NS3 K2 K3 K4 n2 n3 : Nat}
+    (hKA : 0 < KA) (hN : 0 < NSl) (hKL : K = KA ^ L) (hK2 : 0 < K2) (hK3 : 0 < K3) (hK4 : 0 < K4)
+    (φ : Nat → W → Nat) {N4 : Nat} (hφ : ∀ m w, φ m w < N4)
+    (rv sv : Nat → Nat → Nat → EF → EF → Nat → (Nat → Tup) → TViewN PV PB) (gz : Nat → Nat → Bool)
+    {Bz : Nat} (hgz : sumTo K2 (fun c2 => sumTo K3 (fun c3 => indB (!gz c2 c3))) ≤ Bz)
+    (g4 : Nat → Bool) {B4 : Nat} (hB4 : sumTo K4 (fun c4 => indB (!g4 c4)) ≤ B4)
+    (hrv : ∀ c4 c2 c3 α β r t, rv c4 c2 c3 α β r t = none ∨ ∃ p x y, rv c4 c2 c3 α β r t = some (p, α, β, x, y))
+    (hsv : ∀ c4 c2 c3 α β r t, ∃ p x y, sv c4 c2 c3 α β r t = some (p, α, β, x, y))
+    (oz : TViewN PV PB → W) (hoz : ∀ c4 c2 c3 α β r t, oz (rv c4 c2 c3 α β r t) = oz (rv 0 c2 c3 α β r t))
+    (h1 : ∀ c4 c2 c3, g4 c4 = true → gz c2 c3 = true → ∀ E : TViewN PV PB → Bool,
+      tsumN NR m (fun α β r t => indB (genB β && E (rv c4 c2 c3 α β r t))) ≤
+        tsumN NR m (fun α β r t => indB (genB β && E (sv c4 c2 c3 α β r t))) + e1 + e2)
+    (h2 : ∀ c4 c2 c3, g4 c4 = true → gz c2 c3 = true → ∀ E : TViewN PV PB → Bool,
+      tsumN NR m (fun α β r t => indB (genB β && E (sv c4 c2 c3 α β r t))) ≤
+        tsumN NR m (fun α β r t => indB (genB β && E (rv c4 c2 c3 α β r t))) + e1 + e2)
+    (pos : D → Nat → Nat → Nat)
+    (hlt : ∀ d l a, l < L → pos d l a < n) (g : O → List Nat → Pq)
+    (hs : ∀ d l v, sumTo NSl (fun x => indB (decide (pos d l x = v))) ≤ s)
+    (nxt : Pq → Nat → List Nat → Nat) (op1 : Nat → D → O) (isOf : Nat → Nat → Bool)
+    (hposO : ∀ c4 d d', op1 c4 d = op1 c4 d' → ∀ l a, isOf c4 l = true → pos d l a = pos d' l a) (sd1 : Nat → O → D) (d1 : D)
+    (ov1 : Nat → TViewN PV PB → Option O) (hov1 : ∀ c4, ov1 c4 none = none) (main1 : (Nat → Tup) → Nat → D)
+    (hsd1 : ∀ c4 t r, op1 c4 (sd1 c4 (op1 c4 (main1 t r))) = op1 c4 (main1 t r))
+    (Com2 : D2 → Nat → Nat) (Pf2 : Nat → D2 → Nat → P2) (op2 : Nat → D2 → O2) (sd2 : Nat → O2 → D2) (d2 : D2)
+    (hc2 : ComHides NS2 Com2) (hp2 : ∀ c4, ComPfHides NS2 Com2 (Pf2 c4) (op2 c4)) (hr2 : ∀ d σ, Com2 d σ < n2)
+    (ov2 : Nat → TViewN PV PB → Option O2) (hov2 : ∀ c4, ov2 c4 none = none) (main2 : Nat → (Nat → Tup) → Nat → D2)
+    (hsd2 : ∀ c4 c t r, op2 c4 (sd2 c4 (op2 c4 (main2 c t r))) = op2 c4 (main2 c t r))
+    (Com3 : D3 → Nat → Nat) (Pf3 : Nat → D3 → Nat → P3) (op3 : Nat → D3 → O3) (sd3 : Nat → O3 → D3) (d3 : D3)
+    (hc3 : ComHides NS3 Com3) (hp3 : ∀ c4, ComPfHides NS3 Com3 (Pf3 c4) (op3 c4)) (hr3 : ∀ d σ, Com3 d σ < n3)
+    (ov3 : Nat → TViewN PV PB → Option O3) (hov3 : ∀ c4, ov3 c4 none = none) (main3 : Nat → Nat → (Nat → Tup) → Nat → D3)
+    (hsd3 : ∀ c4 c c' t r, op3 c4 (sd3 c4 (op3 c4 (main3 c c' t r))) = op3 c4 (main3 c c' t r))
+    (hvo1 : ∀ c4 c2 c3 c r t, rv c4 c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t = none ∨
+      ov1 c4 (rv c4 c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t) = some (op1 c4 (main1 t r)))
+    (hvo2 : ∀ c4 c2 c3 c r t, rv c4 c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t = none ∨
+      ov2 c4 (rv c4 c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t) = some (op2 c4 (main2 c t r)))
+    (hvo3 : ∀ c4 c2 c3 c r t, rv c4 c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t = none ∨
+      ov3 c4 (rv c4 c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t) = some (op3 c4 (main3 c c2 t r)))
+    (sop1 : Nat → Nat → Nat → Nat → (Nat → Tup) → O) (sop2 : Nat → Nat → Nat → Nat → Nat → (Nat → Tup) → O2)
+    (sop3 : Nat → Nat → Nat → Nat → Nat → (Nat → Tup) → O3)
+    (hsvo1 : ∀ c4 c2 c3 c r t, ov1 c4 (sv c4 c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t) = some (sop1 c4 c2 c3 r t))
+    (hsvo2 : ∀ c4 c2 c3 c r t, ov2 c4 (sv c4 c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t) = some (sop2 c4 c2 c3 c r t))
+    (hsvo3 : ∀ c4 c2 c3 c r t, ov3 c4 (sv c4 c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t) = some (sop3 c4 c2 c3 c r t))
+    (E : Nat → Nat → Nat → Nat → Nat → Nat → Nat → Option (Pq × List Nat) × Option (P2 × P3) × TViewN PV PB → Bool) :
+    let Com1 := comM KA NSl L pos
+    let Pf1 := fun c4 => pfM KA NSl L k pos (isOf c4) (op1 c4) g nxt
+    let Cmi := comMI KA NSl L L pos
+    let Pfi := fun c4 => pfMI KA NSl L L k pos (isOf c4) (op1 c4) g nxt
+    let smR := fun (f : Nat × Nat × Nat × (Nat → Tup) → Nat) =>
+      sumTo (NSl ^ L * KA ^ n) (fun σ1 => sumTo (NS2 * NS3) (fun σ => sumTo NR (fun r => sumN m (fun t =>
+        f (σ1, σ, r, t)))))
+    let smI := fun (f : Nat × Nat × Nat × (Nat → Tup) → Nat) =>
+      sumTo (NSl ^ L * KA ^ n * K) (fun σ1 => sumTo (NS2 * NS3) (fun σ => sumTo NR (fun r => sumN m (fun t =>
+        f (σ1, σ, r, t)))))
+    let m1 := fun (x : Nat × Nat × Nat × (Nat → Tup)) => Com1 (main1 x.2.2.2 x.2.2.1) x.1
+    let m2 := fun (c1 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
+      m1 x + K * Com2 (main2 c1 x.2.2.2 x.2.2.1) (x.2.1 % NS2)
+    let m3 := fun (c1 c2 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
+      m1 x + K * comPair NS2 n2 Com2 Com3 (main2 c1 x.2.2.2 x.2.2.1, main3 c1 c2 x.2.2.2 x.2.2.1) x.2.1
+    let rvo := fun (c4 c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
+      ((ov1 c4 (rv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)).map (fun _ => Pf1 c4 (main1 x.2.2.2 x.2.2.1) x.1),
+       (ovPair (ov2 c4) (ov3 c4) (rv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)).map
+         (fun _ => pfPair NS2 (Pf2 c4) (Pf3 c4) (main2 c1 x.2.2.2 x.2.2.1, main3 c1 c2 x.2.2.2 x.2.2.1) x.2.1),
+       rv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)
+    let s1 := fun (c4 _c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) => Cmi (sd1 c4 (sop1 c4 c2 c3 x.2.2.1 x.2.2.2)) x.1
+    let s2 := fun (c4 c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
+      s1 c4 c1 c2 c3 x + K * Com2 (sd2 c4 (sop2 c4 c2 c3 c1 x.2.2.1 x.2.2.2)) (x.2.1 % NS2)
+    let s3 := fun (c4 c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
+      s1 c4 c1 c2 c3 x + K * comPair NS2 n2 Com2 Com3
+        (sd2 c4 (sop2 c4 c2 c3 c1 x.2.2.1 x.2.2.2), sd3 c4 (sop3 c4 c2 c3 c1 x.2.2.1 x.2.2.2)) x.2.1
+    let svo := fun (c4 c1 c2 c3 : Nat) (x : Nat × Nat × Nat × (Nat → Tup)) =>
+      (some (Pfi c4 (sd1 c4 (sop1 c4 c2 c3 x.2.2.1 x.2.2.2)) x.1),
+       some (pfPair NS2 (Pf2 c4) (Pf3 c4) (sd2 c4 (sop2 c4 c2 c3 c1 x.2.2.1 x.2.2.2), sd3 c4 (sop3 c4 c2 c3 c1 x.2.2.1 x.2.2.2)) x.2.1),
+       sv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)
+    let sm4 := fun (g : Nat × Nat × Nat × (Nat × Nat × Nat × (Nat → Tup)) → Nat) =>
+      sumTo ((Q4 * Q4) ^ K) (fun H1 => sumTo (K2 ^ (K * n2)) (fun H2 =>
+        sumTo (K3 ^ (K * (n2 * n3))) (fun H3 => smR (fun x => g (H1, H2, H3, x)))))
+    let sm4I := fun (g : Nat × Nat × Nat × (Nat × Nat × Nat × (Nat → Tup)) → Nat) =>
+      sumTo ((Q4 * Q4) ^ K) (fun H1 => sumTo (K2 ^ (K * n2)) (fun H2 =>
+        sumTo (K3 ^ (K * (n2 * n3))) (fun H3 => smI (fun x => g (H1, H2, H3, x)))))
+    let r1 := fun (y : Nat × Nat × Nat × (Nat × Nat × Nat × (Nat → Tup))) => rget (Q4 * Q4) (m1 y.2.2.2) y.1
+    let r2 := fun (y : Nat × Nat × Nat × (Nat × Nat × Nat × (Nat → Tup))) => rget K2 (m2 (r1 y) y.2.2.2) y.2.1
+    let r3 := fun (y : Nat × Nat × Nat × (Nat × Nat × Nat × (Nat → Tup))) => rget K3 (m3 (r1 y) (r2 y) y.2.2.2) y.2.2.1
+    let Mq := fun (y : Nat × Nat × Nat × (Nat × Nat × Nat × (Nat → Tup))) => φ (m3 (r1 y) (r2 y) y.2.2.2)
+      (oz (rv 0 (r2 y) (r3 y) (efOf (r1 y / Q4)) (efOf (r1 y % Q4)) y.2.2.2.2.2.1 y.2.2.2.2.2.2))
+    K * (K4 * (Q4 * Q4 * (K2 * K3) * sumTo (K4 ^ N4) (fun H4 => sm4 (fun y =>
+      indB (E y.1 y.2.1 y.2.2.1 H4 (m1 y.2.2.2) (m2 (r1 y) y.2.2.2) (m3 (r1 y) (r2 y) y.2.2.2)
+        (rvo (rget K4 (Mq y) H4) (r1 y) (r2 y) (r3 y) y.2.2.2)))))) ≤
+    sumTo (K4 ^ N4) (fun H4 => sumTo K4 (fun c4 =>
+      sumTo ((Q4 * Q4) ^ K) (fun H1 => sumTo (K2 ^ (K * n2)) (fun H2 => sumTo (K3 ^ (K * (n2 * n3))) (fun H3 =>
+      sumTo (Q4 * Q4) (fun c1 => sumTo K2 (fun c2 => sumTo K3 (fun c3 => smI (fun x =>
+        indB (E (rset (Q4 * Q4) (s1 c4 c1 c2 c3 x) H1 c1) (rset K2 (s2 c4 c1 c2 c3 x) H2 c2)
+          (rset K3 (s3 c4 c1 c2 c3 x) H3 c3) (rset K4 (φ (s3 c4 c1 c2 c3 x) (oz (sv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2))) H4 c4)
+          (s1 c4 c1 c2 c3 x) (s2 c4 c1 c2 c3 x) (s3 c4 c1 c2 c3 x) (svo c4 c1 c2 c3 x))))))))))) +
+      K4 ^ N4 * (K4 * ((Q4 * Q4) ^ K * (K2 ^ (K * n2) * (K3 ^ (K * (n2 * n3)) *
+        (K2 * (K3 * (NSl ^ L * KA ^ n * K * (NS2 * NS3 * (e1 + e2)) + Q4 * Q4 * (NS2 * NS3 * (NR * (Q4 ^ m * (2 * (L * (L * (NSl ^ (L - 1) * s))) * (KA ^ n * K))))))) +
+          (Q4 * (P * P) * (K2 * K3) + Q4 * Q4 * Bz) * (NSl ^ L * KA ^ n * K * (NS2 * NS3 * (NR * (Q4 ^ m * 1)))))))) +
+          B4 * (Q4 * Q4 * (K2 * K3) * sm4I (fun _ => 1))) +
+      K4 * (Q4 * Q4 * (K2 * K3) * (K4 ^ N4 * ((Q4 * Q4) ^ K * (K2 ^ (K * n2) * (K3 ^ (K * (n2 * n3)) *
+        (K * (L * (KA ^ n * (NSl ^ (L - 1) * (s * (k + L))))) * (NS2 * NS3 * (NR * (Q4 ^ m * 1))))))))) := by
+  subst hKL
+  have hc1 : ComHidesA (NSl ^ L * KA ^ n * KA ^ L) (2 * (L * (L * (NSl ^ (L - 1) * s))) * (KA ^ n * KA ^ L))
+      (comMI KA NSl L L pos) := fun d d' E =>
+    pfMIP_hidesA (k := 0) (O := Unit) (P := Unit) hKA pos (collB pos L NSl) (fun _ _ h => collB_dist h)
+      (fun dd => collB_count hN pos hs dd) hlt (fun _ => false) (fun _ => ())
+      (fun _ _ _ _ _ h => absurd h Bool.false_ne_true) (fun _ _ => ()) (fun _ _ _ => 0) d d' rfl (fun c _ => E c)
+  have hr1 : ∀ d σ, comMI KA NSl L L pos d σ < KA ^ L := fun d σ => by
+    have h := rgetL_lt hKA (posAll pos L NSl d (σ / KA ^ L % NSl ^ L)) (σ / KA ^ L / NSl ^ L)
+    rwa [posAll_length] at h
+  intro Com1 Pf1 Cmi Pfi smR smI m1 m2 m3 rvo s1 s2 s3 svo sm4 sm4I r1 r2 r3 Mq
+  have fo := fs_open4A (NS1 := NSl ^ L * KA ^ n * (KA ^ L)) (n1 := (KA ^ L)) hK2 hK3 hK4 φ hφ rv sv gz hgz g4 hB4 hrv hsv oz hoz
+    h1 h2 Cmi Pfi op1 sd1 d1 hc1 (fun c4 => pfMIP_hidesA hKA pos (collB pos L NSl) (fun _ _ h => collB_dist h)
+      (fun dd => collB_count hN pos hs dd) hlt (isOf c4) (op1 c4) (hposO c4) g nxt) hr1 ov1 hov1 main1 hsd1
+    Com2 Pf2 op2 sd2 d2 hc2 hp2 hr2 ov2 hov2 main2 hsd2 Com3 Pf3 op3 sd3 d3 hc3 hp3 hr3 ov3 hov3 main3 hsd3
+    hvo1 hvo2 hvo3 sop1 sop2 sop3 hsvo1 hsvo2 hsvo3 E
+  -- the query challenge and the event, read off the first commitment's value `c`
+  let c4f := fun (H1 H2 H3 H4 : Nat) (y : Nat × Nat × (Nat → Tup)) (c : Nat) =>
+    let c1 := rget (Q4 * Q4) c H1
+    let c2 := rget K2 (c + (KA ^ L) * Com2 (main2 c1 y.2.2 y.2.1) (y.1 % NS2)) H2
+    let mm3 := c + (KA ^ L) * comPair NS2 n2 Com2 Com3 (main2 c1 y.2.2 y.2.1, main3 c1 c2 y.2.2 y.2.1) y.1
+    let c3 := rget K3 mm3 H3
+    rget K4 (φ mm3 (oz (rv 0 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) y.2.1 y.2.2))) H4
+  let ev := fun (H1 H2 H3 H4 : Nat) (y : Nat × Nat × (Nat → Tup)) (c : Nat) (pf : Pq × List Nat) =>
+    let c1 := rget (Q4 * Q4) c H1
+    let mm2 := c + (KA ^ L) * Com2 (main2 c1 y.2.2 y.2.1) (y.1 % NS2)
+    let c2 := rget K2 mm2 H2
+    let mm3 := c + (KA ^ L) * comPair NS2 n2 Com2 Com3 (main2 c1 y.2.2 y.2.1, main3 c1 c2 y.2.2 y.2.1) y.1
+    let c3 := rget K3 mm3 H3
+    let c4 := c4f H1 H2 H3 H4 y c
+    E H1 H2 H3 H4 c mm2 mm3
+      ((ov1 c4 (rv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) y.2.1 y.2.2)).map (fun _ => pf),
+       (ovPair (ov2 c4) (ov3 c4) (rv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) y.2.1 y.2.2)).map
+         (fun _ => pfPair NS2 (Pf2 c4) (Pf3 c4) (main2 c1 y.2.2 y.2.1, main3 c1 c2 y.2.2 y.2.1) y.1),
+       rv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) y.2.1 y.2.2)
+  have hso := smT_lin (NS2 * NS3) NR m
+  have so1 := smT_one (NS2 * NS3) NR m
+  have step : ∀ H4 H1 H2 H3,
+      (KA ^ L) * smR (fun x => indB (ev H1 H2 H3 H4 x.2 (Com1 (main1 x.2.2.2 x.2.2.1) x.1)
+        (Pf1 (c4f H1 H2 H3 H4 x.2 (Com1 (main1 x.2.2.2 x.2.2.1) x.1)) (main1 x.2.2.2 x.2.2.1) x.1))) ≤
+      smI (fun x => indB (ev H1 H2 H3 H4 x.2 (Cmi (main1 x.2.2.2 x.2.2.1) x.1)
+        (Pfi (c4f H1 H2 H3 H4 x.2 (Cmi (main1 x.2.2.2 x.2.2.1) x.1)) (main1 x.2.2.2 x.2.2.1) x.1))) +
+        (KA ^ L) * (L * (KA ^ n * (NSl ^ (L - 1) * (s * (k + L))))) * (NS2 * NS3 * (NR * (Q4 ^ m * 1))) := fun H4 H1 H2 H3 => by
+    have tr := transferMc_inC (n := n) (NSl := NSl) (L := L) (s := s) (k := k) hKA hN (smT (NS2 * NS3) NR m) hso
+      pos hlt hs isOf op1 g nxt (fun y => main1 y.2.2 y.2.1) (fun y c => c4f H1 H2 H3 H4 y c)
+      (fun y c pf => ev H1 H2 H3 H4 y c pf)
+    rw [hso, hso, so1] at tr
+    exact tr
+  have hb : ∀ X : Nat → Nat → Nat → Nat → Nat, (KA ^ L) * (K4 * (Q4 * Q4 * (K2 * K3) * sumTo (K4 ^ N4) (fun H4 =>
+      sumTo ((Q4 * Q4) ^ (KA ^ L)) (fun H1 => sumTo (K2 ^ ((KA ^ L) * n2)) (fun H2 =>
+        sumTo (K3 ^ ((KA ^ L) * (n2 * n3))) (fun H3 => X H4 H1 H2 H3)))))) =
+      K4 * (Q4 * Q4 * (K2 * K3) * sumTo (K4 ^ N4) (fun H4 =>
+      sumTo ((Q4 * Q4) ^ (KA ^ L)) (fun H1 => sumTo (K2 ^ ((KA ^ L) * n2)) (fun H2 =>
+        sumTo (K3 ^ ((KA ^ L) * (n2 * n3))) (fun H3 => (KA ^ L) * X H4 H1 H2 H3))))) := fun X => by
+    rw [Nat.mul_left_comm (KA ^ L) K4, Nat.mul_left_comm (KA ^ L) (Q4 * Q4 * (K2 * K3)), sumTo_mul]
+    exact congrArg (fun z => K4 * (Q4 * Q4 * (K2 * K3) * z)) (sumTo_congr _ (fun H4 _ =>
+      (sumTo_mul _ _ _).trans (sumTo_congr _ (fun H1 _ =>
+        (sumTo_mul _ _ _).trans (sumTo_congr _ (fun H2 _ => sumTo_mul _ _ _))))))
+  rw [hb]
+  refine Nat.le_trans (Nat.mul_le_mul_left _ (Nat.mul_le_mul_left _
+    (sumTo_mono _ (fun H4 _ => sumTo_mono _ (fun H1 _ => sumTo_mono _ (fun H2 _ =>
+      sumTo_mono _ (fun H3 _ => step H4 H1 H2 H3))))))) ?_
+  simp only [sumTo_add, sumTo_const]
+  rw [Nat.mul_add (Q4 * Q4 * (K2 * K3)), Nat.mul_add K4]
+  exact Nat.add_le_add_right fo _
 
 end Circuit

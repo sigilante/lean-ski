@@ -1313,7 +1313,7 @@ open Ski.Audit
   Circuit.comp_fri_leaves Circuit.comp_fs_open4ROMM_fri
 
 -- Leaves that may share a hash (ROMMerkleColl)
-#audit_clean Circuit.posU_nodupS Circuit.posU_not_memS Circuit.pfMI_hidesA Circuit.pfMIP_hidesA Circuit.rgetL_enc Circuit.comM_val Circuit.hitLeaf_boundC Circuit.hitM_boundC Circuit.transferMC Circuit.collB_dist Circuit.pair_count Circuit.collB_count Circuit.pfM_hidesC Circuit.fs_openROMMC Circuit.collide_sat
+#audit_clean Circuit.posU_nodupS Circuit.posU_not_memS Circuit.pfMI_hidesA Circuit.pfMIP_hidesA Circuit.rgetL_enc Circuit.comM_val Circuit.hitLeaf_boundC Circuit.hitM_boundC Circuit.transferMC Circuit.collB_dist Circuit.pair_count Circuit.collB_count Circuit.pfM_hidesC Circuit.fs_openROMMC Circuit.collide_sat Circuit.hitLeafc_boundC Circuit.hitMc_boundC Circuit.transferMcC Circuit.transferMc_inC Circuit.fs_open4ROMMC
 
 -- Fiat–Shamir with the first commitment hiding up to η (FSOpenA)
 #audit_clean Circuit.open_real2A Circuit.open_two_coreA Circuit.fs_open3UA Circuit.fs_open4A
