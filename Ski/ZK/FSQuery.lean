@@ -247,7 +247,12 @@ theorem ComPfHides.post {D O Pp : Type} {NS : Nat} {Com : D → Nat → Nat} {Pf
     with one bound `N4` for every table; the proof-of-work table is assumed
     independent of the query table (Plonky3 grinds and samples on one
     duplex challenger, modelled here as independent components on one
-    input). -/
+    input).  FRI's commit phase fits the same way: the theorems hold for
+    every `fri`, so FRI folding with challenges hashed from its own layer
+    commitments against a table of its own is one `fri` per table, and the
+    bound sums over the tables.  That hash's input is what `fri` receives
+    (the LogUp challenges and the batched polynomials), not the transcript
+    before it. -/
 theorem fs_pow {NP e : Nat} (A B : Nat → Nat) (h : ∀ HP, A HP ≤ B HP + e) :
     sumTo NP A ≤ sumTo NP B + NP * e := by
   rw [← sumTo_const e NP, ← sumTo_add]
