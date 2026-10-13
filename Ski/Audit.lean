@@ -1247,4 +1247,4 @@ open Ski.Audit
 #audit_clean Circuit.sumTo_indEq Circuit.rget_spread Circuit.comR_spread Circuit.comI_spread Circuit.comI_spread_sm
   Circuit.pair_transfer Circuit.rom4_step Circuit.two_comm4 Circuit.two_le4 Circuit.fs_open4_twoROM
   Circuit.zkb_rom Circuit.pow_transfer Circuit.fs_open4_powROM
-  Circuit.powD_transfer Circuit.read4_powDROM
+  Circuit.powD_transfer Circuit.read4_powDROM Circuit.rom4_read4

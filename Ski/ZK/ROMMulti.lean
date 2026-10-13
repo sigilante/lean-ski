@@ -18,7 +18,7 @@ For `n` copies, `pow_transfer` moves every copy's view, newest first, and
 `zkb_rom` carries `fs_open4_pow`'s bound at the ideal opening to the real
 one (`fs_open4_powROM`); for `n` proofs of different statements,
 `powD_transfer` and `read4_powDROM`, each proof's transfer a hypothesis
-that `rom4_step` gives.
+that `rom4_step` gives (`rom4_read4`).
 -/
 
 namespace Circuit
@@ -504,7 +504,9 @@ set_option maxRecDepth 100000 in
     times the real count is at most `fs_open4_pow`'s bound at the ideal
     opening, its spread from `comI_spread`, plus the transfers' errors
     (`errT`): each copy's `s k / NSh` a draw over the others; one direction.
-    Each copy's commitment table is its own draw, with its salt. -/
+    Each copy's commitment table is its own draw, with its salt, as a
+    per-copy domain separation gives; one table shared by the copies, where
+    one copy's queries could meet another's commitment, is not covered. -/
 theorem fs_open4_powROM {PV PB D1 O1 Pq D2 O2 P2 D3 O3 P3 W : Type} {NR m e1 e2 NSh NSo sQ kQ nQ NS2 NS3 K2 K3 K4 KQ n2 n3 : Nat}
     (hKQ : 0 < KQ) (hK2 : 0 < K2) (hK3 : 0 < K3) (hK4 : 0 < K4)
     (φ : Nat → W → Nat) {N4 : Nat} (hφ : ∀ m w, φ m w < N4)
@@ -709,4 +711,44 @@ theorem read4_powDROM {X C O : Type} {K1 K2 K3 K4 : Nat} (K : Nat → Nat) (h1 :
   intro n E
   exact zkb_rom (read4_powD K h1 h2 h3 h4 ST hST sm hs sc hc c1 c2 c3 c4 c7 m1 m2 m3 q out pts cv sv ε hzk ok hok hcv hp2 hp3 hp4 δ₀ hsp n)
     (powD_transfer ST hST smR sm hR hs hCS hCR c1 vR (fun i => read4 K1 K2 K3 K4 (m1 i) (m2 i) (m3 i) (q i) (out i)) hA n) E
+
+set_option maxRecDepth 100000 in
+/-- **`rom4_step` meets `read4_powDROM`'s transfer hypothesis**: the ideal
+    four-round view is `read4`'s at the ideal commitment's messages. -/
+theorem rom4_read4 {PV PB D O Pq D2 O2 P2 D3 O3 P3 W : Type}
+    {K NR m NSh NSo s k n NS2 NS3 K2 K3 K4 n2 : Nat} (hK : 0 < K)
+    (φ : Nat → W → Nat) (rv : Nat → Nat → Nat → EF → EF → Nat → (Nat → Tup) → TViewN PV PB)
+    (oz : TViewN PV PB → W)
+    (pos : D → Nat → Nat → Nat) (hpos : ∀ d σo σh, pos d σo σh < n) (g : O → Nat → Pq)
+    (hs : ∀ d σo v, sumTo NSh (fun σh => indB (decide (pos d σo σh = v))) ≤ s)
+    (nxt : Pq → Nat → List Nat → Nat) (op1 : Nat → D → O)
+    (ov1 : Nat → TViewN PV PB → Option O) (main1 : (Nat → Tup) → Nat → D)
+    (Com2 : D2 → Nat → Nat) (Pf2 : Nat → D2 → Nat → P2) (ov2 : Nat → TViewN PV PB → Option O2)
+    (main2 : Nat → (Nat → Tup) → Nat → D2)
+    (Com3 : D3 → Nat → Nat) (Pf3 : Nat → D3 → Nat → P3) (ov3 : Nat → TViewN PV PB → Option O3)
+    (main3 : Nat → Nat → (Nat → Tup) → Nat → D3) :
+    let X := Nat × Nat × Nat × (Nat → Tup)
+    let sm := fun (f : X → Nat) => sumTo (NSh * (NSo * K ^ n) * K) (fun σ1 => sumTo (NS2 * NS3) (fun σ => sumTo NR (fun r => sumN m (fun t => f (σ1, σ, r, t)))))
+    let smR := fun (f : X → Nat) => sumTo (NSh * (NSo * K ^ n)) (fun σ1 => sumTo (NS2 * NS3) (fun σ => sumTo NR (fun r => sumN m (fun t => f (σ1, σ, r, t)))))
+    let Cmi := comI K NSh NSo pos
+    let Pfi := fun (c4 : Nat) => pfI K NSh NSo k pos (op1 c4) g nxt
+    let m1 := fun (x : X) => Cmi (main1 x.2.2.2 x.2.2.1) x.1
+    let m2 := fun (c1 : Nat) (x : X) => m1 x + K * Com2 (main2 c1 x.2.2.2 x.2.2.1) (x.2.1 % NS2)
+    let m3 := fun (c1 c2 : Nat) (x : X) =>
+      m1 x + K * comPair NS2 n2 Com2 Com3 (main2 c1 x.2.2.2 x.2.2.1, main3 c1 c2 x.2.2.2 x.2.2.1) x.2.1
+    let q := fun (c1 c2 c3 : Nat) (x : X) =>
+      φ (m3 c1 c2 x) (oz (rv 0 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2))
+    let out := fun (c4 c1 c2 c3 : Nat) (x : X) =>
+      ((ov1 c4 (rv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)).map (fun _ => Pfi c4 (main1 x.2.2.2 x.2.2.1) x.1),
+       (ovPair (ov2 c4) (ov3 c4) (rv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)).map
+         (fun _ => pfPair NS2 (Pf2 c4) (Pf3 c4) (main2 c1 x.2.2.2 x.2.2.1, main3 c1 c2 x.2.2.2 x.2.2.1) x.2.1),
+       rv c4 c2 c3 (efOf (c1 / Q4)) (efOf (c1 % Q4)) x.2.2.1 x.2.2.2)
+    let vR := fun H (x : X) => view4 K NS2 K2 K3 K4 n2 φ rv oz ov1 main1 Com2 Pf2 ov2 main2 Com3 Pf3 ov3 main3
+        (comR K NSh NSo pos) (fun c4 => pfR K NSh NSo k pos (op1 c4) g nxt) H x
+    ∀ (H : Nat × Nat × Nat × Nat) (G : Nat × Nat × Nat × (Option (Pq × List Nat) × Option (P2 × P3) × TViewN PV PB) → Bool), K * smR (fun x => indB (G (vR H x))) ≤
+      sm (fun x => indB (G (read4 (Q4 * Q4) K2 K3 K4 m1 m2 m3 q out H x))) +
+        K * (NSo * (K ^ n * (s * k))) * (NS2 * NS3 * (NR * (Q4 ^ m * 1))) := by
+  intro X sm smR Cmi Pfi m1 m2 m3 q out vR H G
+  exact rom4_step (NR := NR) (m := m) (NSh := NSh) (NSo := NSo) (s := s) (k := k) (n := n) (NS2 := NS2) (NS3 := NS3)
+    (K2 := K2) (K3 := K3) (K4 := K4) (n2 := n2) hK φ rv oz pos hpos g hs nxt op1 ov1 main1 Com2 Pf2 ov2 main2 Com3 Pf3 ov3 main3 H G
 end Circuit
