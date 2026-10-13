@@ -200,8 +200,11 @@ is built; this file records what is next. Last revised 2026-10-13.
   others), `hout` and `hpq` hypotheses on the openings (met by reads of the first three
   tables at points with the reader's first commitment as low digit, `read2_hout` for one
   read of the second; a fourth-table read must sit at `φ m w` with `m` carrying it), no
-  circuit's openings yet shown to meet them; the oracle-commitment versions
-  (`ROMMulti`, `ROMFamily`) not yet);
+  circuit's openings yet shown to meet them; over the oracle's commitment,
+  `Ski/ZK/ROMFamilyT.lean` (`sud_fs_open4_powDROMT` and the others); `ROMMulti`'s generic
+  theorems (`fs_open4_twoROM`, `fs_open4_powROM`, `read4_powDROM`, `rom4_read4`) have no
+  table-reading versions, the family theorems composing `zkbT_rom` and `powD_transfer`
+  directly);
   FRI's
   folding challenges hashed with the transcript before FRI (from its own layer commitments,
   against a table of its own, they fit already: `fs_pow`); FRI's layer commitments and final polynomial in the query hash's
