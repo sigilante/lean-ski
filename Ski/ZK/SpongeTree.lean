@@ -25,19 +25,25 @@ polynomial in `L`, for domain-separated absorptions.
   (`hτ`): first commitments tag `0`, the later block `m` tag `m + 1`
   (`sep_of_tags`).  A union over the tagged later block lists gives
   `loadTA` for every tagged later transcript (`preimage_loadTA`,
-  `loadTA_hsp`), averaged in `loadTA_countP`.  `tag_satPT` meets the tag
-  hypotheses at the full-width instance, the tag the block's range.
+  `loadTA_hsp`), averaged in `loadTA_countP`.  `tag_satPT` meets `hτ` and
+  `h0` at the full-width instance, the tag the block's range; `htag` stays a
+  condition on the encoding, met by later blocks in `[(m+1) Y, (m+2) Y)`
+  with `(L + 1) Y ≤ R1`.
 - **The composite.** `sud_interleaveS` with this index, averaged over the
   permutation, with a number for its error (`sud_interleaveLT`,
   `sud_interleaveLTN`).
 
-Size.  With `n1 = Kc = X = 2^248` and `n1 F / K` near `1`, optimizing `t`
-and `s0` makes `E[loadTA]` about `2^11`, `2^15`, `2^20`, `2^29` for
+Size.  The tags take room in the rate: first commitments below `Y`, so
+`n1 ≤ R1 / (L + 1)`.  The bound grows with `n1`, so `n1 = Kc = X = 2^248`
+with `n1 F / K` near `1` overstates it; there, optimizing `t` and `s0`
+makes `E[loadTA]` about `2^11`, `2^15`, `2^20`, `2^29` for
 `L = 1, 3, 10, 100`, growing as `L^3`; `SpongeLoadL`'s bound is about
 `2^7`, `2^24` at `L = 1, 3` and exponential beyond.
 
 Limits.  The later blocks must carry step tags, which Plonky3's
-challenger does not add; the other limits are `SpongeLoad`'s: the state
+challenger does not add, and the tags shrink the first commitment's space
+below the rate.  The composites say nothing unless `Kp > L t` and
+`s0 ≥ t`. the other limits are `SpongeLoad`'s: the state
 before the first commitment is fixed, the first commitment fills one aligned
 block, `H4` stays independent of the permutation, and the later blocks do
 not depend on the salt.
