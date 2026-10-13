@@ -126,10 +126,11 @@ is built; this file records what is next. Last revised 2026-10-13.
   `β` and `ζ` (at most `2/P²`) in the bound, both ways (`fs_open3U`, `fs_open3R`). The query
   points hashed as a fourth challenge at the commitments' transcript, every decoding
   admissible, every proof keeps it (`Ski/ZK/FSQuery.lean`, `Ski/ZK/FSQueryInst.lean`,
-  `*_fs_open4`). Open: the FRI challenge and layers hashed, and the opened values in the
-  query hash's input; `Com` from the same oracle (bounded queries, a ROM-hiding term);
-  several proofs per oracle (a hybrid and a collision term); the lookup proof-of-work
-  nonce. The groups' trace and mask points (`hT`, `hRq`) are tied
+  `*_fs_open4`). Open, most exploitable first: several proofs per oracle (a hybrid and a
+  collision term); `Com` from the same oracle (bounded queries, a ROM-hiding term); the
+  FRI challenge and folding challenges hashed (the non-generic `αb` in the bound); the
+  opened values and FRI's layer commitments in the query hash's input; the lookup and
+  query proof-of-work nonces. The groups' trace and mask points (`hT`, `hRq`) are tied
   to the committed matrices: the masked column is the interpolant of Plonky3's interleaved
   column over the `2n`-point domain (`Ski/ZK/Interleave.lean`, `bb_ileave_mcol`); that
   Plonky3 interleaves, trace rows even and random rows odd, is read from its source.
