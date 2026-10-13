@@ -238,7 +238,10 @@ theorem smRT_one (NR m : Nat) : smRT NR m (fun _ => 1) = NR * (Q4 ^ m * 1) := by
     (`PA`), the next `k` reading the opening, answered with it; `K` times
     the real count is at most the simulator's (through the ideal opening)
     plus `fs_openQ`'s error and the transfer's `s (k0 + k) / NSh` a draw;
-    one direction. -/
+    one direction.  A strategy that queries differently on abort is covered
+    with `nxt0` its abort strategy, `nxtF` the other, `k0 = k`, at twice the
+    transfer term; no query reads the Fiat–Shamir table or the view
+    (`ROMHide`'s limit); the simulator commits through the ideal opening. -/
 theorem fs_openROMQ {PV PB D O P : Type} {NR m e1 e2 K n NSh NSo s k0 k : Nat} (hK : 0 < K)
     (pos : D → Nat → Nat → Nat) (hpos : ∀ d σo σh, pos d σo σh < n) (g : O → Nat → P)
     (hs : ∀ d σo v, sumTo NSh (fun σh => indB (decide (pos d σo σh = v))) ≤ s)

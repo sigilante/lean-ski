@@ -35,7 +35,7 @@ What this covers, and what it leaves out:
 * the distinguisher's queries read the opening, the commitment and their
   earlier answers, not the Fiat–Shamir table or the view;
 * where the prover aborts, the distinguisher sees the commitment and no
-  query answers;
+  query answers (answers shown there, one round: `Ski/ZK/ROMAbort.lean`);
 * one round; the commitment's table apart from the Fiat–Shamir table, as a
   domain-separated oracle's.
 
