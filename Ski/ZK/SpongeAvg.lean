@@ -25,7 +25,8 @@ Here the composite runs under a uniform permutation.
   most `errPowD` at the errors `Kq W ε` and the spreads
   `δ0 (Kq W + X^L n1² (0 + ⋯ + (2L+1)) F W)`, `W` the number of
   permutation tables (`avg_err_bound`, `sud_interleavePN`, through
-  `sponge_δs_countP`); dividing by `Kq W` gives the average.
+  `sponge_δs_countP`); for `Kp > 2(L+1)`, dividing by `Kq W` gives the
+  average.  At `Kq = 0` the statement holds and says nothing.
 
 Limits, from `SpongeIndex`: the bound on `δsP` says something only while
 `n1²` and the later block lists stay well below the capacity, which
