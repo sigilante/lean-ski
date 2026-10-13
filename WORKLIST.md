@@ -169,7 +169,8 @@ is built; this file records what is next. Last revised 2026-10-13.
   for each `H`, a view of `(c, x)` (`rv (rset H (msg x) c) c x`) and `fs_zk` holds with the
   hypothesis taken at each `H`; the opening then reads the table through the commitment's
   value, and its hiding follows from hiding at each fixed table, summed over the
-  commitment's values; the `fs_open` chain restated over such views is not yet written);
+  commitment's values: one round, `Ski/ZK/ROMFSRead.lean` (`fs_openT`, `fs_openROMT`); the
+  multi-round theorems over such views are not yet written);
   FRI's
   folding challenges hashed with the transcript before FRI (from its own layer commitments,
   against a table of its own, they fit already: `fs_pow`); FRI's layer commitments and final polynomial in the query hash's
