@@ -157,6 +157,7 @@ import Ski.ZK.SpongePerm
 import Ski.ZK.SpongePermT
 import Ski.ZK.SpongeIndex
 import Ski.ZK.SpongeAvg
+import Ski.ZK.SpongeMany
 import Ski.ZK.FSQueryAbsT
 import Ski.ZK.FSQueryPowT
 import Ski.ZK.ROMFamilyT
@@ -1386,3 +1387,6 @@ open Ski.Audit
 
 -- Composites averaged over the permutation (SpongeAvg)
 #audit_clean Circuit.zkbT_avg Circuit.errPowD_avg Circuit.sud_interleaveP Circuit.errPowD_mono Circuit.avg_err_bound Circuit.nested_const Circuit.wrap_scale Circuit.zkbT_err_le Circuit.sud_interleavePN
+
+-- Many near-collisions are rare under a uniform permutation (SpongeMany)
+#audit_clean Circuit.fresh_countPG Circuit.indB_and' Circuit.chs_le_pow Circuit.chs_step Circuit.nearN_le Circuit.count_lt Circuit.weight_split Circuit.nearN_moment Circuit.chs_pos Circuit.pow_succ_ge Circuit.eS_le Circuit.nearN_tail
