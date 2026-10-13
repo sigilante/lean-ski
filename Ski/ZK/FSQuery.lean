@@ -20,7 +20,9 @@ it fails the verifier's test enter the bound as their whole count
 the commitments' transcript; with a proof-of-work nonce ground against a
 table of its own, independent of the query table, the bound holds at every
 such table and summed over them (`fs_pow`, a usage note rather than one
-composed theorem).
+composed theorem).  The lookup nonce, before the LogUp challenges, enters
+the same way through the first commitment (`ComHides.post`,
+`ComPfHides.post`).
 -/
 
 namespace Circuit
@@ -221,6 +223,20 @@ theorem fs_lastGR {Y Vw : Type} {K4 n4 K ε B4 : Nat} (hK4 : 0 < K4) (sm : (Y �
       simp only [sumTo_add, sumTo_const, sumTo_mul_right, ← sumTo_mul]
       rw [Nat.mul_add (K4 ^ n4), ← Nat.add_assoc]
       exact Nat.add_le_add_left (Nat.mul_le_mul_left _ (Nat.mul_le_mul_right _ hB4)) _
+
+/-- **Hiding survives post-processing**: a function of a hiding
+    commitment hides.  The lookup proof-of-work nonce precedes the LogUp
+    challenges, so the first hash reads the commitment with its nonce,
+    `g c := (c, nonce c)`, a function of the commitment for each
+    proof-of-work table; the theorems then apply to `g ∘ Com1`, and `fs_pow`
+    sums over the tables. -/
+theorem ComHides.post {D C C' : Type} {NS : Nat} {Com : D → Nat → C} (h : ComHides NS Com) (g : C → C') :
+    ComHides NS (fun d σ => g (Com d σ)) :=
+  fun d d' E => h d d' (fun c => E (g c))
+
+theorem ComPfHides.post {D O Pp : Type} {NS : Nat} {Com : D → Nat → Nat} {Pf : D → Nat → Pp} {op : D → O}
+    (h : ComPfHides NS Com Pf op) (g : Nat → Nat) : ComPfHides NS (fun d σ => g (Com d σ)) Pf op :=
+  fun d d' hd E => h d d' hd (fun c p => E (g c) p)
 
 /-- **A table nobody programs**, such as the proof-of-work oracle's: a
     bound at every such table holds summed over the tables, for a
