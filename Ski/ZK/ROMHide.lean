@@ -22,8 +22,9 @@ added (`open_realA`, `open_real_tA`, `fs_openA`).  Not yet composed: the
 hiding notions and `fs_zk`'s distinguisher must be restated over `k`-query
 runs into the commitment's table (folding that table into the salt makes
 hiding exact but blinds the distinguisher to it, which proves nothing
-against the oracle), and the opened commitment needs an opening-aware
-`rom_hideQ`.
+against the oracle).  The opened commitment hides against such runs: the
+salt split into the opened leaves' salts the proof shows and the hidden
+rest (`rom_hidePfQ`, `2 s k / NSh` normalized).
 -/
 
 namespace Circuit
@@ -187,6 +188,30 @@ theorem rom_hideQ {D : Type} {K n NS s k : Nat} (hK : 0 < K) (pos : D → Nat �
     exact Nat.add_le_add h1 h2
   refine Nat.le_trans (sumTo_mono _ (fun H _ => hin H)) (Nat.le_of_eq ?_)
   rw [sumTo_const, Nat.mul_left_comm]
+/-- **A commitment from the oracle hides given its openings, against `k`
+    adaptive queries**: the salt split into the part the opening shows
+    (`σo`, the opened leaves' salts) and the part it hides (`σh`); the
+    commitment the oracle's answer at `pos d σo σh`; the opening proof
+    `g (op d) σo`, reading only the opened values and the shown salts.  The
+    distinguisher sees the opening, the commitment and a run of `k` queries
+    chosen after both.  At two data with the same opened values, its counts
+    differ by at most `K NSo Kⁿ 2 s k`, `s` hidden salts at most taking a
+    position; normalized, `2 s k / NSh`. -/
+theorem rom_hidePfQ {D O P : Type} {K n NSo NSh s k : Nat} (hK : 0 < K) (pos : D → Nat → Nat → Nat)
+    (hpos : ∀ d σo σh, pos d σo σh < n) (op : D → O) (g : O → Nat → P)
+    (hs : ∀ d σo v, sumTo NSh (fun σh => indB (decide (pos d σo σh = v))) ≤ s)
+    (nxt : P → Nat → List Nat → Nat) (E : P → List Nat → Nat → Bool) (d d' : D) (hop : op d = op d') :
+    K * sumTo NSo (fun σo => sumTo NSh (fun σh => sumTo (K ^ n) (fun H =>
+      indB (E (g (op d) σo) (runQ K (nxt (g (op d) σo)) (rget K (pos d σo σh) H) k H) (rget K (pos d σo σh) H))))) ≤
+    K * sumTo NSo (fun σo => sumTo NSh (fun σh => sumTo (K ^ n) (fun H =>
+      indB (E (g (op d') σo) (runQ K (nxt (g (op d') σo)) (rget K (pos d' σo σh) H) k H)
+        (rget K (pos d' σo σh) H))))) +
+      K * (NSo * (K ^ n * (2 * (s * k)))) := by
+  rw [hop, sumTo_mul, sumTo_mul, ← sumTo_const (K ^ n * (2 * (s * k))) NSo, sumTo_mul, ← sumTo_add]
+  refine sumTo_mono _ (fun σo _ => ?_)
+  exact rom_hideQ hK (fun d σh => pos d σo σh) (fun d σh => hpos d σo σh) (fun d v => hs d σo v)
+    (nxt (g (op d') σo)) (E (g (op d') σo)) d d'
+
 /-- **A commitment hides up to `η`**: over the salt, the counts of any event
     at two data differ by at most `η`, one way (the other by symmetry). -/
 def ComHidesA {D C : Type} (NS η : Nat) (Com : D → Nat → C) : Prop :=
@@ -279,10 +304,10 @@ theorem open_real_tA {PV PB D O Pp : Type} {NR m NS η : Nat} (Com : D → Nat �
   exact ⟨sumTo_mono _ (fun c _ => (hc c).1), sumTo_mono _ (fun c _ => (hc c).2)⟩
 /-- **`fs_open` with the commitment hiding up to `η`** (`ComHidesA`,
     `ComPfHidesA`): the error gains `Q4² NR Q4^m η`, each draw's hiding
-    slack.  `rom_hideQ` does not yet supply it: it bounds one unopened
-    position against a `k`-query run, while `ComHidesA` quantifies over
-    every query-free event of a fixed commitment, and `ComPfHidesA` needs an
-    opening-aware lemma.  Composing needs both hiding notions and `fs_zk`'s
+    slack.  `rom_hideQ` and `rom_hidePfQ` do not yet supply it: they bound
+    a commitment against a `k`-query run, while `ComHidesA` and
+    `ComPfHidesA` quantify over every query-free event of a fixed
+    commitment.  Composing needs both hiding notions and `fs_zk`'s
     distinguisher restated over `k`-query runs into the commitment's table. -/
 theorem fs_openA {PV PB D O Pp : Type} {NR m NS n e1 e2 η : Nat} (Com : D → Nat → Nat) (Pf : D → Nat → Pp)
     (op : D → O) (sd : O → D) (d0 : D) (hcom : ComHidesA NS η Com)

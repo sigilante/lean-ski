@@ -137,8 +137,8 @@ is built; this file records what is next. Last revised 2026-10-13.
   different statements and shapes: `read4_pow`, `read4_powD`, each proof's bound from
   `fs_open4_abs`; the circuits' `n`-statement instances, which supply those per-proof bounds,
   are not yet proved); `Com` from the same oracle composed with the Fiat–Shamir theorems (hiding against
-  `k` adaptive queries is proved: `Ski/ZK/ROMHide.lean`, `rom_hideQ`; one round under
-  approximate hiding: `fs_openA`; the Fiat–Shamir distinguishers must take `k` queries to the
+  `k` adaptive queries is proved: `Ski/ZK/ROMHide.lean`, `rom_hideQ`; given its openings:
+  `rom_hidePfQ`; one round under approximate hiding: `fs_openA`; the Fiat–Shamir distinguishers must take `k` queries to the
   commitment's oracle domain, through every round); FRI's
   folding challenges hashed with the transcript before FRI (from its own layer commitments,
   against a table of its own, they fit already: `fs_pow`); FRI's layer commitments and final polynomial in the query hash's
