@@ -6,11 +6,14 @@ import Ski.ZK.ROMMerkleRows
 `ROMMerkleRows`'s `posRows` carries the leaf index, so distinct leaves never
 share a position.  Plonky3 hashes a leaf's row and salt alone: `posRowsP`,
 the salt and the row's hash, no index.  It meets the hypotheses the
-collision-aware theorems take in place of `hdist` (`ROMMerkleColl`,
+collision-aware theorems keep after dropping `hdist` (`ROMMerkleColl`,
 `ROMInstMC`, `ROMFamilyMC`): positions in range (`posRowsP_lt`, below
 `NSl Mh`), one salt per position value (`posRowsP_spread`, `s = 1`), and the
 opened leaves' positions fixed by the opened values (`posRowsP_hposO`).
 Two leaves with equal rows and salts share a position (`posRowsP_meet`).
+One salt per leaf stands for Plonky3's per-matrix salts, uniform over their
+product; all groups sit in one leaf, where Plonky3 injects shorter
+matrices' rows into internal nodes (`ROMMerkleRows`'s caveats).
 -/
 
 set_option autoImplicit false

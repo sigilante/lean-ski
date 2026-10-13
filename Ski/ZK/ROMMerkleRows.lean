@@ -25,8 +25,7 @@ height (`compress_and_inject`) rather than into the leaf, the per-group
 point `xs l k` standing for the row shift; its per-matrix salts, here one
 salt per leaf; the leaf index in the hash input (Plonky3 hashes the row and
 salt alone, so leaves with equal rows and salts collide, a term counted
-in `ROMMerkleColl` and `ROMInstMC` for positions without the index, not
-for these rows); and the hash's binding, which zero knowledge does not use.
+for these rows without the index in `ROMMerkleRowsP` and `ROMMerkleIdxC`); and the hash's binding, which zero knowledge does not use.
 -/
 
 set_option autoImplicit false
