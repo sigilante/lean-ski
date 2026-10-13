@@ -19,9 +19,11 @@ The Fiat–Shamir theorems take exact hiding (`ComHides`, `ComPfHides`);
 approximate hiding (`ComHidesA`, `ComPfHidesA`) enters only the real side,
 so one round with the commitment opened keeps its bound with the slack
 added (`open_realA`, `open_real_tA`, `fs_openA`).  Not yet composed: the
-Fiat–Shamir distinguisher must also query the commitment's own oracle
-domain, at most `k` times, and the theorems' distinguishers do not yet
-take those queries.
+hiding notions and `fs_zk`'s distinguisher must be restated over `k`-query
+runs into the commitment's table (folding that table into the salt makes
+hiding exact but blinds the distinguisher to it, which proves nothing
+against the oracle), and the opened commitment needs an opening-aware
+`rom_hideQ`.
 -/
 
 namespace Circuit
@@ -277,8 +279,11 @@ theorem open_real_tA {PV PB D O Pp : Type} {NR m NS η : Nat} (Com : D → Nat �
   exact ⟨sumTo_mono _ (fun c _ => (hc c).1), sumTo_mono _ (fun c _ => (hc c).2)⟩
 /-- **`fs_open` with the commitment hiding up to `η`** (`ComHidesA`,
     `ComPfHidesA`): the error gains `Q4² NR Q4^m η`, each draw's hiding
-    slack.  For a commitment drawn from the oracle against a distinguisher of
-    `k` queries, `rom_hideQ` gives the slack. -/
+    slack.  `rom_hideQ` does not yet supply it: it bounds one unopened
+    position against a `k`-query run, while `ComHidesA` quantifies over
+    every query-free event of a fixed commitment, and `ComPfHidesA` needs an
+    opening-aware lemma.  Composing needs both hiding notions and `fs_zk`'s
+    distinguisher restated over `k`-query runs into the commitment's table. -/
 theorem fs_openA {PV PB D O Pp : Type} {NR m NS n e1 e2 η : Nat} (Com : D → Nat → Nat) (Pf : D → Nat → Pp)
     (op : D → O) (sd : O → D) (d0 : D) (hcom : ComHidesA NS η Com)
     (hpf : ComPfHidesA NS η Com Pf op) (hrange : ∀ d σ, Com d σ < n)
