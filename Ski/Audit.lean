@@ -144,6 +144,7 @@ import Ski.ZK.FSMultiStop
 import Ski.ZK.FSMultiOpenRd
 import Ski.ZK.FSMultiMix
 import Ski.ZK.FSMultiMixSud
+import Ski.ZK.FSMultiOpenROM
 import Ski.ZK.FSQueryAbsT
 import Ski.ZK.FSQueryPowT
 import Ski.ZK.ROMFamilyT
@@ -1331,3 +1332,6 @@ open Ski.Audit
   Circuit.compFS4T_houtL Circuit.compFS4T_hrd Circuit.compFS4T_hsp Circuit.comp_interleave
   Circuit.witFS4T_houtD Circuit.witFS4T_hrdD Circuit.wit_interleaveD Circuit.compFS4T_houtD Circuit.compFS4T_hrdD
   Circuit.comp_interleaveD
+
+-- Commitment-table queries reading the Fiat–Shamir tables (FSMultiOpenROM)
+#audit_clean Circuit.nxtRd_eq_pfRd Circuit.nxtRd_prog Circuit.pfI_nxtRd Circuit.sudFS4T_houtROM Circuit.sud_fs_open4_powDROMQ
