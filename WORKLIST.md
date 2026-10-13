@@ -176,8 +176,10 @@ is built; this file records what is next. Last revised 2026-10-13.
   apart from the leaves' table stays an assumption; query answers shown where the proof
   aborts: `Ski/ZK/ROMAbort.lean`, one round (`fs_openROMQ`), four over the oracle
   (`fs_open4ROMQ`, on `fs_open4Q`); the circuits' single-proof theorems with it,
-  `Ski/ZK/FSQueryQ.lean` and `Ski/ZK/ROMInstQ.lean` (`sud_fs_open4ROMQ` and the others); the
-  multi-proof theorems with it not yet;
+  `Ski/ZK/FSQueryQ.lean` and `Ski/ZK/ROMInstQ.lean` (`sud_fs_open4ROMQ` and the others); `n`
+  statements with the shown part a given hiding primitive, `Ski/ZK/FSQueryAbsQ.lean`
+  (`sud_fs_open4_powDQ` and the others), and over the oracle's commitment
+  `Ski/ZK/ROMFamilyQ.lean` (`sud_fs_open4_powDROMQ` and the others);
   queries that read the Fiat–Shamir side, a route: after `fs_real` the real view is read at
   the table `rset H m c`, which is `H` but at the message, so a view that reads the table is,
   for each `H`, a view of `(c, x)` (`rv (rset H (msg x) c) c x`) and `fs_zk` holds with the
