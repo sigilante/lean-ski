@@ -108,6 +108,7 @@ import Ski.ZK.FSRound2Inst
 import Ski.ZK.FSOpen2
 import Ski.ZK.FSOpenFri2
 import Ski.ZK.FSOpen2Inst
+import Ski.ZK.FSOpen2Inst2
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -1182,3 +1183,6 @@ open Ski.Audit
 #audit_clean Circuit.mpolysMulti_congr Circuit.traceCws_congr Circuit.SameShape.n1 Circuit.SameShape.n2
   Circuit.SameShape.dataF2 Circuit.SameShape.dataP2 Circuit.sud_same Circuit.sud_data_zeta Circuit.sud_fs_open2
   Circuit.sud_SsT Circuit.sud_SsC
+-- The hidden-term and composed proofs over two Fiat–Shamir rounds, both commitments opened
+#audit_clean Circuit.wit_same Circuit.wit_data_zeta Circuit.wit_SsT Circuit.wit_SsC Circuit.wit_fs_open2
+  Circuit.comp_same Circuit.comp_data_zeta Circuit.comp_SsT Circuit.comp_SsC Circuit.comp_fs_open2

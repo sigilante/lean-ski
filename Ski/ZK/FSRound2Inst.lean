@@ -255,4 +255,5 @@ theorem comp_fs2 {V Wv D1 D2 : Type} (off : EF → String → EF) {R Lm : Nat} (
       (fun c2 => genB (efOf c2)) (fun c2 α β r t => realVN_cases _ _ _ _ _ α β r t)
       (fun c2 α β r t => simVN_some _ _ _ _ _ _ _ _ α β r t) (fun c2 hg => (hb c2 hg).1) (fun c2 hg => (hb c2 hg).2)
       Com1 hc1 Com2 hc2 main1 main2 d1 d2 (fun c1 c2 a b v => F c1 c2 a (a + n1 * b) v)) E
+
 end Circuit
