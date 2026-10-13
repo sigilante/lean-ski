@@ -128,6 +128,8 @@ import Ski.ZK.ROMWitness
 import Ski.ZK.ROMMerkle4
 import Ski.ZK.ROMMerkleColl
 import Ski.ZK.FSOpenA
+import Ski.ZK.FSQueryA
+import Ski.ZK.ROMInstMC
 import Ski.ZK.ROMInstM
 import Ski.ZK.ROMFamilyM
 import Ski.ZK.ROMMerkleRows
@@ -1317,3 +1319,4 @@ open Ski.Audit
 
 -- Fiat–Shamir with the first commitment hiding up to η (FSOpenA)
 #audit_clean Circuit.open_real2A Circuit.open_two_coreA Circuit.fs_open3UA Circuit.fs_open4A
+#audit_clean Circuit.sud_fs_open4A Circuit.wit_fs_open4A Circuit.comp_fs_open4A Circuit.rom4_transferMC Circuit.sud_fs_open4ROMMC Circuit.wit_fs_open4ROMMC Circuit.comp_fs_open4ROMMC

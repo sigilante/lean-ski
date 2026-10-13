@@ -24,15 +24,15 @@ spread `hs` alone.
   `UL` (`fs_openROMMC`).  `collide_sat` meets the hypotheses with Plonky3's
   shape, a leaf's position its salt and its row's hash, and two leaves
   meeting.
-
 - Four rounds with the opened set read at the query challenge: the hits
   likewise (`hitLeafc_boundC`, `hitMc_boundC`, `transferMcC`,
   `transferMc_inC`), the padded ideal opening hiding up to the meeting
   salt vectors, entering through `FSOpenA`'s `fs_open4A`
   (`fs_open4ROMMC`).
 
-Not shown: the circuit instances (`ROMInstM`, `ROMFamilyM`) without
-`hdist`; the families also need an approximate spread of the commitment
+The circuit instances: `ROMInstMC` (`sud_fs_open4ROMMC`,
+`wit_fs_open4ROMMC`, `comp_fs_open4ROMMC`).  Not shown: the families
+(`ROMFamilyM`) without `hdist`; they also need an approximate spread of the commitment
 (`comM_spreadL`), whose full `K^L` fails when two leaves share an answer.
 -/
 
@@ -671,7 +671,7 @@ theorem transferMcC {D O P : Type} {K n NSl L k s : Nat} (hK : 0 < K) (hN : 0 < 
   rw [sumTo_add]
   exact Nat.add_le_add_left (Nat.le_trans (Nat.le_of_eq (sumTo_mul (K ^ L) _ _).symm) hk) _
 
-/-- `transferMc` inside a count of the other draws, the data, the choice
+/-- `transferMcC` inside a count of the other draws, the data, the choice
     of opened set and the event read off them. -/
 theorem transferMc_inC {Y D O P : Type} {K n NSl L k s : Nat} (hK : 0 < K) (hN : 0 < NSl) (so : (Y → Nat) → Nat)
     (hso : Lin so) (pos : D → Nat → Nat → Nat)
@@ -691,17 +691,13 @@ theorem transferMc_inC {Y D O P : Type} {K n NSl L k s : Nat} (hK : 0 < K) (hN :
   rw [← smK so hso, ← eE, ← sm_add so hso]
   exact sm_mono so hso t
 
-/-- **`fs_open4ROMM` without `hdist`**: leaves may share a hash; the first
-    commitment hides up to the meeting salt vectors (`pfMIP_hidesA`,
-    `collB_count`, through `fs_open4A`) and the hits gain `L` queries' worth
-    (`transferMc_inC`).
-     **Four Fiat–Shamir rounds over a Merkle tree's leaves drawn from the
-    oracle**: `fs_open4ROM` with the first commitment the leaves' answers
-    (`comM`, its range `K = KA^L`), the opened set and data read at the drawn
-    query challenge (`isOf c4`, `op1 c4`), and so off the commitment's
-    value (`transferMc_in`); the ideal opening, padded to `L` digits, hides
-    at each challenge (`pfMIP_hides`).  Normalized, the bound gains
-    `L s k / NSl` a draw; one direction. -/
+/-- **`fs_open4ROMM` without `hdist`**: four Fiat–Shamir rounds over a Merkle
+    tree's leaves drawn from the oracle, the leaves possibly sharing a hash,
+    the opened set and data read at the drawn query challenge.  The padded
+    ideal opening hides up to the salt vectors where leaves meet
+    (`pfMIP_hidesA`, `collB_count`), entering through `fs_open4A`; the hits
+    gain `L` queries' worth (`transferMc_inC`).  Normalized, the bound gains
+    `L s (k + L) / NSl + 2 L² s / NSl` a draw; one direction. -/
 theorem fs_open4ROMMC {PV PB D O Pq D2 O2 P2 D3 O3 P3 W : Type}
     {K KA NR m e1 e2 NSl L s k n NS2 NS3 K2 K3 K4 n2 n3 : Nat}
     (hKA : 0 < KA) (hN : 0 < NSl) (hKL : K = KA ^ L) (hK2 : 0 < K2) (hK3 : 0 < K3) (hK4 : 0 < K4)
