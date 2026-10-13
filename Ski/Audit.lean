@@ -117,6 +117,25 @@ import Ski.ZK.FSQueryInst
 import Ski.ZK.FSMulti
 import Ski.ZK.FSMultiInst
 import Ski.ZK.ROMHide
+import Ski.ZK.ROMRounds
+import Ski.ZK.ROMInst
+import Ski.ZK.ROMMulti
+import Ski.ZK.FSQueryAbs
+import Ski.ZK.ROMFamily
+import Ski.ZK.ROMMerkle
+import Ski.ZK.ROMMerkleOpen
+import Ski.ZK.ROMWitness
+import Ski.ZK.ROMMerkle4
+import Ski.ZK.ROMAbort
+import Ski.ZK.ROMFSRead
+import Ski.ZK.ROMFSRead2
+import Ski.ZK.ROMFSRead4
+import Ski.ZK.FSQueryT
+import Ski.ZK.ROMInstT
+import Ski.ZK.FSQueryQ
+import Ski.ZK.ROMInstQ
+import Ski.ZK.FSMultiT
+import Ski.ZK.FSQueryAbsT
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -1235,3 +1254,41 @@ open Ski.Audit
   Circuit.salt_dec Circuit.comR_hides Circuit.pfR_hidesA Circuit.fs_openROM Circuit.reprog_swap Circuit.sum_digit
   Circuit.digit_dec Circuit.pfI_hides Circuit.pfR_pfI Circuit.comI_hides Circuit.rset_back Circuit.hit_rset
   Circuit.hit_bound Circuit.transferR
+-- Two rounds, the first commitment drawn from the oracle
+#audit_clean Circuit.transferR_in Circuit.smT_lin Circuit.smT_one Circuit.fs_open2ROM Circuit.fs_open3ROM
+  Circuit.runQ_congr Circuit.comI_digit Circuit.transferRc Circuit.transferRc_in Circuit.fs_open4ROM
+-- The circuits' four-round proofs over the oracle's commitment
+#audit_clean Circuit.rom4_transfer Circuit.sud_fs_open4ROM Circuit.wit_fs_open4ROM Circuit.comp_fs_open4ROM
+-- Two four-round proofs over the oracle's commitments
+#audit_clean Circuit.sumTo_indEq Circuit.rget_spread Circuit.comR_spread Circuit.comI_spread Circuit.comI_spread_sm
+  Circuit.pair_transfer Circuit.rom4_step Circuit.two_comm4 Circuit.two_le4 Circuit.fs_open4_twoROM
+  Circuit.zkb_rom Circuit.pow_transfer Circuit.fs_open4_powROM
+  Circuit.powD_transfer Circuit.read4_powDROM Circuit.rom4_read4
+-- The circuits' proofs as simulation bounds; n composed statements
+#audit_clean Circuit.sud_fs_open4_abs Circuit.wit_fs_open4_abs Circuit.comp_fs_open4_abs Circuit.fs4_powD
+  Circuit.comp_fs4 Circuit.comp_fs_open4_powD Circuit.sud_fs4 Circuit.sud_fs_open4_powD Circuit.wit_fs4
+  Circuit.wit_fs_open4_powD
+-- n statements of each circuit over the oracle's commitments
+#audit_clean Circuit.sud_fs_open4_powDROM Circuit.wit_fs_open4_powDROM Circuit.comp_fs_open4_powDROM
+-- A commitment to several leaves drawn from the oracle
+#audit_clean Circuit.rgetL_rset Circuit.reprog_swapL Circuit.pfIL_hides Circuit.comIL_hides Circuit.runQ_rsetL
+  Circuit.hitL_false Circuit.pfRL_pfIL Circuit.rget_mul_le Circuit.rset_comm Circuit.rset_rsetL Circuit.rsetL_back
+  Circuit.hitL_rsetL Circuit.any_le_sum Circuit.hitL_bound Circuit.transferRL Circuit.rgetL_lt Circuit.pfRL_hidesA
+  Circuit.fs_openROML Circuit.hs_one Circuit.romMerkle_sat
+-- A Merkle tree's leaves drawn from the oracle, some opened
+#audit_clean Circuit.rget_rsetL_not Circuit.rget_rsetL_at Circuit.rgetL_congr Circuit.mem_lr Circuit.lr_mem Circuit.lr_nodup Circuit.nodup_filter Circuit.nodup_map_on Circuit.posU_nodup Circuit.unop_index Circuit.getD_mapN Circuit.lr_length Circuit.lr_getD_lt Circuit.posU_not_mem Circuit.pfMI_hides Circuit.pfM_pfMI Circuit.lsalt_at Circuit.lsalt_lt Circuit.lsalt_gt Circuit.sum_split_digit Circuit.lsalt_ne Circuit.shownS_eq Circuit.comM_eq Circuit.hitLeaf_bound Circuit.unop_mem Circuit.hitM_bound Circuit.transferM Circuit.pfM_hidesA Circuit.posAll_length Circuit.fs_openROMM Circuit.merkleOpen_sat Circuit.fs_openROMMR
+-- Four rounds over a Merkle tree's leaves, the opened set read at the challenge
+#audit_clean Circuit.mod_mul_div Circuit.rsetL_mod Circuit.unop_le Circuit.pfMIP_hides Circuit.pfMc_pfMI Circuit.any_unop_le Circuit.hitLeafc_bound Circuit.hitMc_bound Circuit.transferMc Circuit.transferMc_in Circuit.fs_open4ROMM Circuit.fs_open4ROMMR
+-- Query answers shown where the proof aborts
+#audit_clean Circuit.open_realQ Circuit.openEvQ_and Circuit.open_real_tQ Circuit.open_sim_tQ Circuit.fs_openQ Circuit.runQ_length Circuit.runQ_pre Circuit.runQ_split Circuit.smRT_lin Circuit.smRT_one Circuit.fs_openROMQ Circuit.open_real2Q Circuit.openEv2_andQ Circuit.openEv2_someQ Circuit.open_two_coreQ Circuit.fs_open2Q
+  Circuit.ComHides_toP Circuit.ComPfHides_toP Circuit.fs_open3Q Circuit.fs_open3UQ Circuit.fs_open4Q Circuit.fs_open4ROMQ
+-- The distinguisher's queries reading the Fiat–Shamir table
+#audit_clean Circuit.fs_zkT Circuit.sum_pick Circuit.comPf_choose Circuit.open_real_tC Circuit.open_sim_tC Circuit.fs_openT Circuit.fs_openROMT Circuit.fs_zk2T
+#audit_clean Circuit.open_real2T Circuit.openEv2T_and Circuit.openEv2T_some Circuit.open_two_coreT Circuit.fs_open2T Circuit.fs_open2ROMT Circuit.fs_zk3T Circuit.fs_open3T Circuit.fs_open3ROMT
+#audit_clean Circuit.openEv2V_and Circuit.openEv2V_some Circuit.open_two_coreV Circuit.fs_zk3UT Circuit.fs_open3UT Circuit.fs_lastGT Circuit.fs_open4T Circuit.fs_open4ROMT
+#audit_clean Circuit.sud_fs_open4T Circuit.wit_fs_open4T Circuit.comp_fs_open4T Circuit.rom4_transferT Circuit.sud_fs_open4ROMT Circuit.wit_fs_open4ROMT Circuit.comp_fs_open4ROMT
+#audit_clean Circuit.sud_fs_open4Q Circuit.wit_fs_open4Q Circuit.comp_fs_open4Q Circuit.rom4_transferQ Circuit.sud_fs_open4ROMQ Circuit.wit_fs_open4ROMQ Circuit.comp_fs_open4ROMQ
+#audit_clean Circuit.fs_twoT Circuit.zkbT_pair Circuit.zkbT_powD Circuit.read4T_beside Circuit.read2_hout Circuit.read4T_powD Circuit.fs_open4_absT
+#audit_clean Circuit.sud_fs_open4_absT Circuit.wit_fs_open4_absT Circuit.comp_fs_open4_absT Circuit.fs4_powDT
+-- The hypotheses, met
+#audit_clean Circuit.inj_le_one Circuit.hposW Circuit.hsW Circuit.hndW Circuit.hlenW Circuit.hltW Circuit.hsLW Circuit.hdistM Circuit.hltM Circuit.hsM Circuit.hposOM Circuit.hφW Circuit.hφsW Circuit.hposF Circuit.hsF Circuit.hposOW Circuit.hsd1W

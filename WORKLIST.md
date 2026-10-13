@@ -147,13 +147,59 @@ is built; this file records what is next. Last revised 2026-10-13.
   first: the circuits' `n`-proof instances (two of each: `Ski/ZK/FSMultiInst.lean`,
   `*_fs_open4_two`; `n` copies of a four-round proof: `fs_open4_pow`; `n` four-round proofs of
   different statements and shapes: `read4_pow`, `read4_powD`, each proof's bound from
-  `fs_open4_abs`; the circuits' `n`-statement instances, which supply those per-proof bounds,
-  are not yet proved); `Com` from the same oracle composed with the Fiat–Shamir theorems (hiding against
+  `fs_open4_abs`; the circuits' per-proof bounds in that form: `*_fs_open4_abs`; `n` statements
+  of each circuit: `comp_fs_open4_powD`, `sud_fs_open4_powD`, `wit_fs_open4_powD`); `Com` from the same oracle composed with the Fiat–Shamir theorems (hiding against
   `k` adaptive queries is proved: `Ski/ZK/ROMHide.lean`, `rom_hideQ`; given its openings:
   `rom_hidePfQ`; one round under approximate hiding: `fs_openA`; one round with the commitment
   drawn from the oracle: `fs_openROM`; every round through the ideal opening (`pfI_hides`) and
-  the transfer `pfR_pfI` with its hit bound `hit_bound`, not yet written into each
-  theorem); FRI's
+  the transfer `pfR_pfI` with its hit bound `hit_bound`, written into two, three and four
+  rounds: `fs_open2ROM`, `fs_open3ROM`, `fs_open4ROM`, the last with the opening chosen
+  by the commitment's value through the query challenge (`transferRc`) and the queries
+  reading the opening at the drawn challenge only; the circuits' four-round instances:
+  `sud_fs_open4ROM`, `wit_fs_open4ROM`, `comp_fs_open4ROM` (`rom4_transfer`); two proofs:
+  `fs_open4_twoROM` (`pair_transfer`, `comI_spread_sm`); `n` copies: `fs_open4_powROM`
+  (`pow_transfer`, `zkb_rom`); `n` proofs of different statements: `read4_powDROM`
+  (`powD_transfer`), each proof's transfer a hypothesis; `n` statements of
+  each circuit: `*_fs_open4_powD` (`Ski/ZK/FSQueryAbs.lean`), and over the oracle's
+  commitments: `*_fs_open4_powDROM` (`Ski/ZK/ROMFamily.lean`); a commitment to several
+  hidden leaves, every leaf hash shown: `Ski/ZK/ROMMerkle.lean`, one round
+  (`fs_openROML`); a Merkle opening, the opened leaves' data and salts shown, the opened set
+  fixed: `Ski/ZK/ROMMerkleOpen.lean`, one round (`fs_openROMM`, the root hashed:
+  `fs_openROMMR`), with a leaf index in the hash input (Plonky3's leaf hash carries none: without
+  it, unopened leaves with equal data and salts share a hash, a term not counted); four rounds, the
+  opened set read at the query challenge: `Ski/ZK/ROMMerkle4.lean` (`fs_open4ROMM`; the root hashed: `fs_open4ROMMR`); not yet:
+  the circuits' and the multi-proof theorems over the Merkle commitment: there the leaves are
+  the committed matrix's low-degree-extension rows, the opened data the rows at the query
+  indices beside the openings at `ζ` the instances' `op1` names, so `hposO` ties the leaf
+  positions to those rows and the opened rows' hiding comes from the PCS layer (`MaskFri`,
+  `pcsCloseN_fri`), a joint statement not yet written; internal-node hashing
+  apart from the leaves' table stays an assumption; query answers shown where the proof
+  aborts: `Ski/ZK/ROMAbort.lean`, one round (`fs_openROMQ`), four over the oracle
+  (`fs_open4ROMQ`, on `fs_open4Q`); the circuits' single-proof theorems with it,
+  `Ski/ZK/FSQueryQ.lean` and `Ski/ZK/ROMInstQ.lean` (`sud_fs_open4ROMQ` and the others); the
+  multi-proof theorems with it not yet;
+  queries that read the Fiat–Shamir side, a route: after `fs_real` the real view is read at
+  the table `rset H m c`, which is `H` but at the message, so a view that reads the table is,
+  for each `H`, a view of `(c, x)` (`rv (rset H (msg x) c) c x`) and `fs_zk` holds with the
+  hypothesis taken at each `H`; the opening then reads the table through the commitment's
+  value, and its hiding follows from hiding at each fixed table, summed over the
+  commitment's values: one round, `Ski/ZK/ROMFSRead.lean` (`fs_openT`, `fs_openROMT`); two
+  and three rounds, every opening reading every table, `Ski/ZK/ROMFSRead2.lean` (`fs_open2T`,
+  `fs_open3T`, and over the oracle `fs_open2ROMT`, `fs_open3ROMT`); four rounds, the fourth
+  table read at a function of the third message and the view, `Ski/ZK/ROMFSRead4.lean`
+  (`fs_open4T`, `fs_open4ROMT`); the circuits' single-proof theorems over them,
+  `Ski/ZK/FSQueryT.lean` and `Ski/ZK/ROMInstT.lean` (`sud_fs_open4ROMT` and the others); the
+  multi-proof theorems over them: `read4_powD` keeps a proof's view when another proof
+  programs the tables only because the view reads them at its own messages, so
+  `Ski/ZK/FSMultiT.lean` flags an output's table reads (`hq`), asks the output unchanged where
+  they miss (`hout`) and a hit to carry the reader's first message (`hpq`), and lets the
+  simulated views read the tables (`ZKBT`); `read4T_powD`, the circuits' `*_fs_open4_absT`
+  and `fs4_powDT` (`Ski/ZK/FSQueryAbsT.lean`) hold, with the distinguisher's queries
+  only after every programming (queries between the proofs not modelled); the circuits' `n`-statement theorems over
+  them (`sud_fs_open4_powD`'s analogue, with `hq`, `hout`, `hpq` for the openings, whose reads
+  must then sit at points with their own first commitment as low digit) and the
+  oracle-commitment versions (`ROMMulti`, `ROMFamily`) not yet);
+  FRI's
   folding challenges hashed with the transcript before FRI (from its own layer commitments,
   against a table of its own, they fit already: `fs_pow`); FRI's layer commitments and final polynomial in the query hash's
   input (every opening at `ζ` is in it, `pcsFri_ood`, `pcsFri_oodT`,

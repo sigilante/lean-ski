@@ -35,7 +35,7 @@ What this covers, and what it leaves out:
 * the distinguisher's queries read the opening, the commitment and their
   earlier answers, not the Fiat–Shamir table or the view;
 * where the prover aborts, the distinguisher sees the commitment and no
-  query answers;
+  query answers (answers shown there, one round: `Ski/ZK/ROMAbort.lean`);
 * one round; the commitment's table apart from the Fiat–Shamir table, as a
   domain-separated oracle's.
 
@@ -52,8 +52,9 @@ at most `NSo Kⁿ s k` over the salts and the table, `s k / NSh` normalized
 the commitment drawn from the oracle is its count with the ideal opening,
 to which the exact theorem applies, up to the hits: for any event of the
 commitment and its opening, both ways (`transferR`).  Writing that
-transfer into each theorem's statement, its event's other arguments summed
-outside, is not yet done.
+transfer into a theorem's statement, its event's other arguments summed
+outside, is done for two, three and four rounds (`Ski/ZK/ROMRounds.lean`:
+`fs_open2ROM`, `fs_open3ROM`, `fs_open4ROM`).
 -/
 
 namespace Circuit
