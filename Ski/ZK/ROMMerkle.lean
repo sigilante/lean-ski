@@ -471,4 +471,22 @@ theorem hs_one {D : Type} (NSh : Nat) :
         exact this N (Nat.le_refl _)
       rw [z]; simp [indB]
     · simp only [h, decide_false, indB, Nat.add_zero]; exact ih
+
+/-- **`ROMMerkle`'s hypotheses are met together** (not vacuous): one leaf
+    at position `σh mod NSh`, with `s = 1`. -/
+theorem romMerkle_sat {D : Type} (NSh : Nat) (hN : 0 < NSh) :
+    let ps := fun (_ : D) (_ σh : Nat) => [σh % NSh]
+    (∀ d σo σh, (ps d σo σh).Nodup) ∧ (∀ d σo σh, (ps d σo σh).length = 1) ∧
+    (∀ d σo σh, ∀ p ∈ ps d σo σh, p < NSh) ∧
+    (∀ d σo l, l < 1 → ∀ v, sumTo NSh (fun σh => indB (decide ((ps d σo σh).getD l 0 = v))) ≤ 1) := by
+  intro ps
+  refine ⟨fun _ _ _ => List.nodup_cons.2 ⟨List.not_mem_nil, List.nodup_nil⟩, fun _ _ _ => rfl,
+    fun _ _ σh p hp => ?_, fun d σo l hl v => ?_⟩
+  · rw [List.mem_singleton.1 hp]; exact Nat.mod_lt _ hN
+  · have h := hs_one (D := D) NSh d σo l hl v
+    refine Nat.le_trans (Nat.le_of_eq (sumTo_congr _ (fun σh hσ => ?_))) h
+    have : l = 0 := by omega
+    subst this
+    show indB (decide (σh % NSh = v)) = indB (decide (σh = v))
+    rw [Nat.mod_eq_of_lt hσ]
 end Circuit

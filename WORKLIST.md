@@ -151,13 +151,12 @@ is built; this file records what is next. Last revised 2026-10-13.
   each circuit: `*_fs_open4_powD` (`Ski/ZK/FSQueryAbs.lean`), and over the oracle's
   commitments: `*_fs_open4_powDROM` (`Ski/ZK/ROMFamily.lean`); a commitment to several
   hidden leaves, every leaf hash shown: `Ski/ZK/ROMMerkle.lean`, one round
-  (`fs_openROML`); a Merkle opening is not yet modelled: the opened leaves' salts shown,
-  the opened set chosen by the later challenges, leaves sharing positions, the root hashed;
-  nor the multi-round, circuit and multi-proof theorems over it. A Merkle opening, the opened leaves' data and salts shown, the
-  opened set fixed: `Ski/ZK/ROMMerkleOpen.lean`, one round (`fs_openROMM`), with a leaf index in
-  the hash input (Plonky3's leaf hash carries none); not yet: the opened set chosen by a later
-  challenge, the root hashed in place of the leaves, the multi-round theorems over it.
-  Internal-node hashing apart from the leaves' table stays an assumption); FRI's
+  (`fs_openROML`); a Merkle opening, the opened leaves' data and salts shown, the opened set
+  fixed: `Ski/ZK/ROMMerkleOpen.lean`, one round (`fs_openROMM`, the root hashed:
+  `fs_openROMMR`), with a leaf index in the hash input (Plonky3's leaf hash carries none: without
+  it, unopened leaves with equal data and salts share a hash, a term not counted); not yet: the
+  opened set chosen by a later challenge, the multi-round theorems over it; internal-node
+  hashing apart from the leaves' table stays an assumption); FRI's
   folding challenges hashed with the transcript before FRI (from its own layer commitments,
   against a table of its own, they fit already: `fs_pow`); FRI's layer commitments and final polynomial in the query hash's
   input (every opening at `ζ` is in it, `pcsFri_ood`, `pcsFri_oodT`,

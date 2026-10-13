@@ -1262,6 +1262,6 @@ open Ski.Audit
 #audit_clean Circuit.rgetL_rset Circuit.reprog_swapL Circuit.pfIL_hides Circuit.comIL_hides Circuit.runQ_rsetL
   Circuit.hitL_false Circuit.pfRL_pfIL Circuit.rget_mul_le Circuit.rset_comm Circuit.rset_rsetL Circuit.rsetL_back
   Circuit.hitL_rsetL Circuit.any_le_sum Circuit.hitL_bound Circuit.transferRL Circuit.rgetL_lt Circuit.pfRL_hidesA
-  Circuit.fs_openROML Circuit.hs_one
+  Circuit.fs_openROML Circuit.hs_one Circuit.romMerkle_sat
 -- A Merkle tree's leaves drawn from the oracle, some opened
-#audit_clean Circuit.rget_rsetL_not Circuit.rget_rsetL_at Circuit.rgetL_congr Circuit.mem_lr Circuit.lr_mem Circuit.lr_nodup Circuit.nodup_filter Circuit.nodup_map_on Circuit.posU_nodup Circuit.unop_index Circuit.getD_mapN Circuit.lr_length Circuit.lr_getD_lt Circuit.posU_not_mem Circuit.pfMI_hides Circuit.pfM_pfMI Circuit.lsalt_at Circuit.lsalt_lt Circuit.lsalt_gt Circuit.sum_split_digit Circuit.lsalt_ne Circuit.shownS_eq Circuit.comM_eq Circuit.hitLeaf_bound Circuit.unop_mem Circuit.hitM_bound Circuit.transferM Circuit.pfM_hidesA Circuit.posAll_length Circuit.fs_openROMM
+#audit_clean Circuit.rget_rsetL_not Circuit.rget_rsetL_at Circuit.rgetL_congr Circuit.mem_lr Circuit.lr_mem Circuit.lr_nodup Circuit.nodup_filter Circuit.nodup_map_on Circuit.posU_nodup Circuit.unop_index Circuit.getD_mapN Circuit.lr_length Circuit.lr_getD_lt Circuit.posU_not_mem Circuit.pfMI_hides Circuit.pfM_pfMI Circuit.lsalt_at Circuit.lsalt_lt Circuit.lsalt_gt Circuit.sum_split_digit Circuit.lsalt_ne Circuit.shownS_eq Circuit.comM_eq Circuit.hitLeaf_bound Circuit.unop_mem Circuit.hitM_bound Circuit.transferM Circuit.pfM_hidesA Circuit.posAll_length Circuit.fs_openROMM Circuit.merkleOpen_sat Circuit.fs_openROMMR

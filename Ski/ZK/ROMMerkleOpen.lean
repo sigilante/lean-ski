@@ -7,7 +7,10 @@ import Ski.ZK.ROMMerkle
 leaf has its own salt, a digit of the hidden salt (`lsalt`), and its
 position in the commitment's table is read off its data and its salt
 alone (`pos d l a`, distinct across leaves, `hdist`: a leaf index in the
-hash input, which Plonky3's leaf hash does not carry); the commitment is
+hash input, which Plonky3's leaf hash does not carry; a strengthening, not a
+conservative simplification: without it two unopened leaves with equal data
+and equal salts share a hash, a term of about the equal-data pairs over
+`NSl` this module does not count); the commitment is
 the leaves' answers in leaf order (`comM`).  The opening opens a fixed set
 of leaves (`isO`): their data, through `op`, which fixes their positions
 (`hposO`), and their salts (`shownS`), as a Merkle opening shows them.  The
@@ -18,9 +21,11 @@ where a query hits an unopened leaf (`pfM_pfMI`), each leaf's hits counted
 over its own salt with the others fixed (`hitLeaf_bound`), `UL s k / NSl`
 in all (`hitM_bound`), both ways (`transferM`); so the real opening hides
 up to `2 UL s k / NSl` (`pfM_hidesA`), and one Fiat–Shamir round keeps its
-bound (`fs_openROMM`).  Not yet: the opened set chosen by a later challenge
-(the four-round theorems'), and the root, a function of the leaves'
-answers computed apart from their table, hashed in place of the leaves.
+bound (`fs_openROMM`), likewise with a root of the leaves hashed in their
+place (`fs_openROMMR`).  `merkleOpen_sat` meets the hypotheses together.
+Not yet: the opened set chosen by a later challenge (the four-round
+theorems').  The root is a function of the leaves' answers computed apart
+from their table, an assumption.
 -/
 
 set_option autoImplicit false
@@ -120,10 +125,10 @@ theorem nodup_map_on (f : Nat → Nat) : ∀ (l : List Nat), l.Nodup →
     exact h a (List.mem_cons_self ..) b (List.mem_cons_of_mem _ hb) hab e.symm
 
 theorem posU_nodup {D : Type} (pos : D → Nat → Nat → Nat) (L NSl : Nat) (isO : Nat → Bool)
-    (hdist : ∀ d l l' a b, l ≠ l' → pos d l a ≠ pos d l' b) (d : D) (σh : Nat) :
+    (hdist : ∀ d l l' a b, l < L → l' < L → l ≠ l' → pos d l a ≠ pos d l' b) (d : D) (σh : Nat) :
     (posU pos L NSl isO d σh).Nodup := by
   unfold posU unop
-  exact nodup_map_on _ _ (nodup_filter _ _ (lr_nodup L)) (fun a _ b _ hne => hdist d a b _ _ hne)
+  exact nodup_map_on _ _ (nodup_filter _ _ (lr_nodup L)) (fun a ha b hb hne => hdist d a b _ _ (mem_lr (List.mem_filter.1 ha).1) (mem_lr (List.mem_filter.1 hb).1) hne)
 
 theorem unop_index {L : Nat} {isO : Nat → Bool} {l : Nat} (hl : l < L) (hu : isO l = false) :
     ∃ j, j < (unop L isO).length ∧ (unop L isO).getD j 0 = l := by
@@ -177,7 +182,7 @@ def pfMI {D O P : Type} (K NSl L UL k : Nat) (pos : D → Nat → Nat → Nat) (
      (rsetL K (posU pos L NSl isO d (σ / K ^ UL % NSl ^ L)) (σ / K ^ UL / NSl ^ L) (σ % K ^ UL)))
 
 theorem posU_not_mem {D : Type} {pos : D → Nat → Nat → Nat} {L NSl : Nat} {isO : Nat → Bool}
-    (hdist : ∀ d l l' a b, l ≠ l' → pos d l a ≠ pos d l' b) {d : D} {σh l a : Nat} (hO : isO l = true) :
+    (hdist : ∀ d l l' a b, l < L → l' < L → l ≠ l' → pos d l a ≠ pos d l' b) {d : D} {σh l a : Nat} (hl : l < L) (hO : isO l = true) :
     pos d l a ∉ posU pos L NSl isO d σh := by
   intro hm
   obtain ⟨l', hl', e⟩ := List.mem_map.1 hm
@@ -185,12 +190,12 @@ theorem posU_not_mem {D : Type} {pos : D → Nat → Nat → Nat} {L NSl : Nat} 
     have := (List.mem_filter.1 hl').2
     cases h : isO l' <;> simp_all
   have hne : l' ≠ l := fun e' => by rw [e'] at hu; rw [hu] at hO; exact Bool.false_ne_true hO
-  exact hdist d l' l _ _ hne e
+  exact hdist d l' l _ _ (mem_lr (List.mem_filter.1 hl').1) hl hne e
 
 /-- **The ideal opening hides exactly given the opened leaves**: with the
     opened leaves' positions read off the opened data (`hposO`). -/
 theorem pfMI_hides {D O P : Type} {K n NSl L k : Nat} (hK : 0 < K) (pos : D → Nat → Nat → Nat)
-    (hdist : ∀ d l l' a b, l ≠ l' → pos d l a ≠ pos d l' b) (hlt : ∀ d l a, pos d l a < n)
+    (hdist : ∀ d l l' a b, l < L → l' < L → l ≠ l' → pos d l a ≠ pos d l' b) (hlt : ∀ d l a, l < L → pos d l a < n)
     (isO : Nat → Bool) (op : D → O) (hposO : ∀ d d', op d = op d' → ∀ l a, isO l = true → pos d l a = pos d' l a)
     (g : O → List Nat → P) (nxt : P → Nat → List Nat → Nat) :
     ComPfHides (NSl ^ L * K ^ n * K ^ (unop L isO).length) (comMI K NSl L (unop L isO).length pos)
@@ -210,7 +215,7 @@ theorem pfMI_hides {D O P : Type} {K n NSl L k : Nat} (hK : 0 < K) (pos : D → 
     refine sumTo_congr _ (fun σh hσ => ?_)
     have hlen : (posU pos L NSl isO dd σh).length = (unop L isO).length := List.length_map ..
     have r := reprog_swapL (n := n) hK (posU pos L NSl isO dd σh) (posU_nodup pos L NSl isO hdist dd σh)
-      (fun p hp => by obtain ⟨l, _, e⟩ := List.mem_map.1 hp; rw [← e]; exact hlt _ _ _) (fun cU H => G dd σh cU H)
+      (fun p hp => by obtain ⟨l, hl, e⟩ := List.mem_map.1 hp; rw [← e]; exact hlt _ _ _ (mem_lr (List.mem_filter.1 hl).1)) (fun cU H => G dd σh cU H)
     rw [hlen] at r
     rw [← r]
     refine sumTo_congr _ (fun h _ => sumTo_congr _ (fun u hu => ?_))
@@ -239,7 +244,7 @@ theorem pfMI_hides {D O P : Type} {K n NSl L k : Nat} (hK : 0 < K) (pos : D → 
         unfold posU; rw [getD_mapN _ _ hj, ej]
       rw [p1] at a1; rw [p2] at a2
       rw [a1, a2]
-    · rw [rget_rsetL_not hK _ (posU_not_mem hdist hO), rget_rsetL_not hK _ (posU_not_mem hdist hO),
+    · rw [rget_rsetL_not hK _ (posU_not_mem hdist hl hO), rget_rsetL_not hK _ (posU_not_mem hdist hl hO),
         hposO d' d hop.symm _ _ hO]
   simp only [G, hc]
 
@@ -336,22 +341,23 @@ theorem shownS_eq {NSl L l lo x hi : Nat} {isO : Nat → Bool} (hN : 0 < NSl) (h
   exact lsalt_ne hN hne hlo hx
 
 theorem comM_eq {D : Type} {K NSl L l lo x hi a H : Nat} (hK : 0 < K) (hN : 0 < NSl) (pos : D → Nat → Nat → Nat)
-    (hdist : ∀ d l l' a b, l ≠ l' → pos d l a ≠ pos d l' b) (d : D) (hlo : lo < NSl ^ l) (hx : x < NSl) (ha : a < K) :
+    (hdist : ∀ d l l' a b, l < L → l' < L → l ≠ l' → pos d l a ≠ pos d l' b) (d : D) (hl : l < L) (hlo : lo < NSl ^ l) (hx : x < NSl) (ha : a < K) :
     rgetL K (posAll pos L NSl d (lo + NSl ^ l * (x + NSl * hi))) (rset K (pos d l x) H a) =
       rgetL K (posAll pos L NSl d (lo + NSl ^ l * (0 + NSl * hi))) (rset K (pos d l 0) H a) := by
   refine rgetL_congr _ _ _ _ (by simp only [posAll, List.length_map]) (fun i hi' => ?_)
   have hi2 : i < (lr L).length := by simp only [posAll, List.length_map] at hi'; exact hi'
+  have hL := lr_getD_lt (n := L) (i := i) (by rw [lr_length] at hi2; exact hi2)
   simp only [posAll]
   rw [getD_mapN _ _ hi2, getD_mapN _ _ hi2]
   by_cases e : (lr L).getD i 0 = l
   · rw [e, lsalt_at hlo hx, lsalt_at hlo hN, rget_rset hK ha, rget_rset hK ha]
-  · rw [lsalt_ne hN e hlo hx, rget_rset_ne hK (hdist d _ l _ _ e) ha, rget_rset_ne hK (hdist d _ l _ _ e) ha]
+  · rw [lsalt_ne hN e hlo hx, rget_rset_ne hK (hdist d _ l _ _ hL hl e) ha, rget_rset_ne hK (hdist d _ l _ _ hL hl e) ha]
 
 /-- **An unopened leaf's position is hit by few draws**: over the salts and
     the table, at most `Kⁿ NSl^(L-1) s k`, `s` of a leaf's salts at most
     putting it at any position; normalized, `s k / NSl`. -/
 theorem hitLeaf_bound {D O P : Type} {K n NSl L k s : Nat} (hK : 0 < K) (hN : 0 < NSl) (pos : D → Nat → Nat → Nat)
-    (hdist : ∀ d l l' a b, l ≠ l' → pos d l a ≠ pos d l' b) (hlt : ∀ d l a, pos d l a < n)
+    (hdist : ∀ d l l' a b, l < L → l' < L → l ≠ l' → pos d l a ≠ pos d l' b) (hlt : ∀ d l a, l < L → pos d l a < n)
     (hs : ∀ d l v, sumTo NSl (fun x => indB (decide (pos d l x = v))) ≤ s)
     (isO : Nat → Bool) (op : D → O) (g : O → List Nat → P) (nxt : P → Nat → List Nat → Nat) (d : D)
     {l : Nat} (hl : l < L) (hu : isO l = false) :
@@ -364,7 +370,7 @@ theorem hitLeaf_bound {D O P : Type} {K n NSl L k s : Nat} (hK : 0 < K) (hN : 0 
   have swap : ∀ σh, K * sumTo (K ^ n) (fun h => indB (decide (pos d l (lsalt NSl l σh) ∈
       qposQ K (nxt (g (op d) (shownS NSl L isO σh))) (rgetL K (posAll pos L NSl d σh) h) k h))) =
       sumTo (K ^ n) (fun H => sumTo K (fun a => f σh a H)) := fun σh => by
-    rw [← reprog_swap hK (hlt d l (lsalt NSl l σh)) (fun a H => f σh a H), sumTo_mul]
+    rw [← reprog_swap hK (hlt d l (lsalt NSl l σh) hl) (fun a H => f σh a H), sumTo_mul]
     refine sumTo_congr _ (fun h _ => ?_)
     rw [← sumTo_const _ K]
     refine sumTo_congr _ (fun u hu => ?_)
@@ -382,7 +388,7 @@ theorem hitLeaf_bound {D O P : Type} {K n NSl L k s : Nat} (hK : 0 < K) (hN : 0 
         qposQ K (nxt (g (op d) (shownS NSl L isO (lo + NSl ^ l * (0 + NSl * hi)))))
           (rgetL K (posAll pos L NSl d (lo + NSl ^ l * (0 + NSl * hi))) (rset K (pos d l 0) H a)) k H)) := fun x hx => by
       show indB (decide (pos d l (lsalt NSl l (lo + NSl ^ l * (x + NSl * hi))) ∈ _)) = _
-      rw [lsalt_at hlo hx, shownS_eq hN hu hlo hx, comM_eq hK hN pos hdist d hlo hx ha]
+      rw [lsalt_at hlo hx, shownS_eq hN hu hlo hx, comM_eq hK hN pos hdist d hl hlo hx ha]
     rw [sumTo_congr _ e]
     have h := salts_in (pos d l) (hs d l) (qposQ K (nxt (g (op d) (shownS NSl L isO (lo + NSl ^ l * (0 + NSl * hi)))))
       (rgetL K (posAll pos L NSl d (lo + NSl ^ l * (0 + NSl * hi))) (rset K (pos d l 0) H a)) k H)
@@ -407,7 +413,7 @@ theorem unop_mem {L : Nat} {isO : Nat → Bool} {l : Nat} (h : l ∈ unop L isO)
     `UL Kⁿ NSl^(L-1) s k` over the salts and the table; normalized,
     `UL s k / NSl`, `UL` the unopened leaves. -/
 theorem hitM_bound {D O P : Type} {K n NSl L k s : Nat} (hK : 0 < K) (hN : 0 < NSl) (pos : D → Nat → Nat → Nat)
-    (hdist : ∀ d l l' a b, l ≠ l' → pos d l a ≠ pos d l' b) (hlt : ∀ d l a, pos d l a < n)
+    (hdist : ∀ d l l' a b, l < L → l' < L → l ≠ l' → pos d l a ≠ pos d l' b) (hlt : ∀ d l a, l < L → pos d l a < n)
     (hs : ∀ d l v, sumTo NSl (fun x => indB (decide (pos d l x = v))) ≤ s)
     (isO : Nat → Bool) (op : D → O) (g : O → List Nat → P) (nxt : P → Nat → List Nat → Nat) (d : D) :
     sumTo (NSl ^ L * K ^ n) (fun σ => indB (hitL K (posU pos L NSl isO d (σ % NSl ^ L))
@@ -444,7 +450,7 @@ theorem hitM_bound {D O P : Type} {K n NSl L k s : Nat} (hK : 0 < K) (hN : 0 < N
     hits**: `K^UL` times the real count is within `K^UL UL Kⁿ NSl^(L-1) s k`
     of the ideal count, both ways. -/
 theorem transferM {D O P : Type} {K n NSl L k s : Nat} (hK : 0 < K) (hN : 0 < NSl) (pos : D → Nat → Nat → Nat)
-    (hdist : ∀ d l l' a b, l ≠ l' → pos d l a ≠ pos d l' b) (hlt : ∀ d l a, pos d l a < n)
+    (hdist : ∀ d l l' a b, l < L → l' < L → l ≠ l' → pos d l a ≠ pos d l' b) (hlt : ∀ d l a, l < L → pos d l a < n)
     (hs : ∀ d l v, sumTo NSl (fun x => indB (decide (pos d l x = v))) ≤ s)
     (isO : Nat → Bool) (op : D → O) (g : O → List Nat → P) (nxt : P → Nat → List Nat → Nat)
     (F : Nat → P × List Nat → Bool) (d : D) :
@@ -473,7 +479,7 @@ theorem transferM {D O P : Type} {K n NSl L k s : Nat} (hK : 0 < K) (hN : 0 < NS
 /-- **The real opening of a Merkle tree's leaves hides up to the hits**,
     `2 UL s k / NSl` a draw normalized. -/
 theorem pfM_hidesA {D O P : Type} {K n NSl L k s : Nat} (hK : 0 < K) (hN : 0 < NSl) (pos : D → Nat → Nat → Nat)
-    (hdist : ∀ d l l' a b, l ≠ l' → pos d l a ≠ pos d l' b) (hlt : ∀ d l a, pos d l a < n)
+    (hdist : ∀ d l l' a b, l < L → l' < L → l ≠ l' → pos d l a ≠ pos d l' b) (hlt : ∀ d l a, l < L → pos d l a < n)
     (hs : ∀ d l v, sumTo NSl (fun x => indB (decide (pos d l x = v))) ≤ s)
     (isO : Nat → Bool) (op : D → O) (hposO : ∀ d d', op d = op d' → ∀ l a, isO l = true → pos d l a = pos d' l a)
     (g : O → List Nat → P) (nxt : P → Nat → List Nat → Nat) :
@@ -500,8 +506,8 @@ theorem posAll_length {D : Type} (pos : D → Nat → Nat → Nat) (L NSl : Nat)
     leaves' salts hidden; the bound gains `2 UL s k / NSl` a draw, `UL` the
     unopened leaves. -/
 theorem fs_openROMM {PV PB D O P : Type} {NR m e1 e2 K n NSl L s k : Nat} (hK : 0 < K) (hN : 0 < NSl)
-    (pos : D → Nat → Nat → Nat) (hdist : ∀ d l l' a b, l ≠ l' → pos d l a ≠ pos d l' b)
-    (hlt : ∀ d l a, pos d l a < n) (g : O → List Nat → P)
+    (pos : D → Nat → Nat → Nat) (hdist : ∀ d l l' a b, l < L → l' < L → l ≠ l' → pos d l a ≠ pos d l' b)
+    (hlt : ∀ d l a, l < L → pos d l a < n) (g : O → List Nat → P)
     (hs : ∀ d l v, sumTo NSl (fun x => indB (decide (pos d l x = v))) ≤ s) (nxt : P → Nat → List Nat → Nat) (isO : Nat → Bool)
     (op : D → O) (hposO : ∀ d d', op d = op d' → ∀ l a, isO l = true → pos d l a = pos d' l a) (sd : O → D) (d0 : D)
     (ov : TViewN PV PB → Option O) (hovn : ov none = none) (main : (Nat → Tup) → Nat → D)
@@ -549,4 +555,93 @@ theorem fs_openROMM {PV PB D O P : Type} {NR m e1 e2 K n NSl L s k : Nat} (hK : 
     rwa [posAll_length] at h
   exact fs_openA (comM K NSl L pos) (pfM K NSl L k pos isO op g nxt) op sd d0 hcom
     (pfM_hidesA hK hN pos hdist hlt hs isO op hposO g nxt) hrange ov hovn main hsd sop h1 h2 hrv hsv hrvo hsvo E
+
+/-- The root: any function of the leaves' answers (computed apart from
+    their table), hashed in their place. -/
+def rootM {D : Type} (R : Nat → Nat) (K NSl L : Nat) (pos : D → Nat → Nat → Nat) (d : D) (σ : Nat) : Nat :=
+  R (comM K NSl L pos d σ)
+
+/-- **One Fiat–Shamir round over a Merkle tree's root** (`fs_openROMM`
+    with the root `R` of the leaves hashed in their place): an event of the
+    root is an event of the leaves, so both hidings carry over. -/
+theorem fs_openROMMR {PV PB D O P : Type} {NR m e1 e2 K n NSl L s k nR : Nat} (hK : 0 < K) (hN : 0 < NSl)
+    (R : Nat → Nat) (hR : ∀ c, R c < nR)
+    (pos : D → Nat → Nat → Nat) (hdist : ∀ d l l' a b, l < L → l' < L → l ≠ l' → pos d l a ≠ pos d l' b)
+    (hlt : ∀ d l a, l < L → pos d l a < n) (g : O → List Nat → P)
+    (hs : ∀ d l v, sumTo NSl (fun x => indB (decide (pos d l x = v))) ≤ s) (nxt : P → Nat → List Nat → Nat) (isO : Nat → Bool)
+    (op : D → O) (hposO : ∀ d d', op d = op d' → ∀ l a, isO l = true → pos d l a = pos d' l a) (sd : O → D) (d0 : D)
+    (ov : TViewN PV PB → Option O) (hovn : ov none = none) (main : (Nat → Tup) → Nat → D)
+    (hsd : ∀ t r, op (sd (op (main t r))) = op (main t r))
+    (sop : Nat → (Nat → Tup) → O) {rv sv : EF → EF → Nat → (Nat → Tup) → TViewN PV PB}
+    (h1 : ∀ E : TViewN PV PB → Bool, tsumN NR m (fun α β r t => indB (genB β && E (rv α β r t))) ≤
+      tsumN NR m (fun α β r t => indB (genB β && E (sv α β r t))) + e1 + e2)
+    (h2 : ∀ E : TViewN PV PB → Bool, tsumN NR m (fun α β r t => indB (genB β && E (sv α β r t))) ≤
+      tsumN NR m (fun α β r t => indB (genB β && E (rv α β r t))) + e1 + e2)
+    (hrv : ∀ α β r t, rv α β r t = none ∨ ∃ p x y, rv α β r t = some (p, α, β, x, y))
+    (hsv : ∀ α β r t, ∃ p x y, sv α β r t = some (p, α, β, x, y))
+    (hrvo : ∀ α β r t, rv α β r t = none ∨ ov (rv α β r t) = some (op (main t r)))
+    (hsvo : ∀ α β r t, ov (sv α β r t) = some (sop r t))
+    (E : Nat → Nat → Option (P × List Nat) × TViewN PV PB → Bool) :
+    (Q4 * Q4) * sumTo ((Q4 * Q4) ^ nR) (fun H => sumTo (NSl ^ L * K ^ n) (fun σ => sumTo NR (fun r => sumN m (fun t =>
+      indB (genB (efOf (rget (Q4 * Q4) ((rootM R K NSl L pos) (main t r) σ) H % Q4)) && E H ((rootM R K NSl L pos) (main t r) σ)
+        ((ov (rv (efOf (rget (Q4 * Q4) ((rootM R K NSl L pos) (main t r) σ) H / Q4)) (efOf (rget (Q4 * Q4) ((rootM R K NSl L pos) (main t r) σ) H % Q4))
+            r t)).map (fun _ => (pfM K NSl L k pos isO op g nxt) (main t r) σ),
+          rv (efOf (rget (Q4 * Q4) ((rootM R K NSl L pos) (main t r) σ) H / Q4)) (efOf (rget (Q4 * Q4) ((rootM R K NSl L pos) (main t r) σ) H % Q4))
+            r t)))))) ≤
+    sumTo ((Q4 * Q4) ^ nR) (fun H => sumTo (Q4 * Q4) (fun c => sumTo (NSl ^ L * K ^ n) (fun σ => sumTo NR (fun r => sumN m (fun t =>
+      indB (genB (efOf (c % Q4)) && E (rset (Q4 * Q4) ((rootM R K NSl L pos) (sd (sop r t)) σ) H c) ((rootM R K NSl L pos) (sd (sop r t)) σ)
+        (some ((pfM K NSl L k pos isO op g nxt) (sd (sop r t)) σ), sv (efOf (c / Q4)) (efOf (c % Q4)) r t))))))) +
+    (Q4 * Q4) ^ nR * ((NSl ^ L * K ^ n) * (e1 + e2) + Q4 * Q4 * (NR * (Q4 ^ m * ((unop L isO).length * (K ^ n * (NSl ^ (L - 1) * (2 * (s * k)))))))) ∧
+    sumTo ((Q4 * Q4) ^ nR) (fun H => sumTo (Q4 * Q4) (fun c => sumTo (NSl ^ L * K ^ n) (fun σ => sumTo NR (fun r => sumN m (fun t =>
+      indB (genB (efOf (c % Q4)) && E (rset (Q4 * Q4) ((rootM R K NSl L pos) (sd (sop r t)) σ) H c) ((rootM R K NSl L pos) (sd (sop r t)) σ)
+        (some ((pfM K NSl L k pos isO op g nxt) (sd (sop r t)) σ), sv (efOf (c / Q4)) (efOf (c % Q4)) r t))))))) ≤
+    (Q4 * Q4) * sumTo ((Q4 * Q4) ^ nR) (fun H => sumTo (NSl ^ L * K ^ n) (fun σ => sumTo NR (fun r => sumN m (fun t =>
+      indB (genB (efOf (rget (Q4 * Q4) ((rootM R K NSl L pos) (main t r) σ) H % Q4)) && E H ((rootM R K NSl L pos) (main t r) σ)
+        ((ov (rv (efOf (rget (Q4 * Q4) ((rootM R K NSl L pos) (main t r) σ) H / Q4)) (efOf (rget (Q4 * Q4) ((rootM R K NSl L pos) (main t r) σ) H % Q4))
+            r t)).map (fun _ => (pfM K NSl L k pos isO op g nxt) (main t r) σ),
+          rv (efOf (rget (Q4 * Q4) ((rootM R K NSl L pos) (main t r) σ) H / Q4)) (efOf (rget (Q4 * Q4) ((rootM R K NSl L pos) (main t r) σ) H % Q4))
+            r t)))))) +
+    (Q4 * Q4) ^ nR * ((NSl ^ L * K ^ n) * (e1 + e2) + Q4 * Q4 * (NR * (Q4 ^ m * ((unop L isO).length * (K ^ n * (NSl ^ (L - 1) * (2 * (s * k)))))))) := by
+  have hη : (unop L (fun _ => false)).length * (K ^ n * (NSl ^ (L - 1) * (2 * (s * 0)))) ≤
+      (unop L isO).length * (K ^ n * (NSl ^ (L - 1) * (2 * (s * k)))) := by
+    simp only [Nat.mul_zero]; exact Nat.zero_le _
+  have hcom : ComHidesA (NSl ^ L * K ^ n) ((unop L isO).length * (K ^ n * (NSl ^ (L - 1) * (2 * (s * k)))))
+      (rootM R K NSl L pos) :=
+    fun d d' E => Nat.le_trans (pfM_hidesA (n := n) (L := L) (k := 0) (O := Unit) (P := Unit) hK hN pos hdist hlt hs
+      (fun _ => false) (fun _ => ()) (fun _ _ _ _ _ h => absurd h Bool.false_ne_true) (fun _ _ => ()) (fun _ _ _ => 0)
+      d d' rfl (fun c _ => E (R c))) (Nat.add_le_add_left hη _)
+  have hpf : ComPfHidesA (NSl ^ L * K ^ n) ((unop L isO).length * (K ^ n * (NSl ^ (L - 1) * (2 * (s * k)))))
+      (rootM R K NSl L pos) (pfM K NSl L k pos isO op g nxt) op :=
+    fun d d' hop E => pfM_hidesA hK hN pos hdist hlt hs isO op hposO g nxt d d' hop (fun c pf => E (R c) pf)
+  exact fs_openA (rootM R K NSl L pos) (pfM K NSl L k pos isO op g nxt) op sd d0 hcom hpf
+    (fun d σ => hR _) ov hovn main hsd sop h1 h2 hrv hsv hrvo hsvo E
+
+/-- **The hypotheses are met together, with `s = 1`** (not vacuous): leaf
+    `l` with salt `a` at position `l + L (a mod NSl)`, below `L NSl`. -/
+theorem merkleOpen_sat {D O : Type} (L NSl : Nat) (hL : 0 < L) (hN : 0 < NSl) (isO : Nat → Bool) (op : D → O) :
+    let pos := fun (_ : D) (l a : Nat) => l + L * (a % NSl)
+    (∀ d l l' a b, l < L → l' < L → l ≠ l' → pos d l a ≠ pos d l' b) ∧
+    (∀ d l a, l < L → pos d l a < L * NSl) ∧
+    (∀ d l v, sumTo NSl (fun x => indB (decide (pos d l x = v))) ≤ 1) ∧
+    (∀ d d', op d = op d' → ∀ l a, isO l = true → pos d l a = pos d' l a) := by
+  intro pos
+  refine ⟨fun d l l' a b hl hl' hne e => hne ?_, fun d l a hl => ?_, fun d l v => ?_, fun _ _ _ _ _ _ => rfl⟩
+  · have := congrArg (· % L) e
+    simp only [pos, Nat.add_mul_mod_self_left, Nat.mod_eq_of_lt hl, Nat.mod_eq_of_lt hl'] at this
+    exact this
+  · show l + L * (a % NSl) < L * NSl
+    have h1 : a % NSl + 1 ≤ NSl := Nat.mod_lt _ hN
+    calc l + L * (a % NSl) < L + L * (a % NSl) := Nat.add_lt_add_right hl _
+      _ = L * (a % NSl + 1) := by rw [Nat.mul_add, Nat.mul_one, Nat.add_comm]
+      _ ≤ L * NSl := Nat.mul_le_mul_left _ h1
+  · have one := hs_one (D := D) NSl d 0 0 Nat.one_pos ((v - l) / L)
+    refine Nat.le_trans (sumTo_mono _ (fun x hx => ?_)) one
+    show indB (decide (l + L * (x % NSl) = v)) ≤ indB (decide (x = (v - l) / L))
+    by_cases e : l + L * (x % NSl) = v
+    · have hx' : x % NSl = x := Nat.mod_eq_of_lt hx
+      rw [hx'] at e
+      have : x = (v - l) / L := by
+        rw [← e, Nat.add_sub_cancel_left, Nat.mul_div_cancel_left _ hL]
+      rw [decide_eq_true this]; exact indB_le _
+    · simp only [e, decide_false, indB]; exact Nat.zero_le _
 end Circuit
