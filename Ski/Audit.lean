@@ -1412,5 +1412,5 @@ open Ski.Audit
 -- The Sudoku proofs with FRI in Plonky3's order as an opening (FriProof)
 #audit_clean Circuit.sud_interleaveFRI
 
--- A picked statement's draw-only bad events cost one statement's (AdaptDraws)
-#audit_clean Circuit.zkbT_adaptive_draws
+-- A picked statement's bad events, bounded at every table, cost one statement's (AdaptDraws)
+#audit_clean Circuit.zkbT_adaptive_tbl Circuit.zkbT_adaptive_draws

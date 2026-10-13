@@ -55,9 +55,9 @@ simulation away from one shared bad event, its mass is charged once
 their errors are numbers, or collisions read at the simulator's
 challenges, and a hit on a statement's own programmed point is not
 shared, so the union of the statements' events costs their sum again.  The
-saving needs a bad event independent of the statement, or, for a pick
-reading the tables alone, per-statement bad events reading only the draws
-(`AdaptDraws`).
+saving needs a bad event independent of the statement (`zkbT_adaptive_joint`),
+or per-statement bad events with mass at most `β` at every table, such as
+events of the draws alone (`AdaptDraws`); both picks read the tables alone.
 -/
 
 set_option autoImplicit false
