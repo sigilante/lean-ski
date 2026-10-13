@@ -119,6 +119,7 @@ import Ski.ZK.FSMultiInst
 import Ski.ZK.ROMHide
 import Ski.ZK.ROMRounds
 import Ski.ZK.ROMInst
+import Ski.ZK.ROMMulti
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -1242,3 +1243,6 @@ open Ski.Audit
   Circuit.runQ_congr Circuit.comI_digit Circuit.transferRc Circuit.transferRc_in Circuit.fs_open4ROM
 -- The circuits' four-round proofs over the oracle's commitment
 #audit_clean Circuit.rom4_transfer Circuit.sud_fs_open4ROM Circuit.wit_fs_open4ROM Circuit.comp_fs_open4ROM
+-- Two four-round proofs over the oracle's commitments
+#audit_clean Circuit.sumTo_indEq Circuit.rget_spread Circuit.comR_spread Circuit.comI_spread Circuit.comI_spread_sm
+  Circuit.pair_transfer Circuit.rom4_step Circuit.two_comm4 Circuit.two_le4 Circuit.fs_open4_twoROM
