@@ -35,7 +35,8 @@ group's `2 ^ (bl k0 + 1)` points are distinct (`xsL_inj`, `revBits_inj`).
 The faithful choice is `bl k` the group's LDE log height less one and
 `sh k = bl 0 - bl k`, group 0 the tallest; `sud_fri_leaves` holds for any
 `bl`, `sh` with `sh 0 = 0`, which at that choice asks the program table no
-taller than `2 ^ 16` (`tP ≤ 15`).  For the Sudoku circuit with its query
+taller than `2 ^ 16` (`tP ≤ 15`), and `bl 0 ≤ 26` asks a log blowup of at
+most 11.  For the Sudoku circuit with its query
 sets built from FRI's indices at these points, the off-trace conditions
 `hS16`, `hS10`, `hSP` hold, `hposO` holds at the queried leaves, and the
 opened real leaves are exactly the queried ones (`sud_fri_leaves`).  The
@@ -46,7 +47,7 @@ group is not fixed in advance.
 
 Not shown: that the indices are those Plonky3 draws from the fourth
 challenge (`idx c4` is any list of leaves below the first round's tallest
-height, which Plonky3 takes as the global maximum it draws below; the size
+height, assumed to be the global maximum height Plonky3 draws below; the size
 conditions `hsz16` … stay hypotheses bounding its length); a theorem
 feeding `sud_fri_leaves` into `sud_fs_open4ROMM`; FRI's own layer
 commitments and their openings (`friX` takes FRI as a function);
