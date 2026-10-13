@@ -177,7 +177,8 @@ is built; this file records what is next. Last revised 2026-10-13.
   when one group separates them: `Ski/ZK/ROMMerkleIdx.lean` (`sud_hposO_idx`,
   `isOfRows_iff`, `isOfRows_xsSh_iff`, `sud_opened_iff` and the others; at FRI's LDE points
   `31 · ωʳ`, rows bit-reversed, off every trace domain, `sud_fri_leaves`; the circuits' bounds over
-  them, `sud_fs_open4ROMM_fri`, `wit_fs_open4ROMM_fri`, `comp_fs_open4ROMM_fri`); not yet: that the query sets are the points of indices FRI draws from the fourth
+  them, `sud_fs_open4ROMM_fri`, `wit_fs_open4ROMM_fri`, `comp_fs_open4ROMM_fri`; the indices `q` blocks of
+  bits of the fourth challenge, `qIdx`, a bijection onto lists of leaves, `qIdx_inj`); not yet: that the query sets are the points of indices FRI draws from the fourth
   challenge (`pcsZ`, `friX`), and FRI's own layer commitments. Done: `n` statements of each circuit over the leaves, `Ski/ZK/ROMFamilyM.lean`
   (`sud_fs_open4_powDROMM` and the others, the collision term `1/n1` from `comMI_spreadL`); internal-node hashing
   apart from the leaves' table stays an assumption; query answers shown where the proof

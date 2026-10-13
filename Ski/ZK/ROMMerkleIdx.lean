@@ -53,10 +53,25 @@ may outgrow the traces; the program and statement tables' heights come
 from `wit_prog_height` and `comp_pub_heights`, the composed traces' from
 `htM`, `htC` with `Lm, R ≤ 20`.
 
-Not shown: that the indices are those Plonky3 draws from the fourth
-challenge (`idx c4` is any list of leaves below the first round's tallest
-height, assumed to be the global maximum height Plonky3 draws below; the size
-conditions `hsz16` … stay hypotheses bounding its length); FRI's own layer
+Plonky3 draws each query index as `log_max_height` bits from the
+challenger; here the fourth challenge `c4` holds them, `q` blocks of `B`
+bits (`qIdx`).  Every drawn index is a leaf below `2 ^ B` (`qIdx_lt`), the
+lists have length `q` (`qIdx_length`, `friS_qIdx_length`), and below
+`2 ^ (B q)` the draw is a bijection onto the lists of `q` leaves
+(`qIdx_inj`, `qIdx_qEnc`, `qEnc_lt`), so a uniform challenge draws the
+indices uniformly and independently.  With `idx := qIdx (bl 0 + 1) q`,
+`sud_fs_open4ROMM_fri`'s `hidx` holds and its size conditions `hsz16` …
+ask `2 q + 8` at most each group's trace height (`qIdx_fri_conds`); the
+draw is onto (`qIdx_onto`).
+
+Not shown: Plonky3's proof-of-work grind before the draw; that `2 ^ (B q)`
+divides `K4` with the batching challenge `αd` reading only `c4 / 2 ^ (B q)`
+(in Plonky3 it is drawn before the query indices, independent of them;
+here `αd c4` may depend on them, and a `K4` not a multiple of `2 ^ (B q)`
+biases the blocks); Plonky3's draw of `q` separate field elements, whose
+low bits are uniform only up to a statistical distance near `q / P`; the indices drawn
+below the first round's tallest height, assumed to be the global maximum
+Plonky3 draws below; FRI's own layer
 commitments and their openings (`friX` takes FRI as a function);
 Plonky3's injection of shorter rows at internal nodes
 (`compress_and_inject`), here the shared row `l / 2 ^ sh k` at the leaf;
@@ -228,6 +243,92 @@ theorem xsL_inj {bl sh : Nat → Nat} {k0 : Nat} (h0 : sh k0 = 0) (hb : bl k0 �
     set at fourth challenge `c4`. -/
 def friS (bl sh : Nat → Nat) (idx : Nat → List Nat) (k c4 : Nat) : List F :=
   (idx c4).map (fun l => xsL bl sh l k)
+
+/-- FRI's query indices drawn from the fourth challenge: `q` blocks of `B`
+    bits, low block first (Plonky3's `sample_bits (log_max_height)` per query). -/
+def qIdx (B : Nat) : Nat → Nat → List Nat
+  | 0, _ => []
+  | q + 1, c => c % 2 ^ B :: qIdx B q (c / 2 ^ B)
+
+/-- The challenge a list of indices encodes. -/
+def qEnc (B : Nat) : List Nat → Nat
+  | [] => 0
+  | i :: t => i + 2 ^ B * qEnc B t
+
+theorem qIdx_length (B : Nat) : ∀ q c, (qIdx B q c).length = q
+  | 0, _ => rfl
+  | q + 1, c => by simp only [qIdx, List.length_cons, qIdx_length B q]
+
+/-- **Every drawn index is a leaf below `2 ^ B`.** -/
+theorem qIdx_lt (B : Nat) : ∀ q c, ∀ l ∈ qIdx B q c, l < 2 ^ B
+  | 0, _, l, h => absurd h (List.not_mem_nil)
+  | q + 1, c, l, h => by
+    rcases List.mem_cons.1 h with rfl | h
+    · exact Nat.mod_lt _ (Nat.two_pow_pos B)
+    · exact qIdx_lt B q (c / 2 ^ B) l h
+
+/-- **Decoding inverts encoding**: every list of `q` indices below `2 ^ B`
+    is drawn by exactly the challenge it encodes. -/
+theorem qIdx_qEnc (B : Nat) : ∀ t : List Nat, (∀ l ∈ t, l < 2 ^ B) → qIdx B t.length (qEnc B t) = t
+  | [], _ => rfl
+  | i :: t, h => by
+    have hi : i < 2 ^ B := h i (List.mem_cons_self ..)
+    have hp : 0 < 2 ^ B := Nat.two_pow_pos B
+    simp only [List.length_cons, qIdx, qEnc]
+    rw [Nat.add_mul_mod_self_left, Nat.mod_eq_of_lt hi, Nat.add_mul_div_left _ _ hp, Nat.div_eq_of_lt hi,
+      Nat.zero_add, qIdx_qEnc B t (fun l hl => h l (List.mem_cons_of_mem _ hl))]
+
+theorem qEnc_lt (B : Nat) : ∀ t : List Nat, (∀ l ∈ t, l < 2 ^ B) → qEnc B t < 2 ^ (B * t.length)
+  | [], _ => by simp [qEnc]
+  | i :: t, h => by
+    have hi : i < 2 ^ B := h i (List.mem_cons_self ..)
+    have ih := qEnc_lt B t (fun l hl => h l (List.mem_cons_of_mem _ hl))
+    simp only [qEnc, List.length_cons]
+    rw [Nat.mul_succ, Nat.pow_add, Nat.mul_comm (2 ^ (B * t.length))]
+    calc i + 2 ^ B * qEnc B t < 2 ^ B + 2 ^ B * qEnc B t := Nat.add_lt_add_right hi _
+      _ = 2 ^ B * (qEnc B t + 1) := by rw [Nat.mul_succ, Nat.add_comm]
+      _ ≤ 2 ^ B * 2 ^ (B * t.length) := Nat.mul_le_mul_left _ ih
+
+/-- **Encoding inverts decoding** on challenges below `2 ^ (B q)`. -/
+theorem qEnc_qIdx (B : Nat) : ∀ q c, c < 2 ^ (B * q) → qEnc B (qIdx B q c) = c
+  | 0, c, h => by simp only [Nat.mul_zero, Nat.pow_zero] at h; simp only [qIdx, qEnc]; exact (Nat.lt_one_iff.1 h).symm
+  | q + 1, c, h => by
+    have hp : 0 < 2 ^ B := Nat.two_pow_pos B
+    have hd : c / 2 ^ B < 2 ^ (B * q) := by
+      rw [Nat.mul_succ, Nat.pow_add] at h
+      exact (Nat.div_lt_iff_lt_mul hp).2 h
+    simp only [qIdx, qEnc]
+    rw [qEnc_qIdx B q (c / 2 ^ B) hd]
+    exact Nat.mod_add_div c (2 ^ B)
+
+/-- **Distinct challenges draw distinct index lists**: below `2 ^ (B q)`,
+    the draw is a bijection onto the lists of `q` leaves, so a uniform
+    challenge draws the `q` indices uniformly and independently. -/
+theorem qIdx_inj (B q : Nat) {c c' : Nat} (hc : c < 2 ^ (B * q)) (hc' : c' < 2 ^ (B * q))
+    (e : qIdx B q c = qIdx B q c') : c = c' := by
+  rw [← qEnc_qIdx B q c hc, ← qEnc_qIdx B q c' hc', e]
+
+/-- **Every list of `q` leaves is drawn**, by a challenge below
+    `2 ^ (B q)`: with `qIdx_inj`, the draw is a bijection. -/
+theorem qIdx_onto (B q : Nat) (t : List Nat) (hl : t.length = q) (ht : ∀ l ∈ t, l < 2 ^ B) :
+    ∃ c, c < 2 ^ (B * q) ∧ qIdx B q c = t :=
+  ⟨qEnc B t, hl ▸ qEnc_lt B t ht, hl ▸ qIdx_qEnc B t ht⟩
+
+/-- The query sets at the drawn indices hold `q` points each: the circuits'
+    size conditions `hsz16` … become `2 q + 8 ≤` each group's height. -/
+theorem friS_qIdx_length (bl sh : Nat → Nat) (B q k c4 : Nat) :
+    (friS bl sh (fun c => qIdx B q c) k c4).length = q := by
+  unfold friS; rw [List.length_map, qIdx_length]
+
+/-- **`sud_fs_open4ROMM_fri`'s index conditions at the drawn indices**: the
+    indices are leaves below `L = 2 ^ (bl 0 + 1)` (`hidx`), and each size
+    condition holds when `2 q + 8` is at most the group's trace height. -/
+theorem qIdx_fri_conds {bl sh : Nat → Nat} {L q H : Nat} (hL : L = 2 ^ (bl 0 + 1)) (hq : 2 * q + 8 ≤ H) :
+    (∀ c4, ∀ l ∈ qIdx (bl 0 + 1) q c4, l < L) ∧
+      ∀ k c4, 2 * (friS bl sh (fun c => qIdx (bl 0 + 1) q c) k c4).length + 8 ≤ H := by
+  refine ⟨fun c4 l hl => hL ▸ qIdx_lt _ q c4 l hl, fun k c4 => ?_⟩
+  rw [friS_qIdx_length]; exact hq
+
 
 section
 open B Air Stmt Mach Sudoku SudokuText Compose CompM Wit
