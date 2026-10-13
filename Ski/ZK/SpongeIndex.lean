@@ -29,14 +29,25 @@ pairs of chains that meet.
   permutation, `δs'` is at most
   `δs (1 + X^L n1² (0 + ⋯ + (2L+1)) F / (K - 2(L+1)))` (`pairsAll_countP`,
   `sponge_δs_countP`).  The composites hold at each table with that
-  table's `δs'`, their errors linear in it.
+  table's `δs'`, their errors linear in it (checked by elaboration against
+  `sudFS4T_hspS` and `sud_interleaveS`).
 
-The union over later transcripts costs the factor `X^L`: the bound says
-something only while `X^L n1² (0 + ⋯ + (2L+1)) F` stays below
-`K - 2(L+1)`: few later block lists against the capacity.  Plonky3's transcripts are longer; there the later
-blocks would have to be drawn independently of the permutation and the
-composites averaged over it, a step not shown.  Two modelling assumptions
-enter as well.  The state `iv` before the first commitment is fixed before
+Not shown: the composites averaged over the permutation.  Their
+distributions read the table through `φ`, so the per-table statements
+must be summed over the tables, a step beyond the linearity of the error.
+
+The bound says something only while
+`X^L n1² (0 + ⋯ + (2L+1)) F` stays below `K - 2(L+1)`; with `F / K` one
+over the capacity's size, that asks `n1²` well below the capacity even at
+`L = 0`, and few later block lists besides.  It fails at Plonky3's widths:
+an 8-element digest over a capacity of 8 elements puts `n1²` near the
+capacity squared.  The cause is the per-table count itself
+(`preimage_le_pairs`): about `n1² / |capacity|` pairs of first commitments
+do meet.  A useful bound there needs the commitments actually drawn, not
+all `n1` values, and the later blocks drawn independently of the
+permutation.
+
+Two modelling assumptions enter as well.  The state `iv` before the first commitment is fixed before
 the permutation is drawn: no permutation call precedes the commitment.  The
 first commitment fills one aligned block (`hd`, `n1 ≤ R1` at the full-width
 instance); a digest straddling two permutation calls is not covered.
