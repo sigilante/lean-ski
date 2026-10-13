@@ -13,8 +13,10 @@ answers (`postV`, its simulated view `postSv`), its bound unchanged
 advRd …`, the queries' made at the tables from the view there,
 `postRun_read`), so `zkbT_powD_rd` composes them (`fs4_postInterleave`).
 The queries' hits on the later proofs' points are charged to their spread,
-`kq` more reads per proof.  Not shown: queries chosen from several earlier
-views or earlier phases' answers at once (`zkbT_post_pair`, stage by stage,
+`kq` more reads per proof.  Queries chosen from all `n` views at once,
+made after the proofs, add nothing to any composite bound
+(`zkbT_postAll`).  Not shown: queries chosen from several earlier views or
+earlier phases' answers at once, made between proofs (`zkbT_post_pair`, stage by stage,
 allows that); query counts varying by phase; pure query phases between
 proofs here (`fs4_interleave` has them); statements chosen from views.
 -/
@@ -89,5 +91,17 @@ theorem fs4_postInterleave {O : Type} {m K2 K4 N4 T1 T2 T3 kq : Nat} (hK2 : 0 < 
   · rw [List.any_append, Bool.or_eq_false_iff] at hm
     exact postRun_read hQ hK2 Q4_pos hK4 _ (nxtV i) H _ p a rfl ha x (hrdP i H p a x ha hm.1) hm.2
   · rw [List.length_append, advRd_length]; exact Nat.add_le_add_right (hRP i H x) _
+
+/-- **Queries chosen from all `n` views at once, after the proofs**: any
+    composite bound (`fs4_powDT`, `fs4_interleave`, `fs4_postInterleave`, …)
+    keeps its error for its whole view with `kq` adaptive queries chosen from
+    that whole view, answered at the final tables (`zkbT_post`). -/
+theorem zkbT_postAll {X C V : Type} {K ε kq K1 K2 K3 K4 : Nat} {ST : (Nat × Nat × Nat × Nat → Nat) → Nat}
+    {sm : (X → Nat) → Nat} {SC : (C → Nat) → Nat} {rv : Nat × Nat × Nat × Nat → X → V}
+    {pg : Nat × Nat × Nat × Nat → C → X → Nat × Nat × Nat × Nat} {sv : Nat × Nat × Nat × Nat → C → X → V}
+    (h : ZKBT ST K sm SC rv pg sv ε) (nxt : V → List Nat → Nat × Nat × Unit) :
+    ZKBT ST K sm SC (fun H x => (rv H x, postRun K1 K2 K3 K4 kq nxt (rv H x) H)) pg
+      (fun H c x => (sv H c x, postRun K1 K2 K3 K4 kq nxt (sv H c x) (pg H c x))) ε :=
+  zkbT_post h (fun v H => postRun K1 K2 K3 K4 kq nxt v H)
 
 end Circuit

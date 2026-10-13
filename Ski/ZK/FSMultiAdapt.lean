@@ -16,8 +16,12 @@ confirmed, and the error is the sum of the `S` statements' errors.  Its mass
 stays bounded: with each statement's counts normalized, a `ZKBT` bound read
 backwards bounds the simulation by the real count (`zkbT_rev`), so the
 confirmed runs over all guesses number at most `K` times the real draws plus
-the errors (`zkbT_adaptive_mass`).  Not shown: a tighter bound, nor the pick
-made between proofs of a composition (here before a single proof).
+the errors (`zkbT_adaptive_mass`).  The bounds may be composites
+(`fs4_interleave`, `fs4_postInterleave`, `zkbT_pair`), the index `j` the
+statement of any one proof in them: a pick made between proofs reads the
+same tables in the real world, where nothing is programmed, and the
+simulation checks it at the composite's programmed tables.  Not shown: a
+tighter bound; several statements picked in turn.
 -/
 
 set_option autoImplicit false
