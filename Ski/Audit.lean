@@ -139,6 +139,7 @@ import Ski.ZK.FSMultiReads
 import Ski.ZK.FSMultiQueries
 import Ski.ZK.FSMultiInterleave
 import Ski.ZK.FSMultiViews
+import Ski.ZK.FSMultiOpen
 import Ski.ZK.FSQueryAbsT
 import Ski.ZK.FSQueryPowT
 import Ski.ZK.ROMFamilyT
@@ -1301,6 +1302,11 @@ open Ski.Audit
 #audit_clean Circuit.readPowDH Circuit.indB_or_le Circuit.reads_hits_le Circuit.hitPowDH_le Circuit.zkbT_powD_rd Circuit.advRd_hrd Circuit.advRd_length Circuit.rd4_hrd Circuit.rd4_length
 #audit_clean Circuit.count_zero Circuit.adv_zkbT Circuit.length_flatMap_range_le Circuit.rdOut_length Circuit.hqR4_rdOut Circuit.rd4T_hrd
 #audit_clean Circuit.zkbT_post Circuit.postRun_read Circuit.zkbT_post_pair Circuit.post_hits_le
+
+-- The circuits' openings read the tables at their own digit (FSMultiOpen)
+#audit_clean Circuit.pfRd_ok Circuit.rdOK_nxt Circuit.hqD_hpq Circuit.sudFS4T_hout Circuit.witFS4T_hout Circuit.compFS4T_hout
+  Circuit.sud_fs_open4_powDR Circuit.wit_fs_open4_powDR Circuit.comp_fs_open4_powDR
+  Circuit.sud_fs_open4_powDROMR Circuit.wit_fs_open4_powDROMR Circuit.comp_fs_open4_powDROMR
 #audit_clean Circuit.sud_fs_open4_absT Circuit.wit_fs_open4_absT Circuit.comp_fs_open4_absT Circuit.fs4_powDT
 #audit_clean Circuit.sud_fs4T Circuit.wit_fs4T Circuit.comp_fs4T Circuit.sud_fs_open4_powDT Circuit.wit_fs_open4_powDT Circuit.comp_fs_open4_powDT
 #audit_clean Circuit.zkbT_rom Circuit.rom4_stepT Circuit.sud_fs_open4_powDROMT Circuit.wit_fs_open4_powDROMT Circuit.comp_fs_open4_powDROMT

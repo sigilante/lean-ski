@@ -202,12 +202,17 @@ is built; this file records what is next. Last revised 2026-10-13.
   `n`-statement theorems over them, `Ski/ZK/FSQueryPowT.lean` (`sud_fs_open4_powDT` and the
   others), `hout` and `hpq` hypotheses on the openings (met by reads of the first three
   tables at points with the reader's first commitment as low digit, `read2_hout` for one
-  read of the second; a fourth-table read must sit at `φ m w` with `m` carrying it), no
-  circuit's openings yet shown to meet them (a class of outputs that does, reading the first
-  three tables at points carrying their first message, fixed, challenge-chosen or adaptive:
-  `Ski/ZK/FSMultiReads.lean`, `outR_*`, `outRA_*`, `outRQ_*`, and the fourth table at the query
-  hash of such a message, `outR4_*`); over the oracle's commitment,
-  `Ski/ZK/ROMFamilyT.lean` (`sud_fs_open4_powDROMT` and the others); `ROMMulti`'s generic
+  read of the second; a fourth-table read must sit at `φ m w` with `m` carrying it; a class
+  of outputs that does, reading the first three tables at points carrying their first
+  message, fixed, challenge-chosen or adaptive: `Ski/ZK/FSMultiReads.lean`, `outR_*`,
+  `outRA_*`, `outRQ_*`, and the fourth table at the query hash of such a message,
+  `outR4_*`); over the oracle's commitment, `Ski/ZK/ROMFamilyT.lean`
+  (`sud_fs_open4_powDROMT` and the others); every opening receives the third message `M`
+  (`Pf? c4 T1 T2 T3 T4 M`), and the circuits' openings meet `hout` and `hpq` when they read
+  only at the digit `M % n1`, under the digit flag `hqD` (`Ski/ZK/FSMultiOpen.lean`, `RdOK`,
+  `pfRd_ok`, `*_fs_open4_powDR`; over the oracle's commitments with the distinguisher's
+  queries `nxtT` ignoring the Fiat–Shamir tables, `*_fs_open4_powDROMR`; not shown: that
+  Plonky3's FRI folding challenges sit at such points); `ROMMulti`'s generic
   theorems (`fs_open4_twoROM`, `fs_open4_powROM`, `read4_powDROM`, `rom4_read4`) have no
   table-reading versions, the family theorems composing `zkbT_rom` and `powD_transfer`
   directly);
