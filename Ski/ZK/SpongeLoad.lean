@@ -14,7 +14,8 @@ state one absorption after the first commitment.
   `m` such hits occur on at most `(k F)^m / (m! (K - k)^m)` of the
   permutation tables (`hitN_tail`).
 - **One absorption after the first commitment.** The index
-  `P(x ‖ κ(P(c ‖ iv)))` of first commitment `c` and later block `x`
+  `P(x ‖ keep(P(c ‖ iv)))` of first commitment `c` and later block `x`,
+  `keep` the part of the state the block does not overwrite
   (`idx1`) agrees for two commitments only if their first answers share a
   capacity (`idx1_eq`).  So an index's preimage among the `n1` first
   commitments is one capacity value's load (`hitN_nxt0`): at most `m - 1`,
@@ -26,9 +27,11 @@ state one absorption after the first commitment.
   Averaged, `m! (K - n1)^m E[loadM] ≤ m! (K - n1)^m (m - 1) +
   n1 Kc (n1 F)^m`, `Kc` the number of capacity values (`loadM_countP`,
   `load_δs_countP`).  With `F / K` one over the capacity's size and
-  `n1 ≤ R1` the rate, `n1 F / (K - n1)` stays near `R1 / Kc`, about `1` at
-  Plonky3's rate equal to its capacity; then
-  `E[loadM] ≤ m - 1 + n1 Kc / m!`, below `m` once `m!` exceeds `n1 Kc`.
+  `n1 ≤ R1` the overwritten rate, `r = n1 F / (K - n1)` stays near
+  `R1 / Kc`, and `E[loadM] ≤ m - 1 + n1 Kc r^m / m!`.  At Plonky3's
+  challengers the rate equals the capacity, so `r = C / (C - 1)`, about
+  `1`; with `n1 = Kc = p^8` the bound falls from about `2^247` to about
+  `95` (BabyBear, `m = 96`).
 - **The composite.** `sud_interleaveS` with this index holds at every
   permutation table and averaged over them (`zkbT_avgW`,
   `sud_interleaveL`), with a number for its error (`sud_interleaveLN`).
@@ -39,7 +42,10 @@ commitment; Plonky3 absorbs the whole later transcript, and each later
 absorption can merge capacity classes again (not shown).  As in
 `SpongeIndex`, the state before the first commitment is fixed, the first
 commitment fills one aligned block (`n1 ≤ R1`), and the fourth table `H4`
-stays independent of the permutation.
+stays independent of the permutation.  The index reads only the first
+later block, and, as `SudChallenger`'s `hφsp` takes it, that block does not
+depend on the salt; in Plonky3 the next commitment follows challenges drawn
+after the first.
 -/
 
 set_option autoImplicit false
