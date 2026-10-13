@@ -35,8 +35,11 @@ challenges, `mono_pair`).  So proofs pair one at a time; each step's
 collision term counts the new proof's messages hitting any earlier proof's
 programmed answers (or the earlier proofs' hitting the new one's), which a
 union bound splits into one term per pair of proofs when the collision
-event reads only the messages.  Nothing here is stated for `n` proofs at
-once.
+event reads only the messages.  For `n` proofs of one shape the pairing
+iterates (`zkb_pow`): the `n`-fold draws, challenges, views and programming
+by recursion (`PowT`, `smPow`, `scPow`, `rvPow`, `pgPow`), the error
+`errPow`, each step's collision term `δ n` covering the newest proof
+against all earlier ones.
 -/
 
 namespace Circuit
@@ -447,6 +450,123 @@ theorem mono_pair {CA CB : Type} {SCA : (CA → Nat) → Nat} {SCB : (CB → Nat
     ∀ f g : CA × CB → Nat, (∀ c, (okA c.1 && okB c.2) = true → f c ≤ g c) →
       SCA (fun ca => SCB (fun cb => f (ca, cb))) ≤ SCA (fun ca => SCB (fun cb => g (ca, cb))) :=
   fun f g h => hA _ _ (fun ca ha => hB _ _ (fun cb hb => h (ca, cb) (by simp [ha, hb])))
+
+/-- `n` copies of a type. -/
+def PowT (X : Type) : Nat → Type
+  | 0 => Unit
+  | n + 1 => X × PowT X n
+
+/-- `n` proofs' draws: the newest outermost in the tuple, counted innermost. -/
+def smPow {X : Type} (sm : (X → Nat) → Nat) : (n : Nat) → (PowT X n → Nat) → Nat
+  | 0, f => f ()
+  | n + 1, f => smPow sm n (fun rest => sm (fun x => f (x, rest)))
+
+/-- `n` proofs' challenges: the newest counted outermost. -/
+def scPow {C : Type} (sc : (C → Nat) → Nat) : (n : Nat) → (PowT C n → Nat) → Nat
+  | 0, g => g ()
+  | n + 1, g => sc (fun c => scPow sc n (fun rest => g (c, rest)))
+
+theorem lin_smPow {X : Type} {sm : (X → Nat) → Nat} (h : Lin sm) : ∀ n, Lin (smPow sm n)
+  | 0 => fun _ _ => rfl
+  | n + 1 => fun N f => by
+    show smPow sm n (fun rest => sm (fun x => sumTo N (fun i => f i (x, rest)))) = _
+    simp only [h N]
+    exact lin_smPow h n N _
+
+theorem lin_scPow {C : Type} {sc : (C → Nat) → Nat} (h : Lin sc) : ∀ n, Lin (scPow sc n)
+  | 0 => fun _ _ => rfl
+  | n + 1 => fun N f => by
+    show sc (fun c => scPow sc n (fun rest => sumTo N (fun i => f i (c, rest)))) = _
+    simp only [lin_scPow h n N]
+    exact h N _
+
+/-- `n` proofs' draws commute with whatever one proof's draws commute with. -/
+theorem comm_smPow {X Z : Type} {sm : (X → Nat) → Nat} {sz : (Z → Nat) → Nat} (h : Comm sm sz) :
+    ∀ n, Comm (smPow sm n) sz
+  | 0 => fun _ => rfl
+  | n + 1 => fun f => by
+    show sz (fun z => smPow sm n (fun rest => sm (fun x => f (x, rest) z))) =
+      smPow sm n (fun rest => sm (fun x => sz (fun z => f (x, rest) z)))
+    rw [comm_smPow h n]
+    exact congrArg (smPow sm n) (funext fun rest => h _)
+
+theorem comm_smPow' {X Z : Type} {sm : (X → Nat) → Nat} {sz : (Z → Nat) → Nat} (h : Comm sz sm) :
+    ∀ n, Comm sz (smPow sm n)
+  | 0 => fun _ => rfl
+  | n + 1 => fun f => by
+    show smPow sm n (fun rest => sm (fun x => sz (fun z => f z (x, rest)))) =
+      sz (fun z => smPow sm n (fun rest => sm (fun x => f z (x, rest))))
+    rw [show (fun rest => sm (fun x => sz (fun z => f z (x, rest)))) =
+      (fun rest => sz (fun z => sm (fun x => f z (x, rest)))) from funext fun rest => h _]
+    exact comm_smPow' h n _
+
+theorem comm_scPow' {C Z : Type} {sc : (C → Nat) → Nat} {sz : (Z → Nat) → Nat} (h : Comm sz sc) :
+    ∀ n, Comm sz (scPow sc n)
+  | 0 => fun _ => rfl
+  | n + 1 => fun f => by
+    show sc (fun c => scPow sc n (fun rest => sz (fun z => f z (c, rest)))) =
+      sz (fun z => sc (fun c => scPow sc n (fun rest => f z (c, rest))))
+    rw [show (fun c => scPow sc n (fun rest => sz (fun z => f z (c, rest)))) =
+      (fun c => sz (fun z => scPow sc n (fun rest => f z (c, rest)))) from funext fun c => comm_scPow' h n _]
+    exact h _
+
+/-- `n` proofs' views, proof `i` at index `i`. -/
+def rvPow {T X V : Type} (rv : Nat → T → X → V) : (n : Nat) → T → PowT X n → PowT V n
+  | 0, _, _ => ()
+  | n + 1, H, x => (rv n H x.1, rvPow rv n H x.2)
+
+def svPow {X C V : Type} (sv : Nat → C → X → V) : (n : Nat) → PowT C n → PowT X n → PowT V n
+  | 0, _, _ => ()
+  | n + 1, c, x => (sv n c.1 x.1, svPow sv n c.2 x.2)
+
+/-- `n` proofs' programming: the earlier proofs' answers set first, the
+    newest's over them. -/
+def pgPow {T X C : Type} (pg : Nat → T → C → X → T) : (n : Nat) → T → PowT C n → PowT X n → T
+  | 0, H, _, _ => H
+  | n + 1, H, c, x => pg n (pgPow pg n H c.2 x.2) c.1 x.1
+
+def okPow {C : Type} (ok : C → Bool) : (n : Nat) → PowT C n → Bool
+  | 0, _ => true
+  | n + 1, c => ok c.1 && okPow ok n c.2
+
+/-- `n` proofs' error: each step's own errors over the other proofs' draws,
+    and the step's collisions `δ n`. -/
+def errPow {X C : Type} (K : Nat) (sm : (X → Nat) → Nat) (sc : (C → Nat) → Nat) (ε δ : Nat → Nat) : Nat → Nat
+  | 0 => 0
+  | n + 1 => K ^ n * (ε n * smPow sm n (fun _ => 1)) + errPow K sm sc ε δ n * sc (fun _ => sm (fun _ => 1)) +
+      K ^ n * δ n
+
+theorem mono_scPow {C : Type} {sc : (C → Nat) → Nat} {ok : C → Bool}
+    (h : ∀ f g : C → Nat, (∀ c, ok c = true → f c ≤ g c) → sc f ≤ sc g) :
+    ∀ n (f g : PowT C n → Nat), (∀ c, okPow ok n c = true → f c ≤ g c) → scPow sc n f ≤ scPow sc n g
+  | 0, f, g, hfg => hfg () rfl
+  | n + 1, f, g, hfg => h _ _ (fun c hc => mono_scPow h n _ _ (fun r hr => hfg (c, r) (by simp [okPow, hc, hr])))
+
+/-- **`n` proofs under one oracle**: proofs `0 … n-1` of one shape, each with
+    its own simulation bound, the newest one's programming read back by the
+    earlier ones except at collisions (`col n`, at most `δ n`).  The `n`
+    proofs together keep the bound, their error `errPow`. -/
+theorem zkb_pow {T X C V : Type} {K : Nat} (ST : (T → Nat) → Nat) (hST : Lin ST)
+    (sm : (X → Nat) → Nat) (hs : Lin sm) (sc : (C → Nat) → Nat) (hc : Lin sc)
+    (c1 : Comm sm sm) (c2 : Comm ST sm) (c3 : Comm sc sm) (c4 : Comm ST sc) (c7 : Comm sm sc)
+    (rv : Nat → T → X → V) (pg : Nat → T → C → X → T) (sv : Nat → C → X → V) (ε δ : Nat → Nat)
+    (hzk : ∀ i, ZKB ST K sm sc (rv i) (pg i) (sv i) (ε i))
+    (ok : C → Bool) (hok : ∀ f g : C → Nat, (∀ c, ok c = true → f c ≤ g c) → sc f ≤ sc g)
+    (col : (n : Nat) → T → C → X → PowT X n → Bool)
+    (hread : ∀ n H ca xa xb, ok ca = true → col n H ca xa xb = false →
+      rvPow rv n (pg n H ca xa) xb = rvPow rv n H xb)
+    (hcol : ∀ n, sc (fun ca => sm (fun xa => ST (fun H => smPow sm n (fun xb => indB (col n H ca xa xb))))) ≤ δ n) :
+    ∀ n, ZKB ST (K ^ n) (smPow sm n) (scPow sc n) (rvPow rv n) (pgPow pg n) (svPow sv n) (errPow K sm sc ε δ n)
+  | 0 => fun E => by
+    show 1 * ST (fun H => indB (E H ())) ≤ ST (fun H => indB (E H ())) + 0
+    rw [Nat.one_mul, Nat.add_zero]; exact Nat.le_refl _
+  | n + 1 => by
+    have ih := zkb_pow ST hST sm hs sc hc c1 c2 c3 c4 c7 rv pg sv ε δ hzk ok hok col hread hcol n
+    have h := zkb_pair ST hST sm hs (smPow sm n) (lin_smPow hs n) sc hc (scPow sc n)
+      (comm_smPow' c1 n) (comm_smPow' c2 n) (comm_smPow' c3 n) c4 c2 (comm_scPow' c7 n)
+      (rv n) (pg n) (sv n) (rvPow rv n) (pgPow pg n) (svPow sv n) (hzk n) ih (col n) ok hok (hread n) (hcol n)
+    rw [Nat.pow_succ]
+    exact h
 
 theorem lin_sumN {Y : Type} {sy : (Y → Nat) → Nat} (h : Lin sy) :
     ∀ (m : Nat) (g : (Nat → Tup) → Y → Nat), sy (fun y => sumN m (fun t => g t y)) = sumN m (fun t => sy (g t))

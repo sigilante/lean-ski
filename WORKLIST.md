@@ -132,11 +132,9 @@ is built; this file records what is next. Last revised 2026-10-13.
   nonce through the first commitment (`ComHides.post`). Two proofs under one oracle, one round each, keep their errors plus
   a collision term (`Ski/ZK/FSMulti.lean`, `fs_zk_two`, `col_spread`), and two four-round
   protocols on the same four tables (`fs_two`, `fs_open4_two`). Open, most exploitable
-  first: more than two proofs of a circuit under one oracle (two of each:
-  `Ski/ZK/FSMultiInst.lean`, `*_fs_open4_two`; `fs_open4_two` is generic over two
-  four-round protocols, and `zkb_pair` pairs them one at a time, each step's collision term
-  covering the earlier proofs; an `n`-proof statement with the per-pair union bound is not
-  drawn); `Com` from the same oracle (bounded queries, a ROM-hiding term); FRI's
+  first: the circuits' `n`-proof instances (two of each: `Ski/ZK/FSMultiInst.lean`,
+  `*_fs_open4_two`; `n` proofs of one shape in general: `zkb_pow`, each step's collision term
+  covering the newest proof against the earlier ones); `Com` from the same oracle (bounded queries, a ROM-hiding term); FRI's
   folding challenges hashed with the transcript before FRI (from its own layer commitments,
   against a table of its own, they fit already: `fs_pow`); FRI's layer commitments and final polynomial in the query hash's
   input (every opening at `ζ` is in it, `pcsFri_ood`, `pcsFri_oodT`,
