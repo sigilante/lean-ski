@@ -1294,3 +1294,4 @@ open Ski.Audit
 -- The hypotheses, met
 #audit_clean Circuit.inj_le_one Circuit.hposW Circuit.hsW Circuit.hndW Circuit.hlenW Circuit.hltW Circuit.hsLW Circuit.hdistM Circuit.hltM Circuit.hsM Circuit.hposOM Circuit.hφW Circuit.hφsW Circuit.hposF Circuit.hsF Circuit.hposOW Circuit.hsd1W
 #audit_clean Circuit.rom4_transferM Circuit.sud_fs_open4ROMM Circuit.wit_fs_open4ROMM Circuit.comp_fs_open4ROMM
+#audit_clean Circuit.rom4_transferMR Circuit.sud_fs_open4ROMMR Circuit.wit_fs_open4ROMMR Circuit.comp_fs_open4ROMMR

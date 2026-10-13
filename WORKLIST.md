@@ -169,12 +169,12 @@ is built; this file records what is next. Last revised 2026-10-13.
   it, unopened leaves with equal data and salts share a hash, a term not counted); four rounds, the
   opened set read at the query challenge: `Ski/ZK/ROMMerkle4.lean` (`fs_open4ROMM`; the root hashed: `fs_open4ROMMR`); the
   circuits over it with the tie of the leaves to the committed rows a hypothesis (`hposO`):
-  `Ski/ZK/ROMInstM.lean` (`sud_fs_open4ROMM` and the others); not yet: that tie's instance
+  `Ski/ZK/ROMInstM.lean` (`sud_fs_open4ROMM`, with the root hashed `sud_fs_open4ROMMR`, and the
+  others); not yet: that tie's instance
   (the leaves the committed matrix's low-degree-extension rows, the opened set the query
   indices' rows, each read off the openings `op1` names: the circuits' opened points
   identified with FRI's query points and kept consistent with the PCS openings, `pcsZ`,
-  `friX`), the root-hashed circuits, and the multi-proof theorems over the Merkle
-  commitment; internal-node hashing
+  `friX`), and the multi-proof theorems over the Merkle commitment; internal-node hashing
   apart from the leaves' table stays an assumption; query answers shown where the proof
   aborts: `Ski/ZK/ROMAbort.lean`, one round (`fs_openROMQ`), four over the oracle
   (`fs_open4ROMQ`, on `fs_open4Q`); the circuits' single-proof theorems with it,
