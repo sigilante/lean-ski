@@ -172,8 +172,16 @@ is built; this file records what is next. Last revised 2026-10-13.
   `Ski/ZK/ROMInstM.lean` (`sud_fs_open4ROMM`, with the root hashed `sud_fs_open4ROMMR`, and the
   others); that tie met by the rows (each leaf the committed polynomials' values at its
   points, the opened leaves those at the query points): `Ski/ZK/ROMMerkleRows.lean`
-  (`posRows_hposO` and the rest); not yet: that FRI's query indices pick exactly those
-  leaves (the points and the query sets agreeing with `pcsZ`, `friX`). Done: `n` statements of each circuit over the leaves, `Ski/ZK/ROMFamilyM.lean`
+  (`posRows_hposO` and the rest); `hposO` at the queried indices when each opened group's
+  query set holds those leaves' points, and the opened real leaves exactly the queried ones
+  when one group separates them: `Ski/ZK/ROMMerkleIdx.lean` (`sud_hposO_idx`,
+  `isOfRows_iff`, `isOfRows_xsSh_iff`, `sud_opened_iff` and the others; at FRI's LDE points
+  `31 · ωʳ`, rows bit-reversed, off every trace domain, `sud_fri_leaves`; the circuits' bounds over
+  them, `sud_fs_open4ROMM_fri`, `wit_fs_open4ROMM_fri`, `comp_fs_open4ROMM_fri`; the indices `q` blocks of
+  bits of the fourth challenge, `qIdx`, a bijection onto lists of leaves, `qIdx_inj`;
+  the batching challenge independent of them, `qIdx_split`; the bounds at both,
+  `sud_fs_open4ROMM_qIdx`, `wit_fs_open4ROMM_qIdx`, `comp_fs_open4ROMM_qIdx`); not yet: that the query sets are the points of indices FRI draws from the fourth
+  challenge (`pcsZ`, `friX`), and FRI's own layer commitments. Done: `n` statements of each circuit over the leaves, `Ski/ZK/ROMFamilyM.lean`
   (`sud_fs_open4_powDROMM` and the others, the collision term `1/n1` from `comMI_spreadL`); internal-node hashing
   apart from the leaves' table stays an assumption; query answers shown where the proof
   aborts: `Ski/ZK/ROMAbort.lean`, one round (`fs_openROMQ`), four over the oracle

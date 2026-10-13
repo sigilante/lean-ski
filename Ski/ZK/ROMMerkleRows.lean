@@ -15,10 +15,11 @@ where `opF` agrees there, the rows agree (`rowAt_opF`), so `hposO` holds
 (`posRows_hposO`), with `hdist`, `hlt` (`n = L NSl Mh`, given `0 < NSl`,
 `0 < Mh`) and `hs` at `s = 1` (given `0 < L`).
 
-The conclusion holds for the opened set `isOfRows` picks; that it is the
-set Plonky3's FRI queries open is not proved.  Not modelled: the FRI query
-indices picking exactly these leaves (the points `xs` and the query sets
-`S16`, `S10`, `SP` agreeing with `pcsZ`, `friX`); Plonky3's mixed-height
+The conclusion holds for the opened set `isOfRows` picks; `ROMMerkleIdx`
+shows it is the set of queried indices when the query sets hold those
+leaves' points.  Not modelled: that the query
+sets `S16`, `S10`, `SP` are the points of indices FRI draws (agreeing with
+`pcsZ`, `friX`); Plonky3's mixed-height
 tree, which hashes a shorter matrix's rows into the internal layer of its
 height (`compress_and_inject`) rather than into the leaf, the per-group
 point `xs l k` standing for the row shift; its per-matrix salts, here one
