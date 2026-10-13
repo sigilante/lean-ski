@@ -15,10 +15,15 @@ injective in the state, and the state after absorbing the digit (below
 `enc`).  The index is the full state, below `N` (`spongeA_lt`), so the
 fourth table spans it: `N ≤ N4`.  The state is one element of `Z_N`, all of
 it rate; each block is one absorption, so a digit spread over several rate
-blocks is not covered.  Over any state, a vector of field elements
+blocks is not covered.  Over any state type, a vector of field elements
 included, the same holds when each absorption is injective in the state
-(a translation followed by a permutation is), the first in the digit, and
-the index in the state (`spongeG`, `spongeG_hφsp`).
+(a translation followed by a permutation is), the first absorption in the
+digit (`n1` at most the rate's values), and the index in the state
+(`spongeG`, `spongeG_hφsp`); the digit still absorbs in one block.  The
+index is then the full state, capacity included, so the fourth table
+spans every reachable state, `N4 ≥ |S|`: about `p^t` for a width-`t`
+state, sound but far from a deployed challenger, which squeezes a shorter
+index (not shown).
 
 Not shown: Plonky3's `DuplexChallenger`, which overwrites the rate part of
 the state instead of adding into it, so two states differing only there
