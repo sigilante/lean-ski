@@ -19,14 +19,18 @@ spread `hs` alone.
   hits on an unopened leaf gain `L` queries' worth (`hitLeaf_boundC`,
   `hitM_boundC`, `transferMC`).
 - The real opening hides up to `2 UL s (k + L) / NSl + 2 L² s / NSl` a draw
-  (`pfM_hidesC`), and one Fiat–Shamir round keeps that bound
-  (`fs_openROMMC`).  `collide_sat` meets the hypotheses with Plonky3's
+  (`pfM_hidesC`); one Fiat–Shamir round keeps it with `L` in place of
+  `UL` (`fs_openROMMC`).  `collide_sat` meets the hypotheses with Plonky3's
   shape, a leaf's position its salt and its row's hash, and two leaves
   meeting.
 
 Not shown: the four-round theorems (`ROMMerkle4`, the circuit families)
-without `hdist`; they take exact hiding (`fs_open4`), and the approximate
-hiding here would enter through an approximate `fs_open4`.
+without `hdist`.  They need three more pieces: an approximate `fs_open4`
+for the hiding here; collision versions of the hit bounds with the opened
+set read off the commitment (`hitLeafc_bound`, `hitMc_bound`,
+`transferMc`); and an approximate spread of the commitment
+(`comM_spreadL`), whose full `K^L` fails when two leaves share an
+answer.
 -/
 
 set_option autoImplicit false
@@ -292,8 +296,8 @@ theorem hitLeaf_boundC {D O P : Type} {K n NSl L k s : Nat} (hK : 0 < K) (hN : 0
   exact sumTo_mono _ (fun a ha => per H a ha)
 
 /-- **The draws that hit an unopened leaf are few**: at most
-    `UL Kⁿ NSl^(L-1) s k` over the salts and the table; normalized,
-    `UL s k / NSl`, `UL` the unopened leaves. -/
+    `UL Kⁿ NSl^(L-1) s (k + L)` over the salts and the table; normalized,
+    `UL s (k + L) / NSl`, `UL` the unopened leaves. -/
 theorem hitM_boundC {D O P : Type} {K n NSl L k s : Nat} (hK : 0 < K) (hN : 0 < NSl) (pos : D → Nat → Nat → Nat)
     (hlt : ∀ d l a, l < L → pos d l a < n)
     (hs : ∀ d l v, sumTo NSl (fun x => indB (decide (pos d l x = v))) ≤ s)
@@ -329,7 +333,7 @@ theorem hitM_boundC {D O P : Type} {K n NSl L k s : Nat} (hK : 0 < K) (hN : 0 < 
   congr 3; omega
 
 /-- **The real opening of a Merkle tree's leaves is the ideal's up to the
-    hits**: `K^UL` times the real count is within `K^UL UL Kⁿ NSl^(L-1) s k`
+    hits**: `K^UL` times the real count is within `K^UL UL Kⁿ NSl^(L-1) s (k + L)`
     of the ideal count, both ways. -/
 theorem transferMC {D O P : Type} {K n NSl L k s : Nat} (hK : 0 < K) (hN : 0 < NSl) (pos : D → Nat → Nat → Nat)
     (hlt : ∀ d l a, l < L → pos d l a < n)
@@ -510,15 +514,15 @@ theorem fs_openROMMC {PV PB D O P : Type} {NR m e1 e2 K n NSl L s k : Nat} (hK :
     position its salt and its row's hash `h` (no leaf index), the opened
     data the opened rows' hashes; two leaves with equal rows and salts
     meet. -/
-theorem collide_sat (L NSl M : Nat) (hN : 0 < NSl) (hM : 0 < M) (isO : Nat → Bool) :
+theorem collide_sat (L NSl M : Nat) (hL : 2 ≤ L) (hN : 0 < NSl) (hM : 0 < M) (isO : Nat → Bool) :
     let pos := fun (d : Nat → Nat) (l a : Nat) => a % NSl + NSl * (d l % M)
     let op := fun (d : Nat → Nat) (l : Nat) => if isO l = true then d l % M else 0
     (∀ d l a, l < L → pos d l a < NSl * M) ∧
     (∀ d l v, sumTo NSl (fun x => indB (decide (pos d l x = v))) ≤ 1) ∧
     (∀ d d', op d = op d' → ∀ l a, isO l = true → pos d l a = pos d' l a) ∧
-    (∀ a, pos (fun _ => 0) 0 a = pos (fun _ => 0) 1 a) := by
+    (0 < L ∧ 1 < L ∧ ∀ a, pos (fun _ => 0) 0 a = pos (fun _ => 0) 1 a) := by
   intro pos op
-  refine ⟨fun d l a _ => ?_, fun d l v => ?_, fun d d' hop l a hO => ?_, fun _ => rfl⟩
+  refine ⟨fun d l a _ => ?_, fun d l v => ?_, fun d d' hop l a hO => ?_, by omega, by omega, fun _ => rfl⟩
   · show a % NSl + NSl * (d l % M) < NSl * M
     have h1 : d l % M + 1 ≤ M := Nat.mod_lt _ hM
     calc a % NSl + NSl * (d l % M) < NSl + NSl * (d l % M) := Nat.add_lt_add_right (Nat.mod_lt _ hN) _
