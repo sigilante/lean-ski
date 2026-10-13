@@ -153,7 +153,16 @@ is built; this file records what is next. Last revised 2026-10-13.
   hidden leaves, every leaf hash shown: `Ski/ZK/ROMMerkle.lean`, one round
   (`fs_openROML`); a Merkle opening is not yet modelled: the opened leaves' salts shown,
   the opened set chosen by the later challenges, leaves sharing positions, the root hashed;
-  nor the multi-round, circuit and multi-proof theorems over it); FRI's
+  nor the multi-round, circuit and multi-proof theorems over it. The design for the opening:
+  each leaf its own salt, a digit of the hidden salt, its position a function of its data and
+  salt alone (distinct across leaves by a leaf index in the hash input, a departure from
+  Plonky3); the commitment the leaf hashes in leaf order; for a fixed opened set `O` the
+  ideal opening re-randomizes only the unopened leaves (the swap over their positions, the
+  commitment rebuilt by setting them back, `rsetL_back`), and hides given the opened leaves'
+  data and salts; the opened set read off the commitment's value as `transferRc` reads the
+  query challenge; the hits bounded leaf by leaf, each unopened leaf's own salt summed with
+  the others fixed (`reprog_swap` at its position, `hit_rset`), `L s k / NS_leaf` in all.
+  Internal-node hashing apart from the leaves' table stays an assumption); FRI's
   folding challenges hashed with the transcript before FRI (from its own layer commitments,
   against a table of its own, they fit already: `fs_pow`); FRI's layer commitments and final polynomial in the query hash's
   input (every opening at `ζ` is in it, `pcsFri_ood`, `pcsFri_oodT`,
