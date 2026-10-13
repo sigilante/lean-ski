@@ -1307,5 +1307,5 @@ open Ski.Audit
   Circuit.wit_hposO_idx Circuit.comp_hposO_idx Circuit.sud_opened_iff Circuit.wit_opened_iff Circuit.comp_opened_iff
   Circuit.sud_opened_iff_xsW Circuit.revBits_lt Circuit.revBits_inj Circuit.xsL_off Circuit.mul31_cancel Circuit.xsL_inj Circuit.sud_fri_leaves Circuit.sud_fri_leaves_std Circuit.pow2From_leK Circuit.sud_progTp_le15
   Circuit.qIdx_length Circuit.qIdx_lt Circuit.qIdx_qEnc Circuit.qEnc_lt Circuit.qEnc_qIdx Circuit.qIdx_inj
-  Circuit.qIdx_onto Circuit.qIdx_add_mul Circuit.qIdx_split Circuit.friS_qIdx_length Circuit.qIdx_fri_conds Circuit.sud_fs_open4ROMM_fri Circuit.wit_fri_leaves Circuit.wit_fs_open4ROMM_fri
+  Circuit.qIdx_onto Circuit.qIdx_add_mul Circuit.qIdx_split Circuit.hB4_split Circuit.sud_fs_open4ROMM_qIdx Circuit.friS_qIdx_length Circuit.qIdx_fri_conds Circuit.sud_fs_open4ROMM_fri Circuit.wit_fri_leaves Circuit.wit_fs_open4ROMM_fri
   Circuit.comp_fri_leaves Circuit.comp_fs_open4ROMM_fri
