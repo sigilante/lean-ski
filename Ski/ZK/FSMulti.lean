@@ -44,7 +44,10 @@ against all earlier ones.  For `n` copies of one four-round proof
 tables but where its messages hit the programmed points (`read4_beside`,
 `readPow`), every hit puts its first commitment at the programmed one,
 and the commitment's salt spread bounds the hits (`spread_sum`,
-`hitPow_le`).
+`hitPow_le`).  For `n` four-round proofs of different statements
+(`read4_pow`): each proof its own messages, programmed points and bound,
+a hit of one proof's message on another's programmed point putting its
+first commitment there (`readPowI`, `hitPowI_le`).
 -/
 
 namespace Circuit
@@ -726,6 +729,99 @@ theorem spread_sum {D : Type} {NS1 NS2 NR m δs : Nat} (Com : D → Nat → Nat)
         sumTo_mono _ (fun σ _ => sumTo_mono _ (fun r _ => sumN_mono m (fun t => h _ _)))
     _ = _ := by rw [sumTo_congr _ (fun σ _ => sumTo_congr _ (fun r _ => sumN_const m δs)), sumTo_congr _
         (fun σ _ => sumTo_const _ NR), sumTo_const]
+/-- Whether any of `n` views hits, view `j` by `hit j`. -/
+def hitPowI {X : Type} (hit : Nat → X → Bool) : (n : Nat) → PowT X n → Bool
+  | 0, _ => false
+  | n + 1, x => hit n x.1 || hitPowI hit n x.2
+
+theorem readPowI {T X V : Type} (rv : Nat → T → X → V) (H H' : T) (hit : Nat → X → Bool)
+    (h : ∀ j x, hit j x = false → rv j H' x = rv j H x) :
+    ∀ n xs, hitPowI hit n xs = false → rvPow rv n H' xs = rvPow rv n H xs
+  | 0, _, _ => rfl
+  | n + 1, xs, hx => by
+    simp only [hitPowI, Bool.or_eq_false_iff] at hx
+    show (rv n H' xs.1, rvPow rv n H' xs.2) = (rv n H xs.1, rvPow rv n H xs.2)
+    rw [h n xs.1 hx.1, readPowI rv H H' hit h n xs.2 hx.2]
+
+theorem hitPowI_le {X : Type} {sm : (X → Nat) → Nat} (h : Lin sm) (hit : Nat → X → Bool) {δ₀ : Nat}
+    (hd : ∀ j, sm (fun x => indB (hit j x)) ≤ δ₀) :
+    ∀ n, smPow sm n (fun xs => indB (hitPowI hit n xs)) ≤ hitB sm δ₀ n
+  | 0 => Nat.le_refl _
+  | n + 1 => by
+    show smPow sm n (fun rest => sm (fun x => indB (hit n x || hitPowI hit n rest))) ≤
+      δ₀ * smPow sm n (fun _ => 1) + sm (fun _ => 1) * hitB sm δ₀ n
+    have hpt : ∀ rest, sm (fun x => indB (hit n x || hitPowI hit n rest)) ≤
+        δ₀ + sm (fun _ => 1) * indB (hitPowI hit n rest) := fun rest => by
+      cases hr : hitPowI hit n rest
+      · simp only [Bool.or_false, indB]
+        exact hd n
+      · show sm (fun x => indB (hit n x || true)) ≤ δ₀ + sm (fun _ => 1) * 1
+        simp only [Bool.or_true, Nat.mul_one]
+        exact Nat.le_add_left _ _
+    refine Nat.le_trans (sm_mono (smPow sm n) (lin_smPow h n) hpt) ?_
+    rw [sm_add (smPow sm n) (lin_smPow h n), smPow_const h n δ₀, smK (smPow sm n) (lin_smPow h n)]
+    exact Nat.add_le_add_left (Nat.mul_le_mul_left _ (hitPowI_le h hit hd n)) _
+
+/-- **`n` four-round proofs of different statements under one oracle**: proof
+    `i` with its own messages (`m1 i` … `q i`), view, programmed points
+    (`pts i`), simulator and bound (`hzk i`, from `fs_open4_abs` at `i`); a
+    hit of proof `j`'s message in any round on proof `n`'s programmed point
+    puts proof `j`'s first commitment at proof `n`'s (`hp2`–`hp4`, the low
+    digits and the query hash map), which hits a value for at most `δ₀` of
+    a proof's draws (`hsp`).  The `n` proofs keep the bound, each step's
+    collisions `hitB`. -/
+theorem read4_pow {X C O : Type} {K K1 K2 K3 K4 : Nat} (h1 : 0 < K1) (h2 : 0 < K2) (h3 : 0 < K3) (h4 : 0 < K4)
+    (ST : (Nat × Nat × Nat × Nat → Nat) → Nat) (hST : Lin ST)
+    (sm : (X → Nat) → Nat) (hs : Lin sm) (sc : (C → Nat) → Nat) (hc : Lin sc)
+    (c1 : Comm sm sm) (c2 : Comm ST sm) (c3 : Comm sc sm) (c4 : Comm ST sc) (c7 : Comm sm sc)
+    (m1 : Nat → X → Nat) (m2 : Nat → Nat → X → Nat) (m3 : Nat → Nat → Nat → X → Nat)
+    (q : Nat → Nat → Nat → Nat → X → Nat) (out : Nat → Nat → Nat → Nat → Nat → X → O)
+    (pts : Nat → C → X → Nat × Nat × Nat × Nat) (cv : C → Nat × Nat × Nat × Nat)
+    (sv : Nat → C → X → Nat × Nat × Nat × O) (ε : Nat → Nat)
+    (hzk : ∀ i, ZKB ST K sm sc (read4 K1 K2 K3 K4 (m1 i) (m2 i) (m3 i) (q i) (out i))
+      (fun H c x => prog4 K1 K2 K3 K4 H (pts i c x) (cv c)) (sv i) (ε i))
+    (ok : C → Bool) (hok : ∀ f g : C → Nat, (∀ c, ok c = true → f c ≤ g c) → sc f ≤ sc g)
+    (hcv : ∀ c, ok c = true → (cv c).1 < K1 ∧ (cv c).2.1 < K2 ∧ (cv c).2.2.1 < K3 ∧ (cv c).2.2.2 < K4)
+    (hp2 : ∀ j n c xa c1 x, m2 j c1 x = (pts n c xa).2.1 → m1 j x = (pts n c xa).1)
+    (hp3 : ∀ j n c xa c1 c2 x, m3 j c1 c2 x = (pts n c xa).2.2.1 → m1 j x = (pts n c xa).1)
+    (hp4 : ∀ j n c xa c1 c2 c3 x, q j c1 c2 c3 x = (pts n c xa).2.2.2 → m1 j x = (pts n c xa).1)
+    {δ₀ : Nat} (hsp : ∀ j v, sm (fun x => indB (decide (m1 j x = v))) ≤ δ₀) :
+    ∀ n, ZKB ST (K ^ n) (smPow sm n) (scPow sc n)
+      (rvPow (fun i => read4 K1 K2 K3 K4 (m1 i) (m2 i) (m3 i) (q i) (out i)) n)
+      (pgPow (fun i H c x => prog4 K1 K2 K3 K4 H (pts i c x) (cv c)) n) (svPow sv n)
+      (errPow K sm sc ε (fun j => sc (fun _ => sm (fun _ => ST (fun _ => hitB sm δ₀ j)))) n) := by
+  let hit := fun (n : Nat) (H : Nat × Nat × Nat × Nat) (c : C) (xa : X) (j : Nat) (x : X) =>
+    hit4 K1 K2 K3 (m1 j) (m2 j) (m3 j) (q j) H (pts n c xa) x
+  have hread : ∀ n H ca xa xb, ok ca = true → hitPowI (hit n H ca xa) n xb = false →
+      rvPow (fun i => read4 K1 K2 K3 K4 (m1 i) (m2 i) (m3 i) (q i) (out i)) n
+        (prog4 K1 K2 K3 K4 H (pts n ca xa) (cv ca)) xb =
+      rvPow (fun i => read4 K1 K2 K3 K4 (m1 i) (m2 i) (m3 i) (q i) (out i)) n H xb :=
+    fun n H ca xa xb hok hx => readPowI _ H _ (hit n H ca xa)
+      (fun j x hj => read4_beside h1 h2 h3 h4 (m1 j) (m2 j) (m3 j) (q j) (out j) H (pts n ca xa) (cv ca)
+        (hcv ca hok) x hj) n xb hx
+  have hhit : ∀ n H ca xa j x, indB (hit n H ca xa j x) ≤ indB (decide (m1 j x = (pts n ca xa).1)) := by
+    intro n H ca xa j x
+    cases hh : hit n H ca xa j x
+    · exact Nat.zero_le _
+    · have e : m1 j x = (pts n ca xa).1 := by
+        simp only [hit, hit4, Bool.or_eq_true, decide_eq_true_eq] at hh
+        rcases hh with ((e | e) | e) | e
+        · exact e
+        · exact hp2 j n ca xa _ x e
+        · exact hp3 j n ca xa _ _ x e
+        · exact hp4 j n ca xa _ _ _ x e
+      have ed : decide (m1 j x = (pts n ca xa).1) = true := decide_eq_true e
+      rw [ed]; exact Nat.le_refl _
+  have hcol : ∀ n, sc (fun ca => sm (fun xa => ST (fun H => smPow sm n (fun xb =>
+      indB (hitPowI (hit n H ca xa) n xb))))) ≤ sc (fun _ => sm (fun _ => ST (fun _ => hitB sm δ₀ n)))
+      := fun n =>
+    sm_mono sc hc (fun ca => sm_mono sm hs (fun xa => sm_mono ST hST (fun H =>
+      hitPowI_le hs (hit n H ca xa) (fun j => Nat.le_trans (sm_mono sm hs (hhit n H ca xa j))
+        (hsp j _)) n)))
+  exact zkb_pow ST hST sm hs sc hc c1 c2 c3 c4 c7 (fun i => read4 K1 K2 K3 K4 (m1 i) (m2 i) (m3 i) (q i) (out i))
+    (fun i H c x => prog4 K1 K2 K3 K4 H (pts i c x) (cv c)) sv ε _ hzk ok hok
+    (fun n H ca xa xb => hitPowI (hit n H ca xa) n xb) hread hcol
+
 /-- **`fs_open4` in `fs_two`'s shape**: the four tables one, counted by `ST`,
     the four challenges one, counted by `SC`; the real view reads the
     tables, the simulator programs them. -/
