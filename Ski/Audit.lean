@@ -124,6 +124,7 @@ import Ski.ZK.FSQueryAbs
 import Ski.ZK.ROMFamily
 import Ski.ZK.ROMMerkle
 import Ski.ZK.ROMMerkleOpen
+import Ski.ZK.ROMWitness
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -1265,3 +1266,5 @@ open Ski.Audit
   Circuit.fs_openROML Circuit.hs_one Circuit.romMerkle_sat
 -- A Merkle tree's leaves drawn from the oracle, some opened
 #audit_clean Circuit.rget_rsetL_not Circuit.rget_rsetL_at Circuit.rgetL_congr Circuit.mem_lr Circuit.lr_mem Circuit.lr_nodup Circuit.nodup_filter Circuit.nodup_map_on Circuit.posU_nodup Circuit.unop_index Circuit.getD_mapN Circuit.lr_length Circuit.lr_getD_lt Circuit.posU_not_mem Circuit.pfMI_hides Circuit.pfM_pfMI Circuit.lsalt_at Circuit.lsalt_lt Circuit.lsalt_gt Circuit.sum_split_digit Circuit.lsalt_ne Circuit.shownS_eq Circuit.comM_eq Circuit.hitLeaf_bound Circuit.unop_mem Circuit.hitM_bound Circuit.transferM Circuit.pfM_hidesA Circuit.posAll_length Circuit.fs_openROMM Circuit.merkleOpen_sat Circuit.fs_openROMMR
+-- The hypotheses, met
+#audit_clean Circuit.inj_le_one Circuit.hposW Circuit.hsW Circuit.hndW Circuit.hlenW Circuit.hltW Circuit.hsLW Circuit.hdistM Circuit.hltM Circuit.hsM Circuit.hposOM Circuit.hφW Circuit.hφsW Circuit.hposF Circuit.hsF
