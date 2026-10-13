@@ -116,6 +116,7 @@ import Ski.ZK.FSQuery
 import Ski.ZK.FSQueryInst
 import Ski.ZK.FSMulti
 import Ski.ZK.FSMultiInst
+import Ski.ZK.ROMHide
 import Ski.ComposeDist
 import Ski.ZK.ComposeZK
 import Ski.ZK.CompPSD
@@ -1227,3 +1228,6 @@ open Ski.Audit
   Circuit.hitPowD_le Circuit.read4_powD
 -- Two proofs of each circuit under one oracle
 #audit_clean Circuit.sud_fs_open4_two Circuit.wit_fs_open4_two Circuit.comp_fs_open4_two
+-- A commitment drawn from the random oracle hides
+#audit_clean Circuit.rom_off Circuit.rom_hide Circuit.runQ_rset Circuit.qposQ_rset Circuit.rom_offQ Circuit.rom_offQ'
+  Circuit.qposQ_length Circuit.salts_in Circuit.rom_hideQ
