@@ -28,8 +28,15 @@ across the `S` statements (`zkbT_adaptiveV`, `hcons`): in a composite
 indexed by proof `m`'s statement, every other component's real view, the
 earlier proofs' transcripts among them; the simulation reads the pick off
 its own simulated view and programmed tables, and the mass bound carries
-over (`zkbT_adaptiveV_mass`). Not shown: several statements picked in turn;
-a tighter bound.
+over (`zkbT_adaptiveV_mass`). The split needs only that the pick read off
+statement `j`'s own view confirms `j` exactly at the real pick
+(`zkbT_adaptiveF`), which two picks in turn meet, the second read from the
+view the first determines (`seqPick_fix`, statements indexed `j1 + S1 j2`);
+more picks in turn, indexed in mixed radix with each pick reading `rv (j %
+(S1⋯S_{i-1}))`, should follow by the same argument (not shown).  The
+statements number `S1 S2` (`S1⋯Sk` for `k` picks), all sharing their draws
+and challenges, and so does the error's factor.  Not shown: a tighter bound;
+picks that read draws outside the view.
 -/
 
 set_option autoImplicit false
@@ -266,5 +273,84 @@ theorem zkbT_adaptiveV_mass {T X C V : Type} {K S : Nat} {ST : (T → Nat) → N
   rw [← hsm S (fun j x => indB (decide (ix H (rv 0 H x) = j)))]
   congr 1; funext x
   exact sum_indB_eq (ix H (rv 0 H x)) S (hix H _)
+
+/-- **The pick as a fixed point**: `zkbT_adaptiveV`'s split needs only that
+    the pick read off statement `j`'s own view confirms `j` exactly at the
+    real pick `r H x < S` (`hfix`). -/
+theorem zkbT_adaptiveF {T X C V : Type} {K S : Nat} {ST : (T → Nat) → Nat} (hST : Lin ST) {sm : (X → Nat) → Nat}
+    (hsm : Lin sm) {SC : (C → Nat) → Nat}
+    (rv : Nat → T → X → V) (pg : Nat → T → C → X → T) (sv : Nat → T → C → X → V) (ε : Nat → Nat)
+    (h : ∀ j, j < S → ZKBT ST K sm SC (rv j) (pg j) (sv j) (ε j)) (ix : T → V → Nat)
+    (r : T → X → Nat) (hr : ∀ H x, r H x < S) (hfix : ∀ H x j, j < S → (ix H (rv j H x) = j ↔ j = r H x))
+    (E : T → Nat × V → Bool) :
+    K * ST (fun H => sm (fun x => indB (E H (r H x, rv (r H x) H x)))) ≤
+      sumTo S (fun j => ST (fun H => SC (fun c => sm (fun x =>
+        indB (E (pg j H c x) (j, sv j H c x) && decide (ix (pg j H c x) (sv j H c x) = j)))))) + sumTo S ε := by
+  have split : ∀ H x, indB (E H (r H x, rv (r H x) H x)) =
+      sumTo S (fun j => indB (E H (j, rv j H x) && decide (ix H (rv j H x) = j))) := by
+    intro H x
+    have key : ∀ n, n ≤ S → sumTo n (fun j => indB (E H (j, rv j H x) && decide (ix H (rv j H x) = j))) =
+        if r H x < n then indB (E H (r H x, rv (r H x) H x)) else 0 := by
+      intro n
+      induction n with
+      | zero => intro _; simp [sumTo]
+      | succ n ih =>
+        intro hn
+        show sumTo n _ + indB (E H (n, rv n H x) && decide (ix H (rv n H x) = n)) = _
+        rw [ih (Nat.le_of_succ_le hn)]
+        have hiff := hfix H x n hn
+        by_cases hrn : n = r H x
+        · rw [decide_eq_true (hiff.2 hrn), Bool.and_true, ← hrn]
+          simp only [Nat.lt_irrefl, if_false, Nat.lt_succ_self, if_true, Nat.zero_add]
+        · have hne : ix H (rv n H x) ≠ n := fun e => hrn (hiff.1 e)
+          rw [decide_eq_false hne, Bool.and_false]
+          by_cases hl : r H x < n
+          · have : r H x < n + 1 := Nat.lt_succ_of_lt hl
+            simp only [hl, if_true, this]; rfl
+          · have : ¬ r H x < n + 1 := fun h' => hl (Nat.lt_of_le_of_ne (Nat.le_of_lt_succ h') (fun e => hrn e.symm))
+            simp only [hl, if_false, this]; rfl
+    rw [key S (Nat.le_refl S), if_pos (hr H x)]
+  have each : ∀ j, j < S → K * ST (fun H => sm (fun x => indB (E H (j, rv j H x) && decide (ix H (rv j H x) = j)))) ≤
+      ST (fun H => SC (fun c => sm (fun x =>
+        indB (E (pg j H c x) (j, sv j H c x) && decide (ix (pg j H c x) (sv j H c x) = j))))) + ε j :=
+    fun j hj => h j hj (fun H v => E H (j, v) && decide (ix H v = j))
+  calc K * ST (fun H => sm (fun x => indB (E H (r H x, rv (r H x) H x))))
+      = K * ST (fun H => sm (fun x => sumTo S (fun j => indB (E H (j, rv j H x) && decide (ix H (rv j H x) = j))))) := by
+        simp only [split]
+    _ = sumTo S (fun j => K * ST (fun H => sm (fun x => indB (E H (j, rv j H x) && decide (ix H (rv j H x) = j))))) := by
+        rw [show (fun H => sm (fun x => sumTo S (fun j => indB (E H (j, rv j H x) && decide (ix H (rv j H x) = j))))) =
+            fun H => sumTo S (fun j => sm (fun x => indB (E H (j, rv j H x) && decide (ix H (rv j H x) = j)))) from
+          funext fun H => hsm S _, hST S _, sumTo_mul]
+    _ ≤ _ := Nat.le_trans (sumTo_mono _ each) (Nat.le_of_eq (sumTo_add _ _ _))
+
+/-- **Two statements picked in turn** meet `zkbT_adaptiveF`'s `hfix`: the
+    statements indexed `j1 + S1 j2`, the first pick read from the view every
+    statement shares (`hc1`), the second from the view the first pick's
+    index determines (`hc2`, reading `rv (j % S1)`). -/
+theorem seqPick_fix {T X V : Type} {S1 S2 : Nat} (rv : Nat → T → X → V) (ix1 ix2 : T → V → Nat)
+    (h1 : ∀ H v, ix1 H v < S1) (h2 : ∀ H v, ix2 H v < S2)
+    (hc1 : ∀ j H x, ix1 H (rv j H x) = ix1 H (rv 0 H x)) (hc2 : ∀ j H x, ix2 H (rv j H x) = ix2 H (rv (j % S1) H x)) :
+    (∀ H x, ix1 H (rv 0 H x) + S1 * ix2 H (rv (ix1 H (rv 0 H x)) H x) < S1 * S2) ∧
+    ∀ H x j, j < S1 * S2 → (ix1 H (rv j H x) + S1 * ix2 H (rv j H x) = j ↔
+      j = ix1 H (rv 0 H x) + S1 * ix2 H (rv (ix1 H (rv 0 H x)) H x)) := by
+  have hmod : ∀ a b, a < S1 → (a + S1 * b) % S1 = a := fun a b ha => by
+    rw [Nat.add_mul_mod_self_left, Nat.mod_eq_of_lt ha]
+  refine ⟨fun H x => ?_, fun H x j _ => ?_⟩
+  · have ha := h1 H (rv 0 H x)
+    have hb := h2 H (rv (ix1 H (rv 0 H x)) H x)
+    calc ix1 H (rv 0 H x) + S1 * ix2 H (rv (ix1 H (rv 0 H x)) H x)
+        < S1 + S1 * ix2 H (rv (ix1 H (rv 0 H x)) H x) := Nat.add_lt_add_right ha _
+      _ = S1 * (ix2 H (rv (ix1 H (rv 0 H x)) H x) + 1) := by rw [Nat.mul_succ, Nat.add_comm]
+      _ ≤ S1 * S2 := Nat.mul_le_mul_left _ hb
+  · rw [hc1 j H x, hc2 j H x]
+    have ha := h1 H (rv 0 H x)
+    constructor
+    · intro e
+      have hj : j % S1 = ix1 H (rv 0 H x) := by rw [← e, hmod _ _ ha]
+      rw [hj] at e
+      exact e.symm
+    · intro e
+      have hj : j % S1 = ix1 H (rv 0 H x) := by rw [e, hmod _ _ ha]
+      rw [hj, ← e]
 
 end Circuit
