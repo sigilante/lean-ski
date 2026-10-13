@@ -50,8 +50,10 @@ queries the commitment's own position (`pfR_pfI`), and those runs are few:
 at most `NSo Kⁿ s k` over the salts and the table, `s k / NSh` normalized
 (`rset_back`, `hit_rset`, `hit_bound`).  So each theorem's real count with
 the commitment drawn from the oracle is its count with the ideal opening,
-to which the exact theorem applies, up to the hits.  Writing that transfer
-into each theorem's statement is not yet done.
+to which the exact theorem applies, up to the hits: for any event of the
+commitment and its opening, both ways (`transferR`).  Writing that
+transfer into each theorem's statement, its event's other arguments summed
+outside, is not yet done.
 -/
 
 namespace Circuit
@@ -744,4 +746,29 @@ theorem hit_bound {D P : Type} {K n NSh NSo s k : Nat} (hK : 0 < K) (pos : D →
       simp only [comR, a, b, c]))
   rw [e]
   exact Nat.le_of_mul_le_mul_left (per o ho) hK
+/-- **The real opening's count is the ideal's up to the hits**: for any event
+    of the commitment and its opening, `K` times its count over the salts
+    with the real opening is within `K NSo Kⁿ s k` of its count with the
+    ideal opening (one more salt digit), both ways. -/
+theorem transferR {D O P : Type} {K n NSh NSo s k : Nat} (hK : 0 < K) (pos : D → Nat → Nat → Nat)
+    (hpos : ∀ d σo σh, pos d σo σh < n) (op : D → O) (g : O → Nat → P)
+    (hs : ∀ d σo v, sumTo NSh (fun σh => indB (decide (pos d σo σh = v))) ≤ s)
+    (nxt : P → Nat → List Nat → Nat) (F : Nat → P × List Nat → Bool) (d : D) :
+    K * sumTo (NSh * (NSo * K ^ n)) (fun σ => indB (F (comR K NSh NSo pos d σ) (pfR K NSh NSo k pos op g nxt d σ))) ≤
+      sumTo (NSh * (NSo * K ^ n) * K) (fun σ => indB (F (comI K NSh NSo pos d σ) (pfI K NSh NSo k pos op g nxt d σ))) +
+        K * (NSo * (K ^ n * (s * k))) ∧
+    sumTo (NSh * (NSo * K ^ n) * K) (fun σ => indB (F (comI K NSh NSo pos d σ) (pfI K NSh NSo k pos op g nxt d σ))) ≤
+      K * sumTo (NSh * (NSo * K ^ n)) (fun σ => indB (F (comR K NSh NSo pos d σ) (pfR K NSh NSo k pos op g nxt d σ))) +
+        K * (NSo * (K ^ n * (s * k))) := by
+  have hb := hit_bound (NSo := NSo) (k := k) hK pos hpos hs (fun o => g (op d) o) nxt d
+  have hk := Nat.mul_le_mul_left K hb
+  rw [sum_digit K (NSh * (NSo * K ^ n)), sumTo_mul K _ (NSh * (NSo * K ^ n))]
+  have pt := fun σ => pfR_pfI (NSh := NSh) (NSo := NSo) (k := k) hK pos op g nxt F d σ
+  constructor
+  · refine Nat.le_trans (sumTo_mono _ (fun σ _ => (pt σ).1)) ?_
+    rw [sumTo_add]
+    exact Nat.add_le_add_left (Nat.le_trans (Nat.le_of_eq (sumTo_mul K _ _).symm) hk) _
+  · refine Nat.le_trans (sumTo_mono _ (fun σ _ => (pt σ).2)) ?_
+    rw [sumTo_add]
+    exact Nat.add_le_add_left (Nat.le_trans (Nat.le_of_eq (sumTo_mul K _ _).symm) hk) _
 end Circuit
