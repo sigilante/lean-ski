@@ -961,8 +961,8 @@ verifier recombines (`pcsCloseN_chunks`), given that the honest chunks show
 the quotient (`RecOK`; `recOK_of_honest` derives it from chunks that interpolate the quotient
 with normalized selectors, `Ski/ZK/MaskRec.lean`). The codewords absorb every matrix's change, so FRI's
 view, a function of each matrix's batched polynomial, hides too
-(`pcsCloseN_fri`, `pcsCloseN_friR`, `Ski/ZK/MaskFri.lean`). The Merkle
-commitments' hiding and Fiat–Shamir are proved only in the programmable
+(`pcsCloseN_fri`, `pcsCloseN_friR`, `Ski/ZK/MaskFri.lean`). Fiat–Shamir's zero
+knowledge, and the first commitment's Merkle hiding, are proved only in the programmable
 random oracle model: the README's `Ski/ZK/FS*`, `ROM*` and `Sponge*` rows
 state each theorem and its limits, and WORKLIST's Plonky3 0.8 challenger
 entry lists what stays open. For a PCS whose view is exactly these openings,
