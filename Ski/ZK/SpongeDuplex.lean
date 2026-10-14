@@ -38,6 +38,12 @@ table only.
   programming from the view along the runs it visits (`hprog`).
   `zk_duplex_sat08` meets every hypothesis at 0.8's duplex in a degenerate
   instance (no tables, no programming).
+- **The rebuild dischargeable.** `zk_duplexC` asks instead that the view's
+  run function agree with the real one on the answer lists showing the
+  drawn states at the squeezes they reach (`hcons`), as a view carrying the
+  actual transcript does: the two then program the same table while every
+  stage reads the states back (`progSeqN_agree`), and the stages' failures
+  cost `Σ_{j<m} K^(m-j) badSeq j` more (`stage_count`).
 
 Not shown: a composite's first three challenges in `zk_duplex`'s form.  The
 composites read `H1`–`H3` at transcript prefixes from tables shared by the
@@ -439,9 +445,10 @@ theorem zk_duplex {T X C V : Type} {K m K4w ε : Nat} (hK : 0 < K)
     (nxt : T → X → List Nat → Nat) (hnx : ∀ H x l, nxt H x l < K) (times : Nat → Nat)
     (htimes : ∀ i j, i < j → times i < times j)
     (rv : T → X → Nat → V) (pgJ : Nat → T → Nat → C → X → T × Nat) (sv : Nat → T → Nat → C → X → V)
-    (nxtV : T → V → List Nat → Nat)
+    (nxtV : T → V → List Nat → Nat) (G : T → X → Nat → Nat → Bool) (cG : T → X → Nat)
+    (hG : ∀ H x, sumTo (K ^ m) (fun W => sumTo (K ^ K) (fun P => indB (permB K P && !G H x W P))) ≤ cG H x)
     (hprog : ∀ H x W P, (List.range m).all (fun j =>
-        ansAt K (nxt H x) (times j) (progSeqN K (nxt H x) times m W P) == rget K j W) = true →
+        ansAt K (nxt H x) (times j) (progSeqN K (nxt H x) times m W P) == rget K j W) = true → G H x W P = true →
       progSeqN K (nxtV H (rv H x W)) times m W P = progSeqN K (nxt H x) times m W P)
     (hyp : ∀ D : Nat → Nat → T → V → Bool,
       K4w * ST (fun H => sm (fun x => sumTo (K ^ K) (fun P => indB (permB K P) * sumTo (K ^ m) (fun W =>
@@ -454,37 +461,42 @@ theorem zk_duplex {T X C V : Type} {K m K4w ε : Nat} (hK : 0 < K)
       ST (fun H => SC (fun c => sm (fun x => sumTo (K ^ K) (fun P => indB (permB K P) * sumTo (K ^ m) (fun W =>
         indB (E (progSeqN K (nxtV (pgJ P H W c x).1 (sv P H W c x)) times m (pgJ P H W c x).2 P)
           (pgJ P H W c x).1 (sv P H W c x))))))) + ε +
-      K4w * (2 * ST (fun H => sm (fun x => badSeq K (nxt H x) times m))) := by
+      K4w * ST (fun H => sm (fun x => 2 * badSeq K (nxt H x) times m + cG H x)) := by
   let DE : Nat → Nat → T → V → Bool := fun P W H' v => E (progSeqN K (nxtV H' v) times m W P) H' v
   have h := hyp DE
   -- per `H` and `x`: the exchange, then the readback
   have hq : ∀ H x, K ^ m * sumTo (K ^ K) (fun P => indB (permB K P && E P H (rv H x (WofR K (nxt H x) times m P)))) ≤
       sumTo (K ^ K) (fun P => indB (permB K P) * sumTo (K ^ m) (fun W => indB (DE P W H (rv H x W)))) +
-        2 * badSeq K (nxt H x) times m := fun H x => by
+        (2 * badSeq K (nxt H x) times m + cG H x) := fun H x => by
     have h1 := squeeze_seq hK (nxt H x) (hnx H x) times m (fun Q => E Q H (rv H x (WofR K (nxt H x) times m Q)))
     have h2 := readback_seq hK (nxt H x) (hnx H x) times htimes m
     refine Nat.le_trans h1 ?_
-    rw [Nat.two_mul, ← Nat.add_assoc]
-    refine Nat.add_le_add_right (Nat.le_trans ?_ (Nat.add_le_add_left h2 _)) _
+    rw [Nat.two_mul, show ∀ a b c d : Nat, a + (b + c + d) = a + c + d + b from fun a b c d => by omega]
+    refine Nat.add_le_add_right (Nat.le_trans ?_ (Nat.add_le_add (Nat.add_le_add_left h2 _) (hG H x))) _
     have e : sumTo (K ^ K) (fun P => indB (permB K P) * sumTo (K ^ m) (fun W => indB (DE P W H (rv H x W)))) =
         sumTo (K ^ m) (fun W => sumTo (K ^ K) (fun P => indB (permB K P && DE P W H (rv H x W)))) := by
       rw [sumTo_exch _ (K ^ K) (K ^ m)]
       refine sumTo_congr _ (fun P _ => ?_)
       rw [sumTo_mul]
       exact sumTo_congr _ (fun W _ => (indB_and _ _).symm)
-    rw [e, ← sumTo_add]
+    rw [e, ← sumTo_add, ← sumTo_add]
     refine sumTo_mono _ (fun W hW => ?_)
-    rw [← sumTo_add]
+    rw [← sumTo_add, ← sumTo_add]
     refine sumTo_mono _ (fun P _ => ?_)
     cases hr : (List.range m).all (fun j => ansAt K (nxt H x) (times j) (progSeqN K (nxt H x) times m W P) == rget K j W)
     · rw [Bool.not_false, Bool.and_true]
       cases permB K P
       · exact Nat.zero_le _
-      · exact Nat.le_trans (indB_le_one _) (Nat.le_add_left _ _)
-    · rw [WofR_eq hK (nxt H x) times m _ W hW hr]
-      show indB (permB K P && E (progSeqN K (nxt H x) times m W P) H (rv H x W)) ≤
-        indB (permB K P && E (progSeqN K (nxtV H (rv H x W)) times m W P) H (rv H x W)) + _
-      rw [hprog H x W P hr]; exact Nat.le_add_right _ _
+      · exact Nat.le_trans (indB_le_one _) (Nat.le_add_right_of_le (Nat.le_add_left _ _))
+    · cases hg : G H x W P
+      · rw [Bool.not_false, Bool.and_true]
+        cases permB K P
+        · exact Nat.zero_le _
+        · exact Nat.le_trans (indB_le_one _) (Nat.le_add_left _ _)
+      · rw [WofR_eq hK (nxt H x) times m _ W hW hr]
+        show indB (permB K P && E (progSeqN K (nxt H x) times m W P) H (rv H x W)) ≤
+          indB (permB K P && E (progSeqN K (nxtV H (rv H x W)) times m W P) H (rv H x W)) + _ + _
+        rw [hprog H x W P hr hg]; exact Nat.le_add_right_of_le (Nat.le_add_right _ _)
   have smm : ∀ {f g : X → Nat}, (∀ x, f x ≤ g x) → sm f ≤ sm g := fun h => sm_mono sm hsm h
   have stm : ∀ {f g : T → Nat}, (∀ H, f H ≤ g H) → ST f ≤ ST g := fun h => sm_mono ST hST h
   calc K4w * (K ^ m * ST (fun H => sm (fun x => sumTo (K ^ K) (fun P => indB (permB K P &&
@@ -493,14 +505,15 @@ theorem zk_duplex {T X C V : Type} {K m K4w ε : Nat} (hK : 0 < K)
           E P H (rv H x (WofR K (nxt H x) times m P)))))) := by
         rw [← smK ST hST]; congr 1; refine congrArg ST (funext fun H => ?_); rw [smK sm hsm]
     _ ≤ K4w * ST (fun H => sm (fun x => sumTo (K ^ K) (fun P => indB (permB K P) * sumTo (K ^ m) (fun W =>
-          indB (DE P W H (rv H x W)))) + 2 * badSeq K (nxt H x) times m)) :=
+          indB (DE P W H (rv H x W)))) + (2 * badSeq K (nxt H x) times m + cG H x))) :=
         Nat.mul_le_mul_left _ (stm (fun H => smm (fun x => hq H x)))
     _ = K4w * ST (fun H => sm (fun x => sumTo (K ^ K) (fun P => indB (permB K P) * sumTo (K ^ m) (fun W =>
-          indB (DE P W H (rv H x W)))))) + K4w * (2 * ST (fun H => sm (fun x => badSeq K (nxt H x) times m))) := by
+          indB (DE P W H (rv H x W)))))) +
+          K4w * ST (fun H => sm (fun x => 2 * badSeq K (nxt H x) times m + cG H x)) := by
         rw [← Nat.mul_add]
         congr 1
-        rw [← lin_add2 ST hST]
-        exact congrArg ST (funext fun H => lin_add2 sm hsm _ _)
+        rw [← sm_add ST hST]
+        exact congrArg ST (funext fun H => sm_add sm hsm _ _)
     _ ≤ _ := Nat.add_le_add_right h _
 
 /-- **`zk_duplex`'s hypotheses hold together, at 0.8's duplex**: `m`
@@ -519,12 +532,177 @@ theorem zk_duplex_sat08 {R p Q SQ p1 : Nat} (hR : 0 < R) (hp : 0 < p) (hQ : 0 < 
     let nxt := nxt08 R p Q SQ p1 blk
     1 * (K ^ m * sumTo (K ^ K) (fun P => indB (permB K P && E P () (nxt, WofR K nxt times m P)))) ≤
       sumTo (K ^ K) (fun P => indB (permB K P) * sumTo (K ^ m) (fun W =>
-        indB (E (progSeqN K nxt times m W P) () (nxt, W)))) + 0 + 1 * (2 * badSeq K nxt times m) := by
+        indB (E (progSeqN K nxt times m W P) () (nxt, W)))) + 0 + 1 * (2 * badSeq K nxt times m + 0) := by
   intro K nxt
   have hK : 0 < K := Nat.mul_pos (Nat.pow_pos hp) (Nat.mul_pos hp hQ)
   exact zk_duplex (T := Unit) (X := Unit) (C := Unit) (K4w := 1) (ε := 0) hK (fun f => f ()) (fun _ _ => rfl)
     (fun f => f ()) (fun _ _ => rfl) (fun f => f ()) (fun _ _ => nxt) (fun _ _ => nxt08_lt hR hp hQ h1 blk) times htimes
-    (fun _ _ W => (nxt, W)) (fun _ H W _ _ => (H, W)) (fun _ _ W _ _ => (nxt, W)) (fun _ v => v.1) (fun _ _ _ _ _ => rfl)
+    (fun _ _ W => (nxt, W)) (fun _ H W _ _ => (H, W)) (fun _ _ W _ _ => (nxt, W)) (fun _ v => v.1)
+    (fun _ _ _ _ => true) (fun _ _ => 0)
+    (fun _ _ => Nat.le_of_eq (Eq.trans (sumTo_congr _ (fun _ _ => Eq.trans (sumTo_congr _ (fun P _ => by
+      show indB (permB K P && false) = 0; rw [Bool.and_false]; rfl)) (Eq.trans (sumTo_const 0 _) (Nat.mul_zero _))))
+      (Eq.trans (sumTo_const 0 _) (Nat.mul_zero _))))
+    (fun _ _ _ _ _ _ => rfl)
     (fun D => by rw [Nat.one_mul, Nat.add_zero]; exact Nat.le_refl _) E
+
+/-! ### The distinguisher's run agreeing along the programmed runs -/
+
+/-- The answers `l`, newest first, show the states of `W` at every squeeze
+    they reach among the first `m`. -/
+def consW (K : Nat) (times : Nat → Nat) (m W : Nat) (l : List Nat) : Bool :=
+  (List.range m).all (fun i => !decide (times i < l.length) || (l.getD (l.length - 1 - times i) 0 == rget K i W))
+
+/-- The run on `Q` answers the states of `W` at its first `j` squeezes. -/
+def readB (K : Nat) (nxt : List Nat → Nat) (times : Nat → Nat) (j W Q : Nat) : Bool :=
+  (List.range j).all (fun i => ansAt K nxt (times i) Q == rget K i W)
+
+theorem runAdp_getD_snd {K : Nat} (nxt : List Nat → Nat) (H t s : Nat) (h : s < t) :
+    ((runAdp K nxt H t).map Prod.snd).getD (t - 1 - s) 0 = ansAt K nxt s H := by
+  have e := runAdp_getD (K := K) nxt H t s h
+  have hlt : t - 1 - s < (runAdp K nxt H t).length := by rw [runAdp_length]; omega
+  rw [List.getD_eq_getElem?_getD, List.getElem?_map, List.getElem?_eq_getElem hlt]
+  rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hlt] at e
+  simp only [Option.map_some, Option.getD_some] at e ⊢
+  rw [e]
+
+/-- **A run's answers are consistent with `W` up to a stage that reads `W`
+    back**: with the squeeze times increasing, the run on `Q` up to time
+    `times j` shows `W`'s states at the squeezes it reaches when `Q` answers
+    them at its first `j` squeezes. -/
+theorem consW_run {K : Nat} (nxt : List Nat → Nat) (times : Nat → Nat) (htimes : ∀ i j, i < j → times i < times j)
+    (m j W Q s : Nat) (hs : s ≤ times j) (hr : readB K nxt times j W Q = true) :
+    consW K times m W ((runAdp K nxt Q s).map Prod.snd) = true := by
+  unfold consW
+  refine List.all_eq_true.2 (fun i _ => ?_)
+  rw [List.length_map, runAdp_length]
+  by_cases hi : times i < s
+  · have hij : i < j := by
+      rcases Nat.lt_or_ge i j with h | h
+      · exact h
+      · exfalso
+        rcases Nat.lt_or_ge j i with h' | h'
+        · exact absurd (Nat.lt_of_lt_of_le hi hs) (Nat.not_lt.2 (Nat.le_of_lt (htimes j i h')))
+        · have e : i = j := Nat.le_antisymm h' h
+          subst e; exact absurd (Nat.lt_of_lt_of_le hi hs) (Nat.lt_irrefl _)
+    rw [decide_eq_true hi, Bool.not_true, Bool.false_or, runAdp_getD_snd nxt Q s (times i) hi]
+    exact List.all_eq_true.1 hr i (List.mem_range.2 hij)
+  · rw [decide_eq_false hi]; rfl
+
+theorem runAdp_agree {K : Nat} (f1 f2 : List Nat → Nat) (Q : Nat) (cons : List Nat → Bool)
+    (hag : ∀ l, cons l = true → f1 l = f2 l) :
+    ∀ s, (∀ s', s' ≤ s → cons ((runAdp K f2 Q s').map Prod.snd) = true) → runAdp K f1 Q s = runAdp K f2 Q s
+  | 0, _ => rfl
+  | s + 1, h => by
+    have ih := runAdp_agree f1 f2 Q cons hag s (fun s' hs' => h s' (Nat.le_succ_of_le hs'))
+    show (f1 ((runAdp K f1 Q s).map Prod.snd), rget K (f1 ((runAdp K f1 Q s).map Prod.snd)) Q) :: runAdp K f1 Q s =
+      (f2 ((runAdp K f2 Q s).map Prod.snd), rget K (f2 ((runAdp K f2 Q s).map Prod.snd)) Q) :: runAdp K f2 Q s
+    rw [ih, hag _ (h s (Nat.le_succ s))]
+
+/-- **Two run functions agreeing on the lists consistent with `W` program
+    the same table** while every stage reads `W` back. -/
+theorem progSeqN_agree {K : Nat} (f1 f2 : List Nat → Nat) (times : Nat → Nat)
+    (htimes : ∀ i j, i < j → times i < times j) (m W P : Nat)
+    (hag : ∀ l, consW K times m W l = true → f1 l = f2 l) :
+    ∀ j, j ≤ m → (∀ i, i < j → readB K f2 times i W (progSeqN K f2 times i W P) = true) →
+      progSeqN K f1 times j W P = progSeqN K f2 times j W P
+  | 0, _, _ => rfl
+  | j + 1, hj, hr => by
+    have ih := progSeqN_agree f1 f2 times htimes m W P hag j (Nat.le_of_succ_le hj)
+      (fun i hi => hr i (Nat.lt_succ_of_lt hi))
+    show swAt K f1 (times j) (rget K j W) (progSeqN K f1 times j W P) =
+      swAt K f2 (times j) (rget K j W) (progSeqN K f2 times j W P)
+    rw [ih]
+    have hrj := hr j (Nat.lt_succ_self j)
+    have hrun := runAdp_agree (K := K) f1 f2 (progSeqN K f2 times j W P) (consW K times m W) hag (times j)
+      (fun s' hs' => consW_run f2 times htimes m j W _ s' hs' hrj)
+    have hpos : posAt K f1 (times j) (progSeqN K f2 times j W P) = posAt K f2 (times j) (progSeqN K f2 times j W P) := by
+      unfold posAt
+      rw [hrun, hag _ (consW_run f2 times htimes m j W _ (times j) (Nat.le_refl _) hrj)]
+    unfold swAt
+    rw [hpos]
+
+theorem progSeqN_lt {K : Nat} (hK : 0 < K) (nxt : List Nat → Nat) (times : Nat → Nat) (W P : Nat) (hP : P < K ^ K) :
+    ∀ j, progSeqN K nxt times j W P < K ^ K
+  | 0 => hP
+  | _ + 1 => vswap_lt hK (rget_lt hK _ _) (rget_lt hK _ _) _
+
+theorem all_range_congr (f g : Nat → Bool) (j : Nat) (h : ∀ i, i < j → f i = g i) :
+    (List.range j).all f = (List.range j).all g := by
+  apply Bool.eq_iff_iff.2
+  rw [List.all_eq_true, List.all_eq_true]
+  exact ⟨fun hf i hi => by rw [← h i (List.mem_range.1 hi)]; exact hf i hi,
+    fun hg i hi => by rw [h i (List.mem_range.1 hi)]; exact hg i hi⟩
+
+theorem readB_congr {K : Nat} (hK : 0 < K) (nxt : List Nat → Nat) (times : Nat → Nat) (j W Q q : Nat) :
+    readB K nxt times j (W + K ^ j * q) Q = readB K nxt times j W Q := by
+  unfold readB
+  exact all_range_congr _ _ j (fun i hi => by rw [rget_add_high hK hi])
+
+/-- **A stage's readback failures over `m` digits** are `K^(m-j)` times
+    those over its own `j` digits, at most `K^(m-j) badSeq j`. -/
+theorem stage_count {K : Nat} (hK : 0 < K) (nxt : List Nat → Nat) (hnx : ∀ l, nxt l < K) (times : Nat → Nat)
+    (htimes : ∀ i j, i < j → times i < times j) (m j : Nat) (hj : j ≤ m) :
+    sumTo (K ^ m) (fun W => sumTo (K ^ K) (fun P =>
+      indB (permB K P && !readB K nxt times j W (progSeqN K nxt times j W P)))) ≤
+      K ^ (m - j) * badSeq K nxt times j := by
+  have e : K ^ m = K ^ j * K ^ (m - j) := by rw [← Nat.pow_add]; congr 1; omega
+  rw [e, sumTo_split (K ^ j) _ (K ^ (m - j))]
+  have each : ∀ q, sumTo (K ^ j) (fun r => sumTo (K ^ K) (fun P =>
+      indB (permB K P && !readB K nxt times j (r + K ^ j * q) (progSeqN K nxt times j (r + K ^ j * q) P)))) =
+      sumTo (K ^ j) (fun r => sumTo (K ^ K) (fun P =>
+        indB (permB K P && !readB K nxt times j r (progSeqN K nxt times j r P)))) := fun q =>
+    sumTo_congr _ (fun r _ => sumTo_congr _ (fun P _ => by
+      rw [progSeqN_congr K nxt times P j _ r (fun i hi => rget_add_high hK hi), readB_congr hK]))
+  rw [sumTo_congr _ (fun q _ => each q), sumTo_const]
+  exact Nat.mul_le_mul_left _ (readback_seq hK nxt hnx times htimes j)
+
+theorem indB_not_all (b : Bool) (f : Nat → Bool) :
+    ∀ m, indB (b && !(List.range m).all f) ≤ sumTo m (fun j => indB (b && !f j))
+  | 0 => by show indB (b && !true) ≤ 0; rw [Bool.not_true, Bool.and_false]; exact Nat.le_refl _
+  | m + 1 => by
+    rw [List.range_succ, List.all_append]
+    show indB (b && !((List.range m).all f && (f m && true))) ≤ sumTo m (fun j => indB (b && !f j)) + indB (b && !f m)
+    have ih := indB_not_all b f m
+    cases hm : (List.range m).all f <;> cases hf : f m <;> cases b <;> simp only [hm, hf] at ih ⊢ <;>
+      first | exact Nat.zero_le _ | exact Nat.le_add_right_of_le ih | exact Nat.le_add_left _ _ | exact ih |
+        exact Nat.le_trans ih (Nat.le_add_right _ _)
+
+/-- **`zk_duplex` with the distinguisher's run agreeing on consistent
+    answers**: the view's run function need only agree with the real one on
+    the answer lists that show the drawn states at the squeezes they reach
+    (`hcons`), as a view carrying the actual transcript does.  The two then
+    program the same table while every stage reads the states back
+    (`progSeqN_agree`), and the stages' failures cost
+    `Σ_{j<m} K^(m-j) badSeq j` more (`stage_count`). -/
+theorem zk_duplexC {T X C V : Type} {K m K4w ε : Nat} (hK : 0 < K)
+    (ST : (T → Nat) → Nat) (hST : Lin ST) (sm : (X → Nat) → Nat) (hsm : Lin sm) (SC : (C → Nat) → Nat)
+    (nxt : T → X → List Nat → Nat) (hnx : ∀ H x l, nxt H x l < K) (times : Nat → Nat)
+    (htimes : ∀ i j, i < j → times i < times j)
+    (rv : T → X → Nat → V) (pgJ : Nat → T → Nat → C → X → T × Nat) (sv : Nat → T → Nat → C → X → V)
+    (nxtV : T → V → List Nat → Nat)
+    (hcons : ∀ H x W l, consW K times m W l = true → nxtV H (rv H x W) l = nxt H x l)
+    (hyp : ∀ D : Nat → Nat → T → V → Bool,
+      K4w * ST (fun H => sm (fun x => sumTo (K ^ K) (fun P => indB (permB K P) * sumTo (K ^ m) (fun W =>
+        indB (D P W H (rv H x W)))))) ≤
+      ST (fun H => SC (fun c => sm (fun x => sumTo (K ^ K) (fun P => indB (permB K P) * sumTo (K ^ m) (fun W =>
+        indB (D P (pgJ P H W c x).2 (pgJ P H W c x).1 (sv P H W c x))))))) + ε)
+    (E : Nat → T → V → Bool) :
+    K4w * (K ^ m * ST (fun H => sm (fun x => sumTo (K ^ K) (fun P => indB (permB K P &&
+        E P H (rv H x (WofR K (nxt H x) times m P))))))) ≤
+      ST (fun H => SC (fun c => sm (fun x => sumTo (K ^ K) (fun P => indB (permB K P) * sumTo (K ^ m) (fun W =>
+        indB (E (progSeqN K (nxtV (pgJ P H W c x).1 (sv P H W c x)) times m (pgJ P H W c x).2 P)
+          (pgJ P H W c x).1 (sv P H W c x))))))) + ε +
+      K4w * ST (fun H => sm (fun x => 2 * badSeq K (nxt H x) times m +
+        sumTo m (fun j => K ^ (m - j) * badSeq K (nxt H x) times j))) :=
+  zk_duplex hK ST hST sm hsm SC nxt hnx times htimes rv pgJ sv nxtV
+    (fun H x W P => (List.range m).all (fun i => readB K (nxt H x) times i W (progSeqN K (nxt H x) times i W P)))
+    (fun H x => sumTo m (fun j => K ^ (m - j) * badSeq K (nxt H x) times j))
+    (fun H x => by
+      refine Nat.le_trans (sumTo_mono _ (fun W _ => sumTo_mono _ (fun P _ => indB_not_all _ _ m))) ?_
+      rw [sumTo_congr _ (fun W _ => sumTo_exch _ m (K ^ K)), sumTo_exch _ m (K ^ m)]
+      exact sumTo_mono _ (fun j hj => stage_count hK (nxt H x) (hnx H x) times htimes m j (Nat.le_of_lt hj)))
+    (fun H x W P _ hg => progSeqN_agree _ _ times htimes m W P (hcons H x W) m (Nat.le_refl _)
+      (fun i hi => List.all_eq_true.1 hg i (List.mem_range.2 hi)))
+    hyp E
 
 end Circuit
