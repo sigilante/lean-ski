@@ -184,6 +184,7 @@ import Ski.ZK.SpongeSqueeze
 import Ski.ZK.SpongeProgram
 import Ski.ZK.SpongeProgramN
 import Ski.ZK.SpongeRestate
+import Ski.ZK.SpongeOOD
 import Ski.ZK.AdaptDraws
 import Ski.ZK.FSQueryAbsT
 import Ski.ZK.FSQueryPowT
@@ -1479,6 +1480,11 @@ open Ski.Audit
   Circuit.rvPowD_congr Circuit.read4T_congr Circuit.posOf_runsN Circuit.posT_mem_sqOf Circuit.listN_congr
   Circuit.sqOf_runsN Circuit.posV_rvPowD Circuit.getAt_lt Circuit.sud_rv_local Circuit.sud_hpr Circuit.lin_sum3
   Circuit.lin_sum4c Circuit.lin_scPowD Circuit.sud_squeezeN Circuit.sud_squeezeN_sat08
+
+-- The chains absorbing the trace openings at ζ, which do not read the fourth challenge (SpongeOOD)
+#audit_clean Circuit.digitsF_take Circuit.openAll_oz Circuit.mtotal_sh Circuit.openMulti_snd Circuit.view_fst_snd
+  Circuit.quotPost_oz Circuit.zip_map_snd_take Circuit.pcsFri_oz Circuit.sudPcs_oz Circuit.realVN_oz Circuit.sudRvFS_oz
+  Circuit.ozFS_fst Circuit.loadψG_w Circuit.posVζ_rvPowD Circuit.sud_rv_localζ Circuit.sud_hprζ Circuit.sud_squeezeNζ
 
 -- A picked statement's bad events, bounded at every table, cost one statement's (AdaptDraws)
 #audit_clean Circuit.zkbT_adaptive_tbl Circuit.zkbT_adaptive_draws
