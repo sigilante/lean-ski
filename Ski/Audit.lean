@@ -177,6 +177,10 @@ import Ski.ZK.SpongeUnion
 import Ski.ZK.FriProof
 import Ski.ZK.SudEndToEnd
 import Ski.ZK.SpongeAbsorb
+import Ski.ZK.SpongeRoot
+import Ski.ZK.SpongePrefix
+import Ski.ZK.SpongeAlign
+import Ski.ZK.SpongeSqueeze
 import Ski.ZK.AdaptDraws
 import Ski.ZK.FSQueryAbsT
 import Ski.ZK.FSQueryPowT
@@ -1438,6 +1442,18 @@ open Ski.Audit
 
 -- Plonky3 0.8's absorption meets SpongeUnion's sponge premises with the capacity's tail (SpongeAbsorb)
 #audit_clean Circuit.vals08_lt Circuit.inner08_div Circuit.inner08_hpk2 Circuit.inner08_lt Circuit.κ08_lt Circuit.κ08_count Circuit.inner08_hd Circuit.inner08_full_fails Circuit.absorb08_sat
+
+-- Chains that meet with first positions revisited, at most L merges unpaid (SpongeRoot)
+#audit_clean Circuit.labR_invU Circuit.labR_finalU Circuit.sumTo_le_tail Circuit.unpS_count Circuit.allMeet_near3 Circuit.inner08_hdx Circuit.allMeet_countP3 Circuit.meetM_countP3 Circuit.preimage_loadTR Circuit.meet_markov3 Circuit.loadTR_countP Circuit.loadTR_hsp Circuit.loadTR_δs_countP Circuit.sud_interleaveLR Circuit.sud_interleaveLRN
+
+-- Chains after a public prefix, the prefix its own label, at most m + 2L merges unpaid (SpongePrefix)
+#audit_clean Circuit.rget_posPre Circuit.runP_eq Circuit.nearN_runP Circuit.posP_pre Circuit.posP_chain Circuit.posP_prev_pre Circuit.ivP_last Circuit.posP_first Circuit.posP_prev Circuit.labR_finalR Circuit.indB_le_sumTo_of Circuit.unpP_count Circuit.allMeet_nearP Circuit.allMeet_countPP Circuit.meetM_countPP Circuit.preimage_loadTP Circuit.meet_markovP Circuit.loadTP_countP Circuit.loadTP_hsp Circuit.loadTP_δs_countP Circuit.sud_interleaveLP Circuit.sud_interleaveLPN
+
+-- A first commitment split across two absorptions, the groups' loads summed (SpongeAlign)
+#audit_clean Circuit.sumTo_inj_le Circuit.loadG_hsp Circuit.loadG_δs_countP Circuit.align08_sat Circuit.sud_interleaveLG Circuit.sud_interleaveLGN
+
+-- 0.8's empty-buffer squeeze: hpk2 survives, hdx fails (SpongeSqueeze)
+#audit_clean Circuit.κ08_inner08 Circuit.mod_mul_div_eq Circuit.κ08_mod Circuit.inner08s_hpk2 Circuit.inner08s_lt Circuit.inner08s_hdx_fails
 
 -- A picked statement's bad events, bounded at every table, cost one statement's (AdaptDraws)
 #audit_clean Circuit.zkbT_adaptive_tbl Circuit.zkbT_adaptive_draws
