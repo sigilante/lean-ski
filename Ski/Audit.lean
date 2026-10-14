@@ -186,6 +186,8 @@ import Ski.ZK.SpongeProgramN
 import Ski.ZK.SpongeRestate
 import Ski.ZK.SpongeOOD
 import Ski.ZK.SpongeDuplex
+import Ski.ZK.SpongeDuplexFS
+import Ski.ZK.SpongeDuplexSud
 import Ski.ZK.AdaptDraws
 import Ski.ZK.FSQueryAbsT
 import Ski.ZK.FSQueryPowT
@@ -1494,6 +1496,13 @@ open Ski.Audit
   Circuit.readback_seq Circuit.WofR_eq Circuit.lin_add2 Circuit.zk_duplex Circuit.zk_duplex_sat08
   Circuit.runAdp_getD_snd Circuit.consW_run Circuit.runAdp_agree Circuit.progSeqN_agree Circuit.progSeqN_lt
   Circuit.all_range_congr Circuit.readB_congr Circuit.stage_count Circuit.indB_not_all Circuit.zk_duplexC
+
+-- A single proof's four challenges squeezed from one duplex run (SpongeDuplexFS, SpongeDuplexSud)
+#audit_clean Circuit.sum4_tables Circuit.hypC_of_read4T Circuit.sum3_rev Circuit.sum_digitL Circuit.sum_W4
+  Circuit.digit_lt Circuit.mod_digit Circuit.cW4_Wof4 Circuit.sum_W4c Circuit.hypW_of_hypC Circuit.zk_duplex4
+  Circuit.lt_mix Circuit.sD1_out Circuit.sD1_sv Circuit.sD1_svp Circuit.sD1_q Circuit.sD1_pts4 Circuit.sD1_out_rvFS
+  Circuit.sD1_ranges Circuit.consW_at Circuit.nxtD_cons Circuit.sumTo_lt_pos Circuit.timesD_mono Circuit.sud_duplex1
+  Circuit.Q4_eq Circuit.sud_duplex1_sat08
 
 -- A picked statement's bad events, bounded at every table, cost one statement's (AdaptDraws)
 #audit_clean Circuit.zkbT_adaptive_tbl Circuit.zkbT_adaptive_draws

@@ -12,7 +12,15 @@ the tables sum down to four uniform challenges.
 
 - **The tables summed down.** Four tables read adaptively, each index
   chosen from the earlier challenges, sum to `Π K_j^{N_j}` over the four
-  challenges (`sum4_tables`).
+  challenges (`sum4_tables`), so a four-table bound becomes one with four
+  uniform challenges and no tables (`hypC_of_read4T`), when the output and
+  the simulated view read no table, the simulated view shows the
+  programmed indices and the fourth index is recoverable from the views.
+- **Full states.** The challenges lifted to states below `K = K_j L_j`,
+  each challenge its state's low part (`Wof4`, `cW4_Wof4`, `sum_W4`), the
+  error times the high parts' count (`hypW_of_hypC`).
+- **The duplex.** With `zk_duplexC`, the four challenges squeezed from one
+  run, each the low part of its squeezed state (`zk_duplex4`).
 -/
 
 set_option autoImplicit false

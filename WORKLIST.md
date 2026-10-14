@@ -388,8 +388,9 @@ and its claim table moves to the docs, where `release/README.md` already holds i
        `zk_duplex_sat08` only in a degenerate instance), with the rebuild
        made dischargeable (`zk_duplexC`: the view's run function agreeing on
        answers consistent with the drawn states, the intermediate stages'
-       readback at `Σ_{j<m} K^(m-j) badSeq j`). Left for one proof: put
-       `sud_fs4T` in its form. The four `H`-tables' entries at one proof's prefixes are
+       readback at `Σ_{j<m} K^(m-j) badSeq j`). One proof: done
+       (`sud_duplex1`, through `hypC_of_read4T`, `hypW_of_hypC`, `zk_duplex4`;
+       openings reading no table, each challenge one squeeze's low part). The four `H`-tables' entries at one proof's prefixes are
        independent and uniform; each challenge is a slice of a squeezed state
        (uniform, `p^8 | p^16`), several from one state since 0.8 pops them from
        one buffer (the lookup phase draws `9 > RATE`), so map each challenge to
