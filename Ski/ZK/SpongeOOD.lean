@@ -32,8 +32,12 @@ the view at the real challenge shows the ones the index absorbs.
   `sud_squeezeNζ` is `sud_squeezeN` with this encoding.
 
 Limits.  The quotient chunks' and the codewords' openings at `ζ` are not
-absorbed: the chunk data passes through the quotient tables' targets,
-which read the query sets, and no invariance is shown for them.  The
+absorbed: the model draws their randomness after digits whose count reads
+the query sets, and no invariance is shown for them.  Plonky3 also absorbs,
+before the query indices, FRI's layer roots and final polynomial and the
+proof-of-work witness; here the fourth challenge drives FRI's challenges
+and the query sets together, so those depend on it and cannot be absorbed
+before it (see `fs_pow` and the FRI-folding entry in `WORKLIST`).  The
 other limits are `sud_squeezeN`'s.
 -/
 
@@ -326,7 +330,8 @@ set_option maxRecDepth 100000 in
 /-- **The composite's view reads the permutation only through the runs and
     `H4` only at their squeeze positions**: with no query phases, no
     table-reading openings, the fourth table a full state and an encoding
-    of the commitments alone, the view at `(P, H, H4)` is `sudRvS` at the
+    of the third message and the trace openings at `ζ`, the view at
+    `(P, H, H4)` is `sudRvSζ` at the
     runs and the lookup of `H4` at the distinct squeeze positions. -/
 theorem sud_rv_localζ (hKp : 0 < Kp) (hin : ∀ s x, inner s x < Kp) (n P : Nat) (H : Nat × Nat × Nat) (H4 : Nat)
     (x : PowD (fun _ => XSud) n) :

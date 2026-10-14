@@ -185,6 +185,7 @@ import Ski.ZK.SpongeProgram
 import Ski.ZK.SpongeProgramN
 import Ski.ZK.SpongeRestate
 import Ski.ZK.SpongeOOD
+import Ski.ZK.SpongeDuplex
 import Ski.ZK.AdaptDraws
 import Ski.ZK.FSQueryAbsT
 import Ski.ZK.FSQueryPowT
@@ -1485,6 +1486,10 @@ open Ski.Audit
 #audit_clean Circuit.digitsF_take Circuit.openAll_oz Circuit.mtotal_sh Circuit.openMulti_snd Circuit.view_fst_snd
   Circuit.quotPost_oz Circuit.zip_map_snd_take Circuit.pcsFri_oz Circuit.sudPcs_oz Circuit.realVN_oz Circuit.sudRvFS_oz
   Circuit.ozFS_fst Circuit.loadψG_w Circuit.posVζ_rvPowD Circuit.sud_rv_localζ Circuit.sud_hprζ Circuit.sud_squeezeNζ
+
+-- Squeezes inside a duplex run traded for independent states, the last first (SpongeDuplex)
+#audit_clean Circuit.progSeqN_congr Circuit.badSeq_eq Circuit.rget_add_high Circuit.rget_add_top Circuit.squeeze_seq
+  Circuit.badAt_bound Circuit.badAt_bound08
 
 -- A picked statement's bad events, bounded at every table, cost one statement's (AdaptDraws)
 #audit_clean Circuit.zkbT_adaptive_tbl Circuit.zkbT_adaptive_draws
