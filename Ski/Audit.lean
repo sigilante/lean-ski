@@ -177,6 +177,7 @@ import Ski.ZK.SpongeUnion
 import Ski.ZK.FriProof
 import Ski.ZK.SudEndToEnd
 import Ski.ZK.SpongeAbsorb
+import Ski.ZK.SpongeRoot
 import Ski.ZK.AdaptDraws
 import Ski.ZK.FSQueryAbsT
 import Ski.ZK.FSQueryPowT
@@ -1438,6 +1439,9 @@ open Ski.Audit
 
 -- Plonky3 0.8's absorption meets SpongeUnion's sponge premises with the capacity's tail (SpongeAbsorb)
 #audit_clean Circuit.vals08_lt Circuit.inner08_div Circuit.inner08_hpk2 Circuit.inner08_lt Circuit.κ08_lt Circuit.κ08_count Circuit.inner08_hd Circuit.inner08_full_fails Circuit.absorb08_sat
+
+-- Chains that meet with first positions revisited, at most L merges unpaid (SpongeRoot)
+#audit_clean Circuit.labR_invU Circuit.labR_finalU Circuit.sumTo_le_tail Circuit.unpS_count Circuit.allMeet_near3 Circuit.inner08_hdx Circuit.allMeet_countP3 Circuit.meetM_countP3 Circuit.preimage_loadTR Circuit.meet_markov3 Circuit.loadTR_countP Circuit.loadTR_hsp Circuit.loadTR_δs_countP Circuit.sud_interleaveLR Circuit.sud_interleaveLRN
 
 -- A picked statement's bad events, bounded at every table, cost one statement's (AdaptDraws)
 #audit_clean Circuit.zkbT_adaptive_tbl Circuit.zkbT_adaptive_draws
