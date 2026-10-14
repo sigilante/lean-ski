@@ -31,12 +31,19 @@ first commitments' tag.
   (`sud_interleaveLUN`).
 
 Size.  The run now has `t (L + 1)` queries; at the overstated point of
-`SpongeTree` (`n1 = Kc = X = 2^248`), `E[loadTU]` is about `2^13`, `2^16`,
+`SpongeTree` (`n1 = Kc = X = 2^248`, outside `hd` as there), `E[loadTU]` is about `2^13`, `2^16`,
 `2^20`, `2^29` for `L = 1, 3, 10, 100`.
 
 Limits.  First commitments carry tag `0` and later blocks a nonzero tag
 (`h0`, `hnz`): the later blocks must never repeat a first commitment's
-block, which Plonky3 does not enforce.  The other limits are `SpongeLoad`'s.
+block, which Plonky3 does not enforce: at an 8-element digest a later
+8-element block is absorbed exactly as a first commitment, so no tag meets
+both `h0` and `hnz`.  `hpk2` asks equal permutation inputs to come from equal
+capacities; Plonky3 0.8's `duplexing` zero-fills the unused rate and adds
+the absorbed length to `state[RATE]`, so the 7-element block `y` from capacity
+`c + e₀` and the 8-element block `y ‖ 0` from `c` give one input
+(`hpk2_satPT` is the full-overwrite case).  The other limits are
+`SpongeLoad`'s.
 `sud_interleaveLUN` needs `maxHeartbeats 6000000`, and says nothing unless
 `Kp > t (L + 1)` and `s0 ≥ t`.
 -/
@@ -901,6 +908,7 @@ theorem sud_interleaveLU {V Wv P1 P2 P3 W1 W2 W3 : Type} {kr kq : Nat} (φ1 : Na
       (fun ix => (loadTU_hsp inner iv tb hX L t enc henc hnz (Com1 ix) (hr1 ix) (hsp1 ix) hs0 P).2) isQ nxtQ n)
 
 
+-- The statement unfolds `sudDD`'s fields at every `ix`; elaborating it exceeds the default heartbeats.
 set_option maxHeartbeats 6000000 in
 set_option maxRecDepth 100000 in
 /-- **`sud_interleaveLU` with a number for its error**: `Kq = (t-1)!

@@ -35,7 +35,10 @@ polynomial in `L`, for domain-separated absorptions.
 
 Size.  The tags take room in the rate: first commitments below `Y`, so
 `n1 ≤ R1 / (L + 1)`.  The bound grows with `n1`, so `n1 = Kc = X = 2^248`
-with `n1 F / K` near `1` overstates it; there, optimizing `t` and `s0`
+with `n1 F / K` near `1` overstates it.  That point lies outside the
+theorems' range (`hd` needs `n1 ≤ R1 = p^8 < 2^248`, the tags
+`n1 (L + 1) ≤ R1`), so its figures bound every feasible point from above
+and no Plonky3 instance sits there; at it, optimizing `t` and `s0`
 makes `E[loadTA]` about `2^11`, `2^15`, `2^20`, `2^29` for
 `L = 1, 3, 10, 100`, growing as `L^3`; `SpongeLoadL`'s bound is about
 `2^7`, `2^24` at `L = 1, 3` and exponential beyond.
@@ -43,7 +46,7 @@ makes `E[loadTA]` about `2^11`, `2^15`, `2^20`, `2^29` for
 Limits.  The later blocks must carry step tags, which Plonky3's
 challenger does not add, and the tags shrink the first commitment's space
 below the rate.  The composites say nothing unless `Kp > L t` and
-`s0 ≥ t`. the other limits are `SpongeLoad`'s: the state
+`s0 ≥ t`.  The other limits are `SpongeLoad`'s: the state
 before the first commitment is fixed, the first commitment fills one aligned
 block, `H4` stays independent of the permutation, and the later blocks do
 not depend on the salt.
@@ -870,6 +873,7 @@ theorem sud_interleaveLT {V Wv P1 P2 P3 W1 W2 W3 : Type} {kr kq : Nat} (φ1 : Na
       (fun ix => (loadTA_hsp inner iv tb hX L t enc henc htag (Com1 ix) (hr1 ix) (hsp1 ix) hs0 P).2) isQ nxtQ n)
 
 
+-- The statement unfolds `sudDD`'s fields at every `ix`; elaborating it exceeds the default heartbeats.
 set_option maxHeartbeats 1600000 in
 set_option maxRecDepth 100000 in
 /-- **`sud_interleaveLT` with a number for its error**: `Kq = (t-1)!

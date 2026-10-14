@@ -273,6 +273,15 @@ def runR4 {W : Type} (K1 K2 K3 K4 n1 m : Nat) (φ : Nat → W → Nat) (nxt : Li
   | k + 1 => rget4 K1 K2 K3 K4 H (nxt (runR4 K1 K2 K3 K4 n1 m φ nxt H k)).1
       (pt4 n1 φ m (nxt (runR4 K1 K2 K3 K4 n1 m φ nxt H k))) :: runR4 K1 K2 K3 K4 n1 m φ nxt H k
 
+/-- **The run's answers after `j` queries are the last `j` of a longer run.** -/
+theorem runR4_drop {W : Type} (K1 K2 K3 K4 n1 m : Nat) (φ : Nat → W → Nat) (nxt : List Nat → Nat × Nat × W)
+    (H : Nat × Nat × Nat × Nat) (j : Nat) : ∀ d,
+    (runR4 K1 K2 K3 K4 n1 m φ nxt H (j + d)).drop d = runR4 K1 K2 K3 K4 n1 m φ nxt H j
+  | 0 => rfl
+  | d + 1 => by
+    show (_ :: runR4 K1 K2 K3 K4 n1 m φ nxt H (j + d)).drop (d + 1) = _
+    rw [List.drop_succ_cons]; exact runR4_drop K1 K2 K3 K4 n1 m φ nxt H j d
+
 def readsR4 {W : Type} (K1 K2 K3 K4 n1 m : Nat) (φ : Nat → W → Nat) (nxt : List Nat → Nat × Nat × W)
     (H : Nat × Nat × Nat × Nat) : Nat → List (Nat × Nat × W)
   | 0 => []

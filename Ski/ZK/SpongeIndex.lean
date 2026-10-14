@@ -32,9 +32,9 @@ pairs of chains that meet.
   table's `δs'`, their errors linear in it (checked by elaboration against
   `sudFS4T_hspS` and `sud_interleaveS`).
 
-Not shown: the composites averaged over the permutation.  Their
-distributions read the table through `φ`, so the per-table statements
-must be summed over the tables, a step beyond the linearity of the error.
+The composites averaged over the permutation are `SpongeAvg`'s
+(`zkbT_avg`, `sud_interleaveP`): their distributions read the table through
+`φ`, so the per-table statements are summed over the tables.
 
 The bound says something only while
 `X^L n1² (0 + ⋯ + (2L+1)) F` stays below `K - 2(L+1)`; with `F / K` one
@@ -48,7 +48,10 @@ all `n1` values, and the later blocks drawn independently of the
 permutation.
 
 Two modelling assumptions enter as well.  The state `iv` before the first commitment is fixed before
-the permutation is drawn: no permutation call precedes the commitment.  The
+the permutation is drawn: no permutation call precedes the commitment.
+Plonky3's batch-stark transcript absorbs a domain separator and the
+instances' degree bits before `MAIN_COMMITMENT`, so there `iv` is a
+function of the permutation.  The
 first commitment fills one aligned block (`hd`, `n1 ≤ R1` at the full-width
 instance); a digest straddling two permutation calls is not covered.
 -/

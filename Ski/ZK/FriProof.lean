@@ -2,10 +2,10 @@ import Ski.ZK.FriCommit
 import Ski.ZK.FSMultiMixSud
 
 /-!
-# The Sudoku proofs with FRI's commit-phase reads in Plonky3's order
+# The Sudoku proofs with a commit-phase opening, its queries drawn first
 
-`FriCommit` builds commit-phase read strategies in Plonky3's order.  Here
-the third opening of `sud_interleaveD`'s Sudoku proofs reads that way and
+`FriCommit` builds read strategies in the sequence of Plonky3's commit
+phase.  Here the third opening of `sud_interleaveD`'s Sudoku proofs reads that way and
 the proofs' own FRI view is constant (`sud_interleaveFRI`; `fri`, `Rb`,
 `Ro` constant, so that view component is `((), ())`).  The opening
 (`pfRd` with `friCommitNxtC`) reads the three earlier challenges (the
@@ -64,7 +64,7 @@ section
 open B Air Stmt Mach Sudoku SudokuText Compose CompM Wit
 
 set_option maxRecDepth 100000 in
-/-- **The Sudoku proofs with FRI's commit-phase reads in Plonky3's order
+/-- **The Sudoku proofs with FRI's commit-phase reads in Plonky3's sequence
     as their third opening, the queries at `c4`'s rows**: `sud_interleaveD` with the third opening reading the earlier
     challenges, `k3` layer reads, and the query seed last
     (`friCommitNxtC`, `friCommitQC_seed`), its reads blind to `c4` and its

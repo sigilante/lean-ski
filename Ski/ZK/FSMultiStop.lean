@@ -28,15 +28,6 @@ set_option autoImplicit false
 namespace Circuit
 open ZKF
 
-/-- **The run's answers after `j` queries are the last `j` of a longer run.** -/
-theorem runR4_drop {W : Type} (K1 K2 K3 K4 n1 m : Nat) (φ : Nat → W → Nat) (nxt : List Nat → Nat × Nat × W)
-    (H : Nat × Nat × Nat × Nat) (j : Nat) : ∀ d,
-    (runR4 K1 K2 K3 K4 n1 m φ nxt H (j + d)).drop d = runR4 K1 K2 K3 K4 n1 m φ nxt H j
-  | 0 => rfl
-  | d + 1 => by
-    show (_ :: runR4 K1 K2 K3 K4 n1 m φ nxt H (j + d)).drop (d + 1) = _
-    rw [List.drop_succ_cons]; exact runR4_drop K1 K2 K3 K4 n1 m φ nxt H j d
-
 /-- Scanning up from `i`, at most `f` more steps, for the first `j` at whose
     answers `g j` the rule `s` fires. -/
 def stopUp (s : List Nat → Bool) (g : Nat → List Nat) : Nat → Nat → Nat

@@ -1353,8 +1353,11 @@ open Ski.Audit
 -- The hypotheses, met
 #audit_clean Circuit.inj_le_one Circuit.hposW Circuit.hsW Circuit.hndW Circuit.hlenW Circuit.hltW Circuit.hsLW Circuit.hdistM Circuit.hltM Circuit.hsM Circuit.hposOM Circuit.hφW Circuit.hφsW Circuit.hposF Circuit.hsF Circuit.hposOW Circuit.hsd1W
 
--- A query count the distinguisher chooses (FSMultiStop)
-#audit_clean Circuit.runR4_dropA Circuit.stopUp_ge Circuit.stopUp_le Circuit.stopUp_congr Circuit.stopTime_le Circuit.truncStop_advRun Circuit.zkbT_queries_stop Circuit.zkbT_mix
+-- Helper lemmas (FSMultiOpen, ROMMerkleRows, SpongePerm, SpongePermT, SpongeTree)
+#audit_clean Circuit.digit_mod Circuit.fval_of_map Circuit.polys_of_map Circuit.posRows_mod Circuit.nxt2_def Circuit.rget_zero' Circuit.rget_succ' Circuit.swapV_lt Circuit.swapV_ne Circuit.swapV_inj Circuit.fib_rel Circuit.rel_symm Circuit.rget_lt_n
+
+-- A query count the distinguisher chooses (FSMultiStop; runR4_drop in FSMultiReads)
+#audit_clean Circuit.runR4_drop Circuit.stopUp_ge Circuit.stopUp_le Circuit.stopUp_congr Circuit.stopTime_le Circuit.truncStop_advRun Circuit.zkbT_queries_stop Circuit.zkbT_mix
   Circuit.zkbT_queriesV Circuit.truncStop_prog Circuit.zkbT_queries_stopT Circuit.readsR4_drop Circuit.advHitS_le
 
 -- Outputs with read lists are interleaving components (FSMultiOpenRd)
@@ -1390,9 +1393,9 @@ open Ski.Audit
 #audit_clean Circuit.spread_sumG Circuit.hφsp_of_hdg Circuit.coord_digit012 Circuit.sudFS4T_hspS Circuit.sud_interleaveS Circuit.witFS4T_hspS Circuit.wit_interleaveS Circuit.compFS4T_hspS Circuit.comp_interleaveS
 
 -- FRI's commit phase as an opening that reads the tables (FriCommit)
-#audit_clean Circuit.friBetas_length Circuit.friCommit_run Circuit.friCommitPf_eq Circuit.friCommit_reads Circuit.runR4_length Circuit.friCommitC_first3 Circuit.msg_nest Circuit.friCommitC_msgs Circuit.friCommitNxtC_layer Circuit.friBetas_c4 Circuit.friCommitQ_eq Circuit.friCommitQ_reads Circuit.friCommitQ_c4 Circuit.friCommitQ_seed Circuit.runR4_dropA Circuit.friCommitQC_c4 Circuit.friCommitQC_seed Circuit.friCommitQC_reads
+#audit_clean Circuit.friBetas_length Circuit.friCommit_run Circuit.friCommitPf_eq Circuit.friCommit_reads Circuit.runR4_length Circuit.friCommitC_first3 Circuit.msg_nest Circuit.friCommitC_msgs Circuit.friCommitNxtC_layer Circuit.friBetas_c4 Circuit.friCommitQ_eq Circuit.friCommitQ_reads Circuit.friCommitQ_c4 Circuit.friCommitQ_seed Circuit.friCommitQC_c4 Circuit.friCommitQC_seed Circuit.friCommitQC_reads
 
--- A duplex sponge meets the challenger's spread (SpongeSpread)
+-- An adding duplex sponge meets the challenger's spread; Plonky3's overwrite mode is not shown (SpongeSpread)
 #audit_clean Circuit.sum_pos_exists Circuit.hφsp_of_inj Circuit.add_mod_cancel Circuit.foldlA_lt Circuit.foldlA_inj Circuit.spongeA_inj Circuit.spongeA_hφsp Circuit.spongeA_lt Circuit.spongeA_sat Circuit.foldlG_inj Circuit.spongeG_hφsp
 
 -- Two sponge chains meet rarely under random round functions (SpongeRandom)
@@ -1425,7 +1428,7 @@ open Ski.Audit
 -- Chains that meet saw near-collisions, without domain separation (SpongeUnion)
 #audit_clean Circuit.present_merge Circuit.dcount_merge Circuit.dcount_merge_le Circuit.dcount_merge_ge Circuit.dcount_merge_both Circuit.dcount_add Circuit.dcount_add_eq Circuit.firstOld_spec Circuit.oldB_spec Circuit.labR_lt Circuit.labR_coh Circuit.visB_succ Circuit.visB_add Circuit.visB_other Circuit.dcount_id Circuit.dcount_none Circuit.present_of Circuit.visB_of Circuit.mergeL_self Circuit.labR_inv Circuit.labR_final Circuit.nearN_runS Circuit.allMeet_near2 Circuit.allMeet_countP2 Circuit.meetM_countP2 Circuit.cf_of_tags Circuit.nzOK_xsOf Circuit.preimage_loadTU Circuit.meet_markov2 Circuit.loadTU_countP Circuit.loadTU_hsp Circuit.loadTU_δs_countP Circuit.hpk2_satPT Circuit.sud_interleaveLU Circuit.sud_interleaveLUN
 
--- The Sudoku proofs with FRI in Plonky3's order as an opening (FriProof)
+-- The Sudoku proofs with a commit-phase opening, its queries drawn first; Plonky3's FRI does not meet hp3 (FriProof)
 #audit_clean Circuit.sud_interleaveFRI Circuit.comPf_op
 
 -- A picked statement's bad events, bounded at every table, cost one statement's (AdaptDraws)

@@ -212,6 +212,7 @@ theorem sud_interleaveP {V Wv P1 P2 P3 W1 W2 W3 : Type} {kr kq : Nat} (φ1 : Nat
       (fun ix => (sponge_hsp hX inner iv enc henc (Com1 ix) (hr1 ix) (hsp1 ix) P).2) isQ nxtQ n)
 
 
+-- The statement unfolds `sudDD`'s fields at every `ix`; elaborating it exceeds the default heartbeats.
 set_option maxHeartbeats 1600000 in
 set_option maxRecDepth 100000 in
 /-- **`sud_interleaveP` with a number for its error**: `Kq = Kp - 2(L+1)`
