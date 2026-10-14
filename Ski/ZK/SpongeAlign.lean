@@ -30,7 +30,8 @@ Size.  At width 16, rate 8, `F / K = 1 / p ^ 7`, `N = p ^ 8`, `G = p`,
 an assumed prefix of 16 permutation calls (one call more moves the
 figures by under 0.1 bit) and blocks below `X = 9 p ^ 8`, optimizing `t` and
 `s0` makes `E[loadG]` about `2^77`, `2^80`, `2^83`, `2^93` for
-`L = 1, 3, 10, 100`, against `n1 = p ^ 8 ≈ 2^247` commitments.
+`L = 1, 3, 10, 100`, against `n1 = p ^ 8 ≈ 2^247` commitments
+(`scripts/sponge_load.py` evaluates the bound and chooses `t` and `s0`).
 
 Limits: the fourth table `H4` stays independent of the permutation, which
 Plonky3 squeezes the challenge from; every step after the first commitment absorbs a block, where 0.8 permutes an empty buffer, a squeeze leaving the rate, when a phase draws more than `RATE` elements (the bench's lookup phase draws `1 + 4 + 4 = 9` at `GRIND_LOOKUP = 5`); the seven buffered elements

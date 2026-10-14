@@ -360,7 +360,7 @@ and its claim table moves to the docs, where `release/README.md` already holds i
   statements `S ε`.
 - Plonky3 0.8's duplex challenger (2026-10-14). The sponge files' premises match 0.8
   (`SpongeAbsorb`, `SpongeRoot`, `SpongePrefix`, `SpongeAlign`) except where noted
-  below. `E[loadG]` is about `2^77` to `2^93` for `L = 1` to `100` against
+  below. `E[loadG]` is about `2^77` to `2^93` (`scripts/sponge_load.py`) for `L = 1` to `100` against
   `n1 ≈ 2^247`; the seven buffered elements are measured on `release/sudoku`.
   - **Fourth challenge from the permutation: done, restricted.** `zk_squeeze` (one point),
     `zk_squeezeN` (`n` points of one shared `H4`, error
