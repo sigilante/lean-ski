@@ -175,6 +175,7 @@ import Ski.ZK.SpongeLoadL
 import Ski.ZK.SpongeTree
 import Ski.ZK.SpongeUnion
 import Ski.ZK.FriProof
+import Ski.ZK.SudEndToEnd
 import Ski.ZK.AdaptDraws
 import Ski.ZK.FSQueryAbsT
 import Ski.ZK.FSQueryPowT
@@ -1430,6 +1431,9 @@ open Ski.Audit
 
 -- The Sudoku proofs with a commit-phase opening, its queries drawn first; Plonky3's FRI does not meet hp3 (FriProof)
 #audit_clean Circuit.sud_interleaveFRI Circuit.comPf_op
+
+-- Every hypothesis of a Merkle-committed Sudoku bound, met at once (SudEndToEnd)
+#audit_clean Circuit.comSalt_hides Circuit.comSalt_pf Circuit.comSalt_lt Circuit.sudBl_std Circuit.sudStd_merkle
 
 -- A picked statement's bad events, bounded at every table, cost one statement's (AdaptDraws)
 #audit_clean Circuit.zkbT_adaptive_tbl Circuit.zkbT_adaptive_draws
