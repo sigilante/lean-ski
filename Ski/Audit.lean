@@ -1477,7 +1477,8 @@ open Ski.Audit
 #audit_clean Circuit.loadφG_eq Circuit.loadGψ_hsp Circuit.sud_interleaveLGψ Circuit.getD_app_left Circuit.getD_app_right
   Circuit.chain1_app_left Circuit.chain1_app Circuit.posT_nxtBl Circuit.loadψG_posT Circuit.nxtBl_lt Circuit.nxtBl_κ
   Circuit.rvPowD_congr Circuit.read4T_congr Circuit.posOf_runsN Circuit.posT_mem_sqOf Circuit.listN_congr
-  Circuit.sqOf_runsN Circuit.posV_rvPowD Circuit.getAt_lt Circuit.sud_rv_local Circuit.sud_hpr
+  Circuit.sqOf_runsN Circuit.posV_rvPowD Circuit.getAt_lt Circuit.sud_rv_local Circuit.sud_hpr Circuit.lin_sum3
+  Circuit.lin_sum4c Circuit.lin_scPowD Circuit.sud_squeezeN Circuit.sud_squeezeN_sat08
 
 -- A picked statement's bad events, bounded at every table, cost one statement's (AdaptDraws)
 #audit_clean Circuit.zkbT_adaptive_tbl Circuit.zkbT_adaptive_draws

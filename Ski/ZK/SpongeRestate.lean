@@ -1,40 +1,52 @@
 import Ski.ZK.SpongeProgramN
 import Ski.ZK.SpongeAlign
+import Ski.ZK.SudEndToEnd
 
 /-!
-# The Sudoku composite restated for a squeezed challenge
+# `n` Sudoku proofs with their fourth challenges squeezed from the permutation
 
 `zk_squeezeN` reads each fourth challenge at a squeeze position, the input
 of the permutation's last call, and needs the fourth table's answers to be
 full states.  `sud_interleaveLG` reads `H4` at the state after that call
-(`loadφG`), the permutation's answer at the squeeze position.  Here the
-composite is restated step by step toward `zk_squeezeN`'s hypothesis.
+(`loadφG`).  Here the composite is restated and `zk_squeezeN` applied.
 
 - **The squeeze position.** `loadφG` is the permutation's answer at
-  `loadψG`, the input of the chain's last call (`loadφG_eq`).  An equal
-  position gives an equal state, so `loadψG` spreads over the first salt as
-  `loadφG` does (`loadGψ_hsp`), and `sud_interleaveLG` holds with `H4` read
-  at the squeeze position (`sud_interleaveLGψ`).  Its `K4` is free, so
-  `K4 = Kp` makes `H4`'s answers full states.
-
+  `loadψG` (`loadφG_eq`); an equal position gives an equal state, so the
+  position spreads as the state does (`loadGψ_hsp`), and the composite
+  holds with `H4` read at the squeeze position (`sud_interleaveLGψ`).
 - **The chains as runs.** A chain absorbing blocks from `z` is the `runAdp`
-  run whose next position is `nxtBl`: its position at time `i` is the
-  chain's `i`-th input (`posT_nxtBl`), and a chain after a prefix is the
-  chain over the joined blocks (`chain1_app`).  So `loadψG` is the squeeze
-  position of the run over `blocksG`, the prefix and the commitment's
-  blocks, after `|pre0| + 1 + L` queries (`loadψG_posT`).  With absorption
-  keeping `κ`, the run meets `zk_squeezeN`'s `hκ` (`nxtBl_κ`).
+  run whose next position is `nxtBl` (`posT_nxtBl`, `chain1_app`), so
+  `loadψG` is the squeeze position of the run over the prefix and the
+  commitment's blocks after `|pre0| + 1 + L` queries (`loadψG_posT`).
+- **The view.** With no query phases, no table-reading openings
+  (`kr = 0`), the fourth table's answers full states (`K4 = Kp`) and the
+  chains absorbing the commitments alone (`encC`), the composite's view
+  reads the permutation only through the runs and `H4` only at their
+  squeeze positions (`sud_rv_local`), and a distinguisher recovers the
+  positions from it (`sud_hpr`).
+- **The result.** `sud_squeezeN`: the composite's bound, through
+  `hypN_of_zkbT` and `zk_squeezeN`, with each proof's fourth challenge
+  read from the permutation at its run's squeeze position; the simulated
+  distinguisher sees the permutation with its answers at the simulated
+  positions exchanged for the programmed table's.  The error is the
+  composite's plus the runs' exchanges and collisions.
+  `sud_squeezeN_sat08` meets at 0.8's sponge the hypotheses this file adds
+  or changes in form (`hF`, `hκin`, `henc`, `hB4`, and the openings at
+  `kr = 0`), with the sponge's others.
 
-A limit found on the way: the composite's index absorbs the opened values
-computed with the fourth challenge set to `0` (`ozF (rvF 0 …)`), and those
-depend on the challenge through its query sets.  The real view carries the
-opened values at the real challenge, so a distinguisher cannot recompute
-the index from it, as `zk_squeezeN` asks (`hpr`).  An instance whose
-encoding `enc` absorbs the commitments alone has an index the view
-determines.
-
-Not shown yet: `H4` taken out of the other tables' count, and the view
-reading `H4` through `getAt`.
+Limits.  The composite's index absorbs the opened values computed with the
+fourth challenge set to `0` (`ozF (rvF 0 …)`).  The view shows the values
+at the real challenge's query sets, so it does not determine those, and
+the chains here absorb the commitments alone, where Plonky3 absorbs the
+opened values before the fourth challenge.  Query phases are dropped: the
+distinguisher reads the whole permutation anyway.  The first three
+challenges still read tables independent of the permutation.  The spread
+bound still assumes absorptions only.  No witness meets every hypothesis
+of `sud_interleaveLG` together; the Sudoku run's are left as the theorem
+states them.  `sud_squeezeN` carries `sud_interleaveLG`'s sponge hypotheses
+`hd`, `hdxC`, `hpk2`, `hκ` and `ht`, which its proof does not use.  The
+simulator (`pgJ`, `sv`) reads the whole permutation table, as a
+programming simulator that samples the permutation may.
 -/
 
 set_option autoImplicit false
@@ -472,5 +484,156 @@ theorem sud_hpr (n P : Nat) (H : Nat × Nat × Nat) (x : PowD (fun _ => XSud) n)
   exact listN_congr n (fun i _ => loadψG_posT Kp inner z pre0 blk bf G n1 L _ P i _ none)
 
 end
+
+
+/-! ### The Sudoku proofs' fourth challenges squeezed from the permutation -/
+
+theorem lin_sum3 (A1 A2 A3 : Nat) : Lin (fun (f : Nat × Nat × Nat → Nat) =>
+    sumTo A1 (fun H1 => sumTo A2 (fun H2 => sumTo A3 (fun H3 => f (H1, H2, H3))))) := fun N f => by
+  show sumTo A1 (fun H1 => sumTo A2 (fun H2 => sumTo A3 (fun H3 => sumTo N (fun i => f i (H1, H2, H3))))) =
+    sumTo N (fun i => sumTo A1 (fun H1 => sumTo A2 (fun H2 => sumTo A3 (fun H3 => f i (H1, H2, H3)))))
+  rw [sumTo_congr A1 (fun H1 _ => sumTo_congr A2 (fun H2 _ => sumTo_exch (fun H3 i => f i (H1, H2, H3)) N A3)),
+    sumTo_congr A1 (fun H1 _ => sumTo_exch (fun H2 i => sumTo A3 (fun H3 => f i (H1, H2, H3))) N A2)]
+  exact sumTo_exch (fun H1 i => sumTo A2 (fun H2 => sumTo A3 (fun H3 => f i (H1, H2, H3)))) N A1
+
+theorem lin_sum4c (A1 A2 A3 A4 : Nat) : Lin (fun (f : Nat × Nat × Nat × Nat → Nat) =>
+    sumTo A4 (fun c4 => sumTo A1 (fun c1 => sumTo A2 (fun c2 => sumTo A3 (fun c3 => f (c1, c2, c3, c4)))))) := fun N f => by
+  show sumTo A4 (fun c4 => sumTo A1 (fun c1 => sumTo A2 (fun c2 => sumTo A3 (fun c3 => sumTo N (fun i => f i (c1, c2, c3, c4)))))) =
+    sumTo N (fun i => sumTo A4 (fun c4 => sumTo A1 (fun c1 => sumTo A2 (fun c2 => sumTo A3 (fun c3 => f i (c1, c2, c3, c4))))))
+  rw [sumTo_congr A4 (fun c4 _ => sumTo_congr A1 (fun c1 _ => sumTo_congr A2 (fun c2 _ =>
+      sumTo_exch (fun c3 i => f i (c1, c2, c3, c4)) N A3))),
+    sumTo_congr A4 (fun c4 _ => sumTo_congr A1 (fun c1 _ =>
+      sumTo_exch (fun c2 i => sumTo A3 (fun c3 => f i (c1, c2, c3, c4))) N A2)),
+    sumTo_congr A4 (fun c4 _ => sumTo_exch (fun c1 i => sumTo A2 (fun c2 => sumTo A3 (fun c3 => f i (c1, c2, c3, c4)))) N A1)]
+  exact sumTo_exch (fun c4 i => sumTo A1 (fun c1 => sumTo A2 (fun c2 => sumTo A3 (fun c3 => f i (c1, c2, c3, c4))))) N A4
+
+theorem lin_scPowD {C : Nat → Type} {sc : (i : Nat) → (C i → Nat) → Nat} (h : ∀ i, Lin (sc i)) :
+    ∀ n, Lin (scPowD sc n)
+  | 0 => fun _ _ => rfl
+  | n + 1 => fun N f => by
+    show sc n (fun c => scPowD sc n (fun rest => sumTo N (fun i => f i (c, rest)))) =
+      sumTo N (fun i => sc n (fun c => scPowD sc n (fun rest => f i (c, rest))))
+    rw [← h n N]
+    exact congrArg (sc n) (funext fun c => lin_scPowD h n N (fun i rest => f i (c, rest)))
+
+section
+open B Air Stmt Mach Sudoku SudokuText Compose CompM Wit
+
+set_option maxRecDepth 100000 in
+set_option maxHeartbeats 6000000 in
+/-- **`n` interleaved Sudoku proofs with their fourth challenges squeezed
+    from the permutation.**  `sud_interleaveLGψ` with no query phases, no
+    table-reading openings, the fourth table's answers full states
+    (`K4 = Kp`) and the chains absorbing the commitments alone (`encC`),
+    through `hypN_of_zkbT` (`sud_rv_local`, `sud_hpr`) and `zk_squeezeN`:
+    the real view reads each proof's fourth challenge from the permutation
+    at its run's squeeze position, and the simulated distinguisher sees the
+    permutation with its answers at the simulated positions exchanged for
+    the programmed table's.  The error is the composite's plus the runs'
+    exchanges and collisions. -/
+theorem sud_squeezeN {V Wv P1 P2 P3 W1 W2 W3 : Type} (φ1 : Nat → Nat → W1 → Nat) (nx1 : Nat → Nat → Nat → List Nat → Nat × Nat × W1) (G1 : Nat → Nat → Nat → List (List (List F)) → Nat → List Nat → P1) (φ2 : Nat → Nat → W2 → Nat) (nx2 : Nat → Nat → Nat → List Nat → Nat × Nat × W2) (G2 : Nat → Nat → Nat → List (List (List F)) → Nat → List Nat → P2) (φ3 : Nat → Nat → W3 → Nat) (nx3 : Nat → Nat → Nat → List Nat → Nat × Nat × W3) (G3 : Nat → Nat → Nat → List (List (List (List F))) × List (List (List F)) → Nat → List Nat → P3)
+     (off : EF → String → EF) {puzzle : ∀ ix : Nat, List Nat} (hc : ∀ ix : Nat, CluesOK (cluesOf (puzzle ix))) {ρ : ∀ ix : Nat, Nat → Bool} {A : ∀ ix : Nat, List Cell} {k : ∀ ix : Nat, Nat} {row : ∀ ix : Nat, Nat → Air.Row} (hA : ∀ ix : Nat, AcceptsFrom (A ix) (stmtMachine (ρ ix) 729 (sudokuExpr (cluesOf (puzzle ix))) ACC REJ) (k ix) (row ix)) (hacc : ∀ ix : Nat, rd (A ix) ((row ix) ((k ix) - 1)).ctr ((row ix) ((k ix) - 1)).hd = some (.atom ACC)) (hlen : ∀ ix : Nat, (A ix).length = 2 ^ 16) (hk : ∀ ix : Nat, (k ix) ≤ 2 ^ 16) {tP : ∀ ix : Nat, Nat} (htp : ∀ ix : Nat, (tP ix) = progTp (stmtMachine (fun _ => false) 729 (sudokuExpr (cluesOf (puzzle ix))) ACC REJ).heap) (S16 S10 SP : ∀ ix : Nat, Nat → List F) (qv : ∀ ix : Nat, EF → EF → List EF → F → List F → List F → List EF) (wm wc ww wp : ∀ ix : Nat, Nat → List (EF → EF → List F)) {Lwm Lwc Lww Lwp : ∀ ix : Nat, Nat} (hlwm : ∀ ix : Nat, ∀ c, ((wm ix) c).length = (Lwm ix)) (hlwc : ∀ ix : Nat, ∀ c, ((wc ix) c).length = (Lwc ix)) (hlww : ∀ ix : Nat, ∀ c, ((ww ix) c).length = (Lww ix)) (hlwp : ∀ ix : Nat, ∀ c, ((wp ix) c).length = (Lwp ix)) {K2 Kp : Nat} (hK2 : 0 < K2) (hKp : 0 < Kp) (hS16 : ∀ ix : Nat, ∀ c4, ∀ x ∈ (S16 ix) c4, x ∉ cosetL 1 (bbGen 16) (2 ^ 16)) (hS10 : ∀ ix : Nat, ∀ c4, ∀ x ∈ (S10 ix) c4, x ∉ cosetL 1 (bbGen 10) (2 ^ 10)) (hSP : ∀ ix : Nat, ∀ c4, ∀ x ∈ (SP ix) c4, x ∉ cosetL 1 (bbGen ((tP ix) + 1)) (2 ^ ((tP ix) + 1))) (hsz16 : ∀ ix : Nat, ∀ c4, 2 * ((S16 ix) c4).length + 8 ≤ 2 ^ 16) (hsz : ∀ ix : Nat, ∀ c4, 2 * ((S10 ix) c4).length + 8 ≤ 2 ^ 10) (hszP : ∀ ix : Nat, ∀ c4, 2 * ((SP ix) c4).length + 8 ≤ 2 ^ ((tP ix) + 1)) {ncw : ∀ ix : Nat, Nat} (αd : ∀ ix : Nat, Nat → EF) {B4 : ∀ ix : Nat, Nat} (hB4 : ∀ ix : Nat, sumTo Kp (fun c4 => indB (!genB ((αd ix) c4))) ≤ (B4 ix)) (fri : ∀ ix : Nat, Nat → EF → EF → List (EF → EF) → V) (hncw : ∀ ix : Nat, 4 ≤ (ncw ix)) (NR2 : ∀ ix : Nat, Nat) (Rb : ∀ ix : Nat, Nat → EF → EF → Nat → List (EF → EF)) (Ro : ∀ ix : Nat, Nat → EF → EF → Nat → Wv) {n1 n2 n3 : Nat} {NS1 NS2 NS3 : ∀ ix : Nat, Nat} (Com1 : ∀ ix : Nat, List (List (List F)) → Nat → Nat) (hc1 : ∀ ix : Nat, ComHides (NS1 ix) (Com1 ix)) (hp1 : ∀ ix : Nat, ∀ c4 T1 T2 T3 T4 M, ComPfHides (NS1 ix) (Com1 ix) ((pfRdM (Q4 * Q4) K2 Q4 Kp n1 0 (φ1 ix) (nx1 ix) (G1 ix)) c4 T1 T2 T3 T4 M) (opF ((sudGroups (tP ix) ((S16 ix) c4) ((S10 ix) c4) ((SP ix) c4) EF.zero (qv ix)).map (·.base.S)) [0, 2, 4, 6])) (hr1 : ∀ ix : Nat, ∀ d σ, (Com1 ix) d σ < n1) (d1 : ∀ ix : Nat, List (List (List F))) (Com2 : ∀ ix : Nat, List (List (List F)) → Nat → Nat) (hc2 : ∀ ix : Nat, ComHides (NS2 ix) (Com2 ix)) (hp2 : ∀ ix : Nat, ∀ c4 T1 T2 T3 T4 M, ComPfHides (NS2 ix) (Com2 ix) ((pfRdM (Q4 * Q4) K2 Q4 Kp n1 0 (φ2 ix) (nx2 ix) (G2 ix)) c4 T1 T2 T3 T4 M) (opF ((sudGroups (tP ix) ((S16 ix) c4) ((S10 ix) c4) ((SP ix) c4) EF.zero (qv ix)).map (·.base.S)) [1, 3, 5, 7])) (hr2 : ∀ ix : Nat, ∀ d σ, (Com2 ix) d σ < n2) (d2 : ∀ ix : Nat, List (List (List F))) (Com3 : ∀ ix : Nat, List (List (List (List F))) × List (List (List F)) → Nat → Nat) (hc3 : ∀ ix : Nat, ComHides (NS3 ix) (Com3 ix)) (hp3 : ∀ ix : Nat, ∀ c4 T1 T2 T3 T4 M, ComPfHides (NS3 ix) (Com3 ix) ((pfRdM (Q4 * Q4) K2 Q4 Kp n1 0 (φ3 ix) (nx3 ix) (G3 ix)) c4 T1 T2 T3 T4 M) (fun d => (opQ (sudSsT ((S16 ix) c4) ((S10 ix) c4) ((SP ix) c4)) d.1, opCw (sudSsC (tP ix) ((S16 ix) c4) ((S10 ix) c4) ((SP ix) c4)) d.2))) (hr3 : ∀ ix : Nat, ∀ d σ, (Com3 ix) d σ < n3) (d3 : ∀ ix : Nat, List (List (List (List F))) × List (List (List F)))
+    (inner : Nat → Nat → Nat) (hin : ∀ s x, inner s x < Kp) (κ : Nat → Nat) {Kc : Nat}
+    (hκ : ∀ u, κ u < Kc) (hpk2 : ∀ s s' x x', inner s x = inner s' x' → κ s = κ s') (z : Nat) (pre0 : List Nat) (blk bf : Nat → Nat)
+    {G N0 N : Nat} (hG : 0 < G) (hN : 0 < N) (hn : n1 = G * N0) (hbf : ∀ h, h < N0 → bf h < N)
+    (hinj : ∀ h h', h < N0 → h' < N0 → bf h = bf h' → h = h')
+    (hd : ∀ iv a b, a < N → b < N → a ≠ b → inner iv a ≠ inner iv b)
+    (hdxC : ∀ iv s s' x c c', c < N → c' < N → inner s x = inner iv c → inner s' x = inner iv c' → c = c')
+    {X : Nat} (hX : 0 < X) (L : Nat) (encC : Nat → List Nat) (henc : ∀ r i, i < L → (encC r).getD i 0 < X)
+    (δ0 : Nat → Nat)
+    (hsp1 : ∀ ix d v, sumTo (NS1 ix) (fun σ => indB (decide (Com1 ix d σ = v))) ≤ δ0 ix) {t : Nat} (ht : 0 < t) {s0 : Nat} (hs0 : 2 ≤ s0)
+    {Fκ : Nat} (hF : ∀ v, sumTo Kp (fun u => indB (decide (κ u = v))) ≤ Fκ)
+    (hκin : ∀ s x, κ (inner s x) = κ s) (n : Nat) 
+    (E : Nat → Nat × Nat × Nat →
+      PowD (fun _ => Option (Nat × Nat × Nat × (Option P1 × Option (P2 × P3) × TViewN (SudPV (V × Wv)) EF)) × List Nat) n →
+      Bool) :
+    let sD := fun (Pφ : Nat → Nat → WSud → Nat) => sudD off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp Pφ Kp ncw αd B4
+      fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 Com2 Com3 0 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3
+    let ψ := fun P => loadψG Kp inner z pre0 blk bf G n1 L (fun r (_ : WSud) => encC r) P
+    let kk := pre0.length + 1 + L
+    let K4w := KPowD (fun _ => Kp * (Q4 * Q4 * (K2 * Q4))) n
+    let ST := fun (f : Nat × Nat × Nat → Nat) => sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (K2 ^ (n1 * n2)) (fun H2 =>
+      sumTo (Q4 ^ (n1 * (n2 * n3))) (fun H3 => f (H1, H2, H3))))
+    let sm := smPowD (X := fun _ => XSud) (fun i => (sD (ψ 0) i).sm 2) n
+    let SC := scPowD (C := fun _ => Nat × Nat × Nat × Nat) (fun _ => (fun (f : Nat × Nat × Nat × Nat → Nat) =>
+      sumTo Kp (fun c4 => sumTo (Q4 * Q4) (fun c1 => sumTo K2 (fun c2 => sumTo Q4 (fun c3 => f (c1, c2, c3, c4))))))) n
+    let nxtI := fun H x => sudNxtI off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 Com2 Com3 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3 inner z pre0 blk bf G encC n H x
+    let rv := fun c H x g => sudRvS off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 Com2 Com3 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3 inner z pre0 blk bf G encC n c H x g
+    let pgF := fun (P : Nat) (H : Nat × Nat × Nat) (H4 : Nat) (c : PowD (fun _ => Nat × Nat × Nat × Nat) n)
+        (x : PowD (fun _ => XSud) n) =>
+      pgPowD (X := fun _ => XSud) (C := fun _ => Nat × Nat × Nat × Nat)
+        (pgRd (Q4 * Q4) K2 Q4 Kp (fun i => !(fun _ => false) i) (fun i => (sD (ψ P) i).pts) (fun _ c => c)) n
+        (H.1, H.2.1, H.2.2, H4) c x
+    let pgJ := fun P H H4 c x => (((pgF P H H4 c x).1, (pgF P H H4 c x).2.1, (pgF P H H4 c x).2.2.1), (pgF P H H4 c x).2.2.2)
+    let sv := fun (P : Nat) (H : Nat × Nat × Nat) (H4 : Nat) (c : PowD (fun _ => Nat × Nat × Nat × Nat) n)
+        (x : PowD (fun _ => XSud) n) =>
+      svPowDT (X := fun _ => XSud) (C := fun _ => Nat × Nat × Nat × Nat)
+        (pgRd (Q4 * Q4) K2 Q4 Kp (fun i => !(fun _ => false) i) (fun i => (sD (ψ P) i).pts) (fun _ c => c))
+        (mixSv (Q4 * Q4) K2 Q4 Kp 0 (fun _ => false) (fun _ _ => (0, 0, ())) (fun i => (sD (ψ P) i).sv)) n
+        (H.1, H.2.1, H.2.2, H4) c x
+    let pos := fun P (_ : Nat × Nat × Nat) v => dedupL (posV (fun i m => ψ P i m none) n v)
+    let ε := (sumTo (Kp ^ Kp) (fun P => indB (permB Kp P) * (errPowD (fun _ => (Kp * (Q4 * Q4 * (K2 * Q4)))) (fun i => ((sudD off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp (loadψG Kp inner z pre0 blk bf G n1 L (fun r (_ : WSud) => encC r) P) Kp ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 Com2 Com3 0 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3) i).sm 2) (fun _ => (fun (f : Nat × Nat × Nat × Nat → Nat) => sumTo Kp (fun c4 => sumTo (Q4 * Q4) (fun c1 => sumTo K2 (fun c2 => sumTo Q4 (fun c3 => f (c1, c2, c3, c4))))))) (fun i => cond ((fun _ => false) i) 0 ((sudD off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp (loadψG Kp inner z pre0 blk bf G n1 L (fun r (_ : WSud) => encC r) P) Kp ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 Com2 Com3 0 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3) i).ε)
+        (fun n => (fun (f : Nat × Nat × Nat × Nat → Nat) => sumTo Kp (fun c4 => sumTo (Q4 * Q4) (fun c1 => sumTo K2 (fun c2 => sumTo Q4 (fun c3 => f (c1, c2, c3, c4)))))) (fun _ => (fun (f : Nat × Nat × Nat × Nat → Nat) => sumTo (Kp ^ Kp) (fun H4 => sumTo ((Q4 * Q4) ^ n1) (fun H1 => sumTo (K2 ^ (n1 * n2)) (fun H2 => sumTo (Q4 ^ (n1 * (n2 * n3))) (fun H3 => f (H1, H2, H3, H4)))))) (fun _ => smPowD (X := fun _ => Nat × Nat × Nat × (Nat → Tup)) (fun i => ((sudD off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp (loadψG Kp inner z pre0 blk bf G n1 L (fun r (_ : WSud) => encC r) P) Kp ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 Com2 Com3 0 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3) i).sm 2) n
+          (fun _ => rSum (fun i => cond ((fun _ => false) i) 0 (4 + 3 * 0)) n *
+            cond ((fun _ => false) n) 0 (((sudD off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp (loadψG Kp inner z pre0 blk bf G n1 L (fun r (_ : WSud) => encC r) P) Kp ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 Com2 Com3 0 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3) n).NS * (((sudD off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp (loadψG Kp inner z pre0 blk bf G n1 L (fun r (_ : WSud) => encC r) P) Kp ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 Com2 Com3 0 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3) n).NR * (Q4 ^ 2 * δsG Kp inner z pre0 blk G N X L t s0 δ0 P n))))))) n)))
+    (Kp - n * kk) * (K4w * (Kp ^ Kp * ST (fun H => sm (fun x => sumTo (Kp ^ Kp) (fun P => indB (permB Kp P &&
+        E P H (rv (runsN Kp (nxtI H x) kk P n) H x
+          (getAt (dedupL (sqOf (nxtI H x) (runsN Kp (nxtI H x) kk P n)))
+            ((dedupL (sqOf (nxtI H x) (runsN Kp (nxtI H x) kk P n))).map (fun v => rget Kp v P)))))))))) ≤
+      (Kp - n * kk) * (ST (fun H => SC (fun c => sm (fun x => sumTo (Kp ^ Kp) (fun P => indB (permB Kp P) *
+        sumTo (Kp ^ Kp) (fun H4 => indB (E (progL Kp (pos P (pgJ P H H4 c x).1 (sv P H H4 c x)) (pgJ P H H4 c x).2 P)
+          (pgJ P H H4 c x).1 (sv P H H4 c x))))))) + ε) +
+      K4w * (Kp ^ (Kp - 1) * (ST (fun _ => sm (fun _ => 1)) *
+        (((Kp - n * kk) * (n * (n * kk + n)) + Kp * n * ((sumTo (n * kk) (fun j => j) + n * kk * n) * Fκ)) *
+          sumTo (Kp ^ Kp) (fun P => indB (permB Kp P))))) := by
+  intro sD ψ kk K4w ST sm SC nxtI rv pgF pgJ sv pos ε
+  have hcomp := sud_interleaveLGψ (kr := 0) (kq := 0) (K4 := Kp) φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3 off hc hA hacc hlen hk htp
+    S16 S10 SP qv wm wc ww wp hlwm hlwc hlww hlwp hK2 hKp hS16 hS10 hSP hsz16 hsz hszP αd hB4 fri hncw NR2 Rb Ro
+    Com1 hc1 hp1 hr1 d1 Com2 hc2 hp2 hr2 d2 Com3 hc3 hp3 hr3 d3 hKp inner hin κ hκ hpk2 z pre0 blk bf hG hN hn hbf hinj
+    hd hdxC hX L (fun r _ => encC r) (fun r _ i hi => henc r i hi) δ0 hsp1 ht hs0 (fun _ => false) (fun _ _ => (0, 0, ())) n
+  have hST : Lin ST := lin_sum3 _ _ _
+  have hsm : Lin sm := lin_smPowD (fun i => lin_sm _ _ _ _) n
+  have hSC : Lin SC := lin_scPowD (fun _ => lin_sum4c _ _ _ _) n
+  have hkk : 0 < kk := Nat.lt_of_lt_of_le (Nat.succ_pos _) (Nat.le_add_right _ _)
+  exact zk_squeezeN (K := Kp) (k := kk) (n := n) (K4w := K4w) (ε := ε) hKp hkk κ hF ST hST sm hsm SC nxtI
+    (fun _ _ _ _ => hin _ _) (fun _ _ _ a l => hκin a _) rv pgJ sv pos
+    (fun P H x g => sud_hpr off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 Com2 Com3 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3 inner z pre0 blk bf G L encC n P H x _ g)
+    (fun D => hypN_of_zkbT ST hST sm hsm SC hSC (fun H H4 => (H.1, H.2.1, H.2.2, H4))
+      (fun TT => ((TT.1, TT.2.1, TT.2.2.1), TT.2.2.2)) (fun _ _ => rfl) _ _ _ hcomp
+      (fun P H x H4 => rv (runsN Kp (nxtI H x) kk P n) H x
+        (getAt (dedupL (sqOf (nxtI H x) (runsN Kp (nxtI H x) kk P n)))
+          ((dedupL (sqOf (nxtI H x) (runsN Kp (nxtI H x) kk P n))).map (fun v => rget Kp v H4))))
+      pgJ sv
+      (fun P H H4 x => sud_rv_local off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 Com2 Com3 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3 inner z pre0 blk bf G L encC hKp hin n P H H4 x)
+      (fun _ _ _ _ _ => rfl) (fun _ _ _ _ _ => rfl) D) E
+
+end
+
+
+/-- **The hypotheses `sud_squeezeN` adds or changes in form hold at 0.8's
+    sponge**: `hF` at `F = p^R p`; absorption keeping the capacity's tail
+    (`hκin`); an encoding of the commitments alone (`henc`, `encC r = []`);
+    `hB4` at `K4 = Kp`, `B4 = Kp`; and the openings at `kr = 0` beside a
+    salt commitment, each outputting the opened values of its challenge
+    (`hp1`–`hp3` with `G c4 _ d _ _ = op c4 d`).  The sponge's others
+    (`hin`, `hκ`, `hpk2`, `hd`, `hdxC`) hold as in `SpongeAlign`. -/
+theorem sud_squeezeN_sat08 {R p Q : Nat} (hR : 0 < R) (hp : 0 < p) (hQ : 0 < Q) {D O W : Type} (NS : Nat)
+    (op : Nat → D → O) (K1 K2 K3 n1 L X : Nat) (hX : 0 < X) (φ : Nat → W → Nat)
+    (nx : Nat → Nat → List Nat → Nat × Nat × W) (αd : Nat → EF) :
+    (∀ s x, inner08 R (p ^ R) p Q s x < p ^ R * (p * Q)) ∧ (∀ u, κ08 (p ^ R) p Q u < Q) ∧
+      (∀ s s' x x', inner08 R (p ^ R) p Q s x = inner08 R (p ^ R) p Q s' x' → κ08 (p ^ R) p Q s = κ08 (p ^ R) p Q s') ∧
+      (∀ iv a b, a < p ^ R → b < p ^ R → a ≠ b → inner08 R (p ^ R) p Q iv a ≠ inner08 R (p ^ R) p Q iv b) ∧
+      (∀ iv s s' x c c', c < p ^ R → c' < p ^ R → inner08 R (p ^ R) p Q s x = inner08 R (p ^ R) p Q iv c →
+        inner08 R (p ^ R) p Q s' x = inner08 R (p ^ R) p Q iv c' → c = c') ∧
+      (∀ v, sumTo (p ^ R * (p * Q)) (fun u => indB (decide (κ08 (p ^ R) p Q u = v))) ≤ p ^ R * p) ∧
+      (∀ s x, κ08 (p ^ R) p Q (inner08 R (p ^ R) p Q s x) = κ08 (p ^ R) p Q s) ∧
+      (∀ (r : Nat) i, i < L → ((fun (_ : Nat) => ([] : List Nat)) r).getD i 0 < X) ∧
+      (sumTo (p ^ R * (p * Q)) (fun c4 => indB (!genB (αd c4))) ≤ p ^ R * (p * Q)) ∧
+      (∀ c4 T1 T2 T3 T4 M, ComPfHides NS (fun (_ : D) σ => σ % NS)
+        (pfRdM K1 K2 K3 (p ^ R * (p * Q)) n1 0 φ nx (fun c4 _ d _ _ => op c4 d) c4 T1 T2 T3 T4 M) (op c4)) :=
+  ⟨inner08_lt hR hp hQ, κ08_lt hQ, inner08_hpk2 hR hp, (align08_sat hR hp hp).2.2.1, (align08_sat hR hp hp).2.2.2,
+    κ08_count (Nat.mul_pos (Nat.pow_pos hp) hp), κ08_inner08 hR hp, fun _ _ _ => hX,
+    Nat.le_trans (sumTo_mono _ (fun _ _ => indB_le_one _)) (Nat.le_of_eq (Eq.trans (sumTo_const 1 _) (Nat.mul_one _))),
+    fun c4 _ _ _ _ _ => comSalt_pf NS (op c4)⟩
 
 end Circuit
