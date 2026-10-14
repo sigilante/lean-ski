@@ -42,9 +42,20 @@ theorem κ08_inner08 {R p Q : Nat} (hR : 0 < R) (hp : 0 < p) (s x : Nat) :
   unfold κ08
   rw [inner08_div hR hp, Nat.mod_mod]
 
+/-- `s % (a Q) / a = (s / a) % Q`, without choice. -/
+theorem mod_mul_div_eq (s a Q : Nat) (hQ : 0 < Q) : s % (a * Q) / a = s / a % Q := by
+  rcases Nat.eq_zero_or_pos a with h0 | ha
+  · subst h0; simp
+  have hlt : s % (a * Q) / a < Q := (Nat.div_lt_iff_lt_mul ha).2 (by
+    rw [Nat.mul_comm Q a]; exact Nat.mod_lt _ (Nat.mul_pos ha hQ))
+  have e : s / a = s % (a * Q) / a + Q * (s / (a * Q)) := by
+    conv => lhs; rw [← Nat.mod_add_div s (a * Q)]
+    rw [show a * Q * (s / (a * Q)) = a * (Q * (s / (a * Q))) by rw [Nat.mul_assoc], Nat.add_mul_div_left _ _ ha]
+  rw [e, Nat.add_mul_mod_self_left, Nat.mod_eq_of_lt hlt]
+
 theorem κ08_mod {Rr p Q : Nat} (hQ : 0 < Q) (s : Nat) : κ08 Rr p Q (s % (Rr * (p * Q))) = κ08 Rr p Q s := by
   unfold κ08
-  rw [← Nat.mul_assoc, Nat.mod_mul_right_div_self, Nat.mod_mod]
+  rw [← Nat.mul_assoc, mod_mul_div_eq s (Rr * p) Q hQ, Nat.mod_mod]
 
 /-- **The squeeze keeps `hpk2`**: equal inputs come from states with equal
     tails, whichever of them squeezes. -/
