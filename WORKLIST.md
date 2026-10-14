@@ -373,8 +373,16 @@ and its claim table moves to the docs, where `release/README.md` already holds i
   first position goes unpaid, and the label argument can charge it only to a
   near-collision with the prefix's last answer that may also pay a merge with the
   prefix, which would halve the exponent. It needs a tail counting exact hits
-  apart from near-collisions and a reworked invariant. The indifferentiability
-  route for `H4` (PR #45) covers it with no further work.
+  apart from near-collisions and a reworked invariant. The fourth table's
+  independence has a transfer theorem (`SpongeProgram`, `zk_squeeze`): a bound
+  with `H4` read at the run's squeeze position gives the bound with the challenge
+  squeezed from the permutation and the simulator programming it, at a cost of
+  `k / K + (0 + ⋯ + k) / (Q (1 - k/K))` a table. Its revisit bound covers
+  squeezes, but its hypothesis still carries the spread, so the squeeze premise
+  stands. Next: apply `zk_squeeze` to `sud_interleaveLG`, which needs the
+  chains written as a `runAdp` run, `K4` the full state, and `n` programmed
+  points of one shared `H4` where `zk_squeeze` exchanges one; then the first
+  three challenges.
 - Idealizations to state with the bounds: each Merkle commitment hashes its leaves
   under a private table, where the bench uses one Poseidon2 permutation for leaves,
   compression and the challenger; proof-of-work grinding reads its own table
