@@ -180,6 +180,7 @@ import Ski.ZK.SpongeAbsorb
 import Ski.ZK.SpongeRoot
 import Ski.ZK.SpongePrefix
 import Ski.ZK.SpongeAlign
+import Ski.ZK.SpongeSqueeze
 import Ski.ZK.AdaptDraws
 import Ski.ZK.FSQueryAbsT
 import Ski.ZK.FSQueryPowT
@@ -1450,6 +1451,9 @@ open Ski.Audit
 
 -- A first commitment split across two absorptions, the groups' loads summed (SpongeAlign)
 #audit_clean Circuit.sumTo_inj_le Circuit.loadG_hsp Circuit.loadG_δs_countP Circuit.align08_sat Circuit.sud_interleaveLG Circuit.sud_interleaveLGN
+
+-- 0.8's empty-buffer squeeze: hpk2 survives, hdx fails (SpongeSqueeze)
+#audit_clean Circuit.κ08_inner08 Circuit.κ08_mod Circuit.inner08s_hpk2 Circuit.inner08s_lt Circuit.inner08s_hdx_fails
 
 -- A picked statement's bad events, bounded at every table, cost one statement's (AdaptDraws)
 #audit_clean Circuit.zkbT_adaptive_tbl Circuit.zkbT_adaptive_draws

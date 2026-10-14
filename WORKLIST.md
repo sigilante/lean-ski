@@ -369,7 +369,7 @@ and its claim table moves to the docs, where `release/README.md` already holds i
   measured on `release/sudoku`, not derived from the transcript's shape.
   `E[loadG]` is about `2^77` to `2^93` for `L = 1` to `100` against `n1 ≈ 2^247`.
   The squeeze is not local to the sponge files: `hpk2` holds for it (0.8's absorption
-  keeps the capacity's tail), but a squeeze landing exactly on another chain's
+  keeps the capacity's tail, `SpongeSqueeze`) and `hdx` fails (`inner08s_hdx_fails`), so a squeeze landing exactly on another chain's
   first position goes unpaid, and the label argument can charge it only to a
   near-collision with the prefix's last answer that may also pay a merge with the
   prefix, which would halve the exponent. It needs a tail counting exact hits
