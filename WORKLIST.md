@@ -358,38 +358,79 @@ and its claim table moves to the docs, where `release/README.md` already holds i
   statement's bad events are bounded at every table. No circuit meets that condition,
   since LogUp's error depends on `α` and `β`, so `sud_adaptive` charges `S` candidate
   statements `S ε`.
-- Plonky3 0.8's duplex challenger, two premises left (2026-10-14). The sponge files'
-  premises now match 0.8 except two: the fourth table `H4` is independent of the
-  permutation, where Plonky3 squeezes the challenge from it (programming an ideal
-  permutation); and every step after the first commitment absorbs a block, where 0.8 permutes an empty buffer, a squeeze leaving the rate, when a phase draws more than `RATE` elements (the bench's lookup phase draws `1 + 4 + 4 = 9` at `GRIND_LOOKUP = 5`). Met: `hpk2` with the capacity's first element dropped
-  (`SpongeAbsorb`); first positions revisited, no tags (`SpongeRoot`); the
-  domain-separator prefix before the first commitment (`SpongePrefix`); the
-  commitment split across two absorptions, seven elements buffered before it in
-  the bench's Sudoku proof (`SpongeAlign`, `sud_interleaveLG`). The seven is
-  measured on `release/sudoku`, not derived from the transcript's shape.
-  `E[loadG]` is about `2^77` to `2^93` for `L = 1` to `100` against `n1 ≈ 2^247`.
-  The squeeze is not local to the sponge files: `hpk2` holds for it (0.8's absorption
-  keeps the capacity's tail, `SpongeSqueeze`) and `hdx` fails (`inner08s_hdx_fails`), so a squeeze landing exactly on another chain's
-  first position goes unpaid, and the label argument can charge it only to a
-  near-collision with the prefix's last answer that may also pay a merge with the
-  prefix, which would halve the exponent. It needs a tail counting exact hits
-  apart from near-collisions and a reworked invariant. The fourth table's
-  independence has a transfer theorem (`SpongeProgram`, `zk_squeeze`): a bound
-  with `H4` read at the run's squeeze position gives the bound with the challenge
-  squeezed from the permutation and the simulator programming it, at a cost of
-  `k / K + (0 + ⋯ + k) / (Q (1 - k/K))` a table. Its revisit bound covers
-  squeezes, but its hypothesis still carries the spread, so the squeeze premise
-  stands. `SpongeProgramN` (`zk_squeezeN`) exchanges the `n` interleaved
-  proofs' points of one shared `H4`, at a cost of
-  `n (nk + n) / K + n (0 + ⋯ + (nk-1) + nk n) / (Q (1 - nk/K))` a table. Next:
-  applied in `SpongeRestate` (`sud_squeezeN`): each fourth challenge read from the
-  permutation at its run's squeeze position, the simulator programming the
-  permutation, with no query phases, no table-reading openings, full-state
-  challenges, and chains absorbing the commitments alone, since the composite's
-  index absorbs opened values at the fourth challenge `0`, which the view does not
-  determine. Left: the opened values absorbed (a composite whose index the view
-  determines), the first three challenges, and a witness for every hypothesis of
-  the interleaved composites.
+- Plonky3 0.8's duplex challenger (2026-10-14). The sponge files' premises match 0.8
+  (`SpongeAbsorb`, `SpongeRoot`, `SpongePrefix`, `SpongeAlign`) except where noted
+  below. `E[loadG]` is about `2^77` to `2^93` for `L = 1` to `100` against
+  `n1 ≈ 2^247`; the seven buffered elements are measured on `release/sudoku`.
+  - **Fourth challenge from the permutation: done, restricted.** `zk_squeeze` (one point),
+    `zk_squeezeN` (`n` points of one shared `H4`, error
+    `n (nk + n) / K + n (0 + ⋯ + (nk-1) + nk n) / (Q (1 - nk/K))` a table), applied
+    to the interleaved Sudoku composite (`sud_squeezeN`), with no query phases, no
+    table-reading openings and full-state challenges. The chains absorb the
+    commitments and the trace's openings at `ζ` (`sud_squeezeNζ`): those openings
+    do not read the fourth challenge (`sudPcs_oz`, `sudRvFS_oz`), so the view
+    determines the index. Not absorbed: the quotient chunks' and codewords'
+    openings at `ζ` (no invariance shown), and FRI's layer roots, final
+    polynomial and proof-of-work witness, which here depend on the fourth
+    challenge since it drives FRI's challenges and the query sets together.
+    The spread bound still assumes absorptions only, and no witness meets every
+    hypothesis at once.
+  - **First three challenges: started.** In the duplex the chain continues from
+    each squeezed state, so these squeezes are not last uses and `zk_squeezeN`
+    does not apply. `squeeze_seq` programs the table at the squeezes inside one
+    run with uniform states, last first, each later position recomputed on the
+    programmed table, at `Σ_j badAt (times j) / (K · #perms)`; `badAt_bound08`
+    bounds each term at 0.8. Next, in order:
+    1. Readback: done (`readback_seq`, at the same `badSeq`; the states'
+       collisions fall in `badAt`), with the reverse inequality
+       (`squeeze_swap_rev`, `squeeze_seq_rev`).
+    2. The transfer: done generically (`zk_duplex`, at twice `badSeq`;
+       `zk_duplex_sat08` only in a degenerate instance), with the rebuild
+       made dischargeable (`zk_duplexC`: the view's run function agreeing on
+       answers consistent with the drawn states, the intermediate stages'
+       readback at `Σ_{j<m} K^(m-j) badSeq j`). One proof: done
+       (`sud_duplex1`, through `hypC_of_read4T`, `hypW_of_hypC`, `zk_duplex4`;
+       openings reading no table; each challenge one squeeze's low part, the
+       run's terms bounded through `nxtD_κ`). At 0.8 the first and third
+       challenges fit one squeeze; the second (the lookup phase draws
+       `9 > RATE`) and the fourth (FRI's challenges and query indices over
+       several calls) need several squeezes per challenge, not yet modelled.
+    3. `n` proofs: shared tables need the squeeze positions injective in the
+       transcript prefixes; two prefixes at one position is a sponge
+       collision, bounded as in `SpongeIndex`. A sequential `squeeze_tableN`,
+       positions deduplicated, each recomputed on the programmed table.
+    4. The composites: `FSMultiT`'s first three indices are the prefixes
+       themselves (`m1`, `m2`, `m3`); generalize them to index functions with a
+       spread hypothesis, as the fourth already is, then restate as
+       `SpongeRestate` does.
+  - **Empty-buffer squeeze premise: slated.** The spread bound's label argument
+    (`SpongeRoot` through `SpongeAlign`) assumes `hdx`, which squeezes break
+    (`inner08s_hdx_fails`): a squeeze can land exactly on another chain's first
+    position, and charging that to a near-collision may pay twice. Plan:
+    1. An exact-hit tail: a fresh answer landing on one of the `n1` first
+       positions costs `n1 / K` (`fresh_countP` with `S` the first positions),
+       not `n1 / Q`, since 0.8's empty-buffer squeeze takes the answer itself as
+       the next position; count these apart from the near-collisions.
+    2. Rework `labR_invU`'s invariant so an exact hit is paid by that count and
+       a near-collision only by a merge, then rerun `unpS_count` through
+       `sud_interleaveLG`.
+    3. Place the squeezes: derive where 0.8 squeezes from the transcript's phase
+       sizes (the lookup phase draws `9 > RATE = 8` at `GRIND_LOOKUP = 5`) rather
+       than measure them.
+    The revisit bound of `SpongeProgram` already covers squeezes (`nxt08_κ`), so
+    only the spread needs this.
+  - **Full witness: slated.** No theorem meets every hypothesis of
+    `sud_interleaveLG` (or `sud_squeezeN`, `sud_squeezeNζ`) together; each new
+    hypothesis is witnessed alone (`sud_squeezeN_sat08`). Plan: a
+    `sud_squeezeNζ_sat` in the manner of `sud_fs_open4ROMMC_fri_sat`, the run's
+    hypotheses (`hc`, `hA`, `hacc`, `hlen`, `hk`) left free since the kernel
+    cannot replay `2^16` rows, the rest met at once:
+    1. the query sets from `SudEndToEnd` (`friS`, `qIdx_fri_conds`, `sudBl`);
+    2. salt commitments for `Com1`–`Com3` (`comSalt_hides`, `comSalt_lt`), the
+       openings at `kr = 0` (`sud_squeezeN_sat08`), `hsp1` at a salt's spread;
+    3. the sponge at 0.8 (`absorb08_sat`, `align08_sat`, `κ08_count`,
+       `κ08_inner08`) with `G`, `N0`, `N`, `bf` from `SpongeAlign`'s split
+       commitment; `hB4`, `henc` and `hncw` directly.
 - Idealizations to state with the bounds: each Merkle commitment hashes its leaves
   under a private table, where the bench uses one Poseidon2 permutation for leaves,
   compression and the challenger; proof-of-work grinding reads its own table
