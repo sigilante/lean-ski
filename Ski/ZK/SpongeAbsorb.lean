@@ -149,7 +149,7 @@ theorem inner08_full_fails :
   decide
 
 /-- **0.8's absorption meets `SpongeUnion`'s sponge premises** with the
-    capacity's other elements as `κ`: `hin`, `hκ`, `hF` at `F = p ^ R p`,
+    capacity's other elements as `κ`: `hin`, `hκ`, `hF` at `F = p ^ R * p`,
     `hpk2`, and `hd` for full-rate first commitments. -/
 theorem absorb08_sat {R p Q : Nat} (hR : 0 < R) (hp : 0 < p) (hQ : 0 < Q) :
     (∀ s x, inner08 R (p ^ R) p Q s x < p ^ R * (p * Q)) ∧ (∀ u, κ08 (p ^ R) p Q u < Q) ∧
