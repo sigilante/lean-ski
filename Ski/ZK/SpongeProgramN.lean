@@ -626,8 +626,8 @@ theorem getAt_map (g : Nat → Nat) {v : Nat} : ∀ ps : List Nat, v ∈ ps → 
     real view reads the challenges through a lookup at the proofs' distinct
     squeeze positions (`getAt`), from `H4` in `hyp` and from `P` in the
     conclusion, and depends on `P` otherwise only through the runs.  The
-    simulator of `hyp` is any: it programs `H4` by `pgH4` and may read the
-    programmed table.  In the conclusion the distinguisher sees `P` with its
+    simulator of `hyp` is any: it programs the other tables and `H4`
+    together (`pgJ`), knowing `P`, and may read the programmed tables.  In the conclusion the distinguisher sees `P` with its
     answers at the positions `pos` reads off `P` and the simulated view
     exchanged for the programmed table's (`progL`).  The error gains the
     exchanges and collisions of all `n` runs (`badS_runs_countP`). -/
@@ -637,7 +637,7 @@ theorem zk_squeezeN {T X C V : Type} {K F k n K4w ε : Nat} (hK : 0 < K) (hk : 0
     (nxtI : T → X → Nat → List Nat → Nat) (hnx : ∀ H x i l, nxtI H x i l < K)
     (hκ : ∀ H x i a l, κ (nxtI H x i (a :: l)) = κ a)
     (rv : List (List (Nat × Nat)) → T → X → (Nat → Nat) → V)
-    (pg : T → C → X → T) (pgH4 : Nat → T → C → X → Nat → Nat) (sv : Nat → T → C → X → Nat → V)
+    (pgJ : Nat → T → Nat → C → X → T × Nat) (sv : Nat → T → Nat → C → X → V)
     (pos : Nat → T → V → List Nat)
     (hpr : ∀ P H x g, pos P H (rv (runsN K (nxtI H x) k P n) H x g) =
       dedupL (sqOf (nxtI H x) (runsN K (nxtI H x) k P n)))
@@ -647,15 +647,15 @@ theorem zk_squeezeN {T X C V : Type} {K F k n K4w ε : Nat} (hK : 0 < K) (hk : 0
           (getAt (dedupL (sqOf (nxtI H x) (runsN K (nxtI H x) k P n)))
             ((dedupL (sqOf (nxtI H x) (runsN K (nxtI H x) k P n))).map (fun v => rget K v H4))))))))) ≤
       ST (fun H => SC (fun c => sm (fun x => sumTo (K ^ K) (fun P => indB (permB K P) * sumTo (K ^ K) (fun H4 =>
-        indB (D P (pgH4 P H c x H4) (pg H c x) (sv P H c x H4))))))) + ε)
+        indB (D P (pgJ P H H4 c x).2 (pgJ P H H4 c x).1 (sv P H H4 c x))))))) + ε)
     (E : Nat → T → V → Bool) :
     (K - n * k) * (K4w * (K ^ K * ST (fun H => sm (fun x => sumTo (K ^ K) (fun P => indB (permB K P &&
         E P H (rv (runsN K (nxtI H x) k P n) H x
           (getAt (dedupL (sqOf (nxtI H x) (runsN K (nxtI H x) k P n)))
             ((dedupL (sqOf (nxtI H x) (runsN K (nxtI H x) k P n))).map (fun v => rget K v P)))))))))) ≤
       (K - n * k) * (ST (fun H => SC (fun c => sm (fun x => sumTo (K ^ K) (fun P => indB (permB K P) *
-        sumTo (K ^ K) (fun H4 => indB (E (progL K (pos P (pg H c x) (sv P H c x H4)) (pgH4 P H c x H4) P)
-          (pg H c x) (sv P H c x H4))))))) + ε) +
+        sumTo (K ^ K) (fun H4 => indB (E (progL K (pos P (pgJ P H H4 c x).1 (sv P H H4 c x)) (pgJ P H H4 c x).2 P)
+          (pgJ P H H4 c x).1 (sv P H H4 c x))))))) + ε) +
       K4w * (K ^ (K - 1) * (ST (fun _ => sm (fun _ => 1)) *
         (((K - n * k) * (n * (n * k + n)) + K * n * ((sumTo (n * k) (fun j => j) + n * k * n) * F)) *
           sumTo (K ^ K) (fun P => indB (permB K P))))) := by
@@ -724,6 +724,67 @@ theorem zk_squeezeN {T X C V : Type} {K F k n K4w ε : Nat} (hK : 0 < K) (hk : 0
           Nat.mul_left_comm K4w (K - n * k), Nat.mul_assoc (K ^ (K - 1)), Nat.mul_comm ErrN]
     _ ≤ _ := Nat.add_le_add_right (Nat.mul_le_mul_left _ h) _
 
+/-- A count commuting with finite sums takes a weighted double sum out. -/
+theorem lin_swap2 {Y : Type} (S : (Y → Nat) → Nat) (hS : Lin S) (N M : Nat) (a : Nat → Nat) (g : Nat → Nat → Y → Nat) :
+    S (fun y => sumTo N (fun P => a P * sumTo M (fun Q => g P Q y))) =
+      sumTo N (fun P => a P * sumTo M (fun Q => S (g P Q))) := by
+  rw [hS N (fun P y => a P * sumTo M (fun Q => g P Q y))]
+  refine sumTo_congr _ (fun P _ => ?_)
+  rw [smK S hS, hS M (fun Q y => g P Q y)]
+
+/-- **A composite's `ZKBT` gives `zk_squeezeN`'s hypothesis.**  The
+    composite's tables are a permutation `P` and tables `join H H4`, counted
+    by `ST` over `H` and uniformly over `H4`; its real view at
+    `join H H4` is `RV P H x H4`, and its programming and simulated view at
+    `join H H4` are `pgJ`'s and `SV`'s.  Then the bound holds with the counts
+    in `zk_squeezeN`'s order, for every distinguisher reading `P`, `H4` and
+    `H` apart (`split` undoes `join`). -/
+theorem hypN_of_zkbT {T X C V TT : Type} {K K4w ε : Nat} (ST : (T → Nat) → Nat) (hST : Lin ST)
+    (sm : (X → Nat) → Nat) (hsm : Lin sm) (SC : (C → Nat) → Nat) (hSC : Lin SC)
+    (join : T → Nat → TT) (split : TT → T × Nat) (hsplit : ∀ H H4, split (join H H4) = (H, H4))
+    (rvC : Nat × TT → X → V) (pgC : Nat × TT → C → X → Nat × TT) (svC : Nat × TT → C → X → V)
+    (h : ZKBT (fun f : Nat × TT → Nat => sumTo (K ^ K) (fun P => indB (permB K P) *
+      sumTo (K ^ K) (fun H4 => ST (fun H => f (P, join H H4))))) K4w sm SC rvC pgC svC ε)
+    (RV : Nat → T → X → Nat → V) (pgJ : Nat → T → Nat → C → X → T × Nat) (SV : Nat → T → Nat → C → X → V)
+    (hrv : ∀ P H H4 x, rvC (P, join H H4) x = RV P H x H4)
+    (hpg : ∀ P H H4 c x, pgC (P, join H H4) c x = (P, join (pgJ P H H4 c x).1 (pgJ P H H4 c x).2))
+    (hsv : ∀ P H H4 c x, svC (P, join H H4) c x = SV P H H4 c x)
+    (D : Nat → Nat → T → V → Bool) :
+    K4w * ST (fun H => sm (fun x => sumTo (K ^ K) (fun P => indB (permB K P) * sumTo (K ^ K) (fun H4 =>
+      indB (D P H4 H (RV P H x H4)))))) ≤
+    ST (fun H => SC (fun c => sm (fun x => sumTo (K ^ K) (fun P => indB (permB K P) * sumTo (K ^ K) (fun H4 =>
+      indB (D P (pgJ P H H4 c x).2 (pgJ P H H4 c x).1 (SV P H H4 c x))))))) + ε := by
+  have hE := h (fun PH v => D PH.1 (split PH.2).2 (split PH.2).1 v)
+  have e1 : ST (fun H => sm (fun x => sumTo (K ^ K) (fun P => indB (permB K P) * sumTo (K ^ K) (fun H4 =>
+      indB (D P H4 H (RV P H x H4)))))) =
+      sumTo (K ^ K) (fun P => indB (permB K P) * sumTo (K ^ K) (fun H4 => ST (fun H => sm (fun x =>
+        indB ((fun PH v => D PH.1 (split PH.2).2 (split PH.2).1 v) (P, join H H4) (rvC (P, join H H4) x)))))) := by
+    rw [← lin_swap2 ST hST]
+    refine congrArg ST (funext fun H => ?_)
+    rw [← lin_swap2 sm hsm]
+    refine congrArg sm (funext fun x => sumTo_congr _ (fun P _ => congrArg (indB (permB K P) * ·)
+      (sumTo_congr _ (fun H4 _ => ?_))))
+    show indB (D P H4 H (RV P H x H4)) = indB (D P (split (join H H4)).2 (split (join H H4)).1 (rvC (P, join H H4) x))
+    rw [hsplit, hrv]
+  have e2 : ST (fun H => SC (fun c => sm (fun x => sumTo (K ^ K) (fun P => indB (permB K P) * sumTo (K ^ K) (fun H4 =>
+      indB (D P (pgJ P H H4 c x).2 (pgJ P H H4 c x).1 (SV P H H4 c x))))))) =
+      sumTo (K ^ K) (fun P => indB (permB K P) * sumTo (K ^ K) (fun H4 => ST (fun H => SC (fun c => sm (fun x =>
+        indB ((fun PH v => D PH.1 (split PH.2).2 (split PH.2).1 v) (pgC (P, join H H4) c x)
+          (svC (P, join H H4) c x))))))) := by
+    rw [← lin_swap2 ST hST]
+    refine congrArg ST (funext fun H => ?_)
+    rw [← lin_swap2 SC hSC]
+    refine congrArg SC (funext fun c => ?_)
+    rw [← lin_swap2 sm hsm]
+    refine congrArg sm (funext fun x => sumTo_congr _ (fun P _ => congrArg (indB (permB K P) * ·)
+      (sumTo_congr _ (fun H4 _ => ?_))))
+    show indB (D P (pgJ P H H4 c x).2 (pgJ P H H4 c x).1 (SV P H H4 c x)) =
+      indB (D (pgC (P, join H H4) c x).1 (split (pgC (P, join H H4) c x).2).2 (split (pgC (P, join H H4) c x).2).1
+        (svC (P, join H H4) c x))
+    rw [hpg, hsv, hsplit]
+  rw [e1, e2]
+  exact hE
+
 /-- **`zk_squeezeN`'s hypotheses hold together, at 0.8's duplex**: `n`
     proofs, proof `i` from its own first position `p1 i` with its own
     blocks, `k > 0` absorptions and empty-buffer squeezes each; the view the
@@ -751,8 +812,8 @@ theorem zk_squeezeN_sat08 {R p Q SQ k n : Nat} (hR : 0 < R) (hp : 0 < p) (hQ : 0
     (κ08_count (Nat.mul_pos (Nat.pow_pos hp) hp)) (fun f => f ()) (fun _ _ => rfl) (fun f => f ()) (fun _ _ => rfl)
     (fun f => f ()) (fun _ _ => nxtI) (fun _ _ i => nxt08_lt (SQ := SQ) hR hp hQ (h1 i) (blk i))
     (fun _ _ i => nxt08_κ (SQ := SQ) (p1 := p1 i) hR hp hQ (blk i))
-    (fun c _ _ g => (sqOf nxtI c).map g) (fun H _ _ => H) (fun _ _ _ _ H4 => H4)
-    (fun P _ _ _ H4 => (sqOf nxtI (runsN K nxtI k P n)).map (getAt (ps P) ((ps P).map (fun v => rget K v H4))))
+    (fun c _ _ g => (sqOf nxtI c).map g) (fun _ H H4 _ _ => (H, H4))
+    (fun P _ H4 _ _ => (sqOf nxtI (runsN K nxtI k P n)).map (getAt (ps P) ((ps P).map (fun v => rget K v H4))))
     (fun P _ _ => ps P) (fun _ _ _ _ => rfl)
     (fun D => by rw [Nat.one_mul, Nat.add_zero]; exact Nat.le_refl _) E
 

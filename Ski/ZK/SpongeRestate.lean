@@ -146,6 +146,77 @@ theorem nxtBl_lt {K : Nat} {inner : Nat → Nat → Nat} (hin : ∀ s x, inner s
 theorem nxtBl_κ {inner : Nat → Nat → Nat} {κ : Nat → Nat} (hκin : ∀ s x, κ (inner s x) = κ s) (z : Nat)
     (bl : List Nat) (a : Nat) (l : List Nat) : κ (nxtBl inner z bl (a :: l)) = κ a := hκin _ _
 
+
+/-! ### Views of `n` proofs, componentwise -/
+
+/-- Component `i` of `n` draws of one type, or `d`. -/
+def xAt {Xt : Type} (d : Xt) : (n : Nat) → PowD (fun _ => Xt) n → Nat → Xt
+  | 0, _, _ => d
+  | n + 1, x, i => if i = n then x.1 else xAt d n x.2 i
+
+/-- **Views of `n` proofs agree when each component does.** -/
+theorem rvPowD_congr {T T' Xt : Type} {V : Nat → Type} (d : Xt) (rv : (i : Nat) → T → Xt → V i)
+    (rv' : (i : Nat) → T' → Xt → V i) (H : T) (H' : T') :
+    ∀ (n : Nat) (x : PowD (fun _ => Xt) n), (∀ i, i < n → rv i H (xAt d n x i) = rv' i H' (xAt d n x i)) →
+      rvPowD (X := fun _ => Xt) rv n H x = rvPowD (X := fun _ => Xt) rv' n H' x
+  | 0, _, _ => rfl
+  | n + 1, x, h => by
+    show (rv n H x.1, rvPowD (X := fun _ => Xt) rv n H x.2) = (rv' n H' x.1, rvPowD (X := fun _ => Xt) rv' n H' x.2)
+    have h0 := h n (Nat.lt_succ_self n)
+    rw [show xAt d (n + 1) x n = x.1 from if_pos rfl] at h0
+    rw [h0, rvPowD_congr d rv rv' H H' n x.2 (fun i hi => by
+      have := h i (Nat.lt_succ_of_lt hi)
+      rwa [show xAt d (n + 1) x i = xAt d n x.2 i from if_neg (Nat.ne_of_lt hi)] at this)]
+
+/-- **`read4T` agrees when the fourth challenge does**: equal first three
+    tables, an output that does not read the tables, and equal answers at
+    the two indexes. -/
+theorem read4T_congr {X O : Type} {K1 K2 K3 K4 : Nat} (m1 : X → Nat) (m2 : Nat → X → Nat) (m3 : Nat → Nat → X → Nat)
+    (q q' : Nat → Nat → Nat → X → Nat) (out out' : Nat × Nat × Nat × Nat → Nat → Nat → Nat → Nat → X → O)
+    (H H' : Nat × Nat × Nat × Nat) (x : X) (h1 : H.1 = H'.1) (h2 : H.2.1 = H'.2.1) (h3 : H.2.2.1 = H'.2.2.1)
+    (hout : out H = out' H')
+    (h4 : rget K4 (q (rget K1 (m1 x) H.1) (rget K2 (m2 (rget K1 (m1 x) H.1) x) H.2.1)
+        (rget K3 (m3 (rget K1 (m1 x) H.1) (rget K2 (m2 (rget K1 (m1 x) H.1) x) H.2.1) x) H.2.2.1) x) H.2.2.2 =
+      rget K4 (q' (rget K1 (m1 x) H.1) (rget K2 (m2 (rget K1 (m1 x) H.1) x) H.2.1)
+        (rget K3 (m3 (rget K1 (m1 x) H.1) (rget K2 (m2 (rget K1 (m1 x) H.1) x) H.2.1) x) H.2.2.1) x) H'.2.2.2) :
+    read4T K1 K2 K3 K4 m1 m2 m3 q out H x = read4T K1 K2 K3 K4 m1 m2 m3 q' out' H' x := by
+  unfold read4T
+  rw [← h1, ← h2, ← h3, ← h4, ← hout]
+
+/-- Proof `i`'s squeeze position read off the runs, newest first. -/
+def posOf (nxt : Nat → List Nat → Nat) (c : List (List (Nat × Nat))) (i : Nat) : Nat :=
+  (sqOf nxt c).getD (c.length - 1 - i) 0
+
+theorem posOf_runsN (K : Nat) (nxt : Nat → List Nat → Nat) (k P : Nat) :
+    ∀ n i, i < n → posOf nxt (runsN K nxt k P n) i = posT K (nxt i) P k
+  | 0, _, h => absurd h (Nat.not_lt_zero _)
+  | n + 1, i, h => by
+    unfold posOf
+    rw [runsN_length]
+    show (nxt (runsN K nxt k P n).length ((runAdp K (nxt n) P k).map Prod.snd) :: sqOf nxt (runsN K nxt k P n)).getD
+      (n + 1 - 1 - i) 0 = _
+    rcases Nat.lt_or_ge i n with hi | hi
+    · have e : n + 1 - 1 - i = (n - 1 - i) + 1 := by omega
+      rw [e]
+      show (sqOf nxt (runsN K nxt k P n)).getD (n - 1 - i) 0 = _
+      have := posOf_runsN K nxt k P n i hi
+      unfold posOf at this; rwa [runsN_length] at this
+    · have e1 : i = n := Nat.le_antisymm (Nat.le_of_lt_succ h) hi
+      subst e1
+      rw [show i + 1 - 1 - i = 0 by omega, runsN_length]; rfl
+
+theorem posT_mem_sqOf (K : Nat) (nxt : Nat → List Nat → Nat) (k P : Nat) :
+    ∀ n i, i < n → posT K (nxt i) P k ∈ sqOf nxt (runsN K nxt k P n)
+  | 0, _, h => absurd h (Nat.not_lt_zero _)
+  | n + 1, i, h => by
+    show posT K (nxt i) P k ∈ nxt (runsN K nxt k P n).length ((runAdp K (nxt n) P k).map Prod.snd) ::
+      sqOf nxt (runsN K nxt k P n)
+    rcases Nat.lt_or_ge i n with hi | hi
+    · exact List.mem_cons_of_mem _ (posT_mem_sqOf K nxt k P n i hi)
+    · have e1 : i = n := Nat.le_antisymm (Nat.le_of_lt_succ h) hi
+      subst e1
+      rw [runsN_length]; exact List.mem_cons_self
+
 section
 open B Air Stmt Mach Sudoku SudokuText Compose CompM Wit
 
@@ -193,6 +264,212 @@ theorem sud_interleaveLGψ {V Wv P1 P2 P3 W1 W2 W3 : Type} {kr kq : Nat} (φ1 : 
       Com1 hc1 hp1 hr1 d1 Com2 hc2 hp2 hr2 d2 Com3 hc3 hp3 hr3 d3 (δsG Kp inner z pre0 blk G N X L t s0 δ0 P)
       (fun ix => (loadGψ_hsp inner z pre0 blk bf hG hN hn hbf hinj hX L t enc henc (Com1 ix) (hr1 ix) (hsp1 ix) hs0 P).1)
       (fun ix => (loadGψ_hsp inner z pre0 blk bf hG hN hn hbf hinj hX L t enc henc (Com1 ix) (hr1 ix) (hsp1 ix) hs0 P).2) isQ nxtQ n)
+
+end
+
+
+
+/-! ### Positions read off a view -/
+
+/-- `f (n-1), …, f 0`. -/
+def listN (f : Nat → Nat) : Nat → List Nat
+  | 0 => []
+  | n + 1 => f n :: listN f n
+
+theorem listN_congr {f f' : Nat → Nat} : ∀ n, (∀ i, i < n → f i = f' i) → listN f n = listN f' n
+  | 0, _ => rfl
+  | n + 1, h => by
+    show f n :: listN f n = f' n :: listN f' n
+    rw [h n (Nat.lt_succ_self n), listN_congr n (fun i hi => h i (Nat.lt_succ_of_lt hi))]
+
+theorem sqOf_runsN (K : Nat) (nxt : Nat → List Nat → Nat) (k P : Nat) :
+    ∀ n, sqOf nxt (runsN K nxt k P n) = listN (fun i => posT K (nxt i) P k) n
+  | 0 => rfl
+  | n + 1 => by
+    show nxt (runsN K nxt k P n).length ((runAdp K (nxt n) P k).map Prod.snd) :: sqOf nxt (runsN K nxt k P n) =
+      posT K (nxt n) P k :: listN (fun i => posT K (nxt i) P k) n
+    rw [runsN_length, sqOf_runsN K nxt k P n]; rfl
+
+/-- The fourth indexes a distinguisher computes from `n` proofs' views, the
+    index of proof `i` from its third message `idx i m3`. -/
+def posV {O : Type} (idx : Nat → Nat → Nat) : (n : Nat) → PowD (fun _ => Option (Nat × Nat × Nat × O) × List Nat) n → List Nat
+  | 0, _ => []
+  | n + 1, v => (match v.1.1 with | some y => idx n y.2.2.1 | none => 0) :: posV idx n v.2
+
+theorem posV_rvPowD {T Xt O : Type} (d : Xt) (idx : Nat → Nat → Nat)
+    (rv : (i : Nat) → T → Xt → Option (Nat × Nat × Nat × O) × List Nat) (H : T) :
+    ∀ n (x : PowD (fun _ => Xt) n),
+      posV idx n (rvPowD (X := fun _ => Xt) rv n H x) =
+        listN (fun i => match (rv i H (xAt d n x i)).1 with | some y => idx i y.2.2.1 | none => 0) n
+  | 0, _ => rfl
+  | n + 1, x => by
+    show (match (rv n H x.1).1 with | some y => idx n y.2.2.1 | none => 0) ::
+        posV idx n (rvPowD (X := fun _ => Xt) rv n H x.2) = _ :: _
+    rw [posV_rvPowD d idx rv H n x.2]
+    congr 1
+    · show _ = (match (rv n H (xAt d (n + 1) x n)).1 with | some y => idx n y.2.2.1 | none => 0)
+      rw [show xAt d (n + 1) x n = x.1 from if_pos rfl]
+    · exact listN_congr n (fun i hi => by rw [show xAt d (n + 1) x i = xAt d n x.2 i from if_neg (Nat.ne_of_lt hi)])
+
+/-! ### The restated composite's view reads `H4` only at the squeeze positions -/
+
+section
+open B Air Stmt Mach Sudoku SudokuText Compose CompM Wit
+
+/-- The draw type of one Sudoku proof. -/
+abbrev XSud : Type := Nat × Nat × Nat × (Nat → Tup)
+
+/-- The type the fourth index's transcript argument ranges over. -/
+abbrev WSud : Type := Option (List (List (List EF)) × List (List (List (List EF))) × List (List (List EF)))
+
+/-- A default draw. -/
+def xSud0 : XSud := (0, 0, 0, fun _ => Tup.dec 0)
+
+variable {V Wv P1 P2 P3 W1 W2 W3 : Type} (off : EF → String → EF) (puzzle : Nat → List Nat) (A : Nat → List Cell)
+  (k : Nat → Nat) (row : Nat → Nat → Air.Row) (tP : Nat → Nat) (S16 S10 SP : Nat → Nat → List F)
+  (qv : Nat → EF → EF → List EF → F → List F → List F → List EF) (wm wc ww wp : Nat → Nat → List (EF → EF → List F))
+  (K2 Kp : Nat) (ncw : Nat → Nat) (αd : Nat → Nat → EF) (B4 : Nat → Nat) (fri : Nat → Nat → EF → EF → List (EF → EF) → V)
+  (NR2 : Nat → Nat) (Rb : Nat → Nat → EF → EF → Nat → List (EF → EF)) (Ro : Nat → Nat → EF → EF → Nat → Wv)
+  (NS1 NS2 NS3 : Nat → Nat) (n1 n2 n3 : Nat) (Com1 : Nat → List (List (List F)) → Nat → Nat)
+  (Com2 : Nat → List (List (List F)) → Nat → Nat) (Com3 : Nat → List (List (List (List F))) × List (List (List F)) → Nat → Nat)
+  (φ1 : Nat → Nat → W1 → Nat) (nx1 : Nat → Nat → Nat → List Nat → Nat × Nat × W1)
+  (G1 : Nat → Nat → Nat → List (List (List F)) → Nat → List Nat → P1) (φ2 : Nat → Nat → W2 → Nat)
+  (nx2 : Nat → Nat → Nat → List Nat → Nat × Nat × W2) (G2 : Nat → Nat → Nat → List (List (List F)) → Nat → List Nat → P2)
+  (φ3 : Nat → Nat → W3 → Nat) (nx3 : Nat → Nat → Nat → List Nat → Nat × Nat × W3)
+  (G3 : Nat → Nat → Nat → List (List (List (List F))) × List (List (List F)) → Nat → List Nat → P3)
+  (inner : Nat → Nat → Nat) (z : Nat) (pre0 : List Nat) (blk bf : Nat → Nat) (G L : Nat) (encC : Nat → List Nat)
+
+/-- Proof `i`'s third message, from the first three tables and the draws;
+    no table-reading openings (`kr = 0`), the fourth table a full state. -/
+def sudM3At (n : Nat) (H : Nat × Nat × Nat) (x : PowD (fun _ => XSud) n) (i : Nat) : Nat :=
+  (sudD off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp (fun _ _ _ => 0) Kp ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3
+    n1 n2 n3 Com1 Com2 Com3 0 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3 i).m3
+    (rget (Q4 * Q4) ((sudD off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp (fun _ _ _ => 0) Kp ncw αd B4 fri NR2 Rb Ro
+      NS1 NS2 NS3 n1 n2 n3 Com1 Com2 Com3 0 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3 i).m1 (xAt xSud0 n x i)) H.1)
+    (rget K2 ((sudD off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp (fun _ _ _ => 0) Kp ncw αd B4 fri NR2 Rb Ro
+      NS1 NS2 NS3 n1 n2 n3 Com1 Com2 Com3 0 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3 i).m2
+      (rget (Q4 * Q4) ((sudD off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp (fun _ _ _ => 0) Kp ncw αd B4 fri NR2 Rb
+        Ro NS1 NS2 NS3 n1 n2 n3 Com1 Com2 Com3 0 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3 i).m1 (xAt xSud0 n x i)) H.1)
+      (xAt xSud0 n x i)) H.2.1)
+    (xAt xSud0 n x i)
+
+/-- Proof `i`'s sponge run: the prefix, its third message's blocks, the
+    encoding of the commitments alone. -/
+def sudNxtI (n : Nat) (H : Nat × Nat × Nat) (x : PowD (fun _ => XSud) n) (i : Nat) : List Nat → Nat :=
+  nxtBl inner z (blocksG pre0 blk bf G n1 (fun r (_ : WSud) => encC r)
+    (sudM3At off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 Com2
+      Com3 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3 n H x i) none)
+
+/-- **The restated view**: the composite's view with each proof's fourth
+    index its run's squeeze position and the fourth table answering `g`. -/
+def sudRvS (n : Nat) (c : List (List (Nat × Nat))) (H : Nat × Nat × Nat) (x : PowD (fun _ => XSud) n) (g : Nat → Nat) :=
+  rvPowD (X := fun _ => XSud) (mixRv (Q4 * Q4) K2 Q4 Kp 0 (fun _ => false) (fun _ _ => (0, 0, ()))
+    (fun i => read4T (Q4 * Q4) K2 Q4 Kp
+      (sudD off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp
+        (fun ix _ _ => posOf (sudNxtI off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp ncw αd B4 fri NR2 Rb Ro NS1
+          NS2 NS3 n1 n2 n3 Com1 Com2 Com3 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3 inner z pre0 blk bf G encC n H x) c ix)
+        Kp ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 Com2 Com3 0 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3 i).m1
+      (sudD off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp (fun _ _ _ => 0) Kp ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3
+        n1 n2 n3 Com1 Com2 Com3 0 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3 i).m2
+      (sudD off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp (fun _ _ _ => 0) Kp ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3
+        n1 n2 n3 Com1 Com2 Com3 0 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3 i).m3
+      (sudD off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp
+        (fun ix _ _ => posOf (sudNxtI off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp ncw αd B4 fri NR2 Rb Ro NS1
+          NS2 NS3 n1 n2 n3 Com1 Com2 Com3 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3 inner z pre0 blk bf G encC n H x) c ix)
+        Kp ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 Com2 Com3 0 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3 i).q
+      (sudD off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp (fun _ _ _ => 0) Kp ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3
+        n1 n2 n3 Com1 Com2 Com3 0 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3 i).out))
+    n (H.1, H.2.1, H.2.2, tab Kp g Kp) x
+
+theorem getAt_lt {K : Nat} (hK : 0 < K) : ∀ (ps as : List Nat), (∀ a ∈ as, a < K) → ∀ v, getAt ps as v < K
+  | [], _, _, _ => hK
+  | _ :: _, [], _, _ => hK
+  | p :: ps, a :: as, h, v => by
+    show (if v = p then a else getAt ps as v) < K
+    split
+    · exact h a List.mem_cons_self
+    · exact getAt_lt hK ps as (fun b hb => h b (List.mem_cons_of_mem _ hb)) v
+
+/-- **The composite's view reads the permutation only through the runs and
+    `H4` only at their squeeze positions**: with no query phases, no
+    table-reading openings, the fourth table a full state and an encoding
+    of the commitments alone, the view at `(P, H, H4)` is `sudRvS` at the
+    runs and the lookup of `H4` at the distinct squeeze positions. -/
+theorem sud_rv_local (hKp : 0 < Kp) (hin : ∀ s x, inner s x < Kp) (n P : Nat) (H : Nat × Nat × Nat) (H4 : Nat)
+    (x : PowD (fun _ => XSud) n) :
+    rvPowD (X := fun _ => XSud) (mixRv (Q4 * Q4) K2 Q4 Kp 0 (fun _ => false) (fun _ _ => (0, 0, ()))
+      (fun i => read4T (Q4 * Q4) K2 Q4 Kp
+        ((sudD off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp
+          (loadψG Kp inner z pre0 blk bf G n1 L (fun r (_ : WSud) => encC r) P) Kp ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3
+          n1 n2 n3 Com1 Com2 Com3 0 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3) i).m1
+        ((sudD off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp
+          (loadψG Kp inner z pre0 blk bf G n1 L (fun r (_ : WSud) => encC r) P) Kp ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3
+          n1 n2 n3 Com1 Com2 Com3 0 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3) i).m2
+        ((sudD off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp
+          (loadψG Kp inner z pre0 blk bf G n1 L (fun r (_ : WSud) => encC r) P) Kp ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3
+          n1 n2 n3 Com1 Com2 Com3 0 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3) i).m3
+        ((sudD off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp
+          (loadψG Kp inner z pre0 blk bf G n1 L (fun r (_ : WSud) => encC r) P) Kp ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3
+          n1 n2 n3 Com1 Com2 Com3 0 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3) i).q
+        ((sudD off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp
+          (loadψG Kp inner z pre0 blk bf G n1 L (fun r (_ : WSud) => encC r) P) Kp ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3
+          n1 n2 n3 Com1 Com2 Com3 0 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3) i).out))
+      n (H.1, H.2.1, H.2.2, H4) x =
+    sudRvS off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 Com2 Com3
+      φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3 inner z pre0 blk bf G encC n
+      (runsN Kp (sudNxtI off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3
+        Com1 Com2 Com3 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3 inner z pre0 blk bf G encC n H x) (pre0.length + 1 + L) P n) H x
+      (getAt (dedupL (sqOf (sudNxtI off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3
+          n1 n2 n3 Com1 Com2 Com3 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3 inner z pre0 blk bf G encC n H x)
+          (runsN Kp (sudNxtI off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2
+            n3 Com1 Com2 Com3 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3 inner z pre0 blk bf G encC n H x) (pre0.length + 1 + L) P n)))
+        ((dedupL (sqOf (sudNxtI off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3
+          n1 n2 n3 Com1 Com2 Com3 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3 inner z pre0 blk bf G encC n H x)
+          (runsN Kp (sudNxtI off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2
+            n3 Com1 Com2 Com3 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3 inner z pre0 blk bf G encC n H x) (pre0.length + 1 + L) P n))).map
+          (fun v => rget Kp v H4))) := by
+  let nx := sudNxtI off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3
+    Com1 Com2 Com3 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3 inner z pre0 blk bf G encC n H x
+  let kk := pre0.length + 1 + L
+  let ps := dedupL (sqOf nx (runsN Kp nx kk P n))
+  let g := getAt ps (ps.map (fun v => rget Kp v H4))
+  refine rvPowD_congr xSud0 _ _ _ _ n x (fun i hi => ?_)
+  refine congrArg (fun y => (some y, ([] : List Nat))) ?_
+  refine read4T_congr _ _ _ _ _ _ _ _ _ _ rfl rfl rfl rfl ?_
+  -- the index is proof `i`'s squeeze position
+  have hq : loadψG Kp inner z pre0 blk bf G n1 L (fun r (_ : WSud) => encC r) P i
+      (sudM3At off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 Com2
+        Com3 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3 n H x i) none = posT Kp (nx i) P kk :=
+    loadψG_posT Kp inner z pre0 blk bf G n1 L _ P i _ none
+  have hpos : posOf nx (runsN Kp nx kk P n) i = posT Kp (nx i) P kk := posOf_runsN Kp nx kk P n i hi
+  have hmem : posT Kp (nx i) P kk ∈ ps := (mem_dedupL _).2 (posT_mem_sqOf Kp nx kk P n i hi)
+  have hlt : posT Kp (nx i) P kk < Kp := hin _ _
+  have hg : ∀ m, m < Kp → g m < Kp := fun m _ => getAt_lt hKp ps _ (fun a ha => by
+    obtain ⟨v, _, e⟩ := List.mem_map.1 ha; rw [← e]; exact rget_lt hKp _ _) m
+  show rget Kp (loadψG Kp inner z pre0 blk bf G n1 L (fun r (_ : WSud) => encC r) P i
+      (sudM3At off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 Com2
+        Com3 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3 n H x i) none) H4 =
+    rget Kp (posOf nx (runsN Kp nx kk P n) i) (tab Kp g Kp)
+  rw [hq, hpos, rget_tab hKp Kp g hg _ hlt]
+  exact (getAt_map (fun v => rget Kp v H4) ps hmem).symm
+
+
+/-- **The distinguisher finds the squeeze positions from the restated
+    view**: each proof's third message is in its view, and its run is the
+    chain over that message's blocks under `P`. -/
+theorem sud_hpr (n P : Nat) (H : Nat × Nat × Nat) (x : PowD (fun _ => XSud) n) (c : List (List (Nat × Nat)))
+    (g : Nat → Nat) :
+    dedupL (posV (fun i m => loadψG Kp inner z pre0 blk bf G n1 L (fun r (_ : WSud) => encC r) P i m none) n
+      (sudRvS off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 Com2
+        Com3 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3 inner z pre0 blk bf G encC n c H x g)) =
+    dedupL (sqOf (sudNxtI off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3
+        Com1 Com2 Com3 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3 inner z pre0 blk bf G encC n H x)
+      (runsN Kp (sudNxtI off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 Kp ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3
+        Com1 Com2 Com3 φ1 nx1 G1 φ2 nx2 G2 φ3 nx3 G3 inner z pre0 blk bf G encC n H x) (pre0.length + 1 + L) P n)) := by
+  congr 1
+  unfold sudRvS
+  rw [posV_rvPowD xSud0, sqOf_runsN]
+  exact listN_congr n (fun i _ => loadψG_posT Kp inner z pre0 blk bf G n1 L _ P i _ none)
 
 end
 
