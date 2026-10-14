@@ -381,15 +381,19 @@ and its claim table moves to the docs, where `release/README.md` already holds i
     run with uniform states, last first, each later position recomputed on the
     programmed table, at `Σ_j badAt (times j) / (K · #perms)`; `badAt_bound08`
     bounds each term at 0.8. Next, in order:
-    1. A readback lemma: the run on the programmed table reads state `j` at
-       squeeze `j`, at the cost of the states' collisions (about `m² / K`) and
-       their freshness on the programmed tables.
-    2. One proof, all four challenges from one duplex run: the four `H`-tables'
-       entries at one proof's prefixes are independent and uniform, and each
-       challenge is a projection of a squeezed state (uniform, `p^8 | p^16`).
-       0.8 pops several challenges from one squeezed state (the lookup phase
-       draws `9 > RATE`), so map each challenge to its squeeze and its slice of
-       the state; restate `sud_fs4T` with the challenges read from the run.
+    1. Readback: done (`readback_seq`, at the same `badSeq`; the states'
+       collisions fall in `badAt`), with the reverse inequality
+       (`squeeze_swap_rev`, `squeeze_seq_rev`).
+    2. The transfer: done generically (`zk_duplex`, at twice `badSeq`;
+       `zk_duplex_sat08` only in a degenerate instance). Its `hprog` asks the
+       distinguisher to rebuild the programmed table from the view on the
+       readback pairs; discharging it needs the view to fix the run along the
+       runs the programming visits, the intermediate tables' readback charged
+       to `badAt`. Left for one proof: put `sud_fs4T` in its form. The four `H`-tables' entries at one proof's prefixes are
+       independent and uniform; each challenge is a slice of a squeezed state
+       (uniform, `p^8 | p^16`), several from one state since 0.8 pops them from
+       one buffer (the lookup phase draws `9 > RATE`), so map each challenge to
+       its squeeze and slice and sum the `H`-tables down to the states.
     3. `n` proofs: shared tables need the squeeze positions injective in the
        transcript prefixes; two prefixes at one position is a sponge
        collision, bounded as in `SpongeIndex`. A sequential `squeeze_tableN`,

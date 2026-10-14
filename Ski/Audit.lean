@@ -1489,7 +1489,9 @@ open Ski.Audit
 
 -- Squeezes inside a duplex run traded for independent states, the last first (SpongeDuplex)
 #audit_clean Circuit.progSeqN_congr Circuit.badSeq_eq Circuit.rget_add_high Circuit.rget_add_top Circuit.squeeze_seq
-  Circuit.badAt_bound Circuit.badAt_bound08
+  Circuit.badAt_bound Circuit.badAt_bound08 Circuit.swapV_comm Circuit.vswap_comm Circuit.squeeze_swap_rev
+  Circuit.runAdp_getD Circuit.WCr_runAdp Circuit.badAt_comm Circuit.squeeze_seq_rev Circuit.WofR_lt Circuit.rget_WofR
+  Circuit.readback_seq Circuit.WofR_eq Circuit.lin_add2 Circuit.zk_duplex Circuit.zk_duplex_sat08
 
 -- A picked statement's bad events, bounded at every table, cost one statement's (AdaptDraws)
 #audit_clean Circuit.zkbT_adaptive_tbl Circuit.zkbT_adaptive_draws
