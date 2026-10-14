@@ -1502,7 +1502,7 @@ open Ski.Audit
   Circuit.digit_lt Circuit.mod_digit Circuit.cW4_Wof4 Circuit.sum_W4c Circuit.hypW_of_hypC Circuit.zk_duplex4
   Circuit.lt_mix Circuit.sD1_out Circuit.sD1_sv Circuit.sD1_svp Circuit.sD1_q Circuit.sD1_pts4 Circuit.sD1_out_rvFS
   Circuit.sD1_ranges Circuit.consW_at Circuit.nxtD_cons Circuit.sumTo_lt_pos Circuit.timesD_mono Circuit.sud_duplex1
-  Circuit.Q4_eq Circuit.sud_duplex1_sat08
+  Circuit.Q4_eq Circuit.sud_duplex1_sat08 Circuit.nxtD_κ
 
 -- A picked statement's bad events, bounded at every table, cost one statement's (AdaptDraws)
 #audit_clean Circuit.zkbT_adaptive_tbl Circuit.zkbT_adaptive_draws

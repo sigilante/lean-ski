@@ -390,11 +390,11 @@ and its claim table moves to the docs, where `release/README.md` already holds i
        answers consistent with the drawn states, the intermediate stages'
        readback at `Σ_{j<m} K^(m-j) badSeq j`). One proof: done
        (`sud_duplex1`, through `hypC_of_read4T`, `hypW_of_hypC`, `zk_duplex4`;
-       openings reading no table, each challenge one squeeze's low part). The four `H`-tables' entries at one proof's prefixes are
-       independent and uniform; each challenge is a slice of a squeezed state
-       (uniform, `p^8 | p^16`), several from one state since 0.8 pops them from
-       one buffer (the lookup phase draws `9 > RATE`), so map each challenge to
-       its squeeze and slice and sum the `H`-tables down to the states.
+       openings reading no table; each challenge one squeeze's low part, the
+       run's terms bounded through `nxtD_κ`). At 0.8 the first and third
+       challenges fit one squeeze; the second (the lookup phase draws
+       `9 > RATE`) and the fourth (FRI's challenges and query indices over
+       several calls) need several squeezes per challenge, not yet modelled.
     3. `n` proofs: shared tables need the squeeze positions injective in the
        transcript prefixes; two prefixes at one position is a sponge
        collision, bounded as in `SpongeIndex`. A sequential `squeeze_tableN`,

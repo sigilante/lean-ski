@@ -14,12 +14,21 @@ messages at the real challenges, and its trace openings at `ζ` are the
 ones the run absorbs (`sudRvFS_oz`).  `sud_duplex1_sat08` meets the
 duplex's hypotheses at 0.8's sponge over the Sudoku field.
 
+The error's run terms are bounded by `badAt_bound`: with absorption keeping
+the capacity's tail, the duplex's next position keeps it (`nxtD_κ`).
+
 Limits.  One proof: the interleaved proofs share tables, which needs the
 squeeze positions injective in the transcript prefixes.  The openings read
-no table and the quotient chunks' and codewords' openings at `ζ` are not
-absorbed.  Each challenge is one squeeze's low part; 0.8 pops a phase's
-challenges from one state, which fits when a phase's challenges fit the
-rate.  The Sudoku run's hypotheses are left as `sud_fs4T` states them.
+no table.  Not absorbed before the fourth challenge: the quotient chunks'
+and codewords' openings at `ζ`, and FRI's layer roots, final polynomial and
+proof-of-work witness, which here depend on the fourth challenge.  Nothing
+ties the fourth phase's length `ℓ 3` to `enc4`'s: the theorem holds for
+every `ℓ`, and the faithful run takes `ℓ 3` the encoding's length.  Each
+challenge is one squeeze's low part, so its space must divide the state's:
+at 0.8 the first (`Q4²`, the whole rate) and the third (`Q4`) fit, while
+0.8's second phase draws more than the rate and its fourth draws FRI's
+challenges and query indices over several calls, so neither fits one
+squeeze.  The Sudoku run's hypotheses are left as `sud_fs4T` states them.
 -/
 
 set_option autoImplicit false
@@ -330,10 +339,14 @@ theorem Q4_eq : Q4 = P ^ 4 := by
   unfold Q4
   rw [Nat.pow_succ, Nat.pow_succ, Nat.pow_succ, Nat.pow_one]; ac_rfl
 
-/-- **`sud_duplex1`'s duplex hypotheses hold at 0.8's sponge over the
-    Sudoku field**: width 16, rate 8 (`K = p^8 · p · p^7`), the first and
-    third challenges' spaces `Q4²` and `Q4` dividing the state, the
-    absorption below `K`, and one-block phases. -/
+/-- **Some of `sud_duplex1`'s duplex hypotheses at 0.8's sponge over the
+    Sudoku field**: width 16, rate 8 (`K = p^8 · p · p^7`); the first and
+    third challenges' spaces `Q4²` and `Q4` divide the state; `K = K · 1`
+    serves the second and fourth only at `K2 = K4 = K`, a challenge the
+    whole state, capacity included, which no sponge outputs; the
+    absorption below `K`; one-block phases.  It does not instantiate
+    `sud_duplex1`, and leaves `enc4`, `ℓ 3` and `sud_fs4T`'s hypotheses
+    unwitnessed. -/
 theorem sud_duplex1_sat08 :
     let K := P ^ 8 * (P * P ^ 7)
     (K = Q4 * Q4 * P ^ 8) ∧ (K = Q4 * P ^ 12) ∧ (K = K * 1) ∧
@@ -347,5 +360,24 @@ theorem sud_duplex1_sat08 :
     fun _ => rfl⟩
   · rw [hK, Q4_eq, ← Nat.pow_add, ← Nat.pow_add]
   · rw [hK, Q4_eq, ← Nat.pow_add]
+
+/-- **The Sudoku duplex keeps the capacity's tail**: with absorption keeping
+    `κ`, each next position keeps `κ` of the answer before it, so
+    `badAt_bound` bounds every squeeze's cost in `sud_duplex1`'s error. -/
+theorem nxtD_κ {V Wv P1 P2 P3 : Type} (off : EF → String → EF) (puzzle : List Nat) (A : List Cell) (k : Nat)
+    (row : Nat → Air.Row) (tP : Nat) (S16 S10 SP : Nat → List F) (qv : EF → EF → List EF → F → List F → List F → List EF)
+    (wm wc ww wp : Nat → List (EF → EF → List F)) (K2 K4 : Nat) (ncw : Nat) (αd : Nat → EF) (B4 : Nat)
+    (fri : Nat → EF → EF → List (EF → EF) → V) (NR2 : Nat) (Rb : Nat → EF → EF → Nat → List (EF → EF))
+    (Ro : Nat → EF → EF → Nat → Wv) (NS1 NS2 NS3 n1 n2 n3 : Nat) (Com1 : List (List (List F)) → Nat → Nat)
+    (Pf1 : Nat → Nat → List (List (List F)) → Nat → P1) (Com2 : List (List (List F)) → Nat → Nat)
+    (Pf2 : Nat → Nat → List (List (List F)) → Nat → P2)
+    (Com3 : List (List (List (List F))) × List (List (List F)) → Nat → Nat)
+    (Pf3 : Nat → Nat → List (List (List (List F))) × List (List (List F)) → Nat → P3)
+    (hqr : Nat × Nat × Nat × Nat → Nat × Nat × Nat × Nat → Nat × Nat × Nat × (Nat → Tup) → Bool)
+    (inner : Nat → Nat → Nat) (z : Nat) (pre : List Nat) (enc1 enc2 enc3 : Nat → List Nat)
+    (enc4 : Option (List (List (List EF))) → List Nat) (ℓ : Nat → Nat) {κ : Nat → Nat}
+    (hκin : ∀ s x, κ (inner s x) = κ s) (x : XSud) (a : Nat) (l : List Nat) :
+    κ (nxtD off puzzle A k row tP S16 S10 SP qv wm wc ww wp K2 K4 ncw αd B4 fri NR2 Rb Ro NS1 NS2 NS3 n1 n2 n3 Com1 Pf1
+      Com2 Pf2 Com3 Pf3 hqr inner z pre enc1 enc2 enc3 enc4 ℓ x (a :: l)) = κ a := hκin _ _
 
 end Circuit
