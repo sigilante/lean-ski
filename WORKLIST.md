@@ -358,10 +358,10 @@ and its claim table moves to the docs, where `release/README.md` already holds i
   statement's bad events are bounded at every table. No circuit meets that condition,
   since LogUp's error depends on `α` and `β`, so `sud_adaptive` charges `S` candidate
   statements `S ε`.
-- Plonky3 0.8's duplex challenger, one premise left (2026-10-14). The sponge files'
-  premises now match 0.8 except that the fourth table `H4` is independent of the
+- Plonky3 0.8's duplex challenger, two premises left (2026-10-14). The sponge files'
+  premises now match 0.8 except two: the fourth table `H4` is independent of the
   permutation, where Plonky3 squeezes the challenge from it (programming an ideal
-  permutation). Met: `hpk2` with the capacity's first element dropped
+  permutation); and every step after the first commitment absorbs a block, where 0.8 permutes an empty buffer, a squeeze leaving the rate, when a phase draws more than `RATE` elements (the bench's lookup phase draws `1 + 4 + 4 = 9` at `GRIND_LOOKUP = 5`). Met: `hpk2` with the capacity's first element dropped
   (`SpongeAbsorb`); first positions revisited, no tags (`SpongeRoot`); the
   domain-separator prefix before the first commitment (`SpongePrefix`); the
   commitment split across two absorptions, seven elements buffered before it in

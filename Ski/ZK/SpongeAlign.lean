@@ -7,8 +7,9 @@ Plonky3 0.8's `observe` buffers elements and permutes at `RATE` of them.
 In the bench's Sudoku proof seven elements sit in the buffer when the
 8-element `MAIN_COMMITMENT` arrives (measured on `release/sudoku`), so
 the first permutation absorbs those seven and the commitment's first
-element, and the second the commitment's other seven and one public
-element.
+element, and the second the commitment's other seven and the next public
+element (the first public value, or the preprocessed commitment's first
+element; `p3-batch-stark` 0.8's `main_phase`, `preprocessed_phase`).
 
 - **Groups.** A commitment `c < n1 = G N0` splits as its group `c % G`,
   absorbed as the last block of the prefix `pre0 ++ [blk (c % G)]`, and
@@ -26,13 +27,17 @@ element.
   state (`align08_sat`).
 
 Size.  At width 16, rate 8, `F / K = 1 / p ^ 7`, `N = p ^ 8`, `G = p`,
-a 16-block prefix and blocks below `X = 9 p ^ 8`, optimizing `t` and
+an assumed prefix of 16 permutation calls (one call more moves the
+figures by under 0.1 bit) and blocks below `X = 9 p ^ 8`, optimizing `t` and
 `s0` makes `E[loadG]` about `2^77`, `2^80`, `2^83`, `2^93` for
 `L = 1, 3, 10, 100`, against `n1 = p ^ 8 ≈ 2^247` commitments.
 
 Limits: the fourth table `H4` stays independent of the permutation, which
-Plonky3 squeezes the challenge from; the seven buffered elements are read
-off one statement's proof, not derived from the transcript's shape.
+Plonky3 squeezes the challenge from; every step after the first commitment absorbs a block, where 0.8 permutes an empty buffer, a squeeze leaving the rate, when a phase draws more than `RATE` elements (the bench's lookup phase draws `1 + 4 + 4 = 9` at `GRIND_LOOKUP = 5`); the seven buffered elements
+are read off one statement's proof, not derived from the transcript's
+shape; and the public element after the commitment depends on the
+permutation when it is the preprocessed commitment's, unless its Merkle
+hashing uses a table of its own, the existing idealization.
 -/
 
 set_option autoImplicit false

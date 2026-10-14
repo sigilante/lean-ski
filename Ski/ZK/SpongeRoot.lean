@@ -37,9 +37,9 @@ about `2^44`, `2^47`, `2^51`, `2^61` for `L = 1, 3, 10, 100`, against
 
 Limits.  The state `iv` before the first commitment is fixed before the
 permutation, where batch-stark absorbs a domain separator first; the
-first commitment fills one block; and the fourth table `H4` stays
+first commitment fills one block; the fourth table `H4` stays
 independent of the permutation, which Plonky3 squeezes the challenge
-from.
+from; and every step after the first commitment absorbs a block, where 0.8 permutes an empty buffer, a squeeze leaving the rate, when a phase draws more than `RATE` elements (the bench's lookup phase draws `1 + 4 + 4 = 9` at `GRIND_LOOKUP = 5`).
 -/
 
 set_option autoImplicit false

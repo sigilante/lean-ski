@@ -32,7 +32,8 @@ run starts with that prefix.
   (`inner08_hd`, `inner08_hdx`).
 
 Limits: the first commitment fills the chains' first block (`SpongeAlign`
-splits it); the fourth table `H4` stays independent of the permutation.
+splits it); the fourth table `H4` stays independent of the permutation;
+and every step after the first commitment absorbs a block, where 0.8 permutes an empty buffer, a squeeze leaving the rate, when a phase draws more than `RATE` elements (the bench's lookup phase draws `1 + 4 + 4 = 9` at `GRIND_LOOKUP = 5`).
 -/
 
 set_option autoImplicit false
