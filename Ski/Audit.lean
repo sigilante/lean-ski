@@ -176,6 +176,7 @@ import Ski.ZK.SpongeTree
 import Ski.ZK.SpongeUnion
 import Ski.ZK.FriProof
 import Ski.ZK.SudEndToEnd
+import Ski.ZK.SpongeAbsorb
 import Ski.ZK.AdaptDraws
 import Ski.ZK.FSQueryAbsT
 import Ski.ZK.FSQueryPowT
@@ -1434,6 +1435,9 @@ open Ski.Audit
 
 -- Every hypothesis of a Merkle-committed Sudoku bound, met at once (SudEndToEnd)
 #audit_clean Circuit.comSalt_hides Circuit.comSalt_pf Circuit.comSalt_lt Circuit.sudBl_std Circuit.sudStd_merkle
+
+-- Plonky3 0.8's absorption meets SpongeUnion's sponge premises with the capacity's tail (SpongeAbsorb)
+#audit_clean Circuit.vals08_lt Circuit.inner08_div Circuit.inner08_hpk2 Circuit.inner08_lt Circuit.κ08_lt Circuit.κ08_count Circuit.inner08_hd Circuit.inner08_full_fails Circuit.absorb08_sat
 
 -- A picked statement's bad events, bounded at every table, cost one statement's (AdaptDraws)
 #audit_clean Circuit.zkbT_adaptive_tbl Circuit.zkbT_adaptive_draws
