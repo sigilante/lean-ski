@@ -382,9 +382,14 @@ and its claim table moves to the docs, where `release/README.md` already holds i
   stands. `SpongeProgramN` (`zk_squeezeN`) exchanges the `n` interleaved
   proofs' points of one shared `H4`, at a cost of
   `n (nk + n) / K + n (0 + ⋯ + (nk-1) + nk n) / (Q (1 - nk/K))` a table. Next:
-  apply `zk_squeezeN` to `sud_interleaveLG`, which needs `H4` kept apart from
-  the other tables, the challenge read at a full state through `getAt`, and
-  the chains written as `runAdp` runs; then the first three challenges.
+  apply `zk_squeezeN` to `sud_interleaveLG`. Done in `SpongeRestate`: `H4` read
+  at the squeeze position (`sud_interleaveLGψ`, `K4 = Kp` makes its answers
+  full states) and the chains as `runAdp` runs (`loadψG_posT`). Left: `H4`
+  taken out of the other tables' count, the view reading `H4` through
+  `getAt` (query phases off, `kr = 0`), and an encoding that absorbs the
+  commitments alone, since the composite's index absorbs opened values at the
+  fourth challenge `0`, which the view does not determine; then the first
+  three challenges.
 - Idealizations to state with the bounds: each Merkle commitment hashes its leaves
   under a private table, where the bench uses one Poseidon2 permutation for leaves,
   compression and the challenger; proof-of-work grinding reads its own table

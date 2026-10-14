@@ -183,6 +183,7 @@ import Ski.ZK.SpongeAlign
 import Ski.ZK.SpongeSqueeze
 import Ski.ZK.SpongeProgram
 import Ski.ZK.SpongeProgramN
+import Ski.ZK.SpongeRestate
 import Ski.ZK.AdaptDraws
 import Ski.ZK.FSQueryAbsT
 import Ski.ZK.FSQueryPowT
@@ -1471,6 +1472,10 @@ open Ski.Audit
   Circuit.runAdp_nxtC Circuit.mem_runAdp_nxtC Circuit.mem_runAdp_posT Circuit.posT_mem Circuit.firstsN_length
   Circuit.mem_firstsN Circuit.shift_colRV Circuit.hit_colRV Circuit.badS_runs_countP Circuit.getAt_map
   Circuit.zk_squeezeN Circuit.zk_squeezeN_sat08
+
+-- The Sudoku composite with the fourth table read at the squeeze position (SpongeRestate)
+#audit_clean Circuit.loadφG_eq Circuit.loadGψ_hsp Circuit.sud_interleaveLGψ Circuit.getD_app_left Circuit.getD_app_right
+  Circuit.chain1_app_left Circuit.chain1_app Circuit.posT_nxtBl Circuit.loadψG_posT Circuit.nxtBl_lt Circuit.nxtBl_κ
 
 -- A picked statement's bad events, bounded at every table, cost one statement's (AdaptDraws)
 #audit_clean Circuit.zkbT_adaptive_tbl Circuit.zkbT_adaptive_draws
