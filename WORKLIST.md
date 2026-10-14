@@ -368,6 +368,13 @@ and its claim table moves to the docs, where `release/README.md` already holds i
   the bench's Sudoku proof (`SpongeAlign`, `sud_interleaveLG`). The seven is
   measured on `release/sudoku`, not derived from the transcript's shape.
   `E[loadG]` is about `2^77` to `2^93` for `L = 1` to `100` against `n1 ≈ 2^247`.
+  The squeeze is not local to the sponge files: `hpk2` holds for it (0.8's absorption
+  keeps the capacity's tail), but a squeeze landing exactly on another chain's
+  first position goes unpaid, and the label argument can charge it only to a
+  near-collision with the prefix's last answer that may also pay a merge with the
+  prefix, which would halve the exponent. It needs a tail counting exact hits
+  apart from near-collisions and a reworked invariant. The indifferentiability
+  route for `H4` (PR #45) covers it with no further work.
 - Idealizations to state with the bounds: each Merkle commitment hashes its leaves
   under a private table, where the bench uses one Poseidon2 permutation for leaves,
   compression and the challenger; proof-of-work grinding reads its own table
