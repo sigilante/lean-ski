@@ -1434,7 +1434,7 @@ open Ski.Audit
 #audit_clean Circuit.sud_interleaveFRI Circuit.comPf_op
 
 -- Every hypothesis of a Merkle-committed Sudoku bound, met at once (SudEndToEnd)
-#audit_clean Circuit.comSalt_hides Circuit.comSalt_pf Circuit.comSalt_lt Circuit.sudBl_std Circuit.sudStd_merkle
+#audit_clean Circuit.comSalt_hides Circuit.comSalt_pf Circuit.comSalt_lt Circuit.sudBl_std Circuit.sudStd_merkle Circuit.sud_fs_open4ROMMC_fri_sat
 
 -- Plonky3 0.8's absorption meets SpongeUnion's sponge premises with the capacity's tail (SpongeAbsorb)
 #audit_clean Circuit.vals08_lt Circuit.inner08_div Circuit.inner08_hpk2 Circuit.inner08_lt Circuit.κ08_lt Circuit.κ08_count Circuit.inner08_hd Circuit.inner08_full_fails Circuit.absorb08_sat

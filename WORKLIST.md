@@ -362,15 +362,18 @@ and its claim table moves to the docs, where `release/README.md` already holds i
   interleaved and multi-proof bound rests on the full-transcript read-back `hdg`, on
   `hφsp` as a hypothesis (`sud_interleaveS`), or on `SpongeIndex` through `SpongeUnion`, whose premises an honest run fails: later blocks
   disjoint from every first commitment (`h0`, `hnz`), false for 8-element digests;
-  `hpk2`, false under 0.8's zero-filled, length-tagged absorption; a fixed state
+  `hpk2`, false under 0.8's zero-filled, length-tagged absorption for the full
+  capacity but met with its first element dropped (`SpongeAbsorb`); a fixed state
   before the first commitment, where batch-stark absorbs the domain-separator seed and the degree bits
   first; and a
-  fourth table independent of the permutation, which Plonky3 squeezes from. The
-  counts also range over all `n1` first commitments, about the capacity, where a
-  sponge argument needs only the commitments a run makes. Plan: absorption as 0.8
-  does it (lemmas), then the spread averaged over the run's commitments (a framework
-  change shared with FRI's averaged hiding), then the challenge squeezed from the
-  permutation (programming an ideal permutation).
+  fourth table independent of the permutation, which Plonky3 squeezes from; and a
+  first commitment filling one block, where 0.8's `observe` buffers. The counts are
+  not the obstacle: `SpongeLoad` through `SpongeUnion` bound one index's preimage by
+  about `95` to `2^29` at `n1 = p^8`. Next: drop `hcf`/`h0`/`hnz` and the fixed `iv`
+  by counting `iv`, and the domain separator's answers, as the run's first answers
+  in `SpongeUnion`'s label argument, so that a revisit of a first position would
+  count as a near query against them (unproved); then the challenge squeezed from the permutation
+  (programming an ideal permutation).
 - Idealizations to state with the bounds: each Merkle commitment hashes its leaves
   under a private table, where the bench uses one Poseidon2 permutation for leaves,
   compression and the challenger; proof-of-work grinding reads its own table

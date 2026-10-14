@@ -42,7 +42,8 @@ both `h0` and `hnz`.  `hpk2` asks equal permutation inputs to come from equal
 capacities; Plonky3 0.8's `duplexing` zero-fills the unused rate and adds
 the absorbed length to `state[RATE]`, so the 7-element block `y` from capacity
 `c + e₀` and the 8-element block `y ‖ 0` from `c` give one input
-(`hpk2_satPT` is the full-overwrite case).  The other limits are
+(`hpk2_satPT` is the full-overwrite case); with `κ` the capacity's
+elements after the first, 0.8's absorption meets `hpk2` (`SpongeAbsorb`).  The other limits are
 `SpongeLoad`'s.
 `sud_interleaveLUN` needs `maxHeartbeats 6000000`, and says nothing unless
 `Kp > t (L + 1)` and `s0 ≥ t`.

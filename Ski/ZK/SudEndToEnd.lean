@@ -21,9 +21,12 @@ the bound applies to every accepted Sudoku run.
   (`comSalt_hides`); an opening whose output is the opened values meets
   `ComPfHides` beside it (`comSalt_pf`); the commitment stays below `n`
   (`comSalt_lt`).
-- **The composite.** The `example` below applies `sud_fs_open4ROMMC_fri`
-  with all of these and the leaf hash, distinguisher strategy and event
-  left free.  It elaborates, so the hypotheses are jointly satisfiable.
+- **The composite.** `sud_fs_open4ROMMC_fri_sat` applies
+  `sud_fs_open4ROMMC_fri` with all of these, the leaf table's answers and
+  the leaf hash's values `8`-element digests (`KA = Mh = p ^ 8`), and the
+  leaf hash and distinguisher strategy left free; the event is fixed, as
+  it is no hypothesis.  It elaborates, so the hypotheses are jointly
+  satisfiable.
 - **The Merkle term.** At `L = 2 ^ 17`, one salt of four field elements
   (`NSl = p ^ 4`), `sQ = 1` and `kQ = 2 ^ 64` leaf-hash queries, the
   hiding term `L sQ (kQ + L) + 2 L² sQ` stays below `NSl / 2 ^ 42`
@@ -33,7 +36,9 @@ Limits.  The second and third commitments are salts: they hide and bind
 nothing, where Plonky3 commits by Merkle trees; their openings output the
 opened values alone, where Plonky3's carry Merkle paths and FRI's layers
 (`FriProof` states why Plonky3's FRI does not meet the hiding premise).
-So this shows the hypotheses consistent, not that Plonky3 meets them.  The
+One salt of four field elements per leaf stands in for Plonky3's
+per-matrix salts.  So this shows the hypotheses consistent, not that
+Plonky3 meets them.  The
 bound's other terms, the non-generic count `B4` and the PCS error at the
 run, are left as the theorem states them; no accepted run is built here,
 since the kernel cannot replay `2 ^ 16` rows without `native_decide`.
@@ -76,8 +81,9 @@ open B Air Stmt Mach Sudoku SudokuText Compose CompM Wit
 set_option maxRecDepth 100000 in
 /-- **`sud_fs_open4ROMMC_fri` applies to every accepted Sudoku run**: its
     hypotheses beyond the run's met together at log blowup `1`, `100`
-    queries and salt commitments in the second and third slots. -/
-example {V Wv Pq : Type} (off : EF → String → EF) {puzzle : List Nat} (hc : CluesOK (cluesOf puzzle))
+    queries, `8`-element leaf digests and salt commitments in the second
+    and third slots. -/
+theorem sud_fs_open4ROMMC_fri_sat {V Wv Pq : Type} (off : EF → String → EF) {puzzle : List Nat} (hc : CluesOK (cluesOf puzzle))
     {ρ : Nat → Bool} {A : List Cell} {k : Nat} {row : Nat → Air.Row}
     (hA : AcceptsFrom A (stmtMachine ρ 729 (sudokuExpr (cluesOf puzzle)) ACC REJ) k row)
     (hacc : rd A (row (k - 1)).ctr (row (k - 1)).hd = some (.atom ACC))
@@ -91,7 +97,7 @@ example {V Wv Pq : Type} (off : EF → String → EF) {puzzle : List Nat} (hc : 
     {N4 : Nat} (hφ : ∀ m w, φ m w < N4) (αd : Nat → EF)
     (fri : Nat → EF → EF → List (EF → EF) → V) (NR2 : Nat)
     (Rb : Nat → EF → EF → Nat → List (EF → EF)) (Ro : Nat → EF → EF → Nat → Wv)
-    {KA n2 n3 : Nat} (hKA : 0 < KA) (hn2 : 0 < n2) (hn3 : 0 < n3)
+    {n2 n3 : Nat} (hn2 : 0 < n2) (hn3 : 0 < n3)
     (h : List (List F) → Nat) (kQ : Nat)
     (g : List (List (List F)) → List Nat → Pq) (nxt : Pq → Nat → List Nat → Nat)
     (d1 : List (List (List F))) (d2 : List (List (List F)))
@@ -107,10 +113,12 @@ example {V Wv Pq : Type} (off : EF → String → EF) {puzzle : List Nat} (hc : 
   have _ := sud_fs_open4ROMMC_fri off hc hA hacc hlen hk htp (bl := bl) (sh := sh) (idx := idx) qv wm wc ww wp
     hlwm hlwc hlww hlwp hK2 hK4 φ hφ (fun c4 => c16.2 0 c4) (fun c4 => c10.2 4 c4) (fun c4 => cP.2 6 c4)
     αd (Nat.le_refl _) fri (Nat.le_refl 4) NR2 Rb Ro
-    (NSl := 2013265921 ^ 4) (L := 2 ^ (bl 0 + 1)) (KA := KA) (sQ := 1) (kQ := kQ)
-    (nQ := 2 ^ (bl 0 + 1) * (2013265921 ^ 4 * 1)) (KQ := KA ^ 2 ^ (bl 0 + 1)) (NS2 := n2) (NS3 := n3)
+    (NSl := 2013265921 ^ 4) (L := 2 ^ (bl 0 + 1)) (KA := 2013265921 ^ 8) (sQ := 1) (kQ := kQ)
+    (nQ := 2 ^ (bl 0 + 1) * (2013265921 ^ 4 * 2013265921 ^ 8)) (KQ := (2013265921 ^ 8) ^ 2 ^ (bl 0 + 1))
+    (NS2 := n2) (NS3 := n3)
     (n2 := n2) (n3 := n3)
-    hKA (by decide) rfl sudBl_std rfl rfl (Nat.sub_self _) c10.1 rfl (h := h) (Mh := 1) Nat.one_pos
+    (Nat.pow_pos (by decide)) (by decide) rfl sudBl_std rfl rfl (Nat.sub_self _) c10.1 rfl (h := h)
+    (Mh := 2013265921 ^ 8) (Nat.pow_pos (by decide))
     (Nat.le_refl _) (Nat.le_refl 1) g nxt d1
     (fun _ σ => σ % n2)
     (fun c4 d _ => opF ((sudGroups 14 ((friS bl sh idx 0) c4) ((friS bl sh idx 4) c4) ((friS bl sh idx 6) c4)
