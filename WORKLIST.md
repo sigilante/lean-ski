@@ -379,10 +379,12 @@ and its claim table moves to the docs, where `release/README.md` already holds i
   squeezed from the permutation and the simulator programming it, at a cost of
   `k / K + (0 + ⋯ + k) / (Q (1 - k/K))` a table. Its revisit bound covers
   squeezes, but its hypothesis still carries the spread, so the squeeze premise
-  stands. Next: apply `zk_squeeze` to `sud_interleaveLG`, which needs the
-  chains written as a `runAdp` run, `K4` the full state, and `n` programmed
-  points of one shared `H4` where `zk_squeeze` exchanges one; then the first
-  three challenges.
+  stands. `SpongeProgramN` (`zk_squeezeN`) exchanges the `n` interleaved
+  proofs' points of one shared `H4`, at a cost of
+  `n (nk + n) / K + n (0 + ⋯ + (nk-1) + nk n) / (Q (1 - nk/K))` a table. Next:
+  apply `zk_squeezeN` to `sud_interleaveLG`, which needs `H4` kept apart from
+  the other tables, the challenge read at a full state through `getAt`, and
+  the chains written as `runAdp` runs; then the first three challenges.
 - Idealizations to state with the bounds: each Merkle commitment hashes its leaves
   under a private table, where the bench uses one Poseidon2 permutation for leaves,
   compression and the challenger; proof-of-work grinding reads its own table

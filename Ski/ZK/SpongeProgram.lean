@@ -45,11 +45,12 @@ inverse included; no separate inverse queries arise.
 
 Not shown: `zk_squeeze` applied to a Sudoku composite, which needs the
 sponge files' chains written as a run of `runAdp`, the composite's fourth
-challenge read at a full state, `H4` kept apart from the other tables, and
-`n` programmed points of one shared `H4` where `zk_squeeze` exchanges one;
-the first three challenges squeezed from the permutation as well.  The hypothesis `hyp` still carries the
-index's spread, which `SpongeRoot` through `SpongeAlign` bound with
-absorptions only, so 0.8's empty-buffer squeeze stays open there.
+challenge read at a full state, and `H4` kept apart from the other tables;
+the first three challenges squeezed from the permutation as well.
+`SpongeProgramN` exchanges the `n` points of one shared `H4`.  The
+hypothesis `hyp` still carries the index's spread, which `SpongeRoot`
+through `SpongeAlign` bound with absorptions only, so 0.8's empty-buffer
+squeeze stays open there.
 -/
 
 set_option autoImplicit false
@@ -81,29 +82,33 @@ theorem indB_le_one (b : Bool) : indB b ≤ 1 := by cases b <;> decide
 theorem indB_split (b f g : Bool) : indB (b && f) ≤ indB (b && f && g) + indB (b && !g) := by
   cases b <;> cases f <;> cases g <;> decide
 
-/-- **A squeezed answer traded for an independent value.**  Over the
-    permutation tables, `K` times those where `f` holds at the table, its
-    context `ctx H` and its answer at the squeeze position `φ (ctx H)` is
-    at most the pairs `(w, H)` where `f` holds at the context, the table
-    with that answer and `w` exchanged, and `w`; plus the pairs `(H, u)`
-    where exchanging `u` with the squeezed answer changes the context. -/
-theorem squeeze_swap {α : Type} [DecidableEq α] {K : Nat} (hK : 0 < K) (ctx : Nat → α) (φ : α → Nat)
-    (hφ : ∀ c, φ c < K) (f : α → Nat → Nat → Bool) :
+/-- `indB_split` with the second term guarded by `g`, which `f` implies. -/
+theorem indB_splitG (b f g h : Bool) (hfg : f = true → g = true) :
+    indB (b && f) ≤ indB (b && f && h) + indB (b && g && !h) := by
+  cases f
+  · cases b <;> cases h <;> cases g <;> decide
+  · rw [hfg rfl]; cases b <;> cases h <;> decide
+
+/-- **`squeeze_swap` with the exchanges counted only where a guard holds**:
+    the guard `g` at the context, which `f` implies. -/
+theorem squeeze_swapG {α : Type} [DecidableEq α] {K : Nat} (hK : 0 < K) (ctx : Nat → α) (φ : α → Nat)
+    (hφ : ∀ c, φ c < K) (f : α → Nat → Nat → Bool) (g : α → Bool) (hg : ∀ c Q a, f c Q a = true → g c = true) :
     K * sumTo (K ^ K) (fun H => indB (permB K H && f (ctx H) H (rget K (φ (ctx H)) H))) ≤
       sumTo K (fun w => sumTo (K ^ K) (fun H =>
         indB (permB K H && f (ctx H) (vswap K (rget K (φ (ctx H)) H) w H) w))) +
       sumTo (K ^ K) (fun H => sumTo K (fun u =>
-        indB (permB K H && !decide (ctx (vswap K u (rget K (φ (ctx H)) H) H) = ctx H)))) := by
+        indB (permB K H && g (ctx H) && !decide (ctx (vswap K u (rget K (φ (ctx H)) H) H) = ctx H)))) := by
   -- the exchanges that keep the context
   let T := fun (H u a : Nat) => indB (decide (rget K (φ (ctx H)) H = a) &&
     (permB K H && f (ctx H) H a && decide (ctx (vswap K u a H) = ctx H)))
   have step1 : ∀ H, K * indB (permB K H && f (ctx H) H (rget K (φ (ctx H)) H)) ≤
       sumTo K (fun u => sumTo K (fun a => T H u a)) +
-        sumTo K (fun u => indB (permB K H && !decide (ctx (vswap K u (rget K (φ (ctx H)) H) H) = ctx H))) := fun H => by
+        sumTo K (fun u => indB (permB K H && g (ctx H) &&
+          !decide (ctx (vswap K u (rget K (φ (ctx H)) H) H) = ctx H))) := fun H => by
     rw [← sumTo_const, ← sumTo_add]
     refine sumTo_mono _ (fun u _ => ?_)
     rw [sumTo_pick (fun a => permB K H && f (ctx H) H a && decide (ctx (vswap K u a H) = ctx H)) K (rget_lt hK _ _)]
-    exact indB_split _ _ _
+    exact indB_splitG _ _ _ _ (hg _ _ _)
   -- exchanging `u` with `a` sends a kept table to one whose squeezed answer is `u`
   have step2 : ∀ u a, u < K → a < K → sumTo (K ^ K) (fun H => T H u a) ≤
       sumTo (K ^ K) (fun H => indB (decide (rget K (φ (ctx H)) H = u) &&
@@ -143,6 +148,23 @@ theorem squeeze_swap {α : Type} [DecidableEq α] {K : Nat} (hK : 0 < K) (ctx : 
     (permB K H && f (ctx H) (vswap K u a H) a))) (K ^ K) K]
   refine sumTo_congr _ (fun H _ => ?_)
   exact sumTo_pick (fun u => permB K H && f (ctx H) (vswap K u a H) a) K (rget_lt hK _ _)
+
+/-- **A squeezed answer traded for an independent value.**  Over the
+    permutation tables, `K` times those where `f` holds at the table, its
+    context `ctx H` and its answer at the squeeze position `φ (ctx H)` is
+    at most the pairs `(w, H)` where `f` holds at the context, the table
+    with that answer and `w` exchanged, and `w`; plus the pairs `(H, u)`
+    where exchanging `u` with the squeezed answer changes the context. -/
+theorem squeeze_swap {α : Type} [DecidableEq α] {K : Nat} (hK : 0 < K) (ctx : Nat → α) (φ : α → Nat)
+    (hφ : ∀ c, φ c < K) (f : α → Nat → Nat → Bool) :
+    K * sumTo (K ^ K) (fun H => indB (permB K H && f (ctx H) H (rget K (φ (ctx H)) H))) ≤
+      sumTo K (fun w => sumTo (K ^ K) (fun H =>
+        indB (permB K H && f (ctx H) (vswap K (rget K (φ (ctx H)) H) w H) w))) +
+      sumTo (K ^ K) (fun H => sumTo K (fun u =>
+        indB (permB K H && !decide (ctx (vswap K u (rget K (φ (ctx H)) H) H) = ctx H)))) := by
+  have h := squeeze_swapG hK ctx φ hφ f (fun _ => true) (fun _ _ _ _ => rfl)
+  simp only [Bool.and_true] at h
+  exact h
 
 /-- **The exchanges that change a run**: for `k` adaptive forward queries
     and the squeeze position `nxt` of their answers, at most `k` per

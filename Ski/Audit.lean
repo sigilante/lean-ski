@@ -182,6 +182,7 @@ import Ski.ZK.SpongePrefix
 import Ski.ZK.SpongeAlign
 import Ski.ZK.SpongeSqueeze
 import Ski.ZK.SpongeProgram
+import Ski.ZK.SpongeProgramN
 import Ski.ZK.AdaptDraws
 import Ski.ZK.FSQueryAbsT
 import Ski.ZK.FSQueryPowT
@@ -1457,10 +1458,19 @@ open Ski.Audit
 #audit_clean Circuit.κ08_inner08 Circuit.mod_mul_div_eq Circuit.κ08_mod Circuit.inner08s_hpk2 Circuit.inner08s_lt Circuit.inner08s_hdx_fails
 
 -- A challenge squeezed from the permutation, traded for an independent value (SpongeProgram)
-#audit_clean Circuit.sumTo_pick Circuit.swapV_right Circuit.indB_le_one Circuit.indB_split Circuit.squeeze_swap
+#audit_clean Circuit.sumTo_pick Circuit.swapV_right Circuit.indB_le_one Circuit.indB_split Circuit.indB_splitG
+  Circuit.squeeze_swapG Circuit.squeeze_swap
   Circuit.squeeze_bad_run Circuit.colRV_cons Circuit.colRV_countP Circuit.runAdp_pred Circuit.revisit_colRV
   Circuit.revisit_countP Circuit.squeeze_run Circuit.nxt08_lt Circuit.nxt08_κ Circuit.squeeze_run08 Circuit.indB_and
   Circuit.sumTo_rget_one Circuit.zk_squeeze Circuit.zk_squeeze_sat08
+
+-- The fourth challenges of n proofs squeezed from the permutation (SpongeProgramN)
+#audit_clean Circuit.progL_nil Circuit.progL_rset Circuit.map_rset Circuit.squeeze_tableN Circuit.badS_le
+  Circuit.mem_dedupL Circuit.nodup_dedupL Circuit.length_dedupL Circuit.runsN_length Circuit.sqOf_length
+  Circuit.allAnsOf_length Circuit.mem_allAnsOf Circuit.mem_sqOf Circuit.runsN_vswap Circuit.runAdp_mem_add
+  Circuit.runAdp_nxtC Circuit.mem_runAdp_nxtC Circuit.mem_runAdp_posT Circuit.posT_mem Circuit.firstsN_length
+  Circuit.mem_firstsN Circuit.shift_colRV Circuit.hit_colRV Circuit.badS_runs_countP Circuit.getAt_map
+  Circuit.zk_squeezeN Circuit.zk_squeezeN_sat08
 
 -- A picked statement's bad events, bounded at every table, cost one statement's (AdaptDraws)
 #audit_clean Circuit.zkbT_adaptive_tbl Circuit.zkbT_adaptive_draws
