@@ -33,7 +33,7 @@ Not shown, and needed before this is Plonky3's FRI:
   before FRI's batching challenge and folding challenges) enter only where
   a layer returns them beside its root, as arguments of `φ`: `friCommitQCPf` reads the three earlier challenges, then the `k`
   layers, then the query seed, its layers given those challenges, the
-  data and the salt, nothing reading `c4` (`runR4_dropA`, `friCommitQC_c4`,
+  data and the salt, nothing reading `c4` (`runR4_drop`, `friCommitQC_c4`,
   `friCommitQC_seed`, `friCommitQC_reads`; there the seed's point holds
   whatever the last layer returns, a strategy may read `q` seeds, one per
   query, each after every root, and the batching challenge is a first
@@ -266,16 +266,8 @@ theorem friCommitQ_seed {D R : Type} (K1 K2 K3 K4 n1 k : Nat) (φ : Nat → R ×
 
 /-! ### The earlier challenges and the opened values hashed, queries last -/
 
-/-- A run keeps its older reads: after `a` more reads, dropping the newest
-    `a` gives the run of `b`. -/
-theorem runR4_dropA {W : Type} (K1 K2 K3 K4 n1 m : Nat) (φ : Nat → W → Nat) (nxt : List Nat → Nat × Nat × W)
-    (H : Nat × Nat × Nat × Nat) (b : Nat) : ∀ a, (runR4 K1 K2 K3 K4 n1 m φ nxt H (b + a)).drop a = runR4 K1 K2 K3 K4 n1 m φ nxt H b
-  | 0 => rfl
-  | a + 1 => by
-    show (_ :: runR4 K1 K2 K3 K4 n1 m φ nxt H (b + a)).drop (a + 1) = _
-    rw [List.drop_succ_cons]; exact runR4_dropA K1 K2 K3 K4 n1 m φ nxt H b a
-
-/-- **FRI in Plonky3's order, as a read strategy**: read the three earlier
+/-- **FRI's commit-phase reads in Plonky3's sequence, as a read strategy**
+    (the queries still `c4`'s, drawn before them): read the three earlier
     challenges, then `k` folding challenges, layer `i` hashed at
     `φ M (Rᵢ, i)`, then the query seed at `φ M (R_k, k)`, after every root;
     nothing reads `c4`.  `R` is any type, so a layer may return the values
@@ -312,7 +304,7 @@ theorem friCommitQC_seed {D R : Type} (K1 K2 K3 K4 n1 n2 k : Nat) (φ : Nat → 
   rw [h2]
   have hd : run.drop k = runR4 K1 K2 K3 K4 n1 (M % n1) φ (friCommitNxtC n1 n2 (fun _ => layer0) c4 M d σ) H 3 := by
     show (runR4 K1 K2 K3 K4 n1 (M % n1) φ (friCommitNxtC n1 n2 (fun _ => layer0) c4 M d σ) H (k + 3)).drop k = _
-    rw [Nat.add_comm k 3]; exact runR4_dropA _ _ _ _ _ _ _ _ _ 3 k
+    rw [Nat.add_comm k 3]; exact runR4_drop _ _ _ _ _ _ _ _ _ 3 k
   have ht : run.reverse.take 3 =
       [rget K1 (M % n1) H.1, rget K2 (M % n1 + n1 * ((M / n1) % n2)) H.2.1, rget K3 M H.2.2.1] := by
     have hB : (run.drop k).reverse.length = 3 := by rw [List.length_reverse, List.length_drop, hl]; omega

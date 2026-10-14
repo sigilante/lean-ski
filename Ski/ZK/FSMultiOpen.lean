@@ -40,10 +40,10 @@ does not expose that digit, so `hdg` and `RdOK` model the full-transcript
 hash, not the duplex sponge.
 
 Not shown: that Plonky3's openings read this way, which needs FRI's
-folding challenges drawn at points carrying the first commitment's digit;
-`nxtT` queries that read the Fiat–Shamir tables; query phases between
-proofs (`FSMultiInterleave` takes `outR4`-shaped outputs, not these).  One
-direction; `FSMultiT`'s limits hold.
+folding challenges drawn at points carrying the first commitment's digit.
+`FSMultiOpenROM` covers `nxtT` queries that read the Fiat–Shamir tables,
+and `FSMultiMixSud` covers query phases between proofs (`sud_interleave`).
+One direction; `FSMultiT`'s limits hold.
 -/
 
 set_option autoImplicit false

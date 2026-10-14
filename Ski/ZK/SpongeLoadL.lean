@@ -33,7 +33,9 @@ Size.  With `F / K` one over the capacity's size and `n1 F / (K - k)` near
 `1`, the ratio `k F / (K - k)` is near `L + 1`, and the bound asks
 `m! ≥ n1 X^L Kc (L + 1)^m`.  With `n1 = Kc = X = 2^248` the smallest such
 `m` is about `154`, `211`, `268` for `L = 1, 2, 3`, so `E[loadMA]` is about
-`2^7`, `2^15`, `2^24`, against `n1 = 2^248`.  The bound grows as `m^L`: it
+`2^7`, `2^15`, `2^24`, against `n1 = 2^248`.  That point lies beyond `hd`'s
+range (`n1 ≤ R1 = p^8 < 2^248`); the bound grows with `n1`, so the figures
+bound every feasible point from above.  The bound grows as `m^L`: it
 suits a few absorptions, not a whole transcript.
 
 Limits, as in `SpongeLoad`: the state before the first commitment is
@@ -541,6 +543,7 @@ theorem sud_interleaveLA {V Wv P1 P2 P3 W1 W2 W3 : Type} {kr kq : Nat} (φ1 : Na
       (fun ix => (loadA_hsp inner hin κ hκ hpk iv hd hX L enc henc (Com1 ix) (hr1 ix) (hsp1 ix) hm (permB_of_indB hw)).2) isQ nxtQ n)
 
 
+-- The statement unfolds `sudDD`'s fields at every `ix`; elaborating it exceeds the default heartbeats.
 set_option maxHeartbeats 1600000 in
 set_option maxRecDepth 100000 in
 /-- **`sud_interleaveLA` with a number for its error**:

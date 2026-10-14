@@ -18,8 +18,9 @@ permute the state; capacity collisions of the absorbed commitment enter
 `wit_interleaveS`, `comp_interleaveS`) follow.  An adding sponge, its
 full state the index, meets `hφsp` exactly (`SpongeSpread`).  `SpongeIndex` bounds
 the overwrite sponge's spread at every table up to its meeting pairs, and
-those pairs averaged over a uniform permutation.  Not shown: the step from
-that average to `hφsp` at one table; the other composites' versions.
+`SpongeLoad` through `SpongeUnion` by bounds on the index's preimage, each
+averaged over a uniform permutation, under the limits those files state.
+Not shown: the other composites' versions.
 -/
 
 set_option autoImplicit false

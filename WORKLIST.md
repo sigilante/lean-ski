@@ -347,15 +347,34 @@ and its claim table moves to the docs, where `release/README.md` already holds i
 - Proven 100-bit parameters: 203 queries at rate 1/2; the masks then need 422 points,
   within the `2^9` floor (`bench/plonky3/README.md`).
 - FRI at the proof level, kept at its present scope (2026-10-14): `sud_interleaveFRI`
-  (`Ski/ZK/FriProof.lean`) covers slot 3's data only, its queries drawn at `c4` before
-  the commit phase. Plonky3's FRI fails its premise `hp3`, which must hold at every
-  table. A faithful version needs one of three changes: hiding averaged over the
+  (`Ski/ZK/FriProof.lean`) covers slot 3's data only. Its query rows are `c4`'s, drawn
+  before the commit phase from a point hashing neither the layer roots nor the seed.
+  That order is a soundness gap, and `hp3` depends on it: `hp3` fixes the opened rows
+  before the salt is drawn. Plonky3's FRI fails `hp3`, which must hold at every table. A faithful version needs one of three changes: hiding averaged over the
   tables; `hp3` restricted to degree-bounded data, with the `ζ`-values opened; or
   codewords drawn from the opening's salt.
 - Statements chosen after seeing the tables, kept at the general theorem (2026-10-14):
   `zkbT_adaptive_tbl` (`Ski/ZK/AdaptDraws.lean`) charges the error once when each
   statement's bad events are bounded at every table. No circuit meets that condition,
-  since LogUp's error depends on `α` and `β`.
+  since LogUp's error depends on `α` and `β`, so `sud_adaptive` charges `S` candidate
+  statements `S ε`.
+- No theorem covers Plonky3 0.8's duplex challenger (2026-10-14 audit). Every
+  interleaved and multi-proof bound rests on the full-transcript read-back `hdg`, on
+  `hφsp` as a hypothesis (`sud_interleaveS`), or on `SpongeIndex` through `SpongeUnion`, whose premises an honest run fails: later blocks
+  disjoint from every first commitment (`h0`, `hnz`), false for 8-element digests;
+  `hpk2`, false under 0.8's zero-filled, length-tagged absorption; a fixed state
+  before the first commitment, where batch-stark absorbs the domain-separator seed and the degree bits
+  first; and a
+  fourth table independent of the permutation, which Plonky3 squeezes from. The
+  counts also range over all `n1` first commitments, about the capacity, where a
+  sponge argument needs only the commitments a run makes. Plan: absorption as 0.8
+  does it (lemmas), then the spread averaged over the run's commitments (a framework
+  change shared with FRI's averaged hiding), then the challenge squeezed from the
+  permutation (programming an ideal permutation).
+- Idealizations to state with the bounds: each Merkle commitment hashes its leaves
+  under a private table, where the bench uses one Poseidon2 permutation for leaves,
+  compression and the challenger; proof-of-work grinding reads its own table
+  (`fs_pow`), where Plonky3 grinds on the challenger's sponge.
 - FRI's soundness and round-by-round soundness, proved rather than assumed;
   Fiat–Shamir.
 - Probe segments under the hiding; ∀ over public inputs; aggregation.
