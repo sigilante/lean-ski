@@ -358,19 +358,16 @@ and its claim table moves to the docs, where `release/README.md` already holds i
   statement's bad events are bounded at every table. No circuit meets that condition,
   since LogUp's error depends on `α` and `β`, so `sud_adaptive` charges `S` candidate
   statements `S ε`.
-- No theorem covers Plonky3 0.8's duplex challenger (2026-10-14 audit). Every
-  interleaved and multi-proof bound rests on the full-transcript read-back `hdg`, on
-  `hφsp` as a hypothesis (`sud_interleaveS`), or on the sponge files. Their premises
-  now match 0.8's absorption except three:
-  - a state fixed before the first commitment, where batch-stark absorbs the
-    domain-separator seed and the degree bits first;
-  - a first commitment filling one block, where 0.8's `observe` buffers;
-  - a fourth table independent of the permutation, which Plonky3 squeezes from.
-
-  Met since: `hpk2` with the capacity's first element dropped (`SpongeAbsorb`);
-  first positions revisited, at most `L` merges unpaid, so the tags `h0`, `hnz` go
-  (`SpongeRoot`, `sud_interleaveLR`). The counts are not the obstacle: `E[loadTR]`
-  is about `2^44` to `2^61` for `L = 1` to `100` against `n1 ≈ 2^247`.
+- Plonky3 0.8's duplex challenger, one premise left (2026-10-14). The sponge files'
+  premises now match 0.8 except that the fourth table `H4` is independent of the
+  permutation, where Plonky3 squeezes the challenge from it (programming an ideal
+  permutation). Met: `hpk2` with the capacity's first element dropped
+  (`SpongeAbsorb`); first positions revisited, no tags (`SpongeRoot`); the
+  domain-separator prefix before the first commitment (`SpongePrefix`); the
+  commitment split across two absorptions, seven elements buffered before it in
+  the bench's Sudoku proof (`SpongeAlign`, `sud_interleaveLG`). The seven is
+  measured on `release/sudoku`, not derived from the transcript's shape.
+  `E[loadG]` is about `2^77` to `2^93` for `L = 1` to `100` against `n1 ≈ 2^247`.
 - Idealizations to state with the bounds: each Merkle commitment hashes its leaves
   under a private table, where the bench uses one Poseidon2 permutation for leaves,
   compression and the challenger; proof-of-work grinding reads its own table
