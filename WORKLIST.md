@@ -5,6 +5,10 @@ is built; this file records what is next. Last revised 2026-10-22.
 
 ## Done since the last revision
 
+- **Public, with remote CI** (2026-10-22, tag `paper-v9`, `fb65141`): MIT licence; the
+  papers stay in their own repository. CI runs on public runners: documentation-only
+  changes skip it, the build and the Rust prover come from caches, and gate 5's trace
+  checks run as parallel lanes, so a warm run of `core` takes about 7.5 minutes (48 cold).
 - **The hidden-term and composed Merkle-committed bounds' hypotheses, met at once**
   (2026-10-23, `Ski/ZK/WitCompEndToEnd.lean`): `wit_fs_open4ROMMC_fri_sat` and
   `comp_fs_open4ROMMC_fri_sat`, as `sud_fs_open4ROMMC_fri_sat` for the Sudoku bound, so all
@@ -462,7 +466,6 @@ and its claim table moves to the docs, where `release/README.md` already holds i
   checks. Jets slow verification (`split8` 23.0 s against 12.6 s, measured
   2026-10-04, before the release was remade), and the split between the two is
   unmeasured.
-- Remote CI for lean-ski: waits on the public release.
 - From the audit of the zero-knowledge claim (2026-10-12): `PRGClose` quantifies over
   every test, so no 128-bit seed meets it and `transcript_prg` says nothing for ChaCha20;
   state it over a class of tests, or drop it. `pcsCloseN_masked` needs every column at
