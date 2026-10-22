@@ -27,14 +27,14 @@ concurrency:
   cancel-in-progress: true
 jobs:
   # The front end's coverage of SKIjack, checked in the kernel: its own
-  # project, built one module at a time.  The largest module, the checker's
-  # verdict on scripts/coverage.ski (a unification skijack never finishes,
-  # refused at its recursion limit), peaks at about 13 GiB, and two more
-  # pass 6.5; a private repository's runner has 7.8, so CI skips those
-  # three (--ci).
+  # project, built one module at a time, every module and both audits.  The
+  # largest module, the checker's verdict on scripts/coverage.ski (a
+  # unification skijack never finishes, refused at its recursion limit),
+  # peaks at about 13 GiB, and two more at 6.7 and 7.2; a public runner has
+  # 15 GiB, and swap is the margin.
   coverage:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
       - name: Install elan
@@ -42,12 +42,9 @@ jobs:
           curl -sSfL https://github.com/leanprover/elan/releases/latest/download/elan-x86_64-unknown-linux-gnu.tar.gz | tar xz
           ./elan-init -y --default-toolchain none
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
-      # A private repository's runner has 7.8 GiB.  The heavy modules
-      # (CoverageChecks at 13 GiB, AsciiDigits and its checks at 6.7 and 7.2)
-      # and their audit (AuditHeavy) are skipped; build-coverage.sh without
-      # --ci builds them locally.  The rest peak under 5.7 GiB; swap is a
-      # margin for those, and systemd-oomd is stopped so pressure pages out
-      # instead of killing the build.
+      # Swap is the margin over the runner's 15 GiB for CoverageChecks' 13,
+      # and systemd-oomd is stopped so pressure pages out instead of
+      # killing the build.
       - name: Swap, as a margin
         run: |
           sudo systemctl stop systemd-oomd || true
@@ -56,5 +53,26 @@ jobs:
           sudo mkswap /mnt/swapfile
           sudo swapon /mnt/swapfile
           free -h
-      - name: Build the coverage project, but its heavy modules (elaborates its audit manifest)
-        run: ./scripts/build-coverage.sh --ci
+      # The last good builds: the core's, which the core's CI saves, and the
+      # coverage project's own.  Lake rebuilds only what changed.
+      - name: Restore the core's build
+        uses: actions/cache/restore@v4
+        with:
+          path: .lake/build
+          key: core-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lake-manifest.json') }}-${{ github.sha }}
+          restore-keys: core-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lake-manifest.json') }}-
+      - name: Restore the coverage build
+        uses: actions/cache/restore@v4
+        with:
+          path: coverage/.lake/build
+          key: coverage-${{ runner.os }}-${{ hashFiles('coverage/lean-toolchain', 'coverage/lake-manifest.json') }}-${{ github.sha }}
+          restore-keys: coverage-${{ runner.os }}-${{ hashFiles('coverage/lean-toolchain', 'coverage/lake-manifest.json') }}-
+      - name: Build the coverage project (elaborates both audit manifests)
+        id: build
+        run: ./scripts/build-coverage.sh
+      - name: Save the coverage build
+        if: always() && steps.build.outcome == 'success'
+        uses: actions/cache/save@v4
+        with:
+          path: coverage/.lake/build
+          key: coverage-${{ runner.os }}-${{ hashFiles('coverage/lean-toolchain', 'coverage/lake-manifest.json') }}-${{ github.sha }}
