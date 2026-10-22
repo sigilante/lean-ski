@@ -5,10 +5,10 @@
 # imports them all, comes last.
 #
 # With --ci, skip the heavy modules (those SkiCoverage/AuditHeavy.lean
-# imports, which peak at 6.7 to 13 GiB, over a private repository's 7.8 GiB
-# runner) and their audit, and build the rest and
-# SkiCoverage.Audit.  Without it, build everything; run it locally before
-# pushing a change to the generated coverage files.
+# imports, which peak at 6.7 to 13 GiB) and their audit, and build the rest
+# and SkiCoverage.Audit, for a machine with less than about 14 GiB.
+# Without it, build everything, as CI does; run it locally before pushing
+# a change to the generated coverage files.
 set -euo pipefail
 ci=0
 if [ "${1:-}" = "--ci" ]; then ci=1; fi
