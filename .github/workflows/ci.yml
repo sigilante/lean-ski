@@ -13,6 +13,9 @@ concurrency:
 jobs:
   core:
     runs-on: ubuntu-latest
+    # A cold build takes about 50 minutes; a hung check stops here, not at
+    # GitHub's six hours.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
       - name: Install elan
