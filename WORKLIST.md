@@ -1,10 +1,18 @@
 # Worklist
 
 What remains, in the order we mean to take it. `PLAN.md` records the design and what
-is built; this file records what is next. Last revised 2026-10-13.
+is built; this file records what is next. Last revised 2026-10-22.
 
 ## Done since the last revision
 
+- **Avon master checked against `paper-v8`** (2026-10-22): Avon `4de0c6c`, past its
+  128-bit `skijack-2` digests (avon#55) and its jets matched by term rather than
+  digest (avon#54), passes all five of its lean-ski checks at `b7fae43`: 43 corpus
+  witnesses, 7 jetted, 7 probe tables, the composed statements with jets under hiding,
+  and the Poseidon2 statements, each identical to ski-air's tables, proved and
+  verified. Nothing in lean-ski reads Avon's digests; its jet check compares terms.
+- **avon#22 closed** (2026-10-19): Avon's pier replays logged events with no fuel
+  limit, so a replay no longer deletes the log's last record (avon#24).
 - **The split predicates' witnesses are secret, and their heights hold every witness**:
   an audit of the zero-knowledge claim found `release/produce.sh` printing `split8`'s
   and `csplit8`'s witnesses (`a = 123, b = 77, r = 181`), and `csplit8`'s heights
@@ -438,6 +446,11 @@ and its claim table moves to the docs, where `release/README.md` already holds i
 - FRI's soundness and round-by-round soundness, proved rather than assumed;
   Fiat–Shamir.
 - Probe segments under the hiding; ∀ over public inputs; aggregation.
+- From Avon's worklist (item 0, the papers' measurements): measure a statement with
+  several jet calls, and time ski-air's proof check apart from Lean's statement
+  checks. Jets slow verification (`split8` 23.0 s against 12.6 s, measured
+  2026-10-04, before the release was remade), and the split between the two is
+  unmeasured.
 - Remote CI for lean-ski: waits on the public release.
 - From the audit of the zero-knowledge claim (2026-10-12): `PRGClose` quantifies over
   every test, so no 128-bit seed meets it and `transcript_prg` says nothing for ChaCha20;
@@ -454,5 +467,4 @@ and its claim table moves to the docs, where `release/README.md` already holds i
 
 ## Handed to Avon
 
-- [avon#22](https://github.com/sigilante/avon/issues/22): replay with less fuel deletes
-  the log's last record, entropy replies included.
+Nothing open.
