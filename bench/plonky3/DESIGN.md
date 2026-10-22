@@ -2,7 +2,7 @@
 
 This note records the Plonky3 tables beyond the corpus's three: atoms,
 supercombinator instantiation, and probe segments. All three are built. Instantiation follows
-`avon/DESIGN.md` §18.1 (in the `skijack` repository), with a public
+Avon's `docs/DESIGN.md` §18.1, with a public
 roots table in place of a jet cell, and globals.
 
 ## 1. Atoms (built)
