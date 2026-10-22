@@ -160,81 +160,116 @@ if command -v cargo >/dev/null 2>&1 \
   else
     bad "the hand-off's two statements fail P2Commit.chainB"
   fi
+  # The provers' traces against Lean's honest tables, as each circuit's
+  # completeness proof builds them, and their blinding against each
+  # transcript theorem's view (Ski/ZK/Blocks.lean).  Each statement's dump
+  # and checks are a lane of their own, writing to their own directory; the
+  # lanes run at once (each peaks under 1.5 GiB) and their reports print in
+  # order.  They call the built executables, not `lake exe`, so no two Lake
+  # processes contend for the build.
+  B=.lake/build/bin
   # compp.rs's unblinded traces of each run agree with Lean's model of the
   # honest tables (Ski/Circuit/CompPHonest.lean): the shapes, and every row
   # of the CPU, the Poseidon2, witness and memory tables; its blinded
-  # traces are those blinded as Circuit.compPViewN blinds them.  The
-  # hand-off's two runs share one witness.
-  for f in p2pre:p2pre handoff1:handoff handoff2:handoff; do
-    n=${f%%:*} w=${f#*:}
+  # traces are those blinded as Circuit.compPViewN blinds them; and no
+  # private table's published terminal matches a guess from the true
+  # witness, while each does unblinded.  The hand-off's two runs share one
+  # witness.
+  lane_p2() {
+    local n=$1 w=$2
     if "$ski" compp-dump "$gen/p2/$n.public.txt" "$gen/p2/$w.witness.txt" "$gen/p2/dump-$n" > /dev/null \
-       && lake exe composed check-p2-tables "$gen/p2/$n.public.txt" "$gen/p2/dump-$n" | grep -q '^OK'; then
+       && "$B/composed" check-p2-tables "$gen/p2/$n.public.txt" "$gen/p2/dump-$n" | grep -q '^OK'; then
       note "ok — $n: compp.rs's traces are Lean's model of the honest tables"
     else
       bad "$n: compp.rs's traces differ from Lean's model of the honest tables"
     fi
-    # Its blinded traces are those blinded as compPViewN blinds them.
     if [ -d "$gen/p2/dump-$n" ] \
-       && lake exe composed check-p2-blind "$gen/p2/dump-$n" | grep -q '^OK'; then
+       && "$B/composed" check-p2-blind "$gen/p2/dump-$n" | grep -q '^OK'; then
       note "ok — $n: compp.rs's blinded traces are its honest ones blinded as compPViewN blinds them"
     else
       bad "$n: compp.rs's blinded traces are not compPViewN's blinding"
     fi
-    # The guess test: no private table's published terminal matches a
-    # guess from the true witness, and each does unblinded.
     if "$ski" compp-guess "$gen/p2/$n.public.txt" "$gen/p2/$w.witness.txt" 2>&1 \
          | grep -q '^the guess test passes'; then
       note "ok — $n: every private table's terminal hides the witness (compp-guess)"
     else
       bad "$n: the guess test fails"
     fi
-  done
-  # The other provers' traces against Lean's honest tables, as each
-  # circuit's completeness proof builds them, and their blinding against
-  # each transcript theorem's view (Ski/ZK/Blocks.lean): the composed
-  # circuit, the hidden-term circuit, Sudoku, and split8 with jets.
-  for f in or and; do
-    if "$ski" composed-dump "$gen/c/$f/public.txt" "$gen/c/$f/witness.txt" "$gen/dump-c-$f" > /dev/null \
-       && lake exe composed check-c-tables "$gen/c/$f/public.txt" "$gen/dump-c-$f" | grep -q '^OK' \
-       && lake exe composed check-c-blind "$gen/dump-c-$f" | grep -q '^OK'; then
-      note "ok — composed $f: composed.rs's traces agree with Lean's honest tables, blinded as compViewN blinds them"
+  }
+  # The composed circuit, the hidden-term circuit and Sudoku.
+  lane_c() {
+    local f
+    for f in or and; do
+      if "$ski" composed-dump "$gen/c/$f/public.txt" "$gen/c/$f/witness.txt" "$gen/dump-c-$f" > /dev/null \
+         && "$B/composed" check-c-tables "$gen/c/$f/public.txt" "$gen/dump-c-$f" | grep -q '^OK' \
+         && "$B/composed" check-c-blind "$gen/dump-c-$f" | grep -q '^OK'; then
+        note "ok — composed $f: composed.rs's traces agree with Lean's honest tables, blinded as compViewN blinds them"
+      else
+        bad "composed $f: composed.rs's traces or blinding differ from Lean's"
+      fi
+    done
+  }
+  lane_w() {
+    local f
+    for f in neg sat; do
+      if "$ski" witness-dump "$gen/witness/$f/public.txt" "$gen/witness/$f/witness.txt" "$gen/dump-w-$f" > /dev/null \
+         && "$B/witness" check-tables "$gen/witness/$f/public.txt" "$gen/dump-w-$f" | grep -q '^OK' \
+         && "$B/witness" check-blind "$gen/dump-w-$f" | grep -q '^OK'; then
+        note "ok — witness $f: witness.rs's traces agree with Lean's honest tables, blinded as witView blinds them"
+      else
+        bad "witness $f: witness.rs's traces or blinding differ from Lean's"
+      fi
+    done
+  }
+  lane_s() {
+    if "$ski" sudoku-dump "$gen/sudoku/public.txt" "$gen/sudoku/witness.txt" "$gen/dump-s" > /dev/null \
+       && "$B/sudoku" check-tables "$gen/sudoku/public.txt" "$gen/dump-s" | grep -q '^OK' \
+       && "$B/sudoku" check-blind "$gen/dump-s" | grep -q '^OK'; then
+      note "ok — sudoku: sudoku.rs's traces agree with Lean's honest tables, blinded as sudView blinds them"
     else
-      bad "composed $f: composed.rs's traces or blinding differ from Lean's"
+      bad "sudoku: sudoku.rs's traces or blinding differ from Lean's"
     fi
-  done
-  for f in neg sat; do
-    if "$ski" witness-dump "$gen/witness/$f/public.txt" "$gen/witness/$f/witness.txt" "$gen/dump-w-$f" > /dev/null \
-       && lake exe witness check-tables "$gen/witness/$f/public.txt" "$gen/dump-w-$f" | grep -q '^OK' \
-       && lake exe witness check-blind "$gen/dump-w-$f" | grep -q '^OK'; then
-      note "ok — witness $f: witness.rs's traces agree with Lean's honest tables, blinded as witView blinds them"
+  }
+  # split8 with jets, then the same traces from the run read back from its
+  # table, the path compj-prove-table takes for Avon's tables.
+  lane_j() {
+    local j=release/skilark/split8
+    if "$ski" compj-dump "$j/jets/public.txt" "$j/jets/split8.jets" "$j/source.ski" "$gen/sk/witness.txt" "$gen/dump-j" > /dev/null \
+       && "$B/composed" check-cj-tables "$j/source.ski" "$j/jets/public.txt" "$gen/dump-j" | grep -q '^OK' \
+       && "$B/composed" check-cj-blind "$gen/dump-j" | grep -q '^OK'; then
+      note "ok — split8 with jets: compj.rs's traces agree with Lean's honest tables, blinded as compJViewN blinds them"
     else
-      bad "witness $f: witness.rs's traces or blinding differ from Lean's"
+      bad "split8 with jets: compj.rs's traces or blinding differ from Lean's"
     fi
+    if "$ski" compj-dump-table "$j/jets/public.txt" "$j/jets/split8.jets" "$j/source.ski" "$gen/dump-j/run.txt" \
+         "$gen/dump-jt" > /dev/null \
+       && (for n in run mem cpu wit pop instw tmpl hdr roots; do cmp -s "$gen/dump-j/$n.txt" "$gen/dump-jt/$n.txt" || exit 1; done); then
+      note "ok — split8 with jets: the run read from its table gives the same traces"
+    else
+      bad "split8 with jets: the run read from its table gives other traces"
+    fi
+  }
+  # An interrupted run takes its lanes with it.
+  trap 'kill $(jobs -p) 2>/dev/null' INT TERM
+  # The longest lane first.  A lane runs in a subshell, so its failures
+  # reach this shell through its report and its exit status.
+  lanes="j p2pre handoff1 handoff2 s c w"
+  for l in $lanes; do
+    case $l in
+      j) ( lane_j; exit $fail ) ;;
+      p2pre) ( lane_p2 p2pre p2pre; exit $fail ) ;;
+      handoff1|handoff2) ( lane_p2 "$l" handoff; exit $fail ) ;;
+      s) ( lane_s; exit $fail ) ;;
+      c) ( lane_c; exit $fail ) ;;
+      w) ( lane_w; exit $fail ) ;;
+    esac > "$gen/lane-$l.log" 2>&1 &
+    eval "pid_$l=$!"
   done
-  if "$ski" sudoku-dump "$gen/sudoku/public.txt" "$gen/sudoku/witness.txt" "$gen/dump-s" > /dev/null \
-     && lake exe sudoku check-tables "$gen/sudoku/public.txt" "$gen/dump-s" | grep -q '^OK' \
-     && lake exe sudoku check-blind "$gen/dump-s" | grep -q '^OK'; then
-    note "ok — sudoku: sudoku.rs's traces agree with Lean's honest tables, blinded as sudView blinds them"
-  else
-    bad "sudoku: sudoku.rs's traces or blinding differ from Lean's"
-  fi
-  j=release/skilark/split8
-  if "$ski" compj-dump "$j/jets/public.txt" "$j/jets/split8.jets" "$j/source.ski" "$gen/sk/witness.txt" "$gen/dump-j" > /dev/null \
-     && lake exe composed check-cj-tables "$j/source.ski" "$j/jets/public.txt" "$gen/dump-j" | grep -q '^OK' \
-     && lake exe composed check-cj-blind "$gen/dump-j" | grep -q '^OK'; then
-    note "ok — split8 with jets: compj.rs's traces agree with Lean's honest tables, blinded as compJViewN blinds them"
-  else
-    bad "split8 with jets: compj.rs's traces or blinding differ from Lean's"
-  fi
-  # The same traces from the run read back from its table, the path
-  # compj-prove-table takes for Avon's tables.
-  if "$ski" compj-dump-table "$j/jets/public.txt" "$j/jets/split8.jets" "$j/source.ski" "$gen/dump-j/run.txt" \
-       "$gen/dump-jt" > /dev/null \
-     && (for n in run mem cpu wit pop instw tmpl hdr roots; do cmp -s "$gen/dump-j/$n.txt" "$gen/dump-jt/$n.txt" || exit 1; done); then
-    note "ok — split8 with jets: the run read from its table gives the same traces"
-  else
-    bad "split8 with jets: the run read from its table gives other traces"
-  fi
+  for l in p2pre handoff1 handoff2 c w s j; do
+    eval "wait \$pid_$l"; rc=$?
+    cat "$gen/lane-$l.log"
+    [ $rc -eq 0 ] || fail=1
+  done
   if lake exe composed chain-p2 "$gen/p2/handoff1.public.txt" "$gen/p2/p2pre.public.txt" | grep -q '^CHAIN OK'; then
     bad "P2Commit.chainB accepts a p2commit statement paired with a p2pre statement"
   else
