@@ -5,6 +5,13 @@ is built; this file records what is next. Last revised 2026-10-22.
 
 ## Done since the last revision
 
+- **The hidden-term and composed Merkle-committed bounds' hypotheses, met at once**
+  (2026-10-23, `Ski/ZK/WitCompEndToEnd.lean`): `wit_fs_open4ROMMC_fri_sat` and
+  `comp_fs_open4ROMMC_fri_sat`, as `sud_fs_open4ROMMC_fri_sat` for the Sudoku bound, so all
+  three bounds apply to every accepted run (the composed one at heights of at least `2^9`,
+  as `logOK` asks). The public tables are no taller than the traces (`wit_prog_tight`,
+  `comp_pub_tight`), so the Merkle trees have `2^11` and at most `2^21` leaves, and the
+  Merkle term stays below `2^-48` and `2^-38` a draw (`witStd_merkle`, `compStd_merkle`).
 - **Avon master checked against `paper-v8`** (2026-10-22): Avon `4de0c6c`, past its
   128-bit `skijack-2` digests (avon#55) and its jets matched by term rather than
   digest (avon#54), passes all five of its lean-ski checks at `b7fae43`: 43 corpus
@@ -177,8 +184,8 @@ is built; this file records what is next. Last revised 2026-10-22.
   it, unopened leaves with equal data and salts share a hash, a term counted later, without the
   index, in `Ski/ZK/ROMMerkleColl.lean`, `ROMInstMC.lean`, `ROMFamilyMC.lean` and, at FRI's
   leaves, `ROMMerkleIdxC.lean`: `sud_fs_open4ROMMC_fri`, `wit_fs_open4ROMMC_fri` and
-  `comp_fs_open4ROMMC_fri`, one bound for all three, its hypotheses shown satisfiable
-  for the Sudoku proof only, `sud_fs_open4ROMMC_fri_sat`); four rounds, the
+  `comp_fs_open4ROMMC_fri`, one bound for all three, its hypotheses shown satisfiable for
+  all three: `sud_fs_open4ROMMC_fri_sat`, `wit_…`, `comp_…`); four rounds, the
   opened set read at the query challenge: `Ski/ZK/ROMMerkle4.lean` (`fs_open4ROMM`; the root hashed: `fs_open4ROMMR`); the
   circuits over it with the tie of the leaves to the committed rows a hypothesis (`hposO`):
   `Ski/ZK/ROMInstM.lean` (`sud_fs_open4ROMM`, with the root hashed `sud_fs_open4ROMMR`, and the
@@ -450,10 +457,6 @@ and its claim table moves to the docs, where `release/README.md` already holds i
 - FRI's soundness and round-by-round soundness, proved rather than assumed;
   Fiat–Shamir.
 - Probe segments under the hiding; ∀ over public inputs; aggregation.
-- `wit_fs_open4ROMMC_fri_sat` and `comp_fs_open4ROMMC_fri_sat`: a witness that the
-  hidden-term and composed bounds' hypotheses hold together, as
-  `sud_fs_open4ROMMC_fri_sat` shows for the Sudoku bound. Part I claims the Merkle
-  hiding for all three proofs and their satisfiability for the Sudoku proof only.
 - From Avon's worklist (item 0, the papers' measurements): measure a statement with
   several jet calls, and time ski-air's proof check apart from Lean's statement
   checks. Jets slow verification (`split8` 23.0 s against 12.6 s, measured
