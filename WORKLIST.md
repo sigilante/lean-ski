@@ -174,7 +174,11 @@ is built; this file records what is next. Last revised 2026-10-22.
   (`fs_openROML`); a Merkle opening, the opened leaves' data and salts shown, the opened set
   fixed: `Ski/ZK/ROMMerkleOpen.lean`, one round (`fs_openROMM`, the root hashed:
   `fs_openROMMR`), with a leaf index in the hash input (Plonky3's leaf hash carries none: without
-  it, unopened leaves with equal data and salts share a hash, a term not counted); four rounds, the
+  it, unopened leaves with equal data and salts share a hash, a term counted later, without the
+  index, in `Ski/ZK/ROMMerkleColl.lean`, `ROMInstMC.lean`, `ROMFamilyMC.lean` and, at FRI's
+  leaves, `ROMMerkleIdxC.lean`: `sud_fs_open4ROMMC_fri`, `wit_fs_open4ROMMC_fri` and
+  `comp_fs_open4ROMMC_fri`, one bound for all three, its hypotheses shown satisfiable
+  for the Sudoku proof only, `sud_fs_open4ROMMC_fri_sat`); four rounds, the
   opened set read at the query challenge: `Ski/ZK/ROMMerkle4.lean` (`fs_open4ROMM`; the root hashed: `fs_open4ROMMR`); the
   circuits over it with the tie of the leaves to the committed rows a hypothesis (`hposO`):
   `Ski/ZK/ROMInstM.lean` (`sud_fs_open4ROMM`, with the root hashed `sud_fs_open4ROMMR`, and the
@@ -446,6 +450,10 @@ and its claim table moves to the docs, where `release/README.md` already holds i
 - FRI's soundness and round-by-round soundness, proved rather than assumed;
   Fiat–Shamir.
 - Probe segments under the hiding; ∀ over public inputs; aggregation.
+- `wit_fs_open4ROMMC_fri_sat` and `comp_fs_open4ROMMC_fri_sat`: a witness that the
+  hidden-term and composed bounds' hypotheses hold together, as
+  `sud_fs_open4ROMMC_fri_sat` shows for the Sudoku bound. Part I claims the Merkle
+  hiding for all three proofs and their satisfiability for the Sudoku proof only.
 - From Avon's worklist (item 0, the papers' measurements): measure a statement with
   several jet calls, and time ski-air's proof check apart from Lean's statement
   checks. Jets slow verification (`split8` 23.0 s against 12.6 s, measured
