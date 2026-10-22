@@ -257,7 +257,7 @@ def check (pub : String) (paths : List String) : IO UInt32 := do
 def checkCJ (src pub : String) (paths : List String) : IO UInt32 := do
   let some (c, W, _) := statementOfTextAny (← IO.FS.readFile pub)
     | do IO.println s!"NOT A STATEMENT {pub}"; return 1
-  let tmpls := JetTable.fileTemplates ((← IO.FS.readFile src).toList.map Char.toNat)
+  let tmpls := JetTable.fileTemplatesEta ((← IO.FS.readFile src).toList.map Char.toNat)
   let (roots, jets) := Air.jetTableC c.shp W c.Ps tmpls
   let mut bad := 0
   for path in paths do
@@ -695,7 +695,7 @@ def checkCBlind (dir : String) : IO UInt32 :=
 def checkCJTables (src pub dir : String) : IO UInt32 := do
   let some (c, W, (lr, lm), some (lp, li)) := statementOfTextAny (← IO.FS.readFile pub)
     | do IO.println "NOT A STATEMENT WITH JETS"; return 1
-  let tmpls := JetTable.fileTemplates ((← IO.FS.readFile src).toList.map Char.toNat)
+  let tmpls := JetTable.fileTemplatesEta ((← IO.FS.readFile src).toList.map Char.toNat)
   let (jroots, jets) := Air.jetTableC c.shp W c.Ps tmpls
   let ls := ((← IO.FS.readFile (dir ++ "/run.txt")).splitOn "\n").filter (fun l => !l.trimAscii.toString.isEmpty)
   let some (M', W', cells, ends, rows) := parseTable ls | do IO.println "MALFORMED run.txt"; return 1

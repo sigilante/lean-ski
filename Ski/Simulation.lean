@@ -69,17 +69,6 @@ def Src.peel : Src → List Nat × Src
   | .lam x b => (x :: b.peel.1, b.peel.2)
   | e => ([], e)
 
-def Front.CSrc.peel : CSrc → List Nat × CSrc
-  | .lam x b => (x :: b.peel.1, b.peel.2)
-  | e => ([], e)
-
-/-- Free occurrence, before resolution. -/
-def Front.CSrc.occurs (x : Nat) : CSrc → Bool
-  | .glob _ => false
-  | .var y => y == x
-  | .app f a => f.occurs x || a.occurs x
-  | .lam y b => y != x && b.occurs x
-
 theorem Front.CSrc.occurs_resolve (env : Nm → Term) (x : Nat) :
     ∀ e : CSrc, (e.resolve env).occurs x = e.occurs x
   | .glob _ => rfl
