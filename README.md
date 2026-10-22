@@ -311,3 +311,7 @@ is exactly "timeout at every fuel". There is no crash at this level: the
 calculus has no ill-formed terms. Crashes are data one level up (`RErr`,
 the object language's `Err`), which is where the jet paper's three-valued
 contract lives for SKI.
+
+## Licence
+
+MIT; see `LICENSE`.

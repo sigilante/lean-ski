@@ -34,12 +34,16 @@ echo "== gate 3: generated modules match the generator =="
 # the committed files are compared against its output and always restored,
 # so a gate never rewrites the tree.
 gen_core="Ski/Scott.lean Ski/Corpus.lean Ski/Table.lean Ski/Source.lean"
-if [ -x /Users/neal/SKIlark/.venv/bin/python ]; then
+# SKILARK_PY names SKIlark's Python, as in release/produce.sh; emit.py finds
+# the checkout through SKILARK, default the directory two levels above it.
+SKILARK_PY=${SKILARK_PY:-$HOME/SKIlark/.venv/bin/python}
+SKILARK=${SKILARK:-$(dirname "$(dirname "$(dirname "$SKILARK_PY")")")}
+if [ -x "$SKILARK_PY" ]; then
   tmp=$(mktemp -d)
   mkdir -p "$tmp/committed/Ski" "$tmp/committed/coverage"
   for f in $gen_core; do /bin/cp "$f" "$tmp/committed/$f"; done
   /bin/cp -R coverage/SkiCoverage coverage/SkiCoverage.lean "$tmp/committed/coverage/"
-  if /Users/neal/SKIlark/.venv/bin/python scripts/emit.py >/dev/null 2>&1; then
+  if SKILARK="$SKILARK" "$SKILARK_PY" scripts/emit.py >/dev/null 2>&1; then
     mkdir -p "$tmp/emitted/Ski" "$tmp/emitted/coverage"
     for f in $gen_core; do /bin/cp "$f" "$tmp/emitted/$f"; done
     /bin/cp -R coverage/SkiCoverage coverage/SkiCoverage.lean "$tmp/emitted/coverage/"

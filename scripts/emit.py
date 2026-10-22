@@ -4,7 +4,7 @@ a small conformance corpus of terms with the reference reducer's
 contraction counts plus a canonicity test per word (Ski/Corpus.lean), and
 the quotation tables as data, each term checked by `rfl` against the
 kernel's compilation of its source (Ski/Table.lean).  Run from the SKIlark
-venv:
+venv, with SKILARK naming the SKIlark checkout (default ~/SKIlark):
 
     python scripts/emit.py
 
@@ -12,9 +12,9 @@ Every elimination lemma is proved by `iter_sound rfl`: the kernel re-runs
 the same contractions the reference reducer took, on symbolic arguments.
 A `Run` derivation is built on the host and checked by the kernel.
 """
-import sys, pathlib
+import os, sys, pathlib
 sys.setrecursionlimit(100000)
-sys.path.insert(0, "/Users/neal/SKIlark")
+sys.path.insert(0, os.environ.get("SKILARK", str(pathlib.Path.home() / "SKIlark")))
 import skijack
 from skijack.run import run_level0
 from aviary_kernel.terms import App, Atom
