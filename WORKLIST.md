@@ -468,6 +468,7 @@ and its claim table moves to the docs, where `release/README.md` already holds i
 - FRI's soundness and round-by-round soundness, proved rather than assumed;
   Fiat–Shamir.
 - Probe segments under the hiding; ∀ over public inputs; aggregation.
+- A circuit that runs `accepts`, with the spine in memory (`PLAN.md`); carried from #26.
 - From Avon's worklist (item 0, the papers' measurements): measure a statement with
   several jet calls, and time ski-air's proof check apart from Lean's statement
   checks. Jets slow verification (`split8` 23.0 s against 12.6 s, measured
