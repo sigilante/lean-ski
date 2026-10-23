@@ -25,7 +25,7 @@ repository is the Lean spine that joins the two for SKI.*
 ## 0. What this is, and what it is not
 
 `lean-ski` is the **proof-facing semantics**. It is not a runtime (that is
-Avon, planned in SKIjack's `avon/DESIGN.md`), not a compiler (that is
+Avon, designed in its own repository's `docs/DESIGN.md`), not a compiler (that is
 `skijack`), and not a prover (§5). It is what each of those is checked
 against, in the order Zorp's Pure Nock package fixes: a language core (L0),
 executable trace certificates (L1), and the representation a prover

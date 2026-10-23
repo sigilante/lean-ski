@@ -3,3 +3,9 @@
 .DS_Store
 coverage/.lake/
 zk/.lake/
+# Kept out of the artifact: the papers (their own repository) and local agent files
+paper/
+texput.log
+AGENTS.md
+.claude/
+agents/

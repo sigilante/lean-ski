@@ -1,10 +1,29 @@
 # Worklist
 
 What remains, in the order we mean to take it. `PLAN.md` records the design and what
-is built; this file records what is next. Last revised 2026-10-13.
+is built; this file records what is next. Last revised 2026-10-22.
 
 ## Done since the last revision
 
+- **Public, with remote CI** (2026-10-22, tag `paper-v9`, `fb65141`): MIT licence; the
+  papers stay in their own repository. CI runs on public runners: documentation-only
+  changes skip it, the build and the Rust prover come from caches, and gate 5's trace
+  checks run as parallel lanes, so a warm run of `core` takes about 7.5 minutes (48 cold).
+- **The hidden-term and composed Merkle-committed bounds' hypotheses, met at once**
+  (2026-10-23, `Ski/ZK/WitCompEndToEnd.lean`): `wit_fs_open4ROMMC_fri_sat` and
+  `comp_fs_open4ROMMC_fri_sat`, as `sud_fs_open4ROMMC_fri_sat` for the Sudoku bound, so all
+  three bounds apply to every accepted run (the composed one at heights of at least `2^9`,
+  as `logOK` asks). The public tables are no taller than the traces (`wit_prog_tight`,
+  `comp_pub_tight`), so the Merkle trees have `2^11` and at most `2^21` leaves, and the
+  Merkle term stays below `2^-48` and `2^-38` a draw (`witStd_merkle`, `compStd_merkle`).
+- **Avon master checked against `paper-v8`** (2026-10-22): Avon `4de0c6c`, past its
+  128-bit `skijack-2` digests (avon#55) and its jets matched by term rather than
+  digest (avon#54), passes all five of its lean-ski checks at `b7fae43`: 43 corpus
+  witnesses, 7 jetted, 7 probe tables, the composed statements with jets under hiding,
+  and the Poseidon2 statements, each identical to ski-air's tables, proved and
+  verified. Nothing in lean-ski reads Avon's digests; its jet check compares terms.
+- **avon#22 closed** (2026-10-19): Avon's pier replays logged events with no fuel
+  limit, so a replay no longer deletes the log's last record (avon#24).
 - **A kernel is a door, its arms pulled by axis** (`Ski/Door.lean`, issue #1): skijack's
   `pair`, `hd` and `tl` are `pairT`, `fstT` and `sndT`, by the front end; over any tree of
   cells and any leaves, the pull of axis `n` reduces to Nock's slot (`pick_at`), and the
@@ -172,7 +191,11 @@ is built; this file records what is next. Last revised 2026-10-13.
   (`fs_openROML`); a Merkle opening, the opened leaves' data and salts shown, the opened set
   fixed: `Ski/ZK/ROMMerkleOpen.lean`, one round (`fs_openROMM`, the root hashed:
   `fs_openROMMR`), with a leaf index in the hash input (Plonky3's leaf hash carries none: without
-  it, unopened leaves with equal data and salts share a hash, a term not counted); four rounds, the
+  it, unopened leaves with equal data and salts share a hash, a term counted later, without the
+  index, in `Ski/ZK/ROMMerkleColl.lean`, `ROMInstMC.lean`, `ROMFamilyMC.lean` and, at FRI's
+  leaves, `ROMMerkleIdxC.lean`: `sud_fs_open4ROMMC_fri`, `wit_fs_open4ROMMC_fri` and
+  `comp_fs_open4ROMMC_fri`, one bound for all three, its hypotheses shown satisfiable for
+  all three: `sud_fs_open4ROMMC_fri_sat`, `wit_…`, `comp_…`); four rounds, the
   opened set read at the query challenge: `Ski/ZK/ROMMerkle4.lean` (`fs_open4ROMM`; the root hashed: `fs_open4ROMMR`); the
   circuits over it with the tie of the leaves to the committed rows a hypothesis (`hposO`):
   `Ski/ZK/ROMInstM.lean` (`sud_fs_open4ROMM`, with the root hashed `sud_fs_open4ROMMR`, and the
@@ -444,7 +467,11 @@ and its claim table moves to the docs, where `release/README.md` already holds i
 - FRI's soundness and round-by-round soundness, proved rather than assumed;
   Fiat–Shamir.
 - Probe segments under the hiding; ∀ over public inputs; aggregation.
-- Remote CI for lean-ski: waits on the public release.
+- From Avon's worklist (item 0, the papers' measurements): measure a statement with
+  several jet calls, and time ski-air's proof check apart from Lean's statement
+  checks. Jets slow verification (`split8` 23.0 s against 12.6 s, measured
+  2026-10-04, before the release was remade), and the split between the two is
+  unmeasured.
 - From the audit of the zero-knowledge claim (2026-10-12): `PRGClose` quantifies over
   every test, so no 128-bit seed meets it and `transcript_prg` says nothing for ChaCha20;
   state it over a class of tests, or drop it. `pcsCloseN_masked` needs every column at
@@ -460,5 +487,4 @@ and its claim table moves to the docs, where `release/README.md` already holds i
 
 ## Handed to Avon
 
-- [avon#22](https://github.com/sigilante/avon/issues/22): replay with less fuel deletes
-  the log's last record, entropy replies included.
+Nothing open.

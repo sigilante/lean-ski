@@ -176,6 +176,7 @@ import Ski.ZK.SpongeTree
 import Ski.ZK.SpongeUnion
 import Ski.ZK.FriProof
 import Ski.ZK.SudEndToEnd
+import Ski.ZK.WitCompEndToEnd
 import Ski.ZK.SpongeAbsorb
 import Ski.ZK.SpongeRoot
 import Ski.ZK.SpongePrefix
@@ -1453,6 +1454,9 @@ open Ski.Audit
 
 -- Every hypothesis of a Merkle-committed Sudoku bound, met at once (SudEndToEnd)
 #audit_clean Circuit.comSalt_hides Circuit.comSalt_pf Circuit.comSalt_lt Circuit.sudBl_std Circuit.sudStd_merkle Circuit.sud_fs_open4ROMMC_fri_sat
+
+-- Every hypothesis of the hidden-term and composed Merkle-committed bounds, met at once (WitCompEndToEnd)
+#audit_clean Circuit.topK_mem Circuit.topK_max Circuit.friS_qIdx100_fits Circuit.pow9_le Circuit.witBl_le Circuit.compBl_le Circuit.progC_tp_ge Circuit.segsC_tp_ge Circuit.comp_pub_heights_ge Circuit.witStd_merkle Circuit.compStd_merkle Circuit.pad9_le Circuit.tp_le_of_h Circuit.witBl_le10 Circuit.compBl_le20 Circuit.comp_pub_tight Circuit.wit_prog_tight Circuit.wit_fs_open4ROMMC_fri_sat Circuit.comp_fs_open4ROMMC_fri_sat
 
 -- Plonky3 0.8's absorption meets SpongeUnion's sponge premises with the capacity's tail (SpongeAbsorb)
 #audit_clean Circuit.vals08_lt Circuit.inner08_div Circuit.inner08_hpk2 Circuit.inner08_lt Circuit.κ08_lt Circuit.κ08_count Circuit.inner08_hd Circuit.inner08_full_fails Circuit.absorb08_sat

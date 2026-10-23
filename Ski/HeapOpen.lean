@@ -8,7 +8,7 @@ open Term
 
 A closed term is read back by applying it to fresh markers and seeing which
 one reaches the head: SKIjack's `run.decode` and Avon's probes (§17 of
-`avon/DESIGN.md`).  A marker must be inert, and no closed `{S, K, I}` term
+Avon's `docs/DESIGN.md`).  A marker must be inert, and no closed `{S, K, I}` term
 is, so the machine has an `atom` cell with no rule.  A state with atoms
 reads back as an open term (`OTerm`), each atom `n` as the variable `n`,
 and the variables are inert under open head reduction (`OStep`).

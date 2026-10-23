@@ -14,7 +14,7 @@ arguments it reduces to the body with the arguments substituted, which
 does that reduction in one step: it pops the arguments' pointers and
 writes the body's cells, each variable replaced by its argument's pointer
 (`instStep`).  That is template instantiation, and it is §18.1 of
-`avon/DESIGN.md`.
+Avon's `docs/DESIGN.md`.
 
 **The theorem** (`inst_sound_g`): when the head is `absN xs body`, the
 stack holds `|xs|` arguments, and every other variable of the body, a
