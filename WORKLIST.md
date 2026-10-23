@@ -24,6 +24,13 @@ is built; this file records what is next. Last revised 2026-10-22.
   verified. Nothing in lean-ski reads Avon's digests; its jet check compares terms.
 - **avon#22 closed** (2026-10-19): Avon's pier replays logged events with no fuel
   limit, so a replay no longer deletes the log's last record (avon#24).
+- **A kernel is a door, its arms pulled by axis** (`Ski/Door.lean`, issue #1): skijack's
+  `pair`, `hd` and `tl` are `pairT`, `fstT` and `sndT`, by the front end; over any tree of
+  cells and any leaves, the pull of axis `n ≥ 1` reduces to Nock's slot (`pull_at`), and the
+  Nock 9 pull of each arm of `[[poke [peek load]] st]` to that arm applied to the kernel
+  (`pull_poke`, `pull_peek`, `pull_load`). The pull returns each arm as its own term,
+  whatever it is (`pick_omega`, at `Ω`). A
+  proved poke, one event from an installed kernel, waits on jets with probes.
 - **The split predicates' witnesses are secret, and their heights hold every witness**:
   an audit of the zero-knowledge claim found `release/produce.sh` printing `split8`'s
   and `csplit8`'s witnesses (`a = 123, b = 77, r = 181`), and `csplit8`'s heights

@@ -270,6 +270,7 @@ import Ski.ZK.Generic
 import Ski.ZK.Abort
 import Ski.Circuit.CompPred
 import Ski.Entropy
+import Ski.Door
 import Ski.ZK.Transcript
 import Ski.ZK.Tree
 import Ski.ZK.TranscriptN
@@ -1225,6 +1226,12 @@ open Ski.Audit
 #audit_clean Entropy.hd_red Entropy.tl_red Entropy.pairT_cong Entropy.consT_cong Entropy.convT_one
   Entropy.convT_succ Entropy.convT_red Entropy.entropyV_red Entropy.entropyV_iff Entropy.entropyV_iff'
   Circuit.entropyExport_sound Circuit.checkEntropy_sound
+-- A kernel is a door: any axis of a tree of cells is its slot, over any leaves, and the
+-- Nock 9 pull of each arm (skijack SPEC §4.1)
+#audit_clean Door.pair_eq Door.hd_eq Door.tl_eq Door.fstT_eq Door.sndT_eq Door.hd_pair
+  Door.tl_pair Door.pickT_cong Door.pick_at Door.pull_at Door.door_poke Door.door_peek
+  Door.door_load Door.door_state Door.door_battery Door.pull_poke Door.pull_peek
+  Door.pull_load Door.pokeT_eq Door.pick_omega
 -- One hidden-term run: Sat at the heights 2^10, 2^10, 2^9
 #audit_clean Circuit.wit_run_sats
 -- The hidden-term proof over its composed hiding PCS, end to end
