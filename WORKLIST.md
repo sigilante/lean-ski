@@ -359,9 +359,6 @@ and its claim table moves to the docs, where `release/README.md` already holds i
   `g`, not `I ⬝ g`. Both compilers agree (the differential test with `--eta`, 1,490
   programs, 0 disagreements), but it saves 1%: `csplit8` 118,221 → 117,115 jetted CPU
   rows, `split8` 11,166 → 10,896.
-- `bench/plonky3/README.md`, "Jets on a SKIlark predicate, in the clear": say in one
-  sentence that its "37 roots" measure the loaded heap of one choice of bits, where the
-  next section measures the verifier's table over the blank composed heap.
 - The closure rule counts a pointer that is not backward as private (`pubCells`), so a
   heap with forward pointers would lose jets it could keep. Today's heaps lose none to
   it. Worth doing only if a heap builder starts sharing cells; then `rootsOKB` and

@@ -819,10 +819,10 @@ source's.
 with the bits' cells `[51646, 51839)` private (`split_pub.jets`): it drops
 the 37 roots that reach them, and one jet, and the run (`JetRun.runJ`,
 the counts `ski-air jets-measure` makes) is 11,159 CPU rows and the halt
-row, 11,160, still 8.6%; `Air.checkJA` accepts both runs. This is a
-measurement in the clear, over the heap of these bits, not the
-verifier's table, which `cjets` computes over the blank composed heap
-(below).
+row, 11,160, still 8.6%; `Air.checkJA` accepts both runs. These counts,
+the 37 roots among them, measure the loaded heap of one choice of bits
+(`a = 123`, `b = 77`), in the clear; the verifier's table is computed
+over the blank composed heap by `cjets` (next section).
 
 ### Jets on a composed statement, under the closure rule
 
