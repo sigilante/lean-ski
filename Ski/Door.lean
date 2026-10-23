@@ -13,16 +13,18 @@ is in SKI.
 ## The terms
 
 skijack compiles a cell `[a b]` to its prelude's `pair` applied to `a`
-and `b`, and an axis `n@e` to the chain of `hd` and `tl` its binary digits
-spell (`Front.pickC` over `Front.axisSteps`).  The prelude's `pair`, `hd`
+and `b`, and an axis `n@e`, `n ≥ 1`, to the chain of `hd` and `tl` its
+binary digits spell (`Front.pickC` over `Front.axisSteps`), in a program
+that does not redefine or shadow `pair`, `hd` or `tl`.  The prelude's `pair`, `hd`
 and `tl` are `pairT`, `fstT` and `sndT` of `Ski/Realize.lean`, term for
 term (`pair_eq`, `hd_eq`, `tl_eq`); `fstT` and `sndT` are also
 `Entropy.hdT` and `Entropy.tlT`.
 
 ## What is proved
 
-- `pick_at`: for any tree of cells over any leaves, pulling axis `n`
-  weakly reduces to the subtree Nock's slot gives at `n`.
+- `pick_at`, `pull_at`: for any tree of cells over any leaves, the pull
+  along a path, and so of axis `n ≥ 1` (`pull_at`), weakly reduces to the
+  subtree Nock's slot gives at `n`.
 - `door_poke`, `door_peek`, `door_load`, `door_state`, `door_battery`:
   axes 4, 10, 11, 3 and 2 of `[[poke [peek load]] st]`.
 - `pull_poke` and its siblings: the Nock 9 pull `(4@k) k ev` reduces to
@@ -30,11 +32,11 @@ term (`pair_eq`, `hd_eq`, `tl_eq`); `fstT` and `sndT` are also
 
 ## Selection is not inspection
 
-Every theorem here holds for arbitrary terms at the leaves, a divergent
-one included (`pick_omega`).  The pull reduces only the selectors and the
-pairs; it never reduces an arm, and it returns the arm's own term.  So it
-reads no term's application tree.  This is the positive side of
-`no_quote` (`Ski/Quote.lean`): no combinator takes a live term to its
+Every theorem here holds for arbitrary terms at the leaves, `Ω` among
+them (`pick_omega`).  The reductions are uniform in the leaves: one fixed
+context, the pull, returns each arm as its own term, whatever it is.  This
+is the positive side of `no_quote` (`Ski/Quote.lean`), by analogy rather
+than by a theorem joining them: no combinator takes a live term to its
 encoding, and none is needed to reach a kernel's arms.
 -/
 
@@ -71,7 +73,9 @@ def Noun.toT : Noun → Term
   | .cell l r => pairT ⬝ l.toT ⬝ r.toT
 
 /-- The subtree along a path, `false` for the head and `true` for the
-    tail; Nock's slot `/` at axis `n` is `at (Front.axisSteps n)`. -/
+    tail; Nock's slot `/` at axis `n ≥ 1` is `at (Front.axisSteps n)`.
+    At `0`, where Nock crashes and skijack refuses the axis,
+    `Front.axisSteps 0` is empty. -/
 def Noun.at : Noun → List Bool → Option Noun
   | x, [] => some x
   | .cell l _, false :: bs => l.at bs
@@ -84,7 +88,9 @@ def pickT (e : Term) : List Bool → Term
   | [] => e
   | b :: bs => pickT ((if b then sndT else fstT) ⬝ e) bs
 
-/-- Axis `n` of `e`: `n@e` as skijack compiles it. -/
+/-- Axis `n` of `e`: `n@e` as skijack compiles it, for `n ≥ 1` and the
+    prelude's `hd` and `tl` in scope.  `pull 0 e` is `e`, where skijack
+    refuses axis `0`. -/
 def pull (n : Nat) (e : Term) : Term := pickT e (Front.axisSteps n)
 
 theorem hd_pair (a b : Term) : WSteps (fstT ⬝ (pairT ⬝ a ⬝ b)) a :=
@@ -120,7 +126,7 @@ theorem pull_at {n : Nat} {x y : Noun} (h : x.at (Front.axisSteps n) = some y) :
 def door (poke peek load st : Term) : Noun :=
   .cell (.cell (.leaf poke) (.cell (.leaf peek) (.leaf load))) (.leaf st)
 
-/-- The door as skijack compiles it. -/
+/-- The door as skijack compiles it, with the prelude's `pair` in scope. -/
 def doorT (poke peek load st : Term) : Term := (door poke peek load st).toT
 
 section
@@ -167,10 +173,11 @@ theorem pokeT_eq (k ev : Term) : Entropy.pokeT k ev = pull 4 k ⬝ k ⬝ ev := b
     pickT, fstT_eq]
   rfl
 
-/-- `Ω = S I I (S I I)`, which reduces only to itself. -/
+/-- `Ω = S I I (S I I)`, which reduces to itself in three steps. -/
 def omega : Term := S ⬝ I ⬝ I ⬝ (S ⬝ I ⬝ I)
 
-/-- Selection reads no arm: a divergent poke is pulled as it stands. -/
+/-- `door_poke` at `Ω`: the pull returns the arm as it stands, whatever it
+    is.  Its divergence is not proved here. -/
 theorem pick_omega (peek load st : Term) :
     WSteps (pull 4 (doorT omega peek load st)) omega :=
   door_poke ..
