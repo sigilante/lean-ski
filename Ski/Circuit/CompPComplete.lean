@@ -227,7 +227,8 @@ theorem jetS_facts {i : Nat} (hj : R.jetSAt i = true) :
     (∀ l, l < P2_BITS → (R.A.take (R.rowQ i).ctr)[spAt (R.js1 i) l]? =
         some (.cons (P2Jet.bitPtr ((R.jbits i).getD l false)) (spnAt (R.js1 i) (R.jrest i) l))) ∧
       (R.jbits i).length = 496 ∧
-      wrs R.A (R.rowQ i).ctr (P2Jet.pushR (R.rowQ i).ctr (R.jrest i) (P2Jet.outBits (R.jbits i)).reverse) = true := by
+      wrs R.A (R.rowQ i).ctr (P2Jet.pushR (R.rowQ i).ctr (R.jrest i) (P2Jet.outBits (R.jbits i)).reverse) = true ∧
+      P2_BITS - 1 ≤ R.js1 i := by
   obtain ⟨_, _, hp2⟩ := jetSAt_spec hj
   obtain ⟨_, k, ps, rest, bs, hpop, _, hrun, hbits, hbl, hw, _⟩ := p2RowS_inv hp2
   have hpop' := hpop
@@ -259,7 +260,7 @@ theorem jetS_facts {i : Nat} (hj : R.jetSAt i = true) :
           simp only [Option.getD_some, List.tail_cons, hbits]
         have hpl : ps'.length = 496 := popN_len hq
         rw [hjs, hjr, hjb]
-        refine ⟨fun l hl => ?_, hbl, hw⟩
+        refine ⟨fun l hl => ?_, hbl, hw, (consec_cells 495 s1 hcon hq 495 (Nat.le_refl _)).1⟩
         obtain ⟨_, hcell⟩ := consec_cells 495 s1 hcon hq l (by unfold P2_BITS at hl; omega)
         unfold spAt spnAt
         rw [hcell, ptrBits_getD hbits l (by rw [hpl]; exact hl)]
@@ -277,7 +278,7 @@ theorem jet_facts {i : Nat} (hj : R.jetAt i = true) :
   unfold jetAt at hj
   rcases Bool.or_eq_true _ _ ▸ hj with hc | hs
   · exact (R.jetC_facts hc).2
-  · exact (R.jetS_facts hs).2
+  · exact ⟨(R.jetS_facts hs).2.1, (R.jetS_facts hs).2.2.1⟩
 
 end P2Run
 
@@ -332,7 +333,7 @@ theorem pin_honest {K H : Nat}
     simp only [Bool.false_eq_true, if_false]
     cases (R.jbits i).getD l false <;> rfl
   · -- on the stack: the input's cell
-    obtain ⟨hcells, _, _⟩ := R.jetS_facts hs
+    obtain ⟨hcells, _, _, _⟩ := R.jetS_facts hs
     have hcell := hcells l hl
     rw [List.getElem?_take] at hcell
     split at hcell

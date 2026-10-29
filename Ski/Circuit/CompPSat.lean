@@ -151,27 +151,28 @@ theorem p2in_zero : ∀ c ∈ p2inAir.cons, c.eval (envOf []) = 0 := by
   exact of_decide_eq_true (List.all_eq_true.1 (show p2inAir.cons.all (fun e => decide (e.eval (envOf []) = 0)) = true
     by decide) c hc)
 
-/-- **A P2IN row satisfies P2IN's constraints.** -/
-theorem pinRow_cons (ctr : Nat) (bs : List Bool) (l : Nat) :
-    ∀ c ∈ p2inAir.cons, c.eval (envOf (pinRow ctr bs l)) = 0 := by
+theorem sub_succ_add_one (a : F) : (a - (a + 1)) + 1 = 0 :=
+  E.eval_eq_of_norm (e := .add (.sub (.atom (.main 0 0)) (.add (.atom (.main 0 0)) (.const 1))) (.const 1))
+    (e' := .const 0) (by decide) (fun | .main 0 0 => a | _ => 0)
+
+/-- **A P2IN row satisfies P2IN's constraints**: on the stack, when the
+    inputs' cells reach down to `s₁ - 495`. -/
+theorem pinRow_cons (ctr : Nat) (bs : List Bool) (stk : Bool) (s1 rest l : Nat) (hl0 : l < P2_BITS)
+    (hs : stk = true → l + 1 < P2_BITS → l + 1 ≤ s1) :
+    ∀ c ∈ p2inAir.cons, c.eval (envOf (pinRow ctr bs stk s1 rest l)) = 0 := by
   intro c hc
   simp only [p2inAir, List.mem_cons, List.not_mem_nil, or_false] at hc
-  have g : ∀ j, (E.atom (.main 0 j)).eval (envOf (pinRow ctr bs l)) = (pinRow ctr bs l).getD j 0 := fun _ => rfl
-  rcases hc with rfl | rfl | rfl | rfl | rfl
+  rcases hc with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
   · -- the activity is a bit
-    show (pinRow ctr bs l).getD 4 0 * ((pinRow ctr bs l).getD 4 0 - ofN 1) = 0
     show (1 : F) * (1 - ofN 1) = 0
     decide
   · -- the bit is a bit
-    show (pinRow ctr bs l).getD 2 0 * ((pinRow ctr bs l).getD 2 0 - ofN 1) = 0
     exact bF_bool _
   · -- the value adds the bit's power
-    show (pinRow ctr bs l).getD 10 0 - ((pinRow ctr bs l).getD 3 0 + (pinRow ctr bs l).getD 6 0 * (pinRow ctr bs l).getD 2 0) = 0
     show ofN (accN bs l + 2 ^ (l % 31) * (bs.getD l false).toNat) -
       (ofN (accN bs l) + ofN (2 ^ (l % 31)) * bF (bs.getD l false)) = 0
     rw [ofN_add, ofN_mul, bF_toNat, sub_self']
   · -- the next accumulator restarts after an element's last bit
-    show (pinRow ctr bs l).getD 11 0 - ((ofN 1 - (pinRow ctr bs l).getD 7 0) * (pinRow ctr bs l).getD 10 0) = 0
     show (if l % 31 = 30 then 0 else ofN (accN bs l + 2 ^ (l % 31) * (bs.getD l false).toNat)) -
       ((ofN 1 - bF (decide (l % 31 = 30))) * ofN (accN bs l + 2 ^ (l % 31) * (bs.getD l false).toNat)) = 0
     by_cases h : l % 31 = 30
@@ -180,9 +181,62 @@ theorem pinRow_cons (ctr : Nat) (bs : List Bool) (l : Nat) :
     · rw [if_neg h, decide_eq_false h]; show _ - ((ofN 1 - 0) * _) = (0 : F)
       rw [show (ofN 1 - 0 : F) = 1 by decide, one_mul', sub_self']
   · -- the element's message fires at its last bit
-    show (pinRow ctr bs l).getD 12 0 - ((pinRow ctr bs l).getD 4 0 * (pinRow ctr bs l).getD 7 0) = 0
     show bF (decide (l % 31 = 30)) - (1 * bF (decide (l % 31 = 30))) = 0
     rw [one_mul', sub_self']
+  · -- `ca`
+    show bF (!stk) - (1 * (ofN 1 - bF stk)) = 0
+    cases stk <;> decide
+  · -- `sa`
+    show bF stk - (1 * bF stk) = 0
+    cases stk <;> decide
+  · -- on the comb the stack pointer passes along
+    show (ofN 1 - bF stk) * (ofN (if stk then spnAt s1 rest l else rest) -
+      ofN (if stk then spAt s1 l else rest)) = 0
+    cases stk
+    · show (ofN 1 - 0) * (ofN rest - ofN rest) = (0 : F)
+      rw [sub_self']; exact mul_zero' _
+    · show (ofN 1 - 1) * _ = (0 : F)
+      rw [show (ofN 1 - 1 : F) = 0 by decide, zero_mul']
+  · -- the read's address
+    cases stk
+    · show ofN (l + 3) - (0 * ofN rest + 1 * (ofN l + ofN 3)) = (0 : F)
+      rw [zero_mul', zero_add', one_mul', ← ofN_add, sub_self']
+    · show ofN (spAt s1 l) - (1 * ofN (spAt s1 l) + 0 * (ofN l + ofN 3)) = (0 : F)
+      rw [zero_mul', add_zero', one_mul', sub_self']
+  · -- the read's tag
+    cases stk
+    · show ofN (3 - 2 * (bs.getD l false).toNat) - (0 * ofN 5 + 1 * (ofN 3 - bF (bs.getD l false) * ofN 2)) = (0 : F)
+      rw [zero_mul', zero_add', one_mul']
+      cases bs.getD l false <;> decide
+    · show (5 : F) - (1 * ofN 5 + 0 * (ofN 3 - bF (bs.getD l false) * ofN 2)) = 0
+      rw [zero_mul', add_zero', one_mul']; decide
+  · -- the read's first field
+    cases stk
+    · show (0 : F) - 0 * (ofN 2 - bF (bs.getD l false) * ofN 2) = 0
+      rw [zero_mul']; decide
+    · show ofN (2 - 2 * (bs.getD l false).toNat) - 1 * (ofN 2 - bF (bs.getD l false) * ofN 2) = (0 : F)
+      rw [one_mul']
+      cases bs.getD l false <;> decide
+  · -- the read's second field
+    cases stk
+    · show ofN (1 - (bs.getD l false).toNat) - (0 * ofN rest + 1 * (ofN 1 - bF (bs.getD l false))) = (0 : F)
+      rw [zero_mul', zero_add', one_mul']
+      cases bs.getD l false <;> decide
+    · show ofN (spnAt s1 rest l) - (1 * ofN (spnAt s1 rest l) + 0 * (ofN 1 - bF (bs.getD l false))) = (0 : F)
+      rw [zero_mul', add_zero', one_mul', sub_self']
+  · -- on the stack the inputs are consecutive cells
+    cases stk
+    · show 0 * (ofN 1 - bF (decide (l = P2_BITS - 1))) * ((ofN rest - ofN rest) + ofN 1) = (0 : F)
+      rw [zero_mul', zero_mul']
+    · show 1 * (ofN 1 - bF (decide (l = P2_BITS - 1))) *
+        ((ofN (spnAt s1 rest l) - ofN (spAt s1 l)) + ofN 1) = (0 : F)
+      by_cases hl : l = P2_BITS - 1
+      · rw [decide_eq_true hl, show (ofN 1 - bF true : F) = 0 by decide, mul_zero', zero_mul']
+      · rw [decide_eq_false hl]
+        have h1 := hs rfl (by unfold P2_BITS at hl hl0 ⊢; omega)
+        obtain ⟨a, ha⟩ : ∃ a, s1 - l = a + 1 := ⟨s1 - l - 1, by omega⟩
+        unfold spnAt spAt
+        rw [if_neg hl, ha, Nat.add_sub_cancel, ofN_add, ofN_one, sub_succ_add_one, mul_zero']
 
 -- ---------------------------------------------------------------------------
 -- P2OUT
@@ -720,8 +774,10 @@ variable (R : P2Run)
 
 theorem pin_sat {K H : Nat} (hH : 0 < H) : Sat p2inAir (R.pinTable K H) :=
   sat_ofRows hH p2in_cur (fun rw hrw c hc => by
-    obtain ⟨_, _, _, l, _, rfl⟩ := P2Run.pinRows_mem (R := R) hrw
-    exact pinRow_cons _ _ l c hc) p2in_zero
+    obtain ⟨i, _, _, l, hl, rfl⟩ := P2Run.pinRows_mem (R := R) hrw
+    exact pinRow_cons _ _ _ _ _ l hl (fun hs hl1 => by
+      have := (R.jetS_facts hs).2.2.2
+      unfold P2_BITS at this hl1; omega) c hc) p2in_zero
 
 theorem pout_sat {K H : Nat} (hH : 0 < H) : Sat p2outAir (R.poutTable K H) :=
   sat_ofRows hH p2out_cur (fun rw hrw c hc => by
