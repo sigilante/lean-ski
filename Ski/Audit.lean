@@ -140,6 +140,12 @@ import Ski.ZK.FSQueryJ
 import Ski.ZK.FSQueryJA
 import Ski.ZK.ROMInstMCJ
 import Ski.ZK.ROMMerkleIdxCJ
+import Ski.ZK.BbGroupD
+import Ski.ZK.CompPInst
+import Ski.ZK.CompPHiding
+import Ski.ZK.FSQueryP
+import Ski.ZK.ROMInstMCP
+import Ski.ZK.ROMMerkleIdxCP
 import Ski.ZK.ROMInstM
 import Ski.ZK.ROMFamilyM
 import Ski.ZK.ROMMerkleRows
@@ -1557,3 +1563,20 @@ open Ski.Audit
   Circuit.compJCols_main Circuit.compJ_pcsX Circuit.compJ_fs_open4
 #audit_clean Circuit.compJ_fs_open4A Circuit.compJ_fs_open4ROMMC
 #audit_clean Circuit.compJ_hposO_idx Circuit.compJ_opened_iff Circuit.compJ_fri_leaves Circuit.compJ_fs_open4ROMMC_fri
+
+-- The trace group at constraint degree D (BbGroupD): Plonky3's eight quotient
+-- chunks for a degree-3 table
+#audit_clean Circuit.airP3D_two Circuit.p3D_facts Circuit.airP3_lup_of_D Circuit.corpus_plainD
+  Circuit.corpus_withLup_shapeD Circuit.bb_psz Circuit.bbTab_L Circuit.bbData_L Circuit.tabsHonest_corpusD
+  Circuit.tabsHonest_corpus_iteD Circuit.tabsHonest_bbD
+
+-- The circuit with the Poseidon2 jet under Fiat–Shamir: its hiding PCS, P2OUT
+-- and Poseidon2 at degree 3 over eight chunks (CompPInst), the honest run's
+-- facts (CompPHiding), four rounds and the one-call statements (FSQueryP), the
+-- first commitment hiding up to η and Merkle leaves that may share a hash
+-- (ROMInstMCP), FRI's leaves at Plonky3's positions (ROMMerkleIdxCP)
+#audit_clean Circuit.pCols_shaped Circuit.compP_airs Circuit.compP_blind_ok Circuit.compP_pcs Circuit.compP_run_facts
+#audit_clean Circuit.compP_SsT Circuit.compP_SsC Circuit.compP_same_w Circuit.compP_data_q Circuit.compP_same_d
+  Circuit.compPCols_main Circuit.compP_pcsX Circuit.compP_fs_open4 Circuit.compP_calls_p2pre Circuit.compP_calls_p2commit
+#audit_clean Circuit.compP_fs_open4A Circuit.compP_fs_open4ROMMC
+#audit_clean Circuit.compP_hposO_idx Circuit.compP_opened_iff Circuit.compP_fri_leaves Circuit.compP_fs_open4ROMMC_fri
