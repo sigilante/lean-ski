@@ -37,16 +37,17 @@ theorem ite_edge (A B : Prop) [Decidable A] [Decidable B] :
     ((if A then (-1 : F) else 0) + if B then 1 else 0) = ofN (if B then 1 else 0) - ofN (if A then 1 else 0) := by
   by_cases hA : A <;> by_cases hB : B <;> simp only [hA, hB, if_true, if_false] <;> decide
 
-/-- P2IN's rows at the key `t`, as edges: level `lvl`, from `acc` to `nacc`. -/
+/-- P2IN's rows at the key `t`, as edges: level `lvl`, from `(acc, m, sp)`
+    to `(nacc, m, spn)`. -/
 def pinEdges (Pi : Table) (t : F) : Edges :=
   ⟨Pi.h, fun q => decide (Pi.main q 4 = 1) && decide (Pi.main q 0 = t), fun q => Pi.main q 1,
-    fun q => [Pi.main q 3], fun q => [Pi.main q 11]⟩
+    fun q => [Pi.main q 3, Pi.main q 13, Pi.main q 14], fun q => [Pi.main q 11, Pi.main q 13, Pi.main q 15]⟩
 
 /-- A P2IN row's `p2i` messages: its outgoing edge less its incoming one. -/
-theorem pin_rowSends {Pi : Table} (hs : Sat p2inAir Pi) {q : Nat} (hq : q < Pi.h) (t l s : F) :
-    rowSends p2inAir Pi "p2i" [t, l, s] q =
-      ofN (if (pinEdges Pi t).act q && decide ((pinEdges Pi t).outN q = (l, [s])) then 1 else 0) -
-      ofN (if (pinEdges Pi t).act q && decide ((pinEdges Pi t).inN q = (l, [s])) then 1 else 0) := by
+theorem pin_rowSends {Pi : Table} (hs : Sat p2inAir Pi) {q : Nat} (hq : q < Pi.h) (t l s m sp : F) :
+    rowSends p2inAir Pi "p2i" [t, l, s, m, sp] q =
+      ofN (if (pinEdges Pi t).act q && decide ((pinEdges Pi t).outN q = (l, [s, m, sp])) then 1 else 0) -
+      ofN (if (pinEdges Pi t).act q && decide ((pinEdges Pi t).inN q = (l, [s, m, sp])) then 1 else 0) := by
   have cv := col_eval hq
   simp only [rowSends, p2inAir, List.foldr_cons, List.foldr_nil, List.map_cons, List.map_nil, E.eval, cv,
     B.one, B.c, ofN_one]
@@ -66,8 +67,8 @@ theorem pin_rowSends {Pi : Table} (hs : Sat p2inAir Pi) {q : Nat} (hq : q < Pi.h
 /-- The CPU's `p2i` messages: a jet row starts its chain and ends it. -/
 theorem cpuP_p2i {hd0 stk0 ctr0 n nilA J root : Nat} {C : Table} {r : Nat} (hr : r < C.h) (v : List F) :
     rowSends (cpuAirP2 hd0 stk0 ctr0 n nilA J root) C "p2i" v r =
-      (if [C.main r CTR, 0, 0] = v then C.main r P2SEL else 0) +
-      (if [C.main r CTR, ofN P2_BITS, 0] = v then -C.main r P2SEL else 0) := by
+      (if [C.main r CTR, 0, 0, C.main r P2MODE, C.main r P2SP0] = v then C.main r P2SEL else 0) +
+      (if [C.main r CTR, ofN P2_BITS, 0, C.main r P2MODE, C.main r P2REST] = v then -C.main r P2SEL else 0) := by
   have cv := col_eval hr
   unfold rowSends
   show cpuIntersP2.foldr _ 0 = _
@@ -113,8 +114,8 @@ theorem pout_rowSends {Po : Table} (hs : Sat p2outAir Po) {q : Nat} (hq : q < Po
 /-- The CPU's `p2o` messages: a jet row starts its chain and ends it. -/
 theorem cpuP_p2o {hd0 stk0 ctr0 n nilA J root : Nat} {C : Table} {r : Nat} (hr : r < C.h) (v : List F) :
     rowSends (cpuAirP2 hd0 stk0 ctr0 n nilA J root) C "p2o" v r =
-      (if [C.main r CTR, 0, C.main r (FLD + 5), 0, 0, 1] = v then C.main r P2SEL else 0) +
-      (if [C.main r CTR, ofN P2_BITS, C.main r (FLD + 5), 0, 0, 1] = v then -C.main r P2SEL else 0) := by
+      (if [C.main r CTR, 0, C.main r P2REST, 0, 0, 1] = v then C.main r P2SEL else 0) +
+      (if [C.main r CTR, ofN P2_BITS, C.main r P2REST, 0, 0, 1] = v then -C.main r P2SEL else 0) := by
   have cv := col_eval hr
   unfold rowSends
   show cpuIntersP2.foldr _ 0 = _
@@ -291,6 +292,33 @@ theorem pin_eqs {Pi : Table} (hs : Sat p2inAir Pi) {q : Nat} (hq : q < Pi.h) :
     (List.mem_cons_of_mem _ List.mem_cons_self))))
   simp only [B.bool, B.eq, B.one, B.c, E.eval, cv, ofN_one] at c1 c2 c3 c4
   exact ⟨c1, sub_eq_zero c2, sub_eq_zero c3, sub_eq_zero c4⟩
+
+/-- P2IN's read: its gates and the cell it reads, by mode. -/
+theorem pin_eqsR {Pi : Table} (hs : Sat p2inAir Pi) {q : Nat} (hq : q < Pi.h) :
+    Pi.main q 20 = Pi.main q 4 * (1 - Pi.main q 13) ∧ Pi.main q 21 = Pi.main q 4 * Pi.main q 13 ∧
+    (1 - Pi.main q 13) * (Pi.main q 15 - Pi.main q 14) = 0 ∧
+    Pi.main q 16 = Pi.main q 21 * Pi.main q 14 + Pi.main q 20 * (Pi.main q 1 + ofN 3) ∧
+    Pi.main q 17 = Pi.main q 21 * ofN 5 + Pi.main q 20 * (ofN 3 - Pi.main q 2 * ofN 2) ∧
+    Pi.main q 18 = Pi.main q 21 * (ofN 2 - Pi.main q 2 * ofN 2) ∧
+    Pi.main q 19 = Pi.main q 21 * Pi.main q 15 + Pi.main q 20 * (1 - Pi.main q 2) ∧
+    Pi.main q 22 = Pi.main q 21 * (1 - Pi.main q 9) ∧ Pi.main q 22 * (Pi.main q 15 - Pi.main q 14 + 1) = 0 := by
+  have cv := col_eval hq
+  have c := fun (e : E) (he : e ∈ p2inAir.cons) => hs.2 e he q hq
+  have c5 := c (B.eq (col 20) (.mul (col 4) (.sub one (col 13)))) (by simp [p2inAir])
+  have c6 := c (B.eq (col 21) (.mul (col 4) (col 13))) (by simp [p2inAir])
+  have c7 := c (.mul (.sub one (col 13)) (.sub (col 15) (col 14))) (by simp [p2inAir])
+  have c8 := c (B.eq (col 16) (.add (.mul (col 21) (col 14)) (.mul (col 20) (.add (col 1) (B.c 3)))))
+    (by simp [p2inAir])
+  have c9 := c (B.eq (col 17) (.add (.mul (col 21) (B.c 5)) (.mul (col 20) (.sub (B.c 3) (.mul (col 2) (B.c 2))))))
+    (by simp [p2inAir])
+  have c10 := c (B.eq (col 18) (.mul (col 21) (.sub (B.c 2) (.mul (col 2) (B.c 2))))) (by simp [p2inAir])
+  have c11 := c (B.eq (col 19) (.add (.mul (col 21) (col 15)) (.mul (col 20) (.sub one (col 2)))))
+    (by simp [p2inAir])
+  have c12 := c (B.eq (col 22) (.mul (col 21) (.sub one (col 9)))) (by simp [p2inAir])
+  have c13 := c (.mul (col 22) (.add (.sub (col 15) (col 14)) one)) (by simp [p2inAir])
+  simp only [B.eq, B.one, B.c, E.eval, cv, ofN_one] at c5 c6 c7 c8 c9 c10 c11 c12 c13
+  exact ⟨sub_eq_zero c5, sub_eq_zero c6, c7, sub_eq_zero c8, sub_eq_zero c9, sub_eq_zero c10, sub_eq_zero c11,
+    sub_eq_zero c12, c13⟩
 
 /-- P2OUT's constraints at a row. -/
 theorem pout_eqs {Po : Table} (hs : Sat p2outAir Po) {q : Nat} (hq : q < Po.h) :
@@ -573,20 +601,26 @@ theorem CompPOK.kind12 {r : Nat} (hr : r < C.h) (hp : C.main r P2SEL = 1) : IsKi
   · rw [← e]; exact hk
   · rw [if_neg e] at this; exact absurd this (by decide)
 
-/-- **A jet row's reads**: the atom `J` at the head, `cons k s₁` at the
-    stack, `cons root rest` at `s₁`; and the slots `K`, `I`, `K I`. -/
-theorem CompPOK.jetReads {r : Nat} (hr : r < C.h) (hp : C.main r P2SEL = 1) (hJ : J < P) (hroot : root < P) :
-    rd (memOf Mm) (C.main r CTR).val (C.main r HD).val = some (.atom J) ∧
+/-- **A jet row's reads**: `cons k s₁` at the stack, the cell `cons a b` at
+    `s₁`, and the slots `K`, `I`, `K I`.  On the comb (`MODE = 0`) the atom
+    `J` at the head, `a` the root, the stack below the inputs `b` and the
+    input chain's start there; on the stack (`MODE = 1`) the atom `J + 1`
+    at the head and the input chain's start at `s₁`. -/
+theorem CompPOK.jetReads {r : Nat} (hr : r < C.h) (hp : C.main r P2SEL = 1) (hJ : J + 1 < P) (hroot : root < P) :
+    ((C.main r P2MODE = 0 ∧ rd (memOf Mm) (C.main r CTR).val (C.main r HD).val = some (.atom J) ∧
+        (C.main r (FLD + 4)).val = root ∧ C.main r P2REST = C.main r (FLD + 5) ∧
+        C.main r P2SP0 = C.main r P2REST) ∨
+      (C.main r P2MODE = 1 ∧ rd (memOf Mm) (C.main r CTR).val (C.main r HD).val = some (.atom (J + 1)) ∧
+        C.main r P2SP0 = C.main r (FLD + 3))) ∧
     rd (memOf Mm) (C.main r CTR).val (C.main r STK).val =
       some (.cons (C.main r (FLD + 2)).val (C.main r (FLD + 3)).val) ∧
     rd (memOf Mm) (C.main r CTR).val (C.main r (FLD + 3)).val =
-      some (.cons root (C.main r (FLD + 5)).val) ∧
+      some (.cons (C.main r (FLD + 4)).val (C.main r (FLD + 5)).val) ∧
     (memOf Mm)[0]? = some .K ∧ (memOf Mm)[1]? = some .I ∧ (memOf Mm)[2]? = some (.app 0 1) := by
   have hk := h.kind12 hr hp
-  obtain ⟨p0, p4⟩ := p2_pinsP h.cpu hr
-  rw [hp, one_mul'] at p0 p4
+  obtain ⟨p0, p4, pm, pcm, prest, psp⟩ := p2_pinsP h.cpu hr
+  rw [hp, one_mul'] at p0 pcm
   have e0 := sub_eq_zero p0
-  have e4 := sub_eq_zero p4
   have r0 := h.read hr hk (j := 0) (by decide) rfl
   have r1 := h.read hr hk (j := 1) (by decide) rfl
   have r2 := h.read hr hk (j := 2) (by decide) rfl
@@ -601,11 +635,23 @@ theorem CompPOK.jetReads {r : Nat} (hr : r < C.h) (hp : C.main r P2SEL = 1) (hJ 
   have s2 := h.sendP hr (I := ⟨"mem", 1, sP2, [c 2, c 3, c 0, c 1]⟩)
     (by rw [cpuIntersP2_eq]; simp only [List.mem_cons, true_or, or_true]) rfl
     (a := ofN 2) (t := ofN 3) (x := ofN 0) (y := ofN 1) (by simp only [List.map_cons, List.map_nil, B.c, E.eval]) hs1
-  refine ⟨?_, r1, ?_, s0.2, s1.2, s2.2⟩
-  · rw [show addrCol 0 = HD from rfl] at r0
-    rw [r0, show tagOfP 12 0 = 6 from rfl, cellOf_atom, e0, val_ofN hJ]
-  · rw [show addrCol 2 = FLD + 3 from rfl] at r2
-    rw [r2, show tagOfP 12 2 = 5 from rfl, cellOf_cons, show FLD + 2 * 2 = FLD + 4 from rfl, e4, val_ofN hroot]
+  rw [show addrCol 0 = HD from rfl, show tagOfP 12 0 = 6 from rfl, cellOf_atom, e0] at r0
+  rw [show addrCol 2 = FLD + 3 from rfl, show tagOfP 12 2 = 5 from rfl, cellOf_cons,
+    show FLD + 2 * 2 = FLD + 4 from rfl, show FLD + 2 * 2 + 1 = FLD + 5 from rfl] at r2
+  refine ⟨?_, r1, r2, s0.2, s1.2, s2.2⟩
+  rcases bit_of pm with hm | hm
+  · rw [hm] at pcm psp r0
+    rw [show (1 : F) - 0 = 1 by decide] at pcm
+    rw [pcm, one_mul'] at p4 prest
+    rw [show (0 : F) * C.main r (FLD + 3) = 0 by rw [zero_mul'], show (1 : F) - 0 = 1 by decide, one_mul',
+      zero_add'] at psp
+    refine .inl ⟨hm, ?_, ?_, sub_eq_zero prest, psp⟩
+    · rw [r0, add_zero', val_ofN (Nat.lt_of_succ_lt hJ)]
+    · rw [sub_eq_zero p4, val_ofN hroot]
+  · rw [hm] at psp r0
+    rw [show (1 : F) - 1 = 0 by decide, zero_mul', add_zero', one_mul'] at psp
+    refine .inr ⟨hm, ?_, psp⟩
+    rw [r0, ← ofN_one, ← ofN_add, val_ofN hJ]
 
 /-- **A jet row's next registers**: `k` at the head, the counter plus `495`
     at the stack, the counter plus `496`. -/
@@ -629,30 +675,35 @@ theorem CompPOK.jetNext {r : Nat} (hn : r + 1 < C.h) (hp : C.main r P2SEL = 1) :
 
 /-- **`p2i` is a flow** at a jet row's key, from `(0, 0)` to `(496, 0)`. -/
 theorem CompPOK.pinConserve {r0 : Nat} (hr0 : r0 < C.h) (hp : C.main r0 P2SEL = 1) :
-    (pinEdges Pi (C.main r0 CTR)).Conserve (some ((0 : F), [0])) (some (ofN P2_BITS, [0])) := by
+    (pinEdges Pi (C.main r0 CTR)).Conserve (some ((0 : F), [0, C.main r0 P2MODE, C.main r0 P2SP0]))
+      (some (ofN P2_BITS, [0, C.main r0 P2MODE, C.main r0 P2REST])) := by
   intro v
   obtain ⟨l, st⟩ := v
   have hCP : C.h < P := Nat.lt_of_le_of_lt h.cpu_h (by decide)
-  have zero_case : (∀ x : F, st ≠ [x]) →
-      (pinEdges Pi (C.main r0 CTR)).cntOut (l, st) + Edges.oneIf (some ((0 : F), [0])) (l, st) =
-        (pinEdges Pi (C.main r0 CTR)).cntIn (l, st) + Edges.oneIf (some (ofN P2_BITS, [0])) (l, st) := by
+  have zero_case : (∀ x y z : F, st ≠ [x, y, z]) →
+      (pinEdges Pi (C.main r0 CTR)).cntOut (l, st) +
+          Edges.oneIf (some ((0 : F), [0, C.main r0 P2MODE, C.main r0 P2SP0])) (l, st) =
+        (pinEdges Pi (C.main r0 CTR)).cntIn (l, st) +
+          Edges.oneIf (some (ofN P2_BITS, [0, C.main r0 P2MODE, C.main r0 P2REST])) (l, st) := by
     intro hst
     have z1 : (pinEdges Pi (C.main r0 CTR)).cntOut (l, st) = 0 := sumTo_zero (fun q => by
       rw [show decide ((pinEdges Pi (C.main r0 CTR)).outN q = (l, st)) = false from
-        decide_eq_false (fun e => hst _ (congrArg Prod.snd e).symm), Bool.and_false]; rfl) _
+        decide_eq_false (fun e => hst _ _ _ (congrArg Prod.snd e).symm), Bool.and_false]; rfl) _
     have z2 : (pinEdges Pi (C.main r0 CTR)).cntIn (l, st) = 0 := sumTo_zero (fun q => by
       rw [show decide ((pinEdges Pi (C.main r0 CTR)).inN q = (l, st)) = false from
-        decide_eq_false (fun e => hst _ (congrArg Prod.snd e).symm), Bool.and_false]; rfl) _
-    have o1 : Edges.oneIf (some ((0 : F), [0])) (l, st) = 0 :=
-      if_neg (fun e => hst _ (congrArg Prod.snd (Option.some.inj e)).symm)
-    have o2 : Edges.oneIf (some (ofN P2_BITS, [0])) (l, st) = 0 :=
-      if_neg (fun e => hst _ (congrArg Prod.snd (Option.some.inj e)).symm)
+        decide_eq_false (fun e => hst _ _ _ (congrArg Prod.snd e).symm), Bool.and_false]; rfl) _
+    have o1 : Edges.oneIf (some ((0 : F), [0, C.main r0 P2MODE, C.main r0 P2SP0])) (l, st) = 0 :=
+      if_neg (fun e => hst _ _ _ (congrArg Prod.snd (Option.some.inj e)).symm)
+    have o2 : Edges.oneIf (some (ofN P2_BITS, [0, C.main r0 P2MODE, C.main r0 P2REST])) (l, st) = 0 :=
+      if_neg (fun e => hst _ _ _ (congrArg Prod.snd (Option.some.inj e)).symm)
     rw [z1, z2, o1, o2]
   match st with
-  | [] => exact zero_case (fun _ e => by cases e)
-  | _ :: _ :: _ => exact zero_case (fun _ e => by cases e)
-  | [s] =>
-    have hb := h.bal "p2i" [C.main r0 CTR, l, s]
+  | [] => exact zero_case (fun _ _ _ e => by cases e)
+  | [_] => exact zero_case (fun _ _ _ e => by cases e)
+  | [_, _] => exact zero_case (fun _ _ _ e => by cases e)
+  | _ :: _ :: _ :: _ :: _ => exact zero_case (fun _ _ _ e => by cases e)
+  | [s, m, sp] =>
+    have hb := h.bal "p2i" [C.main r0 CTR, l, s, m, sp]
     simp only [compPTables, List.foldr_cons, List.foldr_nil] at hb
     rw [sends_nobus' (A := memAirC) rfl, sends_nobus' (A := progAirC heap N W) rfl,
       sends_nobus' (A := witAirP N W) rfl, sends_nobus' (A := segsAir roots) rfl,
@@ -660,14 +711,14 @@ theorem CompPOK.pinConserve {r0 : Nat} (hr0 : r0 < C.h) (hp : C.main r0 P2SEL = 
       sends_nobus' (A := p2idxAir) rfl] at hb
     simp only [zero_add', add_zero'] at hb
     rw [pinB_sends Pi _ _ (by decide)] at hb
-    have hpin : tableSends p2inAir Pi "p2i" [C.main r0 CTR, l, s] =
-        ofN ((pinEdges Pi (C.main r0 CTR)).cntOut (l, [s])) - ofN ((pinEdges Pi (C.main r0 CTR)).cntIn (l, [s])) := by
+    have hpin : tableSends p2inAir Pi "p2i" [C.main r0 CTR, l, s, m, sp] =
+        ofN ((pinEdges Pi (C.main r0 CTR)).cntOut (l, [s, m, sp])) - ofN ((pinEdges Pi (C.main r0 CTR)).cntIn (l, [s, m, sp])) := by
       unfold tableSends
-      rw [foldr_range_congr (f := fun q => rowSends p2inAir Pi "p2i" [C.main r0 CTR, l, s] q) Pi.h
-        (fun q hq => pin_rowSends h.pin hq _ l s), fold_sub, fold_ofN, fold_ofN]
+      rw [foldr_range_congr (f := fun q => rowSends p2inAir Pi "p2i" [C.main r0 CTR, l, s, m, sp] q) Pi.h
+        (fun q hq => pin_rowSends h.pin hq _ l s m sp), fold_sub, fold_ofN, fold_ofN]
       rfl
-    have hcpu : tableSends (cpuAirP2 hd0 stk0 ctr0 n nilA J root) C "p2i" [C.main r0 CTR, l, s] =
-        ofN (Edges.oneIf (some ((0 : F), [0])) (l, [s])) - ofN (Edges.oneIf (some (ofN P2_BITS, [0])) (l, [s])) := by
+    have hcpu : tableSends (cpuAirP2 hd0 stk0 ctr0 n nilA J root) C "p2i" [C.main r0 CTR, l, s, m, sp] =
+        ofN (Edges.oneIf (some ((0 : F), [0, C.main r0 P2MODE, C.main r0 P2SP0])) (l, [s, m, sp])) - ofN (Edges.oneIf (some (ofN P2_BITS, [0, C.main r0 P2MODE, C.main r0 P2REST])) (l, [s, m, sp])) := by
       unfold tableSends
       rw [fold_single _ C.h r0 hr0 (fun r hr hne => by
         rw [cpuP_p2i hr]
@@ -684,11 +735,11 @@ theorem CompPOK.pinConserve {r0 : Nat} (hr0 : r0 < C.h) (hp : C.main r0 P2SEL = 
     have e := bal_sub hb
     rw [← ofN_add, ← ofN_add] at e
     have b1 := sumTo_le_one (f := fun q => if (pinEdges Pi (C.main r0 CTR)).act q &&
-      decide ((pinEdges Pi (C.main r0 CTR)).outN q = (l, [s])) then 1 else 0) (fun q => by split <;> decide) Pi.h
+      decide ((pinEdges Pi (C.main r0 CTR)).outN q = (l, [s, m, sp])) then 1 else 0) (fun q => by split <;> decide) Pi.h
     have b2 := sumTo_le_one (f := fun q => if (pinEdges Pi (C.main r0 CTR)).act q &&
-      decide ((pinEdges Pi (C.main r0 CTR)).inN q = (l, [s])) then 1 else 0) (fun q => by split <;> decide) Pi.h
-    have o1 : Edges.oneIf (some ((0 : F), [0])) (l, [s]) ≤ 1 := by unfold Edges.oneIf; split <;> decide
-    have o2 : Edges.oneIf (some (ofN P2_BITS, [0])) (l, [s]) ≤ 1 := by unfold Edges.oneIf; split <;> decide
+      decide ((pinEdges Pi (C.main r0 CTR)).inN q = (l, [s, m, sp])) then 1 else 0) (fun q => by split <;> decide) Pi.h
+    have o1 : Edges.oneIf (some ((0 : F), [0, C.main r0 P2MODE, C.main r0 P2SP0])) (l, [s, m, sp]) ≤ 1 := by unfold Edges.oneIf; split <;> decide
+    have o2 : Edges.oneIf (some (ofN P2_BITS, [0, C.main r0 P2MODE, C.main r0 P2REST])) (l, [s, m, sp]) ≤ 1 := by unfold Edges.oneIf; split <;> decide
     have hP : Pi.h + 1 < P := Nat.lt_of_le_of_lt (Nat.add_le_add_right h.pin_h 1) (by decide)
     have e' := ofN_inj (Nat.lt_of_le_of_lt (Nat.add_le_add o1 b1) (by rw [Nat.add_comm]; exact hP))
       (Nat.lt_of_le_of_lt (Nat.add_le_add o2 b2) (by rw [Nat.add_comm]; exact hP)) e
@@ -696,13 +747,13 @@ theorem CompPOK.pinConserve {r0 : Nat} (hr0 : r0 < C.h) (hp : C.main r0 P2SEL = 
     omega
 /-- **`p2o` is a flow** at a jet row's key, from `(0, (rest, 0, 0, 1))` to `(496, (rest, 0, 0, 1))`. -/
 theorem CompPOK.poutConserve {r0 : Nat} (hr0 : r0 < C.h) (hp : C.main r0 P2SEL = 1) :
-    (poutEdges Po (C.main r0 CTR)).Conserve (some ((0 : F), [C.main r0 (FLD + 5), 0, 0, 1])) (some (ofN P2_BITS, [C.main r0 (FLD + 5), 0, 0, 1])) := by
+    (poutEdges Po (C.main r0 CTR)).Conserve (some ((0 : F), [C.main r0 P2REST, 0, 0, 1])) (some (ofN P2_BITS, [C.main r0 P2REST, 0, 0, 1])) := by
   intro v
   obtain ⟨l, st⟩ := v
   have hCP : C.h < P := Nat.lt_of_le_of_lt h.cpu_h (by decide)
   have zero_case : (∀ x y z w : F, st ≠ [x, y, z, w]) →
-      (poutEdges Po (C.main r0 CTR)).cntOut (l, st) + Edges.oneIf (some ((0 : F), [C.main r0 (FLD + 5), 0, 0, 1])) (l, st) =
-        (poutEdges Po (C.main r0 CTR)).cntIn (l, st) + Edges.oneIf (some (ofN P2_BITS, [C.main r0 (FLD + 5), 0, 0, 1])) (l, st) := by
+      (poutEdges Po (C.main r0 CTR)).cntOut (l, st) + Edges.oneIf (some ((0 : F), [C.main r0 P2REST, 0, 0, 1])) (l, st) =
+        (poutEdges Po (C.main r0 CTR)).cntIn (l, st) + Edges.oneIf (some (ofN P2_BITS, [C.main r0 P2REST, 0, 0, 1])) (l, st) := by
     intro hst
     have z1 : (poutEdges Po (C.main r0 CTR)).cntOut (l, st) = 0 := sumTo_zero (fun q => by
       rw [show decide ((poutEdges Po (C.main r0 CTR)).outN q = (l, st)) = false from
@@ -710,9 +761,9 @@ theorem CompPOK.poutConserve {r0 : Nat} (hr0 : r0 < C.h) (hp : C.main r0 P2SEL =
     have z2 : (poutEdges Po (C.main r0 CTR)).cntIn (l, st) = 0 := sumTo_zero (fun q => by
       rw [show decide ((poutEdges Po (C.main r0 CTR)).inN q = (l, st)) = false from
         decide_eq_false (fun e => hst _ _ _ _ (congrArg Prod.snd e).symm), Bool.and_false]; rfl) _
-    have o1 : Edges.oneIf (some ((0 : F), [C.main r0 (FLD + 5), 0, 0, 1])) (l, st) = 0 :=
+    have o1 : Edges.oneIf (some ((0 : F), [C.main r0 P2REST, 0, 0, 1])) (l, st) = 0 :=
       if_neg (fun e => hst _ _ _ _ (congrArg Prod.snd (Option.some.inj e)).symm)
-    have o2 : Edges.oneIf (some (ofN P2_BITS, [C.main r0 (FLD + 5), 0, 0, 1])) (l, st) = 0 :=
+    have o2 : Edges.oneIf (some (ofN P2_BITS, [C.main r0 P2REST, 0, 0, 1])) (l, st) = 0 :=
       if_neg (fun e => hst _ _ _ _ (congrArg Prod.snd (Option.some.inj e)).symm)
     rw [z1, z2, o1, o2]
   match st with
@@ -737,7 +788,7 @@ theorem CompPOK.poutConserve {r0 : Nat} (hr0 : r0 < C.h) (hp : C.main r0 P2SEL =
         (fun q hq => pout_rowSends h.pout hq _ l a b c' d), fold_sub, fold_ofN, fold_ofN]
       rfl
     have hcpu : tableSends (cpuAirP2 hd0 stk0 ctr0 n nilA J root) C "p2o" [C.main r0 CTR, l, a, b, c', d] =
-        ofN (Edges.oneIf (some ((0 : F), [C.main r0 (FLD + 5), 0, 0, 1])) (l, [a, b, c', d])) - ofN (Edges.oneIf (some (ofN P2_BITS, [C.main r0 (FLD + 5), 0, 0, 1])) (l, [a, b, c', d])) := by
+        ofN (Edges.oneIf (some ((0 : F), [C.main r0 P2REST, 0, 0, 1])) (l, [a, b, c', d])) - ofN (Edges.oneIf (some (ofN P2_BITS, [C.main r0 P2REST, 0, 0, 1])) (l, [a, b, c', d])) := by
       unfold tableSends
       rw [fold_single _ C.h r0 hr0 (fun r hr hne => by
         rw [cpuP_p2o hr]
@@ -757,8 +808,8 @@ theorem CompPOK.poutConserve {r0 : Nat} (hr0 : r0 < C.h) (hp : C.main r0 P2SEL =
       decide ((poutEdges Po (C.main r0 CTR)).outN q = (l, [a, b, c', d])) then 1 else 0) (fun q => by split <;> decide) Po.h
     have b2 := sumTo_le_one (f := fun q => if (poutEdges Po (C.main r0 CTR)).act q &&
       decide ((poutEdges Po (C.main r0 CTR)).inN q = (l, [a, b, c', d])) then 1 else 0) (fun q => by split <;> decide) Po.h
-    have o1 : Edges.oneIf (some ((0 : F), [C.main r0 (FLD + 5), 0, 0, 1])) (l, [a, b, c', d]) ≤ 1 := by unfold Edges.oneIf; split <;> decide
-    have o2 : Edges.oneIf (some (ofN P2_BITS, [C.main r0 (FLD + 5), 0, 0, 1])) (l, [a, b, c', d]) ≤ 1 := by unfold Edges.oneIf; split <;> decide
+    have o1 : Edges.oneIf (some ((0 : F), [C.main r0 P2REST, 0, 0, 1])) (l, [a, b, c', d]) ≤ 1 := by unfold Edges.oneIf; split <;> decide
+    have o2 : Edges.oneIf (some (ofN P2_BITS, [C.main r0 P2REST, 0, 0, 1])) (l, [a, b, c', d]) ≤ 1 := by unfold Edges.oneIf; split <;> decide
     have hP : Po.h + 1 < P := Nat.lt_of_le_of_lt (Nat.add_le_add_right h.pout_h 1) (by decide)
     have e' := ofN_inj (Nat.lt_of_le_of_lt (Nat.add_le_add o1 b1) (by rw [Nat.add_comm]; exact hP))
       (Nat.lt_of_le_of_lt (Nat.add_le_add o2 b2) (by rw [Nat.add_comm]; exact hP)) e
@@ -767,9 +818,11 @@ theorem CompPOK.poutConserve {r0 : Nat} (hr0 : r0 < C.h) (hp : C.main r0 P2SEL =
 
 /-- **P2IN's path** at a jet row: one active row per level, chained. -/
 theorem CompPOK.pinPath {r0 : Nat} (hr0 : r0 < C.h) (hp : C.main r0 P2SEL = 1) :
-    ∃ (e : Nat → Nat) (st : Nat → List F), st 0 = [0] ∧ st P2_BITS = [0] ∧
+    ∃ (e : Nat → Nat) (st : Nat → List F), st 0 = [0, C.main r0 P2MODE, C.main r0 P2SP0] ∧
+      st P2_BITS = [0, C.main r0 P2MODE, C.main r0 P2REST] ∧
       (∀ i, i < P2_BITS → e i < Pi.h ∧ Pi.main (e i) 4 = 1 ∧ Pi.main (e i) 0 = C.main r0 CTR ∧
-        Pi.main (e i) 1 = ofN i ∧ [Pi.main (e i) 3] = st i ∧ [Pi.main (e i) 11] = st (i + 1)) ∧
+        Pi.main (e i) 1 = ofN i ∧ [Pi.main (e i) 3, Pi.main (e i) 13, Pi.main (e i) 14] = st i ∧
+        [Pi.main (e i) 11, Pi.main (e i) 13, Pi.main (e i) 15] = st (i + 1)) ∧
       ∀ q, q < Pi.h → Pi.main q 4 = 1 → Pi.main q 0 = C.main r0 CTR → ∃ i, i < P2_BITS ∧ e i = q := by
   obtain ⟨e, st, h0, hk, hrows, hall⟩ := (pinEdges Pi (C.main r0 CTR)).path
     (Nat.lt_of_le_of_lt h.pin_h (by decide)) (k := P2_BITS) (by decide) (h.pinConserve hr0 hp)
@@ -781,8 +834,8 @@ theorem CompPOK.pinPath {r0 : Nat} (hr0 : r0 < C.h) (hp : C.main r0 P2SEL = 1) :
 
 /-- **P2OUT's path** at a jet row. -/
 theorem CompPOK.poutPath {r0 : Nat} (hr0 : r0 < C.h) (hp : C.main r0 P2SEL = 1) :
-    ∃ (e : Nat → Nat) (st : Nat → List F), st 0 = [C.main r0 (FLD + 5), 0, 0, 1] ∧
-      st P2_BITS = [C.main r0 (FLD + 5), 0, 0, 1] ∧
+    ∃ (e : Nat → Nat) (st : Nat → List F), st 0 = [C.main r0 P2REST, 0, 0, 1] ∧
+      st P2_BITS = [C.main r0 P2REST, 0, 0, 1] ∧
       (∀ i, i < P2_BITS → e i < Po.h ∧ Po.main (e i) 7 = 1 ∧ Po.main (e i) 0 = C.main r0 CTR ∧
         Po.main (e i) 1 = ofN i ∧ [Po.main (e i) 2, Po.main (e i) 4, Po.main (e i) 5, Po.main (e i) 6] = st i ∧
         [Po.main (e i) 2, Po.main (e i) 14, Po.main (e i) 17, Po.main (e i) 18] = st (i + 1)) ∧
@@ -815,23 +868,61 @@ theorem CompPOK.poutLevel {q i : Nat} (hq : q < Po.h) (ha : Po.main q 7 = 1) (hl
   simp only [List.map_cons, List.map_nil, cv, hl] at hv
   exact idx_of h.pxpre hx hi hv
 
-/-- **An active P2IN row reads its bit's slot**: a `K` cell, or `K I`. -/
-theorem CompPOK.pinSlot {q i : Nat} (hq : q < Pi.h) (ha : Pi.main q 4 = 1) (hl : Pi.main q 1 = ofN i)
-    (hi : i < P2_BITS) :
-    ∃ b : Bool, Pi.main q 2 = ofN b.toNat ∧ i + 3 < Mm.h ∧
-      (memOf Mm)[i + 3]? = some (if b then .K else .app 0 1) := by
+/-- **An active P2IN row reads its bit**: on the comb (`m = 0`) its slot,
+    a `K` cell or `K I`; on the stack (`m = 1`) the stack cell at `sp`,
+    pointing at the `K` slot or the `K I` slot, over `spn`. -/
+theorem CompPOK.pinRead {q i : Nat} (hq : q < Pi.h) (ha : Pi.main q 4 = 1) (hl : Pi.main q 1 = ofN i)
+    (hi : i < P2_BITS) (hm : Pi.main q 13 = 0 ∨ Pi.main q 13 = 1) :
+    ∃ b : Bool, Pi.main q 2 = ofN b.toNat ∧
+      ((Pi.main q 13 = 0 ∧ i + 3 < Mm.h ∧ (memOf Mm)[i + 3]? = some (if b then .K else .app 0 1)) ∨
+       (Pi.main q 13 = 1 ∧ (Pi.main q 14).val < Mm.h ∧
+         (memOf Mm)[(Pi.main q 14).val]? = some (.cons (P2Jet.bitPtr b) (Pi.main q 15).val))) := by
   have cv := col_eval hq
-  have hm := h.cell (h.memHit ⟨(p2inAirB, Pi), by simp [compPTables], rfl, q, hq,
-    ⟨"mem", 1, col 4, [.add (col 1) (c 3), .sub (c 3) (.mul (col 2) (c 2)), c 0, .sub one (col 2)]⟩,
+  have hm' := h.cell (h.memHit ⟨(p2inAirB, Pi), by simp [compPTables], rfl, q, hq,
+    ⟨"mem", 1, col 4, [col 16, col 17, col 18, col 19]⟩,
     (List.mem_append_left _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ List.mem_cons_self)))), rfl, rfl, by rw [cv, ha]⟩)
-  simp only [E.eval, cv, hl, B.c, B.one] at hm
-  have hP : i + 3 < P := Nat.lt_trans (Nat.add_lt_add_right hi 3) (by decide)
-  rw [← ofN_add, val_ofN hP] at hm
+  simp only [E.eval, cv] at hm'
+  obtain ⟨e20, e21, _, e16, e17, e18, e19, _, _⟩ := pin_eqsR h.pin hq
+  rw [ha] at e20 e21
   rcases bit_of (pin_eqs h.pin hq).1 with hb | hb
-  · refine ⟨false, by rw [hb]; rfl, hm.1, ?_⟩
-    rw [hm.2, hb]; rfl
-  · refine ⟨true, by rw [hb]; rfl, hm.1, ?_⟩
-    rw [hm.2, hb]; rfl
+  · refine ⟨false, by rw [hb]; rfl, ?_⟩
+    rcases hm with hm | hm
+    · rw [hm] at e20 e21
+      rw [show (1 : F) * (1 - 0) = 1 by decide] at e20
+      rw [show (1 : F) * 0 = 0 by decide] at e21
+      rw [e21, e20, zero_mul', zero_add', one_mul', hl] at e16
+      rw [e21, e20, hb, zero_mul', zero_add', one_mul'] at e17 e19
+      rw [e21, zero_mul'] at e18
+      have hP : i + 3 < P := Nat.lt_trans (Nat.add_lt_add_right hi 3) (by decide)
+      rw [e16, e17, e18, e19, ← ofN_add, val_ofN hP] at hm'
+      exact .inl ⟨hm, hm'.1, by rw [hm'.2]; rfl⟩
+    · rw [hm] at e20 e21
+      rw [show (1 : F) * (1 - 1) = 0 by decide] at e20
+      rw [one_mul'] at e21
+      rw [e21, e20, one_mul', zero_mul', add_zero'] at e16 e17 e19
+      rw [e21, hb, one_mul'] at e18
+      rw [e16, e17, e18, e19] at hm'
+      refine .inr ⟨hm, hm'.1, ?_⟩
+      rw [hm'.2]; rfl
+  · refine ⟨true, by rw [hb]; rfl, ?_⟩
+    rcases hm with hm | hm
+    · rw [hm] at e20 e21
+      rw [show (1 : F) * (1 - 0) = 1 by decide] at e20
+      rw [show (1 : F) * 0 = 0 by decide] at e21
+      rw [e21, e20, zero_mul', zero_add', one_mul', hl] at e16
+      rw [e21, e20, hb, zero_mul', zero_add', one_mul'] at e17 e19
+      rw [e21, zero_mul'] at e18
+      have hP : i + 3 < P := Nat.lt_trans (Nat.add_lt_add_right hi 3) (by decide)
+      rw [e16, e17, e18, e19, ← ofN_add, val_ofN hP] at hm'
+      exact .inl ⟨hm, hm'.1, by rw [hm'.2]; rfl⟩
+    · rw [hm] at e20 e21
+      rw [show (1 : F) * (1 - 1) = 0 by decide] at e20
+      rw [one_mul'] at e21
+      rw [e21, e20, one_mul', zero_mul', add_zero'] at e16 e17 e19
+      rw [e21, hb, one_mul'] at e18
+      rw [e16, e17, e18, e19] at hm'
+      refine .inr ⟨hm, hm'.1, ?_⟩
+      rw [hm'.2]; rfl
 
 /-- **An active P2OUT row writes its stack cell.** -/
 theorem CompPOK.poutWrite {q : Nat} (hq : q < Po.h) (ha : Po.main q 7 = 1) :
@@ -851,7 +942,8 @@ theorem idx_e (i : Nat) : (idxRow i).tail = [ofN (i / 31), ofN (2 ^ (i % 31)), o
 /-- **P2IN sends element `ε`'s value once**, at its last bit. -/
 theorem CompPOK.pinSendsV {t : F} {e : Nat → Nat} {st : Nat → List F}
     (hrows : ∀ i, i < P2_BITS → e i < Pi.h ∧ Pi.main (e i) 4 = 1 ∧ Pi.main (e i) 0 = t ∧
-      Pi.main (e i) 1 = ofN i ∧ [Pi.main (e i) 3] = st i ∧ [Pi.main (e i) 11] = st (i + 1))
+      Pi.main (e i) 1 = ofN i ∧ [Pi.main (e i) 3, Pi.main (e i) 13, Pi.main (e i) 14] = st i ∧
+      [Pi.main (e i) 11, Pi.main (e i) 13, Pi.main (e i) 15] = st (i + 1))
     (hall : ∀ q, q < Pi.h → Pi.main q 4 = 1 → Pi.main q 0 = t → ∃ i, i < P2_BITS ∧ e i = q)
     {ε : Nat} (he : ε < 16) (x : F) :
     tableSends p2inAir Pi "p2v" [t, ofN ε, x] = ofN (if Pi.main (e (31 * ε + 30)) 10 = x then 1 else 0) := by
@@ -916,7 +1008,8 @@ theorem p2SendsV (hs : Sat P2Air.p2Air Pp) {ε : Nat} (he : ε < 16) (t x : F) :
     for element `ε` number one if `x` is P2IN's value, else none. -/
 theorem CompPOK.p2vCount {t : F} {e : Nat → Nat} {st : Nat → List F}
     (hrows : ∀ i, i < P2_BITS → e i < Pi.h ∧ Pi.main (e i) 4 = 1 ∧ Pi.main (e i) 0 = t ∧
-      Pi.main (e i) 1 = ofN i ∧ [Pi.main (e i) 3] = st i ∧ [Pi.main (e i) 11] = st (i + 1))
+      Pi.main (e i) 1 = ofN i ∧ [Pi.main (e i) 3, Pi.main (e i) 13, Pi.main (e i) 14] = st i ∧
+      [Pi.main (e i) 11, Pi.main (e i) 13, Pi.main (e i) 15] = st (i + 1))
     (hall : ∀ q, q < Pi.h → Pi.main q 4 = 1 → Pi.main q 0 = t → ∃ i, i < P2_BITS ∧ e i = q)
     {ε : Nat} (he : ε < 16) (x : F) :
     (sumTo Pp.h fun q => if Pp.main q P2Air.ACT = 1 ∧ Pp.main q P2Air.KEY = t ∧ Pp.main q ε = x then 1 else 0) =
@@ -941,7 +1034,8 @@ theorem CompPOK.p2vCount {t : F} {e : Nat → Nat} {st : Nat → List F}
     its inputs are P2IN's elements. -/
 theorem CompPOK.p2Unique {t : F} {e : Nat → Nat} {st : Nat → List F}
     (hrows : ∀ i, i < P2_BITS → e i < Pi.h ∧ Pi.main (e i) 4 = 1 ∧ Pi.main (e i) 0 = t ∧
-      Pi.main (e i) 1 = ofN i ∧ [Pi.main (e i) 3] = st i ∧ [Pi.main (e i) 11] = st (i + 1))
+      Pi.main (e i) 1 = ofN i ∧ [Pi.main (e i) 3, Pi.main (e i) 13, Pi.main (e i) 14] = st i ∧
+      [Pi.main (e i) 11, Pi.main (e i) 13, Pi.main (e i) 15] = st (i + 1))
     (hall : ∀ q, q < Pi.h → Pi.main q 4 = 1 → Pi.main q 0 = t → ∃ i, i < P2_BITS ∧ e i = q) :
     ∃ qs, qs < Pp.h ∧ Pp.main qs P2Air.ACT = 1 ∧ Pp.main qs P2Air.KEY = t ∧
       (∀ ε, ε < 16 → Pp.main qs ε = Pi.main (e (31 * ε + 30)) 10) ∧

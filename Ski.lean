@@ -42,6 +42,7 @@ import Ski.Circuit.CompPAir
 import Ski.Circuit.CompPFinal
 import Ski.P2PreSound
 import Ski.P2Commit
+import Ski.P2Chain
 import Ski.P2Complete
 import Ski.P2Once
 import Ski.ZK.CompPHonest

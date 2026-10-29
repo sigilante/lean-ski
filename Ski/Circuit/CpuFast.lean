@@ -344,6 +344,62 @@ theorem p2Row_G (M : List Cell) (j root : Nat) (r : Air.Row) : p2Row M j root r 
   simp only [bitsAt_G, slotsOK_G, popN_G, take_G, wrs_G]
   rfl
 
+/-- `consecFrom`, over a reader. -/
+def consecFromG (h : Nat → Option Cell) : Nat → Nat → Bool
+  | _, 0 => true
+  | s, n + 1 =>
+    match h s with
+    | some (.cons _ s') => s' + 1 == s && consecFromG h s' n
+    | _ => false
+
+/-- `stackRun`, over a reader. -/
+def stackRunG (h : Nat → Option Cell) (stk : Nat) : Bool :=
+  match h stk with
+  | some (.cons _ s1) => consecFromG h s1 495
+  | _ => false
+
+/-- `p2RowS`, over a reader. -/
+def p2RowSG (get : Nat → Option Cell) (j : Nat) (r : Air.Row) : Option Air.Row :=
+  match rdG get r.ctr r.hd with
+  | some (.atom j') =>
+    if j' = j ∧ slotsOKG (rdG get r.ctr) = true ∧ stackRunG (rdG get r.ctr) r.stk = true then
+      match popNG (rdG get r.ctr) 497 r.stk with
+      | some (k :: ps, rest) =>
+        match ptrBits ps with
+        | some bs =>
+          if wrsG get r.ctr (pushR r.ctr rest (outBits bs).reverse) then
+            some ⟨k, topOf r.ctr rest (outBits bs).length, r.ctr + (outBits bs).length⟩
+          else none
+        | none => none
+      | _ => none
+    else none
+  | _ => none
+
+theorem consecFrom_G (H : List Cell) : ∀ s n, consecFrom H s n = consecFromG (fun a => H[a]?) s n
+  | _, 0 => rfl
+  | s, n + 1 => by
+    unfold consecFrom consecFromG
+    cases H[s]? with
+    | none => rfl
+    | some c => cases c with
+      | cons x r => dsimp only; rw [consecFrom_G H r n]
+      | _ => rfl
+
+theorem stackRun_G (H : List Cell) (stk : Nat) : stackRun H stk = stackRunG (fun a => H[a]?) stk := by
+  unfold stackRun stackRunG
+  dsimp only
+  cases H[stk]? with
+  | none => rfl
+  | some c => cases c with
+    | cons x r => exact consecFrom_G H r 495
+    | _ => rfl
+
+/-- **The jet's stack row over a list's reader is the jet's stack row.** -/
+theorem p2RowS_G (M : List Cell) (j : Nat) (r : Air.Row) : p2RowS M j r = p2RowSG (fun a => M[a]?) j r := by
+  unfold p2RowS p2RowSG
+  simp only [slotsOK_G, stackRun_G, popN_G, take_G, wrs_G]
+  rfl
+
 end P2Jet
 
 namespace Circuit
@@ -354,39 +410,73 @@ namespace P2Run
 
 variable (get : Nat → Option Cell) (R : P2Run)
 
-/-- `jetAt`, over a reader. -/
-def jetAtG (i : Nat) : Bool :=
+/-- `jetCAt`, over a reader. -/
+def jetCAtG (i : Nat) : Bool :=
   !isRestart R.e R.n i && decide (i < R.e (R.n - 1)) &&
     decide (P2Jet.p2RowG get R.J R.root (R.row i) = some (R.row (i + 1)))
+
+/-- `jetSAt`, over a reader. -/
+def jetSAtG (i : Nat) : Bool :=
+  !isRestart R.e R.n i && decide (i < R.e (R.n - 1)) &&
+    decide (P2Jet.p2RowSG get (R.J + 1) (R.row i) = some (R.row (i + 1)))
+
+/-- `jetAt`, over a reader. -/
+def jetAtG (i : Nat) : Bool := R.jetCAtG get i || R.jetSAtG get i
 
 /-- `jetRange`, over a reader. -/
 def jetRangeG (r : Air.Row) (j : Nat) : Nat := if j < 3 then r.ctr - addrAtG get r j - 1 else 0
 
-/-- `cpuColP`, over a reader, whether the row takes the jet's step and its
-    restart count given. -/
-def cpuColPG (jet : Bool) (cnt i c : Nat) : F :=
-  if c = P2SEL then bF jet
-  else if jet = true ∧ SEL ≤ c ∧ c < SEL + NKINDS then 0
-  else if jet = true ∧ BITS ≤ c ∧ c < CPU_WIDTH then
+/-- `jrest`, over a reader. -/
+def jrestG (i : Nat) : Nat :=
+  if R.jetSAtG get i then ((P2Jet.popNG (rdG get (R.rowQ i).ctr) 497 (R.rowQ i).stk).getD ([], 0)).2
+  else (fieldsAtG get (R.rowQ i) 2).2
+
+/-- `js1`, over a reader. -/
+def js1G (i : Nat) : Nat := (fieldsAtG get (R.rowQ i) 1).2
+
+/-- `cpuColP`, over a reader, which jet step the row takes (on the comb,
+    on the stack) and its restart count given. -/
+def cpuColPG (jc js : Bool) (cnt i c : Nat) : F :=
+  if c = P2SEL then bF (jc || js)
+  else if (jc || js) = true ∧ SEL ≤ c ∧ c < SEL + NKINDS then 0
+  else if (jc || js) = true ∧ BITS ≤ c ∧ c < CPU_WIDTH then
     ofN ((jetRangeG get (R.rowQ i) ((c - BITS) / RANGE_BITS) / 2 ^ ((c - BITS) % RANGE_BITS)) % 2)
+  else if c = P2MODE then bF js
+  else if c = P2REST then (if (jc || js) then ofN (R.jrestG get i) else 0)
+  else if c = P2CM then bF jc
+  else if c = P2SP0 then
+    (if js then ofN (R.js1G get i) else if (jc || js) then ofN (R.jrestG get i) else 0)
   else cpuColCG get R.row R.e R.n R.segRoots cnt i c
 
+theorem jetCAt_G (i : Nat) : R.jetCAt i = R.jetCAtG (fun a => R.A[a]?) i := by
+  unfold jetCAt jetCAtG; rw [P2Jet.p2Row_G]
+
+theorem jetSAt_G (i : Nat) : R.jetSAt i = R.jetSAtG (fun a => R.A[a]?) i := by
+  unfold jetSAt jetSAtG; rw [P2Jet.p2RowS_G]
+
 theorem jetAt_G (i : Nat) : R.jetAt i = R.jetAtG (fun a => R.A[a]?) i := by
-  unfold jetAt jetAtG; rw [P2Jet.p2Row_G]
+  unfold jetAt jetAtG; rw [jetCAt_G, jetSAt_G]
 
 theorem jetRange_G (r : Air.Row) (j : Nat) : R.jetRange r j = jetRangeG (fun a => R.A[a]?) r j := by
   unfold jetRange jetRangeG; rw [addrAt_G]
 
+theorem jrest_G (i : Nat) : R.jrest i = R.jrestG (fun a => R.A[a]?) i := by
+  unfold jrest jrestG
+  rw [jetSAt_G, P2Jet.popN_G, P2Jet.take_G, fieldsAt_G]
+
+theorem js1_G (i : Nat) : R.js1 i = R.js1G (fun a => R.A[a]?) i := by
+  unfold js1 js1G; rw [fieldsAt_G]
+
 /-- **The honest CPU row with the Poseidon2 jet, its memory an array**,
-    whether the row takes the jet's step from `jetAtG` and its restart
-    count from the prefix sum, on every row below `K`. -/
+    which jet step the row takes from `jetCAtG` and `jetSAtG` and its
+    restart count from the prefix sum, on every row below `K`. -/
 theorem cpuColP_arr (A : Array Cell) (hA : R.A = A.toList) {K i : Nat} (hi : i ≤ K) (c : Nat) :
-    R.cpuColPG (fun a => A[a]?) (R.jetAtG (fun a => A[a]?) i) ((cntArr (rsI R.e R.n) K).getD i 0) i c =
-      R.cpuColP i c := by
+    R.cpuColPG (fun a => A[a]?) (R.jetCAtG (fun a => A[a]?) i) (R.jetSAtG (fun a => A[a]?) i)
+      ((cntArr (rsI R.e R.n) K).getD i 0) i c = R.cpuColP i c := by
   have hg : (fun a : Nat => A[a]?) = (fun a : Nat => R.A[a]?) := by
     rw [getElem?_fun]; exact congrArg (fun (L : List Cell) (a : Nat) => L[a]?) hA.symm
-  unfold cpuColPG cpuColP
-  rw [cntArr_get _ hi, hg, ← jetAt_G, ← cpuColC_G]
+  unfold cpuColPG cpuColP jetAt
+  rw [cntArr_get _ hi, hg, ← jetCAt_G, ← jetSAt_G, ← jrest_G, ← js1_G, ← cpuColC_G]
   simp only [jetRange_G]
 
 end P2Run

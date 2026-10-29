@@ -94,43 +94,67 @@ theorem pin_quiet : ZeroQuiet p2inAir := by
   simp only [p2inAir, List.mem_cons, List.not_mem_nil, or_false] at hI
   rcases hI with rfl | rfl | rfl | rfl | rfl <;> decide
 
+/-- A P2IN row's stack pointer: on the stack the cell `s₁ - l`, on the comb
+    `rest` passed along. -/
+def spF (stk : Bool) (s1 rest l : Nat) : Nat := if stk then spAt s1 l else rest
+
+/-- The stack pointer after it. -/
+def spnF (stk : Bool) (s1 rest l : Nat) : Nat := if stk then spnAt s1 rest l else rest
+
+/-- A P2IN row's read: on the comb its bit's slot, on the stack its cell. -/
+def pinMem (stk : Bool) (s1 rest : Nat) (bs : List Bool) (l : Nat) : List F :=
+  if stk then [ofN (spAt s1 l), 5, ofN (2 - 2 * (bs.getD l false).toNat), ofN (spnAt s1 rest l)]
+  else [ofN (l + 3), ofN (cellTag (if bs.getD l false then .K else .app 0 1)),
+    0, ofN (cellFields (if bs.getD l false then Cell.K else .app 0 1)).2]
+
+/-- A P2IN row's read columns are its read. -/
+theorem pinRow_mem (c : Nat) (bs : List Bool) (stk : Bool) (s1 rest l : Nat) :
+    [(pinRow c bs stk s1 rest l).getD 16 0, (pinRow c bs stk s1 rest l).getD 17 0,
+      (pinRow c bs stk s1 rest l).getD 18 0, (pinRow c bs stk s1 rest l).getD 19 0] = pinMem stk s1 rest bs l := by
+  simp only [pinRow, List.getD_cons_succ, List.getD_cons_zero, pinMem]
+  cases stk
+  · simp only [Bool.false_eq_true, if_false]
+    cases bs.getD l false <;> rfl
+  · simp only [if_true]
+
 /-- What a P2IN row sends, bus by bus. -/
-theorem pin_sends (c : Nat) (bs : List Bool) (l : Nat) (bus : String) (v : List F) :
-    rowSendsV p2inAir bus v (pinRow c bs l) =
+theorem pin_sends (c : Nat) (bs : List Bool) (stk : Bool) (s1 rest l : Nat) (bus : String) (v : List F) :
+    rowSendsV p2inAir bus v (pinRow c bs stk s1 rest l) =
       (if "p2idx" = bus ∧ idxRow l = v then 1 else 0) +
-      ((if "p2i" = bus ∧ [ofN c, ofN l, ofN (accN bs l)] = v then -1 else 0) +
-      ((if "p2i" = bus ∧ [ofN c, ofN (l + 1), ofN (accN bs (l + 1))] = v then 1 else 0) +
-      ((if "mem" = bus ∧ [ofN (l + 3), ofN (cellTag (if bs.getD l false then .K else .app 0 1)),
-          0, ofN (cellFields (if bs.getD l false then Cell.K else .app 0 1)).2] = v then 1 else 0) +
+      ((if "p2i" = bus ∧ [ofN c, ofN l, ofN (accN bs l), bF stk, ofN (spF stk s1 rest l)] = v then -1 else 0) +
+      ((if "p2i" = bus ∧ [ofN c, ofN (l + 1), ofN (accN bs (l + 1)), bF stk, ofN (spnF stk s1 rest l)] = v
+          then 1 else 0) +
+      ((if "mem" = bus ∧ pinMem stk s1 rest bs l = v then 1 else 0) +
       ((if "p2v" = bus ∧ [ofN c, ofN (l / 31), ofN (accN bs l + 2 ^ (l % 31) * (bs.getD l false).toNat)] = v
           then bF (decide (l % 31 = 30)) else 0) + 0)))) := by
-  have g : ∀ n, envOf (pinRow c bs l) (.main 0 n) = (pinRow c bs l).getD n 0 := fun _ => rfl
+  have g : ∀ n, envOf (pinRow c bs stk s1 rest l) (.main 0 n) = (pinRow c bs stk s1 rest l).getD n 0 := fun _ => rfl
   simp only [rowSendsV, p2inAir, List.foldr_cons, List.foldr_nil, List.map_cons, List.map_nil, E.eval, B.col,
     B.one, B.c, g]
-  have idx : [(pinRow c bs l).getD 1 0, (pinRow c bs l).getD 5 0, (pinRow c bs l).getD 6 0,
-      (pinRow c bs l).getD 7 0, (pinRow c bs l).getD 8 0, (pinRow c bs l).getD 9 0] = idxRow l := by
+  have idx : [(pinRow c bs stk s1 rest l).getD 1 0, (pinRow c bs stk s1 rest l).getD 5 0,
+      (pinRow c bs stk s1 rest l).getD 6 0, (pinRow c bs stk s1 rest l).getD 7 0,
+      (pinRow c bs stk s1 rest l).getD 8 0, (pinRow c bs stk s1 rest l).getD 9 0] = idxRow l := by
     show [ofN l, ofN (l / 31), ofN (2 ^ (l % 31)), bF (decide (l % 31 = 30)), bF (decide (l % 31 < 27)),
       bF (decide (l = P2_BITS - 1))] = idxRow l
     rw [bF_decide, bF_decide, bF_decide]; rfl
-  have nxt : (pinRow c bs l).getD 11 0 = ofN (accN bs (l + 1)) := by
+  have nxt : (pinRow c bs stk s1 rest l).getD 11 0 = ofN (accN bs (l + 1)) := by
     rw [accN_succ]
     simp only [pinRow, List.getD_cons_succ, List.getD_cons_zero]
     split <;> rfl
-  have m1 : (pinRow c bs l).getD 1 0 + ofN 3 = ofN (l + 3) := by
-    simp only [pinRow, List.getD_cons_succ, List.getD_cons_zero]; rw [ofN_add]
-  have m2 : ofN 3 - (pinRow c bs l).getD 2 0 * ofN 2 = ofN (cellTag (if bs.getD l false then .K else .app 0 1)) := by
-    simp only [pinRow, List.getD_cons_succ, List.getD_cons_zero]; cases bs.getD l false <;> decide
-  have m3 : ofN 1 - (pinRow c bs l).getD 2 0 = ofN (cellFields (if bs.getD l false then Cell.K else .app 0 1)).2 := by
-    simp only [pinRow, List.getD_cons_succ, List.getD_cons_zero]; cases bs.getD l false <;> decide
-  have a4 : (pinRow c bs l).getD 4 0 = 1 := rfl
-  have e0 : (pinRow c bs l).getD 0 0 = ofN c := rfl
-  have e3 : (pinRow c bs l).getD 3 0 = ofN (accN bs l) := rfl
-  have e5 : (pinRow c bs l).getD 5 0 = ofN (l / 31) := rfl
-  have e10 : (pinRow c bs l).getD 10 0 = ofN (accN bs l + 2 ^ (l % 31) * (bs.getD l false).toNat) := rfl
-  have e12 : (pinRow c bs l).getD 12 0 = bF (decide (l % 31 = 30)) := rfl
-  have e1 : (pinRow c bs l).getD 1 0 + ofN 1 = ofN (l + 1) := by
+  have mem := pinRow_mem c bs stk s1 rest l
+  have a4 : (pinRow c bs stk s1 rest l).getD 4 0 = 1 := rfl
+  have e0 : (pinRow c bs stk s1 rest l).getD 0 0 = ofN c := rfl
+  have e3 : (pinRow c bs stk s1 rest l).getD 3 0 = ofN (accN bs l) := rfl
+  have e5 : (pinRow c bs stk s1 rest l).getD 5 0 = ofN (l / 31) := rfl
+  have e10 : (pinRow c bs stk s1 rest l).getD 10 0 = ofN (accN bs l + 2 ^ (l % 31) * (bs.getD l false).toNat) := rfl
+  have e12 : (pinRow c bs stk s1 rest l).getD 12 0 = bF (decide (l % 31 = 30)) := rfl
+  have e13 : (pinRow c bs stk s1 rest l).getD 13 0 = bF stk := rfl
+  have e14 : (pinRow c bs stk s1 rest l).getD 14 0 = ofN (spF stk s1 rest l) := by
+    unfold spF; cases stk <;> rfl
+  have e15 : (pinRow c bs stk s1 rest l).getD 15 0 = ofN (spnF stk s1 rest l) := by
+    unfold spnF; cases stk <;> rfl
+  have e1 : (pinRow c bs stk s1 rest l).getD 1 0 + ofN 1 = ofN (l + 1) := by
     show ofN l + 1 = _; exact ofN_succ l
-  rw [idx, a4, e0, e3, nxt, m1, m2, m3, e5, e10, e12, e1]
+  rw [← mem, idx, a4, e0, e3, nxt, e5, e10, e12, e1, e13, e14, e15]
   rfl
 
 
@@ -249,24 +273,46 @@ theorem ite_and_one (b : String) (P : Prop) [Decidable P] (x : F) :
 theorem ite_ne {b b' : String} (hb : b ≠ b') {P : Prop} [Decidable P] {x : F} :
     (if b = b' ∧ P then x else 0) = 0 := if_neg (fun h => hb h.1)
 
-/-- **A call's P2IN rows telescope on `p2i`**, from `(c, 0, 0)` to
-    `(c, 496, 0)`. -/
-theorem pin_p2i_call (c : Nat) (bs : List Bool) (v : List F) :
-    (((List.range P2_BITS).map (pinRow c bs)).map (rowSendsV p2inAir "p2i" v)).foldr (· + ·) 0 =
-      ind ([ofN c, ofN P2_BITS, 0] = v) - ind ([ofN c, 0, 0] = v) := by
+/-- The `p2i` chain's state at level `l`, `l = 496` its end. -/
+def pinT (c : Nat) (bs : List Bool) (stk : Bool) (s1 rest l : Nat) : List F :=
+  [ofN c, ofN l, ofN (accN bs l), bF stk, ofN (if stk then (if l = P2_BITS then rest else s1 - l) else rest)]
+
+/-- **A call's P2IN rows telescope on `p2i`**, from `(c, 0, 0, m, sp₀)` to
+    `(c, 496, 0, m, rest)`: `sp₀` is `s₁` on the stack, `rest` on the comb. -/
+theorem pin_p2i_call (c : Nat) (bs : List Bool) (stk : Bool) (s1 rest : Nat) (v : List F) :
+    (((List.range P2_BITS).map (pinRow c bs stk s1 rest)).map (rowSendsV p2inAir "p2i" v)).foldr (· + ·) 0 =
+      ind ([ofN c, ofN P2_BITS, 0, bF stk, ofN rest] = v) -
+        ind ([ofN c, 0, 0, bF stk, ofN (if stk then s1 else rest)] = v) := by
   rw [foldr_map_range]
-  let T : Nat → List F := fun l => [ofN c, ofN l, ofN (accN bs l)]
-  rw [foldr_range_congr P2_BITS (g := fun l => ind (T (l + 1) = v) - ind (T l = v)) (fun l _ => by
-    rw [pin_sends, ite_ne (b := "p2idx") (b' := "p2i") (by decide), ite_ne (b := "mem") (b' := "p2i") (by decide),
-      ite_ne (b := "p2v") (b' := "p2i") (by decide), ite_and_one, ite_and_one]
+  let T : Nat → List F := pinT c bs stk s1 rest
+  rw [foldr_range_congr P2_BITS (g := fun l => ind (T (l + 1) = v) - ind (T l = v)) (fun l hl => by
+    have hin : [ofN c, ofN l, ofN (accN bs l), bF stk, ofN (spF stk s1 rest l)] = T l := by
+      show _ = pinT c bs stk s1 rest l
+      unfold pinT spF spAt
+      rw [if_neg (show l ≠ P2_BITS by omega)]
+    have hout : [ofN c, ofN (l + 1), ofN (accN bs (l + 1)), bF stk, ofN (spnF stk s1 rest l)] = T (l + 1) := by
+      show _ = pinT c bs stk s1 rest (l + 1)
+      unfold pinT spnF spnAt
+      cases stk
+      · rfl
+      · simp only [if_true]
+        by_cases h : l = P2_BITS - 1
+        · rw [if_pos h, if_pos (by unfold P2_BITS at h ⊢; omega)]
+        · rw [if_neg h, if_neg (by unfold P2_BITS at h hl ⊢; omega), Nat.sub_sub]
+    rw [pin_sends, hin, hout, ite_ne (b := "p2idx") (b' := "p2i") (by decide),
+      ite_ne (b := "mem") (b' := "p2i") (by decide), ite_ne (b := "p2v") (b' := "p2i") (by decide),
+      ite_and_one, ite_and_one]
     simp only [zero_add', add_zero']
     rw [ite_neg_one _ 1 rfl, ite_one _ 1 rfl, sub_eq_add_neg', add_comm'])]
   rw [telescopeF T v P2_BITS]
-  rfl
+  show ind (pinT c bs stk s1 rest P2_BITS = v) - ind (pinT c bs stk s1 rest 0 = v) = _
+  unfold pinT
+  rw [accN_end, accN_zero, if_pos rfl, if_neg (show (0 : Nat) ≠ P2_BITS by decide)]
+  cases stk <;> rfl
 
 /-- A call's P2IN rows look up each level once. -/
-theorem pin_idx_call (c : Nat) (bs : List Bool) (v : List F) :
-    (((List.range P2_BITS).map (pinRow c bs)).map (rowSendsV p2inAir "p2idx" v)).foldr (· + ·) 0 =
+theorem pin_idx_call (c : Nat) (bs : List Bool) (stk : Bool) (s1 rest : Nat) (v : List F) :
+    (((List.range P2_BITS).map (pinRow c bs stk s1 rest)).map (rowSendsV p2inAir "p2idx" v)).foldr (· + ·) 0 =
       (List.range P2_BITS).foldr (fun l acc => ind (idxRow l = v) + acc) 0 := by
   rw [foldr_map_range]
   refine foldr_range_congr P2_BITS (fun l _ => ?_)
@@ -276,8 +322,8 @@ theorem pin_idx_call (c : Nat) (bs : List Bool) (v : List F) :
   simp only [add_zero']
 
 /-- **A call's P2IN rows send each element's value on `p2v`.** -/
-theorem pin_p2v_call (c : Nat) (bs : List Bool) (v : List F) :
-    (((List.range P2_BITS).map (pinRow c bs)).map (rowSendsV p2inAir "p2v" v)).foldr (· + ·) 0 =
+theorem pin_p2v_call (c : Nat) (bs : List Bool) (stk : Bool) (s1 rest : Nat) (v : List F) :
+    (((List.range P2_BITS).map (pinRow c bs stk s1 rest)).map (rowSendsV p2inAir "p2v" v)).foldr (· + ·) 0 =
       (List.range 16).foldr (fun e acc =>
         ind ([ofN c, ofN e, ofN (BitArith.val (Poseidon2SKI.chunk bs e))] = v) + acc) 0 := by
   rw [foldr_map_range]

@@ -61,6 +61,17 @@ def nargs : OTerm → Nat
   | .app f _ => nargs f + 1
   | _ => 0
 
+/-- A variable free of an application list is free of its head and arguments. -/
+theorem free_appL_inv {J : Nat} : ∀ {t : OTerm} {as : List OTerm}, Free J (appL t as) →
+    Free J t ∧ ∀ x ∈ as, Free J x
+  | _, [], h => ⟨h, fun _ hx => nomatch hx⟩
+  | t, a :: as, h => by
+    obtain ⟨h1, h2⟩ := free_appL_inv (t := t ⬝ₒ a) (as := as) h
+    refine ⟨free_left h1, fun x hx => ?_⟩
+    rcases List.mem_cons.1 hx with rfl | hx
+    · exact free_right h1
+    · exact h2 x hx
+
 theorem headO_appL : ∀ (t : OTerm) (as : List OTerm), headO (appL t as) = headO t
   | _, [] => rfl
   | t, a :: as => headO_appL (t ⬝ₒ a) as
@@ -353,6 +364,7 @@ theorem not_outer_K {J : Nat} {G U : OTerm → Prop} (hp : Part J G U) : ¬ Oute
     true), exactly one is a jet row. -/
 theorem once_of {ρ : Nat → Bool} {shp : BT} {region : List Cell} {V : OTerm} {J root : Nat}
     {G U : OTerm → Prop} (hp : Part J G U) {g : OTerm} (hg : G g) (hV : V = .S ⬝ₒ (.K ⬝ₒ .K) ⬝ₒ g)
+    (hV1 : Free (J + 1) V)
     {bs₀ : List Bool} (hb0 : P2Jet.bitsAt (cMachineO ρ shp region [V]).heap P2Jet.slotAddrs = some bs₀)
     (ho0 : otermAt (cMachineO ρ shp region [V]).heap ((cMachineO ρ shp region [V]).heap.length + 1) root =
       some (combT bs₀).toO)
@@ -362,7 +374,8 @@ theorem once_of {ρ : Nat → Bool} {shp : BT} {region : List Cell} {V : OTerm} 
       (cHeapO ρ shp region [V]).1.length 1 e row)
     (sel : Nat → Bool)
     (hsel : ∀ i, i < e 0 → (sel i = false ∧ Air.NormRow M [] [] (row i) (row (i + 1))) ∨
-      (sel i = true ∧ P2Jet.p2Row M J root (row i) = some (row (i + 1)))) :
+      (sel i = true ∧ (P2Jet.p2Row M J root (row i) = some (row (i + 1)) ∨
+        P2Jet.p2RowS M (J + 1) (row i) = some (row (i + 1))))) :
     ∃ r0, r0 < e 0 ∧ sel r0 = true ∧ ∀ r, r < e 0 → sel r = true → r = r0 := by
   let N := BT.nleaves shp
   let m0 := cMachineO ρ shp region [V]
@@ -399,24 +412,25 @@ theorem once_of {ρ : Nat → Bool} {shp : BT} {region : List Cell} {V : OTerm} 
       rw [← hm0]; exact ho0
     exact combAt_take hb' ho' hcc
   -- the claim, row by row
-  have claim : ∀ b, b ≤ e 0 → ∃ t, odecode (Air.st M (row b)) = some t ∧ (row 0).ctr ≤ (row b).ctr ∧
-      (row b).ctr ≤ M.length ∧
+  have claim : ∀ b, b ≤ e 0 → ∃ t, odecode (Air.st M (row b)) = some t ∧ Free (J + 1) t ∧
+      (row 0).ctr ≤ (row b).ctr ∧ (row b).ctr ≤ M.length ∧
       ((Outer J G U t ∧ ∀ i, i < b → sel i = false) ∨
         (Free J t ∧ ∃ r0, r0 < b ∧ sel r0 = true ∧ ∀ i, i < b → sel i = true → i = r0)) := by
     intro b
     induction b with
     | zero =>
       intro _
-      refine ⟨_, hstart, Nat.le_refl _, hc, .inl ⟨?_, fun _ hi => absurd hi (Nat.not_lt_zero _)⟩⟩
+      refine ⟨_, hstart, free_app (free_app hV1 (free_toO _ _)) (free_toO _ _), Nat.le_refl _, hc,
+        .inl ⟨?_, fun _ hi => absurd hi (Nat.not_lt_zero _)⟩⟩
       rw [hV]
       exact .o0 hg (free_toO J _) (free_toO J _)
     | succ b ih =>
       intro hb
-      obtain ⟨t, hdec, hcl, hcu, hph⟩ := ih (Nat.le_of_succ_le hb)
-      rcases hsel b hb with ⟨hs, hn⟩ | ⟨hs, hj⟩
+      obtain ⟨t, hdec, hfree, hcl, hcu, hph⟩ := ih (Nat.le_of_succ_le hb)
+      rcases hsel b hb with ⟨hs, hn⟩ | ⟨hs, hj | hj⟩
       · obtain ⟨h1, h2, hJ, _⟩ := Air.normRow_spec hr0 hcl hcu hn
         obtain ⟨u, hu, hwu⟩ := ojsteps_owsteps hdec hJ
-        refine ⟨u, hu, Nat.le_trans hcl h1, h2, ?_⟩
+        refine ⟨u, hu, free_steps hfree hwu, Nat.le_trans hcl h1, h2, ?_⟩
         rcases hph with ⟨ho, hall⟩ | ⟨hf, r0, hr0b, hsr, huniq⟩
         · refine .inl ⟨outer_steps hp ho hwu, fun i hi => ?_⟩
           rcases Nat.lt_or_eq_of_le (Nat.le_of_lt_succ hi) with hi | rfl
@@ -428,7 +442,15 @@ theorem once_of {ρ : Nat → Bool} {shp : BT} {region : List Cell} {V : OTerm} 
           · rw [hs] at hsi; cases hsi
       · obtain ⟨a1, a2⟩ := P2Jet.p2Row_ctr_len hj hcu
         obtain ⟨_, Nk, bs, R, _, rfl, hd⟩ := P2Jet.p2Row_step hj hcu (hcombs _ hcl) hdec
-        refine ⟨_, hd, Nat.le_trans hcl a1, a2, ?_⟩
+        have hfr := free_appL_inv hfree
+        have hfree' : Free (J + 1) (appL Nk
+            (((Poseidon2.permute (valsB bs)).flatMap (BitArith.bitsOf 31)).map (fun b => (boolT b).toO) ++ R)) :=
+          free_appL (hfr.2 Nk List.mem_cons_self) (fun x hx => by
+            rcases List.mem_append.1 hx with hx | hx
+            · obtain ⟨y, _, rfl⟩ := List.mem_map.1 hx
+              exact free_toO _ _
+            · exact hfr.2 x (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ hx)))
+        refine ⟨_, hd, hfree', Nat.le_trans hcl a1, a2, ?_⟩
         rcases hph with ⟨ho, hall⟩ | ⟨hf, _, _, _, _⟩
         · obtain ⟨hk, hR⟩ := outer_jet hp ho
           refine .inr ⟨free_appL hk (fun x hx => ?_), b, Nat.lt_succ_self _, hs, fun i hi hsi => ?_⟩
@@ -440,7 +462,10 @@ theorem once_of {ρ : Nat → Bool} {shp : BT} {region : List Cell} {V : OTerm} 
             · rw [hall i hi] at hsi; cases hsi
             · rfl
         · exact absurd (occ_head (headO_appL _ _)) hf
-  obtain ⟨t, hdec, _, _, hph⟩ := claim (e 0) (Nat.le_refl _)
+      · -- the stack's atom `J + 1` never reaches the head: no term holds it
+        obtain ⟨_, Nk, bs, R, _, rfl, _⟩ := P2Jet.p2RowS_step hj hcu hdec
+        exact absurd (occ_head (headO_appL _ _)) hfree
+  obtain ⟨t, hdec, _, _, _, hph⟩ := claim (e 0) (Nat.le_refl _)
   have hK : t = .K := by
     refine odecode_K hdec ?_ ?_
     · rw [← (h.ends 0 Nat.zero_lt_one).1, Air.rd_eq]; rfl
@@ -481,7 +506,7 @@ theorem compP_once {V : OTerm} {G U : OTerm → Prop} (hp : Part JP2 G U) {g : O
     have := blankO_prefix shpP 1 [V]
     rw [shpP_nleaves] at this
     omega
-  have hJ : JP2 < P := by decide
+  have hJ : JP2 + 1 < P := by decide
   have hcp := ok.acceptsCP hv (Nat.zero_lt_succ _) hP hJ hroot h499
   have hl : (regionM (memOf Mm) (BT.nleaves shpP) 1).length = (List.replicate 1 Cell.S).length := by
     rw [List.length_replicate]; exact ok.region_len
@@ -503,8 +528,9 @@ theorem compP_once {V : OTerm} {G U : OTerm → Prop} (hp : Part JP2 G U) {g : O
   have hsel : ∀ i, i < endRow (rsF C) (C.h - 1) [V].length 0 →
       (decide (C.main i P2SEL = 1) = false ∧ Air.NormRow (memOf Mm) [] [] (rowOf C i) (rowOf C (i + 1))) ∨
       (decide (C.main i P2SEL = 1) = true ∧
-        P2Jet.p2Row (memOf Mm) JP2 (combRoot (bitsM (memOf Mm)) shpP (regionM (memOf Mm) (BT.nleaves shpP) 1))
-          (rowOf C i) = some (rowOf C (i + 1))) := by
+        (P2Jet.p2Row (memOf Mm) JP2 (combRoot (bitsM (memOf Mm)) shpP (regionM (memOf Mm) (BT.nleaves shpP) 1))
+          (rowOf C i) = some (rowOf C (i + 1)) ∨
+          P2Jet.p2RowS (memOf Mm) (JP2 + 1) (rowOf C i) = some (rowOf C (i + 1)))) := by
     intro i hi
     rw [hend] at hi
     have hrs : rsF C i = 0 := by
@@ -527,7 +553,8 @@ theorem compP_once {V : OTerm} {G U : OTerm → Prop} (hp : Part JP2 G U) {g : O
       some (combT ((List.range' 0 496).map (bitsM (memOf Mm)))).toO := ho0
   have hwf' : ∀ i c, (regionM (memOf Mm) (BT.nleaves shpP) 1)[i]? = some c →
       cellOK (BT.nleaves shpP + 3 + i) c = true := hwf
-  obtain ⟨r0, hr0, hs0, huniq⟩ := once_of (shp := shpP) hp hg hV hb0' ho0' hwf' hcp _ hsel
+  have hV1 : Free (JP2 + 1) V := fun hx => absurd (hocc _ hx) (by omega)
+  obtain ⟨r0, hr0, hs0, huniq⟩ := once_of (shp := shpP) hp hg hV hV1 hb0' ho0' hwf' hcp _ hsel
   rw [hend] at hr0 huniq
   have huniq' : ∀ r, r < C.h → C.main r P2SEL = 1 → r = r0 := by
     intro r hr hr1
@@ -538,10 +565,11 @@ theorem compP_once {V : OTerm} {G U : OTerm → Prop} (hp : Part JP2 G U) {g : O
       have hrl : r = C.h - 1 := by omega
       have ends := (hcp.ends 0 (Nat.zero_lt_succ _)).1
       rw [hend, ← hrl] at ends
-      have hjr := (ok.jetReads hr hr1 hJ hroot).1
       have : rd (memOf Mm) (rowOf C r).ctr (rowOf C r).hd = rd (memOf Mm) (C.main r CTR).val (C.main r HD).val := rfl
-      rw [this, hjr] at ends
-      cases ends
+      rw [this] at ends
+      rcases (ok.jetReads hr hr1 hJ hroot).1 with ⟨_, hjr, _⟩ | ⟨_, hjr, _⟩
+      · rw [hjr] at ends; cases ends
+      · rw [hjr] at ends; cases ends
   refine ⟨r0, by omega, of_decide_eq_true hs0, fun r hr hne => ?_⟩
   -- every other row's selector is clear: it is `0` or `1` by its kind
   obtain ⟨k, hk⟩ := kind_ofP2 ok.cpu hr

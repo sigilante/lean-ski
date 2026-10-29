@@ -93,7 +93,7 @@ theorem bits_flatMap_cons (y : Nat) (ys : List Nat) :
 theorem env_J (a b : Term) : overrideC (jetEnv JP2) [0, 1] [a, b] JP2 = Pcomb := by
   show (if JP2 = 1 then b else if JP2 = 0 then a else jetEnv JP2 JP2) = Pcomb
   rw [if_neg (by decide), if_neg (by decide)]
-  show (if JP2 = JP2 then Pcomb else K) = Pcomb
+  show (if JP2 = JP2 then Pcomb else _) = Pcomb
   rw [if_pos rfl]
 
 theorem env_0 (σ : Nat → Term) (a b : Term) : overrideC σ [0, 1] [a, b] 0 = a := rfl

@@ -75,11 +75,15 @@ theorem _root_.CompM.AcceptsCP.stk_le (hfit : Fits M) (hnil : nilA ≤ M.length)
       obtain ⟨j, hj, rfl⟩ := isRestart_iff.1 hr
       rw [hA.restart j hj]; exact hnil
     | false =>
-      rcases hA.trans i (by omega) (AcceptsCJ.notEnd hr) with (h | ⟨_, _, hm, _, _⟩ | h) | h
+      rcases hA.trans i (by omega) (AcceptsCJ.notEnd hr) with (h | ⟨_, _, hm, _, _⟩ | h) | h | h
       · exact step_stk hfit h (hc i (by omega)) (hc (i + 1) hi)
       · exact absurd hm List.not_mem_nil
       · rw [h.2]; exact ih (by omega)
       · obtain ⟨_, _, _, _, _, _, _, _, _, _, _, hr'⟩ := p2Row_inv h
+        have hc' := hc (i + 1) hi
+        rw [hr'] at hc' ⊢
+        exact Nat.le_trans (Nat.le_succ _) hc'
+      · obtain ⟨_, _, _, _, _, _, _, _, _, _, _, hr'⟩ := p2RowS_inv h
         have hc' := hc (i + 1) hi
         rw [hr'] at hc' ⊢
         exact Nat.le_trans (Nat.le_succ _) hc'
@@ -357,7 +361,7 @@ set_option maxRecDepth 100000 in
     `compPG_complete_log` is the published `idxPub 1`. -/
 theorem runP_calls_one {ρ : Nat → Bool} {region : List Cell} {V : OTerm} {G U : OTerm → Prop}
     (hp : P2Once.Part ComposedPText.JP2 G U) {g : OTerm} (hg : G g) (hV : V = .S ⬝ₒ (.K ⬝ₒ .K) ⬝ₒ g)
-    (hrl : region.length = 1)
+    (hV1 : P2Once.Free (ComposedPText.JP2 + 1) V) (hrl : region.length = 1)
     (hr : ∀ i c, region[i]? = some c → Wit.cellOK (BT.nleaves ComposedPText.shpP + 3 + i) c = true)
     {A : List Cell} {e : Nat → Nat} {row : Nat → Air.Row}
     (hA : AcceptsCP A (cMachineO ρ ComposedPText.shpP region [V]) [] [] ComposedPText.JP2 ComposedPText.rootP
@@ -368,7 +372,7 @@ theorem runP_calls_one {ρ : Nat → Bool} {region : List Cell} {V : OTerm} {G U
   have hroot : ComposedPText.rootP = combRoot ρ (combBT 496) region :=
     combRoot_public (fun _ => false) ρ ComposedPText.shpP (by rw [hrl]; rfl)
   rw [← hroot] at ho0
-  exact P2Run.calls_one (R := runP ρ region [V] A e row) hp hg hV hb0 ho0 hr rfl rfl hA hK
+  exact P2Run.calls_one (R := runP ρ region [V] A e row) hp hg hV hV1 hb0 ho0 hr rfl rfl hA hK
 
 set_option maxRecDepth 100000 in
 open Stmt Wit ComposedPText in
@@ -399,7 +403,7 @@ theorem compP_complete_log {h R Lm LI LO LP : Nat} (hR : R ≤ 20) (hLm : Lm ≤
     hmem, hrow⟩ := compPG_complete_log hR hLm hLI hLO hLP hs hrl hr hA hfit hlen hK hHI hHO hHP
   have hV : verifierO h = .S ⬝ₒ (.K ⬝ₒ .K) ⬝ₒ (.var JP2 ⬝ₒ checkO h) := P2Once.verifierO_eq h
   have h1 := runP_calls_one (G := P2Once.GP JP2) (U := P2Once.UP JP2) (P2Once.partP JP2)
-    ⟨checkO h, P2Once.checkO_free h JP2, rfl⟩ hV hrl hr hA hK
+    ⟨checkO h, P2Once.checkO_free h JP2, rfl⟩ hV (fun hx => absurd (verifierO_occ h _ hx) (by omega)) hrl hr hA hK
   rw [hPx, show (runP ρ region (VsP h) A e row).calls (2 ^ R) = 1 from h1] at hacc
   exact ⟨C, Mm, Pg, Wt, Sg, Pi, Po, Pp, hacc, hC, hWt, hPi, hPo, hPp, hPg, hSg, hCh, hMh, hmem, hrow⟩
 
@@ -433,7 +437,8 @@ theorem compPC_complete_log {c : List Nat} {pat : List (Option Bool)} {R Lm LI L
   have hV : verifierC c pat = .S ⬝ₒ (.K ⬝ₒ .K) ⬝ₒ (.S ⬝ₒ (.var JP2 ⬝ₒ checkC c) ⬝ₒ patO pat) :=
     P2Once.verifierC_eq c pat
   have h1 := runP_calls_one (G := P2Once.GC JP2) (U := P2Once.UC JP2) (P2Once.partC JP2)
-    ⟨checkC c, patO pat, P2Commit.checkC_closed c JP2, P2Commit.patO_closed JP2 pat, rfl⟩ hV hrl hr hA hK
+    ⟨checkC c, patO pat, P2Commit.checkC_closed c JP2, P2Commit.patO_closed JP2 pat, rfl⟩ hV
+    (fun hx => absurd (P2Commit.verifierC_occ c pat _ hx) (by omega)) hrl hr hA hK
   rw [hPx, show (runP ρ region [verifierC c pat] A e row).calls (2 ^ R) = 1 from h1] at hacc
   exact ⟨C, Mm, Pg, Wt, Sg, Pi, Po, Pp, hacc, hC, hWt, hPi, hPo, hPp, hPg, hSg, hCh, hMh, hmem, hrow⟩
 

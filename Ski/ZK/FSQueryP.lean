@@ -508,7 +508,8 @@ theorem compP_calls_p2pre {h R : Nat} {ρ : Nat → Bool} {region : List Cell} (
       (cHeapO ρ shpP region (VsP h)).1.length (VsP h).length e row) (hK : e 0 < 2 ^ R) :
     (runP ρ region (VsP h) A e row).calls (2 ^ R) = 1 :=
   runP_calls_one (G := P2Once.GP JP2) (U := P2Once.UP JP2) (P2Once.partP JP2)
-    ⟨checkO h, P2Once.checkO_free h JP2, rfl⟩ (P2Once.verifierO_eq h) hrl hr hA hK
+    ⟨checkO h, P2Once.checkO_free h JP2, rfl⟩ (P2Once.verifierO_eq h)
+    (fun hx => absurd (verifierO_occ h _ hx) (by omega)) hrl hr hA hK
 
 /-- **The hand-off's verifier calls the jet once**: `compP_fs_open4`'s
     `hcalls` for `p2commit c pat` (as in `compPC_complete_log`). -/
@@ -522,6 +523,6 @@ theorem compP_calls_p2commit {c : List Nat} {pat : List (Option Bool)} {R : Nat}
     (runP ρ region [verifierC c pat] A e row).calls (2 ^ R) = 1 :=
   runP_calls_one (G := P2Once.GC JP2) (U := P2Once.UC JP2) (P2Once.partC JP2)
     ⟨checkC c, patO pat, P2Commit.checkC_closed c JP2, P2Commit.patO_closed JP2 pat, rfl⟩
-    (P2Once.verifierC_eq c pat) hrl hr hA hK
+    (P2Once.verifierC_eq c pat) (fun hx => absurd (P2Commit.verifierC_occ c pat _ hx) (by omega)) hrl hr hA hK
 
 end Circuit
