@@ -175,7 +175,7 @@ theorem cbits_length : ∀ a : List Nat, (cbits a).length = 31 * a.length
 theorem env_J (a b : Term) : overrideC (jetEnv JP2) [100, 101] [a, b] JP2 = Pcomb := by
   show (if JP2 = 101 then b else if JP2 = 100 then a else jetEnv JP2 JP2) = Pcomb
   rw [if_neg (by decide), if_neg (by decide)]
-  show (if JP2 = JP2 then Pcomb else K) = Pcomb
+  show (if JP2 = JP2 then Pcomb else _) = Pcomb
   rw [if_pos rfl]
 
 theorem close_bodyC (σ : Nat → Term) (c : List Nat) (pat : List (Option Bool)) :

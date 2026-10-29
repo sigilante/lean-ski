@@ -12,13 +12,15 @@ open Term
 A statement whose verifiers use the Poseidon2 jet is a list of open terms,
 the jet the variable `J`, an atom in the heap (`Ski/ComposedO.lean`).
 
-**`AcceptsCP`** is `AcceptsCJ` with one more kind of row: the jet's
-(`P2Jet.p2Row`), which takes `k` and the comb's root `β` and reads the
-bits from their slots.  **`composedP_sound_of`**: a table it accepts from
+**`AcceptsCP`** is `AcceptsCJ` with two more kinds of row: the jet's on
+the comb (`P2Jet.p2Row`), which takes `k` and the comb's root `β` and reads
+the bits from their slots, and the jet's on the stack at the atom `J + 1`
+(`P2Jet.p2RowS`), which takes `k` and 496 bits a previous call pushed.  **`composedP_sound_of`**: a table it accepts from
 the composed machine of the open statement, while the root reads back as
 the comb of the slots' bits, proves the closed statement with the jet
 closed to any implementation of the comb contract: every verifier, applied
-to the bits and the region's witness, evaluates to `K`.
+to the bits and the region's witness, evaluates to `K`; the stack row is
+closed to any implementation of the bits contract (`Pbits`).
 **`composedP_sound`** discharges the comb's hypotheses for statements
 over 496 bits (`comb_heap`), with the jet closed to
 `Poseidon2SKI.Pcomb`; the root is public (`combRoot_public`).
@@ -36,10 +38,11 @@ open Mach Stmt Compose Wit BExpr Poseidon2SKI
 -- ---------------------------------------------------------------------------
 
 /-- A row: a step, an instantiation at a listed root, a halted row repeated
-    (`Air.NormRow`), or the Poseidon2 jet at the atom `J`. -/
+    (`Air.NormRow`), the Poseidon2 jet on the comb at the atom `J`, or the
+    jet on the stack at the atom `J + 1`. -/
 def NormRowP (M : List Cell) (jroots : List (Nat × Nat)) (jets : List Air.Jet) (J root : Nat)
     (r r' : Air.Row) : Prop :=
-  Air.NormRow M jroots jets r r' ∨ P2Jet.p2Row M J root r = some r'
+  Air.NormRow M jroots jets r r' ∨ P2Jet.p2Row M J root r = some r' ∨ P2Jet.p2RowS M (J + 1) r = some r'
 
 /-- **The AIR with jets, segments and the Poseidon2 jet accepts**: as
     `AcceptsCJ`, each row within a segment a `NormRowP`. -/
@@ -76,6 +79,13 @@ theorem owsteps_csteps {α β : Type} {cc : DataJet.CContract α β} {j : Nat} {
   induction h with
   | refl _ => exact .refl _
   | step h _ ih => exact .step (owstep_cstep h) ih
+
+/-- The reduction with both of the jet's rows: on the comb at `J`, on the
+    stack at `J + 1`. -/
+abbrev CStepsP (J : Nat) : OTerm → OTerm → Prop := DataJet.CSteps2 poseidon2Comb J poseidon2B (J + 1)
+
+theorem owsteps_cstepsP {J : Nat} {t u : OTerm} (h : OWSteps t u) : CStepsP J t u :=
+  (owsteps_csteps (cc := poseidon2Comb) (j := J) h).two poseidon2B (J + 1)
 
 theorem bitsAt_append {H : List Cell} {as : List Nat} {bs : List Bool} (h : P2Jet.bitsAt H as = some bs)
     (cs : List Cell) : P2Jet.bitsAt (H ++ cs) as = some bs := by
@@ -135,13 +145,15 @@ theorem normRowP_spec {M : List Cell} {jroots : List (Nat × Nat)} {jets : List 
     (h : NormRowP M jroots jets J root r r') {t : OTerm}
     (hdec : odecode (Air.st M r) = some t) :
     r.ctr ≤ r'.ctr ∧ r'.ctr ≤ M.length ∧
-      ∃ u, odecode (Air.st M r') = some u ∧ DataJet.CSteps poseidon2Comb J t u := by
-  rcases h with hn | hp
+      ∃ u, odecode (Air.st M r') = some u ∧ CStepsP J t u := by
+  rcases h with hn | hp | hs
   · obtain ⟨h1, h2, hJ, _⟩ := Air.normRow_spec hroots hc0 hc hn
     obtain ⟨u, hu, hw⟩ := ojsteps_owsteps hdec hJ
-    exact ⟨h1, h2, u, hu, owsteps_csteps hw⟩
-  · obtain ⟨h2, u, hu, hs⟩ := P2Jet.p2Row_cstep hp hc hcomb hdec
-    exact ⟨(P2Jet.p2Row_ctr_len hp hc).1, h2, u, hu, .step hs (.refl _)⟩
+    exact ⟨h1, h2, u, hu, owsteps_cstepsP hw⟩
+  · obtain ⟨h2, u, hu, hst⟩ := P2Jet.p2Row_cstep hp hc hcomb hdec
+    exact ⟨(P2Jet.p2Row_ctr_len hp hc).1, h2, u, hu, .step (hst.two poseidon2B (J + 1)) (.refl _)⟩
+  · obtain ⟨h2, u, hu, hst⟩ := P2Jet.p2RowS_cstep hs hc hdec
+    exact ⟨(P2Jet.p2RowS_ctr_len hs hc).1, h2, u, hu, .step (hst.two' poseidon2Comb J) (.refl _)⟩
 
 section
 
@@ -156,7 +168,7 @@ theorem AcceptsCP.within (h : AcceptsCP M m0 jroots jets J root roots nilA n e r
     {t0 : OTerm} (hdec : odecode (Air.st M (row (segStart e j))) = some t0) :
     ∀ b, segStart e j ≤ b → b ≤ e j →
       (row b).ctr ≤ M.length ∧ (row (segStart e j)).ctr ≤ (row b).ctr ∧
-      ∃ t, odecode (Air.st M (row b)) = some t ∧ DataJet.CSteps poseidon2Comb J t0 t := by
+      ∃ t, odecode (Air.st M (row b)) = some t ∧ CStepsP J t0 t := by
   have hr0 : Air.RootsOK (M.take (row 0).ctr) jroots jets := by rw [h.heap0]; exact hroots
   have hen : e j ≤ e (n - 1) := emono_le h.emono (by omega) (by omega)
   intro b hb1 hb2
@@ -171,7 +183,7 @@ theorem AcceptsCP.within (h : AcceptsCP M m0 jroots jets J root roots nilA n e r
       have hn := h.trans b (by omega) (not_end h.emono hj (by omega) (by omega))
       obtain ⟨h1, h2, u, hu, hsu⟩ := normRowP_spec hr0 (Nat.le_trans hc0 hsb) hcb
         (hcombs _ (Nat.le_trans hc0 hsb)) hn ht
-      exact ⟨h2, Nat.le_trans hsb h1, u, hu, CSteps.trans hst hsu⟩
+      exact ⟨h2, Nat.le_trans hsb h1, u, hu, hst.trans hsu⟩
     · rw [← hl]
       exact ⟨hc, Nat.le_refl _, t0, hdec, .refl _⟩
 
@@ -192,10 +204,12 @@ theorem AcceptsCP.within_ctr (h : AcceptsCP M m0 jroots jets J root roots nilA n
     rcases Nat.lt_or_eq_of_le hb1 with hl | hl
     · obtain ⟨hcb, hsb⟩ := ih (by omega) (by omega)
       have hn := h.trans b (by omega) (not_end h.emono hj (by omega) (by omega))
-      rcases hn with hn | hp
+      rcases hn with hn | hp | hs
       · obtain ⟨h1, h2, _, _⟩ := Air.normRow_spec hr0 (Nat.le_trans hc0 hsb) hcb hn
         exact ⟨h2, Nat.le_trans hsb h1⟩
       · obtain ⟨a1, a2⟩ := P2Jet.p2Row_ctr_len hp hcb
+        exact ⟨a2, Nat.le_trans hsb a1⟩
+      · obtain ⟨a1, a2⟩ := P2Jet.p2RowS_ctr_len hs hcb
         exact ⟨a2, Nat.le_trans hsb a1⟩
     · rw [← hl]
       exact ⟨hc, Nat.le_refl _⟩
@@ -233,8 +247,9 @@ theorem AcceptsCP.runs (h : AcceptsCP M m0 jroots jets J root roots nilA n e row
 
 end
 
-/-- The jet's variable closed to `Pcomb`, any other to `K`. -/
-noncomputable def jetEnv (J : Nat) : Nat → Term := fun i => if i = J then Pcomb else K
+/-- The jet's variables closed: `J` to `Pcomb`, `J + 1` to `Pbits`, any
+    other to `K`. -/
+noncomputable def jetEnv (J : Nat) : Nat → Term := fun i => if i = J then Pcomb else if i = J + 1 then Pbits else K
 
 /-- **A table the AIR with the Poseidon2 jet accepts from the composed
     machine of an open statement proves the closed statement**, the jet's
@@ -244,6 +259,7 @@ noncomputable def jetEnv (J : Nat) : Nat → Term := fun i => if i = J then Pcom
     and the region's witness make every verifier evaluate to `K`. -/
 theorem composedP_sound_of {ρ : Nat → Bool} {shp : BT} {region : List Cell} {Vs : List OTerm} {J root : Nat}
     (σ : Nat → Term) (himpl : DataJet.CImplements poseidon2Comb (σ J))
+    (himplS : DataJet.CImplements poseidon2B (σ (J + 1)))
     {bs₀ : List Bool} (hb0 : P2Jet.bitsAt (cMachineO ρ shp region Vs).heap P2Jet.slotAddrs = some bs₀)
     (ho0 : otermAt (cMachineO ρ shp region Vs).heap ((cMachineO ρ shp region Vs).heap.length + 1) root =
       some (combT bs₀).toO)
@@ -315,7 +331,7 @@ theorem composedP_sound_of {ρ : Nat → Bool} {shp : BT} {region : List Cell} {
     · rw [← (h.ends j hj).2, Air.rd_eq]; rfl
   rw [hK] at hsteps
   have hw' : WSteps (V.close σ ⬝ (fillB shp ρ 0).enc ⬝ w) K := by
-    have := hsteps.close σ himpl
+    have := hsteps.close σ himpl himplS
     change WSteps (V.close σ ⬝ (fillB shp ρ 0).enc.toO.close σ ⬝ w.toO.close σ) K at this
     rw [close_toO, close_toO] at this
     exact this
@@ -459,8 +475,10 @@ theorem composedP_sound {ρ : Nat → Bool} {region : List Cell} {Vs : List OTer
       EvalRel (Vs.map (·.close (jetEnv J)), SameShape (combBT 496)) (fillB (combBT 496) ρ 0) w := by
   obtain ⟨hb0, ho0⟩ := comb_heap ρ region Vs
   exact composedP_sound_of (jetEnv J)
-    (by show DataJet.CImplements poseidon2Comb (if J = J then Pcomb else K)
-        rw [if_pos rfl]; exact Pcomb_implements) hb0 ho0
+    (by show DataJet.CImplements poseidon2Comb (if J = J then Pcomb else _)
+        rw [if_pos rfl]; exact Pcomb_implements)
+    (by show DataJet.CImplements poseidon2B (if J + 1 = J then Pcomb else if J + 1 = J + 1 then Pbits else K)
+        rw [if_neg (by omega), if_pos rfl]; exact Pbits_implements) hb0 ho0
     (by rw [combBT_nleaves 496 (by decide)]; exact hr) hroots h |>.imp fun _ hw =>
       ⟨by rw [← combBT_nleaves 496 (by decide)]; exact hw.1, hw.2⟩
 

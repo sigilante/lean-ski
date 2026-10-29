@@ -33,6 +33,13 @@ open B Compose CompM
 -- The jet's CPU column, after the restart columns.
 def P2SEL : Nat := ROOT + 1
 def sP2 : E := col P2SEL
+-- After `P2SEL` and its blinding block: the jet row's mode (`0` on the comb,
+-- `1` on the stack), the stack below its inputs, `P2SEL · (1 - MODE)`, and
+-- the input chain's first stack pointer.
+def P2MODE : Nat := P2SEL + 6
+def P2REST : Nat := P2SEL + 7
+def P2CM : Nat := P2SEL + 8
+def P2SP0 : Nat := P2SEL + 9
 
 /-- The reads' activities: read 2 is the jet row's too. -/
 def actsP : List E :=
@@ -61,14 +68,19 @@ def readInterP (j : Nat) : Inter :=
 def P2_BITS : Nat := 496
 
 /-- **The CPU's constraints**, in the Rust's order: `n` segments over the
-    nil at `nilA`, the jet's atom `J` and the comb's root `root`. -/
+    nil at `nilA`, the jet's atom `J` (on the stack, `J + 1`) and the comb's
+    root `root`. -/
 def cpuConsP2 (hd0 stk0 ctr0 n nilA J root : Nat) : List E :=
   (List.range NKINDS).map (fun i => B.bool (col (SEL + i))) ++ [bool sRS, bool sP2] ++
   [eq (sum ((List.range NKINDS).map (fun i => col (SEL + i)) ++ [sRS, sP2])) one] ++
   readConsP 0 ++ readConsP 1 ++ readConsP 2 ++ readConsP 3 ++
   [sInst, sPFirst, sPLater,
    whenFirst (col CNT), whenTrans (eq (nxt CNT) (.add (col CNT) sRS)), whenLast (eq (col CNT) (c (n - 1))),
-   .mul sP2 (.sub (fld 0) (c J)), .mul sP2 (.sub (fld 4) (c root)), B.bool (col (P2SEL + 5)),
+   .mul sP2 (.sub (fld 0) (.add (c J) (col P2MODE))), .mul (col P2CM) (.sub (fld 4) (c root)),
+   bool (col P2MODE), eq (col P2CM) (.mul sP2 (.sub one (col P2MODE))),
+   .mul (col P2CM) (.sub (col P2REST) (fld 5)),
+   eq (col P2SP0) (.add (.mul (col P2MODE) (fld 3)) (.mul (.sub one (col P2MODE)) (col P2REST))),
+   B.bool (col (P2SEL + 5)),
    whenTrans (eq (nxt HD) (.add (.add nextHd (.mul sRS (col ROOT))) (.mul sP2 (fld 2)))),
    whenTrans (eq (nxt STK) (.add (.add nextStk (.mul sRS (c nilA))) (.mul sP2 (.add (col CTR) (c (P2_BITS - 1)))))),
    whenTrans (eq (nxt CTR) (.add nextCtr (.mul sP2 (c P2_BITS)))),
@@ -85,17 +97,17 @@ def cpuIntersP2 : List Inter :=
    ⟨"mem", 1, sP2, [c 1, c 2, c 0, c 0]⟩,
    ⟨"mem", 1, sP2, [c 2, c 3, c 0, c 1]⟩,
    -- The input chain, then the output chain.
-   ⟨"p2i", 1, sP2, [col CTR, c 0, c 0]⟩,
-   ⟨"p2i", 1, .neg sP2, [col CTR, c P2_BITS, c 0]⟩,
-   ⟨"p2o", 1, sP2, [col CTR, c 0, fld 5, c 0, c 0, c 1]⟩,
-   ⟨"p2o", 1, .neg sP2, [col CTR, c P2_BITS, fld 5, c 0, c 0, c 1]⟩,
+   ⟨"p2i", 1, sP2, [col CTR, c 0, c 0, col P2MODE, col P2SP0]⟩,
+   ⟨"p2i", 1, .neg sP2, [col CTR, c P2_BITS, c 0, col P2MODE, col P2REST]⟩,
+   ⟨"p2o", 1, sP2, [col CTR, c 0, col P2REST, c 0, c 0, c 1]⟩,
+   ⟨"p2o", 1, .neg sP2, [col CTR, c P2_BITS, col P2REST, c 0, c 0, c 1]⟩,
    -- The blinding tree's edge to P2IN.
    blindMsg "blind_c" (P2SEL + 1) true,
    ⟨"blind_a", 1, .neg (col (BLA + 4)), blindFields BLA⟩,
    ⟨"blind_b", 1, col (BLB + 4), blindFields BLB⟩]
 
 def cpuAirP2 (hd0 stk0 ctr0 n nilA J root : Nat) : AirD :=
-  ⟨"cpu", P2SEL + 6, 0, cpuConsP2 hd0 stk0 ctr0 n nilA J root, cpuIntersP2, []⟩
+  ⟨"cpu", P2SEL + 10, 0, cpuConsP2 hd0 stk0 ctr0 n nilA J root, cpuIntersP2, []⟩
 
 /-- The witness table's rows, padded to a power of two at least `2^9`. -/
 def witRowsP (N W : Nat) : List (List F) :=
@@ -109,17 +121,28 @@ def witAirP (N W : Nat) : AirD := ⟨"wit", WT_BLIND + 5, 3, witCons, witInters,
 -- The jet's tables
 -- ---------------------------------------------------------------------------
 
-/-- P2IN: `ctr lvl b acc act e pow last islow ilast val nacc em`.  The bit
-    `lvl` is the slot `3 + lvl`: a `K` cell when true, `app 0 1` when false. -/
+/-- P2IN: `ctr lvl b acc act e pow last islow ilast val nacc em m sp spn addr
+    tag f1 f2 ca sa`.  On the comb (`m = 0`) the bit `lvl` is the slot
+    `3 + lvl`: a `K` cell when true, `app 0 1` when false, and `sp` passes
+    unchanged.  On the stack (`m = 1`) it is the stack cell at `sp`, a
+    pointer to the `K` slot (`0`) when true or to the `K I` slot (`2`) when
+    false, over `spn`.  `ca = act (1 - m)` and `sa = act m` gate the read,
+    so an all-zero row reads nothing. -/
 def p2inAir : AirD :=
   let v := fun i => col i
-  ⟨"p2in", 13, 0,
+  ⟨"p2in", 22, 0,
     [bool (v 4), bool (v 2), eq (v 10) (.add (v 3) (.mul (v 6) (v 2))),
-     eq (v 11) (.mul (.sub one (v 7)) (v 10)), eq (v 12) (.mul (v 4) (v 7))],
+     eq (v 11) (.mul (.sub one (v 7)) (v 10)), eq (v 12) (.mul (v 4) (v 7)),
+     eq (v 20) (.mul (v 4) (.sub one (v 13))), eq (v 21) (.mul (v 4) (v 13)),
+     .mul (.sub one (v 13)) (.sub (v 15) (v 14)),
+     eq (v 16) (.add (.mul (v 21) (v 14)) (.mul (v 20) (.add (v 1) (c 3)))),
+     eq (v 17) (.add (.mul (v 21) (c 5)) (.mul (v 20) (.sub (c 3) (.mul (v 2) (c 2))))),
+     eq (v 18) (.mul (v 21) (.sub (c 2) (.mul (v 2) (c 2)))),
+     eq (v 19) (.add (.mul (v 21) (v 15)) (.mul (v 20) (.sub one (v 2))))],
     [⟨"p2idx", 1, v 4, [v 1, v 5, v 6, v 7, v 8, v 9]⟩,
-     ⟨"p2i", 1, .neg (v 4), [v 0, v 1, v 3]⟩,
-     ⟨"p2i", 1, v 4, [v 0, .add (v 1) one, v 11]⟩,
-     ⟨"mem", 1, v 4, [.add (v 1) (c 3), .sub (c 3) (.mul (v 2) (c 2)), c 0, .sub one (v 2)]⟩,
+     ⟨"p2i", 1, .neg (v 4), [v 0, v 1, v 3, v 13, v 14]⟩,
+     ⟨"p2i", 1, v 4, [v 0, .add (v 1) one, v 11, v 13, v 15]⟩,
+     ⟨"mem", 1, v 4, [v 16, v 17, v 18, v 19]⟩,
      ⟨"p2v", 1, v 12, [v 0, v 5, v 10]⟩], []⟩
 
 /-- P2OUT: `ctr lvl rest b acc low hi act e pow last islow ilast val nacc

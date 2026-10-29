@@ -185,7 +185,7 @@ theorem CompPOK.normRowSel {r : Nat} (hr : r + 1 < C.h) (hrs : C.main r RS = 0) 
 theorem CompPOK.normRow {r : Nat} (hr : r + 1 < C.h) (hrs : C.main r RS = 0) (hJ : J < P) (hroot : root < P)
     (h499 : 499 ≤ (blankMO shp W Vs).heap.length) :
     NormRowP (memOf Mm) [] [] J root (rowOf C r) (rowOf C (r + 1)) :=
-  (h.normRowSel hr hrs hJ hroot h499).imp (fun a => a.2) (fun a => a.2)
+  (h.normRowSel hr hrs hJ hroot h499).imp (fun a => a.2) (fun a => .inl a.2)
 
 /-- A segment's end reads `K` at the head over a nil: a restart (`11`) or
     the last row's `HK1` (`5`). -/
