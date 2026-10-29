@@ -134,6 +134,12 @@ import Ski.ZK.FSQueryAbsA
 import Ski.ZK.ROMFamilyMC
 import Ski.ZK.ROMMerkleRowsP
 import Ski.ZK.ROMMerkleIdxC
+import Ski.ZK.CompJInst
+import Ski.ZK.CompJHiding
+import Ski.ZK.FSQueryJ
+import Ski.ZK.FSQueryJA
+import Ski.ZK.ROMInstMCJ
+import Ski.ZK.ROMMerkleIdxCJ
 import Ski.ZK.ROMInstM
 import Ski.ZK.ROMFamilyM
 import Ski.ZK.ROMMerkleRows
@@ -1540,3 +1546,14 @@ open Ski.Audit
 #audit_clean Circuit.comM_spreadLC Circuit.comMI_spreadLC
 #audit_clean Circuit.fs_open4_absA Circuit.sud_fs_open4_absA Circuit.wit_fs_open4_absA Circuit.comp_fs_open4_absA Circuit.sud_fs4A Circuit.wit_fs4A Circuit.comp_fs4A Circuit.sud_fs_open4_powDA Circuit.wit_fs_open4_powDA Circuit.comp_fs_open4_powDA Circuit.rom4_stepMC Circuit.sud_fs_open4_powDROMMC Circuit.wit_fs_open4_powDROMMC Circuit.comp_fs_open4_powDROMMC
 #audit_clean Circuit.posRowsP_lt Circuit.posRowsP_spread Circuit.posRowsP_hposO Circuit.posRowsP_meet Circuit.posRowsP_of_posRows Circuit.sud_fs_open4ROMMC_fri Circuit.wit_fs_open4ROMMC_fri Circuit.comp_fs_open4ROMMC_fri
+
+-- The circuit with jets under Fiat–Shamir: its hiding PCS (CompJInst), the
+-- honest run's facts (CompJHiding), four rounds (FSQueryJ), the first
+-- commitment hiding up to η (FSQueryJA), Merkle leaves that may share a hash
+-- (ROMInstMCJ), FRI's leaves at Plonky3's positions (ROMMerkleIdxCJ)
+#audit_clean Circuit.jCols_shaped Circuit.compJ_airs_P3 Circuit.compJ_blind_ok Circuit.compJ_pcs
+#audit_clean Circuit.provCJ_height Circuit.compJ_run_facts
+#audit_clean Circuit.compJ_SsT Circuit.compJ_SsC Circuit.compJ_same_w Circuit.compJ_data_q Circuit.compJ_same_d
+  Circuit.compJCols_main Circuit.compJ_pcsX Circuit.compJ_fs_open4
+#audit_clean Circuit.compJ_fs_open4A Circuit.compJ_fs_open4ROMMC
+#audit_clean Circuit.compJ_hposO_idx Circuit.compJ_opened_iff Circuit.compJ_fri_leaves Circuit.compJ_fs_open4ROMMC_fri
