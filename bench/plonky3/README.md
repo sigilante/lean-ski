@@ -556,7 +556,17 @@ knowledge:
 - for this circuit, Lean's honest model is these tables, and
   `P2Run.honest_zkP` proves its balance and clear flags, the hypotheses of
   `compP_transcript`; `compPG_complete_log` proves the circuit accepts
-  them.
+  them;
+- under Fiat–Shamir, `Circuit.compP_fs_open4` and
+  `Circuit.compP_fs_open4ROMMC_fri` (`Ski/ZK/FSQueryP.lean`,
+  `Ski/ZK/ROMMerkleIdxCP.lean`) follow the composed circuit's route over
+  the concrete PCS `Circuit.compP_pcs`. P2OUT and Poseidon2 have
+  constraints of degree 3, so Plonky3 commits eight quotient chunks to
+  each, which `Circuit.tabsHonest_bbD` models; the others take four. The
+  theorems ask that the verifiers call the jet once, as the level table
+  `idxPub 1` publishes and `p2pre`'s and the hand-off's do
+  (`compP_calls_p2pre`, `compP_calls_p2commit`). Neither has a
+  satisfiability witness yet.
 
 `ski-air compp-guess PUBLIC WITNESS` tests the published terminals of all
 six private tables: CPU, MEM, WIT, P2IN, P2OUT and the Poseidon2 table. A
@@ -1006,14 +1016,21 @@ What the theorem rests on:
   prover who wrote its own statement per witness could choose `R`, `M`,
   `Lp` and `Li` and so publish the sizes of its run; one who chose `SRC`
   would publish which templates it used.
-- **The model is honest-verifier zero knowledge.** It draws the
+- **This theorem is honest-verifier zero knowledge.** It draws the
   challenges uniformly, and the simulator's `psim` must be fixed by the
-  statement alone. The real challenges are Fiat–Shamir outputs, a step
-  taken in the random-oracle model and not formalized.
-- **`PCSCloseN` carries the committed traces' hiding**: the main and
+  statement alone. Fiat–Shamir follows by the composed circuit's route:
+  `Circuit.compJ_fs_open4` (`Ski/ZK/FSQueryJ.lean`) hashes the challenges
+  and the query points in the programmable random-oracle model, and
+  `Circuit.compJ_fs_open4ROMMC_fri` (`Ski/ZK/ROMMerkleIdxCJ.lean`) takes
+  the first commitment as Plonky3's Merkle tree at FRI's leaves, under the
+  assumptions of `comp_fs_open4ROMMC_fri`, including the hiding of the
+  second and third commitments. Neither has a satisfiability witness yet.
+- **`PCSCloseN` carries the committed traces' hiding** here: the main and
   permutation traces, the quotient, FRI and the openings. The theorem's
   own content is the eight terminals' tree argument, with its error terms
-  for non-generic challenges and aborts.
+  for non-generic challenges and aborts. `Circuit.compJ_pcs`
+  (`Ski/ZK/CompJInst.lean`) discharges it with `ε = 0` for the circuit's
+  twenty trace groups and ten quotient tables.
 - **The `2^9` floor has a margin of 296 values.** A query opens each
   committed column at one point, so the column openings need
   `q + 8 = 108` (`masks_hide`). Plonky3 commits the quotient chunks at

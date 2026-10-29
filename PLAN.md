@@ -938,7 +938,9 @@ bus by bus. Its zero knowledge, milestone 7 (`Ski/ZK/CompJ.lean`):
 over a hiding PCS a simulator from the statement alone matches the real
 transcript (`compJ_transcript`, `transcript_zkN` for the tree of eight
 tables and seven tuples), and the honest tables meet its hypotheses
-(`CRun.honest_zk`). The statement fixes POP's and INSTW's budgets with
+(`CRun.honest_zk`). Under Fiat–Shamir it follows the composed circuit's
+route over the concrete hiding PCS (`compJ_pcs`): `compJ_fs_open4` and
+`compJ_fs_open4ROMMC_fri`. The statement fixes POP's and INSTW's budgets with
 the other heights (`log R M Lp Li`), so no height depends on the
 witness. Avon writes the witness tables (milestone 8: `avon witness
 --statement`), byte for byte ski-air's, and `ski-air compj-prove-table`
@@ -1062,7 +1064,10 @@ table with jet rows proves the statement with `J` closed to `Pbits`
 (`CompM.composedP_sound`). The circuit's jet rows exist and are proved
 sound (`Circuit.compPExportG_sound`), complete
 (`Circuit.compPG_complete_log`) and zero knowledge
-(`Circuit.compP_transcript`). The hidden hand-off runs in the circuit:
+(`Circuit.compP_transcript`), also under Fiat–Shamir
+(`Circuit.compP_fs_open4`, `Circuit.compP_fs_open4ROMMC_fri`), its P2OUT
+and Poseidon2 tables of degree 3 over eight quotient chunks
+(`Circuit.tabsHonest_bbD`). The hidden hand-off runs in the circuit:
 two accepted `p2commit` proofs over one commitment, the first pattern
 fixing value bits only and both keeping the value canonical, give one
 value that meets both stages' patterns, or a collision read from the two

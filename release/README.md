@@ -306,10 +306,11 @@ instantiation is weak reduction, so a jetted run proves evaluation up to
 weak reduction of the value; a value with `K`'s head and arity is `K`
 (`CompM.chead_K`), so the claim is exact. The honest tables are accepted
 (`Circuit.compJ_complete_log`). The transcript hides the bits
-(`Circuit.compJ_transcript`), under the conditions the plain proofs share
--- a hiding PCS, Fiat–Shamir in the random-oracle model, a simulator fixed
-by the statement -- and one of its own: the verifier fixes the statement,
-its budgets included, and the source before the witness. The jet table is
+(`Circuit.compJ_transcript`), and under Fiat–Shamir as the plain proofs'
+do (`Circuit.compJ_fs_open4ROMMC_fri`, in the programmable random-oracle
+model, under the composed circuit's assumptions), with one condition of
+its own: the verifier fixes the statement, its budgets included, and the
+source before the witness. The jet table is
 public; which templates the run used, and how often, is not.
 
 **The output proof.** A result is read by probing: the term, applied to
