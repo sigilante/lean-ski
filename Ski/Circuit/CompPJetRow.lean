@@ -156,7 +156,11 @@ theorem consecFrom_of (H : List Cell) (a x : Nat → Nat) : ∀ n i,
     have ih := consecFrom_of H a x n (i + 1) (fun j hj => by
       have := hc (j + 1) (by omega)
       rwa [show i + (j + 1) = i + 1 + j by omega] at this)
-    simp only [P2Jet.consecFrom, h0, e0, beq_self_eq_true, Bool.true_and, ih]
+    unfold P2Jet.consecFrom
+    rw [h0]
+    dsimp only
+    rw [e0, ih, show (a i == a i) = true from decide_eq_true rfl]
+    rfl
 
 section
 variable {hd0 stk0 ctr0 n nilA J root : Nat} {heap : List Cell} {N W : Nat} {roots : List Nat}

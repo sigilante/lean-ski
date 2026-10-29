@@ -1174,7 +1174,7 @@ open Ski.Audit
   Circuit.CompPOK.halt Circuit.CompPOK.ctr_eq Circuit.CompPOK.next_ctr Circuit.CompPOK.jet_key_unique
   Circuit.CompPOK.jetReads Circuit.CompPOK.jetNext Circuit.CompPOK.pinConserve Circuit.CompPOK.poutConserve
   Circuit.CompPOK.pinPath Circuit.CompPOK.poutPath Circuit.CompPOK.pinLevel Circuit.CompPOK.poutLevel
-  Circuit.accum Circuit.lowhi Circuit.canon Circuit.CompPOK.pinSlot Circuit.CompPOK.poutWrite
+  Circuit.accum Circuit.lowhi Circuit.canon Circuit.CompPOK.pinRead Circuit.CompPOK.poutWrite
   Circuit.CompPOK.p2vCount Circuit.CompPOK.p2Unique Circuit.CompPOK.p2wMatch Circuit.CompPOK.pinVals
   Circuit.CompPOK.poutVals Circuit.CompPOK.poutCells Circuit.CompPOK.jetOut Circuit.CompPOK.jetRow
   Circuit.cMachineO_fitsB Circuit.CompPOK.heap0 Circuit.CompPOK.regionWF Circuit.CompPOK.restart
