@@ -26,7 +26,11 @@ theorem memP2 {c : E} (h : c ∈ cpuConsP2 hd0 stk0 ctr0 n nilA J root) : c.eval
 
 theorem memP_tail {c : E} (h : c ∈ [sInst, sPFirst, sPLater,
     whenFirst (col CNT), whenTrans (eq (nxt CNT) (.add (col CNT) sRS)), whenLast (eq (col CNT) (B.c (n - 1))),
-    .mul sP2 (.sub (fld 0) (B.c J)), .mul sP2 (.sub (fld 4) (B.c root)), B.bool (col (P2SEL + 5)),
+    .mul sP2 (.sub (fld 0) (.add (B.c J) (col P2MODE))), .mul (col P2CM) (.sub (fld 4) (B.c root)),
+    B.bool (col P2MODE), eq (col P2CM) (.mul sP2 (.sub one (col P2MODE))),
+    .mul (col P2CM) (.sub (col P2REST) (fld 5)),
+    eq (col P2SP0) (.add (.mul (col P2MODE) (fld 3)) (.mul (.sub one (col P2MODE)) (col P2REST))),
+    B.bool (col (P2SEL + 5)),
     whenTrans (eq (nxt HD) (.add (.add nextHd (.mul sRS (col ROOT))) (.mul sP2 (fld 2)))),
     whenTrans (eq (nxt STK) (.add (.add nextStk (.mul sRS (B.c nilA))) (.mul sP2 (.add (col CTR) (B.c (P2_BITS - 1)))))),
     whenTrans (eq (nxt CTR) (.add nextCtr (.mul sP2 (B.c P2_BITS)))),
@@ -127,13 +131,24 @@ theorem cnt_rowsP :
     simp only [B.whenLast, B.eq, B.col, B.c, E.eval, hla, one_mul', env_main0 hr] at this
     exact sub_eq_zero this
 
-/-- The jet row's atom and root. -/
+/-- The jet row's atom (`J`, or `J + 1` on the stack), its root on the
+    comb, its mode and the stack below its inputs. -/
 theorem p2_pinsP :
-    T.main r P2SEL * (T.main r (FLD + 0) - ofN J) = 0 ∧ T.main r P2SEL * (T.main r (FLD + 4) - ofN root) = 0 := by
-  have h1 := memP_tail hs hr (c := .mul sP2 (.sub (fld 0) (B.c J))) (by simp)
-  have h2 := memP_tail hs hr (c := .mul sP2 (.sub (fld 4) (B.c root))) (by simp)
-  simp only [sP2, fld, B.col, B.c, E.eval, env_main0 hr] at h1 h2
-  exact ⟨h1, h2⟩
+    T.main r P2SEL * (T.main r (FLD + 0) - (ofN J + T.main r P2MODE)) = 0 ∧
+    T.main r P2CM * (T.main r (FLD + 4) - ofN root) = 0 ∧
+    T.main r P2MODE * (T.main r P2MODE - 1) = 0 ∧
+    T.main r P2CM = T.main r P2SEL * (1 - T.main r P2MODE) ∧
+    T.main r P2CM * (T.main r P2REST - T.main r (FLD + 5)) = 0 ∧
+    T.main r P2SP0 = T.main r P2MODE * T.main r (FLD + 3) + (1 - T.main r P2MODE) * T.main r P2REST := by
+  have h1 := memP_tail hs hr (c := .mul sP2 (.sub (fld 0) (.add (B.c J) (col P2MODE)))) (by simp)
+  have h2 := memP_tail hs hr (c := .mul (col P2CM) (.sub (fld 4) (B.c root))) (by simp)
+  have h3 := memP_tail hs hr (c := B.bool (col P2MODE)) (by simp)
+  have h4 := memP_tail hs hr (c := eq (col P2CM) (.mul sP2 (.sub one (col P2MODE)))) (by simp)
+  have h5 := memP_tail hs hr (c := .mul (col P2CM) (.sub (col P2REST) (fld 5))) (by simp)
+  have h6 := memP_tail hs hr
+    (c := eq (col P2SP0) (.add (.mul (col P2MODE) (fld 3)) (.mul (.sub one (col P2MODE)) (col P2REST)))) (by simp)
+  simp only [sP2, fld, B.col, B.c, B.bool, B.eq, B.one, E.eval, env_main0 hr, ofN_one] at h1 h2 h3 h4 h5 h6
+  exact ⟨h1, h2, h3, sub_eq_zero h4, h5, sub_eq_zero h6⟩
 
 /-- The transitions, with a restart's jump and the jet's step. -/
 theorem next_regsP2 (hn : r + 1 < T.h) :
