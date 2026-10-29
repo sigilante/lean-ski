@@ -1,4 +1,5 @@
 import Ski.P2PreSound
+import Ski.Circuit.CompPFinal
 
 open Term
 
@@ -113,3 +114,39 @@ theorem p2chain_meaning {h : Nat} (hh : h < Poseidon2.p) {ρ : Nat → Bool} {w 
   exact hv
 
 end P2Chain
+
+namespace Circuit
+
+open Air Compose CompM ComposedPText
+
+/-- **The chain's verifier's only variables are the jet's two atoms.** -/
+theorem verifierChainO_occ (h x : Nat) (hx : Occ x (verifierChainO h)) : x = JP2 ∨ x = JP2 + 1 := by
+  obtain ⟨h1, hx0⟩ := occ_abs hx
+  obtain ⟨h2, _⟩ := occ_abs h1
+  cases h2 with
+  | left _ h3 =>
+    cases h3 with
+    | left _ h4 => cases h4; exact .inl rfl
+    | right _ h4 =>
+      cases h4 with
+      | left _ h5 => cases h5; exact .inr rfl
+      | right _ h5 => exact absurd h5 (chkO_closed _ _ x)
+  | right _ h3 => cases h3; exact absurd rfl hx0
+
+/-- **Soundness of `p2chain h`**: an accepted proof of the statement, for
+    AIRs with the normal forms of `compPAirsG (VsC h)`, holds in its memory
+    496 bits whose sixteen 31-bit elements, permuted by Poseidon2 and the
+    result's bits permuted again, give a state beginning with `h`. -/
+theorem p2chainExport_sound {h : Nat} (hh : h < Poseidon2.p) {Rs : List AirD} {ts : List Table}
+    (hs : sameAirsB Rs (compPAirsG (VsC h)) = true) (hacc : AcceptedP Rs ts) :
+    ∃ C Mm Pg Wt Sg Pi Po Pp Px, ts = [C, Mm, Pg, Wt, Sg, Pi, Po, Pp, Px] ∧
+      (Poseidon2.permute (Poseidon2SKI.valsB ((Poseidon2.permute (Poseidon2SKI.valsB
+        ((List.range 496).map (bitsM (memOf Mm))))).flatMap (BitArith.bitsOf 31)))).getD 0 0 = h := by
+  obtain ⟨C, Mm, Pg, Wt, Sg, Pi, Po, Pp, Px, rfl, w, _, hev⟩ := compPExportG_sound (Vs := VsC h)
+    (Nat.zero_lt_succ _) (fun V hV x hx => by
+      simp only [VsC, List.mem_cons, List.not_mem_nil, or_false] at hV
+      subst hV
+      exact verifierChainO_occ h x hx) hs hacc
+  exact ⟨C, Mm, Pg, Wt, Sg, Pi, Po, Pp, Px, rfl, P2Chain.p2chain_meaning hh hev⟩
+
+end Circuit

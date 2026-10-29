@@ -523,7 +523,7 @@ theorem p2commitExport_sound {c : List Nat} {pat : List (Option Bool)} (hc : c.l
   obtain ⟨C, Mm, Pg, Wt, Sg, Pi, Po, Pp, Px, rfl, _, _, hev⟩ := compPExportG_sound (Vs := [verifierC c pat])
     (Nat.zero_lt_succ _) (fun V hV x hx => by
       rw [List.mem_singleton.1 hV] at hx
-      exact verifierC_occ c pat x hx) hs hacc
+      exact .inl (verifierC_occ c pat x hx)) hs hacc
   exact ⟨C, Mm, Pg, Wt, Sg, Pi, Po, Pp, Px, rfl, p2commit_meaning hc hcp hpat hev⟩
 
 /-- **The hidden hand-off**: accepted proofs of `p2commit c pat₁` and
