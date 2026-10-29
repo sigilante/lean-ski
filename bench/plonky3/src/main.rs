@@ -200,9 +200,12 @@ enum Term {
     K,
     I,
     App(Box<Term>, Box<Term>),
+    /// The atom `i`, `Xi` in prefix form: `OTerm.var`, loaded as an atom
+    /// cell (`Mach.obuild`).
+    Atom(u32),
 }
 
-/// A term in prefix form, `` ` `` for application.
+/// A term in prefix form, `` ` `` for application and `Xi` for the atom `i`.
 fn parse(s: &[u8], pos: &mut usize) -> Term {
     let c = s[*pos];
     *pos += 1;
@@ -215,16 +218,26 @@ fn parse(s: &[u8], pos: &mut usize) -> Term {
             let a = parse(s, pos);
             Term::App(Box::new(f), Box::new(a))
         }
+        b'X' => {
+            let start = *pos;
+            while *pos < s.len() && s[*pos].is_ascii_digit() {
+                *pos += 1;
+            }
+            let n = std::str::from_utf8(&s[start..*pos]).ok().and_then(|d| d.parse().ok());
+            Term::Atom(n.unwrap_or_else(|| panic!("bad atom at byte {start}")))
+        }
         _ => panic!("bad term byte {c}"),
     }
 }
 
-/// `Mach.build`: children first, the function before the argument.
+/// `Mach.build` (`Mach.obuild` with atoms): children first, the function
+/// before the argument.
 fn build(heap: &mut Vec<Cell>, t: &Term) -> u32 {
     let cell = match t {
         Term::S => Cell::S,
         Term::K => Cell::K,
         Term::I => Cell::I,
+        Term::Atom(n) => Cell::Atom(*n),
         Term::App(f, a) => {
             let pf = build(heap, f);
             let pa = build(heap, a);

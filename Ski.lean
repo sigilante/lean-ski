@@ -6,6 +6,7 @@ import Ski.Air
 import Ski.AirCheck
 import Ski.HeapOpen
 import Ski.AirOpen
+import Ski.AirCheckOpen
 import Ski.Inst
 import Ski.SmallLemma
 import Ski.AirJet

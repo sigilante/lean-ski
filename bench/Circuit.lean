@@ -48,6 +48,33 @@ def parseTerm (s : String) : Option Term :=
   | some (t, []) => some t
   | _ => none
 
+/-- A term that may hold atoms, `Xi` for the atom `i`. -/
+def parseOTermF : Nat → List Char → Option (OTerm × List Char)
+  | 0, _ => none
+  | _ + 1, 'S' :: r => some (.S, r)
+  | _ + 1, 'K' :: r => some (.K, r)
+  | _ + 1, 'I' :: r => some (.I, r)
+  | _ + 1, 'X' :: r =>
+    let ds := r.takeWhile Char.isDigit
+    if ds.isEmpty then none
+    else (String.ofList ds).toNat?.map fun n => (.var n, r.drop ds.length)
+  | n + 1, '`' :: r => do
+    let (f, r1) ← parseOTermF n r
+    let (a, r2) ← parseOTermF n r1
+    some (.app f a, r2)
+  | _ + 1, _ => none
+
+def parseOTerm (s : String) : Option OTerm :=
+  match parseOTermF (s.length + 1) s.toList with
+  | some (t, []) => some t
+  | _ => none
+
+/-- **The corpus circuit for an open term**: `baseAirs` over `oload t`, the
+    atoms as atom cells in the program table. -/
+def baseAirsO (t : OTerm) : List AirD :=
+  let m := Mach.oload t
+  [cpuAir m.hd m.stk m.heap.length, memAir, progAir m.heap]
+
 def words (l : String) : List String := (l.splitOn " ").filter (· ≠ "")
 
 /-- A leaf token: `m<o>.<i>`, `p<o>.<i>`, `F`, `L`, `T`, `c<v>`. -/
@@ -192,13 +219,17 @@ def readInput (path : String) : IO String :=
 def compare (path : String) : IO UInt32 := do
   let text ← readInput path
   let ls := (text.splitOn "\n").filter (fun l => !l.trimAscii.toString.isEmpty)
-  let some t := (match ls with
+  let some ts := (match ls with
       | l :: _ => match words l with
-        | ["term", s] => parseTerm s
+        | ["term", s] => some s
         | _ => none
       | [] => none) | do IO.println "MALFORMED: no term"; return 1
   let some rust := parseAirs (ls.length + 1) (ls.drop 1) | do IO.println "MALFORMED AIRS"; return 1
-  compareAirs rust (baseAirs t)
+  match parseTerm ts with
+  | some t => compareAirs rust (baseAirs t)
+  | none =>
+    let some t := parseOTerm ts | do IO.println "MALFORMED: no term"; return 1
+    compareAirs rust (baseAirsO t)
 
 /-- The composed circuit: `public N`, the statement's `N` lines, then the
     five AIRs.  The statement must be exactly `ComposedText.publicText` of
