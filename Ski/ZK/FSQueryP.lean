@@ -144,8 +144,9 @@ set_option maxRecDepth 100000 in
 /-- **The proof with the Poseidon2 jet over four Fiat–Shamir rounds, the
     query points hashed**: `comp_fs_open4` for the circuit with the
     Poseidon2 jet.  The run is an accepting run of `compPG_complete_log`
-    whose verifiers call the jet once (`hcalls`; the verifier refuses any
-    other count, and `p2pre`'s and the hand-off's verifiers meet it:
+    whose verifiers call the jet once (`hcalls`; ski-air's prover refuses
+    any other count, `one_call`, and `p2pre`'s and the hand-off's verifiers
+    meet it:
     `compP_calls_p2pre`, `compP_calls_p2commit`); the PCS is
     `compP_pcs`'s, over eighteen trace groups and nine quotient tables,
     P2OUT's and Poseidon2's of eight chunks.  Assumed as in
