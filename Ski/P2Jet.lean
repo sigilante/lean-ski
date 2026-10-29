@@ -434,14 +434,29 @@ theorem ptrBits_ptrs {H : List Cell} (hs : slotsOK H = true) {F : Nat} (hF : 3 �
   | _ :: _, [], _, h, _ => nomatch h
   | [], [], _ :: _, _, hb => nomatch hb
 
+/-- `n` stack cells from `s`, each over the address below it. -/
+def consecFrom (H : List Cell) : Nat → Nat → Bool
+  | _, 0 => true
+  | s, n + 1 =>
+    match H[s]? with
+    | some (.cons _ s') => s' + 1 == s && consecFrom H s' n
+    | _ => false
+
+/-- The stack below `k` runs down consecutive cells, as a call's outputs do. -/
+def stackRun (H : List Cell) (stk : Nat) : Bool :=
+  match H[stk]? with
+  | some (.cons _ s1) => consecFrom H s1 495
+  | _ => false
+
 /-- **The jet's row on the stack**: at the atom `j` with `k` and 496
-    arguments, each a pointer to the `K` slot or the `K I` slot, as a
-    previous call pushed them; the outputs' bits pushed for `k`. -/
+    arguments, each a pointer to the `K` slot or the `K I` slot, in
+    consecutive stack cells, as a previous call pushed them; the outputs'
+    bits pushed for `k`. -/
 def p2RowS (M : List Cell) (j : Nat) (r : Row) : Option Row :=
   let H := M.take r.ctr
   match H[r.hd]? with
   | some (.atom j') =>
-    if j' = j ∧ slotsOK H = true then
+    if j' = j ∧ slotsOK H = true ∧ stackRun H r.stk = true then
       match popN H 497 r.stk with
       | some (k :: ps, rest) =>
         match ptrBits ps with
@@ -473,9 +488,9 @@ theorem p2RowS_step {M : List Cell} {j : Nat} {r r' : Row} (h : p2RowS M j r = s
     cases cell with
     | atom j' =>
       dsimp only at h
-      by_cases hcond : j' = j ∧ slotsOK H = true
+      by_cases hcond : j' = j ∧ slotsOK H = true ∧ stackRun H r.stk = true
       · rw [if_pos hcond] at h
-        obtain ⟨hjj, hs⟩ := hcond
+        obtain ⟨hjj, hs, _⟩ := hcond
         cases hpop : popN H 497 r.stk with
         | none => rw [hpop] at h; cases h
         | some q =>

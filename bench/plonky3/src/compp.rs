@@ -155,7 +155,9 @@ pub fn eval_blocks<AB: PermutationAirBuilder + InteractionBuilder>(b: &mut AB, b
 /// `3 + lvl`: a `K` cell when true, the cell `app 0 1` when false, and `sp`
 /// passes unchanged.  On the stack (`m = 1`) it is the stack cell at `sp`,
 /// a pointer to the `K` slot (`0`) when true or the `K I` slot (`2`) when
-/// false, over `spn`.  `ca = act (1 - m)` and `sa = act m` gate the read.
+/// false, over `spn`, which is `sp - 1` but at the last level: the inputs
+/// are a previous call's outputs, consecutive cells below the counter.
+/// `ca = act (1 - m)` and `sa = act m` gate the read.
 pub fn eval_p2in<AB: PermutationAirBuilder + InteractionBuilder>(b: &mut AB) {
     let main = b.main();
     let l: Vec<AB::Expr> = main.current_slice().iter().map(|&v| v.into()).collect();
@@ -177,7 +179,9 @@ pub fn eval_p2in<AB: PermutationAirBuilder + InteractionBuilder>(b: &mut AB) {
     b.assert_eq(addr.clone(), sa.clone() * sp.clone() + ca.clone() * (lvl.clone() + c(P2_SLOT0)));
     b.assert_eq(tag.clone(), sa.clone() * c(5) + ca.clone() * (c(3) - bit.clone() * c(2)));
     b.assert_eq(f1.clone(), sa.clone() * (c(2) - bit.clone() * c(2)));
-    b.assert_eq(f2.clone(), sa * spn.clone() + ca * (one.clone() - bit));
+    b.assert_eq(f2.clone(), sa.clone() * spn.clone() + ca * (one.clone() - bit));
+    // On the stack the inputs are consecutive cells, a previous call's outputs.
+    b.assert_zero(sa * (one.clone() - ilast.clone()) * (spn.clone() - sp.clone() + one.clone()));
     b.push_interaction(P2IDX, [lvl.clone(), e.clone(), pow, last, islow, ilast], Count::bounded(act.clone(), 1));
     b.push_interaction(P2I, [ctr.clone(), lvl.clone(), acc, m.clone(), sp], -Count::bounded(act.clone(), 1));
     b.push_interaction(P2I, [ctr.clone(), lvl + one, nacc, m, spn], Count::bounded(act.clone(), 1));
@@ -300,8 +304,11 @@ pub fn p2_step(heap: &[Cell], hd: u32, stk: u32, pp: &P2Pub, forge: Forge) -> Op
     let (bits, rest, sps): (Vec<bool>, u32, Vec<u32>) = if on_stack {
         let mut sps = vec![s1];
         let mut bits = Vec::with_capacity(P2_BITS);
-        for _ in 0..P2_BITS {
+        for l in 0..P2_BITS {
             let Cell::Cons(a, next) = *heap.get(*sps.last().unwrap() as usize)? else { return None };
+            if l + 1 < P2_BITS && next + 1 != *sps.last().unwrap() {
+                return None;
+            }
             bits.push(match a {
                 0 => true,
                 2 => false,
