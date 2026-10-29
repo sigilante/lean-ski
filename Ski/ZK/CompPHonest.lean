@@ -281,7 +281,8 @@ theorem witTP_flag {A : List Cell} {N W : Nat} (r : Nat) : (witTableP A N W).mai
 omit hA hK in
 theorem cpuP_flag {K r c : Nat} (hc : c = BLA + 4 ∨ c = BLB + 4 ∨ c = P2SEL + 1 + 4) : (R.cpuTableP K).main r c = 0 := by
   show R.cpuColP r c = 0
-  rw [R.cpuColP_hi (by rcases hc with rfl | rfl | rfl <;> decide) (by rcases hc with rfl | rfl | rfl <;> decide)]
+  rw [R.cpuColP_hi (by rcases hc with rfl | rfl | rfl <;> decide) (by rcases hc with rfl | rfl | rfl <;> decide)
+    (by rcases hc with rfl | rfl | rfl <;> decide)]
   rcases hc with rfl | rfl | rfl
   · exact cpuColC_blind _ (.inl rfl)
   · exact cpuColC_blind _ (.inr rfl)
@@ -375,7 +376,7 @@ variable {R : P2Run}
     (`P2Once.verifierO_eq`, `P2Once.verifierC_eq`). -/
 theorem calls_one {ρ : Nat → Bool} {shp : BT} {region : List Cell} {V : OTerm} {G U : OTerm → Prop}
     (hp : P2Once.Part R.J G U) {g : OTerm} (hg : G g) (hV : V = .S ⬝ₒ (.K ⬝ₒ .K) ⬝ₒ g)
-    {bs₀ : List Bool} (hb0 : P2Jet.bitsAt (cMachineO ρ shp region [V]).heap P2Jet.slotAddrs = some bs₀)
+    (hV1 : P2Once.Free (R.J + 1) V) {bs₀ : List Bool} (hb0 : P2Jet.bitsAt (cMachineO ρ shp region [V]).heap P2Jet.slotAddrs = some bs₀)
     (ho0 : otermAt (cMachineO ρ shp region [V]).heap ((cMachineO ρ shp region [V]).heap.length + 1) R.root =
       some (Poseidon2SKI.combT bs₀).toO)
     (hr : ∀ i c, region[i]? = some c → Wit.cellOK (BT.nleaves shp + 3 + i) c = true)
@@ -390,7 +391,7 @@ theorem calls_one {ρ : Nat → Bool} {shp : BT} {region : List Cell} {V : OTerm
     · rfl
     · obtain ⟨j, hj, _⟩ := isRestart_iff.1 h; omega
   have he : R.e (R.n - 1) = R.e 0 := by rw [hn]
-  obtain ⟨r0, hr0, hs0, hu⟩ := P2Once.once_of hp hg hV hb0 ho0 hr hA' R.jetAt (fun i hi => by
+  obtain ⟨r0, hr0, hs0, hu⟩ := P2Once.once_of hp hg hV hV1 hb0 ho0 hr hA' R.jetAt (fun i hi => by
     cases hj : R.jetAt i with
     | false => exact .inl ⟨rfl, plain_row hA (by rw [he]; exact hi) (hnr i) hj⟩
     | true =>
@@ -415,6 +416,7 @@ variable {R : P2Run}
     and their flags are clear. -/
 theorem honest_zk_one {ρ : Nat → Bool} {region : List Cell} {V : OTerm} {G U : OTerm → Prop}
     (hp : P2Once.Part R.J G U) {g : OTerm} (hg : G g) (hV : V = .S ⬝ₒ (.K ⬝ₒ .K) ⬝ₒ g)
+    (hV1 : P2Once.Free (R.J + 1) V)
     (hroot : R.root = combRoot ρ (combBT 496) region)
     (hr : ∀ i c, region[i]? = some c → Wit.cellOK (496 + 3 + i) c = true)
     (hseg : R.segRoots = (cHeapO ρ (combBT 496) region [V]).2) (hn : R.n = 1)
@@ -443,7 +445,7 @@ theorem honest_zk_one {ρ : Nat → Bool} {region : List Cell} {V : OTerm} {G U 
   obtain ⟨hb0, ho0⟩ := comb_heap ρ region [V]
   rw [← hroot] at ho0
   have hN : BT.nleaves (combBT 496) = 496 := combBT_nleaves 496 (by decide)
-  have hc := R.calls_one hp hg hV hb0 ho0 (by rw [hN]; exact hr) hseg hn hA hK
+  have hc := R.calls_one hp hg hV hV1 hb0 ho0 (by rw [hN]; exact hr) hseg hn hA hK
   have hK' : R.e (R.n - 1) < K := by rw [hn]; exact hK
   rw [← hc]
   exact honest_zkP hA hK' hd0 stk0 ctr0 J root hML (by rw [hseg, hn]; rfl) hnP hHI hHO hHP hHI0 hHO0 hHP0
@@ -478,7 +480,9 @@ theorem honest_zk_p2pre (h : Nat) (hJ : R.J = ComposedPText.JP2)
         (R.cpuTableP K) (progTableC heap N W) (R.pinTable K HI) (R.poutTable K HO) (witTableP R.A N W))
       (witTableP R.A N W) (R.pinTable K HI) (R.poutTable K HO) (R.p2Table K HP) := by
   have hV : ComposedPText.verifierO h = .S ⬝ₒ (.K ⬝ₒ .K) ⬝ₒ (.var R.J ⬝ₒ ComposedPText.checkO h) := by rw [hJ]; exact P2Once.verifierO_eq h
-  exact honest_zk_one (G := P2Once.GP R.J) (U := P2Once.UP R.J) (P2Once.partP R.J) ⟨ComposedPText.checkO h, P2Once.checkO_free h R.J, rfl⟩ hV hroot hr hseg hn hA hK hd0 stk0 ctr0 J root hML hnP
+  have hV1 : P2Once.Free (R.J + 1) (ComposedPText.verifierO h) := fun hx =>
+    absurd (verifierO_occ h _ hx) (by rw [hJ]; omega)
+  exact honest_zk_one (G := P2Once.GP R.J) (U := P2Once.UP R.J) (P2Once.partP R.J) ⟨ComposedPText.checkO h, P2Once.checkO_free h R.J, rfl⟩ hV hV1 hroot hr hseg hn hA hK hd0 stk0 ctr0 J root hML hnP
     hHI hHO hHP hHI0 hHO0 hHP0 hpub hbits h496 hreg hlenW
 
 /-- **The honest tables of `p2commit c pat` meet `compP_transcript`'s
@@ -510,7 +514,9 @@ theorem honest_zk_p2commit (c : List Nat) (pat : List (Option Bool)) (hJ : R.J =
         (R.cpuTableP K) (progTableC heap N W) (R.pinTable K HI) (R.poutTable K HO) (witTableP R.A N W))
       (witTableP R.A N W) (R.pinTable K HI) (R.poutTable K HO) (R.p2Table K HP) := by
   have hV : ComposedPText.verifierC c pat = .S ⬝ₒ (.K ⬝ₒ .K) ⬝ₒ (.S ⬝ₒ (.var R.J ⬝ₒ ComposedPText.checkC c) ⬝ₒ ComposedPText.patO pat) := by rw [hJ]; exact P2Once.verifierC_eq c pat
-  exact honest_zk_one (G := P2Once.GC R.J) (U := P2Once.UC R.J) (P2Once.partC R.J) ⟨ComposedPText.checkC c, ComposedPText.patO pat, P2Commit.checkC_closed c R.J, P2Commit.patO_closed R.J pat, rfl⟩ hV hroot hr hseg hn hA hK hd0 stk0 ctr0 J root hML hnP
+  have hV1 : P2Once.Free (R.J + 1) (ComposedPText.verifierC c pat) := fun hx =>
+    absurd (P2Commit.verifierC_occ c pat _ hx) (by rw [hJ]; omega)
+  exact honest_zk_one (G := P2Once.GC R.J) (U := P2Once.UC R.J) (P2Once.partC R.J) ⟨ComposedPText.checkC c, ComposedPText.patO pat, P2Commit.checkC_closed c R.J, P2Commit.patO_closed R.J pat, rfl⟩ hV hV1 hroot hr hseg hn hA hK hd0 stk0 ctr0 J root hML hnP
     hHI hHO hHP hHI0 hHO0 hHP0 hpub hbits h496 hreg hlenW
 
 end P2Run
