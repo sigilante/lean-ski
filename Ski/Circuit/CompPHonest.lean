@@ -95,7 +95,7 @@ def spAt (s1 : Nat) (l : Nat) : Nat := s1 - l
 def spnAt (s1 rest : Nat) (l : Nat) : Nat := if l = P2_BITS - 1 then rest else s1 - l - 1
 
 /-- **A P2IN row**: `ctr lvl b acc act e pow last islow ilast val nacc em m sp
-    spn addr tag f1 f2 ca sa`, level `l` of the call at `c` over the input
+    spn addr tag f1 f2 ca sa sl`, level `l` of the call at `c` over the input
     bits `bs`: on the comb (`stk` false) reading the slot `3 + l` with the
     stack pointer `rest` passed along; on the stack reading the cell
     `s₁ - l`. -/
@@ -112,7 +112,7 @@ def pinRow (c : Nat) (bs : List Bool) (stk : Bool) (s1 rest : Nat) (l : Nat) : L
    if stk then 5 else ofN (3 - 2 * b.toNat),
    if stk then ofN (2 - 2 * b.toNat) else 0,
    if stk then ofN spn else ofN (1 - b.toNat),
-   bF !stk, bF stk]
+   bF !stk, bF stk, bF (stk && !decide (l = P2_BITS - 1))]
 
 /-- **A P2OUT row**: `ctr lvl rest b acc low hi act e pow last islow ilast
     val nacc nlow nhi nlowr nhir em addr prev ptr`, level `l` of the call

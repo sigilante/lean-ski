@@ -162,7 +162,7 @@ theorem pinRow_cons (ctr : Nat) (bs : List Bool) (stk : Bool) (s1 rest l : Nat) 
     ∀ c ∈ p2inAir.cons, c.eval (envOf (pinRow ctr bs stk s1 rest l)) = 0 := by
   intro c hc
   simp only [p2inAir, List.mem_cons, List.not_mem_nil, or_false] at hc
-  rcases hc with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
+  rcases hc with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
   · -- the activity is a bit
     show (1 : F) * (1 - ofN 1) = 0
     decide
@@ -224,17 +224,24 @@ theorem pinRow_cons (ctr : Nat) (bs : List Bool) (stk : Bool) (s1 rest l : Nat) 
       cases bs.getD l false <;> decide
     · show ofN (spnAt s1 rest l) - (1 * ofN (spnAt s1 rest l) + 0 * (ofN 1 - bF (bs.getD l false))) = (0 : F)
       rw [zero_mul', add_zero', one_mul', sub_self']
+  · -- `sl`
+    show bF (stk && !decide (l = P2_BITS - 1)) - (bF stk * (ofN 1 - bF (decide (l = P2_BITS - 1)))) = 0
+    cases stk <;> by_cases hl : l = P2_BITS - 1
+    · rw [decide_eq_true hl]; decide
+    · rw [decide_eq_false hl]; decide
+    · rw [decide_eq_true hl]; decide
+    · rw [decide_eq_false hl]; decide
   · -- on the stack the inputs are consecutive cells
+    show bF (stk && !decide (l = P2_BITS - 1)) *
+      ((ofN (if stk then spnAt s1 rest l else rest) - ofN (if stk then spAt s1 l else rest)) + ofN 1) = (0 : F)
     cases stk
-    · show 0 * (ofN 1 - bF (decide (l = P2_BITS - 1))) * ((ofN rest - ofN rest) + ofN 1) = (0 : F)
-      rw [zero_mul', zero_mul']
-    · show 1 * (ofN 1 - bF (decide (l = P2_BITS - 1))) *
-        ((ofN (spnAt s1 rest l) - ofN (spAt s1 l)) + ofN 1) = (0 : F)
-      by_cases hl : l = P2_BITS - 1
-      · rw [decide_eq_true hl, show (ofN 1 - bF true : F) = 0 by decide, mul_zero', zero_mul']
+    · show (0 : F) * _ = 0; exact zero_mul' _
+    · by_cases hl : l = P2_BITS - 1
+      · rw [decide_eq_true hl]; show (0 : F) * _ = 0; exact zero_mul' _
       · rw [decide_eq_false hl]
         have h1 := hs rfl (by unfold P2_BITS at hl hl0 ⊢; omega)
         obtain ⟨a, ha⟩ : ∃ a, s1 - l = a + 1 := ⟨s1 - l - 1, by omega⟩
+        show (1 : F) * ((ofN (spnAt s1 rest l) - ofN (spAt s1 l)) + ofN 1) = 0
         unfold spnAt spAt
         rw [if_neg hl, ha, Nat.add_sub_cancel, ofN_add, ofN_one, sub_succ_add_one, mul_zero']
 

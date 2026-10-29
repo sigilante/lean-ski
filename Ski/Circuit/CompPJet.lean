@@ -301,7 +301,7 @@ theorem pin_eqsR {Pi : Table} (hs : Sat p2inAir Pi) {q : Nat} (hq : q < Pi.h) :
     Pi.main q 17 = Pi.main q 21 * ofN 5 + Pi.main q 20 * (ofN 3 - Pi.main q 2 * ofN 2) ∧
     Pi.main q 18 = Pi.main q 21 * (ofN 2 - Pi.main q 2 * ofN 2) ∧
     Pi.main q 19 = Pi.main q 21 * Pi.main q 15 + Pi.main q 20 * (1 - Pi.main q 2) ∧
-    Pi.main q 21 * (1 - Pi.main q 9) * (Pi.main q 15 - Pi.main q 14 + 1) = 0 := by
+    Pi.main q 22 = Pi.main q 21 * (1 - Pi.main q 9) ∧ Pi.main q 22 * (Pi.main q 15 - Pi.main q 14 + 1) = 0 := by
   have cv := col_eval hq
   have c := fun (e : E) (he : e ∈ p2inAir.cons) => hs.2 e he q hq
   have c5 := c (B.eq (col 20) (.mul (col 4) (.sub one (col 13)))) (by simp [p2inAir])
@@ -314,9 +314,11 @@ theorem pin_eqsR {Pi : Table} (hs : Sat p2inAir Pi) {q : Nat} (hq : q < Pi.h) :
   have c10 := c (B.eq (col 18) (.mul (col 21) (.sub (B.c 2) (.mul (col 2) (B.c 2))))) (by simp [p2inAir])
   have c11 := c (B.eq (col 19) (.add (.mul (col 21) (col 15)) (.mul (col 20) (.sub one (col 2)))))
     (by simp [p2inAir])
-  have c12 := c (.mul (.mul (col 21) (.sub one (col 9))) (.add (.sub (col 15) (col 14)) one)) (by simp [p2inAir])
-  simp only [B.eq, B.one, B.c, E.eval, cv, ofN_one] at c5 c6 c7 c8 c9 c10 c11 c12
-  exact ⟨sub_eq_zero c5, sub_eq_zero c6, c7, sub_eq_zero c8, sub_eq_zero c9, sub_eq_zero c10, sub_eq_zero c11, c12⟩
+  have c12 := c (B.eq (col 22) (.mul (col 21) (.sub one (col 9)))) (by simp [p2inAir])
+  have c13 := c (.mul (col 22) (.add (.sub (col 15) (col 14)) one)) (by simp [p2inAir])
+  simp only [B.eq, B.one, B.c, E.eval, cv, ofN_one] at c5 c6 c7 c8 c9 c10 c11 c12 c13
+  exact ⟨sub_eq_zero c5, sub_eq_zero c6, c7, sub_eq_zero c8, sub_eq_zero c9, sub_eq_zero c10, sub_eq_zero c11,
+    sub_eq_zero c12, c13⟩
 
 /-- P2OUT's constraints at a row. -/
 theorem pout_eqs {Po : Table} (hs : Sat p2outAir Po) {q : Nat} (hq : q < Po.h) :
@@ -880,7 +882,7 @@ theorem CompPOK.pinRead {q i : Nat} (hq : q < Pi.h) (ha : Pi.main q 4 = 1) (hl :
     ⟨"mem", 1, col 4, [col 16, col 17, col 18, col 19]⟩,
     (List.mem_append_left _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ List.mem_cons_self)))), rfl, rfl, by rw [cv, ha]⟩)
   simp only [E.eval, cv] at hm'
-  obtain ⟨e20, e21, _, e16, e17, e18, e19, _⟩ := pin_eqsR h.pin hq
+  obtain ⟨e20, e21, _, e16, e17, e18, e19, _, _⟩ := pin_eqsR h.pin hq
   rw [ha] at e20 e21
   rcases bit_of (pin_eqs h.pin hq).1 with hb | hb
   · refine ⟨false, by rw [hb]; rfl, ?_⟩

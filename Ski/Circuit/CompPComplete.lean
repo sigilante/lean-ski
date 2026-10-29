@@ -603,7 +603,7 @@ variable (R : P2Run)
 theorem pin_wide {K H : Nat} : Wide p2inAir (R.pinTable K H) := by
   intro r _ c hc
   show ofRows (R.pinRows K) r c = 0
-  refine ofRows_wide (w := 22) (fun x hx => ?_) r hc
+  refine ofRows_wide (w := 23) (fun x hx => ?_) r hc
   obtain ⟨i, _, _, l, _, rfl⟩ := R.pinRows_mem hx
   exact Nat.le_refl _
 

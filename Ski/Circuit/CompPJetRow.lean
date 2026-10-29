@@ -536,11 +536,12 @@ theorem CompPOK.jetRow {r0 : Nat} (hn : r0 + 1 < C.h) (hp : C.main r0 P2SEL = 1)
     have hstep : ∀ i, i + 1 < P2_BITS → a (i + 1) + 1 = a i := by
       intro i hi
       obtain ⟨hq, ha, _, hl, _, _⟩ := hrowsI i (by omega)
-      obtain ⟨_, e21, _, _, _, _, _, e12⟩ := pin_eqsR h.pin hq
+      obtain ⟨_, e21, _, _, _, _, _, e22, e12⟩ := pin_eqsR h.pin hq
       rw [ha, hmrow i (by omega), hm1, one_mul'] at e21
       have hlast := (idx_tail (h.pinLevel hq ha hl (by omega))).2.2.2.2
       rw [if_neg (show ¬ (i = P2_BITS - 1) by unfold P2_BITS at hi ⊢; omega)] at hlast
-      rw [e21, one_mul', hlast, show (1 : F) - ofN 0 = 1 by decide, one_mul', sub_add_one_eq] at e12
+      rw [e21, hlast, show (1 : F) - ofN 0 = 1 by decide, one_mul'] at e22
+      rw [e22, one_mul', sub_add_one_eq] at e12
       have e := sub_eq_zero e12
       obtain ⟨e14, e15⟩ := hsp i (by omega)
       rw [e14, e15] at e

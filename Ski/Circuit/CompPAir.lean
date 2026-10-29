@@ -122,17 +122,17 @@ def witAirP (N W : Nat) : AirD := ⟨"wit", WT_BLIND + 5, 3, witCons, witInters,
 -- ---------------------------------------------------------------------------
 
 /-- P2IN: `ctr lvl b acc act e pow last islow ilast val nacc em m sp spn addr
-    tag f1 f2 ca sa`.  On the comb (`m = 0`) the bit `lvl` is the slot
+    tag f1 f2 ca sa sl`.  On the comb (`m = 0`) the bit `lvl` is the slot
     `3 + lvl`: a `K` cell when true, `app 0 1` when false, and `sp` passes
     unchanged.  On the stack (`m = 1`) it is the stack cell at `sp`, a
     pointer to the `K` slot (`0`) when true or to the `K I` slot (`2`) when
     false, over `spn`, which is `sp - 1` but at the last level: the inputs
     are a previous call's outputs, consecutive cells below the counter.
     `ca = act (1 - m)` and `sa = act m` gate the read, so an all-zero row
-    reads nothing. -/
+    reads nothing; `sl = sa (1 - ilast)` gates the chain's step. -/
 def p2inAir : AirD :=
   let v := fun i => col i
-  ⟨"p2in", 22, 0,
+  ⟨"p2in", 23, 0,
     [bool (v 4), bool (v 2), eq (v 10) (.add (v 3) (.mul (v 6) (v 2))),
      eq (v 11) (.mul (.sub one (v 7)) (v 10)), eq (v 12) (.mul (v 4) (v 7)),
      eq (v 20) (.mul (v 4) (.sub one (v 13))), eq (v 21) (.mul (v 4) (v 13)),
@@ -141,7 +141,7 @@ def p2inAir : AirD :=
      eq (v 17) (.add (.mul (v 21) (c 5)) (.mul (v 20) (.sub (c 3) (.mul (v 2) (c 2))))),
      eq (v 18) (.mul (v 21) (.sub (c 2) (.mul (v 2) (c 2)))),
      eq (v 19) (.add (.mul (v 21) (v 15)) (.mul (v 20) (.sub one (v 2)))),
-     .mul (.mul (v 21) (.sub one (v 9))) (.add (.sub (v 15) (v 14)) one)],
+     eq (v 22) (.mul (v 21) (.sub one (v 9))), .mul (v 22) (.add (.sub (v 15) (v 14)) one)],
     [⟨"p2idx", 1, v 4, [v 1, v 5, v 6, v 7, v 8, v 9]⟩,
      ⟨"p2i", 1, .neg (v 4), [v 0, v 1, v 3, v 13, v 14]⟩,
      ⟨"p2i", 1, v 4, [v 0, .add (v 1) one, v 11, v 13, v 15]⟩,

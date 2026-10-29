@@ -130,7 +130,7 @@ pub fn eval_cpu_p2<AB: PermutationAirBuilder + InteractionBuilder>(
 // ---------------------------------------------------------------------------
 
 /// P2IN's columns, before its blinding blocks.
-pub const PI_W: usize = 22;
+pub const PI_W: usize = 23;
 /// P2OUT's columns, before its blinding blocks.
 pub const PO_W: usize = 23;
 
@@ -151,7 +151,7 @@ pub fn eval_blocks<AB: PermutationAirBuilder + InteractionBuilder>(b: &mut AB, b
 }
 
 /// P2IN: `ctr lvl b acc act e pow last islow ilast val nacc em m sp spn addr
-/// tag f1 f2 ca sa`.  On the comb (`m = 0`) the bit `lvl` is the slot
+/// tag f1 f2 ca sa sl`.  On the comb (`m = 0`) the bit `lvl` is the slot
 /// `3 + lvl`: a `K` cell when true, the cell `app 0 1` when false, and `sp`
 /// passes unchanged.  On the stack (`m = 1`) it is the stack cell at `sp`,
 /// a pointer to the `K` slot (`0`) when true or the `K I` slot (`2`) when
@@ -168,6 +168,7 @@ pub fn eval_p2in<AB: PermutationAirBuilder + InteractionBuilder>(b: &mut AB) {
     let (e, pow, last, islow, ilast) = (v(5), v(6), v(7), v(8), v(9));
     let (val, nacc, em) = (v(10), v(11), v(12));
     let (m, sp, spn, addr, tag, f1, f2, ca, sa) = (v(13), v(14), v(15), v(16), v(17), v(18), v(19), v(20), v(21));
+    let sl = v(22);
     b.assert_bool(act.clone());
     b.assert_bool(bit.clone());
     b.assert_eq(val.clone(), acc.clone() + pow.clone() * bit.clone());
@@ -181,7 +182,8 @@ pub fn eval_p2in<AB: PermutationAirBuilder + InteractionBuilder>(b: &mut AB) {
     b.assert_eq(f1.clone(), sa.clone() * (c(2) - bit.clone() * c(2)));
     b.assert_eq(f2.clone(), sa.clone() * spn.clone() + ca * (one.clone() - bit));
     // On the stack the inputs are consecutive cells, a previous call's outputs.
-    b.assert_zero(sa * (one.clone() - ilast.clone()) * (spn.clone() - sp.clone() + one.clone()));
+    b.assert_eq(sl.clone(), sa * (one.clone() - ilast.clone()));
+    b.assert_zero(sl * (spn.clone() - sp.clone() + one.clone()));
     b.push_interaction(P2IDX, [lvl.clone(), e.clone(), pow, last, islow, ilast], Count::bounded(act.clone(), 1));
     b.push_interaction(P2I, [ctr.clone(), lvl.clone(), acc, m.clone(), sp], -Count::bounded(act.clone(), 1));
     b.push_interaction(P2I, [ctr.clone(), lvl + one, nacc, m, spn], Count::bounded(act.clone(), 1));
@@ -630,9 +632,10 @@ fn traces(p: &PPublic, tb: &PTable, blind: bool, bs: BlindStream) -> Vec<RowMajo
             } else {
                 (0, call.rest, call.rest, P2_SLOT0 + l as u32, 3 - 2 * b, 0, 1 - b, 1, 0)
             };
+            let sl = sa * (1 - ilast);
             let v = [
                 call.ctr, l as u32, b, acc, 1, e, pow, last, islow, ilast, val, nacc, last, m, sp, spn, addr, tag, f1, f2,
-                ca, sa,
+                ca, sa, sl,
             ];
             for (k, &x) in v.iter().enumerate() {
                 row[k] = f(x);
