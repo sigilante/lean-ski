@@ -352,7 +352,15 @@ def compareProbe (path : String) : IO UInt32 := do
     (`Air.jetStmtC`, so licensed over every filled heap,
     `Air.jetStmtC_sound`), and its numbers must fit (`Circuit.jetFitB`). -/
 def compareCompJ (src path : String) : IO UInt32 := do
-  let text ← readInput path
+  -- SRC `-`: stdin is the source, a NUL, then the export, so that the
+  -- caller's checks and this one read the same source bytes.
+  let some (srcText, text) ← (if src == "-" then do
+      if path != "-" then pure none
+      else match (← readInput "-").splitOn "\x00" with
+        | [s, t] => pure (some (s, t))
+        | _ => pure none
+    else do pure (some (← IO.FS.readFile src, ← readInput path)))
+    | do IO.println "MALFORMED: SRC - needs FILE -, and the source and the export split at a NUL"; return 1
   let ls := text.splitOn "\n"
   let some n := (match ls with
       | l :: _ => match words l with
@@ -368,7 +376,7 @@ def compareCompJ (src path : String) : IO UInt32 := do
         | _ => none
       | [] => none) | do IO.println "MALFORMED: no jet table"; return 1
   let jtext := "\n".intercalate ((ls2.drop 1).take m) ++ "\n"
-  let tmpls := JetTable.fileTemplates ((← IO.FS.readFile src).toList.map Char.toNat)
+  let tmpls := JetTable.fileTemplates (srcText.toList.map Char.toNat)
   if !Air.jetStmtC jtext c.shp W c.Ps tmpls then
     IO.println "NOT THE STATEMENT'S JET TABLE"; return 1
   let (roots, jets) := Air.jetTableC c.shp W c.Ps tmpls
@@ -390,5 +398,5 @@ def main (args : List String) : IO UInt32 := do
   | ["compare-compp", path] => compareCompP path
   | ["compare-compJ", src, path] => compareCompJ src path
   | _ =>
-    IO.eprintln "usage: circuit compare|compare-composed|compare-witness|compare-sudoku|compare-jets|compare-probe|compare-p2|compare-compp FILE|-\n       circuit compare-compJ SRC FILE|-"
+    IO.eprintln "usage: circuit compare|compare-composed|compare-witness|compare-sudoku|compare-jets|compare-probe|compare-p2|compare-compp FILE|-\n       circuit compare-compJ SRC FILE|- | circuit compare-compJ - - (stdin: the source, a NUL, the export)"
     return 2

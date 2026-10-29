@@ -1553,12 +1553,15 @@ fn main() {
         }
         return;
     }
-    if ((args.len() == 7 || args.len() == 8) && args[1] == "compj-prove") || (args.len() == 6 && (args[1] == "compj-verify" || args[1] == "compj-tamper")) {
+    if ((args.len() == 7 || args.len() == 8) && args[1] == "compj-prove") || (args.len() >= 6 && args[1] == "compj-verify") || (args.len() == 6 && args[1] == "compj-tamper") {
         std::panic::set_hook(Box::new(|_| {}));
         let pth = |i: usize| std::path::Path::new(&args[i]);
         let r = match args[1].as_str() {
             "compj-prove" => compj::compj_prove(pth(2), pth(3), &args[4], pth(5), pth(6), args.get(7).map(std::path::Path::new)),
-            "compj-verify" => compj::compj_verify(pth(2), pth(3), &args[4], pth(5)),
+            "compj-verify" => match args.len() {
+                6 => compj::compj_verify(pth(2), pth(3), &args[4], pth(5), None),
+                _ => compj::Meaning::parse(&args[6..]).and_then(|m| compj::compj_verify(pth(2), pth(3), &args[4], pth(5), Some(&m))),
+            },
             _ => compj::compj_tamper(pth(2), pth(3), &args[4], pth(5)),
         };
         if let Err(e) = r {
@@ -1736,7 +1739,7 @@ fn main() {
              ski-air probe-prove-table TERM JETS TABLE PROOF OUTCOME...\n       \
              ski-air probe-verify CORPUS JETSDIR NAME PROOF OUTCOME...\n       \
              ski-air export-compj PUBLIC JETS | ski-air compj-prove PUBLIC JETS SRC WITNESS PROOF [TABLE]\n       \
-             ski-air compj-verify PUBLIC JETS SRC PROOF | ski-air compj-tamper PUBLIC JETS SRC WITNESS\n       \
+             ski-air compj-verify PUBLIC JETS SRC PROOF [split K X | csplit K M SEED X C] | ski-air compj-tamper PUBLIC JETS SRC WITNESS\n       \
              ski-air compj-prove-table PUBLIC JETS SRC TABLE PROOF\n       \
              ski-air sudoku-prove PUBLIC WITNESS PROOF [TABLE] | ski-air sudoku-verify PUBLIC PROOF\n       \
              ski-air fs-budget VERIFY-COMMAND ARGS... | ski-air poseidon2-lean | ski-air export-p2 | ski-air p2-bench N [tamper] | ski-air compp-prove PUBLIC WITNESS PROOF [--table=PATH|forge-w|forge-v] | ski-air compp-prove-table PUBLIC TABLE PROOF | ski-air compp-verify PUBLIC PROOF | ski-air proof-shape PROOF | ski-air compp-chain PUBLIC1 PROOF1 PUBLIC2 PROOF2 | ski-air compp-dump PUBLIC WITNESS DIR | ski-air compp-guess PUBLIC WITNESS | ski-air composed-dump PUBLIC WITNESS DIR | ski-air witness-dump PUBLIC REGION DIR | ski-air sudoku-dump PUBLIC BITS DIR | ski-air compj-dump PUBLIC JETS SRC WITNESS DIR | ski-air compj-dump-table PUBLIC JETS SRC TABLE DIR | ski-air export-compp PUBLIC"

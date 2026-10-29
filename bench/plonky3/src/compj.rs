@@ -426,16 +426,16 @@ fn prove(p: &Public, jt: &JetTable, lg: JLogs, tr: &[RowMajorMatrix<Val>], ps: P
 }
 
 /// **The verifier**: the statement with its budgets, the jet table and the
-/// source the templates come from (a relative `src` is read from the
-/// lean-ski root, where `lean_statement` runs Lean; the templates only
-/// propose roots, which Lean licenses whatever proposed them).  Lean checks the jet table and that the
-/// AIRs are `Circuit.compJAirs`; the proof must have the budgeted heights.
-fn verify(p: &Public, jtext: &str, src: &str, lg: JLogs, proof: &CJProof) -> Result<(), String> {
+/// text of the source the templates come from (the templates only propose
+/// roots, which Lean licenses whatever proposed them).  Lean checks the jet
+/// table and that the AIRs are `Circuit.compJAirs`, on the source's bytes
+/// piped with the export; the proof must have the budgeted heights.
+fn verify(p: &Public, jtext: &str, stext: &str, lg: JLogs, proof: &CJProof) -> Result<(), String> {
     let verified = catch_unwind(AssertUnwindSafe(|| {
         let jt = parse_jets(jtext);
         let v_config = public_zk_config();
         let v_airs = airs(p, &jt);
-        lean_statement("circuit", &["compare-compJ", src, "-"], export_airs(p, jtext, &v_airs).as_bytes())?;
+        lean_statement("circuit", &["compare-compJ", "-", "-"], format!("{stext}\0{}", export_airs(p, jtext, &v_airs)).as_bytes())?;
         let want = heights(p, &jt, lg, v_config.is_zk());
         if proof.degree_bits != want {
             return Err(format!("heights {:?}, the budget's are {want:?}", proof.degree_bits));
@@ -459,15 +459,53 @@ fn read(path: &std::path::Path) -> Result<String, String> {
     std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))
 }
 
+/// The SKIjack source, read once, relative to the working directory: Lean
+/// gets these bytes on stdin, ahead of a NUL, which no source contains.
+fn read_src(src: &str) -> Result<String, String> {
+    let t = read(std::path::Path::new(src))?;
+    if t.contains('\0') {
+        return Err(format!("{src}: a source containing a NUL byte"));
+    }
+    Ok(t)
+}
+
 /// A statement for the circuit with jets, as Lean checks it (`lake exe
 /// composed statement-jets`): the composed statement whose `log R M Lp Li`
 /// line fixes the budgets before the run.
 fn checked_public_j(path: &std::path::Path) -> Result<(Public, JLogs), String> {
-    let text = read(path)?;
+    checked_public_j_text(&read(path)?)
+}
+
+fn checked_public_j_text(text: &str) -> Result<(Public, JLogs), String> {
     lean_statement("composed", &["statement-jets", "-"], text.as_bytes()).map_err(|e| format!("statement: {e}"))?;
-    let p = parse_public(&text)?;
+    let p = parse_public(text)?;
     let (lp, li) = p.budgets.ok_or("the statement fixes no budgets")?;
     Ok((p, JLogs { lp, li }))
+}
+
+/// What a statement with jets must say, checked by Lean against the
+/// source: `split K X`, the predicate `vsplitB` for x in K bits (`lake exe
+/// skilark statement`), or `csplit K M SEED X C`, `vcsplitB` for x and the
+/// knapsack commitment c (`lake exe skilark cstatement`).
+pub struct Meaning {
+    cmd: &'static str,
+    nums: Vec<String>,
+}
+
+impl Meaning {
+    /// The words after PROOF on `compj-verify`'s command line.
+    pub fn parse(words: &[String]) -> Result<Meaning, String> {
+        let (cmd, n) = match words.first().map(String::as_str) {
+            Some("split") => ("statement", 2),
+            Some("csplit") => ("cstatement", 5),
+            _ => return Err("the meaning is `split K X` or `csplit K M SEED X C`".into()),
+        };
+        let nums = &words[1..];
+        if nums.len() != n || nums.iter().any(|w| w.is_empty() || !w.bytes().all(|b| b.is_ascii_digit())) {
+            return Err(format!("`{}` takes {n} numbers", words[0]));
+        }
+        Ok(Meaning { cmd, nums: nums.to_vec() })
+    }
 }
 
 /// The run as a table in `lake exe composed check-cj`'s format (the
@@ -502,6 +540,7 @@ fn lean_table(p: &Public, r: &CJRun) -> String {
 /// proof (and the Lean table), and check it verifies.
 pub fn compj_prove(public: &std::path::Path, jets_path: &std::path::Path, src: &str, wit: &std::path::Path, proof_out: &std::path::Path, table_out: Option<&std::path::Path>) -> Result<(), String> {
     let (p, lg) = checked_public_j(public)?;
+    let stext = read_src(src)?;
     let jtext = read(jets_path)?;
     let jt = parse_jets(&jtext);
     let private = read_witness(&p, wit)?;
@@ -517,7 +556,7 @@ pub fn compj_prove(public: &std::path::Path, jets_path: &std::path::Path, src: &
     let bytes = postcard::to_allocvec(&proof).map_err(|e| format!("serialize: {e}"))?;
     std::fs::write(proof_out, &bytes).map_err(|e| format!("{}: {e}", proof_out.display()))?;
     let t1 = Instant::now();
-    verify(&p, &jtext, src, lg, &proof)?;
+    verify(&p, &jtext, &stext, lg, &proof)?;
     let npop = r.rows.iter().filter_map(|x| x.1.as_ref()).map(|ii| ii.pops.len()).sum::<usize>();
     let ninstw = r.rows.iter().filter_map(|x| x.1.as_ref()).map(|ii| ii.cells.len()).sum::<usize>();
     println!(
@@ -658,6 +697,7 @@ fn run_of_table_cj(p: &Public, jt: &JetTable, text: &str) -> Result<CJRun, Strin
 /// jets and its jet table; write the proof, and check it verifies.
 pub fn compj_prove_table(public: &std::path::Path, jets_path: &std::path::Path, src: &str, table: &std::path::Path, proof_out: &std::path::Path) -> Result<(), String> {
     let (p, lg) = checked_public_j(public)?;
+    let stext = read_src(src)?;
     let jtext = read(jets_path)?;
     let jt = parse_jets(&jtext);
     let text = read(table)?;
@@ -672,7 +712,7 @@ pub fn compj_prove_table(public: &std::path::Path, jets_path: &std::path::Path, 
     })?;
     let bytes = postcard::to_allocvec(&proof).map_err(|e| format!("serialize: {e}"))?;
     std::fs::write(proof_out, &bytes).map_err(|e| format!("{}: {e}", proof_out.display()))?;
-    verify(&p, &jtext, src, lg, &proof)?;
+    verify(&p, &jtext, &stext, lg, &proof)?;
     println!(
         "proved the table: {} instantiations, heights 2^{} 2^{} 2^{} 2^{}, in {prove_s:.2} s; proof {} bytes -> {}",
         r.insts,
@@ -686,11 +726,28 @@ pub fn compj_prove_table(public: &std::path::Path, jets_path: &std::path::Path, 
     Ok(())
 }
 
-/// `ski-air compj-verify PUBLIC JETS SRC PROOF`: the standalone
-/// verifier.  Lean checks the statement's bytes, then the jet table and the
-/// AIRs; the proof, one byte string, must verify.
-pub fn compj_verify(public: &std::path::Path, jets_path: &std::path::Path, src: &str, proof_in: &std::path::Path) -> Result<(), String> {
-    let (p, lg) = checked_public_j(public)?;
+/// `ski-air compj-verify PUBLIC JETS SRC PROOF [MEANING]`: the standalone
+/// verifier.  Each file is read once, and every check sees those bytes:
+/// Lean checks the statement's, then, given MEANING (`split K X` or
+/// `csplit K M SEED X C`), that the statement is the source's predicate
+/// for those numbers, then the jet table and the AIRs; the proof, one byte
+/// string, must verify.  Without MEANING it checks only that the statement
+/// is a statement with jets, not what it says: the caller must check that
+/// on the same bytes.
+pub fn compj_verify(public: &std::path::Path, jets_path: &std::path::Path, src: &str, proof_in: &std::path::Path, meaning: Option<&Meaning>) -> Result<(), String> {
+    let text = read(public)?;
+    let stext = read_src(src)?;
+    let (p, lg) = checked_public_j_text(&text)?;
+    let says = match meaning {
+        None => None,
+        Some(m) => {
+            let mut args = vec![m.cmd, "-"];
+            args.extend(m.nums.iter().map(String::as_str));
+            args.push("-");
+            let out = lean_statement("skilark", &args, format!("{stext}\0{text}").as_bytes()).map_err(|e| format!("meaning: {e}"))?;
+            Some(out.trim_end().trim_start_matches("STATEMENT -: ").replace("compiled from -;", &format!("compiled from {src};")))
+        }
+    };
     let jtext = read(jets_path)?;
     let bytes = std::fs::read(proof_in).map_err(|e| format!("{}: {e}", proof_in.display()))?;
     let (proof, rest): (CJProof, &[u8]) = postcard::take_from_bytes(&bytes).map_err(|e| format!("deserialize: {e}"))?;
@@ -698,13 +755,16 @@ pub fn compj_verify(public: &std::path::Path, jets_path: &std::path::Path, src: 
         return Err(format!("{} bytes after the proof", rest.len()));
     }
     let t0 = Instant::now();
-    verify(&p, &jtext, src, lg, &proof)?;
+    verify(&p, &jtext, &stext, lg, &proof)?;
     println!(
         "VERIFIED: the proof checks against the statement {} with its jet table ({} segments; {:.2} s)",
         p.header,
         p.roots.len(),
         t0.elapsed().as_secs_f64()
     );
+    if let Some(s) = says {
+        println!("MEANING: {s}");
+    }
     Ok(())
 }
 
@@ -713,6 +773,7 @@ pub fn compj_verify(public: &std::path::Path, jets_path: &std::path::Path, src: 
 /// balance.
 pub fn compj_tamper(public: &std::path::Path, jets_path: &std::path::Path, src: &str, wit: &std::path::Path) -> Result<(), String> {
     let (p, lg) = checked_public_j(public)?;
+    let stext = read_src(src)?;
     let jtext = read(jets_path)?;
     let jt = parse_jets(&jtext);
     let private = read_witness(&p, wit)?;
@@ -727,7 +788,7 @@ pub fn compj_tamper(public: &std::path::Path, jets_path: &std::path::Path, src: 
             println!("REFUSED: the prover fails on an unbalanced blinding tree ({e})");
             Ok(())
         }
-        Ok((proof, _)) => match verify(&p, &jtext, src, lg, &proof) {
+        Ok((proof, _)) => match verify(&p, &jtext, &stext, lg, &proof) {
             Err(e) => {
                 println!("REJECTED: an unbalanced blinding tree does not verify ({e})");
                 Ok(())

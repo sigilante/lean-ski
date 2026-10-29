@@ -52,17 +52,21 @@
 #      statement` through the verifier); ski-air sudoku-verify checks the
 #      proof; with one byte changed, a byte appended, or a doctored
 #      statement, it is refused;
-#  10. split8 with jets, under hiding (release/skilark/split8/jets): Lean
-#      checks that the statement with jets is vsplitB's for x = 200 (`lake
-#      exe skilark statement`), with its budgets; ski-air compj-verify
-#      checks the proof, after Lean's statement check, its check of the jet
+#  10. split8 with jets, under hiding (release/skilark/split8/jets):
+#      ski-air compj-verify reads each file once and checks, on those
+#      bytes, that Lean accepts the statement with jets and its budgets,
+#      that it is vsplitB's for x = 200 (`split 8 200`, Lean's `skilark
+#      statement` on the source and the statement piped together), the jet
 #      table (Air.jetStmtC: the roots licensed over every filled heap) and
-#      its comparison of the ten AIRs with Circuit.compJAirs.  With one byte
-#      changed, offered for the plain statement, for a statement with
-#      another budget, or with the jet table Lean computes without the
-#      closure rule, it is refused;
-#  11. csplit8 with jets (release/skilark/csplit8/jets), the same; about
-#      8 s.  QUICK=1 skips it;
+#      the ten AIRs against Circuit.compJAirs, then the proof.  It is
+#      refused with one byte changed, read as x = 201, offered for the plain
+#      statement, for a statement with another budget, with the jet table
+#      Lean computes without the closure rule, or for Lean's statement of
+#      x = 201 at the same heights; and through FIFOs that give that
+#      statement first and the release's second, which it must read once;
+#  11. csplit8 with jets (release/skilark/csplit8/jets), the same, for x =
+#      200 and the commitment c that commitment.txt names; the other
+#      statement is a = 0 and r = 0's, c = 0.  QUICK=1 skips it;
 #  12. the Poseidon2 jet (release/p2): the statements are Lean's (the
 #      preimage statement, for a fresh secret input, by `lake exe composed
 #      check-p2pre`; the hand-off's, which commit to a fresh secret
@@ -468,69 +472,131 @@ else
     refused "$tmp/up.log" 'statement: NOT A STATEMENT' "the Sudoku proof against a doctored statement is refused"
 fi
 
+# Steps 10 and 11: a release with jets, NAME in S/jets.  compj-verify reads
+# each file once and runs every check on those bytes: Lean's statement
+# check, the meaning (`split K X` or `csplit K M SEED X C`, Lean's skilark
+# statement or cstatement against the source), the jet table and the AIRs,
+# then the proof.  The caller sets mean (the meaning), plain (the plain
+# release's meaning), wrong (a meaning the statement is not) and OT, a
+# directory holding another statement Lean accepts at the same heights,
+# OT/public.txt and OT/NAME.jets, and OTmean, its meaning.
+jets_release() {   # NAME
+    local name=$1 J=$S/jets
+    "$SKI_AIR" compj-verify "$J/public.txt" "$J/$name.jets" "$S/source.ski" "$J/$name.proof" "${mean[@]}" > "$tmp/jv.log" \
+        && grep -q '^MEANING: ' "$tmp/jv.log" \
+        && ok "the $name proof with jets verifies, its statement's meaning checked on the same bytes: $(sed -n 's/^MEANING: //p' "$tmp/jv.log" | head -c 80)" \
+        || no "the $name proof with jets does not verify with its meaning ($(tail -n 1 "$tmp/jv.log" | head -c 80))"
+    flip "$J/$name.proof" "$tmp/jflip.proof"
+    if "$SKI_AIR" compj-verify "$J/public.txt" "$J/$name.jets" "$S/source.ski" "$tmp/jflip.proof" "${mean[@]}" > "$tmp/jf.log"; then
+        no "the $name proof with jets, one byte changed, verified"
+    else
+        refused "$tmp/jf.log" 'verify: [A-Z]|deserialize: |bytes after the proof' "the $name proof with jets, one byte changed, is refused"
+    fi
+    if "$SKI_AIR" compj-verify "$J/public.txt" "$J/$name.jets" "$S/source.ski" "$J/$name.proof" "${wrong[@]}" > "$tmp/jw.log"; then
+        no "the $name statement with jets verified as ${wrong[*]}"
+    else
+        refused "$tmp/jw.log" 'meaning: NOT THIS STATEMENT' "the $name statement with jets is refused as ${wrong[*]}"
+    fi
+    if "$SKI_AIR" compj-verify "$S/public.txt" "$J/$name.jets" "$S/source.ski" "$J/$name.proof" "${plain[@]}" > "$tmp/jp.log"; then
+        no "the $name proof with jets verified against the plain statement"
+    else
+        refused "$tmp/jp.log" 'statement: NOT A STATEMENT WITH JETS' "the $name proof with jets is refused for the plain statement"
+    fi
+    # POP's budget one higher: a statement Lean accepts, at other heights.
+    awk 'NR == 3 && $1 == "log" { $4 = $4 + 1 } { print }' "$J/public.txt" > "$tmp/jbud.txt"
+    if cmp -s "$tmp/jbud.txt" "$J/public.txt"; then
+        no "could not change the budget of $J/public.txt"
+    elif "$SKI_AIR" compj-verify "$tmp/jbud.txt" "$J/$name.jets" "$S/source.ski" "$J/$name.proof" "${mean[@]}" > "$tmp/jb.log"; then
+        no "the $name proof with jets verified for another budget"
+    else
+        refused "$tmp/jb.log" 'heights \[' "the $name proof with jets is refused for POP's budget 2^$(sed -n 3p "$tmp/jbud.txt" | awk '{print $4}')"
+    fi
+    lake exe skilark cjets "$S/source.ski" "$J/public.txt" "$tmp/norule.jets" --no-rule > /dev/null 2> "$tmp/lake.err"
+    if cmp -s "$tmp/norule.jets" "$J/$name.jets"; then
+        no "the $name jet table without the closure rule is the table with it"
+    elif "$SKI_AIR" compj-verify "$J/public.txt" "$tmp/norule.jets" "$S/source.ski" "$J/$name.proof" "${mean[@]}" > "$tmp/jn.log"; then
+        no "the $name proof with jets verified with the jet table without the closure rule"
+    else
+        refused "$tmp/jn.log" "NOT THE STATEMENT'S JET TABLE" "the $name jet table without the closure rule is refused"
+    fi
+    # Another statement Lean accepts, with its own jet table, at the same
+    # heights and budgets: only the proof's binding to its statement refuses.
+    if [ "$(sed -n 3p "$OT/public.txt")" != "$(sed -n 3p "$J/public.txt")" ] || cmp -s "$OT/public.txt" "$J/public.txt"; then
+        no "the statement for ${OTmean[*]} is not another statement at the same heights"
+    elif "$SKI_AIR" compj-verify "$OT/public.txt" "$OT/$name.jets" "$S/source.ski" "$J/$name.proof" "${OTmean[@]}" > "$tmp/jo.log"; then
+        no "the $name proof with jets verified for ${OTmean[*]}"
+    else
+        refused "$tmp/jo.log" 'verify: [A-Z]|deserialize: ' "the $name proof with jets offered for ${OTmean[*]}, at the same heights, is refused"
+    fi
+    # FIFOs that give the other statement and its jet table on the first
+    # read and the release's on the second, the meaning the other's: a
+    # verifier that read twice would check the meaning of one statement and
+    # verify the proof against the other.  It reads each once, so it must
+    # refuse, and the second texts must never be read.
+    mkdir -p "$tmp/jfifo"
+    /bin/rm -f "$tmp/jfifo/"*
+    mkfifo "$tmp/jfifo/public.txt" "$tmp/jfifo/$name.jets"
+    ( exec > /dev/null 2>&1
+      cat "$OT/public.txt" > "$tmp/jfifo/public.txt"; : > "$tmp/jfifo/p1"
+      cat "$J/public.txt" > "$tmp/jfifo/public.txt"; : > "$tmp/jfifo/p2" ) &
+    writers=$!
+    ( exec > /dev/null 2>&1
+      cat "$OT/$name.jets" > "$tmp/jfifo/$name.jets"; : > "$tmp/jfifo/j1"
+      cat "$J/$name.jets" > "$tmp/jfifo/$name.jets"; : > "$tmp/jfifo/j2" ) &
+    writers="$writers $!"
+    if "$SKI_AIR" compj-verify "$tmp/jfifo/public.txt" "$tmp/jfifo/$name.jets" "$S/source.ski" "$J/$name.proof" "${OTmean[@]}" > "$tmp/jff.log"; then
+        stop_writers
+        no "the $name proof with jets verified through FIFOs (${OTmean[*]} first, the release's statement second)"
+    else
+        sleep 1   # time for a writer to mark a second read, had there been one
+        stop_writers
+        refused "$tmp/jff.log" 'verify: [A-Z]|deserialize: ' "the $name proof with jets through FIFOs is refused"
+    fi
+    if [ -e "$tmp/jfifo/p1" ] && [ -e "$tmp/jfifo/j1" ] && [ ! -e "$tmp/jfifo/p2" ] && [ ! -e "$tmp/jfifo/j2" ]; then
+        ok "compj-verify read each FIFO once: the statement for ${OTmean[*]}, never the release's"
+    else
+        no "compj-verify did not read each FIFO exactly once ($(cd "$tmp/jfifo" && ls p1 p2 j1 j2 2>/dev/null | tr '\n' ' '))"
+    fi
+}
+
 echo "--- 10. split8 with jets, under hiding"
 S=release/skilark/split8
 J=$S/jets
 lake exe skilark statement "$S/source.ski" 8 200 "$J/public.txt" > "$tmp/js.log" \
     && ok "$(head -c 100 "$tmp/js.log") … $(grep -o 'budgets 2^[0-9]* and 2^[0-9]*' "$tmp/js.log")" \
     || no "release/skilark/split8/jets/public.txt is not the statement of its source ($(head -c 80 "$tmp/js.log"))"
-if lake exe skilark statement "$S/source.ski" 8 201 "$J/public.txt" > "$tmp/js2.log"; then
-    no "the statement with jets read as x = 201"
-else
-    ok "the statement with jets is not the one for x = 201"
-fi
-"$SKI_AIR" compj-verify "$J/public.txt" "$J/split8.jets" "$S/source.ski" "$J/split8.proof" > "$tmp/jv.log" \
-    && ok "the split8 proof with jets verifies from its files ($(head -c 40 "$tmp/jv.log"))" \
-    || no "the split8 proof with jets does not verify ($(head -c 80 "$tmp/jv.log"))"
-flip "$J/split8.proof" "$tmp/jflip.proof"
-if "$SKI_AIR" compj-verify "$J/public.txt" "$J/split8.jets" "$S/source.ski" "$tmp/jflip.proof" > "$tmp/jf.log"; then
-    no "the split8 proof with jets, one byte changed, verified"
-else
-    refused "$tmp/jf.log" 'verify: [A-Z]|deserialize: |bytes after the proof' "the split8 proof with jets, one byte changed, is refused"
-fi
-if "$SKI_AIR" compj-verify "$S/public.txt" "$J/split8.jets" "$S/source.ski" "$J/split8.proof" > "$tmp/jp.log"; then
-    no "the split8 proof with jets verified against the plain statement"
-else
-    refused "$tmp/jp.log" 'statement: NOT A STATEMENT WITH JETS' "the split8 proof with jets is refused for the plain statement"
-fi
-sed '3s/^log \([0-9]*\) \([0-9]*\) \([0-9]*\) /log \1 \2 15 /' "$J/public.txt" > "$tmp/jbud.txt"
-if cmp -s "$tmp/jbud.txt" "$J/public.txt"; then
-    no "could not change the budget of release/skilark/split8/jets/public.txt"
-elif "$SKI_AIR" compj-verify "$tmp/jbud.txt" "$J/split8.jets" "$S/source.ski" "$J/split8.proof" > "$tmp/jb.log"; then
-    no "the split8 proof with jets verified for another budget"
-else
-    refused "$tmp/jb.log" 'heights \[' "the split8 proof with jets is refused for POP's budget 2^15"
-fi
-lake exe skilark cjets "$S/source.ski" "$J/public.txt" "$tmp/norule.jets" --no-rule > /dev/null
-if "$SKI_AIR" compj-verify "$J/public.txt" "$tmp/norule.jets" "$S/source.ski" "$J/split8.proof" > "$tmp/jn.log"; then
-    no "the split8 proof with jets verified with the jet table without the closure rule"
-else
-    refused "$tmp/jn.log" "NOT THE STATEMENT'S JET TABLE" "the jet table without the closure rule is refused"
-fi
+# The statement for x = 201 at the release's heights and budgets.
+OT=$tmp/other/split8
+set -- $(sed -n 3p "$J/public.txt")
+lake exe skilark emit "$S/source.ski" 8 201 0 201 "$2" "$3" "$tmp/other/split8.emit" > /dev/null 2> "$tmp/lake.err"
+mkdir -p "$OT"
+lake exe composed budget "$tmp/other/split8.emit/public.txt" "$4" "$5" "$OT/public.txt" > /dev/null 2> "$tmp/lake.err"
+lake exe skilark cjets "$S/source.ski" "$OT/public.txt" "$OT/split8.jets" > /dev/null 2> "$tmp/lake.err"
+mean=(split 8 200); plain=(split 8 200); wrong=(split 8 201); OTmean=(split 8 201)
+jets_release split8
 
 if [ -z "${QUICK:-}" ]; then
-echo "--- 11. csplit8 with jets, under hiding (about 8 s; QUICK=1 skips it)"
+echo "--- 11. csplit8 with jets, under hiding (QUICK=1 skips it)"
 S=release/skilark/csplit8
 J=$S/jets
 C=$(cat "$J/commitment.txt")
 case "$C" in ''|*[!0-9]*) no "release/skilark/csplit8/jets/commitment.txt names no commitment"; C=0 ;; esac
+C0=$(cat "$S/commitment.txt")
+case "$C0" in ''|*[!0-9]*) no "release/skilark/csplit8/commitment.txt names no commitment"; C0=0 ;; esac
 lake exe skilark cstatement "$S/source.ski" 8 8 1 200 "$C" "$J/public.txt" > "$tmp/jcs.log" \
     && ok "$(head -c 100 "$tmp/jcs.log") … $(grep -o 'budgets 2^[0-9]* and 2^[0-9]*' "$tmp/jcs.log")" \
     || no "release/skilark/csplit8/jets/public.txt is not the statement of its source ($(head -c 80 "$tmp/jcs.log"))"
-if lake exe skilark cstatement "$S/source.ski" 8 8 1 200 $((C + 1)) "$J/public.txt" > "$tmp/jcs2.log"; then
-    no "the statement with jets read as c = $((C + 1))"
-else
-    ok "the statement with jets is not the one for c = $((C + 1)) ($(head -c 60 "$tmp/jcs2.log"))"
-fi
-"$SKI_AIR" compj-verify "$J/public.txt" "$J/csplit8.jets" "$S/source.ski" "$J/csplit8.proof" > "$tmp/jcv.log" \
-    && ok "the csplit8 proof with jets verifies from its files ($(head -c 40 "$tmp/jcv.log"))" \
-    || no "the csplit8 proof with jets does not verify ($(head -c 80 "$tmp/jcv.log"))"
-flip "$J/csplit8.proof" "$tmp/jcflip.proof"
-if "$SKI_AIR" compj-verify "$J/public.txt" "$J/csplit8.jets" "$S/source.ski" "$tmp/jcflip.proof" > "$tmp/jcf.log"; then
-    no "the csplit8 proof with jets, one byte changed, verified"
-else
-    refused "$tmp/jcf.log" 'verify: [A-Z]|deserialize: |bytes after the proof' "the csplit8 proof with jets, one byte changed, is refused"
-fi
+# The statement for a = 0 and r = 0, so c = 0, at the release's heights and
+# budgets.
+OT=$tmp/other/csplit8
+set -- $(sed -n 3p "$J/public.txt")
+lake exe skilark cemit "$S/source.ski" 8 8 1 200 0 200 0 "$2" "$3" "$tmp/other/csplit8.emit" > /dev/null 2> "$tmp/lake.err"
+mkdir -p "$OT"
+lake exe composed budget "$tmp/other/csplit8.emit/public.txt" "$4" "$5" "$OT/public.txt" > /dev/null 2> "$tmp/lake.err"
+lake exe skilark cjets "$S/source.ski" "$OT/public.txt" "$OT/csplit8.jets" > /dev/null 2> "$tmp/lake.err"
+[ "$C" != 0 ] || no "the release's commitment is 0, the other statement's"
+mean=(csplit 8 8 1 200 "$C"); plain=(csplit 8 8 1 200 "$C0"); wrong=(csplit 8 8 1 200 $((C + 1))); OTmean=(csplit 8 8 1 200 0)
+jets_release csplit8
 else
 echo "--- 11. csplit8 with jets: skipped (QUICK=1)"
 fi

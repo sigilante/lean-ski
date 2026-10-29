@@ -109,11 +109,20 @@ def witnessText (bits : List Bool) (region : List Cell) : String :=
 /-- The region: one cell, since the predicate reads no witness. -/
 def W : Nat := 1
 
-def readB (path : String) : IO (Option (Term × Enc)) := do
-  let some s := compile (← IO.FS.readFile path) | return none
-  let some V := s.get "vsplitB" | return none
-  let some E := s.enc | return none
-  return some (V, E)
+def readB (text : String) : Option (Term × Enc) := do
+  let s ← compile text
+  return (← s.get "vsplitB", ← s.enc)
+
+/-- The source's and the statement's texts: from their files, or, when both
+    are `-`, from stdin, split at its first NUL (`ski-air compj-verify`
+    sends both so that its checks and Lean's read the same bytes). -/
+def readInputs (src pub : String) : IO (Option (String × String)) := do
+  if src == "-" && pub == "-" then
+    match ((← (← IO.getStdin).readToEnd).splitOn "\x00") with
+    | [s, p] => return some (s, p)
+    | _ => return none
+  if src == "-" || pub == "-" then return none
+  return some (← IO.FS.readFile src, ← IO.FS.readFile pub)
 
 /-- `a`'s and `b`'s bits, interleaved, least significant first. -/
 def splitBits (k a b : Nat) : List Bool :=
@@ -122,7 +131,7 @@ def splitBits (k a b : Nat) : List Bool :=
 def emit (src : String) (k x a b r m : Nat) (dir : String) : IO UInt32 := do
   if k == 0 || 2 ^ k ≤ x || 2 ^ k ≤ a || 2 ^ k ≤ b then
     IO.println s!"x, a and b must be below 2^{k}"; return 1
-  let some (V, E) ← readB src | do IO.println s!"{src}: not a SKIlark predicate source"; return 1
+  let some (V, E) := readB (← IO.FS.readFile src) | do IO.println s!"{src}: not a SKIlark predicate source"; return 1
   if !logOK (r, m) then IO.println "heights out of bounds"; return 1
   let c := CStmt.pred V (xTerm E (bitsOf k x)) (2 * k)
   if !privateOK c W then IO.println "too many bits"; return 1
@@ -145,8 +154,9 @@ def budgetsText : Option (Nat × Nat) → String
 
 def statement (src : String) (k x : Nat) (pub : String) : IO UInt32 := do
   if k == 0 || 2 ^ k ≤ x then IO.println s!"NOT A STATEMENT: x = {x} is not below 2^{k}"; return 1
-  let some (V, E) ← readB src | do IO.println s!"{src}: not a SKIlark predicate source"; return 1
-  match statementOfTextAny (← IO.FS.readFile pub) with
+  let some (srcT, pubT) ← readInputs src pub | do IO.println "NOT TWO TEXTS: SRC and PUBLIC are files, or both - (stdin, split at a NUL)"; return 1
+  let some (V, E) := readB srcT | do IO.println s!"{src}: not a SKIlark predicate source"; return 1
+  match statementOfTextAny pubT with
   | some (.pred V' x' n, W', lg, bud) =>
     if V' == V && x' == xTerm E (bitsOf k x) && n == 2 * k && W' == W then
       IO.println s!"STATEMENT {pub}: some {2 * k} literal bits make vsplitB accept x = {x} in {k} bits (vsplitB compiled from {src}; heights 2^{lg.1} and 2^{lg.2}{budgetsText bud})"
@@ -193,11 +203,9 @@ def xcTerm (E : Enc) (k _m : Nat) (ws : List Nat) (x c : Nat) : Term :=
 /-- The committed split's bits: `a`'s and `b`'s interleaved, then `r`'s. -/
 def cbits (k m a b r : Nat) : List Bool := splitBits k a b ++ (bitsOf m r).map (· == 1)
 
-def readC (path : String) : IO (Option (Term × Enc)) := do
-  let some s := compile (← IO.FS.readFile path) | return none
-  let some V := s.get "vcsplitB" | return none
-  let some E := s.enc | return none
-  return some (V, E)
+def readC (text : String) : Option (Term × Enc) := do
+  let s ← compile text
+  return (← s.get "vcsplitB", ← s.enc)
 
 /-- The weights' bound, `skilark.zk.weights`'s default. -/
 def bound : Nat := 64
@@ -205,7 +213,7 @@ def bound : Nat := 64
 def cemit (src : String) (k m seed x a b r rl ml : Nat) (dir : String) : IO UInt32 := do
   if k == 0 || m == 0 || 2 ^ k ≤ x || 2 ^ k ≤ a || 2 ^ k ≤ b || 2 ^ m ≤ r then
     IO.println s!"k and m positive, x, a, b below 2^{k}, r below 2^{m}"; return 1
-  let some (V, E) ← readC src | do IO.println s!"{src}: not a committed split's source"; return 1
+  let some (V, E) := readC (← IO.FS.readFile src) | do IO.println s!"{src}: not a committed split's source"; return 1
   if !logOK (rl, ml) then IO.println "heights out of bounds"; return 1
   let ws := weightsOf (k + m) seed bound
   let c := commitOf k m ws a r
@@ -225,9 +233,10 @@ def cemit (src : String) (k m seed x a b r rl ml : Nat) (dir : String) : IO UInt
 
 def cstatement (src : String) (k m seed x c : Nat) (pub : String) : IO UInt32 := do
   if k == 0 || m == 0 || 2 ^ k ≤ x then IO.println s!"NOT A STATEMENT: bad sizes, or x = {x} not below 2^{k}"; return 1
-  let some (V, E) ← readC src | do IO.println s!"{src}: not a committed split's source"; return 1
+  let some (srcT, pubT) ← readInputs src pub | do IO.println "NOT TWO TEXTS: SRC and PUBLIC are files, or both - (stdin, split at a NUL)"; return 1
+  let some (V, E) := readC srcT | do IO.println s!"{src}: not a committed split's source"; return 1
   let ws := weightsOf (k + m) seed bound
-  match statementOfTextAny (← IO.FS.readFile pub) with
+  match statementOfTextAny pubT with
   | some (.pred V' x' n, W', lg, bud) =>
     if V' == V && x' == xcTerm E k m ws x c && n == 2 * k + m && W' == W then
       IO.println s!"STATEMENT {pub}: some {2 * k + m} literal bits make vcsplitB accept x = {x} and c = {c}, weights {ws} (vcsplitB compiled from {src}; heights 2^{lg.1} and 2^{lg.2}{budgetsText bud})"
@@ -252,7 +261,7 @@ def cstatement (src : String) (k m seed x c : Nat) (pub : String) : IO UInt32 :=
     bits: the verifier's table is `cjets`'s, over the blank composed heap. -/
 def jets (src : String) (k x a b : Nat) (dir : String) : IO UInt32 := do
   let text ← IO.FS.readFile src
-  let some (V, E) ← readB src | do IO.println s!"{src}: not a SKIlark predicate source"; return 1
+  let some (V, E) := readB text | do IO.println s!"{src}: not a SKIlark predicate source"; return 1
   let t := V ⬝ xTerm E (bitsOf k x) ⬝ CompM.boolsT (splitBits k a b)
   let tmpls := JetTable.fileTemplates (text.toList.map Char.toNat)
   let (roots, js) := JetTable.jetTable (Mach.load t).heap tmpls
@@ -415,5 +424,5 @@ def main (args : List String) : IO UInt32 := do
     | some k, some m, some seed, some x, some c => SkilarkZK.cstatement src k m seed x c pub
     | _, _, _, _, _ => IO.println "bad numbers"; return 2
   | _ =>
-    IO.println "usage: skilark emit SRC K X A B R M DIR | skilark statement SRC K X PUBLIC\n       skilark cemit SRC K M SEED X A B R RLOG MLOG DIR | skilark cstatement SRC K M SEED X C PUBLIC\n       skilark jets SRC K X A B DIR\n       skilark cjets SRC PUBLIC OUT [--no-rule] | skilark cjets-statement SRC PUBLIC JETS | skilark cjets-measure SRC PUBLIC WITNESS"
+    IO.println "usage: skilark emit SRC K X A B R M DIR | skilark statement SRC K X PUBLIC\n       (statement and cstatement: SRC and PUBLIC both - read the two from stdin, split at a NUL)\n       skilark cemit SRC K M SEED X A B R RLOG MLOG DIR | skilark cstatement SRC K M SEED X C PUBLIC\n       skilark jets SRC K X A B DIR\n       skilark cjets SRC PUBLIC OUT [--no-rule] | skilark cjets-statement SRC PUBLIC JETS | skilark cjets-measure SRC PUBLIC WITNESS"
     return 2

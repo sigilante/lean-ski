@@ -152,20 +152,30 @@ The theorems are in namespace `Circuit` unless prefixed.
 11. **`split8` with jets, under hiding.** `skilark/split8/jets` holds the
     statement with jets (`public.txt`: the predicate's statement whose line
     `log 17 18 14 14` fixes the CPU's, the memory's, POP's and INSTW's
-    heights), its jet table (`split8.jets`) and a proof. `lake exe skilark
-    statement` checks that the statement is `vsplitB`'s for `x = 200`, and
-    names its budgets. `ski-air compj-verify` pipes the statement to Lean
-    (`composed statement-jets`), has Lean check the jet table
-    (`Air.jetStmtC`: it is the table Lean computes from the source's
-    templates over the statement's blank heap, every root licensed and its
-    closure public, so licensed over every filled heap) and compare the ten
-    AIRs with `Circuit.compJAirs`, and verifies the proof. With one byte
-    changed, offered for the plain statement, for a statement with POP's
-    budget `2^15`, or with the jet table Lean computes without the closure
-    rule, it is refused.
+    heights), its jet table (`split8.jets`) and a proof. `ski-air
+    compj-verify … split 8 200` reads the statement, the jet table and the
+    source once each, and every check sees those bytes. It pipes the
+    statement to Lean (`composed statement-jets`) and, with the source,
+    to Lean's `skilark statement`, which checks that it is `vsplitB`'s for
+    `x = 200`. It has Lean check the jet table (`Air.jetStmtC`: it is the
+    table Lean computes from the source's templates over the statement's
+    blank heap, every root licensed and its closure public, so licensed
+    over every filled heap) and compare the ten AIRs with
+    `Circuit.compJAirs`, and it verifies the proof. It refuses the proof
+    with one byte changed, read as `x = 201`, offered for the plain
+    statement, for a statement with POP's budget `2^15`, with the jet
+    table Lean computes without the closure rule, or for Lean's statement
+    of `x = 201` at the same heights with its own jet table. It also
+    refuses it through FIFOs that give that `x = 201` statement and table
+    on the first read and the release's on the second, and the second
+    read never comes. Before, `verify.sh` checked the meaning with one
+    read and `compj-verify` verified with another, and these FIFOs passed
+    `x = 201` with the `x = 200` proof.
 12. **`csplit8` with jets, under hiding.** `skilark/csplit8/jets`, the
-    same at `log 18 19 15 16`, its commitment, drawn apart from the plain
-    proof's, in `jets/commitment.txt`; offered as `c + 1`, it refuses.
+    same at `log 18 19 15 16`, `compj-verify … csplit 8 8 1 200 C` with
+    its commitment C, drawn apart from the plain proof's, in
+    `jets/commitment.txt`. It refuses the statement read as `c + 1`, and
+    the other statement is the one for `a = 0`, `r = 0`, so `c = 0`.
 13. **The Poseidon2 jet.** `p2` holds three statements and their proofs.
     `verify.sh` checks that each statement is Lean's: `p2pre`'s, for a
     fresh secret input, by `lake exe composed check-p2pre`, which takes
@@ -474,8 +484,9 @@ Dropping them took the table from 2,768 roots to 759 and the run from
     composed budget`) and its jet table (`lake exe skilark cjets`); Avon
     (`avon witness --statement --jet-table`), or ski-air with
     `WITNESS=ski-air` as for the released tables, writes the witness table,
-    which `lake exe composed check-cj` accepts; `ski-air compj-prove-table`
-    proves it, and `ski-air compj-verify` checks the proof.
+    which `lake exe composed check-cj` must accept, or the stage stops;
+    `ski-air compj-prove-table` proves it, and `ski-air compj-verify`
+    checks the proof and the statement's meaning.
 12. The Poseidon2 proofs: Lean emits the statements and witnesses (`lake
     exe composed emit-p2 --fresh`, sixteen input elements fresh from the
     system's entropy and `h` the first of their permutation;
