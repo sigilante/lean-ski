@@ -129,7 +129,7 @@ def splitBits (k a b : Nat) : List Bool :=
   ((bitsOf k a).zip (bitsOf k b)).flatMap fun (u, v) => [u == 1, v == 1]
 
 def emit (src : String) (k x a b r m : Nat) (dir : String) : IO UInt32 := do
-  if k == 0 || 2 ^ k ≤ x || 2 ^ k ≤ a || 2 ^ k ≤ b then
+  if k == 0 || 64 < k || 2 ^ k ≤ x || 2 ^ k ≤ a || 2 ^ k ≤ b then
     IO.println s!"x, a and b must be below 2^{k}"; return 1
   let some (V, E) := readB (← IO.FS.readFile src) | do IO.println s!"{src}: not a SKIlark predicate source"; return 1
   if !logOK (r, m) then IO.println "heights out of bounds"; return 1
@@ -153,7 +153,9 @@ def budgetsText : Option (Nat × Nat) → String
   | none => ""
 
 def statement (src : String) (k x : Nat) (pub : String) : IO UInt32 := do
-  if k == 0 || 2 ^ k ≤ x then IO.println s!"NOT A STATEMENT: x = {x} is not below 2^{k}"; return 1
+  -- k bounded first: a statement names at most 64 bits, and 2^k is built only then.
+  if k == 0 || 64 < k then IO.println s!"NOT A STATEMENT: k = {k} is not in 1..64"; return 1
+  if 2 ^ k ≤ x then IO.println s!"NOT A STATEMENT: x = {x} is not below 2^{k}"; return 1
   let some (srcT, pubT) ← readInputs src pub | do IO.println "NOT TWO TEXTS: SRC and PUBLIC are files, or both - (stdin, split at a NUL)"; return 1
   let some (V, E) := readB srcT | do IO.println s!"{src}: not a SKIlark predicate source"; return 1
   match statementOfTextAny pubT with
@@ -211,7 +213,7 @@ def readC (text : String) : Option (Term × Enc) := do
 def bound : Nat := 64
 
 def cemit (src : String) (k m seed x a b r rl ml : Nat) (dir : String) : IO UInt32 := do
-  if k == 0 || m == 0 || 2 ^ k ≤ x || 2 ^ k ≤ a || 2 ^ k ≤ b || 2 ^ m ≤ r then
+  if k == 0 || m == 0 || 64 < k || 64 < m || 2 ^ k ≤ x || 2 ^ k ≤ a || 2 ^ k ≤ b || 2 ^ m ≤ r then
     IO.println s!"k and m positive, x, a, b below 2^{k}, r below 2^{m}"; return 1
   let some (V, E) := readC (← IO.FS.readFile src) | do IO.println s!"{src}: not a committed split's source"; return 1
   if !logOK (rl, ml) then IO.println "heights out of bounds"; return 1
@@ -232,7 +234,12 @@ def cemit (src : String) (k m seed x a b r rl ml : Nat) (dir : String) : IO UInt
   return 0
 
 def cstatement (src : String) (k m seed x c : Nat) (pub : String) : IO UInt32 := do
-  if k == 0 || m == 0 || 2 ^ k ≤ x then IO.println s!"NOT A STATEMENT: bad sizes, or x = {x} not below 2^{k}"; return 1
+  -- k and m bounded before 2^k, and c by the weights' sum, which bounds
+  -- every commitment, before `xcTerm` builds c in unary: a statement file
+  -- or a commitment.txt naming a huge c is refused, not built.
+  if k == 0 || m == 0 || 64 < k || 64 < m then IO.println s!"NOT A STATEMENT: k = {k}, m = {m} not in 1..64"; return 1
+  if 2 ^ k ≤ x then IO.println s!"NOT A STATEMENT: x = {x} not below 2^{k}"; return 1
+  if (weightsOf (k + m) seed bound).sum < c then IO.println s!"NOT A STATEMENT: c = {c} exceeds the weights' sum"; return 1
   let some (srcT, pubT) ← readInputs src pub | do IO.println "NOT TWO TEXTS: SRC and PUBLIC are files, or both - (stdin, split at a NUL)"; return 1
   let some (V, E) := readC srcT | do IO.println s!"{src}: not a committed split's source"; return 1
   let ws := weightsOf (k + m) seed bound

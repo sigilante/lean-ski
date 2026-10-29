@@ -538,10 +538,12 @@ jets_release() {   # NAME
     mkfifo "$tmp/jfifo/public.txt" "$tmp/jfifo/$name.jets"
     ( exec > /dev/null 2>&1
       cat "$OT/public.txt" > "$tmp/jfifo/public.txt"; : > "$tmp/jfifo/p1"
+      sleep 1   # past the first read's EOF, so the two texts never join
       cat "$J/public.txt" > "$tmp/jfifo/public.txt"; : > "$tmp/jfifo/p2" ) &
     writers=$!
     ( exec > /dev/null 2>&1
       cat "$OT/$name.jets" > "$tmp/jfifo/$name.jets"; : > "$tmp/jfifo/j1"
+      sleep 1
       cat "$J/$name.jets" > "$tmp/jfifo/$name.jets"; : > "$tmp/jfifo/j2" ) &
     writers="$writers $!"
     if "$SKI_AIR" compj-verify "$tmp/jfifo/public.txt" "$tmp/jfifo/$name.jets" "$S/source.ski" "$J/$name.proof" "${OTmean[@]}" > "$tmp/jff.log"; then
@@ -562,9 +564,6 @@ jets_release() {   # NAME
 echo "--- 10. split8 with jets, under hiding"
 S=release/skilark/split8
 J=$S/jets
-lake exe skilark statement "$S/source.ski" 8 200 "$J/public.txt" > "$tmp/js.log" \
-    && ok "$(head -c 100 "$tmp/js.log") … $(grep -o 'budgets 2^[0-9]* and 2^[0-9]*' "$tmp/js.log")" \
-    || no "release/skilark/split8/jets/public.txt is not the statement of its source ($(head -c 80 "$tmp/js.log"))"
 # The statement for x = 201 at the release's heights and budgets.
 OT=$tmp/other/split8
 set -- $(sed -n 3p "$J/public.txt")
@@ -583,9 +582,6 @@ C=$(cat "$J/commitment.txt")
 case "$C" in ''|*[!0-9]*) no "release/skilark/csplit8/jets/commitment.txt names no commitment"; C=0 ;; esac
 C0=$(cat "$S/commitment.txt")
 case "$C0" in ''|*[!0-9]*) no "release/skilark/csplit8/commitment.txt names no commitment"; C0=0 ;; esac
-lake exe skilark cstatement "$S/source.ski" 8 8 1 200 "$C" "$J/public.txt" > "$tmp/jcs.log" \
-    && ok "$(head -c 100 "$tmp/jcs.log") … $(grep -o 'budgets 2^[0-9]* and 2^[0-9]*' "$tmp/jcs.log")" \
-    || no "release/skilark/csplit8/jets/public.txt is not the statement of its source ($(head -c 80 "$tmp/jcs.log"))"
 # The statement for a = 0 and r = 0, so c = 0, at the release's heights and
 # budgets.
 OT=$tmp/other/csplit8
@@ -597,6 +593,20 @@ lake exe skilark cjets "$S/source.ski" "$OT/public.txt" "$OT/csplit8.jets" > /de
 [ "$C" != 0 ] || no "the release's commitment is 0, the other statement's"
 mean=(csplit 8 8 1 200 "$C"); plain=(csplit 8 8 1 200 "$C0"); wrong=(csplit 8 8 1 200 $((C + 1))); OTmean=(csplit 8 8 1 200 0)
 jets_release csplit8
+# A commitment.txt naming a huge c: refused before Lean builds c in unary
+# (it bounds c by the weights' sum), and past 20 digits by the verifier.
+if "$SKI_AIR" compj-verify "$J/public.txt" "$J/csplit8.jets" "$S/source.ski" "$J/csplit8.proof" \
+        csplit 8 8 1 200 99999999999999999999 > "$tmp/jhuge.log"; then
+    no "the csplit8 proof with jets verified for c = 10^20 - 1"
+else
+    refused "$tmp/jhuge.log" "c = [0-9]* exceeds the weights' sum" "a meaning with a huge c is refused before Lean builds it"
+fi
+if "$SKI_AIR" compj-verify "$J/public.txt" "$J/csplit8.jets" "$S/source.ski" "$J/csplit8.proof" \
+        csplit 8 8 1 200 100000000000000000000 > "$tmp/jhuge2.log"; then
+    no "the csplit8 proof with jets verified for c = 10^20"
+else
+    refused "$tmp/jhuge2.log" 'at most 20 digits' "a meaning number of 21 digits is refused by the verifier"
+fi
 else
 echo "--- 11. csplit8 with jets: skipped (QUICK=1)"
 fi

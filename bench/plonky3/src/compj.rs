@@ -501,8 +501,10 @@ impl Meaning {
             _ => return Err("the meaning is `split K X` or `csplit K M SEED X C`".into()),
         };
         let nums = &words[1..];
-        if nums.len() != n || nums.iter().any(|w| w.is_empty() || !w.bytes().all(|b| b.is_ascii_digit())) {
-            return Err(format!("`{}` takes {n} numbers", words[0]));
+        // At most 20 digits each: Lean bounds the sizes and c itself, and
+        // this keeps a hostile number from reaching it at all.
+        if nums.len() != n || nums.iter().any(|w| w.is_empty() || w.len() > 20 || !w.bytes().all(|b| b.is_ascii_digit())) {
+            return Err(format!("`{}` takes {n} numbers of at most 20 digits", words[0]));
         }
         Ok(Meaning { cmd, nums: nums.to_vec() })
     }
