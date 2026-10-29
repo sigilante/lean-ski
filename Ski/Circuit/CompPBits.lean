@@ -107,6 +107,16 @@ def pinMem (stk : Bool) (s1 rest : Nat) (bs : List Bool) (l : Nat) : List F :=
   else [ofN (l + 3), ofN (cellTag (if bs.getD l false then .K else .app 0 1)),
     0, ofN (cellFields (if bs.getD l false then Cell.K else .app 0 1)).2]
 
+/-- A P2IN row's read columns are its read. -/
+theorem pinRow_mem (c : Nat) (bs : List Bool) (stk : Bool) (s1 rest l : Nat) :
+    [(pinRow c bs stk s1 rest l).getD 16 0, (pinRow c bs stk s1 rest l).getD 17 0,
+      (pinRow c bs stk s1 rest l).getD 18 0, (pinRow c bs stk s1 rest l).getD 19 0] = pinMem stk s1 rest bs l := by
+  simp only [pinRow, List.getD_cons_succ, List.getD_cons_zero, pinMem]
+  cases stk
+  · simp only [Bool.false_eq_true, if_false]
+    cases bs.getD l false <;> rfl
+  · simp only [if_true]
+
 /-- What a P2IN row sends, bus by bus. -/
 theorem pin_sends (c : Nat) (bs : List Bool) (stk : Bool) (s1 rest l : Nat) (bus : String) (v : List F) :
     rowSendsV p2inAir bus v (pinRow c bs stk s1 rest l) =
@@ -130,13 +140,7 @@ theorem pin_sends (c : Nat) (bs : List Bool) (stk : Bool) (s1 rest l : Nat) (bus
     rw [accN_succ]
     simp only [pinRow, List.getD_cons_succ, List.getD_cons_zero]
     split <;> rfl
-  have mem : [(pinRow c bs stk s1 rest l).getD 16 0, (pinRow c bs stk s1 rest l).getD 17 0,
-      (pinRow c bs stk s1 rest l).getD 18 0, (pinRow c bs stk s1 rest l).getD 19 0] = pinMem stk s1 rest bs l := by
-    simp only [pinRow, List.getD_cons_succ, List.getD_cons_zero, pinMem]
-    cases stk
-    · simp only [Bool.false_eq_true, if_false]
-      cases bs.getD l false <;> rfl
-    · simp only [if_true]
+  have mem := pinRow_mem c bs stk s1 rest l
   have a4 : (pinRow c bs stk s1 rest l).getD 4 0 = 1 := rfl
   have e0 : (pinRow c bs stk s1 rest l).getD 0 0 = ofN c := rfl
   have e3 : (pinRow c bs stk s1 rest l).getD 3 0 = ofN (accN bs l) := rfl
