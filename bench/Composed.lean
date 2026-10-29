@@ -299,6 +299,21 @@ def emitP2 (dir : String) (k : Nat := 1) : IO UInt32 := do
   IO.println s!"wrote {dir}/p2pre.public.txt (h = {h}) and its witness"
   return 0
 
+/-- The chain's heights: the CPU and memory as `p2pre`'s, P2IN and P2OUT
+    for two calls' 992 rows. -/
+def p2chainLogs : ComposedPText.PLogs := ⟨14, 15, 10, 10, 9⟩
+
+/-- `composed emit-p2chain DIR [K]`: the chain statement `p2chain h` over
+    Plonky3's test vector `K` (default 1) as the preimage, `h` the first
+    element of its permutation permuted again, and its witness. -/
+def emitP2Chain (dir : String) (k : Nat := 1) : IO UInt32 := do
+  let some (inp, _) := Poseidon2.vectors[k]? | IO.eprintln "no such vector"; return 1
+  let h := (Poseidon2.permute (Poseidon2.permute inp)).headD 0
+  IO.FS.writeFile s!"{dir}/p2chain.public.txt" (ComposedPText.publicTextG (.chain h) p2chainLogs)
+  IO.FS.writeFile s!"{dir}/p2chain.witness.txt" (witnessText (inp.flatMap (BitArith.bitsOf 31)) ComposedPText.regionP)
+  IO.println s!"wrote {dir}/p2chain.public.txt (h = {h}) and its witness"
+  return 0
+
 /-- The hand-off's value for tests: eight elements below `2^30` (a
     credential: an age, a country code, six more fields), and its fixed
     randomness.  A commitment to them hides nothing, since both are in this
@@ -480,6 +495,7 @@ def statementP2 (path : String) : IO UInt32 := do
   match ComposedPText.statementOfTextG text with
   | some (.pre h, _) => IO.println s!"OK p2pre {h}"; return 0
   | some (.commit c _, _) => IO.println s!"OK p2commit {c}"; return 0
+  | some (.chain h, _) => IO.println s!"OK p2chain {h}"; return 0
   | none => IO.println "NOT A STATEMENT"; return 1
 
 /-- `composed chain-p2 PUBLIC1 PUBLIC2`: `CHAIN OK` when both files are
@@ -573,8 +589,8 @@ def checkP2Tables (pub dir : String) : IO UInt32 := do
   if !(← Circuit.TraceCheck.shapesOK []
       [("cpu", cpu, airP 0), ("mem", mem, airP 1), ("wit", wit, airP 3), ("p2in", pin, airP 5),
        ("p2out", pout, airP 6), ("p2", p2, airP 7)] cells.size) then return 1
-  let b1 ← Circuit.TraceCheck.cmpRowsBy "compp.rs" "cpu" cpu (List.range K) (R.jetAtG get) fun jet r c =>
-    (R.cpuColPG get jet (cnts.getD r 0) r c).val
+  let b1 ← Circuit.TraceCheck.cmpRowsBy "compp.rs" "cpu" cpu (List.range K)
+    (fun r => (R.jetCAtG get r, R.jetSAtG get r)) fun jj r c => (R.cpuColPG get jj.1 jj.2 (cnts.getD r 0) r c).val
   let b2 ← Circuit.TraceCheck.cmpRows "compp.rs" "p2in" pin (List.range pin.size) fun r c => ((pinL.getD r []).getD c 0).val
   let b3 ← Circuit.TraceCheck.cmpRows "compp.rs" "p2out" pout (List.range pout.size) fun r c => ((poutL.getD r []).getD c 0).val
   let b4 ← Circuit.TraceCheck.cmpRows "compp.rs" "p2" p2 (List.range p2.size) fun r c => ((p2L.getD r []).getD c 0).val
@@ -789,6 +805,8 @@ def main (args : List String) : IO UInt32 := do
   | ["emit", dir] => emit dir
   | ["emit-fresh", dir] => emitFresh dir
   | ["emit-fresh", dir, "--all"] => emitFresh dir true
+  | ["emit-p2chain", dir] => emitP2Chain dir
+  | ["emit-p2chain", dir, k] => emitP2Chain dir k.toNat!
   | ["emit-p2", dir] => emitP2 dir
   | ["emit-p2", dir, "--fresh"] => emitP2Fresh dir
   | ["emit-p2", dir, k] => emitP2 dir k.toNat!

@@ -35,6 +35,7 @@ import Ski.ComposedP
 import Ski.Circuit.CompPFinal
 import Ski.P2PreSound
 import Ski.P2Commit
+import Ski.P2Chain
 import Ski.P2Complete
 import Ski.P2Once
 import Ski.ZK.CompPHonest
@@ -1123,6 +1124,8 @@ open Ski.Audit
   Circuit.jetOf_G Circuit.JRun.instAt_G Circuit.JRun.cpuCol_G Circuit.JRun.insts_arr Circuit.CRun.cpuColCJ_arr
   P2Jet.boolAt_G P2Jet.bitsAt_G P2Jet.slotsOK_G P2Jet.popN_G P2Jet.take_G P2Jet.p2Row_G
   Circuit.P2Run.jetAt_G Circuit.P2Run.jetRange_G Circuit.P2Run.cpuColP_arr
+  P2Jet.consecFrom_G P2Jet.stackRun_G P2Jet.p2RowS_G Circuit.P2Run.jetCAt_G Circuit.P2Run.jetSAt_G
+  Circuit.P2Run.jrest_G Circuit.P2Run.js1_G
 
 -- Poseidon2's specification: the paper's construction with Plonky3's parameters, its constants
 -- the Grain LFSR's, its S-box and linear layers invertible
@@ -1171,7 +1174,7 @@ open Ski.Audit
   Circuit.CompPOK.halt Circuit.CompPOK.ctr_eq Circuit.CompPOK.next_ctr Circuit.CompPOK.jet_key_unique
   Circuit.CompPOK.jetReads Circuit.CompPOK.jetNext Circuit.CompPOK.pinConserve Circuit.CompPOK.poutConserve
   Circuit.CompPOK.pinPath Circuit.CompPOK.poutPath Circuit.CompPOK.pinLevel Circuit.CompPOK.poutLevel
-  Circuit.accum Circuit.lowhi Circuit.canon Circuit.CompPOK.pinSlot Circuit.CompPOK.poutWrite
+  Circuit.accum Circuit.lowhi Circuit.canon Circuit.CompPOK.pinRead Circuit.CompPOK.poutWrite
   Circuit.CompPOK.p2vCount Circuit.CompPOK.p2Unique Circuit.CompPOK.p2wMatch Circuit.CompPOK.pinVals
   Circuit.CompPOK.poutVals Circuit.CompPOK.poutCells Circuit.CompPOK.jetOut Circuit.CompPOK.jetRow
   Circuit.cMachineO_fitsB Circuit.CompPOK.heap0 Circuit.CompPOK.regionWF Circuit.CompPOK.restart
@@ -1188,6 +1191,10 @@ open Ski.Audit
   P2Commit.openB_commit P2Commit.handoff Circuit.p2commitExport_sound Circuit.p2commit_chain
   P2Commit.valueOnlyB_sound P2Commit.canonicalB_sound P2Commit.ok_commit P2Commit.chainB_sound
   Circuit.p2commit_chainB
+
+-- What a proof of p2chain h proves: two jet calls, the permutation of the permutation
+#audit_clean P2Chain.env_J P2Chain.env_JS P2Chain.out_length P2Chain.p2chain_meaning
+  Circuit.verifierChainO_occ Circuit.p2chainExport_sound
 
 -- The jet's verifiers accept honest bits
 #audit_clean P2Complete.absorbO_K P2Complete.chk_complete P2Complete.chkX_complete P2Complete.selT_complete

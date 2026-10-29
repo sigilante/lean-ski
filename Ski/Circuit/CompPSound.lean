@@ -146,10 +146,11 @@ theorem CompPOK.restart {r j : Nat} (hr : r + 1 < C.h) (hrs : C.main r RS = 1)
 
 /-- **A row that is no restart steps or halts, with `P2SEL = 0`, or takes
     the jet's step, with `P2SEL = 1`.** -/
-theorem CompPOK.normRowSel {r : Nat} (hr : r + 1 < C.h) (hrs : C.main r RS = 0) (hJ : J < P) (hroot : root < P)
+theorem CompPOK.normRowSel {r : Nat} (hr : r + 1 < C.h) (hrs : C.main r RS = 0) (hJ : J + 1 < P) (hroot : root < P)
     (h499 : 499 ≤ (blankMO shp W Vs).heap.length) :
     (C.main r P2SEL = 0 ∧ Air.NormRow (memOf Mm) [] [] (rowOf C r) (rowOf C (r + 1))) ∨
-      (C.main r P2SEL = 1 ∧ P2Jet.p2Row (memOf Mm) J root (rowOf C r) = some (rowOf C (r + 1))) := by
+      (C.main r P2SEL = 1 ∧ (P2Jet.p2Row (memOf Mm) J root (rowOf C r) = some (rowOf C (r + 1)) ∨
+        P2Jet.p2RowS (memOf Mm) (J + 1) (rowOf C r) = some (rowOf C (r + 1)))) := by
   have hr' : r < C.h := Nat.lt_of_succ_lt hr
   obtain ⟨k, hk⟩ := kind_ofP2 h.cpu hr'
   have hk11 : k ≠ 11 := fun e => by
@@ -182,7 +183,7 @@ theorem CompPOK.normRowSel {r : Nat} (hr : r + 1 < C.h) (hrs : C.main r RS = 0) 
       simp only [rowOf, B.col, E.eval, env_main0 hr']
 
 /-- **A row that does not restart steps**: plainly, or by the jet. -/
-theorem CompPOK.normRow {r : Nat} (hr : r + 1 < C.h) (hrs : C.main r RS = 0) (hJ : J < P) (hroot : root < P)
+theorem CompPOK.normRow {r : Nat} (hr : r + 1 < C.h) (hrs : C.main r RS = 0) (hJ : J + 1 < P) (hroot : root < P)
     (h499 : 499 ≤ (blankMO shp W Vs).heap.length) :
     NormRowP (memOf Mm) [] [] J root (rowOf C r) (rowOf C (r + 1)) :=
   (h.normRowSel hr hrs hJ hroot h499).imp (fun a => a.2) (fun a => a.2)
@@ -199,7 +200,7 @@ theorem CompPOK.endReads {r k : Nat} (hr : r < C.h) (hk : IsKindP C r k) (hk5 : 
 include hv in
 /-- **The decoded run is accepted by the AIR with segments and the
     Poseidon2 jet.** -/
-theorem CompPOK.acceptsCP (hVs : 0 < Vs.length) (hBd : Bd < P) (hJ : J < P) (hroot : root < P)
+theorem CompPOK.acceptsCP (hVs : 0 < Vs.length) (hBd : Bd < P) (hJ : J + 1 < P) (hroot : root < P)
     (h499 : 499 ≤ (blankMO shp W Vs).heap.length) :
     AcceptsCP (memOf Mm) (cMachineO (bitsM (memOf Mm)) shp (regionM (memOf Mm) (BT.nleaves shp) W) Vs) [] [] J root
       (blankRootsO shp W Vs) (blankMO shp W Vs).stk Vs.length

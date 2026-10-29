@@ -61,9 +61,20 @@ def checkO (h : Nat) : OTerm := chkO (BitArith.bitsOf 31 h) 465
 def verifierO (h : Nat) : OTerm :=
   absN [0, 1] (.var JP2 ⬝ₒ checkO h ⬝ₒ .var 0)
 
+/-- The second jet's atom: the jet on the stack, its inputs a previous
+    call's outputs (`P2Jet.p2RowS`). -/
+def JP2S : Nat := JP2 + 1
+
+/-- **The chain's verifier**: `λ β w. J ⬝ (J₂ ⬝ CHECK_h) ⬝ β`.  The first
+    call's outputs land on the stack under `CHECK_h`, with `J₂` at the head,
+    which permutes them again (`Ski/P2Chain.lean`). -/
+def verifierChainO (h : Nat) : OTerm :=
+  absN [0, 1] (.var JP2 ⬝ₒ (.var JP2S ⬝ₒ checkO h) ⬝ₒ .var 0)
+
 /-- The statement's shape, verifiers and region. -/
 def shpP : BT := CompM.combBT 496
 def VsP (h : Nat) : List OTerm := [verifierO h]
+def VsC (h : Nat) : List OTerm := [verifierChainO h]
 def regionP : List Cell := [.S]
 
 /-- The comb's root: the same for every filling (`CompM.combRoot_public`). -/
@@ -133,17 +144,20 @@ def verifierC (c : List Nat) (pat : List (Option Bool)) : OTerm :=
 -- ---------------------------------------------------------------------------
 
 /-- **A statement with the Poseidon2 jet**, over 496 private bits: the
-    preimage `p2pre h`, or the committed value `p2commit c pat` ("a value
+    preimage `p2pre h`, the committed value `p2commit c pat` ("a value
     and randomness of 248 bits each that compress to `c`, the 496 bits
-    meeting `pat`"). -/
+    meeting `pat`"), or the chain `p2chain h` ("sixteen values whose
+    permutation, permuted again, begins with `h`": two jet calls). -/
 inductive PStmt
   | pre (h : Nat)
   | commit (c : List Nat) (pat : List (Option Bool))
+  | chain (h : Nat)
   deriving BEq, Repr
 
 def PStmt.Vs : PStmt → List OTerm
   | .pre h => VsP h
   | .commit c pat => [verifierC c pat]
+  | .chain h => VsC h
 
 def patChar : Option Bool → Char
   | none => '.'
@@ -160,12 +174,14 @@ def charPat : Char → Option (Option Bool)
 def PStmt.head : PStmt → String
   | .pre h => s!"p2pre {h}"
   | .commit c pat => s!"p2commit {" ".intercalate (c.map toString)} {String.ofList (pat.map patChar)}"
+  | .chain h => s!"p2chain {h}"
 
 /-- A statement's text is valid: `h` below `p`; eight elements of `c` below
     `p` and 496 pattern entries. -/
 def PStmt.ok : PStmt → Bool
   | .pre h => decide (h < Poseidon2.p)
   | .commit c pat => c.length == 8 && c.all (· < Poseidon2.p) && pat.length == 496
+  | .chain h => decide (h < Poseidon2.p)
 
 /-- **The statement's text**: the composed machine of the open verifiers,
     the bit cells and the region blank. -/
@@ -189,6 +205,7 @@ def statementOfTextG (text : String) : Option (PStmt × PLogs) := do
   let ls := text.splitOn "\n"
   let st ← match words (ls.getD 0 "") with
     | ["p2pre", h, j, r] => if j == toString JP2 && r == toString rootP then (h.toNat?).map .pre else none
+    | ["p2chain", h, j, r] => if j == toString JP2 && r == toString rootP then (h.toNat?).map .chain else none
     | ["p2commit", c0, c1, c2, c3, c4, c5, c6, c7, pat, j, r] =>
       if j == toString JP2 && r == toString rootP then do
         let c ← [c0, c1, c2, c3, c4, c5, c6, c7].mapM String.toNat?

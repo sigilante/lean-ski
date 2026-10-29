@@ -97,6 +97,7 @@ if command -v cargo >/dev/null 2>&1 \
          && lake exe witness emit "$gen/witness" >/dev/null \
          && mkdir -p "$gen/p2" && lake exe composed emit-p2 "$gen/p2" >/dev/null \
          && lake exe composed emit-handoff "$gen/p2" >/dev/null \
+         && lake exe composed emit-p2chain "$gen/p2" >/dev/null \
          && mkdir -p "$gen/c" && lake exe composed emit "$gen/c" >/dev/null \
          && lake exe skilark emit release/skilark/split8/source.ski 8 200 123 77 17 18 "$gen/sk" >/dev/null; }; then
     bad "gate 5's inputs could not be generated"
@@ -155,6 +156,12 @@ if command -v cargo >/dev/null 2>&1 \
       bad "composed $f (p2commit): the Rust circuit differs from Circuit.compPAirsG"
     fi
   done
+  if "$ski" export-compp "$gen/p2/p2chain.public.txt" > "$exp.c" \
+     && .lake/build/bin/circuit compare-compp "$exp.c" | tail -1 | grep -q '^MATCH'; then
+    note "ok — composed p2chain (two jet calls): the Rust circuit is Circuit.compPAirsG"
+  else
+    bad "composed p2chain (two jet calls): the Rust circuit differs from Circuit.compPAirsG"
+  fi
   if lake exe composed chain-p2 "$gen/p2/handoff1.public.txt" "$gen/p2/handoff2.public.txt" | grep -q '^CHAIN OK'; then
     note "ok — the hand-off's two statements meet P2Commit.chainB"
   else
@@ -253,19 +260,20 @@ if command -v cargo >/dev/null 2>&1 \
   trap 'kill $(jobs -p) 2>/dev/null' INT TERM
   # The longest lane first.  A lane runs in a subshell, so its failures
   # reach this shell through its report and its exit status.
-  lanes="j p2pre handoff1 handoff2 s c w"
+  lanes="j p2pre handoff1 handoff2 p2chain s c w"
   for l in $lanes; do
     case $l in
       j) ( lane_j; exit $fail ) ;;
       p2pre) ( lane_p2 p2pre p2pre; exit $fail ) ;;
       handoff1|handoff2) ( lane_p2 "$l" handoff; exit $fail ) ;;
+      p2chain) ( lane_p2 p2chain p2chain; exit $fail ) ;;
       s) ( lane_s; exit $fail ) ;;
       c) ( lane_c; exit $fail ) ;;
       w) ( lane_w; exit $fail ) ;;
     esac > "$gen/lane-$l.log" 2>&1 &
     eval "pid_$l=$!"
   done
-  for l in p2pre handoff1 handoff2 c w s j; do
+  for l in p2pre handoff1 handoff2 p2chain c w s j; do
     eval "wait \$pid_$l"; rc=$?
     cat "$gen/lane-$l.log"
     [ $rc -eq 0 ] || fail=1

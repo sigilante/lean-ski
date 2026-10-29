@@ -38,15 +38,44 @@ theorem c_vals : SEL = 3 ∧ NKINDS = 14 ∧ FLD = 17 ∧ BITS = 25 ∧ RANGE_BI
 
 /-- The columns the jet leaves alone are the composed CPU's. -/
 theorem colP_eq (i : Nat) {c : Nat} (h1 : c ≠ P2SEL) (h2 : ¬ (SEL ≤ c ∧ c < SEL + NKINDS))
-    (h3 : ¬ (BITS ≤ c ∧ c < CPU_WIDTH)) : R.cpuColP i c = cpuColC R.A R.row R.e R.n R.segRoots i c := by
+    (h3 : ¬ (BITS ≤ c ∧ c < CPU_WIDTH)) (h4 : c < P2MODE) :
+    R.cpuColP i c = cpuColC R.A R.row R.e R.n R.segRoots i c := by
   unfold cpuColP
-  rw [if_neg h1, if_neg (fun h => h2 h.2), if_neg (fun h => h3 h.2)]
+  rw [if_neg h1, if_neg (fun h => h2 h.2), if_neg (fun h => h3 h.2), if_neg (Nat.ne_of_lt h4),
+    if_neg (Nat.ne_of_lt (Nat.lt_trans h4 (by decide))), if_neg (Nat.ne_of_lt (Nat.lt_trans h4 (by decide))),
+    if_neg (Nat.ne_of_lt (Nat.lt_trans h4 (by decide)))]
+
+theorem colP_mode (i : Nat) : R.cpuColP i P2MODE = bF (R.jetSAt i) := by
+  unfold cpuColP
+  rw [if_neg (by decide), if_neg (fun h => by have := h.2.2; revert this; decide),
+    if_neg (fun h => by have := h.2.2; revert this; decide), if_pos rfl]
+
+theorem colP_rest (i : Nat) : R.cpuColP i P2REST = if R.jetAt i then ofN (R.jrest i) else 0 := by
+  unfold cpuColP
+  rw [if_neg (by decide), if_neg (fun h => by have := h.2.2; revert this; decide),
+    if_neg (fun h => by have := h.2.2; revert this; decide), if_neg (by decide), if_pos rfl]
+
+theorem colP_cm (i : Nat) : R.cpuColP i P2CM = bF (R.jetCAt i) := by
+  unfold cpuColP
+  rw [if_neg (by decide), if_neg (fun h => by have := h.2.2; revert this; decide),
+    if_neg (fun h => by have := h.2.2; revert this; decide), if_neg (by decide), if_neg (by decide), if_pos rfl]
+
+theorem colP_sp0 (i : Nat) :
+    R.cpuColP i P2SP0 = if R.jetSAt i then ofN (R.js1 i) else if R.jetAt i then ofN (R.jrest i) else 0 := by
+  unfold cpuColP
+  rw [if_neg (by decide), if_neg (fun h => by have := h.2.2; revert this; decide),
+    if_neg (fun h => by have := h.2.2; revert this; decide), if_neg (by decide), if_neg (by decide),
+    if_neg (by decide), if_pos rfl]
+
+theorem colP_sel (i : Nat) : R.cpuColP i P2SEL = bF (R.jetAt i) := by
+  unfold cpuColP; rw [if_pos rfl]
 
 theorem colP_reg (i : Nat) {c : Nat} (hc : c = HD ∨ c = STK ∨ c = CTR) :
     R.cpuColP i c = cpuCol R.A (R.rowQ i) c := by
   obtain ⟨e1, e2, e3, e4, e5, e6, -, -, -, -, -, e12⟩ := c_vals
   have hc3 : c < 3 := by rcases hc with rfl | rfl | rfl <;> decide
-  rw [R.colP_eq i (by rw [e12]; omega) (by rw [e1, e2]; omega) (by rw [e4, e6]; omega)]
+  rw [R.colP_eq i (by rw [e12]; omega) (by rw [e1, e2]; omega) (by rw [e4, e6]; omega)
+    (by unfold P2MODE; rw [e12]; omega)]
   exact cpuColC_reg i hc
 
 theorem colP_hd (i : Nat) : R.cpuColP i HD = ofN (R.rowQ i).hd := R.colP_reg i (.inl rfl)
@@ -54,22 +83,22 @@ theorem colP_stk (i : Nat) : R.cpuColP i STK = ofN (R.rowQ i).stk := R.colP_reg 
 theorem colP_ctr (i : Nat) : R.cpuColP i CTR = ofN (R.rowQ i).ctr := R.colP_reg i (.inr (.inr rfl))
 
 theorem colP_cnt (i : Nat) : R.cpuColP i CNT = ofN (cntS (rsI R.e R.n) i) := by
-  rw [R.colP_eq i (by decide) (by decide) (by decide)]; exact cpuColC_cnt i
+  rw [R.colP_eq i (by decide) (by decide) (by decide) (by decide)]; exact cpuColC_cnt i
 
 theorem colP_rs (i : Nat) : R.cpuColP i RS = ofN (rsI R.e R.n i) := by
-  rw [R.colP_eq i (by decide) (by decide) (by decide)]; exact cpuColC_rs i
+  rw [R.colP_eq i (by decide) (by decide) (by decide) (by decide)]; exact cpuColC_rs i
 
 theorem colP_root (i : Nat) : R.cpuColP i ROOT = ofN (R.segRoots.getD (cntS (rsI R.e R.n) i + 1) 0) := by
-  rw [R.colP_eq i (by decide) (by decide) (by decide)]; exact cpuColC_root i
+  rw [R.colP_eq i (by decide) (by decide) (by decide) (by decide)]; exact cpuColC_root i
 
 theorem colP_blind (i : Nat) {c : Nat} (hc : c = BLA + 4 ∨ c = BLB + 4) : R.cpuColP i c = 0 := by
   have : c ≠ P2SEL ∧ ¬ (SEL ≤ c ∧ c < SEL + NKINDS) ∧ ¬ (BITS ≤ c ∧ c < CPU_WIDTH) := by
     rcases hc with rfl | rfl <;> decide
-  rw [R.colP_eq i this.1 this.2.1 this.2.2]; exact cpuColC_blind i hc
+  rw [R.colP_eq i this.1 this.2.1 this.2.2 (by rcases hc with rfl | rfl <;> decide)]; exact cpuColC_blind i hc
 
 /-- The last blinding block's flag, past the composed CPU's columns. -/
 theorem colP_p2flag (i : Nat) : R.cpuColP i (P2SEL + 5) = 0 := by
-  rw [R.colP_eq i (by decide) (by decide) (by decide)]
+  rw [R.colP_eq i (by decide) (by decide) (by decide) (by decide)]
   unfold cpuColC
   rw [if_neg (by decide), if_neg (by decide), if_neg (by decide), if_neg (by decide)]
 
@@ -77,7 +106,8 @@ theorem colP_fld (i : Nat) {m : Nat} (hm : m < 8) :
     R.cpuColP i (FLD + m) =
       if m % 2 = 0 then ofN (fieldsAt R.A (R.rowQ i) (m / 2)).1 else ofN (fieldsAt R.A (R.rowQ i) (m / 2)).2 := by
   obtain ⟨e1, e2, e3, e4, -, e6, -, -, -, -, -, e12⟩ := c_vals
-  rw [R.colP_eq i (by rw [e3, e12]; omega) (by rw [e1, e2, e3]; omega) (by rw [e3, e4, e6]; omega)]
+  rw [R.colP_eq i (by rw [e3, e12]; omega) (by rw [e1, e2, e3]; omega) (by rw [e3, e4, e6]; omega)
+    (by unfold P2MODE; rw [e3, e12]; omega)]
   unfold cpuColC
   rw [if_pos (by rw [e3, e6]; omega), if_neg (fun h => by rw [e1, e2, e3] at h; omega)]
   exact cpuCol_fld R.A _ hm
@@ -205,16 +235,55 @@ theorem rd_lt {M : List Cell} {c a : Nat} {x : Cell} (h : rd M c a = some x) : a
   · cases h
 
 omit hA hK in
-/-- **A jet row's reads and next row**: the atom `J` at the head, the stack
-    cells `cons k s₁` and `s₁ ↦ cons root rest`, and `⟨k, ctr + 495, ctr + 496⟩`. -/
+/-- **A jet row's reads and next row**: the atom at the head, the stack
+    cells `cons k s₁` and `cons x s₂` at `s₁`, and `⟨k, ctr + 495, ctr + 496⟩`;
+    on the comb the atom `J`, `x` the root and `s₂` the stack below the
+    inputs, on the stack the atom `J + 1`. -/
 theorem jet_row {i : Nat} (hj : R.jetAt i = true) :
-    ∃ k s1 rest, rd R.A (R.rowQ i).ctr (R.rowQ i).hd = some (.atom R.J) ∧
+    ∃ k s1 x s2 jj, rd R.A (R.rowQ i).ctr (R.rowQ i).hd = some (.atom jj) ∧
       rd R.A (R.rowQ i).ctr (R.rowQ i).stk = some (.cons k s1) ∧
-      rd R.A (R.rowQ i).ctr s1 = some (.cons R.root rest) ∧
-      R.rowQ (i + 1) = ⟨k, (R.rowQ i).ctr + 495, (R.rowQ i).ctr + 496⟩ := by
-  obtain ⟨_, _, hp2⟩ := jetAt_spec hj
-  obtain ⟨hhd, k, s1, rest, _, hstk, hs1, _, _, _, _, hnext⟩ := p2Row_inv hp2
-  exact ⟨k, s1, rest, hhd, hstk, hs1, hnext⟩
+      rd R.A (R.rowQ i).ctr s1 = some (.cons x s2) ∧
+      R.rowQ (i + 1) = ⟨k, (R.rowQ i).ctr + 495, (R.rowQ i).ctr + 496⟩ ∧
+      (R.jetCAt i = true → jj = R.J ∧ x = R.root ∧ s2 = R.jrest i) ∧ (R.jetSAt i = true → jj = R.J + 1) := by
+  unfold jetAt at hj
+  rcases Bool.or_eq_true _ _ ▸ hj with hc | hs
+  · obtain ⟨_, _, hp2⟩ := jetCAt_spec hc
+    obtain ⟨hhd, k, s1, rest, _, hstk, hs1, _, _, _, _, hnext⟩ := p2Row_inv hp2
+    have hs0 : R.jetSAt i = false := by
+      cases h : R.jetSAt i
+      · rfl
+      · exact (R.not_jetC_jetS hc h).elim
+    refine ⟨k, s1, R.root, rest, R.J, hhd, hstk, hs1, hnext, fun _ => ⟨rfl, rfl, ?_⟩,
+      fun h => (R.not_jetC_jetS hc h).elim⟩
+    unfold jrest; rw [hs0]
+    simp only [fieldsAt, addrAt, hstk, Option.getD_some, cellFields, hs1, Bool.false_eq_true, if_false]
+  · obtain ⟨_, _, hp2⟩ := jetSAt_spec hs
+    obtain ⟨hhd, k, ps, rest, _, hpop, _, _, _, _, _, hnext⟩ := p2RowS_inv hp2
+    unfold popN at hpop
+    cases hc1 : (R.A.take (R.rowQ i).ctr)[(R.rowQ i).stk]? with
+    | none => rw [hc1] at hpop; cases hpop
+    | some c1 =>
+      rw [hc1] at hpop
+      cases c1 with
+      | cons x1 s1 =>
+        dsimp only at hpop
+        cases hq : popN (R.A.take (R.rowQ i).ctr) 496 s1 with
+        | none => rw [hq] at hpop; cases hpop
+        | some q =>
+          rw [hq] at hpop
+          simp only [Option.map_some, Option.some.injEq, Prod.mk.injEq, List.cons.injEq] at hpop
+          have hx1 : x1 = k := hpop.1.1
+          subst hx1
+          unfold popN at hq
+          cases hc2 : (R.A.take (R.rowQ i).ctr)[s1]? with
+          | none => rw [hc2] at hq; cases hq
+          | some c2 =>
+            cases c2 with
+            | cons x2 s2 =>
+              exact ⟨x1, s1, x2, s2, R.J + 1, hhd, rd_of_take hc1, rd_of_take hc2, hnext,
+                fun h => (R.not_jetC_jetS h hs).elim, fun _ => rfl⟩
+            | _ => rw [hc2] at hq; cases hq
+      | _ => cases hpop
 
 omit hA hK in
 /-- A range check's bits, on every row: a residue mod 2. -/
@@ -231,7 +300,12 @@ theorem colP_bit (i : Nat) {j b : Nat} (hj : j < 4) (hb : b < RANGE_BITS) :
     rw [if_neg (fun h => h2 h.2), if_pos ⟨rfl, by rw [e4]; omega, by rw [e4, e5, e6]; omega⟩]
     exact ⟨_, rfl⟩
   | false =>
-    rw [if_neg (fun h => nomatch h.1), if_neg (fun h => nomatch h.1)]
+    have hm : BITS + j * RANGE_BITS + b < P2MODE := by
+      have : P2MODE = 140 := rfl
+      rw [this, e4, e5]; rw [e5] at hb; omega
+    rw [if_neg (fun h => nomatch h.1), if_neg (fun h => nomatch h.1), if_neg (Nat.ne_of_lt hm),
+      if_neg (Nat.ne_of_lt (Nat.lt_trans hm (by decide))), if_neg (Nat.ne_of_lt (Nat.lt_trans hm (by decide))),
+      if_neg (Nat.ne_of_lt (Nat.lt_trans hm (by decide)))]
     unfold cpuColC
     rw [if_pos (by rw [e4, e5, e6]; omega), if_neg (fun h => h2 ⟨h.1, h.2.1⟩)]
     exact ⟨_, cpuCol_bit R.A _ hj hb⟩
@@ -302,7 +376,7 @@ theorem cpuP_read (hb : ∀ i, i < K → (rowP R.row R.e R.n i).ctr ≤ 2 ^ 24) 
       rw [if_pos rfl]
       rcases (show j < 3 ∨ j = 3 by omega) with h3 | rfl
       · rw [if_pos h3]
-        obtain ⟨k, s1, rest, hhd, hstk, hs1, _⟩ := R.jet_row hjet
+        obtain ⟨k, s1, x, s2, jj, hhd, hstk, hs1, _⟩ := R.jet_row hjet
         have hctr := hb i hi
         -- the address read `j`, below the counter
         have ha : (addrs.getD j zero).eval ((R.cpuTableP K).env i) = ofN (addrAt R.A (R.rowQ i) j) ∧
@@ -386,7 +460,7 @@ theorem cpuP_sat (hb : ∀ i, i < K → (rowP R.row R.e R.n i).ctr ≤ 2 ^ 24) :
   simp only [cpuAirP2, cpuConsP2, List.mem_append, List.mem_cons, List.mem_map, List.mem_range,
     List.not_mem_nil, or_false] at hc
   rcases hc with (((((((⟨j, hj, rfl⟩ | (rfl | rfl)) | rfl) | hc) | hc) | hc) | hc) | rfl | rfl | rfl | rfl | rfl |
-    rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl)
+    rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl)
   · -- a kind selector is a bit
     simp only [B.bool, E.eval, cv, B.one, B.c, ofN_one]
     rw [show R.cpuColP i (SEL + j) = _ from hk.2.1 j hj]
@@ -437,26 +511,80 @@ theorem cpuP_sat (hb : ∀ i, i < K → (rowP R.row R.e R.n i).ctr ≤ 2 ^ 24) :
       have hl' : i + 1 = K := hl
       rw [cv, R.colP_cnt, cntS_after hA.emono hn (by omega), sub_self', mul_zero']
     · exact zero_mul' _
-  · -- a jet row reads the jet's atom at the head
-    show sP2.eval _ * ((fld 0).eval _ - ofN R.J) = 0
+  · -- a jet row reads the jet's atom at the head: `J`, or `J + 1` on the stack
+    show sP2.eval _ * ((fld 0).eval _ - (ofN R.J + (col P2MODE).eval _)) = 0
     rw [hP2]
     cases hj : R.jetAt i with
     | false => rw [if_neg (by have := hkplain hj; omega), ofN_zero, zero_mul']
     | true =>
-      obtain ⟨k, s1, rest, hhd, _, _, _⟩ := R.jet_row hj
-      rw [if_pos (hkjet hj), show fld 0 = col (FLD + 0) from rfl, cv, R.colP_fld i (by decide)]
-      simp only [fieldsAt, addrAt, hhd, Option.getD_some, cellFields]
-      rw [if_pos trivial, sub_self', mul_zero']
-  · -- and the comb's root under the stack's second cell
-    show sP2.eval _ * ((fld 4).eval _ - ofN R.root) = 0
-    rw [hP2]
-    cases hj : R.jetAt i with
-    | false => rw [if_neg (by have := hkplain hj; omega), ofN_zero, zero_mul']
-    | true =>
-      obtain ⟨k, s1, rest, _, hstk, hs1, _⟩ := R.jet_row hj
-      rw [if_pos (hkjet hj), show fld 4 = col (FLD + 4) from rfl, cv, R.colP_fld i (by decide)]
-      simp only [fieldsAt, addrAt, hstk, hs1, Option.getD_some, cellFields]
-      rw [if_pos trivial, sub_self', mul_zero']
+      obtain ⟨k, s1, x, s2, jj, hhd, _, _, _, hC, hS⟩ := R.jet_row hj
+      have h0 : (fld 0).eval ((R.cpuTableP K).env i) = ofN jj := by
+        rw [show fld 0 = col (FLD + 0) from rfl, cv, R.colP_fld i (by decide)]
+        simp only [fieldsAt, addrAt, hhd, Option.getD_some, cellFields]
+        rfl
+      rw [h0, cv, R.colP_mode]
+      cases hs : R.jetSAt i
+      · have hc : R.jetCAt i = true := by unfold jetAt at hj; rw [hs, Bool.or_false] at hj; exact hj
+        rw [(hC hc).1]
+        show _ * (ofN R.J - (ofN R.J + 0)) = 0
+        rw [add_zero', sub_self', mul_zero']
+      · rw [hS hs]
+        show _ * (ofN (R.J + 1) - (ofN R.J + 1)) = 0
+        rw [ofN_add, ofN_one, sub_self', mul_zero']
+  · -- on the comb, the comb's root under the stack's second cell
+    show (col P2CM).eval _ * ((fld 4).eval _ - ofN R.root) = 0
+    rw [cv, R.colP_cm]
+    cases hc : R.jetCAt i
+    · show (0 : F) * _ = 0; exact zero_mul' _
+    · have hj : R.jetAt i = true := by unfold jetAt; rw [hc]; rfl
+      obtain ⟨k, s1, x, s2, jj, _, hstk, hs1, _, hC, _⟩ := R.jet_row hj
+      have h4 : (fld 4).eval ((R.cpuTableP K).env i) = ofN x := by
+        rw [show fld 4 = col (FLD + 4) from rfl, cv, R.colP_fld i (by decide)]
+        simp only [fieldsAt, addrAt, hstk, hs1, Option.getD_some, cellFields]
+        rfl
+      rw [h4, (hC hc).2.1, sub_self', mul_zero']
+  · -- the mode is a bit
+    show (col P2MODE).eval _ * ((col P2MODE).eval _ - ofN 1) = 0
+    rw [cv, R.colP_mode]
+    cases R.jetSAt i <;> decide
+  · -- `CM` is the selector on the comb
+    show (col P2CM).eval _ - (sP2.eval _ * (ofN 1 - (col P2MODE).eval _)) = 0
+    rw [show sP2 = col P2SEL from rfl, cv, cv, cv, R.colP_cm, R.colP_sel, R.colP_mode]
+    unfold jetAt
+    cases hc : R.jetCAt i <;> cases hs : R.jetSAt i
+    · decide
+    · decide
+    · decide
+    · exact (R.not_jetC_jetS hc hs).elim
+  · -- on the comb, the stack below the inputs is the second cell's rest
+    show (col P2CM).eval _ * ((col P2REST).eval _ - (fld 5).eval _) = 0
+    rw [cv, R.colP_cm]
+    cases hc : R.jetCAt i
+    · show (0 : F) * _ = 0; exact zero_mul' _
+    · have hj : R.jetAt i = true := by unfold jetAt; rw [hc]; rfl
+      obtain ⟨k, s1, x, s2, jj, _, hstk, hs1, _, hC, _⟩ := R.jet_row hj
+      have h5 : (fld 5).eval ((R.cpuTableP K).env i) = ofN s2 := by
+        rw [show fld 5 = col (FLD + 5) from rfl, cv, R.colP_fld i (by decide)]
+        simp only [fieldsAt, addrAt, hstk, hs1, Option.getD_some, cellFields]
+        rfl
+      rw [cv, R.colP_rest, if_pos hj, h5, (hC hc).2.2, sub_self', mul_zero']
+  · -- the input chain's start: `s₁` on the stack, the rest on the comb
+    show (col P2SP0).eval _ - ((col P2MODE).eval _ * (fld 3).eval _ +
+      (ofN 1 - (col P2MODE).eval _) * (col P2REST).eval _) = 0
+    rw [cv, cv, cv, R.colP_sp0, R.colP_mode, R.colP_rest]
+    cases hs : R.jetSAt i
+    · show (if R.jetAt i then ofN (R.jrest i) else 0) - ((0 : F) * _ + (ofN 1 - 0) *
+        (if R.jetAt i then ofN (R.jrest i) else 0)) = 0
+      rw [zero_mul', zero_add', show (ofN 1 - 0 : F) = 1 by decide, one_mul', sub_self']
+    · have hj : R.jetAt i = true := by unfold jetAt; rw [hs, Bool.or_true]
+      obtain ⟨k, s1, x, s2, jj, _, hstk, _, _, _, _⟩ := R.jet_row hj
+      have h3 : (fld 3).eval ((R.cpuTableP K).env i) = ofN (R.js1 i) := by
+        rw [show fld 3 = col (FLD + 3) from rfl, cv, R.colP_fld i (by decide)]
+        unfold js1
+        rfl
+      rw [h3, if_pos hj]
+      show ofN (R.js1 i) - ((1 : F) * ofN (R.js1 i) + (ofN 1 - 1) * ofN (R.jrest i)) = 0
+      rw [one_mul', show (ofN 1 - 1 : F) = 0 by decide, zero_mul', add_zero', sub_self']
   · -- the last blinding flag is clear
     show (col (P2SEL + 5)).eval _ * ((col (P2SEL + 5)).eval _ - ofN 1) = 0
     rw [cv, R.colP_p2flag, zero_mul']
@@ -480,7 +608,7 @@ theorem cpuP_sat (hb : ∀ i, i < K → (rowP R.row R.e R.n i).ctr ≤ 2 ^ 24) :
         rw [show R.rowQ (i + 1) = rowP R.row R.e R.n (i + 1) from rfl, (cpuC_nextP hA hK hi1 hj).1]
         exact sub_self' _
       | true =>
-        obtain ⟨k, s1, rest, _, hstk, _, hnext⟩ := R.jet_row hj
+        obtain ⟨k, s1, x, s2, jj, _, hstk, _, hnext, _, _⟩ := R.jet_row hj
         rw [if_pos (hkjet hj), nh, hRS, hkjet hj, hnext, show fld 2 = col (FLD + 2) from rfl, cv (FLD + 2),
           R.colP_fld i (show 2 < 8 by decide)]
         simp only [fieldsAt, addrAt, hstk, Option.getD_some, cellFields, nextHdOfP, ↓reduceIte]
@@ -504,7 +632,7 @@ theorem cpuP_sat (hb : ∀ i, i < K → (rowP R.row R.e R.n i).ctr ≤ 2 ^ 24) :
         rw [show R.rowQ (i + 1) = rowP R.row R.e R.n (i + 1) from rfl, (cpuC_nextP hA hK hi1 hj).2.1]
         exact sub_self' _
       | true =>
-        obtain ⟨k, s1, rest, _, _, _, hnext⟩ := R.jet_row hj
+        obtain ⟨k, s1, x, s2, jj, _, _, _, hnext, _, _⟩ := R.jet_row hj
         rw [if_pos (hkjet hj), ns, hRS, hkjet hj, hnext, cv, R.colP_ctr]
         simp only [nextStkOfP, ↓reduceIte]
         show ofN ((R.rowQ i).ctr + 495) - ((0 : F) + ofN 0 * _ + ofN 1 * (ofN (R.rowQ i).ctr + ofN (P2_BITS - 1))) = 0
@@ -525,7 +653,7 @@ theorem cpuP_sat (hb : ∀ i, i < K → (rowP R.row R.e R.n i).ctr ≤ 2 ^ 24) :
         rw [show R.rowQ (i + 1) = rowP R.row R.e R.n (i + 1) from rfl, (cpuC_nextP hA hK hi1 hj).2.2]
         exact sub_self' _
       | true =>
-        obtain ⟨k, s1, rest, _, _, _, hnext⟩ := R.jet_row hj
+        obtain ⟨k, s1, x, s2, jj, _, _, _, hnext, _, _⟩ := R.jet_row hj
         rw [if_pos (hkjet hj), nc, hkjet hj, hnext]
         simp only [nextCtrOfP, ↓reduceIte]
         rw [cv, R.colP_ctr]

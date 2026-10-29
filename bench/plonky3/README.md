@@ -511,6 +511,22 @@ statement file once and hands the same text to both checks. From
 two accepted proofs, the second's memory holds bits that meet both
 patterns, or the two memories' openings collide (`p2commit_chainB`).
 
+A statement can call the jet more than once (`Ski/P2Chain.lean`).
+`lake exe composed emit-p2chain DIR [K]` writes `p2chain h`, "the
+permutation of the permutation of my sixteen values begins with `h`", for
+test vector `K` (default 1). Its verifier calls the jet on the comb at the
+atom `J`, then on the first call's outputs, on the stack, at `J + 1`. A
+CPU jet row's `P2MODE` says which; P2IN reads the slots or 496 consecutive
+stack cells. `compp.rs` counts the calls each statement makes and refuses
+a run whose count differs:
+
+```
+p2chain    P(P(x))[0] = h    1,317 rows   2 jet calls   1.44 s   verified 1.89 s
+```
+
+A proof of it, accepted as `AcceptedP` models, holds such values in memory
+(`Circuit.p2chainExport_sound`).
+
 `compp.rs`'s unblinded traces agree with Lean's model of the honest
 tables (`Ski/Circuit/CompPHonest.lean`, whose balance and clear flags
 `P2Run.honest_zkP` proves) on every cell compared. `ski-air compp-dump

@@ -112,7 +112,8 @@ theorem shpP_nleaves : BT.nleaves shpP = 496 := combBT_nleaves 496 (by decide)
     whose only free variable is the jet's: an accepted proof has in its
     memory 496 bits and a region whose witness makes every verifier, with
     `J` closed to `Pcomb`, evaluate to `K` on the bits. -/
-theorem compPExportG_sound {Vs : List OTerm} (hVs : 0 < Vs.length) (hocc : ∀ V ∈ Vs, ∀ x, Occ x V → x = JP2)
+theorem compPExportG_sound {Vs : List OTerm} (hVs : 0 < Vs.length)
+    (hocc : ∀ V ∈ Vs, ∀ x, Occ x V → x = JP2 ∨ x = JP2 + 1)
     {Rs : List AirD} {ts : List Table}
     (hs : sameAirsB Rs (compPAirsG Vs) = true) (hacc : AcceptedP Rs ts) :
     ∃ C Mm Pg Wt Sg Pi Po Pp Px, ts = [C, Mm, Pg, Wt, Sg, Pi, Po, Pp, Px] ∧ ∃ w,
@@ -122,12 +123,12 @@ theorem compPExportG_sound {Vs : List OTerm} (hVs : 0 < Vs.length) (hocc : ∀ V
   have hacc' := accepted_transfer hs ((acceptedP_iff_of (compPG_guarded Vs) hs ts).1 hacc)
   obtain ⟨C, Mm, Pg, Wt, Sg, Pi, Po, Pp, Px, rfl, ok⟩ := compPOK_ofG hacc'
   refine ⟨C, Mm, Pg, Wt, Sg, Pi, Po, Pp, Px, rfl, ?_⟩
-  have hv : ∀ V ∈ Vs, ∀ x, Occ x V → x < JP2 + 1 := fun V hV x hx => by
-    rw [hocc V hV x hx]; exact Nat.lt_succ_self _
-  have hP : JP2 + 1 < P := by decide
+  have hv : ∀ V ∈ Vs, ∀ x, Occ x V → x < JP2 + 2 := fun V hV x hx => by
+    rcases hocc V hV x hx with rfl | rfl <;> omega
+  have hP : JP2 + 2 < P := by decide
   have hroot : rootP < P := by
     have := ok.heap_lt
-    have hfit := cMachineO_fitsB (JP2 + 1) (fun _ => false) shpP (List.replicate 1 .S) Vs
+    have hfit := cMachineO_fitsB (JP2 + 2) (fun _ => false) shpP (List.replicate 1 .S) Vs
       (fun i c h' => blank_region 1 i c h' _) hv
     have : rootP < (blankMO shpP 1 Vs).heap.length := hfit.2.2
     omega
@@ -163,6 +164,6 @@ theorem compPExport_sound {h : Nat} {Rs : List AirD} {ts : List Table}
     (fun V hV x hx => by
       simp only [VsP, List.mem_cons, List.not_mem_nil, or_false] at hV
       subst hV
-      exact verifierO_occ h x hx) hs hacc
+      exact .inl (verifierO_occ h x hx)) hs hacc
 
 end Circuit

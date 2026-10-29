@@ -44,9 +44,11 @@ use p3_uni_stark::StarkGenericConfig;
 use sudoku::{blind_tuple, public_zk_config, secret_zk_config, set_blind, widen, ZkConfig};
 use witness::{witness_rows, WitTAir, WT_BLIND};
 
-/// The CPU's jet columns: `P2SEL`, then the blinding block it sends to
-/// P2IN on `blind_c`.
-pub const P2_CPU_WIDTH: usize = 1 + BLIND_WIDTH;
+/// The CPU's jet columns: `P2SEL`, the blinding block it sends to P2IN on
+/// `blind_c`, then the jet row's mode (`0` on the comb, `1` on the stack),
+/// the stack below its inputs, `P2SEL · (1 - MODE)`, and the input chain's
+/// first stack pointer.
+pub const P2_CPU_WIDTH: usize = 1 + BLIND_WIDTH + 4;
 /// The inputs' bits.
 pub const P2_BITS: usize = 496;
 /// The first bit's slot.
@@ -71,8 +73,10 @@ pub struct P2Pub {
 
 /// The jet row's constraints and messages; returns its parts of the next
 /// head, stack and counter.  The row's reads are the CPU's reads 0, 1 and
-/// 2: the atom `J` at the head (`a0 = J`), the stack cell `cons k s₁`, and
-/// the cell `cons β rest` at `s₁`, with `β` the comb's root.
+/// 2: the atom at the head (`a0 = J` on the comb, `J + 1` on the stack),
+/// the stack cell `cons k s₁`, and the cell at `s₁`: on the comb
+/// `cons β rest` with `β` the comb's root; on the stack the first input's
+/// cell, the inputs' chain running from `s₁` to `rest`.
 pub fn eval_cpu_p2<AB: PermutationAirBuilder + InteractionBuilder>(
     b: &mut AB,
     loc: &[AB::Expr],
@@ -83,15 +87,28 @@ pub fn eval_cpu_p2<AB: PermutationAirBuilder + InteractionBuilder>(
     let c = |n: u32| AB::Expr::from_u32(n);
     let ctr = loc[CTR].clone();
     let (a0, a1, a2, rest) = (loc[FLD].clone(), loc[FLD + 2].clone(), loc[FLD + 4].clone(), loc[FLD + 5].clone());
-    b.assert_zero(p2sel.clone() * (a0 - c(pp.j)));
-    b.assert_zero(p2sel.clone() * (a2 - c(pp.root)));
+    let s1 = loc[FLD + 3].clone();
+    let one = AB::Expr::ONE;
+    let mb = base + 1 + BLIND_WIDTH;
+    let (mode, rest_c, cm, sp0) = (loc[mb].clone(), loc[mb + 1].clone(), loc[mb + 2].clone(), loc[mb + 3].clone());
+    b.assert_zero(p2sel.clone() * (a0 - (c(pp.j) + mode.clone())));
+    b.assert_zero(cm.clone() * (a2 - c(pp.root)));
+    b.assert_bool(mode.clone());
+    b.assert_eq(cm.clone(), p2sel.clone() * (one.clone() - mode.clone()));
+    b.assert_zero(cm * (rest_c.clone() - rest));
+    b.assert_eq(sp0.clone(), mode.clone() * s1 + (one - mode.clone()) * rest_c.clone());
+    let rest = rest_c;
     // The slots: `K`, `I`, `K I` at 0, 1, 2.
     b.push_interaction(BUS, [c(0), c(1), c(0), c(0)], Count::bounded(p2sel.clone(), 1));
     b.push_interaction(BUS, [c(1), c(2), c(0), c(0)], Count::bounded(p2sel.clone(), 1));
     b.push_interaction(BUS, [c(2), c(3), c(0), c(1)], Count::bounded(p2sel.clone(), 1));
     // The input chain.
-    b.push_interaction(P2I, [ctr.clone(), c(0), c(0)], Count::bounded(p2sel.clone(), 1));
-    b.push_interaction(P2I, [ctr.clone(), c(P2_BITS as u32), c(0)], -Count::bounded(p2sel.clone(), 1));
+    b.push_interaction(P2I, [ctr.clone(), c(0), c(0), mode.clone(), sp0], Count::bounded(p2sel.clone(), 1));
+    b.push_interaction(
+        P2I,
+        [ctr.clone(), c(P2_BITS as u32), c(0), mode, rest.clone()],
+        -Count::bounded(p2sel.clone(), 1),
+    );
     // The output chain.
     b.push_interaction(P2O, [ctr.clone(), c(0), rest.clone(), c(0), c(0), c(1)], Count::bounded(p2sel.clone(), 1));
     b.push_interaction(
@@ -113,7 +130,7 @@ pub fn eval_cpu_p2<AB: PermutationAirBuilder + InteractionBuilder>(
 // ---------------------------------------------------------------------------
 
 /// P2IN's columns, before its blinding blocks.
-pub const PI_W: usize = 13;
+pub const PI_W: usize = 23;
 /// P2OUT's columns, before its blinding blocks.
 pub const PO_W: usize = 23;
 
@@ -133,9 +150,14 @@ pub fn eval_blocks<AB: PermutationAirBuilder + InteractionBuilder>(b: &mut AB, b
     }
 }
 
-/// P2IN: `ctr lvl b acc act e pow last islow ilast val nacc em`.  The bit
-/// `lvl` is the slot `3 + lvl`: a `K` cell when true, the cell `app 0 1`
-/// when false.
+/// P2IN: `ctr lvl b acc act e pow last islow ilast val nacc em m sp spn addr
+/// tag f1 f2 ca sa sl`.  On the comb (`m = 0`) the bit `lvl` is the slot
+/// `3 + lvl`: a `K` cell when true, the cell `app 0 1` when false, and `sp`
+/// passes unchanged.  On the stack (`m = 1`) it is the stack cell at `sp`,
+/// a pointer to the `K` slot (`0`) when true or the `K I` slot (`2`) when
+/// false, over `spn`, which is `sp - 1` but at the last level: the inputs
+/// are a previous call's outputs, consecutive cells below the counter.
+/// `ca = act (1 - m)` and `sa = act m` gate the read.
 pub fn eval_p2in<AB: PermutationAirBuilder + InteractionBuilder>(b: &mut AB) {
     let main = b.main();
     let l: Vec<AB::Expr> = main.current_slice().iter().map(|&v| v.into()).collect();
@@ -145,19 +167,27 @@ pub fn eval_p2in<AB: PermutationAirBuilder + InteractionBuilder>(b: &mut AB) {
     let (ctr, lvl, bit, acc, act) = (v(0), v(1), v(2), v(3), v(4));
     let (e, pow, last, islow, ilast) = (v(5), v(6), v(7), v(8), v(9));
     let (val, nacc, em) = (v(10), v(11), v(12));
+    let (m, sp, spn, addr, tag, f1, f2, ca, sa) = (v(13), v(14), v(15), v(16), v(17), v(18), v(19), v(20), v(21));
+    let sl = v(22);
     b.assert_bool(act.clone());
     b.assert_bool(bit.clone());
     b.assert_eq(val.clone(), acc.clone() + pow.clone() * bit.clone());
     b.assert_eq(nacc.clone(), (one.clone() - last.clone()) * val.clone());
     b.assert_eq(em.clone(), act.clone() * last.clone());
+    b.assert_eq(ca.clone(), act.clone() * (one.clone() - m.clone()));
+    b.assert_eq(sa.clone(), act.clone() * m.clone());
+    b.assert_zero((one.clone() - m.clone()) * (spn.clone() - sp.clone()));
+    b.assert_eq(addr.clone(), sa.clone() * sp.clone() + ca.clone() * (lvl.clone() + c(P2_SLOT0)));
+    b.assert_eq(tag.clone(), sa.clone() * c(5) + ca.clone() * (c(3) - bit.clone() * c(2)));
+    b.assert_eq(f1.clone(), sa.clone() * (c(2) - bit.clone() * c(2)));
+    b.assert_eq(f2.clone(), sa.clone() * spn.clone() + ca * (one.clone() - bit));
+    // On the stack the inputs are consecutive cells, a previous call's outputs.
+    b.assert_eq(sl.clone(), sa * (one.clone() - ilast.clone()));
+    b.assert_zero(sl * (spn.clone() - sp.clone() + one.clone()));
     b.push_interaction(P2IDX, [lvl.clone(), e.clone(), pow, last, islow, ilast], Count::bounded(act.clone(), 1));
-    b.push_interaction(P2I, [ctr.clone(), lvl.clone(), acc], -Count::bounded(act.clone(), 1));
-    b.push_interaction(P2I, [ctr.clone(), lvl.clone() + one.clone(), nacc], Count::bounded(act.clone(), 1));
-    b.push_interaction(
-        BUS,
-        [lvl + c(P2_SLOT0), c(3) - bit.clone() * c(2), c(0), one - bit],
-        Count::bounded(act, 1),
-    );
+    b.push_interaction(P2I, [ctr.clone(), lvl.clone(), acc, m.clone(), sp], -Count::bounded(act.clone(), 1));
+    b.push_interaction(P2I, [ctr.clone(), lvl + one, nacc, m, spn], Count::bounded(act.clone(), 1));
+    b.push_interaction(BUS, [addr, tag, f1, f2], Count::bounded(act, 1));
     b.push_interaction(P2V, [ctr, e, val], Count::bounded(em, 1));
 }
 
@@ -231,6 +261,9 @@ pub struct P2Call {
     k: u32,
     s1: u32,
     rest: u32,
+    /// On the stack (`p2RowS`): the inputs' stack cells, `s₁` first, then
+    /// `rest`; empty on the comb.
+    sps: Vec<u32>,
     bits: Vec<bool>,
     /// The inputs the P2 table permutes: the bits' elements, but for a
     /// forgery.
@@ -249,14 +282,19 @@ pub enum Forge {
     V,
 }
 
-/// The jet's step at `(hd, stk)`, when the head is the atom `pp.j` with `k`
-/// and the root `pp.root` on the stack, the slots in place and each bit's
-/// slot a `K` cell or the cell `app 0 1`: the next head and stack, the
-/// cells written, and the call.
+/// The jet's step at `(hd, stk)`, the slots in place: on the comb
+/// (`P2Jet.p2Row`), when the head is the atom `pp.j` with `k` and the root
+/// `pp.root` on the stack and each bit's slot a `K` cell or the cell
+/// `app 0 1`; on the stack (`P2Jet.p2RowS`), when the head is the atom
+/// `pp.j + 1` with `k` and 496 stack cells, each pointing at the `K` slot
+/// (`0`) or the `K I` slot (`2`).  The next head and stack, the cells
+/// written, and the call.
 pub fn p2_step(heap: &[Cell], hd: u32, stk: u32, pp: &P2Pub, forge: Forge) -> Option<(u32, u32, Vec<Cell>, P2Call)> {
-    if heap.get(hd as usize) != Some(&Cell::Atom(pp.j)) {
-        return None;
-    }
+    let on_stack = match heap.get(hd as usize) {
+        Some(&Cell::Atom(a)) if a == pp.j => false,
+        Some(&Cell::Atom(a)) if a == pp.j + 1 => true,
+        _ => return None,
+    };
     if heap.len() < (P2_SLOT0 as usize) + P2_BITS
         || heap[0] != Cell::K
         || heap[1] != Cell::I
@@ -265,17 +303,36 @@ pub fn p2_step(heap: &[Cell], hd: u32, stk: u32, pp: &P2Pub, forge: Forge) -> Op
         return None;
     }
     let Cell::Cons(k, s1) = *heap.get(stk as usize)? else { return None };
-    let Cell::Cons(beta, rest) = *heap.get(s1 as usize)? else { return None };
-    if beta != pp.root {
-        return None;
-    }
-    let bits: Vec<bool> = (0..P2_BITS)
-        .map(|l| match heap[P2_SLOT0 as usize + l] {
-            Cell::K => Some(true),
-            Cell::App(0, 1) => Some(false),
-            _ => None,
-        })
-        .collect::<Option<_>>()?;
+    let (bits, rest, sps): (Vec<bool>, u32, Vec<u32>) = if on_stack {
+        let mut sps = vec![s1];
+        let mut bits = Vec::with_capacity(P2_BITS);
+        for l in 0..P2_BITS {
+            let Cell::Cons(a, next) = *heap.get(*sps.last().unwrap() as usize)? else { return None };
+            if l + 1 < P2_BITS && next + 1 != *sps.last().unwrap() {
+                return None;
+            }
+            bits.push(match a {
+                0 => true,
+                2 => false,
+                _ => return None,
+            });
+            sps.push(next);
+        }
+        (bits, *sps.last().unwrap(), sps)
+    } else {
+        let Cell::Cons(beta, rest) = *heap.get(s1 as usize)? else { return None };
+        if beta != pp.root {
+            return None;
+        }
+        let bits: Vec<bool> = (0..P2_BITS)
+            .map(|l| match heap[P2_SLOT0 as usize + l] {
+                Cell::K => Some(true),
+                Cell::App(0, 1) => Some(false),
+                _ => None,
+            })
+            .collect::<Option<_>>()?;
+        (bits, rest, Vec::new())
+    };
     let mut ins = [0u32; 16];
     for e in 0..16 {
         ins[e] = (0..31).map(|jb| (bits[31 * e + jb] as u32) << jb).sum();
@@ -294,7 +351,7 @@ pub fn p2_step(heap: &[Cell], hd: u32, stk: u32, pp: &P2Pub, forge: Forge) -> Op
     let cells: Vec<Cell> = (0..P2_BITS)
         .map(|m| Cell::Cons(ptr(out_bits[P2_BITS - 1 - m]), if m == 0 { rest } else { c + m as u32 - 1 }))
         .collect();
-    let call = P2Call { ctr: c, stk, k, s1, rest, bits, p2_ins, out_bits };
+    let call = P2Call { ctr: c, stk, k, s1, rest, sps, bits, p2_ins, out_bits };
     Some((k, c + P2_BITS as u32 - 1, cells, call))
 }
 
@@ -305,6 +362,8 @@ pub fn p2_step(heap: &[Cell], hd: u32, stk: u32, pp: &P2Pub, forge: Forge) -> Op
 pub struct PPublic {
     header: String,
     pp: P2Pub,
+    /// The jet's calls an honest run makes: one, or two for `p2chain`.
+    calls: usize,
     w: u32,
     logs: [usize; 5],
     nbits: u32,
@@ -325,15 +384,15 @@ pub fn parse_public_p(text: &str) -> Result<PPublic, String> {
     let header = next()?.to_string();
     let hw: Vec<&str> = header.split(' ').collect();
     let num = |x: &str| x.parse::<u32>().map_err(|_| "a bad header".to_string());
-    // `p2pre h J ROOT` or `p2commit c₀ … c₇ PATTERN J ROOT`: the statement's
-    // kind and data, then the jet's atom and the comb's root.  Lean checks
-    // the whole text (`statement-p2`).
-    let pp = match (hw.first(), hw.len()) {
-        (Some(&"p2pre"), 4) | (Some(&"p2commit"), 12) => {
-            P2Pub { j: num(hw[hw.len() - 2])?, root: num(hw[hw.len() - 1])? }
-        }
-        _ => return Err("expected `p2pre h J ROOT` or `p2commit c₀ … c₇ PATTERN J ROOT`".into()),
+    // `p2pre h J ROOT`, `p2chain h J ROOT` or `p2commit c₀ … c₇ PATTERN J
+    // ROOT`: the statement's kind and data, then the jet's atom and the
+    // comb's root.  Lean checks the whole text (`statement-p2`).
+    let calls = match (hw.first(), hw.len()) {
+        (Some(&"p2pre"), 4) | (Some(&"p2commit"), 12) => 1,
+        (Some(&"p2chain"), 4) => 2,
+        _ => return Err("expected `p2pre h J ROOT`, `p2chain h J ROOT` or `p2commit c₀ … c₇ PATTERN J ROOT`".into()),
     };
+    let pp = P2Pub { j: num(hw[hw.len() - 2])?, root: num(hw[hw.len() - 1])? };
     let w = nums(next()?, "W")?;
     let lg = nums(next()?, "log")?;
     if lg.len() != 5 || lg.iter().any(|&x| !(9..=20).contains(&x)) {
@@ -363,7 +422,7 @@ pub fn parse_public_p(text: &str) -> Result<PPublic, String> {
         }
     }
     let logs = [lg[0] as usize, lg[1] as usize, lg[2] as usize, lg[3] as usize, lg[4] as usize];
-    Ok(PPublic { header, pp, w, logs, nbits, roots, nil, hd0: regs[0], stk0: regs[1], ctr0: regs[2], cells, text: text.to_string() })
+    Ok(PPublic { header, pp, calls, w, logs, nbits, roots, nil, hd0: regs[0], stk0: regs[1], ctr0: regs[2], cells, text: text.to_string() })
 }
 
 fn program_of(p: &PPublic) -> Vec<[u32; 5]> {
@@ -511,14 +570,30 @@ fn traces(p: &PPublic, tb: &PTable, blind: bool, bs: BlindStream) -> Vec<RowMajo
         }
     }
     // The jet's rows: the atom at the head classified as a halt; it is the
-    // jet's instead, and reads the two stack cells too, and the slots.
+    // jet's instead, and reads the two stack cells too, and the slots.  On
+    // the stack the second cell is the first input's.
+    let mb = pbase + 1 + BLIND_WIDTH;
     for (i, call) in &tb.calls {
         let r = &mut cpu.values[i * w..(i + 1) * w];
         for k in 0..NKINDS {
             r[SEL + k] = Val::ZERO;
         }
         r[pbase] = Val::ONE;
-        for (j, (addr, a, b)) in [(1usize, (call.stk, call.k, call.s1)), (2, (call.s1, p.pp.root, call.rest))] {
+        let on_stack = !call.sps.is_empty();
+        r[FLD] = f(p.pp.j + on_stack as u32);
+        r[mb] = f(on_stack as u32);
+        r[mb + 1] = f(call.rest);
+        r[mb + 2] = f(!on_stack as u32);
+        r[mb + 3] = f(if on_stack { call.s1 } else { call.rest });
+        let read2 = if on_stack {
+            match tb.mem[call.s1 as usize] {
+                Cell::Cons(a, b) => (a, b),
+                _ => unreachable!("a stack call's first input is a stack cell"),
+            }
+        } else {
+            (p.pp.root, call.rest)
+        };
+        for (j, (addr, a, b)) in [(1usize, (call.stk, call.k, call.s1)), (2, (call.s1, read2.0, read2.1))] {
             r[FLD + 2 * j] = f(a);
             r[FLD + 2 * j + 1] = f(b);
             let d = call.ctr - addr - 1;
@@ -550,11 +625,22 @@ fn traces(p: &PPublic, tb: &PTable, blind: bool, bs: BlindStream) -> Vec<RowMajo
             let val = acc + pow * b;
             let nacc = if last == 1 { 0 } else { val };
             let row = &mut pin[(ci * P2_BITS + l) * PI_W..(ci * P2_BITS + l + 1) * PI_W];
-            let v = [call.ctr, l as u32, b, acc, 1, e, pow, last, islow, ilast, val, nacc, last];
+            let on_stack = !call.sps.is_empty();
+            let (m, sp, spn, addr, tag, f1, f2, ca, sa) = if on_stack {
+                let (sp, spn) = (call.sps[l], call.sps[l + 1]);
+                (1, sp, spn, sp, 5, 2 - 2 * b, spn, 0, 1)
+            } else {
+                (0, call.rest, call.rest, P2_SLOT0 + l as u32, 3 - 2 * b, 0, 1 - b, 1, 0)
+            };
+            let sl = sa * (1 - ilast);
+            let v = [
+                call.ctr, l as u32, b, acc, 1, e, pow, last, islow, ilast, val, nacc, last, m, sp, spn, addr, tag, f1, f2,
+                ca, sa, sl,
+            ];
             for (k, &x) in v.iter().enumerate() {
                 row[k] = f(x);
             }
-            mult[P2_SLOT0 as usize + l] += 1;
+            mult[addr as usize] += 1;
             acc = nacc;
             // P2OUT
             let ob = call.out_bits[l] as u32;
@@ -832,7 +918,7 @@ pub fn compp_prove(public: &std::path::Path, wit: &std::path::Path, proof_out: &
     if (tb.mem[hd as usize], tb.mem[stk as usize]) != (Cell::K, Cell::Nil) {
         return Err("the run does not end at K over a nil: the witness does not satisfy the statement".into());
     }
-    one_call(&tb)?;
+    statement_calls(&p, &tb)?;
     if let Some(t) = table_out {
         std::fs::write(t, lean_table(&p, &tb)).map_err(|e| format!("{}: {e}", t.display()))?;
     }
@@ -915,9 +1001,12 @@ pub fn compp_chain(pub1: &std::path::Path, proof1: &std::path::Path, pub2: &std:
 /// once on every witness that satisfies them (`Circuit.P2Run.calls_one`), so
 /// a run with another count is refused rather than proved, lest its proof
 /// publish the count.
-fn one_call(tb: &PTable) -> Result<(), String> {
-    if tb.calls.len() != 1 {
-        return Err(format!("the run calls the jet {} times, not once", tb.calls.len()));
+/// The run makes the statement's number of calls: the public level table's
+/// multiplicities count them (`Circuit.idxPub`), so a prover makes exactly
+/// that many.
+fn statement_calls(p: &PPublic, tb: &PTable) -> Result<(), String> {
+    if tb.calls.len() != p.calls {
+        return Err(format!("the run calls the jet {} times, the statement {}", tb.calls.len(), p.calls));
     }
     Ok(())
 }
@@ -999,7 +1088,9 @@ fn table_of_text(p: &PPublic, text: &str) -> Result<PTable, String> {
     let mut calls = Vec::new();
     for i in 0..k - 1 {
         let [hd, stk, ctr] = rows[i];
-        if (ctr as usize) > mem.len() || mem.get(hd as usize) != Some(&Cell::Atom(p.pp.j)) {
+        if (ctr as usize) > mem.len()
+            || !matches!(mem.get(hd as usize), Some(&Cell::Atom(a)) if a == p.pp.j || a == p.pp.j + 1)
+        {
             continue;
         }
         if let Some((h, st, ws, call)) = p2_step(&mem[..ctr as usize], hd, stk, &p.pp, Forge::None) {
@@ -1027,7 +1118,7 @@ pub fn compp_prove_table(public: &std::path::Path, table: &std::path::Path, proo
     let p = parse_public_p(&text)?;
     let ttext = std::fs::read_to_string(table).map_err(|e| format!("{}: {e}", table.display()))?;
     let tb = table_of_text(&p, &ttext)?;
-    one_call(&tb)?;
+    statement_calls(&p, &tb)?;
     let (proof, prove_s) = crate::reject::until_generic(&airs(&p), || {
         let (bs, ps) = ProverSeed::fresh().split();
         prove(&p, &traces(&p, &tb, true, bs), ps)

@@ -115,6 +115,53 @@ theorem preB_getD (b : Nat → Bool) (base : Nat) {j k : Nat} (hj : j < k) : (pr
 
 theorem ofN_val' (n : Nat) : (ofN n).val = n % P := rfl
 
+theorem sub_add_one_eq (a b : F) : a - b + 1 = (a + 1) - b :=
+  E.eval_eq_of_norm (e := .add (.sub (.atom (.main 0 0)) (.atom (.main 0 1))) (.const 1))
+      (e' := .sub (.add (.atom (.main 0 0)) (.const 1)) (.atom (.main 0 1))) (by decide)
+    (fun | .main 0 0 => a | .main 0 1 => b | _ => 0)
+
+theorem popN_succ {H : List Cell} {k s x r : Nat} (h : H[s]? = some (.cons x r)) :
+    Mach.popN H (k + 1) s = (Mach.popN H k r).map fun p => (x :: p.1, p.2) := by
+  show (match H[s]? with | some (.cons x r) => _ | _ => none) = _
+  rw [h]
+
+/-- `popN` along a chain of stack cells. -/
+theorem popN_chain (H : List Cell) (a p : Nat → Nat) : ∀ (n i : Nat),
+    (∀ j, j < n → H[a (i + j)]? = some (.cons (p (i + j)) (a (i + j + 1)))) →
+    Mach.popN H n (a i) = some ((List.range' i n).map p, a (i + n))
+  | 0, i, _ => by simp [Mach.popN]
+  | n + 1, i, hc => by
+    have h0 := hc 0 (Nat.zero_lt_succ _)
+    simp only [Nat.add_zero] at h0
+    have ih := popN_chain H a p n (i + 1) (fun j hj => by
+      have := hc (j + 1) (by omega)
+      rwa [show i + (j + 1) = i + 1 + j by omega] at this)
+    simp only [Mach.popN, h0, ih, Option.map_some, List.range'_succ, List.map_cons,
+      show i + 1 + n = i + (n + 1) by omega]
+
+theorem ptrBits_map (b : Nat → Bool) : ∀ L : List Nat,
+    P2Jet.ptrBits (L.map fun i => P2Jet.bitPtr (b i)) = some (L.map b)
+  | [] => rfl
+  | i :: L => by
+    simp only [List.map_cons, P2Jet.ptrBits, ptrBits_map b L]
+    cases b i <;> rfl
+
+theorem consecFrom_of (H : List Cell) (a x : Nat → Nat) : ∀ n i,
+    (∀ j, j < n → H[a (i + j)]? = some (.cons (x (i + j)) (a (i + j + 1))) ∧ a (i + j + 1) + 1 = a (i + j)) →
+    P2Jet.consecFrom H (a i) n = true
+  | 0, _, _ => rfl
+  | n + 1, i, hc => by
+    obtain ⟨h0, e0⟩ := hc 0 (Nat.zero_lt_succ _)
+    simp only [Nat.add_zero] at h0 e0
+    have ih := consecFrom_of H a x n (i + 1) (fun j hj => by
+      have := hc (j + 1) (by omega)
+      rwa [show i + (j + 1) = i + 1 + j by omega] at this)
+    unfold P2Jet.consecFrom
+    rw [h0]
+    dsimp only
+    rw [e0, ih, show (a i == a i) = true from decide_eq_true rfl]
+    rfl
+
 section
 variable {hd0 stk0 ctr0 n nilA J root : Nat} {heap : List Cell} {N W : Nat} {roots : List Nat}
   {C Mm Pg Wt Sg Pi Po Pp Px : Table}
@@ -122,9 +169,10 @@ variable {hd0 stk0 ctr0 n nilA J root : Nat} {heap : List Cell} {N W : Nat} {roo
 include h
 
 /-- **P2IN's elements** are the values of its bits, 31 to an element. -/
-theorem CompPOK.pinVals {t : F} {e : Nat → Nat} {st : Nat → List F} (h0 : st 0 = [0])
+theorem CompPOK.pinVals {t m0 s0 : F} {e : Nat → Nat} {st : Nat → List F} (h0 : st 0 = [0, m0, s0])
     (hrows : ∀ i, i < P2_BITS → e i < Pi.h ∧ Pi.main (e i) 4 = 1 ∧ Pi.main (e i) 0 = t ∧
-      Pi.main (e i) 1 = ofN i ∧ [Pi.main (e i) 3] = st i ∧ [Pi.main (e i) 11] = st (i + 1))
+      Pi.main (e i) 1 = ofN i ∧ [Pi.main (e i) 3, Pi.main (e i) 13, Pi.main (e i) 14] = st i ∧
+      [Pi.main (e i) 11, Pi.main (e i) 13, Pi.main (e i) 15] = st (i + 1))
     {ε : Nat} (he : ε < 16) :
     Pi.main (e (31 * ε + 30)) 10 =
       ofN (val (preB (fun i => decide (Pi.main (e i) 2 = 1)) (31 * ε) 31)) := by
@@ -139,14 +187,14 @@ theorem CompPOK.pinVals {t : F} {e : Nat → Nat} {st : Nat → List F} (h0 : st
     obtain ⟨_, _, _, _, hs', _⟩ := hrows (i + 1) hi
     rw [← hs'] at hd
     simp only [List.cons.injEq, and_true] at hd
-    rw [← hd, (pin_eqs h.pin hq).2.2.1]
+    rw [← hd.1, (pin_eqs h.pin hq).2.2.1]
   have base0 : Pi.main (e (31 * ε)) 3 = 0 := by
     cases ε with
     | zero =>
       obtain ⟨_, _, _, _, hs0, _⟩ := hrows 0 (by decide)
       rw [h0] at hs0
       simp only [List.cons.injEq, and_true] at hs0
-      exact hs0
+      exact hs0.1
     | succ ε' =>
       have hi : 31 * ε' + 30 + 1 < P2_BITS := by unfold P2_BITS; omega
       rw [show 31 * (ε' + 1) = 31 * ε' + 30 + 1 by omega, next _ hi,
@@ -311,10 +359,11 @@ theorem CompPOK.poutCells {t rest : F} {e : Nat → Nat} {st : Nat → List F} (
     omega
 /-- **The call's outputs**: P2OUT's bits are the bits of the permutation of
     the slot bits' elements. -/
-theorem CompPOK.jetOut {t rest : F}
-    {eI : Nat → Nat} {stI : Nat → List F} (hI0 : stI 0 = [0])
+theorem CompPOK.jetOut {t rest m0 s0 : F}
+    {eI : Nat → Nat} {stI : Nat → List F} (hI0 : stI 0 = [0, m0, s0])
     (hrowsI : ∀ i, i < P2_BITS → eI i < Pi.h ∧ Pi.main (eI i) 4 = 1 ∧ Pi.main (eI i) 0 = t ∧
-      Pi.main (eI i) 1 = ofN i ∧ [Pi.main (eI i) 3] = stI i ∧ [Pi.main (eI i) 11] = stI (i + 1))
+      Pi.main (eI i) 1 = ofN i ∧ [Pi.main (eI i) 3, Pi.main (eI i) 13, Pi.main (eI i) 14] = stI i ∧
+      [Pi.main (eI i) 11, Pi.main (eI i) 13, Pi.main (eI i) 15] = stI (i + 1))
     (hallI : ∀ q, q < Pi.h → Pi.main q 4 = 1 → Pi.main q 0 = t → ∃ i, i < P2_BITS ∧ eI i = q)
     {eO : Nat → Nat} {stO : Nat → List F} (hO0 : stO 0 = [rest, 0, 0, 1])
     (hrowsO : ∀ i, i < P2_BITS → eO i < Po.h ∧ Po.main (eO i) 7 = 1 ∧ Po.main (eO i) 0 = t ∧
@@ -372,13 +421,14 @@ theorem CompPOK.jetOut {t rest : F}
     preB_length, hY _ hε, P2Jet.outBits, flatMap_bits_getD _ _ _ (by rw [hYlen]; exact hε) hj]
 
 /-- **A jet row is the jet's step**: `P2Jet.p2Row` over the memory takes it
-    to the next row. -/
-theorem CompPOK.jetRow {r0 : Nat} (hn : r0 + 1 < C.h) (hp : C.main r0 P2SEL = 1) (hJ : J < P) (hroot : root < P)
+    to the next row on the comb, `P2Jet.p2RowS` on the stack. -/
+theorem CompPOK.jetRow {r0 : Nat} (hn : r0 + 1 < C.h) (hp : C.main r0 P2SEL = 1) (hJ : J + 1 < P) (hroot : root < P)
     (hctr : 499 ≤ (C.main r0 CTR).val) :
-    P2Jet.p2Row (memOf Mm) J root (rowOf C r0) = some (rowOf C (r0 + 1)) := by
+    P2Jet.p2Row (memOf Mm) J root (rowOf C r0) = some (rowOf C (r0 + 1)) ∨
+      P2Jet.p2RowS (memOf Mm) (J + 1) (rowOf C r0) = some (rowOf C (r0 + 1)) := by
   have hr0 : r0 < C.h := Nat.lt_of_succ_lt hn
-  obtain ⟨rd0, rd1, rd2, m0, m1, m2⟩ := h.jetReads hr0 hp hJ hroot
-  obtain ⟨eI, stI, hI0, _, hrowsI, hallI⟩ := h.pinPath hr0 hp
+  obtain ⟨hmode, rd1, rd2, m0, m1, m2⟩ := h.jetReads hr0 hp hJ hroot
+  obtain ⟨eI, stI, hI0, hIk, hrowsI, hallI⟩ := h.pinPath hr0 hp
   obtain ⟨eO, stO, hO0, _, hrowsO, hallO⟩ := h.poutPath hr0 hp
   let bI : Nat → Bool := fun i => decide (Pi.main (eI i) 2 = 1)
   let bs : List Bool := (List.range P2_BITS).map bI
@@ -386,33 +436,42 @@ theorem CompPOK.jetRow {r0 : Nat} (hn : r0 + 1 < C.h) (hp : C.main r0 P2SEL = 1)
   have hctrP : (C.main r0 CTR).val + P2_BITS < P := by
     have := h.ctr_lt hr0; unfold P2_BITS; have : 2 ^ 27 + 2 ^ 24 + 1 + 496 < P := by decide
     omega
-  -- the slots hold the bits
-  have slot : ∀ i, i < 496 → (memOf Mm)[i + 3]? = some (if bI i then .K else .app 0 1) := by
-    intro i hi
-    obtain ⟨hq, ha, _, hl, _, _⟩ := hrowsI i hi
-    obtain ⟨b, hb, _, hm⟩ := h.pinSlot hq ha hl hi
-    have : bI i = b := by
-      show decide (Pi.main (eI i) 2 = 1) = b
-      rw [hb]; cases b <;> decide
-    rw [this]; exact hm
-  let H := (memOf Mm).take (C.main r0 CTR).val
-  have hH : ∀ a, a < 499 → H[a]? = (memOf Mm)[a]? := fun a ha => by
-    show ((memOf Mm).take _)[a]? = _
-    rw [List.getElem?_take, if_pos (by omega)]
-  have hbits : P2Jet.bitsAt H P2Jet.slotAddrs = some bs := by
-    have := bitsAt_slots H bI (by rw [hH 0 (by decide), m0]) (by rw [hH 1 (by decide), m1])
-      (fun i hi => by rw [hH (i + 3) (by omega), slot i hi]) 0 496 (by decide)
-    rw [Nat.zero_add] at this
-    show P2Jet.bitsAt H (List.range' 3 496) = some ((List.range 496).map bI)
-    rw [this, List.range_eq_range']
-  have hslots : P2Jet.slotsOK H = true := by
-    unfold P2Jet.slotsOK
-    rw [hH 0 (by decide), hH 1 (by decide), hH 2 (by decide), m0, m1, m2]; rfl
+  -- every input row carries the jet row's mode, and its stack pointers chain
+  have hst : ∀ i, i ≤ P2_BITS → (stI i).getD 1 0 = C.main r0 P2MODE := by
+    intro i
+    induction i with
+    | zero => intro _; rw [hI0]; rfl
+    | succ i ih =>
+      intro hi
+      obtain ⟨_, _, _, _, hs, hd⟩ := hrowsI i (by omega)
+      rw [← hd, ← ih (by omega), ← hs]; rfl
+  have hmrow : ∀ i, i < P2_BITS → Pi.main (eI i) 13 = C.main r0 P2MODE := fun i hi => by
+    obtain ⟨_, _, _, _, hs, _⟩ := hrowsI i hi
+    rw [← hst i (by omega), ← hs]; rfl
+  have hsp : ∀ i, i < P2_BITS →
+      Pi.main (eI i) 14 = (stI i).getD 2 0 ∧ Pi.main (eI i) 15 = (stI (i + 1)).getD 2 0 := fun i hi => by
+    obtain ⟨_, _, _, _, hs, hd⟩ := hrowsI i hi
+    exact ⟨by rw [← hs]; rfl, by rw [← hd]; rfl⟩
+  have hbm : C.main r0 P2MODE = 0 ∨ C.main r0 P2MODE = 1 := by
+    rcases hmode with ⟨e, _⟩ | ⟨e, _⟩
+    · exact .inl e
+    · exact .inr e
+  have hread : ∀ i, i < P2_BITS → ∃ b : Bool, Pi.main (eI i) 2 = ofN b.toNat ∧
+      ((Pi.main (eI i) 13 = 0 ∧ i + 3 < Mm.h ∧ (memOf Mm)[i + 3]? = some (if b then .K else .app 0 1)) ∨
+       (Pi.main (eI i) 13 = 1 ∧ (Pi.main (eI i) 14).val < Mm.h ∧
+         (memOf Mm)[(Pi.main (eI i) 14).val]? = some (.cons (P2Jet.bitPtr b) (Pi.main (eI i) 15).val))) :=
+    fun i hi => by
+      obtain ⟨hq, ha, _, hl, _, _⟩ := hrowsI i hi
+      exact h.pinRead hq ha hl hi (by rw [hmrow i hi]; exact hbm)
+  have hbI : ∀ i (b : Bool), Pi.main (eI i) 2 = ofN b.toNat → bI i = b := fun i b hb => by
+    show decide (Pi.main (eI i) 2 = 1) = b
+    rw [hb]; cases b <;> decide
+  -- the outputs, pushed over the stack below the inputs
   have hob : (P2Jet.outBits bs).length = 496 := by
     unfold P2Jet.outBits
     rw [flatMap_bits_length, Poseidon2SKI.permute_len _ (by simp [Poseidon2SKI.valsB])]
   have hw : wrs (memOf Mm) (C.main r0 CTR).val
-      (P2Jet.pushR (C.main r0 CTR).val (C.main r0 (FLD + 5)).val (P2Jet.outBits bs).reverse) = true := by
+      (P2Jet.pushR (C.main r0 CTR).val (C.main r0 P2REST).val (P2Jet.outBits bs).reverse) = true := by
     apply wrs_pushR
     intro m hm
     rw [List.length_reverse, hob] at hm
@@ -427,20 +486,128 @@ theorem CompPOK.jetRow {r0 : Nat} (hn : r0 + 1 < C.h) (hp : C.main r0 P2SEL = 1)
     · subst m0'; rw [if_pos rfl, if_pos rfl]
     · rw [if_neg (by omega), if_neg m0', show (C.main r0 CTR).val + 494 - (495 - m) = (C.main r0 CTR).val + m - 1 by omega]
   obtain ⟨n1, n2, n3⟩ := h.jetNext hn hp
-  unfold P2Jet.p2Row
-  simp only [rowOf]
-  rw [show ((memOf Mm).take (C.main r0 CTR).val)[(C.main r0 HD).val]? = some (.atom J) from rd_take rd0]
-  simp only [true_and]
-  have hslots' : P2Jet.slotsOK ((memOf Mm).take (C.main r0 CTR).val) = true := hslots
-  have hbits' : P2Jet.bitsAt ((memOf Mm).take (C.main r0 CTR).val) P2Jet.slotAddrs = some bs := hbits
-  rw [if_pos hslots', popN_two (rd_take rd1) (rd_take rd2)]
-  rw [hbits']
-  simp only [if_pos hw, hob, n1, n2, n3]
-  unfold P2Jet.topOf
+  let H := (memOf Mm).take (C.main r0 CTR).val
+  have hH : ∀ a, a < (C.main r0 CTR).val → H[a]? = (memOf Mm)[a]? := fun a ha => by
+    show ((memOf Mm).take _)[a]? = _
+    rw [List.getElem?_take, if_pos ha]
+  have hslots : P2Jet.slotsOK H = true := by
+    unfold P2Jet.slotsOK
+    rw [hH 0 (by omega), hH 1 (by omega), hH 2 (by omega), m0, m1, m2]; rfl
   have hc' : (C.main r0 CTR).val + 496 < P := hctrP
-  rw [if_pos trivial, if_neg (by decide), show P2_BITS - 1 = 495 from rfl, show P2_BITS = 496 from rfl,
-    val_add_nat (by omega), val_add_nat (by omega)]
-  rfl
+  rcases hmode with ⟨hm0, rd0, hβ, hrest, _⟩ | ⟨hm1, rd0, hsp0⟩
+  · -- on the comb: the slots hold the bits
+    left
+    have slot : ∀ i, i < 496 → (memOf Mm)[i + 3]? = some (if bI i then .K else .app 0 1) := by
+      intro i hi
+      obtain ⟨b, hb, hc⟩ := hread i hi
+      rcases hc with ⟨_, _, hm⟩ | ⟨hm', _⟩
+      · rw [hbI i b hb]; exact hm
+      · rw [hmrow i hi, hm0] at hm'; exact absurd hm' (by decide)
+    have hbits : P2Jet.bitsAt H P2Jet.slotAddrs = some bs := by
+      have := bitsAt_slots H bI (by rw [hH 0 (by omega), m0]) (by rw [hH 1 (by omega), m1])
+        (fun i hi => by rw [hH (i + 3) (by omega), slot i hi]) 0 496 (by decide)
+      rw [Nat.zero_add] at this
+      show P2Jet.bitsAt H (List.range' 3 496) = some ((List.range 496).map bI)
+      rw [this, List.range_eq_range']
+    rw [hrest] at hw
+    unfold P2Jet.p2Row
+    simp only [rowOf]
+    rw [show ((memOf Mm).take (C.main r0 CTR).val)[(C.main r0 HD).val]? = some (.atom J) from rd_take rd0]
+    simp only [true_and]
+    have hslots' : P2Jet.slotsOK ((memOf Mm).take (C.main r0 CTR).val) = true := hslots
+    have hbits' : P2Jet.bitsAt ((memOf Mm).take (C.main r0 CTR).val) P2Jet.slotAddrs = some bs := hbits
+    rw [if_pos hslots', popN_two (rd_take rd1) (rd_take rd2)]
+    simp only [hβ, if_true]
+    rw [hbits']
+    simp only [if_pos hw, hob, n1, n2, n3]
+    unfold P2Jet.topOf
+    rw [if_neg (by decide), show P2_BITS - 1 = 495 from rfl, show P2_BITS = 496 from rfl,
+      val_add_nat (by omega), val_add_nat (by omega)]
+    rfl
+  · -- on the stack: the inputs are consecutive cells below `s₁`
+    right
+    let a : Nat → Nat := fun i => ((stI i).getD 2 0).val
+    have hmh := h.mem_h
+    have hcell : ∀ i, i < P2_BITS → (memOf Mm)[a i]? = some (.cons (P2Jet.bitPtr (bI i)) (a (i + 1))) ∧
+        a i < Mm.h := by
+      intro i hi
+      obtain ⟨b, hb, hc⟩ := hread i hi
+      rcases hc with ⟨hm', _⟩ | ⟨_, hlt, hm⟩
+      · rw [hmrow i hi, hm1] at hm'; exact absurd hm' (by decide)
+      · obtain ⟨e14, e15⟩ := hsp i hi
+        rw [e14, e15] at hm; rw [e14] at hlt
+        rw [hbI i b hb]; exact ⟨hm, hlt⟩
+    have hstep : ∀ i, i + 1 < P2_BITS → a (i + 1) + 1 = a i := by
+      intro i hi
+      obtain ⟨hq, ha, _, hl, _, _⟩ := hrowsI i (by omega)
+      obtain ⟨_, e21, _, _, _, _, _, e22, e12⟩ := pin_eqsR h.pin hq
+      rw [ha, hmrow i (by omega), hm1, one_mul'] at e21
+      have hlast := (idx_tail (h.pinLevel hq ha hl (by omega))).2.2.2.2
+      rw [if_neg (show ¬ (i = P2_BITS - 1) by unfold P2_BITS at hi ⊢; omega)] at hlast
+      rw [e21, hlast, show (1 : F) - ofN 0 = 1 by decide, one_mul'] at e22
+      rw [e22, one_mul', sub_add_one_eq] at e12
+      have e := sub_eq_zero e12
+      obtain ⟨e14, e15⟩ := hsp i (by omega)
+      rw [e14, e15] at e
+      have h1 := (hcell (i + 1) hi).2
+      have h0 := (hcell i (by omega)).2
+      show ((stI (i + 1)).getD 2 0).val + 1 = ((stI i).getD 2 0).val
+      have hP : a (i + 1) + 1 < P := by
+        have : 2 ^ 27 + 1 < P := (by decide)
+        omega
+      rw [← e, ← ofN_one, val_add_nat hP]
+    have ha0 : a 0 = (C.main r0 (FLD + 3)).val := by
+      show ((stI 0).getD 2 0).val = _
+      rw [hI0]; show (C.main r0 P2SP0).val = _; rw [hsp0]
+    have haK : a P2_BITS = (C.main r0 P2REST).val := by
+      show ((stI P2_BITS).getD 2 0).val = _
+      rw [hIk]; rfl
+    have hs1 : (C.main r0 (FLD + 3)).val < (C.main r0 CTR).val := by
+      unfold rd at rd2; split at rd2
+      · assumption
+      · cases rd2
+    have hle : ∀ i, i < P2_BITS → a i + i = a 0 := by
+      intro i
+      induction i with
+      | zero => intro _; rfl
+      | succ i ih => intro hi; have := hstep i hi; have := ih (by omega); omega
+    have hlt : ∀ i, i < P2_BITS → a i < (C.main r0 CTR).val := fun i hi => by
+      have := hle i hi; rw [ha0] at this; omega
+    have hHc : ∀ i, i < P2_BITS → H[a i]? = some (.cons (P2Jet.bitPtr (bI i)) (a (i + 1))) := fun i hi => by
+      rw [hH _ (hlt i hi)]; exact (hcell i hi).1
+    have hpop : Mach.popN H 496 (a 0) = some ((List.range' 0 496).map fun i => P2Jet.bitPtr (bI i), a 496) := by
+      have := popN_chain H a (fun i => P2Jet.bitPtr (bI i)) 496 0 (fun j hj => by
+        rw [Nat.zero_add]; exact hHc j hj)
+      rw [Nat.zero_add] at this; exact this
+    have hstk : H[(C.main r0 STK).val]? = some (.cons (C.main r0 (FLD + 2)).val (a 0)) := by
+      rw [ha0]; exact rd_take rd1
+    have hpop' : Mach.popN H 497 (C.main r0 STK).val =
+        some ((C.main r0 (FLD + 2)).val :: (List.range' 0 496).map fun i => P2Jet.bitPtr (bI i),
+          (C.main r0 P2REST).val) := by
+      rw [show (497 : Nat) = 496 + 1 from rfl, popN_succ hstk, hpop, ← haK]
+      rfl
+    have hbits : P2Jet.ptrBits ((List.range' 0 496).map fun i => P2Jet.bitPtr (bI i)) = some bs := by
+      rw [ptrBits_map bI, ← List.range_eq_range']
+      rfl
+    have hrun : P2Jet.stackRun H (C.main r0 STK).val = true := by
+      unfold P2Jet.stackRun
+      rw [hstk]
+      exact consecFrom_of H a (fun i => P2Jet.bitPtr (bI i)) 495 0 (fun j hj => by
+        rw [Nat.zero_add]
+        exact ⟨hHc j (by unfold P2_BITS; omega), hstep j (by unfold P2_BITS; omega)⟩)
+    unfold P2Jet.p2RowS
+    simp only [rowOf]
+    rw [show ((memOf Mm).take (C.main r0 CTR).val)[(C.main r0 HD).val]? = some (.atom (J + 1)) from rd_take rd0]
+    have hslots' : P2Jet.slotsOK ((memOf Mm).take (C.main r0 CTR).val) = true := hslots
+    have hrun' : P2Jet.stackRun ((memOf Mm).take (C.main r0 CTR).val) (C.main r0 STK).val = true := hrun
+    have hpop'' : Mach.popN ((memOf Mm).take (C.main r0 CTR).val) 497 (C.main r0 STK).val = _ := hpop'
+    simp only [true_and, hslots', hrun', and_self, if_true]
+    rw [hpop'']
+    simp only [hbits, if_pos hw, hob, n1, n2, n3]
+    unfold P2Jet.topOf
+    rw [if_neg (by decide), show P2_BITS - 1 = 495 from rfl, show P2_BITS = 496 from rfl,
+      val_add_nat (by omega), val_add_nat (by omega)]
+    rfl
 
 end
 

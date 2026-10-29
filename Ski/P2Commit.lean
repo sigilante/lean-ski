@@ -175,7 +175,7 @@ theorem cbits_length : ∀ a : List Nat, (cbits a).length = 31 * a.length
 theorem env_J (a b : Term) : overrideC (jetEnv JP2) [100, 101] [a, b] JP2 = Pcomb := by
   show (if JP2 = 101 then b else if JP2 = 100 then a else jetEnv JP2 JP2) = Pcomb
   rw [if_neg (by decide), if_neg (by decide)]
-  show (if JP2 = JP2 then Pcomb else K) = Pcomb
+  show (if JP2 = JP2 then Pcomb else _) = Pcomb
   rw [if_pos rfl]
 
 theorem close_bodyC (σ : Nat → Term) (c : List Nat) (pat : List (Option Bool)) :
@@ -523,7 +523,7 @@ theorem p2commitExport_sound {c : List Nat} {pat : List (Option Bool)} (hc : c.l
   obtain ⟨C, Mm, Pg, Wt, Sg, Pi, Po, Pp, Px, rfl, _, _, hev⟩ := compPExportG_sound (Vs := [verifierC c pat])
     (Nat.zero_lt_succ _) (fun V hV x hx => by
       rw [List.mem_singleton.1 hV] at hx
-      exact verifierC_occ c pat x hx) hs hacc
+      exact .inl (verifierC_occ c pat x hx)) hs hacc
   exact ⟨C, Mm, Pg, Wt, Sg, Pi, Po, Pp, Px, rfl, p2commit_meaning hc hcp hpat hev⟩
 
 /-- **The hidden hand-off**: accepted proofs of `p2commit c pat₁` and
