@@ -344,6 +344,12 @@ is built; this file records what is next. Last revised 2026-10-22.
 
 ## Next
 
+- **Satisfiability witnesses for the circuits with jets under Fiat–Shamir.**
+  `compJ_fs_open4ROMMC_fri` and `compP_fs_open4ROMMC_fri` have no `_sat` theorem, as
+  `comp_fs_open4ROMMC_fri_sat` is for the composed bound (`Ski/ZK/WitCompEndToEnd.lean`):
+  that their hypotheses hold at once for an accepted run (heights at least `2^9`, the
+  provider tables within `2^24` rows, FRI's query sets) is argued, not proved.
+
 For the final version, the paper cites a Zenodo DOI in place of the tag,
 and its claim table moves to the docs, where `release/README.md` already holds it.
 
