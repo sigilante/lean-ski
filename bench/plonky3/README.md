@@ -902,17 +902,28 @@ the memory's, POP's and INSTW's, each in `[9, 20]` (`composed budget`
 writes it from a composed statement). A composed statement and one with
 jets are distinct: each checker refuses the other's. Lean checks the
 statement (`composed statement-jets`), then the jet table and the AIRs in
-one call (`lake exe circuit compare-compJ SRC -`):
+one call (`lake exe circuit compare-compJ - -`, the source and the export
+piped, split at a NUL):
 `Air.jetStmtC` on the table's bytes, `jetFitB`, and the ten AIRs against
 `Circuit.compJAirs`, constraint for constraint. The verifier pins all ten
 heights.
+
+`compj-verify` reads each file once, so every check sees the same bytes.
+Given `split K X` or `csplit K M SEED X C`, it also has Lean check what
+the statement says against the source (`skilark statement - K X -` or
+`skilark cstatement - K M SEED X C -`, the source and the statement
+piped). Without them it checks only that the statement is one with jets;
+a caller that checks the meaning itself must do so on the bytes the
+verifier read, which a second read of a path does not guarantee.
 
 ```
 lake exe composed budget PUBLIC LP LI JPUBLIC                             # the statement with jets
 lake exe skilark cjets SRC JPUBLIC JETS
 ski-air export-compj JPUBLIC JETS | lake exe circuit compare-compJ SRC -  # MATCH, ten AIRs
 ski-air compj-prove JPUBLIC JETS SRC WITNESS PROOF                        # proves, then verifies
-ski-air compj-verify JPUBLIC JETS SRC PROOF                               # VERIFIED
+ski-air compj-verify JPUBLIC JETS SRC PROOF split K X                     # VERIFIED, and MEANING
+ski-air compj-verify JPUBLIC JETS SRC PROOF csplit K M SEED X C          # the same, a committed split
+ski-air compj-verify JPUBLIC JETS SRC PROOF                               # VERIFIED: a statement with jets, its meaning unchecked
 ski-air compj-tamper JPUBLIC JETS SRC WITNESS                             # an unbalanced tree: REJECTED
 ski-air compj-prove-table JPUBLIC JETS SRC TABLE PROOF                    # proves a table another producer wrote
 ```

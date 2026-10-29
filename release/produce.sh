@@ -57,8 +57,9 @@
 #      its jet table from the source's templates (`lake exe skilark
 #      cjets`, Air.jetTableC); Avon writes the witness table (`avon
 #      witness --statement`, Avon's milestone 8); Lean's `composed check-cj`
-#      accepts it (CompM.checkCJ_sound); ski-air compj-prove-table proves
-#      Avon's table under hiding and compj-verify checks the proof.
+#      must accept it (CompM.checkCJ_sound), or the stage stops; ski-air
+#      compj-prove-table proves Avon's table under hiding, and compj-verify
+#      checks the proof and the statement's meaning on the same bytes.
 #  13. a poke whose event is an entropy reply, its bits private
 #      (release/entropy): Avon boots a fresh pier of its entropy kernel
 #      with --entropy, which answers the kernel's boot request with the
@@ -289,10 +290,22 @@ for c in "split8:17 18:14 14" "csplit8:18 19:15 16"; do
         "$A" compj-prove "$S/jets/public.txt" "$S/jets/$name.jets" "$S/source.ski" "$tmp/$name/witness.txt" \
             "$tmp/$name.first.proof" "$tmp/$name.table" > "$tmp/$name.prove.log"
     fi
-    lake exe composed check-cj "$S/source.ski" "$S/jets/public.txt" "$tmp/$name.table" | grep -oE '^(ACCEPT|REJECT)'
+    # Lean must accept the table: a clean exit and one line, ACCEPT, gate
+    # the proof, whatever pipefail would make of a pipeline.
+    cj=0
+    lake exe composed check-cj "$S/source.ski" "$S/jets/public.txt" "$tmp/$name.table" > "$tmp/$name.cj.log" || cj=$?
+    if [ "$cj" != 0 ] || [ "$(grep -c . "$tmp/$name.cj.log")" != 1 ] || ! grep -q '^ACCEPT ' "$tmp/$name.cj.log"; then
+        echo "Lean's check-cj does not accept the $name table:" >&2
+        cut -c1-200 "$tmp/$name.cj.log" >&2
+        exit 1
+    fi
+    cut -c1-80 "$tmp/$name.cj.log"
     "$A" compj-prove-table "$S/jets/public.txt" "$S/jets/$name.jets" "$S/source.ski" "$tmp/$name.table" \
         "$S/jets/$name.proof" > "$tmp/$name.prove-table.log"
-    "$A" compj-verify "$S/jets/public.txt" "$S/jets/$name.jets" "$S/source.ski" "$S/jets/$name.proof" | cut -c1-80
+    if [ "$name" = split8 ]; then mean="split 8 200"; else mean="csplit 8 8 1 200 $(cat "$S/jets/commitment.txt")"; fi
+    # shellcheck disable=SC2086
+    "$A" compj-verify "$S/jets/public.txt" "$S/jets/$name.jets" "$S/source.ski" "$S/jets/$name.proof" $mean > "$tmp/$name.verify.log"
+    grep -E '^(VERIFIED|MEANING)' "$tmp/$name.verify.log" | cut -c1-80
 done
 fi
 
