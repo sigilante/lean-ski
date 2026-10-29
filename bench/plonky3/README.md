@@ -30,6 +30,11 @@ table and the rows) in the format of `Ski/AirCheck.lean`. `lake exe aircheck`
 decides the AIR's constraints on it with `Air.checkA`: it accepts exactly
 the tables that satisfy `Air.Accepts` (`Air.checkA_iff`), and by
 `Air.air_sound_eval` an accepted table proves the evaluation it ends on.
+A corpus term may hold atoms, `Xi` for the atom `i` (lean-ski's open-term
+variables; Avon numbers its atoms by first occurrence). The prover loads
+each as an atom cell (`Mach.obuild`), and `aircheck` decides such a table
+with `Air.checkOA` (`Ski/AirCheckOpen.lean`): an accepted table ends on an
+open head reduct of the term, for every value of its atoms.
 Four tampered tables, changed identically in the trace and in the Lean
 table, must fail both: the prover must produce a proof and the verifier
 must reject it, and `aircheck` must reject the table. They are a forged

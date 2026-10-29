@@ -7,6 +7,7 @@ import Ski.Air
 import Ski.AirCheck
 import Ski.HeapOpen
 import Ski.AirOpen
+import Ski.AirCheckOpen
 import Ski.Inst
 import Ski.SmallLemma
 import Ski.AirJet
@@ -686,6 +687,8 @@ open Ski.Audit
   Mach.odecode_of Mach.OStep.appL Mach.ONeutral.appL Mach.omstep_some Mach.atom_head
   Mach.obuild_spec Mach.odecode_oload Mach.MSteps.snoc Mach.omachine_run Air.accepts_iff
   Air.AcceptsFrom.st0 Air.AcceptsFrom.reach Air.air_sound_open Air.air_probe
+#audit_clean Air.checkFromB_sound Air.checkFromB_complete Air.checkFromA_eq Air.checkFromA_iff
+  Air.checkOA_iff Air.checkOA_open Air.checkOA_close
 
 -- Supercombinator jets: instantiation is weak reduction, and a jetted run proves evaluation
 #audit_clean Mach.overrideN_notin Mach.overrideC_notin Mach.override_ptr Mach.PtrsOK.mono

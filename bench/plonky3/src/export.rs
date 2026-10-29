@@ -116,6 +116,7 @@ pub fn unparse(t: &Term, out: &mut String) {
         Term::S => out.push('S'),
         Term::K => out.push('K'),
         Term::I => out.push('I'),
+        Term::Atom(n) => out.push_str(&format!("X{n}")),
         Term::App(f, a) => {
             out.push('`');
             unparse(f, out);
