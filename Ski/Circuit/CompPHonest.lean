@@ -187,13 +187,13 @@ def js1 (i : Nat) : Nat := (fieldsAt R.A (R.rowQ i) 1).2
     mode, the stack below its inputs and the input chain's start. -/
 def cpuColP (i c : Nat) : F :=
   if c = P2SEL then bF (R.jetAt i)
+  else if R.jetAt i = true ∧ SEL ≤ c ∧ c < SEL + NKINDS then 0
+  else if R.jetAt i = true ∧ BITS ≤ c ∧ c < CPU_WIDTH then
+    ofN ((R.jetRange (R.rowQ i) ((c - BITS) / RANGE_BITS) / 2 ^ ((c - BITS) % RANGE_BITS)) % 2)
   else if c = P2MODE then bF (R.jetSAt i)
   else if c = P2REST then (if R.jetAt i then ofN (R.jrest i) else 0)
   else if c = P2CM then bF (R.jetCAt i)
   else if c = P2SP0 then (if R.jetSAt i then ofN (R.js1 i) else if R.jetAt i then ofN (R.jrest i) else 0)
-  else if R.jetAt i = true ∧ SEL ≤ c ∧ c < SEL + NKINDS then 0
-  else if R.jetAt i = true ∧ BITS ≤ c ∧ c < CPU_WIDTH then
-    ofN ((R.jetRange (R.rowQ i) ((c - BITS) / RANGE_BITS) / 2 ^ ((c - BITS) % RANGE_BITS)) % 2)
   else cpuColC R.A R.row R.e R.n R.segRoots i c
 
 def cpuTableP (K : Nat) : Table := ⟨K, fun i c => R.cpuColP i c, fun _ _ => 0⟩
@@ -418,6 +418,28 @@ theorem p2RowS_inv {M : List Cell} {j : Nat} {r r' : Air.Row} (h : P2Jet.p2RowS 
       · rw [if_neg hcond] at h; cases h
     | _ => cases h
 
+/-- A stack row's two stack reads: `cons k s₁`, and the first input's cell at `s₁`. -/
+theorem p2RowS_reads {M : List Cell} {j : Nat} {r r' : Air.Row} (h : P2Jet.p2RowS M j r = some r') :
+    ∃ k s1 x s2, rd M r.ctr r.stk = some (.cons k s1) ∧ rd M r.ctr s1 = some (.cons x s2) := by
+  obtain ⟨_, k, ps, rest, bs, hpop, _⟩ := p2RowS_inv h
+  unfold popN at hpop
+  cases hc1 : (M.take r.ctr)[r.stk]? with
+  | none => rw [hc1] at hpop; cases hpop
+  | some c1 =>
+    rw [hc1] at hpop
+    cases c1 with
+    | cons x1 s1 =>
+      dsimp only at hpop
+      unfold popN at hpop
+      cases hc2 : (M.take r.ctr)[s1]? with
+      | none => rw [hc2] at hpop; cases hpop
+      | some c2 =>
+        rw [hc2] at hpop
+        cases c2 with
+        | cons x2 s2 => exact ⟨x1, s1, x2, s2, rd_of_take hc1, rd_of_take hc2⟩
+        | _ => cases hpop
+    | _ => cases hpop
+
 /-- A stack row halts, to the base classification: its head is an atom. -/
 theorem p2RowS_halt {M : List Cell} {j : Nat} {r r' : Air.Row} (h : P2Jet.p2RowS M j r = some r') :
     haltRow M r = true := by
@@ -572,19 +594,19 @@ theorem cpuColP_plain {i : Nat} (hj : R.jetAt i = false) (c : Nat) :
   unfold cpuColP
   by_cases hc : c = P2SEL
   · subst hc; rw [if_pos rfl, hj, zc _ (by unfold P2SEL; omega)]; rfl
-  rw [if_neg hc]
+  rw [if_neg hc, hj, if_neg (fun h => nomatch h.1), if_neg (fun h => nomatch h.1)]
   by_cases hm : c = P2MODE
   · subst hm; rw [if_pos rfl, hs0, zc _ (by unfold P2MODE P2SEL; omega)]; rfl
   rw [if_neg hm]
   by_cases hr : c = P2REST
-  · subst hr; rw [if_pos rfl, hj, zc _ (by unfold P2REST P2SEL; omega)]; rfl
+  · subst hr; rw [if_pos rfl, zc _ (by unfold P2REST P2SEL; omega)]; rfl
   rw [if_neg hr]
   by_cases hcm : c = P2CM
   · subst hcm; rw [if_pos rfl, hc0, zc _ (by unfold P2CM P2SEL; omega)]; rfl
   rw [if_neg hcm]
   by_cases hsp : c = P2SP0
-  · subst hsp; rw [if_pos rfl, hs0, hj, zc _ (by unfold P2SP0 P2SEL; omega)]; rfl
-  rw [if_neg hsp, hj, if_neg (fun h => nomatch h.1), if_neg (fun h => nomatch h.1)]
+  · subst hsp; rw [if_pos rfl, hs0, zc _ (by unfold P2SP0 P2SEL; omega)]; rfl
+  rw [if_neg hsp]
 
 /-- Off the jet rows, the two tables read the same at the current row. -/
 theorem cpuP_env_plain {K i : Nat} (hi : i < K) (hj : R.jetAt i = false) :

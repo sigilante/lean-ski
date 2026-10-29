@@ -135,7 +135,16 @@ theorem cpuP_honest (hd0 stk0 ctr0 n' nilA' J' root' : Nat) :
             (cong _ hnow.1).symm (List.map_congr_left (fun e he => (fl e he).symm)))
   | true =>
     obtain ⟨hrs, _, hp2⟩ := jetAt_spec hj
-    obtain ⟨hhd, k, s1, rest, bs, hstk, hs1, hslots, _, _, _, _⟩ := p2Row_inv hp2
+    obtain ⟨jj, k, s1, x, s2, hhd, hstk, hs1, hslots⟩ : ∃ jj k s1 x s2,
+        rd R.A (R.rowQ r).ctr (R.rowQ r).hd = some (.atom jj) ∧
+        rd R.A (R.rowQ r).ctr (R.rowQ r).stk = some (.cons k s1) ∧
+        rd R.A (R.rowQ r).ctr s1 = some (.cons x s2) ∧ P2Jet.slotsOK (R.A.take (R.rowQ r).ctr) = true := by
+      rcases hp2 with hc | hs
+      · obtain ⟨hhd, k, s1, rest, _, hstk, hs1, hslots, _⟩ := p2Row_inv hc
+        exact ⟨_, k, s1, _, rest, hhd, hstk, hs1, hslots⟩
+      · obtain ⟨hhd, _, _, _, _, _, hslots, _⟩ := p2RowS_inv hs
+        obtain ⟨k, s1, x, s2, hstk, hs1⟩ := p2RowS_reads hs
+        exact ⟨_, k, s1, x, s2, hhd, hstk, hs1, hslots⟩
     let ρ := (R.cpuTableP K).env r
     have cv : ∀ c, ρ (.main 0 c) = R.cpuColP r c := fun c => by
       show (R.cpuTableP K).main ((r + 0) % K) c = _
@@ -177,7 +186,10 @@ theorem cpuP_honest (hd0 stk0 ctr0 n' nilA' J' root' : Nat) :
       rw [cv]; unfold cpuColP
       have hb : BITS = 25 := rfl
       rw [if_neg (by unfold P2SEL ROOT RS CPU_WIDTH at *; omega), if_neg (fun h => hs ⟨h.2.1, h.2.2⟩),
-        if_neg (fun h => by have := h.2.1; omega)]
+        if_neg (fun h => by have := h.2.1; omega), if_neg (by unfold P2MODE P2SEL ROOT RS CPU_WIDTH at *; omega),
+        if_neg (by unfold P2REST P2SEL ROOT RS CPU_WIDTH at *; omega),
+        if_neg (by unfold P2CM P2SEL ROOT RS CPU_WIDTH at *; omega),
+        if_neg (by unfold P2SP0 P2SEL ROOT RS CPU_WIDTH at *; omega)]
       unfold cpuColC
       rw [if_pos (by unfold CPU_WIDTH at *; omega), if_neg (fun h => hs ⟨h.1, h.2.1⟩)]
       rfl
@@ -185,9 +197,9 @@ theorem cpuP_honest (hd0 stk0 ctr0 n' nilA' J' root' : Nat) :
         if i % 2 = 0 then ofN (fieldsAt R.A (R.rowQ r) (i / 2)).1 else ofN (fieldsAt R.A (R.rowQ r) (i / 2)).2 :=
       fun i hi => by
         rw [fld, base _ (by unfold BITS; omega) (fun h => by unfold FLD at h; omega), cpuCol_fld _ _ hi]
-    have f0 : fieldsAt R.A (R.rowQ r) 0 = (R.J, 0) := by simp only [fieldsAt, addrAt, hhd]; rfl
+    have f0 : fieldsAt R.A (R.rowQ r) 0 = (jj, 0) := by simp only [fieldsAt, addrAt, hhd]; rfl
     have f1 : fieldsAt R.A (R.rowQ r) 1 = (k, s1) := by simp only [fieldsAt, addrAt, hstk]; rfl
-    have f2 : fieldsAt R.A (R.rowQ r) 2 = (R.root, rest) := by
+    have f2 : fieldsAt R.A (R.rowQ r) 2 = (x, s2) := by
       simp only [fieldsAt, addrAt, hstk, Option.getD_some, cellFields, hs1]
     obtain ⟨sl0, sl1, sl2⟩ : (R.A.take (R.rowQ r).ctr)[0]? = some .K ∧ (R.A.take (R.rowQ r).ctr)[1]? = some .I ∧
         (R.A.take (R.rowQ r).ctr)[2]? = some (.app 0 1) := by
@@ -247,11 +259,13 @@ variable (R : P2Run)
 
 /-- The restart, segment and root columns are the composed CPU's on every
     row, as are the blinding flags. -/
-theorem cpuColP_hi {i c : Nat} (hc : CPU_WIDTH ≤ c) (hp : c ≠ P2SEL) :
+theorem cpuColP_hi {i c : Nat} (hc : CPU_WIDTH ≤ c) (hp : c ≠ P2SEL) (hm : c < P2MODE) :
     R.cpuColP i c = cpuColC R.A R.row R.e R.n R.segRoots i c := by
   unfold cpuColP
   rw [if_neg hp, if_neg (fun h => by have := h.2.2; unfold CPU_WIDTH BITS FLD SEL NKINDS RANGE_BITS at *; omega),
-    if_neg (fun h => by have := h.2.2; omega)]
+    if_neg (fun h => by have := h.2.2; omega), if_neg (by unfold P2MODE at *; omega),
+    if_neg (by unfold P2REST P2MODE at *; omega), if_neg (by unfold P2CM P2MODE at *; omega),
+    if_neg (by unfold P2SP0 P2MODE at *; omega)]
 
 /-- **The CPU sends on `segs` as the composed CPU does.** -/
 theorem cpuP_segs (hd0 stk0 ctr0 n' nilA' J' root' : Nat) (K : Nat) (v : List F) :
@@ -271,9 +285,10 @@ theorem cpuP_segs (hd0 stk0 ctr0 n' nilA' J' root' : Nat) (K : Nat) (v : List F)
      ⟨"mem", 1, sS, [.add (col CTR) one, c 5, col CTR, fld 7]⟩,
      ⟨"mem", 1, sS, [.add (col CTR) (c 2), c 5, fld 6, .add (col CTR) one]⟩]
     [⟨"mem", 1, sP2, [c 0, c 1, c 0, c 0]⟩, ⟨"mem", 1, sP2, [c 1, c 2, c 0, c 0]⟩,
-     ⟨"mem", 1, sP2, [c 2, c 3, c 0, c 1]⟩, ⟨"p2i", 1, sP2, [col CTR, c 0, c 0]⟩,
-     ⟨"p2i", 1, .neg sP2, [col CTR, c P2_BITS, c 0]⟩, ⟨"p2o", 1, sP2, [col CTR, c 0, fld 5, c 0, c 0, c 1]⟩,
-     ⟨"p2o", 1, .neg sP2, [col CTR, c P2_BITS, fld 5, c 0, c 0, c 1]⟩, blindMsg "blind_c" (P2SEL + 1) true,
+     ⟨"mem", 1, sP2, [c 2, c 3, c 0, c 1]⟩, ⟨"p2i", 1, sP2, [col CTR, c 0, c 0, col P2MODE, col P2SP0]⟩,
+     ⟨"p2i", 1, .neg sP2, [col CTR, c P2_BITS, c 0, col P2MODE, col P2REST]⟩,
+     ⟨"p2o", 1, sP2, [col CTR, c 0, col P2REST, c 0, c 0, c 1]⟩,
+     ⟨"p2o", 1, .neg sP2, [col CTR, c P2_BITS, col P2REST, c 0, c 0, c 1]⟩, blindMsg "blind_c" (P2SEL + 1) true,
      ⟨"blind_a", 1, .neg (col (BLA + 4)), blindFields BLA⟩, ⟨"blind_b", 1, col (BLB + 4), blindFields BLB⟩]
     (by decide) (by decide)
   have e2 := rowSends_one (T := cpuTableC R.A R.row R.e R.n R.segRoots K) (bus := "segs") (v := v) (r := r)
@@ -291,6 +306,7 @@ theorem cpuP_segs (hd0 stk0 ctr0 n' nilA' J' root' : Nat) (K : Nat) (v : List F)
     intro c hc
     show (R.cpuTableP K).main ((r + 0) % K) c = (cpuTableC R.A R.row R.e R.n R.segRoots K).main ((r + 0) % K) c
     exact R.cpuColP_hi (by rcases hc with rfl | rfl | rfl <;> decide) (by rcases hc with rfl | rfl | rfl <;> decide)
+      (by rcases hc with rfl | rfl | rfl <;> decide)
   have hf : List.map (fun e => E.eval ((R.cpuTableP K).env r) e) [E.add (col CNT) one, col ROOT] =
       List.map (fun e => E.eval ((cpuTableC R.A R.row R.e R.n R.segRoots K).env r) e) [E.add (col CNT) one, col ROOT] := by
     simp only [List.map_cons, List.map_nil]
@@ -321,7 +337,7 @@ theorem cpuP_blindZero (hd0 stk0 ctr0 n' nilA' J' root' : Nat) (K : Nat) {bus : 
   have z : ∀ c, c = BLA + 4 ∨ c = BLB + 4 ∨ c = P2SEL + 1 + 4 → (col c).eval ((R.cpuTableP K).env r) = 0 := by
     intro c hc
     rw [R.cpuP_col hr', R.cpuColP_hi (by rcases hc with rfl | rfl | rfl <;> decide)
-      (by rcases hc with rfl | rfl | rfl <;> decide)]
+      (by rcases hc with rfl | rfl | rfl <;> decide) (by rcases hc with rfl | rfl | rfl <;> decide)]
     rcases hc with rfl | rfl | rfl
     · exact cpuColC_blind _ (.inl rfl)
     · exact cpuColC_blind _ (.inr rfl)
