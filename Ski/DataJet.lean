@@ -228,6 +228,91 @@ theorem real_of_cjet {α β : Type} {c : CContract α β} {j : Nat} (σ : Nat �
   exact h'
 
 -- ---------------------------------------------------------------------------
+-- Two continuation-passing jets
+-- ---------------------------------------------------------------------------
+
+/-- Weak reduction with two continuation-passing data jets, at the head
+    variables `j₁` and `j₂`: `CStep` with a second jet rule. -/
+inductive CStep2 {α₁ β₁ α₂ β₂ : Type} (c₁ : CContract α₁ β₁) (j₁ : Nat) (c₂ : CContract α₂ β₂)
+    (j₂ : Nat) : OTerm → OTerm → Prop
+  | S (f g x : OTerm) : CStep2 c₁ j₁ c₂ j₂ (.S ⬝ₒ f ⬝ₒ g ⬝ₒ x) (f ⬝ₒ x ⬝ₒ (g ⬝ₒ x))
+  | K (x y : OTerm) : CStep2 c₁ j₁ c₂ j₂ (.K ⬝ₒ x ⬝ₒ y) x
+  | I (x : OTerm) : CStep2 c₁ j₁ c₂ j₂ (.I ⬝ₒ x) x
+  | jet₁ (x : α₁) (k : OTerm) :
+      CStep2 c₁ j₁ c₂ j₂ (appL (.var j₁) (k :: (c₁.encI x).map Term.toO))
+        (appL k ((c₁.encO (c₁.spec x)).map Term.toO))
+  | jet₂ (x : α₂) (k : OTerm) :
+      CStep2 c₁ j₁ c₂ j₂ (appL (.var j₂) (k :: (c₂.encI x).map Term.toO))
+        (appL k ((c₂.encO (c₂.spec x)).map Term.toO))
+  | left {f f' : OTerm} (x : OTerm) (h : CStep2 c₁ j₁ c₂ j₂ f f') : CStep2 c₁ j₁ c₂ j₂ (f ⬝ₒ x) (f' ⬝ₒ x)
+  | right (f : OTerm) {x x' : OTerm} (h : CStep2 c₁ j₁ c₂ j₂ x x') : CStep2 c₁ j₁ c₂ j₂ (f ⬝ₒ x) (f ⬝ₒ x')
+
+inductive CSteps2 {α₁ β₁ α₂ β₂ : Type} (c₁ : CContract α₁ β₁) (j₁ : Nat) (c₂ : CContract α₂ β₂)
+    (j₂ : Nat) : OTerm → OTerm → Prop
+  | refl (t : OTerm) : CSteps2 c₁ j₁ c₂ j₂ t t
+  | step {t t' u : OTerm} (h : CStep2 c₁ j₁ c₂ j₂ t t') (hs : CSteps2 c₁ j₁ c₂ j₂ t' u) :
+      CSteps2 c₁ j₁ c₂ j₂ t u
+
+theorem CSteps2.trans {α₁ β₁ α₂ β₂ : Type} {c₁ : CContract α₁ β₁} {j₁ : Nat} {c₂ : CContract α₂ β₂}
+    {j₂ : Nat} {t u v : OTerm} (h₁ : CSteps2 c₁ j₁ c₂ j₂ t u) (h₂ : CSteps2 c₁ j₁ c₂ j₂ u v) :
+    CSteps2 c₁ j₁ c₂ j₂ t v := by
+  induction h₁ with
+  | refl _ => exact h₂
+  | step h _ ih => exact .step h (ih h₂)
+
+/-- A step with the first jet is a step with both. -/
+theorem CStep.two {α₁ β₁ α₂ β₂ : Type} {c₁ : CContract α₁ β₁} {j₁ : Nat} (c₂ : CContract α₂ β₂)
+    (j₂ : Nat) {t u : OTerm} (h : CStep c₁ j₁ t u) : CStep2 c₁ j₁ c₂ j₂ t u := by
+  induction h with
+  | S f g x => exact .S f g x
+  | K x y => exact .K x y
+  | I x => exact .I x
+  | jet x k => exact .jet₁ x k
+  | left x _ ih => exact .left x ih
+  | right f _ ih => exact .right f ih
+
+/-- A step with the second jet, alone, is a step with both. -/
+theorem CStep.two' {α₁ β₁ α₂ β₂ : Type} (c₁ : CContract α₁ β₁) (j₁ : Nat) {c₂ : CContract α₂ β₂}
+    {j₂ : Nat} {t u : OTerm} (h : CStep c₂ j₂ t u) : CStep2 c₁ j₁ c₂ j₂ t u := by
+  induction h with
+  | S f g x => exact .S f g x
+  | K x y => exact .K x y
+  | I x => exact .I x
+  | jet x k => exact .jet₂ x k
+  | left x _ ih => exact .left x ih
+  | right f _ ih => exact .right f ih
+
+theorem CSteps.two {α₁ β₁ α₂ β₂ : Type} {c₁ : CContract α₁ β₁} {j₁ : Nat} (c₂ : CContract α₂ β₂)
+    (j₂ : Nat) {t u : OTerm} (h : CSteps c₁ j₁ t u) : CSteps2 c₁ j₁ c₂ j₂ t u := by
+  induction h with
+  | refl _ => exact .refl _
+  | step h _ ih => exact .step (h.two c₂ j₂) ih
+
+/-- **Closing both jets to implementations.** -/
+theorem CStep2.close {α₁ β₁ α₂ β₂ : Type} {c₁ : CContract α₁ β₁} {j₁ : Nat} {c₂ : CContract α₂ β₂}
+    {j₂ : Nat} (σ : Nat → Term) (h₁ : CImplements c₁ (σ j₁)) (h₂ : CImplements c₂ (σ j₂))
+    {t u : OTerm} (h : CStep2 c₁ j₁ c₂ j₂ t u) : WSteps (t.close σ) (u.close σ) := by
+  induction h with
+  | S f g x => exact .single (.S _ _ _)
+  | K x y => exact .single (.K _ _)
+  | I x => exact .single (.I _)
+  | jet₁ x k =>
+    rw [_root_.close_appL, _root_.close_appL, List.map_cons, map_close_toO, map_close_toO]
+    exact h₁ x (k.close σ)
+  | jet₂ x k =>
+    rw [_root_.close_appL, _root_.close_appL, List.map_cons, map_close_toO, map_close_toO]
+    exact h₂ x (k.close σ)
+  | left x _ ih => exact WSteps.left _ ih
+  | right f _ ih => exact WSteps.right _ ih
+
+theorem CSteps2.close {α₁ β₁ α₂ β₂ : Type} {c₁ : CContract α₁ β₁} {j₁ : Nat} {c₂ : CContract α₂ β₂}
+    {j₂ : Nat} (σ : Nat → Term) (h₁ : CImplements c₁ (σ j₁)) (h₂ : CImplements c₂ (σ j₂))
+    {t u : OTerm} (h : CSteps2 c₁ j₁ c₂ j₂ t u) : WSteps (t.close σ) (u.close σ) := by
+  induction h with
+  | refl _ => exact .refl _
+  | step h _ ih => exact (h.close σ h₁ h₂).trans ih
+
+-- ---------------------------------------------------------------------------
 -- A contract with an implementation
 -- ---------------------------------------------------------------------------
 

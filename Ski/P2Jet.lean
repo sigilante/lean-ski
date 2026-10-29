@@ -374,4 +374,219 @@ theorem p2Row_ctr_len {M : List Cell} {j root : Nat} {r r' : Row} (h : p2Row M j
     · cases h
   · cases h
 
+
+-- ---------------------------------------------------------------------------
+-- The jet on the stack: its inputs the previous call's outputs
+-- ---------------------------------------------------------------------------
+
+/-- The Boolean a pointer to a slot holds: `K` at 0, `K I` at 2. -/
+def ptrBit : Nat → Option Bool
+  | 0 => some true
+  | 2 => some false
+  | _ => none
+
+/-- The Booleans at slot pointers. -/
+def ptrBits : List Nat → Option (List Bool)
+  | [] => some []
+  | p :: ps =>
+    match ptrBit p, ptrBits ps with
+    | some b, some bs => some (b :: bs)
+    | _, _ => none
+
+theorem ptrBit_eq {p : Nat} {b : Bool} (h : ptrBit p = some b) : p = bitPtr b := by
+  unfold ptrBit at h
+  split at h <;> cases h <;> rfl
+
+theorem ptrBits_length : ∀ {ps : List Nat} {bs : List Bool}, ptrBits ps = some bs → bs.length = ps.length
+  | [], bs, h => by cases h; rfl
+  | p :: ps, bs, h => by
+    unfold ptrBits at h
+    cases hp : ptrBit p with
+    | none => rw [hp] at h; cases h
+    | some b =>
+      cases hq : ptrBits ps with
+      | none => rw [hp, hq] at h; cases h
+      | some bs' =>
+        rw [hp, hq] at h
+        cases h
+        exact congrArg (· + 1) (ptrBits_length hq)
+
+/-- Slot pointers popped as arguments read back as their Booleans. -/
+theorem ptrBits_ptrs {H : List Cell} (hs : slotsOK H = true) {F : Nat} (hF : 3 ≤ F) :
+    ∀ {ps : List Nat} {Ns : List OTerm} {bs : List Bool}, OPtrsOK H F ps Ns → ptrBits ps = some bs →
+      Ns = bs.map fun b => (boolT b).toO
+  | [], [], [], _, _ => rfl
+  | p :: ps, N :: Ns, bs, ⟨h1, h2⟩, hb => by
+    unfold ptrBits at hb
+    cases hp : ptrBit p with
+    | none => rw [hp] at hb; cases hb
+    | some b =>
+      cases hq : ptrBits ps with
+      | none => rw [hp, hq] at hb; cases hb
+      | some bs' =>
+        rw [hp, hq] at hb
+        cases hb
+        have e := slot_ot hs b F hF
+        rw [← ptrBit_eq hp, h1] at e
+        cases e
+        rw [ptrBits_ptrs hs hF h2 hq]; rfl
+  | [], _ :: _, _, h, _ => nomatch h
+  | _ :: _, [], _, h, _ => nomatch h
+  | [], [], _ :: _, _, hb => nomatch hb
+
+/-- **The jet's row on the stack**: at the atom `j` with `k` and 496
+    arguments, each a pointer to the `K` slot or the `K I` slot, as a
+    previous call pushed them; the outputs' bits pushed for `k`. -/
+def p2RowS (M : List Cell) (j : Nat) (r : Row) : Option Row :=
+  let H := M.take r.ctr
+  match H[r.hd]? with
+  | some (.atom j') =>
+    if j' = j ∧ slotsOK H = true then
+      match popN H 497 r.stk with
+      | some (k :: ps, rest) =>
+        match ptrBits ps with
+        | some bs =>
+          if wrs M r.ctr (pushR r.ctr rest (outBits bs).reverse) then
+            some ⟨k, topOf r.ctr rest (outBits bs).length, r.ctr + (outBits bs).length⟩
+          else none
+        | none => none
+      | _ => none
+    else none
+  | _ => none
+
+/-- **A stack row, read back**: the state is `J ⬝ k ⬝ b₀ ⬝ … ⬝ b₄₉₅ ⬝ R`,
+    and the next `k` applied to the bits of their permutation, then `R`. -/
+theorem p2RowS_step {M : List Cell} {j : Nat} {r r' : Row} (h : p2RowS M j r = some r')
+    (hc : r.ctr ≤ M.length) {t : OTerm} (hdec : odecode (st M r) = some t) :
+    r'.ctr ≤ M.length ∧ ∃ (Nk : OTerm) (bs : List Bool) (R : List OTerm), bs.length = 496 ∧
+      t = _root_.appL (.var j) (Nk :: (bs.map fun b => (boolT b).toO) ++ R) ∧
+      odecode (st M r') = some (_root_.appL Nk
+        (((Poseidon2.permute (valsB bs)).flatMap (bitsOf 31)).map (fun b => (boolT b).toO) ++ R)) := by
+  unfold p2RowS at h
+  dsimp only at h
+  generalize hH : M.take r.ctr = H at h
+  have hHl : H.length = r.ctr := by rw [← hH, List.length_take]; omega
+  cases hhd : H[r.hd]? with
+  | none => rw [hhd] at h; cases h
+  | some cell =>
+    rw [hhd] at h
+    cases cell with
+    | atom j' =>
+      dsimp only at h
+      by_cases hcond : j' = j ∧ slotsOK H = true
+      · rw [if_pos hcond] at h
+        obtain ⟨hjj, hs⟩ := hcond
+        cases hpop : popN H 497 r.stk with
+        | none => rw [hpop] at h; cases h
+        | some q =>
+          obtain ⟨qs, rest⟩ := q
+          rw [hpop] at h
+          match qs, h with
+          | k :: ps, h =>
+            dsimp only at h
+            cases hbits : ptrBits ps with
+            | none => rw [hbits] at h; cases h
+            | some bs =>
+              rw [hbits] at h
+              dsimp only at h
+              generalize hob : outBits bs = ob at h
+              generalize hcs : pushR r.ctr rest ob.reverse = cs at h
+              have hcsl : cs.length = ob.length := by
+                rw [← hcs, pushR_length, List.length_reverse]
+              cases hw : wrs M r.ctr cs with
+              | false => rw [hw] at h; cases h
+              | true =>
+                rw [hw] at h
+                cases h
+                have htake := take_of_wrs hw
+                rw [hH] at htake
+                have hlen' : (M.take (r.ctr + cs.length)).length = r.ctr + cs.length := by
+                  rw [htake, List.length_append, hHl]
+                refine ⟨?_, ?_⟩
+                · show r.ctr + ob.length ≤ M.length
+                  rw [List.length_take] at hlen'
+                  omega
+                · obtain ⟨hdt, args, h1, h2, rfl⟩ := odecode_eq hdec
+                  replace h1 : otermAt H (H.length + 1) r.hd = some hdt := by rw [← hH]; exact h1
+                  replace h2 : ostackAt H (H.length + 1) r.stk = some args := by rw [← hH]; exact h2
+                  have hpos : 3 ≤ H.length := by
+                    unfold slotsOK at hs
+                    simp only [Bool.and_eq_true, beq_iff_eq] at hs
+                    have := hs.2
+                    rw [List.getElem?_eq_some_iff] at this
+                    obtain ⟨hl, _⟩ := this
+                    omega
+                  have hj : hdt = .var j := by
+                    unfold otermAt at h1; rw [hhd] at h1; cases h1; rw [hjj]
+                  obtain ⟨Ns, R, G, hG, hargs, hNl, hpl, hok, hR⟩ := popN_ospec 497 hpop h2
+                  match Ns, hNl, hok with
+                  | Nk :: Nbs, _, ⟨hk, hbs⟩ =>
+                    have hNbs := ptrBits_ptrs hs (by omega) hbs hbits
+                    have hbl : bs.length = 496 := by
+                      rw [ptrBits_length hbits]
+                      simp only [List.length_cons] at hpl; omega
+                    have hH' : M.take (r.ctr + ob.length) = H ++ cs := by rw [← hcsl]; exact htake
+                    have hs' : slotsOK (H ++ cs) = true := by
+                      unfold slotsOK at hs ⊢
+                      rw [List.getElem?_append_left (by omega), List.getElem?_append_left (by omega),
+                        List.getElem?_append_left (by omega)]
+                      exact hs
+                    have hcells : ∀ i, i < ob.reverse.length →
+                        (H ++ cs)[r.ctr + i]? = (pushR r.ctr rest ob.reverse)[i]? := fun i _ => by
+                      rw [hcs, ← hHl, List.getElem?_append_right (by omega), Nat.add_sub_cancel_left]
+                    have hR' : ostackAt (H ++ cs) (H.length + 1) rest = some R :=
+                      ostackAt_grow hR (by omega)
+                    have hpush := push_ot hs' ob.reverse r.ctr rest R (H.length + 1) (by omega) hcells hR'
+                    rw [List.reverse_reverse, List.length_reverse] at hpush
+                    have hk' : otermAt (H ++ cs) ((H ++ cs).length + 1) k = some Nk :=
+                      otermAt_grow hk (by rw [List.length_append]; omega)
+                    have hob' : (Poseidon2.permute (valsB bs)).flatMap (bitsOf 31) = ob := hob
+                    refine ⟨Nk, bs, R, hbl, by rw [hargs, hj, ← hNbs], ?_⟩
+                    rw [hob']
+                    show odecode ⟨M.take (r.ctr + ob.length), k, topOf r.ctr rest ob.length⟩ = _
+                    rw [hH']
+                    apply odecode_of hk'
+                    rw [List.length_append, hcsl, show H.length + ob.length + 1 =
+                      H.length + 1 + ob.length by omega]
+                    exact hpush
+          | [], h => cases h
+      · rw [if_neg hcond] at h; cases h
+    | _ => cases h
+
+/-- **A stack row reads back as one step of the bits contract's
+    reduction** (`Poseidon2SKI.poseidon2B`, implemented by `Pbits`). -/
+theorem p2RowS_cstep {M : List Cell} {j : Nat} {r r' : Row} (h : p2RowS M j r = some r')
+    (hc : r.ctr ≤ M.length) {t : OTerm} (hdec : odecode (st M r) = some t) :
+    r'.ctr ≤ M.length ∧ ∃ t', odecode (st M r') = some t' ∧ DataJet.CStep poseidon2B j t t' := by
+  obtain ⟨h1, Nk, bs, R, hbl, rfl, hd⟩ := p2RowS_step h hc hdec
+  refine ⟨h1, _, hd, ?_⟩
+  have hjet := DataJet.CStep.jet (c := poseidon2B) (j := j) ⟨bs, hbl⟩ Nk
+  rw [poseidon2B_encI, poseidon2B_encO, poseidon2B_spec, List.map_map, List.map_map] at hjet
+  simp only [Function.comp_def] at hjet
+  rw [Mach.appL_app, Mach.appL_app]
+  exact CStep.appL R hjet
+
+/-- A stack row moves the counter forward and stays within the memory. -/
+theorem p2RowS_ctr_len {M : List Cell} {j : Nat} {r r' : Row} (h : p2RowS M j r = some r')
+    (hc : r.ctr ≤ M.length) : r.ctr ≤ r'.ctr ∧ r'.ctr ≤ M.length := by
+  unfold p2RowS at h
+  dsimp only at h
+  split at h
+  · split at h
+    · split at h
+      · split at h
+        · rename_i bs _
+          split at h
+          · rename_i hw
+            cases h
+            have ht := take_of_wrs hw
+            have hl := congrArg List.length ht
+            rw [List.length_take, List.length_append, List.length_take, pushR_length, List.length_reverse] at hl
+            exact ⟨Nat.le_add_right _ _, by show r.ctr + (outBits bs).length ≤ M.length; omega⟩
+          · cases h
+        · cases h
+      · cases h
+    · cases h
+  · cases h
+
 end P2Jet
