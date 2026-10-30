@@ -5,6 +5,16 @@ is built; this file records what is next. Last revised 2026-10-22.
 
 ## Done since the last revision
 
+- **The jet and Poseidon2 Merkle-committed bounds' hypotheses, met at once**
+  (2026-10-30, `Ski/ZK/JetEndToEnd.lean`): `compJ_fs_open4ROMMC_fri_sat` and
+  `compP_fs_open4ROMMC_fri_sat`, the latter at any public call count, as
+  `comp_fs_open4ROMMC_fri_sat` for the composed bound, so both bounds apply to every
+  accepted run at statement heights of at least `2^9`. The public tables lie between `2^9`
+  and the traces (`pub_bounds`). With the Poseidon2 jet the Merkle tree has at most `2^21`
+  leaves (`compStd_merkle`). With jets the provider tables follow the public jet list and
+  reach `2^24` rows, so the tree has at most `2^25` leaves and the Merkle term stays below
+  `2^-34` a draw (`jetStd_merkle`).
+
 - **Public, with remote CI** (2026-10-22, tag `paper-v9`, `fb65141`): MIT licence; the
   papers stay in their own repository. CI runs on public runners: documentation-only
   changes skip it, the build and the Rust prover come from caches, and gate 5's trace
@@ -343,12 +353,6 @@ is built; this file records what is next. Last revised 2026-10-22.
   from each released claim to its check, in the paper and in `release/README.md`.
 
 ## Next
-
-- **Satisfiability witnesses for the circuits with jets under Fiat–Shamir.**
-  `compJ_fs_open4ROMMC_fri` and `compP_fs_open4ROMMC_fri` have no `_sat` theorem, as
-  `comp_fs_open4ROMMC_fri_sat` is for the composed bound (`Ski/ZK/WitCompEndToEnd.lean`):
-  that their hypotheses hold at once for an accepted run (heights at least `2^9`, the
-  provider tables within `2^24` rows, FRI's query sets) is argued, not proved.
 
 For the final version, the paper cites a Zenodo DOI in place of the tag,
 and its claim table moves to the docs, where `release/README.md` already holds it.

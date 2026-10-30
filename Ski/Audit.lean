@@ -192,6 +192,7 @@ import Ski.ZK.SpongeUnion
 import Ski.ZK.FriProof
 import Ski.ZK.SudEndToEnd
 import Ski.ZK.WitCompEndToEnd
+import Ski.ZK.JetEndToEnd
 import Ski.ZK.SpongeAbsorb
 import Ski.ZK.SpongeRoot
 import Ski.ZK.SpongePrefix
@@ -1480,6 +1481,9 @@ open Ski.Audit
 
 -- Every hypothesis of the hidden-term and composed Merkle-committed bounds, met at once (WitCompEndToEnd)
 #audit_clean Circuit.topK_mem Circuit.topK_max Circuit.friS_qIdx100_fits Circuit.pow9_le Circuit.witBl_le Circuit.compBl_le Circuit.progC_tp_ge Circuit.segsC_tp_ge Circuit.comp_pub_heights_ge Circuit.witStd_merkle Circuit.compStd_merkle Circuit.pad9_le Circuit.tp_le_of_h Circuit.witBl_le10 Circuit.compBl_le20 Circuit.comp_pub_tight Circuit.wit_prog_tight Circuit.wit_fs_open4ROMMC_fri_sat Circuit.comp_fs_open4ROMMC_fri_sat
+
+-- Every hypothesis of the jet and Poseidon2 Merkle-committed bounds, met at once (JetEndToEnd)
+#audit_clean Circuit.provCJ_tp_ge Circuit.pub_bounds Circuit.jetBl_le Circuit.p2Bl_le Circuit.jetStd_merkle Circuit.compJ_fs_open4ROMMC_fri_sat Circuit.compP_fs_open4ROMMC_fri_sat
 
 -- Plonky3 0.8's absorption meets SpongeUnion's sponge premises with the capacity's tail (SpongeAbsorb)
 #audit_clean Circuit.vals08_lt Circuit.inner08_div Circuit.inner08_hpk2 Circuit.inner08_lt Circuit.κ08_lt Circuit.κ08_count Circuit.inner08_hd Circuit.inner08_full_fails Circuit.absorb08_sat
