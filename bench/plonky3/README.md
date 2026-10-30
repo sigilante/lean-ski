@@ -1046,7 +1046,9 @@ What the theorem rests on:
   `Circuit.compJ_fs_open4ROMMC_fri` (`Ski/ZK/ROMMerkleIdxCJ.lean`) takes
   the first commitment as Plonky3's Merkle tree at FRI's leaves, under the
   assumptions of `comp_fs_open4ROMMC_fri`, including the hiding of the
-  second and third commitments. Neither has a satisfiability witness yet.
+  second and third commitments. `Circuit.compJ_fs_open4ROMMC_fri_sat`
+  (`Ski/ZK/JetEndToEnd.lean`) meets its hypotheses at once for every
+  accepted run.
 - **`PCSCloseN` carries the committed traces' hiding** here: the main and
   permutation traces, the quotient, FRI and the openings. The theorem's
   own content is the eight terminals' tree argument, with its error terms
