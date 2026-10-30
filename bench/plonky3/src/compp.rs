@@ -996,14 +996,11 @@ pub fn compp_chain(pub1: &std::path::Path, proof1: &std::path::Path, pub2: &std:
     Ok(())
 }
 
-/// The level table's multiplicities, public, count the jet's calls
-/// (`Circuit.idxPub`): the verifiers of `p2pre` and `p2commit` call the jet
-/// once on every witness that satisfies them (`Circuit.P2Run.calls_one`), so
-/// a run with another count is refused rather than proved, lest its proof
-/// publish the count.
 /// The run makes the statement's number of calls: the public level table's
-/// multiplicities count them (`Circuit.idxPub`), so a prover makes exactly
-/// that many.
+/// multiplicities count them (`Circuit.idxPub`), so a run with another count
+/// is refused rather than proved, lest its proof publish the count.  Every
+/// witness of `p2pre` and `p2commit` makes one (`Circuit.runP_calls_one`),
+/// every witness of `p2chain` two (`Circuit.runP_calls_two`).
 fn statement_calls(p: &PPublic, tb: &PTable) -> Result<(), String> {
     if tb.calls.len() != p.calls {
         return Err(format!("the run calls the jet {} times, the statement {}", tb.calls.len(), p.calls));

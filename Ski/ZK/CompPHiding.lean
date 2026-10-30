@@ -5,12 +5,12 @@ import Ski.ZK.CompPInst
 
 `compP_run_facts`: for an accepting run of the circuit with the Poseidon2
 jet (the hypotheses of `compPG_complete_log`, whose verifiers call the jet
-once, `hcalls`), the honest tables meet `compP_transcript`'s hypotheses
+a public number of times `nc`, `hcalls`), the honest tables meet `compP_transcript`'s hypotheses
 (`P2Run.honest_zkP`), each private table meets its AIR (`Sat`), and each
 has the height its quotient group needs: the CPU `2^R`, the memory `2^Lm`,
 the witness `2^9`, P2IN, P2OUT and Poseidon2 their budgets `2^LI`,
 `2^LO`, `2^LP`, and the program and segments tables powers of two
-`2^(tp + 1)`, `tp ≤ 23`.  The level table is the published `idxPub 1`.
+`2^(tp + 1)`, `tp ≤ 23`.  The level table is the published `idxPub nc`.
 -/
 
 namespace Circuit
@@ -31,7 +31,7 @@ theorem compP_run_facts {R Lm LI LO LP : Nat} (hR : R ≤ 20) (hLm : Lm ≤ 20) 
     (hHI : ((runP ρ region Vs A e row).pinRows (2 ^ R)).length ≤ 2 ^ LI)
     (hHO : ((runP ρ region Vs A e row).poutRows (2 ^ R)).length ≤ 2 ^ LO)
     (hHP : ((runP ρ region Vs A e row).p2Rows (2 ^ R)).length ≤ 2 ^ LP)
-    (hcalls : (runP ρ region Vs A e row).calls (2 ^ R) = 1) :
+    {nc : Nat} (hcalls : (runP ρ region Vs A e row).calls (2 ^ R) = nc) :
     let m := blankMO shpP 1 Vs
     let segRoots := blankRootsO shpP 1 Vs
     let N := BT.nleaves shpP
@@ -45,7 +45,7 @@ theorem compP_run_facts {R Lm LI LO LP : Nat} (hR : R ≤ 20) (hLm : Lm ≤ 20) 
     let Pp := Rn.p2Table (2 ^ R) (2 ^ LP)
     let Mm := memTable5 A cpu (progAirC m.heap N 1) p2inAirB p2outAirB (witAirP N 1) C Pg Pi Po Wt
     (Balanced (compPTables m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots C Mm Pg Wt
-        (segsPub segRoots) Pi Po Pp (idxPub 1)) ∧
+        (segsPub segRoots) Pi Po Pp (idxPub nc)) ∧
       UnblindedCP C Mm Wt Pi Po Pp) ∧
     (Sat cpu C ∧ Sat memAirC Mm ∧ Sat (witAirP N 1) Wt ∧ Sat p2inAirB Pi ∧ Sat p2outAirB Po ∧ Sat p2AirB Pp) ∧
     (C.h = 2 ^ R ∧ Mm.h = 2 ^ Lm ∧ Wt.h = 2 ^ 9 ∧ Pi.h = 2 ^ LI ∧ Po.h = 2 ^ LO ∧ Pp.h = 2 ^ LP ∧
@@ -156,7 +156,7 @@ theorem compP_run_facts {R Lm LI LO LP : Nat} (hR : R ≤ 20) (hLm : Lm ≤ 20) 
     (W := 1) (HI := 2 ^ LI) (HO := 2 ^ LO) (HP := 2 ^ LP)
     hAl hnR (show Vs.length < P by omega) hHI hHO hHP hI0 hO0 hP0 hpubA hbits (by rw [hN]; exact Nat.le_refl _)
     hreg hlenW
-  have hc1 : Rn.calls (2 ^ R) = 1 := hcalls
+  have hc1 : Rn.calls (2 ^ R) = nc := hcalls
   rw [hc1] at hz
   have hmh : m.heap.length ≤ 2 ^ 24 := by show (blankMO shpP 1 Vs).heap.length ≤ _; omega
   have hsr : segRoots.length ≤ 2 ^ 24 := by
