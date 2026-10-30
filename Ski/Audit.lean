@@ -1599,4 +1599,4 @@ open Ski.Audit
   P2Once.not_sp_K P2Once.sp_step P2Once.sp_steps P2Once.sp_appL P2Once.sp_appL_inv P2Once.twice_of
   P2Once.verifierChainO_eq P2Once.chain_GQ
 #audit_clean Circuit.P2Run.filter_two Circuit.P2Run.calls_two Circuit.runP_calls_two Circuit.compP_twice
-  Circuit.p2chain_twice
+  Circuit.p2chain_twice P2Chain.p2chain_complete

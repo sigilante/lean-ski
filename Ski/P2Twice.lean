@@ -24,6 +24,9 @@ So a run calls the jet exactly twice, first on the comb and then on the
 stack (`twice_of`): an honest run's `calls` is `2` (`P2Run.calls_two`,
 `runP_calls_two`), and every accepted proof of `p2chain h` has exactly two
 jet rows (`Circuit.p2chain_twice`), the analog of `p2pre_once`.
+
+Its verifier accepts honest bits (`P2Chain.p2chain_complete`): the converse
+of `p2chain_meaning`, as `P2Complete.p2pre_complete` is of `p2pre_meaning`.
 -/
 
 open Term Compose CompM ComposedPText Poseidon2SKI
@@ -550,3 +553,58 @@ theorem p2chain_twice {h : Nat} {Rs : List AirD} {ts : List Table}
   compP_twice (chain_GQ h) (verifierChainO_eq h) (verifierChainO_occ h) hs hacc
 
 end Circuit
+
+-- ---------------------------------------------------------------------------
+-- The chain's verifier accepts honest bits
+-- ---------------------------------------------------------------------------
+
+namespace P2Chain
+
+open Compose CompM ComposedPText Poseidon2SKI P2Pre P2Complete
+
+/-- **The verifier of `p2chain h` accepts a chain's preimage**: on 496 bits
+    whose elements, permuted twice, give a state beginning with `h`, with
+    any witness.  The converse of `p2chain_meaning`, as `p2pre_complete` is
+    of `p2pre_meaning`: `Pcomb` passes the first permutation's bits to
+    `Pbits ⬝ CHECK_h`, `Pbits` the second's to `CHECK_h`, which passes
+    `h`'s bits and absorbs the rest (`chk_complete`). -/
+theorem p2chain_complete {h : Nat} {ρ : Nat → Bool}
+    (hperm : (Poseidon2.permute (valsB ((Poseidon2.permute (valsB ((List.range 496).map ρ))).flatMap
+      (BitArith.bitsOf 31)))).getD 0 0 = h) (w : Term) :
+    EvalRel ((VsC h).map (·.close (jetEnv JP2)), SameShape (combBT 496)) (fillB (combBT 496) ρ 0) w := by
+  apply evalRel_of
+  have hlen : ((List.range 496).map ρ).length = 496 := by rw [List.length_map, List.length_range]
+  generalize (List.range 496).map ρ = bs at hperm hlen ⊢
+  have hb := absN_beta_close [0, 1] (.var JP2 ⬝ₒ (.var JP2S ⬝ₒ checkO h) ⬝ₒ .var 0) (jetEnv JP2)
+    [combT bs, w] rfl
+  generalize hσ : overrideC (jetEnv JP2) [0, 1] [combT bs, w] = σ at hb
+  have hJ : σ JP2 = Pcomb := by rw [← hσ]; exact env_J _ _
+  have hJS : σ JP2S = Pbits := by rw [← hσ]; exact env_JS _ _
+  have h0 : σ 0 = combT bs := by rw [← hσ]; rfl
+  have e1 : (OTerm.var JP2 ⬝ₒ (.var JP2S ⬝ₒ checkO h) ⬝ₒ .var 0).close σ =
+      Pcomb ⬝ (Pbits ⬝ (checkO h).close σ) ⬝ combT bs := by
+    show σ JP2 ⬝ (σ JP2S ⬝ (checkO h).close σ) ⬝ σ 0 = _
+    rw [hJ, hJS, h0]
+  rw [e1] at hb
+  -- the first call: `Pcomb` passes its outputs to `Pbits ⬝ CHECK_h`
+  refine hb.trans ((jet_step bs hlen _).trans ?_)
+  generalize hcs : (Poseidon2.permute (valsB bs)).flatMap (BitArith.bitsOf 31) = cs at hperm ⊢
+  have hcl : cs.length = 496 := by rw [← hcs]; exact out_length bs
+  -- the second: `Pbits` passes its outputs to `CHECK_h`
+  have hQ := Pbits_implements ⟨cs, hcl⟩ ((checkO h).close σ)
+  rw [poseidon2B_encI, poseidon2B_encO, poseidon2B_spec, appT] at hQ
+  dsimp only at hQ
+  refine hQ.trans ?_
+  -- `CHECK_h` reads `h`'s bits
+  have hY : (Poseidon2.permute (valsB cs)).length = 16 := permute_len _ (valsB_length cs)
+  obtain ⟨y, ys, hys⟩ : ∃ y ys, Poseidon2.permute (valsB cs) = y :: ys := by
+    cases hp : Poseidon2.permute (valsB cs) with
+    | nil => rw [hp] at hY; cases hY
+    | cons y ys => exact ⟨y, ys, rfl⟩
+  rw [hys] at hY hperm ⊢
+  have hy : y = h := hperm
+  rw [bits_flatMap_cons, List.map_append, hy]
+  exact chk_complete 465 (BitArith.bitsOf 31 h) σ _
+    (by rw [List.length_map, flatMap_length31, Nat.succ.inj hY])
+
+end P2Chain
