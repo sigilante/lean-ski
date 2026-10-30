@@ -476,8 +476,9 @@ and its claim table moves to the docs, where `release/README.md` already holds i
   proved (`Circuit.p2chainExport_sound`) and gate 5 checks its AIRs and traces; its runs
   call the jet exactly twice (`Circuit.p2chain_twice`, `Circuit.runP_calls_two`,
   `Ski/P2Twice.lean`), and the Fiat–Shamir theorems take the call count as public, so
-  they hold for it at two (`compP_fs_open4`, `compP_fs_open4ROMMC_fri`). Open: the
-  verifier's completeness (`P2Complete`).
+  they hold for it at two (`compP_fs_open4`, `compP_fs_open4ROMMC_fri`); its verifier
+  accepts honest bits (`P2Chain.p2chain_complete`, as `P2Complete` for `p2pre`), and the
+  circuit is complete at the level table `idxPub 2` (`compPChain_complete_log`).
 - From Avon's worklist (item 0, the papers' measurements): time ski-air's proof check apart from Lean's statement
   checks. Jets slow verification (`split8` 23.0 s against 12.6 s, measured
   2026-10-04, before the release was remade), and the split between the two is
