@@ -148,6 +148,7 @@ import Ski.ZK.CompPHiding
 import Ski.ZK.FSQueryP
 import Ski.ZK.ROMInstMCP
 import Ski.ZK.ROMMerkleIdxCP
+import Ski.P2Twice
 import Ski.ZK.ROMInstM
 import Ski.ZK.ROMFamilyM
 import Ski.ZK.ROMMerkleRows
@@ -1590,3 +1591,12 @@ open Ski.Audit
   Circuit.compPCols_main Circuit.compP_pcsX Circuit.compP_fs_open4 Circuit.compP_calls_p2pre Circuit.compP_calls_p2commit
 #audit_clean Circuit.compP_fs_open4A Circuit.compP_fs_open4ROMMC
 #audit_clean Circuit.compP_hposO_idx Circuit.compP_opened_iff Circuit.compP_fri_leaves Circuit.compP_fs_open4ROMMC_fri
+
+-- p2chain's verifier calls the Poseidon2 jet exactly twice (P2Twice): the
+-- honest run's count (calls_two, runP_calls_two) and every accepted proof's
+-- jet rows (p2chain_twice)
+#audit_clean P2Once.free_var_ne P2Once.uq_jet P2Once.partQ P2Once.outerQ_head P2Once.outerQ_jet P2Once.sp_head
+  P2Once.not_sp_K P2Once.sp_step P2Once.sp_steps P2Once.sp_appL P2Once.sp_appL_inv P2Once.twice_of
+  P2Once.verifierChainO_eq P2Once.chain_GQ
+#audit_clean Circuit.P2Run.filter_two Circuit.P2Run.calls_two Circuit.runP_calls_two Circuit.compP_twice
+  Circuit.p2chain_twice

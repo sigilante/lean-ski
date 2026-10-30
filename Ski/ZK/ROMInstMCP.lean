@@ -31,7 +31,7 @@ theorem compP_fs_open4A {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {R L
     (hHI : ((runP ρ region Vs A e row).pinRows (2 ^ R)).length ≤ 2 ^ LI)
     (hHO : ((runP ρ region Vs A e row).poutRows (2 ^ R)).length ≤ 2 ^ LO)
     (hHP : ((runP ρ region Vs A e row).p2Rows (2 ^ R)).length ≤ 2 ^ LP)
-    (hcalls : (runP ρ region Vs A e row).calls (2 ^ R) = 1)
+    {nc : Nat} (hcalls : (runP ρ region Vs A e row).calls (2 ^ R) = nc)
     {tbM tbC tbI tbO tbQ tpP tpS : Nat} (htM : tbM + 1 = Lm) (htC : tbC + 1 = R) (htI : tbI + 1 = LI)
     (htO : tbO + 1 = LO) (htQ : tbQ + 1 = LP)
     (htP : tpP = progTpC (blankMO shpP 1 Vs).heap (BT.nleaves shpP) 1) (htS : tpS = segTp (blankRootsO shpP 1 Vs))
@@ -78,10 +78,10 @@ theorem compP_fs_open4A {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {R L
     let Pp := Rn.p2Table (2 ^ R) (2 ^ LP)
     let Mm := memTable5 A (cpuAirP2 m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP) (progAirC m.heap N 1)
       p2inAirB p2outAirB (witAirP N 1) C Pg Pi Po Wt
-    let NR0 := pNR off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM 0) (SC 0) (S9 0) (SI 0) (SO 0) (SQ 0) (SP 0) (SS 0) (SX 0) EF.zero qv (wm 0) (wc 0) (ww 0) (wi 0) (wo 0) (wq 0) (wp 0) (wsg 0) (wx 0) ncw
-    let pcsZ := fun (c4 c2 : Nat) (ζ : EF) t α β r => pPcs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) ζ qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2) ncw (αd c4)
+    let NR0 := pNR off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM 0) (SC 0) (S9 0) (SI 0) (SO 0) (SQ 0) (SP 0) (SS 0) (SX 0) EF.zero qv (wm 0) (wc 0) (ww 0) (wi 0) (wo 0) (wq 0) (wp 0) (wsg 0) (wx 0) ncw
+    let pcsZ := fun (c4 c2 : Nat) (ζ : EF) t α β r => pPcs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) ζ qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2) ncw (αd c4)
       (friX (fri c4) (Rb c4) (Ro c4) (r / NR0)) t α β (r % NR0)
-    let psimZ := fun (c4 c2 : Nat) (ζ : EF) α β v r => pPsim off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) ζ qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2) ncw (αd c4)
+    let psimZ := fun (c4 c2 : Nat) (ζ : EF) α β v r => pPsim off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) ζ qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2) ncw (αd c4)
       (friX (fri c4) (Rb c4) (Ro c4) (r / NR0)) α β v (r % NR0)
     let NR := NR0 * NR2
     let tabs := fun t : Nat → Tup => compPTables m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots
@@ -89,22 +89,22 @@ theorem compP_fs_open4A {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {R L
       (progTableC m.heap N 1) (Wt.setBlind WT_BLIND (t 1)) (segsPub segRoots)
       ((Pi.setBlind p2inAir.width (t 2)).setBlind (p2inAir.width + 5) (t 3))
       ((Po.setBlind p2outAir.width (t 3)).setBlind (p2outAir.width + 5) (t 4))
-      (Pp.setBlind P2Air.p2Air.width (t 4)) (idxPub 1)
+      (Pp.setBlind P2Air.p2Air.width (t 4)) (idxPub nc)
     let tv := fun pre β t => compPViewN pre β m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP N 1 C Mm Wt Pi Po Pp t
     let pb := fun pre β => ((terminal pre β (progAirC m.heap N 1) (progTableC m.heap N 1),
-      terminal pre β (segsAir segRoots) (segsPub segRoots)), terminal pre β p2idxAir (idxPub 1))
+      terminal pre β (segsAir segRoots) (segsPub segRoots)), terminal pre β p2idxAir (idxPub nc))
     let ptm := fun pre β => ((terminal pre β (progAirC m.heap N 1) (progTableC m.heap N 1)).add
-      (terminal pre β (segsAir segRoots) (segsPub segRoots))).add (terminal pre β p2idxAir (idxPub 1))
+      (terminal pre β (segsAir segRoots) (segsPub segRoots))).add (terminal pre β p2idxAir (idxPub nc))
     let M := (allEntries (compPTables m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots C Mm
-      (progTableC m.heap N 1) Wt (segsPub segRoots) Pi Po Pp (idxPub 1))).length
+      (progTableC m.heap N 1) Wt (segsPub segRoots) Pi Po Pp (idxPub nc))).length
     let q0 := pGroups tbM tbC tbI tbO tbQ tpP tpS (SM 0) (SC 0) (S9 0) (SI 0) (SO 0) (SQ 0) (SP 0) (SS 0) (SX 0) EF.zero qv
     let qZ := fun (c4 : Nat) (ζ : EF) => pGroups tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) ζ qv
     let Ss := fun c4 => (qZ c4 EF.zero).map (·.base.S)
     let ks := pKs m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots
-    let cols := pCols off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP N 1 m.heap segRoots 1 C Mm Wt Pi Po Pp
-    let tqZ := fun (c4 c2 : Nat) (ζ : EF) => (pTs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) ζ qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2)).map Prod.fst
+    let cols := pCols off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP N 1 m.heap segRoots nc C Mm Wt Pi Po Pp
+    let tqZ := fun (c4 c2 : Nat) (ζ : EF) => (pTs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) ζ qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2)).map Prod.fst
     let qdZ := fun (c4 c2 : Nat) (ζ : EF) (t : Nat → Tup) (α β : EF) (ms : List F) =>
-      (pTs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) ζ qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2)).map (fun p => p.2 t α β ms)
+      (pTs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) ζ qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2)).map (fun p => p.2 t α β ms)
     let SsT := fun c4 => (tqZ c4 0 EF.zero).map (·.S)
     let SsC := fun c4 => (tabsInfo ncw (tqZ c4 0 EF.zero)).map (·.S)
     let mk1 := [0, 2, 4, 6, 8, 10, 12, 14, 16]
@@ -206,11 +206,11 @@ theorem compP_fs_open4A {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {R L
   have hI : Pi.h = 2 ^ (tbI + 1) := by rw [htI]; exact hI0
   have hO : Po.h = 2 ^ (tbO + 1) := by rw [htO]; exact hO0
   have hQ : Pp.h = 2 ^ (tbQ + 1) := by rw [htQ]; exact hQ0
-  have hSw := fun (c4 c2 c3 : Nat) => compP_same_w off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (efOf c3) EF.zero qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2) (wm 0) (wc 0) (ww 0) (wi 0) (wo 0) (wq 0) (wp 0) (wsg 0) (wx 0) ncw (by rw [hlwm, hlwm]) (by rw [hlwc, hlwc]) (by rw [hlww, hlww]) (by rw [hlwi, hlwi]) (by rw [hlwo, hlwo]) (by rw [hlwq, hlwq]) (by rw [hlwp, hlwp]) (by rw [hlwsg, hlwsg]) (by rw [hlwx, hlwx])
-  have hSz := fun (c4 c2 c3 : Nat) => compP_same_w off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (efOf c3) EF.zero qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2) (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2) ncw rfl rfl rfl rfl rfl rfl rfl rfl rfl
-  have hS0 := fun (c4 c2 : Nat) => compP_same_w off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) EF.zero EF.zero qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2) (wm 0) (wc 0) (ww 0) (wi 0) (wo 0) (wq 0) (wp 0) (wsg 0) (wx 0) ncw (by rw [hlwm, hlwm]) (by rw [hlwc, hlwc]) (by rw [hlww, hlww]) (by rw [hlwi, hlwi]) (by rw [hlwo, hlwo]) (by rw [hlwq, hlwq]) (by rw [hlwp, hlwp]) (by rw [hlwsg, hlwsg]) (by rw [hlwx, hlwx])
-  have hSd := fun (c4 c2 c3 : Nat) => compP_same_d off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (SM 0) (SC 0) (S9 0) (SI 0) (SO 0) (SQ 0) (SP 0) (SS 0) (SX 0) (efOf c3) EF.zero qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2) (wm 0) (wc 0) (ww 0) (wi 0) (wo 0) (wq 0) (wp 0) (wsg 0) (wx 0) (by rw [hlwm, hlwm]) (by rw [hlwc, hlwc]) (by rw [hlww, hlww]) (by rw [hlwi, hlwi]) (by rw [hlwo, hlwo]) (by rw [hlwq, hlwq]) (by rw [hlwp, hlwp]) (by rw [hlwsg, hlwsg]) (by rw [hlwx, hlwx])
-  have hSdz := fun (c4 c2 c3 : Nat) => compP_same_d off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (SM 0) (SC 0) (S9 0) (SI 0) (SO 0) (SQ 0) (SP 0) (SS 0) (SX 0) (efOf c3) EF.zero qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2) (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2) rfl rfl rfl rfl rfl rfl rfl rfl rfl
+  have hSw := fun (c4 c2 c3 : Nat) => compP_same_w off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (efOf c3) EF.zero qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2) (wm 0) (wc 0) (ww 0) (wi 0) (wo 0) (wq 0) (wp 0) (wsg 0) (wx 0) ncw (by rw [hlwm, hlwm]) (by rw [hlwc, hlwc]) (by rw [hlww, hlww]) (by rw [hlwi, hlwi]) (by rw [hlwo, hlwo]) (by rw [hlwq, hlwq]) (by rw [hlwp, hlwp]) (by rw [hlwsg, hlwsg]) (by rw [hlwx, hlwx])
+  have hSz := fun (c4 c2 c3 : Nat) => compP_same_w off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (efOf c3) EF.zero qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2) (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2) ncw rfl rfl rfl rfl rfl rfl rfl rfl rfl
+  have hS0 := fun (c4 c2 : Nat) => compP_same_w off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) EF.zero EF.zero qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2) (wm 0) (wc 0) (ww 0) (wi 0) (wo 0) (wq 0) (wp 0) (wsg 0) (wx 0) ncw (by rw [hlwm, hlwm]) (by rw [hlwc, hlwc]) (by rw [hlww, hlww]) (by rw [hlwi, hlwi]) (by rw [hlwo, hlwo]) (by rw [hlwq, hlwq]) (by rw [hlwp, hlwp]) (by rw [hlwsg, hlwsg]) (by rw [hlwx, hlwx])
+  have hSd := fun (c4 c2 c3 : Nat) => compP_same_d off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (SM 0) (SC 0) (S9 0) (SI 0) (SO 0) (SQ 0) (SP 0) (SS 0) (SX 0) (efOf c3) EF.zero qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2) (wm 0) (wc 0) (ww 0) (wi 0) (wo 0) (wq 0) (wp 0) (wsg 0) (wx 0) (by rw [hlwm, hlwm]) (by rw [hlwc, hlwc]) (by rw [hlww, hlww]) (by rw [hlwi, hlwi]) (by rw [hlwo, hlwo]) (by rw [hlwq, hlwq]) (by rw [hlwp, hlwp]) (by rw [hlwsg, hlwsg]) (by rw [hlwx, hlwx])
+  have hSdz := fun (c4 c2 c3 : Nat) => compP_same_d off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (SM 0) (SC 0) (S9 0) (SI 0) (SO 0) (SQ 0) (SP 0) (SS 0) (SX 0) (efOf c3) EF.zero qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2) (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2) rfl rfl rfl rfl rfl rfl rfl rfl rfl
   have hb : ∀ c4 c2 c3, genB (αd c4) = true → genB (efOf c3) = true →
       (∀ E' : TViewN (PcsPV (V × Wv)) ((EF × EF) × EF) → Bool,
         tsumN NR 5 (fun α β r t => indB (genB β && E' (rvF c4 c2 c3 α β r t))) ≤
@@ -222,18 +222,18 @@ theorem compP_fs_open4A {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {R L
             Q4 * (Q4 * (Q4 ^ 5 * 0))) := fun c4 c2 c3 hg4 hg => by
     have hgz := (genB_iff _).1 hg
     have hgα := (genB_iff _).1 hg4
-    have hpcs := compP_pcsX (heap := m.heap) (ζ := efOf c3) (segRoots := segRoots) (calls := 1) off sms sc sw si so sq (by omega) (by omega) (by omega) (by omega) (by omega) (by omega) (by omega)
+    have hpcs := compP_pcsX (heap := m.heap) (ζ := efOf c3) (segRoots := segRoots) (calls := nc) off sms sc sw si so sq (by omega) (by omega) (by omega) (by omega) (by omega) (by omega) (by omega)
       hM hC hWh hI hO hQ p2 s2 qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2) (hSM c4) (hSC c4) (hS9 c4) (hSI c4) (hSO c4) (hSQ c4) (hSP c4) (hSS c4) (hSX c4) (hszM c4) (hszC c4) (hsz9 c4) (hszI c4) (hszO c4) (hszQ c4) (hszP c4) (hszS c4) (hszX c4) (generic_ofF_ne hgz) (mz_generic hgz) (fri c4) (mz_generic hgα) (generic_apow_ne hgα) hncw NR2 (Rb c4) (Ro c4)
-    have hNR : pNR off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2) ncw = pNR off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM 0) (SC 0) (S9 0) (SI 0) (SO 0) (SQ 0) (SP 0) (SS 0) (SX 0) EF.zero qv (wm 0) (wc 0) (ww 0) (wi 0) (wo 0) (wq 0) (wp 0) (wsg 0) (wx 0) ncw := by
+    have hNR : pNR off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2) ncw = pNR off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM 0) (SC 0) (S9 0) (SI 0) (SO 0) (SQ 0) (SP 0) (SS 0) (SX 0) EF.zero qv (wm 0) (wc 0) (ww 0) (wi 0) (wo 0) (wq 0) (wp 0) (wsg 0) (wx 0) ncw := by
       unfold pNR; rw [(hSd c4 c2 c3).n1, (hSd c4 c2 c3).n2]
     rw [hNR] at hpcs
-    exact ⟨fun E' => (compP_transcriptG off NR 0 1 (pcsZ c4 c2 (efOf c3)) (psimZ c4 c2 (efOf c3)) hbal hun hpcs E').1,
-      fun E' => (compP_transcriptG off NR 0 1 (pcsZ c4 c2 (efOf c3)) (psimZ c4 c2 (efOf c3)) hbal hun hpcs E').2⟩
+    exact ⟨fun E' => (compP_transcriptG off NR 0 nc (pcsZ c4 c2 (efOf c3)) (psimZ c4 c2 (efOf c3)) hbal hun hpcs E').1,
+      fun E' => (compP_transcriptG off NR 0 nc (pcsZ c4 c2 (efOf c3)) (psimZ c4 c2 (efOf c3)) hbal hun hpcs E').2⟩
   have hlen8 : ∀ (c4 : Nat) (ζ : EF) t α β, (cols t α β).map List.length = (cols t EF.zero EF.zero).map List.length :=
     fun c4 ζ t α β => by
-      rw [(pCols_shaped off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP 1 hM hC hWh hI hO hQ p2 s2
+      rw [(pCols_shaped off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP nc hM hC hWh hI hO hQ p2 s2
           (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) ζ qv t α β).2,
-        (pCols_shaped off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP 1 hM hC hWh hI hO hQ p2 s2
+        (pCols_shaped off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP nc hM hC hWh hI hO hQ p2 s2
           (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) ζ qv t EF.zero EF.zero).2]
   have hmk1 : ∀ k ∈ mk1, k < 18 ∧ ∀ t α β, k < (cols t α β).length ∧
       (cols t α β).getD k [] = (cols t EF.zero EF.zero).getD k [] := by
@@ -241,7 +241,7 @@ theorem compP_fs_open4A {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {R L
     have hk' := hk
     simp only [mk1, List.mem_cons, List.not_mem_nil, or_false] at hk'
     have hkn : k < 18 := by rcases hk' with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> decide
-    exact ⟨hkn, fun t α β => ⟨hkn, compPCols_main off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp t α β
+    exact ⟨hkn, fun t α β => ⟨hkn, compPCols_main off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp t α β
       EF.zero EF.zero k hk⟩⟩
   have hmk2 : ∀ k ∈ mk2, k < 18 ∧ ∀ t α β, k < (cols t α β).length := by
     intro k hk
@@ -256,7 +256,7 @@ theorem compP_fs_open4A {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {R L
     unfold realVN
     split
     · exact .inl rfl
-    · have e := pcsFri_ov2 off (fun pre β t => compPViewN pre β m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP N 1 C Mm Wt Pi Po Pp t) (pGroups tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (efOf c3) qv) ks cols ((pTs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2)).map Prod.fst) (fun t α β ms => (pTs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2)).map fun p => p.2 t α β ms) ncw (αd c4)
+    · have e := pcsFri_ov2 off (fun pre β t => compPViewN pre β m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP N 1 C Mm Wt Pi Po Pp t) (pGroups tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (efOf c3) qv) ks cols ((pTs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2)).map Prod.fst) (fun t α β ms => (pTs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2)).map fun p => p.2 t α β ms) ncw (αd c4)
         (friX (fri c4) (Rb c4) (Ro c4) (r / NR0)) mk1 hmk1 (hlen8 c4 (efOf c3)) rfl t (efOf (c / Q4)) (efOf (c % Q4)) (r % NR0)
       rw [(hSd c4 c2 c3).dataF2 cols mk1 t (r % NR0), (hSw c4 c2 c3).S] at e
       exact .inr (congrArg some e)
@@ -268,7 +268,7 @@ theorem compP_fs_open4A {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {R L
     unfold realVN
     split
     · exact .inl rfl
-    · have e := pcsFri_ovP off (fun pre β t => compPViewN pre β m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP N 1 C Mm Wt Pi Po Pp t) (pGroups tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (efOf c3) qv) ks cols ((pTs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2)).map Prod.fst) (fun t α β ms => (pTs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2)).map fun p => p.2 t α β ms) ncw (αd c4)
+    · have e := pcsFri_ovP off (fun pre β t => compPViewN pre β m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP N 1 C Mm Wt Pi Po Pp t) (pGroups tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (efOf c3) qv) ks cols ((pTs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2)).map Prod.fst) (fun t α β ms => (pTs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2)).map fun p => p.2 t α β ms) ncw (αd c4)
         (friX (fri c4) (Rb c4) (Ro c4) (r / NR0)) mk2 hmk2 rfl t (efOf (c / Q4)) (efOf (c % Q4)) (r % NR0)
       rw [(hSd c4 c2 c3).dataP2 cols mk2 t _ _ (r % NR0), (hSw c4 c2 c3).S] at e
       exact .inr (congrArg some e)
@@ -285,13 +285,13 @@ theorem compP_fs_open4A {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {R L
         cases h : Aborts (prefixOf (efOf (c / Q4)) (off (efOf (c % Q4)))) (efOf (c % Q4)) (tabs t)
         · rfl
         · exact absurd h hab
-      have e0 := pcsFri_ovR2 off (fun pre β t => compPViewN pre β m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP N 1 C Mm Wt Pi Po Pp t) (pGroups tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (efOf c3) qv) ks cols ((pTs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2)).map Prod.fst) (fun t α β ms => (pTs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2)).map fun p => p.2 t α β ms) ncw (αd c4)
+      have e0 := pcsFri_ovR2 off (fun pre β t => compPViewN pre β m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP N 1 C Mm Wt Pi Po Pp t) (pGroups tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (efOf c3) qv) ks cols ((pTs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2)).map Prod.fst) (fun t α β ms => (pTs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2)).map fun p => p.2 t α β ms) ncw (αd c4)
         (friX (fri c4) (Rb c4) (Ro c4) (r / NR0)) mk2 hmk2 rfl t (efOf (c / Q4)) (efOf (c % Q4)) (r % NR0)
       have e := congrArg Prod.snd e0
       rw [(hSz c4 c2 c3).tS, (hSz c4 c2 c3).iS, tabsPolys_congr _ _ _ _ (hSdz c4 c2 c3).shape,
         tabsCws_congr ncw _ _ _ (hSdz c4 c2 c3).shape, (hSdz c4 c2 c3).cr (r % NR0), (hSdz c4 c2 c3).cc (r % NR0),
         (hSdz c4 c2 c3).ms (r % NR0), (hS0 c4 c2).tS, (hS0 c4 c2).iS,
-        compP_data_q off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (SM 0) (SC 0) (S9 0) (SI 0) (SO 0) (SQ 0) (SP 0) (SS 0) (SX 0) (efOf c3) EF.zero
+        compP_data_q off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (SM 0) (SC 0) (S9 0) (SI 0) (SO 0) (SQ 0) (SP 0) (SS 0) (SX 0) (efOf c3) EF.zero
           qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2) t _ _ _ hab'] at e
       exact .inr (congrArg some e)
   have hsvo1 : ∀ c4 c2 c3 c r t, ov1 c4 (svF c4 c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t) = some (sop1 c4 c2 c3 r t) :=
@@ -304,7 +304,7 @@ theorem compP_fs_open4A {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {R L
   have hsvo3 : ∀ c4 c2 c3 c r t, ov3 c4 (svF c4 c2 c3 (efOf (c / Q4)) (efOf (c % Q4)) r t) =
       some (sop3 c4 c2 c3 c r t) := by
     intro c4 c2 c3 c r t
-    have e0 := psimFri_ovR2 (pGroups tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (efOf c3) qv) ks ((pTs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2)).map Prod.fst) ncw (αd c4) (friX (fri c4) (Rb c4) (Ro c4) (r / NR0)) mk2
+    have e0 := psimFri_ovR2 (pGroups tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (efOf c3) qv) ks ((pTs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2)).map Prod.fst) ncw (αd c4) (friX (fri c4) (Rb c4) (Ro c4) (r / NR0)) mk2
       (fun k hk => (hmk2 k hk).1) rfl (efOf (c / Q4)) (efOf (c % Q4)) (vS (efOf (c / Q4)) (efOf (c % Q4)) t) (r % NR0)
     have e := congrArg Prod.snd e0
     rw [(hSw c4 c2 c3).tS, (hSw c4 c2 c3).iS] at e
@@ -318,8 +318,8 @@ theorem compP_fs_open4A {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {R L
     congrArg Prod.snd (op2_sd2 (Ss c4) [] (SsT c4) (SsC c4) (fun _ => []) (main3 c c' t r).1 (main3 c c' t r).2)
   have hp3' : ∀ c4, ComPfHides NS3 Com3 (Pf3 c4) (op3 c4) := by
     intro c4
-    have e1 : SsT c4 = pSsT (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) := compP_SsT off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) EF.zero qv (wm 0) (wc 0) (ww 0) (wi 0) (wo 0) (wq 0) (wp 0) (wsg 0) (wx 0)
-    have e2 : SsC c4 = pSsC tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) := compP_SsC off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) EF.zero qv (wm 0) (wc 0) (ww 0) (wi 0) (wo 0) (wq 0) (wp 0) (wsg 0) (wx 0) ncw
+    have e1 : SsT c4 = pSsT (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) := compP_SsT off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) EF.zero qv (wm 0) (wc 0) (ww 0) (wi 0) (wo 0) (wq 0) (wp 0) (wsg 0) (wx 0)
+    have e2 : SsC c4 = pSsC tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) := compP_SsC off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) EF.zero qv (wm 0) (wc 0) (ww 0) (wi 0) (wo 0) (wq 0) (wp 0) (wsg 0) (wx 0) ncw
     show ComPfHides NS3 Com3 (Pf3 c4) (fun d => (opQ (SsT c4) d.1, opCw (SsC c4) d.2))
     rw [e1, e2]; exact hp3 c4
   have hoz : ∀ c4 c2 c3 α β r t, ozF (rvF c4 c2 c3 α β r t) = ozF (rvF 0 c2 c3 α β r t) := by
@@ -328,15 +328,15 @@ theorem compP_fs_open4A {V Wv P1 P2 P3 : Type} (off : EF → String → EF) {R L
     unfold realVN
     cases hA : Aborts (prefixOf α (off β)) β (tabs t)
     · simp only [Bool.false_eq_true, ↓reduceIte, ozF, Option.some.injEq, Prod.mk.injEq]
-      have hd := compP_same_d off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (SM 0) (SC 0) (S9 0) (SI 0) (SO 0) (SQ 0) (SP 0) (SS 0) (SX 0) (efOf c3) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2) (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2) rfl rfl rfl rfl rfl rfl rfl rfl rfl
+      have hd := compP_same_d off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (SM 0) (SC 0) (S9 0) (SI 0) (SO 0) (SQ 0) (SP 0) (SS 0) (SX 0) (efOf c3) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2) (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2) rfl rfl rfl rfl rfl rfl rfl rfl rfl
       refine ⟨pcsFri_ood off (fun pre β t => compPViewN pre β m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP N 1 C Mm Wt Pi Po Pp t) (pGroups tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (efOf c3) qv) (pGroups tbM tbC tbI tbO tbQ tpP tpS (SM 0) (SC 0) (S9 0) (SI 0) (SO 0) (SQ 0) (SP 0) (SS 0) (SX 0) (efOf c3) qv) ks cols
-        ((pTs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2)).map Prod.fst) ((pTs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM 0) (SC 0) (S9 0) (SI 0) (SO 0) (SQ 0) (SP 0) (SS 0) (SX 0) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2)).map Prod.fst) _ _ ncw (αd c4) (αd 0) _ _
+        ((pTs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2)).map Prod.fst) ((pTs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM 0) (SC 0) (S9 0) (SI 0) (SO 0) (SQ 0) (SP 0) (SS 0) (SX 0) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2)).map Prod.fst) _ _ ncw (αd c4) (αd 0) _ _
         hd rfl rfl t α β (r % NR0), pcsFri_oodT off (fun pre β t => compPViewN pre β m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP N 1 C Mm Wt Pi Po Pp t) (pGroups tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (efOf c3) qv) (pGroups tbM tbC tbI tbO tbQ tpP tpS (SM 0) (SC 0) (S9 0) (SI 0) (SO 0) (SQ 0) (SP 0) (SS 0) (SX 0) (efOf c3) qv) ks cols
-        ((pTs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2)).map Prod.fst) ((pTs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM 0) (SC 0) (S9 0) (SI 0) (SO 0) (SQ 0) (SP 0) (SS 0) (SX 0) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2)).map Prod.fst) _ _ ncw (αd c4) (αd 0) _ _
+        ((pTs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2)).map Prod.fst) ((pTs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM 0) (SC 0) (S9 0) (SI 0) (SO 0) (SQ 0) (SP 0) (SS 0) (SX 0) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2)).map Prod.fst) _ _ ncw (αd c4) (αd 0) _ _
         hd (by simp only [pTs, bbTabL, airQTabG, List.map_cons, List.map_nil]) t α β (r % NR0)
-        (compP_data_q off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (SM 0) (SC 0) (S9 0) (SI 0) (SO 0) (SQ 0) (SP 0) (SS 0) (SX 0) (efOf c3) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2) t _ _ _ hA),
+        (compP_data_q off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (SM 0) (SC 0) (S9 0) (SI 0) (SO 0) (SQ 0) (SP 0) (SS 0) (SX 0) (efOf c3) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2) t _ _ _ hA),
         pcsFri_oodC off (fun pre β t => compPViewN pre β m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP N 1 C Mm Wt Pi Po Pp t) (pGroups tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (efOf c3) qv) (pGroups tbM tbC tbI tbO tbQ tpP tpS (SM 0) (SC 0) (S9 0) (SI 0) (SO 0) (SQ 0) (SP 0) (SS 0) (SX 0) (efOf c3) qv) ks cols
-        ((pTs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2)).map Prod.fst) ((pTs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM 0) (SC 0) (S9 0) (SI 0) (SO 0) (SQ 0) (SP 0) (SS 0) (SX 0) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2)).map Prod.fst) _ _ ncw (αd c4) (αd 0) _ _
+        ((pTs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2)).map Prod.fst) ((pTs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM 0) (SC 0) (S9 0) (SI 0) (SO 0) (SQ 0) (SP 0) (SS 0) (SX 0) (efOf c3) qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2)).map Prod.fst) _ _ ncw (αd c4) (αd 0) _ _
         hd rfl (by simp only [pTs, bbTabL, airQTabG, List.map_cons, List.map_nil]) t α β (r % NR0)⟩
     · rfl
   have hgz : sumTo K2 (fun _ => sumTo Q4 (fun c3 => indB (!genB (efOf c3)))) ≤ K2 * (P * P) := by
@@ -362,7 +362,7 @@ theorem compP_fs_open4ROMMC {V Wv Pq P2 P3 : Type} (off : EF → String → EF) 
     (hHI : ((runP ρ region Vs A e row).pinRows (2 ^ R)).length ≤ 2 ^ LI)
     (hHO : ((runP ρ region Vs A e row).poutRows (2 ^ R)).length ≤ 2 ^ LO)
     (hHP : ((runP ρ region Vs A e row).p2Rows (2 ^ R)).length ≤ 2 ^ LP)
-    (hcalls : (runP ρ region Vs A e row).calls (2 ^ R) = 1)
+    {nc : Nat} (hcalls : (runP ρ region Vs A e row).calls (2 ^ R) = nc)
     {tbM tbC tbI tbO tbQ tpP tpS : Nat} (htM : tbM + 1 = Lm) (htC : tbC + 1 = R) (htI : tbI + 1 = LI)
     (htO : tbO + 1 = LO) (htQ : tbQ + 1 = LP)
     (htP : tpP = progTpC (blankMO shpP 1 Vs).heap (BT.nleaves shpP) 1) (htS : tpS = segTp (blankRootsO shpP 1 Vs))
@@ -417,10 +417,10 @@ theorem compP_fs_open4ROMMC {V Wv Pq P2 P3 : Type} (off : EF → String → EF) 
     let Pp := Rn.p2Table (2 ^ R) (2 ^ LP)
     let Mm := memTable5 A (cpuAirP2 m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP) (progAirC m.heap N 1)
       p2inAirB p2outAirB (witAirP N 1) C Pg Pi Po Wt
-    let NR0 := pNR off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM 0) (SC 0) (S9 0) (SI 0) (SO 0) (SQ 0) (SP 0) (SS 0) (SX 0) EF.zero qv (wm 0) (wc 0) (ww 0) (wi 0) (wo 0) (wq 0) (wp 0) (wsg 0) (wx 0) ncw
-    let pcsZ := fun (c4 c2 : Nat) (ζ : EF) t α β r => pPcs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) ζ qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2) ncw (αd c4)
+    let NR0 := pNR off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM 0) (SC 0) (S9 0) (SI 0) (SO 0) (SQ 0) (SP 0) (SS 0) (SX 0) EF.zero qv (wm 0) (wc 0) (ww 0) (wi 0) (wo 0) (wq 0) (wp 0) (wsg 0) (wx 0) ncw
+    let pcsZ := fun (c4 c2 : Nat) (ζ : EF) t α β r => pPcs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) ζ qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2) ncw (αd c4)
       (friX (fri c4) (Rb c4) (Ro c4) (r / NR0)) t α β (r % NR0)
-    let psimZ := fun (c4 c2 : Nat) (ζ : EF) α β v r => pPsim off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) ζ qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2) ncw (αd c4)
+    let psimZ := fun (c4 c2 : Nat) (ζ : EF) α β v r => pPsim off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) ζ qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2) ncw (αd c4)
       (friX (fri c4) (Rb c4) (Ro c4) (r / NR0)) α β v (r % NR0)
     let NR := NR0 * NR2
     let tabs := fun t : Nat → Tup => compPTables m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots
@@ -428,22 +428,22 @@ theorem compP_fs_open4ROMMC {V Wv Pq P2 P3 : Type} (off : EF → String → EF) 
       (progTableC m.heap N 1) (Wt.setBlind WT_BLIND (t 1)) (segsPub segRoots)
       ((Pi.setBlind p2inAir.width (t 2)).setBlind (p2inAir.width + 5) (t 3))
       ((Po.setBlind p2outAir.width (t 3)).setBlind (p2outAir.width + 5) (t 4))
-      (Pp.setBlind P2Air.p2Air.width (t 4)) (idxPub 1)
+      (Pp.setBlind P2Air.p2Air.width (t 4)) (idxPub nc)
     let tv := fun pre β t => compPViewN pre β m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP N 1 C Mm Wt Pi Po Pp t
     let pb := fun pre β => ((terminal pre β (progAirC m.heap N 1) (progTableC m.heap N 1),
-      terminal pre β (segsAir segRoots) (segsPub segRoots)), terminal pre β p2idxAir (idxPub 1))
+      terminal pre β (segsAir segRoots) (segsPub segRoots)), terminal pre β p2idxAir (idxPub nc))
     let ptm := fun pre β => ((terminal pre β (progAirC m.heap N 1) (progTableC m.heap N 1)).add
-      (terminal pre β (segsAir segRoots) (segsPub segRoots))).add (terminal pre β p2idxAir (idxPub 1))
+      (terminal pre β (segsAir segRoots) (segsPub segRoots))).add (terminal pre β p2idxAir (idxPub nc))
     let M := (allEntries (compPTables m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots C Mm
-      (progTableC m.heap N 1) Wt (segsPub segRoots) Pi Po Pp (idxPub 1))).length
+      (progTableC m.heap N 1) Wt (segsPub segRoots) Pi Po Pp (idxPub nc))).length
     let q0 := pGroups tbM tbC tbI tbO tbQ tpP tpS (SM 0) (SC 0) (S9 0) (SI 0) (SO 0) (SQ 0) (SP 0) (SS 0) (SX 0) EF.zero qv
     let qZ := fun (c4 : Nat) (ζ : EF) => pGroups tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) ζ qv
     let Ss := fun c4 => (qZ c4 EF.zero).map (·.base.S)
     let ks := pKs m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots
-    let cols := pCols off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP N 1 m.heap segRoots 1 C Mm Wt Pi Po Pp
-    let tqZ := fun (c4 c2 : Nat) (ζ : EF) => (pTs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) ζ qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2)).map Prod.fst
+    let cols := pCols off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP N 1 m.heap segRoots nc C Mm Wt Pi Po Pp
+    let tqZ := fun (c4 c2 : Nat) (ζ : EF) => (pTs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) ζ qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2)).map Prod.fst
     let qdZ := fun (c4 c2 : Nat) (ζ : EF) (t : Nat → Tup) (α β : EF) (ms : List F) =>
-      (pTs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) ζ qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2)).map (fun p => p.2 t α β ms)
+      (pTs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS (SM c4) (SC c4) (S9 c4) (SI c4) (SO c4) (SQ c4) (SP c4) (SS c4) (SX c4) ζ qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2)).map (fun p => p.2 t α β ms)
     let SsT := fun c4 => (tqZ c4 0 EF.zero).map (·.S)
     let SsC := fun c4 => (tabsInfo ncw (tqZ c4 0 EF.zero)).map (·.S)
     let mk1 := [0, 2, 4, 6, 8, 10, 12, 14, 16]

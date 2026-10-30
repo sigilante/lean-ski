@@ -473,9 +473,11 @@ and its claim table moves to the docs, where `release/README.md` already holds i
 - Probe segments under the hiding; ∀ over public inputs; aggregation.
 - A circuit that runs `accepts`, with the spine in memory (`PLAN.md`); carried from #26.
 - A statement with two jet calls, `p2chain h` (`Ski/P2Chain.lean`): soundness is
-  proved (`Circuit.p2chainExport_sound`) and gate 5 checks its AIRs and traces. Open:
-  that its runs call the jet exactly twice (the analog of `Circuit.p2pre_once`), the
-  verifier's completeness (`P2Complete`), and the Fiat–Shamir theorems for two calls.
+  proved (`Circuit.p2chainExport_sound`) and gate 5 checks its AIRs and traces; its runs
+  call the jet exactly twice (`Circuit.p2chain_twice`, `Circuit.runP_calls_two`,
+  `Ski/P2Twice.lean`), and the Fiat–Shamir theorems take the call count as public, so
+  they hold for it at two (`compP_fs_open4`, `compP_fs_open4ROMMC_fri`). Open: the
+  verifier's completeness (`P2Complete`).
 - From Avon's worklist (item 0, the papers' measurements): time ski-air's proof check apart from Lean's statement
   checks. Jets slow verification (`split8` 23.0 s against 12.6 s, measured
   2026-10-04, before the release was remade), and the split between the two is

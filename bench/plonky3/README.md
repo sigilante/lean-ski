@@ -584,10 +584,11 @@ knowledge:
   the concrete PCS `Circuit.compP_pcs`. P2OUT and Poseidon2 have
   constraints of degree 3, so Plonky3 commits eight quotient chunks to
   each, which `Circuit.tabsHonest_bbD` models; the others take four. The
-  theorems ask that the verifiers call the jet once, as the level table
-  `idxPub 1` publishes and `p2pre`'s and the hand-off's do
-  (`compP_calls_p2pre`, `compP_calls_p2commit`). Neither has a
-  satisfiability witness yet.
+  theorems ask that the verifiers call the jet the `nc` times the level
+  table `idxPub nc` publishes: once for `p2pre` and the hand-off
+  (`compP_calls_p2pre`, `compP_calls_p2commit`), twice for `p2chain`
+  (`runP_calls_two`, `Ski/P2Twice.lean`). Neither has a satisfiability
+  witness yet.
 
 `ski-air compp-guess PUBLIC WITNESS` tests the published terminals of all
 six private tables: CPU, MEM, WIT, P2IN, P2OUT and the Poseidon2 table. A

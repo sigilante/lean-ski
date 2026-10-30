@@ -116,7 +116,7 @@ theorem compP_fs_open4ROMMC_fri {V Wv Pq P2 P3 : Type} (off : EF → String → 
     (hHI : ((runP ρ region Vs A e row).pinRows (2 ^ R)).length ≤ 2 ^ LI)
     (hHO : ((runP ρ region Vs A e row).poutRows (2 ^ R)).length ≤ 2 ^ LO)
     (hHP : ((runP ρ region Vs A e row).p2Rows (2 ^ R)).length ≤ 2 ^ LP)
-    (hcalls : (runP ρ region Vs A e row).calls (2 ^ R) = 1)
+    {nc : Nat} (hcalls : (runP ρ region Vs A e row).calls (2 ^ R) = nc)
     {tbM tbC tbI tbO tbQ tpP tpS : Nat} (htM : tbM + 1 = Lm) (htC : tbC + 1 = R) (htI : tbI + 1 = LI)
     (htO : tbO + 1 = LO) (htQ : tbQ + 1 = LP)
     (htP : tpP = progTpC (blankMO shpP 1 Vs).heap (BT.nleaves shpP) 1) (htS : tpS = segTp (blankRootsO shpP 1 Vs))
@@ -162,10 +162,10 @@ theorem compP_fs_open4ROMMC_fri {V Wv Pq P2 P3 : Type} (off : EF → String → 
     let Pp := Rn.p2Table (2 ^ R) (2 ^ LP)
     let Mm := memTable5 A (cpuAirP2 m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP) (progAirC m.heap N 1)
       p2inAirB p2outAirB (witAirP N 1) C Pg Pi Po Wt
-    let NR0 := pNR off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS ((friS bl sh idx 0) 0) ((friS bl sh idx 2) 0) ((friS bl sh idx 4) 0) ((friS bl sh idx 6) 0) ((friS bl sh idx 8) 0) ((friS bl sh idx 10) 0) ((friS bl sh idx 12) 0) ((friS bl sh idx 14) 0) ((friS bl sh idx 16) 0) EF.zero qv (wm 0) (wc 0) (ww 0) (wi 0) (wo 0) (wq 0) (wp 0) (wsg 0) (wx 0) ncw
-    let pcsZ := fun (c4 c2 : Nat) (ζ : EF) t α β r => pPcs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS ((friS bl sh idx 0) c4) ((friS bl sh idx 2) c4) ((friS bl sh idx 4) c4) ((friS bl sh idx 6) c4) ((friS bl sh idx 8) c4) ((friS bl sh idx 10) c4) ((friS bl sh idx 12) c4) ((friS bl sh idx 14) c4) ((friS bl sh idx 16) c4) ζ qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2) ncw (αd c4)
+    let NR0 := pNR off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS ((friS bl sh idx 0) 0) ((friS bl sh idx 2) 0) ((friS bl sh idx 4) 0) ((friS bl sh idx 6) 0) ((friS bl sh idx 8) 0) ((friS bl sh idx 10) 0) ((friS bl sh idx 12) 0) ((friS bl sh idx 14) 0) ((friS bl sh idx 16) 0) EF.zero qv (wm 0) (wc 0) (ww 0) (wi 0) (wo 0) (wq 0) (wp 0) (wsg 0) (wx 0) ncw
+    let pcsZ := fun (c4 c2 : Nat) (ζ : EF) t α β r => pPcs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS ((friS bl sh idx 0) c4) ((friS bl sh idx 2) c4) ((friS bl sh idx 4) c4) ((friS bl sh idx 6) c4) ((friS bl sh idx 8) c4) ((friS bl sh idx 10) c4) ((friS bl sh idx 12) c4) ((friS bl sh idx 14) c4) ((friS bl sh idx 16) c4) ζ qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2) ncw (αd c4)
       (friX (fri c4) (Rb c4) (Ro c4) (r / NR0)) t α β (r % NR0)
-    let psimZ := fun (c4 c2 : Nat) (ζ : EF) α β v r => pPsim off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS ((friS bl sh idx 0) c4) ((friS bl sh idx 2) c4) ((friS bl sh idx 4) c4) ((friS bl sh idx 6) c4) ((friS bl sh idx 8) c4) ((friS bl sh idx 10) c4) ((friS bl sh idx 12) c4) ((friS bl sh idx 14) c4) ((friS bl sh idx 16) c4) ζ qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2) ncw (αd c4)
+    let psimZ := fun (c4 c2 : Nat) (ζ : EF) α β v r => pPsim off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS ((friS bl sh idx 0) c4) ((friS bl sh idx 2) c4) ((friS bl sh idx 4) c4) ((friS bl sh idx 6) c4) ((friS bl sh idx 8) c4) ((friS bl sh idx 10) c4) ((friS bl sh idx 12) c4) ((friS bl sh idx 14) c4) ((friS bl sh idx 16) c4) ζ qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2) ncw (αd c4)
       (friX (fri c4) (Rb c4) (Ro c4) (r / NR0)) α β v (r % NR0)
     let NR := NR0 * NR2
     let tabs := fun t : Nat → Tup => compPTables m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots
@@ -173,22 +173,22 @@ theorem compP_fs_open4ROMMC_fri {V Wv Pq P2 P3 : Type} (off : EF → String → 
       (progTableC m.heap N 1) (Wt.setBlind WT_BLIND (t 1)) (segsPub segRoots)
       ((Pi.setBlind p2inAir.width (t 2)).setBlind (p2inAir.width + 5) (t 3))
       ((Po.setBlind p2outAir.width (t 3)).setBlind (p2outAir.width + 5) (t 4))
-      (Pp.setBlind P2Air.p2Air.width (t 4)) (idxPub 1)
+      (Pp.setBlind P2Air.p2Air.width (t 4)) (idxPub nc)
     let tv := fun pre β t => compPViewN pre β m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP N 1 C Mm Wt Pi Po Pp t
     let pb := fun pre β => ((terminal pre β (progAirC m.heap N 1) (progTableC m.heap N 1),
-      terminal pre β (segsAir segRoots) (segsPub segRoots)), terminal pre β p2idxAir (idxPub 1))
+      terminal pre β (segsAir segRoots) (segsPub segRoots)), terminal pre β p2idxAir (idxPub nc))
     let ptm := fun pre β => ((terminal pre β (progAirC m.heap N 1) (progTableC m.heap N 1)).add
-      (terminal pre β (segsAir segRoots) (segsPub segRoots))).add (terminal pre β p2idxAir (idxPub 1))
+      (terminal pre β (segsAir segRoots) (segsPub segRoots))).add (terminal pre β p2idxAir (idxPub nc))
     let M := (allEntries (compPTables m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots C Mm
-      (progTableC m.heap N 1) Wt (segsPub segRoots) Pi Po Pp (idxPub 1))).length
+      (progTableC m.heap N 1) Wt (segsPub segRoots) Pi Po Pp (idxPub nc))).length
     let q0 := pGroups tbM tbC tbI tbO tbQ tpP tpS ((friS bl sh idx 0) 0) ((friS bl sh idx 2) 0) ((friS bl sh idx 4) 0) ((friS bl sh idx 6) 0) ((friS bl sh idx 8) 0) ((friS bl sh idx 10) 0) ((friS bl sh idx 12) 0) ((friS bl sh idx 14) 0) ((friS bl sh idx 16) 0) EF.zero qv
     let qZ := fun (c4 : Nat) (ζ : EF) => pGroups tbM tbC tbI tbO tbQ tpP tpS ((friS bl sh idx 0) c4) ((friS bl sh idx 2) c4) ((friS bl sh idx 4) c4) ((friS bl sh idx 6) c4) ((friS bl sh idx 8) c4) ((friS bl sh idx 10) c4) ((friS bl sh idx 12) c4) ((friS bl sh idx 14) c4) ((friS bl sh idx 16) c4) ζ qv
     let Ss := fun c4 => (qZ c4 EF.zero).map (·.base.S)
     let ks := pKs m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots
-    let cols := pCols off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP N 1 m.heap segRoots 1 C Mm Wt Pi Po Pp
-    let tqZ := fun (c4 c2 : Nat) (ζ : EF) => (pTs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS ((friS bl sh idx 0) c4) ((friS bl sh idx 2) c4) ((friS bl sh idx 4) c4) ((friS bl sh idx 6) c4) ((friS bl sh idx 8) c4) ((friS bl sh idx 10) c4) ((friS bl sh idx 12) c4) ((friS bl sh idx 14) c4) ((friS bl sh idx 16) c4) ζ qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2)).map Prod.fst
+    let cols := pCols off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP N 1 m.heap segRoots nc C Mm Wt Pi Po Pp
+    let tqZ := fun (c4 c2 : Nat) (ζ : EF) => (pTs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS ((friS bl sh idx 0) c4) ((friS bl sh idx 2) c4) ((friS bl sh idx 4) c4) ((friS bl sh idx 6) c4) ((friS bl sh idx 8) c4) ((friS bl sh idx 10) c4) ((friS bl sh idx 12) c4) ((friS bl sh idx 14) c4) ((friS bl sh idx 16) c4) ζ qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2)).map Prod.fst
     let qdZ := fun (c4 c2 : Nat) (ζ : EF) (t : Nat → Tup) (α β : EF) (ms : List F) =>
-      (pTs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots 1 C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS ((friS bl sh idx 0) c4) ((friS bl sh idx 2) c4) ((friS bl sh idx 4) c4) ((friS bl sh idx 6) c4) ((friS bl sh idx 8) c4) ((friS bl sh idx 10) c4) ((friS bl sh idx 12) c4) ((friS bl sh idx 14) c4) ((friS bl sh idx 16) c4) ζ qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2)).map (fun p => p.2 t α β ms)
+      (pTs off m.hd m.stk m.heap.length Vs.length m.stk JP2 rootP m.heap N 1 segRoots nc C Mm Wt Pi Po Pp tbM tbC tbI tbO tbQ tpP tpS ((friS bl sh idx 0) c4) ((friS bl sh idx 2) c4) ((friS bl sh idx 4) c4) ((friS bl sh idx 6) c4) ((friS bl sh idx 8) c4) ((friS bl sh idx 10) c4) ((friS bl sh idx 12) c4) ((friS bl sh idx 14) c4) ((friS bl sh idx 16) c4) ζ qv (wm c2) (wc c2) (ww c2) (wi c2) (wo c2) (wq c2) (wp c2) (wsg c2) (wx c2)).map (fun p => p.2 t α β ms)
     let SsT := fun c4 => (tqZ c4 0 EF.zero).map (·.S)
     let SsC := fun c4 => (tabsInfo ncw (tqZ c4 0 EF.zero)).map (·.S)
     let mk1 := [0, 2, 4, 6, 8, 10, 12, 14, 16]
