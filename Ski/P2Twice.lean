@@ -608,3 +608,39 @@ theorem p2chain_complete {h : Nat} {ρ : Nat → Bool}
     (by rw [List.length_map, flatMap_length31, Nat.succ.inj hY])
 
 end P2Chain
+
+namespace Circuit
+
+set_option maxRecDepth 100000 in
+open Stmt Wit ComposedPText in
+/-- **Completeness of the circuit for `p2chain h`**: `compPG_complete_log`
+    for its verifier, the level table the published `idxPub 2`
+    (`runP_calls_two`), as `compP_complete_log` is for `p2pre h` at
+    `idxPub 1`. -/
+theorem compPChain_complete_log {h R Lm LI LO LP : Nat} (hR : R ≤ 20) (hLm : Lm ≤ 20) (hLI : LI ≤ 20)
+    (hLO : LO ≤ 20) (hLP : LP ≤ 20) {Rs : List AirD}
+    (hs : sameAirsB Rs (compPAirsG (VsC h)) = true)
+    {ρ : Nat → Bool} {region : List Cell} (hrl : region.length = 1)
+    (hr : ∀ i c, region[i]? = some c → cellOK (BT.nleaves shpP + 3 + i) c = true)
+    {A : List Cell} {e : Nat → Nat} {row : Nat → Air.Row}
+    (hA : AcceptsCP A (cMachineO ρ shpP region (VsC h)) [] [] JP2 rootP (cHeapO ρ shpP region (VsC h)).2
+      (cHeapO ρ shpP region (VsC h)).1.length (VsC h).length e row)
+    (hfit : Fits A) (hlen : A.length = 2 ^ Lm) (hK : e 0 < 2 ^ R)
+    (hHI : ((runP ρ region (VsC h) A e row).pinRows (2 ^ R)).length ≤ 2 ^ LI)
+    (hHO : ((runP ρ region (VsC h) A e row).poutRows (2 ^ R)).length ≤ 2 ^ LO)
+    (hHP : ((runP ρ region (VsC h) A e row).p2Rows (2 ^ R)).length ≤ 2 ^ LP) :
+    ∃ C Mm Pg Wt Sg Pi Po Pp, AcceptedP Rs [C, Mm, Pg, Wt, Sg, Pi, Po, Pp, idxPub 2] ∧
+      C = (runP ρ region (VsC h) A e row).cpuTableP (2 ^ R) ∧
+      Wt = witTableP A (BT.nleaves shpP) 1 ∧
+      Pi = (runP ρ region (VsC h) A e row).pinTable (2 ^ R) (2 ^ LI) ∧
+      Po = (runP ρ region (VsC h) A e row).poutTable (2 ^ R) (2 ^ LO) ∧
+      Pp = (runP ρ region (VsC h) A e row).p2Table (2 ^ R) (2 ^ LP) ∧
+      Pg = progTableC (blankMO shpP 1 (VsC h)).heap (BT.nleaves shpP) 1 ∧
+      Sg = segsPub (blankRootsO shpP 1 (VsC h)) ∧
+      C.h = 2 ^ R ∧ Mm.h = 2 ^ Lm ∧ memOf Mm = A ∧ ∀ i, i ≤ e 0 → rowOf C i = row i := by
+  obtain ⟨C, Mm, Pg, Wt, Sg, Pi, Po, Pp, Px, hacc, hC, _, hWt, hPi, hPo, hPp, hPg, hSg, hPx, hCh, hMh, _, _, _, _,
+    hmem, hrow⟩ := compPG_complete_log hR hLm hLI hLO hLP hs hrl hr hA hfit hlen hK hHI hHO hHP
+  rw [hPx, runP_calls_two hrl hr hA hK] at hacc
+  exact ⟨C, Mm, Pg, Wt, Sg, Pi, Po, Pp, hacc, hC, hWt, hPi, hPo, hPp, hPg, hSg, hCh, hMh, hmem, hrow⟩
+
+end Circuit
