@@ -54,7 +54,7 @@ fn opt(out: &mut Vec<u32>, o: Option<u32>) {
 fn encode(a: &SkiAir, out: &mut Vec<u32>) {
     match a {
         SkiAir::Cpu(c) => {
-            let CpuAir { hd0, stk0, ctr0, accept, accept_k, blind, jets, probe, restart, p2 } = c;
+            let CpuAir { hd0, stk0, ctr0, accept, accept_k, blind, jets, probe, restart, p2, dec } = c;
             word(out, 1);
             word(out, *hd0);
             word(out, *stk0);
@@ -87,6 +87,11 @@ fn encode(a: &SkiAir, out: &mut Vec<u32>) {
                 word(out, 0x7032_6a74);
                 word(out, *j);
                 word(out, *root);
+            }
+            // The `dec` jet's atom, only when the CPU carries its row.
+            if let Some(crate::compd::DecPub { j }) = dec {
+                word(out, 0x6465_636a);
+                word(out, *j);
             }
         }
         SkiAir::Mem(MemAir { blind }) => {
@@ -130,6 +135,7 @@ fn encode(a: &SkiAir, out: &mut Vec<u32>) {
         SkiAir::P2In => word(out, 15),
         SkiAir::P2Out => word(out, 16),
         SkiAir::P2Idx(pre) => rows(out, 17, pre),
+        SkiAir::Dec => word(out, 18),
     }
 }
 
@@ -176,6 +182,7 @@ mod tests {
             probe: None,
             restart: None,
             p2: None,
+            dec: None,
         })
     }
 

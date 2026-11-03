@@ -5,6 +5,7 @@ import Ski.ComposeExamples
 import Ski.ComposeXExamples
 import Ski.ChainExamples
 import Ski.ComposedPText
+import Ski.ComposedDText
 import Ski.P2Commit
 import Ski.Circuit.CompPHonest
 import Ski.ZK.Blocks
@@ -800,6 +801,109 @@ def checkCJBlind (dir : String) : IO UInt32 :=
   Circuit.TraceCheck.checkBlind "compj.rs" "compJViewN" dir
     ["mem", "cpu", "wit", "pop", "instw", "tmpl", "hdr", "roots"] Circuit.compJBlocks 7
 
+-- ---------------------------------------------------------------------------
+-- The `dec` jet: `decpre p`
+-- ---------------------------------------------------------------------------
+
+/-- The decrement statement's heights and region size: the CPU, the memory
+    and the jet's table; a region for subjects of up to 32 bits (6 cells a
+    bit and 22 more, `ComposedDText.subjRegion`). -/
+def decpreLogs : ComposedDText.DLogs := ⟨12, 13, 9⟩
+def decpreW : Nat := 6 * 32 + 22
+
+/-- The statement `decpre (n - 1)` for a hidden `n`, and its witness: the
+    one unused bit, then the region holding the subject `[n 0]`. -/
+def emitDecWith (dir : String) (n : Nat) : IO UInt32 := do
+  let bits := ComposedDText.bitsN n
+  let some region := ComposedDText.subjRegion bits decpreW (BT.nleaves ComposedDText.shpD + 3)
+    | IO.println s!"a subject of {bits.length} bits does not fit the region"; return 1
+  IO.FS.createDirAll dir
+  IO.FS.writeFile s!"{dir}/decpre.public.txt" (ComposedDText.publicTextD (n - 1) decpreW decpreLogs)
+  IO.FS.writeFile s!"{dir}/decpre.witness.txt" (witnessText [false] region)
+  return 0
+
+/-- `composed emit-dec DIR [N | --fresh]`: the decrement statement `decpre
+    (N - 1)` for the subject `[N 0]` (default `N = 12`; `--fresh` draws `N`
+    from the system's entropy, below `2^32`), and its witness, the region.
+    The statement names `p = N - 1`, so `N` is not secret: the proof shows
+    the jet at work, and its zero knowledge hides only the trace. -/
+def emitDec (dir : String) (n : Nat := 12) : IO UInt32 := do
+  if n = 0 then IO.println "the subject must be positive"; return 1
+  let r ← emitDecWith dir n
+  if r = 0 then IO.println s!"wrote {dir}/decpre.public.txt (p = {n - 1}) and its witness"
+  return r
+
+def emitDecFresh (dir : String) : IO UInt32 := do
+  let mut n := 0
+  for _ in [0:100] do
+    n ← freshBits 32
+    if n > 0 then break
+  if n = 0 then IO.println "no draw"; return 1
+  let r ← emitDecWith dir n
+  if r = 0 then IO.println s!"wrote {dir}/decpre.public.txt (p = {n - 1}) and its witness"
+  return r
+
+/-- `composed statement-dec PUBLIC`: `OK decpre p` when the file is exactly
+    a statement with the `dec` jet. -/
+def statementDec (path : String) : IO UInt32 := do
+  let text ← if path == "-" then (← IO.getStdin).readToEnd else IO.FS.readFile path
+  match ComposedDText.statementOfTextD text with
+  | some (p, W, _) => IO.println s!"OK decpre {p} W {W}"; return 0
+  | none => IO.println "NOT A STATEMENT"; return 1
+
+/-- `composed check-decpre PUBLIC`: `OK DECPRE p` when the file is exactly
+    the decrement statement at the documented region size and heights. -/
+def checkDecpre (path : String) : IO UInt32 := do
+  match ComposedDText.statementOfTextD (← IO.FS.readFile path) with
+  | some (p, W, lg) =>
+    if W == decpreW && lg == decpreLogs then IO.println s!"OK DECPRE {p}"; return 0
+    else IO.println "NOT THE DECREMENT STATEMENT"; return 1
+  | none => IO.println "NOT THE DECREMENT STATEMENT"; return 1
+
+/-- `composed check-dec-run PUBLIC RUN`: Lean replays the honest run
+    `compd-dump` (or `compd-prove --table=`) writes for a decrement
+    statement: the run starts at the statement's registers over its public
+    cells, each row within the segment is a plain step (`Air.stepRow`) or
+    the jet's (`DecJet.decRow`, at the statement's atom), and the last row
+    is `K` over the nil.  `OK DECRUN …` with the number of jet rows. -/
+def checkDecRun (pub run : String) : IO UInt32 := do
+  let text ← IO.FS.readFile pub
+  let some (p, W, _) := ComposedDText.statementOfTextD text | do IO.println "NOT A STATEMENT"; return 1
+  let ls := ((← IO.FS.readFile run).splitOn "\n").filter (fun l => !l.trimAscii.toString.isEmpty)
+  let some (hl, rest) := (match ls with | l :: r => some (l, r) | [] => none) | do IO.println "MALFORMED run"; return 1
+  if hl != (text.splitOn "\n").headD "" then IO.println "the run is not of the statement"; return 1
+  let some (W', cells, ends, rows) := parseRun rest | do IO.println "MALFORMED run"; return 1
+  if W' != W then IO.println "the run's region is not the statement's"; return 1
+  let M := cells.toList
+  let m := CompM.cMachineO (fun _ => false) ComposedDText.shpD (List.replicate W Cell.S) (ComposedDText.VsD p)
+  let N := BT.nleaves ComposedDText.shpD
+  -- The public cells, all but the bits and the region.
+  let pubOK := (List.range m.heap.length).all fun i =>
+    (3 ≤ i && i < N + 3 + W) || M[i]? == m.heap[i]?
+  if !pubOK then IO.println "REJECT: the memory's public cells are not the statement's"; return 1
+  let some last := ends.back? | do IO.println "MALFORMED run: no segment"; return 1
+  if ends.size != 1 then IO.println "REJECT: a decrement statement has one segment"; return 1
+  if rows.getD 0 ⟨0, 0, 0⟩ != ⟨m.hd, m.stk, m.heap.length⟩ then
+    IO.println "REJECT: the run does not start at the statement's registers"; return 1
+  -- The run halts at its first repeated row; the rows after it repeat it
+  -- (the padding to the table's height).
+  let stop := ((List.range last).find? (fun r => rows.getD r ⟨0, 0, 0⟩ == rows.getD (r + 1) ⟨0, 0, 0⟩)).getD last
+  if !((List.range (last + 1)).all fun r => r ≤ stop || rows.getD r ⟨0, 0, 0⟩ == rows.getD stop ⟨0, 0, 0⟩) then
+    IO.println "REJECT: the run moves after it halts"; return 1
+  let mut jets := 0
+  for r in [0:stop] do
+    let a := rows.getD r ⟨0, 0, 0⟩
+    let b := rows.getD (r + 1) ⟨0, 0, 0⟩
+    if DecJet.decRow M ComposedDText.JD a == some b then
+      jets := jets + 1
+    else if Air.stepRow M a != some b then
+      IO.println s!"REJECT: row {r} is neither a step nor the jet's"; return 1
+  let z := rows.getD stop ⟨0, 0, 0⟩
+  if !(M[z.hd]? == some Cell.K && M[z.stk]? == some Cell.nil) then
+    IO.println "REJECT: the run does not end at K over the nil"; return 1
+  IO.println s!"OK DECRUN decpre {p}: {stop + 1} rows, {jets} jet rows, each a step or DecJet.decRow"
+  return 0
+
 def main (args : List String) : IO UInt32 := do
   match args with
   | ["emit", dir] => emit dir
@@ -817,6 +921,12 @@ def main (args : List String) : IO UInt32 := do
     else IO.eprintln "usage: composed emit-handoff DIR [--fresh | --rand=FILE]"; return 2
   | ["check-handoff", p1, p2] => checkHandoff p1 p2
   | ["check-p2pre", pub] => checkP2pre pub
+  | ["emit-dec", dir] => emitDec dir
+  | ["emit-dec", dir, "--fresh"] => emitDecFresh dir
+  | ["emit-dec", dir, n] => emitDec dir n.toNat!
+  | ["statement-dec", pub] => statementDec pub
+  | ["check-decpre", pub] => checkDecpre pub
+  | ["check-dec-run", pub, run] => checkDecRun pub run
   | ["statement-p2", pub] => statementP2 pub
   | ["chain-p2", "-"] => chainP2In
   | ["check-p2-tables", pub, dir] => checkP2Tables pub dir
@@ -832,5 +942,5 @@ def main (args : List String) : IO UInt32 := do
   | "check" :: pub :: paths => check pub paths
   | "check-cj" :: src :: pub :: paths => checkCJ src pub paths
   | _ =>
-    IO.eprintln "usage: composed emit DIR | composed emit-fresh DIR [--all] | composed emit-p2 DIR [K | --fresh] | composed emit-handoff DIR [--fresh | --rand=FILE] | composed check-handoff PUBLIC1 PUBLIC2 | composed check-p2pre PUBLIC | composed statement-p2 PUBLIC | composed chain-p2 PUBLIC1 PUBLIC2|- | composed check-p2-tables PUBLIC DIR | composed check-p2-blind DIR\n       composed check-c-tables PUBLIC DIR | composed check-c-blind DIR\n       composed check-cj-tables SRC PUBLIC DIR | composed check-cj-blind DIR\n       composed statement PUBLIC | composed statement-jets PUBLIC\n       composed budget PUBLIC LP LI OUT | composed check PUBLIC TABLE... | composed check-cj SRC PUBLIC TABLE..."
+    IO.eprintln "usage: composed emit DIR | composed emit-fresh DIR [--all] | composed emit-p2 DIR [K | --fresh] | composed emit-handoff DIR [--fresh | --rand=FILE] | composed check-handoff PUBLIC1 PUBLIC2 | composed check-p2pre PUBLIC | composed statement-p2 PUBLIC | composed emit-dec DIR [N | --fresh] | composed statement-dec PUBLIC | composed check-decpre PUBLIC | composed check-dec-run PUBLIC RUN | composed chain-p2 PUBLIC1 PUBLIC2|- | composed check-p2-tables PUBLIC DIR | composed check-p2-blind DIR\n       composed check-c-tables PUBLIC DIR | composed check-c-blind DIR\n       composed check-cj-tables SRC PUBLIC DIR | composed check-cj-blind DIR\n       composed statement PUBLIC | composed statement-jets PUBLIC\n       composed budget PUBLIC LP LI OUT | composed check PUBLIC TABLE... | composed check-cj SRC PUBLIC TABLE..."
     return 2

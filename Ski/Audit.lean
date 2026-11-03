@@ -38,6 +38,10 @@ import Ski.P2Commit
 import Ski.P2Chain
 import Ski.P2Complete
 import Ski.P2Once
+import Ski.DecJet
+import Ski.ComposedDText
+import Ski.DecPreSound
+import Ski.Circuit.DecAir
 import Ski.ZK.CompPHonest
 import Ski.Circuit.CompPCompleteFinal
 import Ski.ZK.CompP
@@ -1585,6 +1589,21 @@ open Ski.Audit
 #audit_clean Circuit.airP3D_two Circuit.p3D_facts Circuit.airP3_lup_of_D Circuit.corpus_plainD
   Circuit.corpus_withLup_shapeD Circuit.bb_psz Circuit.bbTab_L Circuit.bbData_L Circuit.tabsHonest_corpusD
   Circuit.tabsHonest_corpus_iteD Circuit.tabsHonest_bbD
+
+-- The `dec` data jet: skinock's decC contract over its encoding, the jet's
+-- row read back as one step of the contract, the table DEC's rows, and what a
+-- proof of decpre p means (Ski/DecJetTodo.lean holds the open export theorems)
+#audit_clean DecJet.decB_val DecJet.decB_canon DecJet.canon_val_inj DecJet.bl_inj DecJet.encNn_inj
+  DecJet.decContract_respects DecJet.decSpec_val DecJet.readCons_peel DecJet.readBits_ot DecJet.readAtom_peel
+  DecJet.readCell_peel DecJet.readNn_ot DecJet.readNn_wf DecJet.readSubj_ot DecJet.readSubj_wf DecJet.out_ot
+  DecJet.decRow_unfold DecJet.decRow_step DecJet.decRow_cstep DecJet.decRow_ctr_len DecJet.atomT_elim
+  DecJet.cellT_elim DecJet.errT_elim
+#audit_clean Circuit.decB_step Circuit.decStep_sound Circuit.dec_kinds Circuit.dec_role Circuit.dec_level
+  Circuit.dec_sound_row ComposedDText.val_bitsN ComposedDText.canonB_bitsN ComposedDText.decB_bitsN
+  ComposedDText.bitsN_val
+#audit_clean DecPre.thetaK_not_K DecPre.chkL_sound DecPre.checkD_sound DecPre.decpre_meaning
+  DecPre.decpre_meaning_eval DecPre.chkL_complete DecPre.checkD_complete DecPre.decSpec_canon
+  DecPre.decpre_complete
 
 -- The circuit with the Poseidon2 jet under Fiat–Shamir: its hiding PCS, P2OUT
 -- and Poseidon2 at degree 3 over eight chunks (CompPInst), the honest run's

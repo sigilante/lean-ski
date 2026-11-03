@@ -79,7 +79,14 @@
 #      (`compp-chain`, Circuit.p2commit_chainB), and the chain is refused
 #      with the proofs swapped, paired with `p2pre`, or through FIFOs that
 #      give Lean's check one statement and the verifier another.
-#  13. a poke whose event is an entropy reply, its bits private
+#  13. the `dec` data jet (release/dec): the statement is Lean's
+#      decrement statement `decpre p` at the documented heights (`lake exe
+#      composed check-decpre`); ski-air compd-verify pipes it to Lean
+#      (`composed statement-dec`), has Lean compare the six AIRs with
+#      Circuit.compDAirs, and verifies the proof; it refuses the proof with
+#      one byte changed, a byte appended, a doctored statement, for Lean's
+#      statement of another p, or for the p2pre statement.
+#  14. a poke whose event is an entropy reply, its bits private
 #      (release/entropy): Lean compiles the kernel and the checks from
 #      source.ski and checks each statement (`lake exe entropy statement`,
 #      Circuit.entropyExport_sound): some 128 literal bits, given to the
@@ -89,12 +96,12 @@
 #      byte changed and each offered for the other's statement; and
 #      `composed-digest-bound` refuses bootok's with the digest of its
 #      statement with a CPU constant changed.
-#  14. the masking margin (`ski-air mask-margin`): every zero-knowledge
+#  15. the masking margin (`ski-air mask-margin`): every zero-knowledge
 #      proof's smallest table has the random rows its openings need, the
 #      quotient's 3 queries + 8 (Plonky3 commits the quotient at twice the
 #      trace's height), above masks_hide's queries + 8 for the columns and
 #      Plonky3's HidingFriPcs's 2 (queries + 8).
-#  15. the bytes against the model's view (`ski-air proof-shape`): every
+#  16. the bytes against the model's view (`ski-air proof-shape`): every
 #      zero-knowledge proof's bytes are exactly its fields, encoded again
 #      byte for byte, each field a part of the view Lean simulates.
 #
@@ -713,7 +720,55 @@ else
     refused "$tmp/chf.log" 'heights \[' "the chain through FIFOs is refused"
 fi
 
-echo "--- 13. a poke whose event is an entropy reply, its 128 bits private"
+echo "--- 13. the dec data jet: a decrement"
+D=release/dec
+mkdir -p "$tmp/dec"
+lake exe composed check-decpre "$D/decpre.public.txt" > "$tmp/dc.log" \
+    && grep -q '^OK DECPRE' "$tmp/dc.log" \
+    && ok "release/dec/decpre.public.txt is Lean's decrement statement ($(head -c 40 "$tmp/dc.log"))" \
+    || no "release/dec/decpre.public.txt is not Lean's decrement statement ($(head -c 80 "$tmp/dc.log"))"
+"$SKI_AIR" compd-verify "$D/decpre.public.txt" "$D/decpre.proof" > "$tmp/dv.log" \
+    && ok "the decpre proof verifies ($(head -c 60 "$tmp/dv.log"))" \
+    || no "the decpre proof does not verify ($(head -c 80 "$tmp/dv.log"))"
+flip "$D/decpre.proof" "$tmp/dflip.proof"
+if "$SKI_AIR" compd-verify "$D/decpre.public.txt" "$tmp/dflip.proof" > "$tmp/df.log" 2>&1; then
+    no "the decpre proof with one byte changed verified"
+else
+    refused "$tmp/df.log" 'verify: [A-Z]|deserialize: |bytes after the proof' "the decpre proof with one byte changed is refused"
+fi
+/bin/cp "$D/decpre.proof" "$tmp/dlong.proof"
+printf 'x' >> "$tmp/dlong.proof"
+if "$SKI_AIR" compd-verify "$D/decpre.public.txt" "$tmp/dlong.proof" > "$tmp/dl.log" 2>&1; then
+    no "the decpre proof with a byte appended verified"
+else
+    refused "$tmp/dl.log" 'bytes after the proof' "the decpre proof with a byte appended is refused"
+fi
+# A doctored statement: the first region cell given as K.
+awk 'BEGIN{d=0} { if (!d && NR > 7 && $0 == "W") { print "K"; d=1 } else print }' "$D/decpre.public.txt" > "$tmp/dpub.txt"
+if cmp -s "$tmp/dpub.txt" "$D/decpre.public.txt"; then
+    no "could not doctor release/dec/decpre.public.txt"
+elif "$SKI_AIR" compd-verify "$tmp/dpub.txt" "$D/decpre.proof" > "$tmp/dp.log" 2>&1; then
+    no "the decpre proof verified against a doctored statement"
+else
+    refused "$tmp/dp.log" 'statement: NOT A STATEMENT' "the decpre proof against a doctored statement is refused"
+fi
+# Lean's statement of another p, its last bit flipped (so of the same length).
+p=$(head -n 1 "$D/decpre.public.txt" | cut -d' ' -f2)
+lake exe composed emit-dec "$tmp/dec" $(( (p ^ 1) + 1 )) > /dev/null
+if cmp -s "$tmp/dec/decpre.public.txt" "$D/decpre.public.txt"; then
+    no "could not emit the decrement statement of another p"
+elif "$SKI_AIR" compd-verify "$tmp/dec/decpre.public.txt" "$D/decpre.proof" > "$tmp/do.log" 2>&1; then
+    no "the decpre proof verified for another p"
+else
+    refused "$tmp/do.log" 'verify: [A-Z]|deserialize: |heights \[' "the decpre proof offered for p xor 1 is refused"
+fi
+if "$SKI_AIR" compd-verify release/p2/p2pre.public.txt "$D/decpre.proof" > "$tmp/dq.log" 2>&1; then
+    no "the decpre proof verified for the p2pre statement"
+else
+    refused "$tmp/dq.log" 'statement: NOT A STATEMENT' "the decpre proof offered for the p2pre statement is refused"
+fi
+
+echo "--- 14. a poke whose event is an entropy reply, its 128 bits private"
 E=release/entropy
 for n in bootok firstset; do
     lake exe entropy statement "$E/source.ski" "$n" "$E/$n.public.txt" > "$tmp/es.log" 2> /dev/null \
@@ -752,17 +807,17 @@ for pair in "bootok firstset" "firstset bootok"; do
     fi
 done
 
-echo "--- 14. the masking margin of every zero-knowledge proof"
+echo "--- 15. the masking margin of every zero-knowledge proof"
 # Random rows hide a table's openings when |S| + 4|Z| <= n (masks_hide);
 # the margin reads each proof's heights, which the steps above pin to its
 # statement's.
-zk=$(find release/composed release/skilark release/sudoku release/p2 release/entropy -name '*.proof' | sort)
+zk=$(find release/composed release/skilark release/sudoku release/p2 release/dec release/entropy -name '*.proof' | sort)
 # shellcheck disable=SC2086
 "$SKI_AIR" mask-margin $zk > "$tmp/mm.log" \
     && ok "every zero-knowledge proof meets the masking margin ($(grep -c 'margin met' "$tmp/mm.log") proofs; $(grep -o '[0-9]* to spare' "$tmp/mm.log" | sort -n | head -n 1) at the least)" \
     || no "a proof misses the masking margin ($(grep -m 1 'NOT MET' "$tmp/mm.log" | head -c 100))"
 
-echo "--- 15. the bytes against the model's view"
+echo "--- 16. the bytes against the model's view"
 # Every byte of a hiding proof lies in a field of Plonky3's BatchProof, and
 # each field is part of the view the transcript theorems simulate.
 n15=0
@@ -784,4 +839,4 @@ done
          fi; }
 
 [ "$failed" = 0 ] || { echo "NOT VERIFIED: release"; exit 1; }
-echo "VERIFIED: release/sumto, release/composed, release/skilark (with jets${QUICK:+, csplit8 skipped}), release/sudoku, release/p2 and release/entropy"
+echo "VERIFIED: release/sumto, release/composed, release/skilark (with jets${QUICK:+, csplit8 skipped}), release/sudoku, release/p2, release/dec and release/entropy"

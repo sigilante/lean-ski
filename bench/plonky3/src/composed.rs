@@ -306,6 +306,7 @@ fn airs(p: &Public) -> Vec<SkiAir> {
             probe: None,
             restart: Some(RestartPub { n: p.roots.len() as u32, nil: p.nil }),
             p2: None,
+            dec: None,
         }),
         SkiAir::Mem(MemAir { blind: true }),
         SkiAir::Prog(ProgAir { pre: program_of(p) }),

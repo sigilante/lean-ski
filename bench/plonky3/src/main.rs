@@ -93,6 +93,8 @@ mod sudoku;
 mod witness;
 mod p2air;
 mod compp;
+mod decair;
+mod compd;
 mod reject;
 mod proofshape;
 
@@ -511,6 +513,9 @@ struct CpuAir {
     /// the jet's row (`src/compp.rs`): its columns follow the restart
     /// columns.
     p2: Option<compp::P2Pub>,
+    /// The `dec` jet's atom, when the table carries its row
+    /// (`src/compd.rs`): its columns follow the Poseidon2 jet's.
+    dec: Option<compd::DecPub>,
 }
 
 #[derive(Clone, Debug)]
@@ -550,6 +555,8 @@ enum SkiAir {
     P2In,
     P2Out,
     P2Idx(Vec<[u32; 6]>),
+    /// The `dec` jet's table (`src/decair.rs`), with its blinding block.
+    Dec,
 }
 
 impl CpuAir {
@@ -580,12 +587,17 @@ impl CpuAir {
     fn p2base(&self) -> usize {
         self.rbase() + if self.restart.is_some() { composed::RESTART_WIDTH } else { 0 }
     }
+
+    /// The `dec` jet's columns: after the Poseidon2 jet's.
+    fn decbase(&self) -> usize {
+        self.p2base() + if self.p2.is_some() { compp::P2_CPU_WIDTH } else { 0 }
+    }
 }
 
 impl<F: Field> BaseAir<F> for SkiAir {
     fn width(&self) -> usize {
         match self {
-            SkiAir::Cpu(c) => c.p2base() + if c.p2.is_some() { compp::P2_CPU_WIDTH } else { 0 },
+            SkiAir::Cpu(c) => c.decbase() + if c.dec.is_some() { compd::DEC_CPU_WIDTH } else { 0 },
             SkiAir::Mem(m) => 5 + if m.blind { BLIND_WIDTH } else { 0 },
             SkiAir::Prog(_) => 1,
             SkiAir::Wit(_) => 1 + BLIND_WIDTH,
@@ -597,6 +609,7 @@ impl<F: Field> BaseAir<F> for SkiAir {
             SkiAir::P2In => compp::PI_W + 2 * BLIND_WIDTH,
             SkiAir::P2Out => compp::PO_W + 2 * BLIND_WIDTH,
             SkiAir::P2Idx(_) => 1,
+            SkiAir::Dec => decair::DEC_W_COLS + BLIND_WIDTH,
         }
     }
 
@@ -684,6 +697,10 @@ where
                 compp::eval_blocks(b, compp::PO_W, &compp::PO_BLOCKS);
             }
             SkiAir::P2Idx(_) => compp::eval_p2idx(b),
+            SkiAir::Dec => {
+                decair::eval_dec(b);
+                compp::eval_blocks(b, decair::DEC_W_COLS, &decair::DEC_BLOCKS);
+            }
         }
     }
 }
@@ -734,6 +751,12 @@ impl CpuAir {
             b.assert_bool(p2sel.clone());
             sels.push(p2sel.clone());
         }
+        // The `dec` jet's row (`src/compd.rs`): a selector outside the kinds.
+        let dsel = if self.dec.is_some() { loc[self.decbase()].clone() } else { AB::Expr::ZERO };
+        if self.dec.is_some() {
+            b.assert_bool(dsel.clone());
+            sels.push(dsel.clone());
+        }
         b.assert_eq(sum::<AB>(&sels), one.clone());
 
         let halt = sum::<AB>(&[
@@ -761,10 +784,12 @@ impl CpuAir {
                 + app.clone() * c(3)
                 + (ha.clone() + p_later.clone()) * c(6)
                 + rs.clone() * c(1)
-                + p2sel.clone() * c(6),
+                + p2sel.clone() * c(6)
+                + dsel.clone() * c(6),
             sum::<AB>(&[ki.clone(), kk.clone(), ks.clone(), hk2.clone(), hs2.clone(), hs3.clone()]) * c(5)
                 + sum::<AB>(&[hi1.clone(), hk1.clone(), hs1.clone(), rs.clone()]) * c(4)
-                + p2sel.clone() * c(5),
+                + p2sel.clone() * c(5)
+                + dsel.clone() * c(5),
             sum::<AB>(&[kk.clone(), ks.clone(), hs3.clone()]) * c(5)
                 + (hk2.clone() + hs2.clone()) * c(4)
                 + p2sel.clone() * c(5),
@@ -851,6 +876,12 @@ impl CpuAir {
         }
         if let Some(pp) = &self.p2 {
             let (h, st, cn) = compp::eval_cpu_p2(b, &loc, p2sel.clone(), self.p2base(), pp);
+            next_hd = next_hd + h;
+            next_stk = next_stk + st;
+            next_ctr = next_ctr + cn;
+        }
+        if let Some(dp) = &self.dec {
+            let (h, st, cn) = compd::eval_cpu_dec(b, &loc, dsel.clone(), self.decbase(), dp);
             next_hd = next_hd + h;
             next_stk = next_stk + st;
             next_ctr = next_ctr + cn;
@@ -1113,7 +1144,7 @@ fn lean_table(term: &str, tb: &Table) -> String {
 /// The AIRs, with the constants and the program table given.
 fn airs_of(hd0: u32, stk0: u32, ctr0: u32, pre: Vec<[u32; 5]>) -> Vec<SkiAir> {
     vec![
-        SkiAir::Cpu(CpuAir { hd0, stk0, ctr0, accept: None, accept_k: false, blind: false, jets: false, probe: None, restart: None, p2: None }),
+        SkiAir::Cpu(CpuAir { hd0, stk0, ctr0, accept: None, accept_k: false, blind: false, jets: false, probe: None, restart: None, p2: None, dec: None }),
         SkiAir::Mem(MemAir { blind: false }),
         SkiAir::Prog(ProgAir { pre }),
     ]
@@ -1532,6 +1563,63 @@ fn main() {
         }
         return;
     }
+    if args.len() == 3 && args[1] == "export-compd" {
+        let text = std::fs::read_to_string(&args[2]).expect("a statement");
+        match compd::export_compd(&text) {
+            Ok(s) => {
+                print!("{s}");
+                return;
+            }
+            Err(e) => {
+                eprintln!("export-compd: {e}");
+                std::process::exit(1);
+            }
+        }
+    }
+    if (args.len() == 5 || args.len() == 6) && args[1] == "compd-prove" {
+        let table_out = match args.get(5).map(|s| s.as_str()) {
+            Some(t) if t.starts_with("--table=") && t.len() > 8 => Some(std::path::PathBuf::from(&t[8..])),
+            Some(t) => {
+                eprintln!("compd-prove: expected --table=PATH, not {t}");
+                std::process::exit(2);
+            }
+            None => None,
+        };
+        match compd::compd_prove(std::path::Path::new(&args[2]), std::path::Path::new(&args[3]), std::path::Path::new(&args[4]), table_out.as_deref()) {
+            Ok(()) => return,
+            Err(e) => {
+                eprintln!("compd-prove: {e}");
+                std::process::exit(1);
+            }
+        }
+    }
+    if args.len() == 4 && args[1] == "compd-verify" {
+        match compd::compd_verify(std::path::Path::new(&args[2]), std::path::Path::new(&args[3])) {
+            Ok(()) => return,
+            Err(e) => {
+                eprintln!("compd-verify: {e}");
+                std::process::exit(1);
+            }
+        }
+    }
+    if args.len() == 4 && args[1] == "compd-measure" {
+        match compd::compd_measure(std::path::Path::new(&args[2]), std::path::Path::new(&args[3])) {
+            Ok(()) => return,
+            Err(e) => {
+                eprintln!("compd-measure: {e}");
+                std::process::exit(1);
+            }
+        }
+    }
+    if args.len() == 5 && args[1] == "compd-dump" {
+        match compd::compd_dump(std::path::Path::new(&args[2]), std::path::Path::new(&args[3]), std::path::Path::new(&args[4])) {
+            Ok(()) => return,
+            Err(e) => {
+                eprintln!("compd-dump: {e}");
+                std::process::exit(1);
+            }
+        }
+    }
     if args.len() == 3 && args[1] == "export-compp" {
         let text = std::fs::read_to_string(&args[2]).expect("a statement");
         match compp::export_compp(&text) {
@@ -1756,7 +1844,8 @@ fn main() {
              ski-air compj-verify PUBLIC JETS SRC PROOF [split K X | csplit K M SEED X C] | ski-air compj-tamper PUBLIC JETS SRC WITNESS\n       \
              ski-air compj-prove-table PUBLIC JETS SRC TABLE PROOF\n       \
              ski-air sudoku-prove PUBLIC WITNESS PROOF [TABLE] | ski-air sudoku-verify PUBLIC PROOF\n       \
-             ski-air fs-budget VERIFY-COMMAND ARGS... | ski-air poseidon2-lean | ski-air export-p2 | ski-air p2-bench N [tamper] | ski-air compp-prove PUBLIC WITNESS PROOF [--table=PATH|forge-w|forge-v] | ski-air compp-prove-table PUBLIC TABLE PROOF | ski-air compp-verify PUBLIC PROOF | ski-air proof-shape PROOF | ski-air compp-chain PUBLIC1 PROOF1 PUBLIC2 PROOF2 | ski-air compp-dump PUBLIC WITNESS DIR | ski-air compp-guess PUBLIC WITNESS | ski-air composed-dump PUBLIC WITNESS DIR | ski-air witness-dump PUBLIC REGION DIR | ski-air sudoku-dump PUBLIC BITS DIR | ski-air compj-dump PUBLIC JETS SRC WITNESS DIR | ski-air compj-dump-table PUBLIC JETS SRC TABLE DIR | ski-air export-compp PUBLIC"
+             ski-air fs-budget VERIFY-COMMAND ARGS... | ski-air poseidon2-lean | ski-air export-p2 | ski-air p2-bench N [tamper] | ski-air compp-prove PUBLIC WITNESS PROOF [--table=PATH|forge-w|forge-v] | ski-air compp-prove-table PUBLIC TABLE PROOF | ski-air compp-verify PUBLIC PROOF | ski-air proof-shape PROOF | ski-air compp-chain PUBLIC1 PROOF1 PUBLIC2 PROOF2 | ski-air compp-dump PUBLIC WITNESS DIR | ski-air compp-guess PUBLIC WITNESS | ski-air composed-dump PUBLIC WITNESS DIR | ski-air witness-dump PUBLIC REGION DIR | ski-air sudoku-dump PUBLIC BITS DIR | ski-air compj-dump PUBLIC JETS SRC WITNESS DIR | ski-air compj-dump-table PUBLIC JETS SRC TABLE DIR | ski-air export-compp PUBLIC\n       \
+             ski-air compd-prove PUBLIC WITNESS PROOF [--table=PATH] | ski-air compd-verify PUBLIC PROOF | ski-air compd-measure PUBLIC WITNESS | ski-air compd-dump PUBLIC WITNESS DIR | ski-air export-compd PUBLIC"
         );
         std::process::exit(2);
     }

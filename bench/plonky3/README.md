@@ -688,6 +688,43 @@ permutations   rows    prove     verify    proof
 `src/compp.rs` joins the table to the CPU through P2IN and P2OUT, on the
 buses `p2v` and `p2w` (`Ski/Circuit/CompPAir.lean`).
 
+### The `dec` data jet
+
+`src/decair.rs` is the table of skinock's `dec` data jet (`Nock2Ski`'s
+`nounContract decC`: Nock's decrement on a Λ stack noun, encoded code-free
+by `encNoun`); Lean's `Ski/Circuit/DecAir.lean` is the same table as data,
+and `Ski/DecJet.lean` the contract (`DecJet.decContract`) and the row's
+semantics (`DecJet.decRow`, `decRow_cstep`). `src/compd.rs` joins it to the
+composed CPU through a selector `DECSEL`: the CPU row reads the atom `J`
+and the stack cell `cons p rest`, sends `p` on `decn` and receives the
+result's root and the new counter on `decx`. DEC has one row per cell
+pattern of the subject (the `Cell` and `Atom` wrappers, a `Cons`, a nil),
+each reading its pattern through up to 25 range-checked lookups muxed by
+the kind; the subject's tree of needs runs on `decn`, the bits' chains on
+`decb` (the head's in mode 0, with the borrow, at most 32 rows; other
+atoms' in mode 1, canonical only), the head's verdict on `decd`. 741
+columns before the blinding block, 717 constraints of degree at most 3,
+69 interactions.
+
+```
+lake exe composed emit-dec DIR [N | --fresh]          # decpre (N - 1): CHECK_p (J [N 0])
+ski-air export-compd DIR/decpre.public.txt | lake exe circuit compare-compd -   # MATCH dec: 717 constraints, 69 interactions
+ski-air compd-prove DIR/decpre.public.txt DIR/decpre.witness.txt DIR/decpre.proof [--table=RUN]
+ski-air compd-verify DIR/decpre.public.txt DIR/decpre.proof
+lake exe composed check-dec-run DIR/decpre.public.txt RUN   # Lean replays the run: each row Air.stepRow or DecJet.decRow
+```
+
+```
+N              rows    jet rows   memory   prove    verify    proof
+12             322     8          1,266    0.33 s   0.53 s    957 KB
+2^32 - 1       1,750   36         5,566    0.45 s   0.68 s    1,000 KB
+```
+
+The heights are `log 12 13 9`; verifying includes Lean's AIR comparison.
+The released proof is `release/dec` (`verify.sh` step 13). That an
+accepted proof's tables are a run of `DecJet.decRow` is not yet proved
+(`Ski/DecJetTodo.lean`).
+
 ## A SKIlark predicate in zero knowledge
 
 A SKIlark (Joy) program is the verifier of a **predicate statement over
@@ -1067,13 +1104,13 @@ What the theorem rests on:
   witness table and the providers are padded to it, and the statement
   checks refuse a height or budget below 9 (`ComposedText.logOK`,
   `ComposedPText.plogsOK`, `composed.rs`'s `LOG_BOUNDS`). `ski-air mask-margin PROOF…` prints each proof's
-  margin from its heights, and `release/verify.sh` (step 14) checks every
+  margin from its heights, and `release/verify.sh` (step 15) checks every
   released zero-knowledge proof; `ski-air fs-budget` prints it after each
   hiding verification. More queries or a wider fold would need a higher
   floor.
 - **Every byte of a hiding proof lies in the simulated view.** A released
   proof is a postcard encoding of Plonky3's `BatchProof`. `ski-air
-  proof-shape PROOF` (`src/proofshape.rs`, `release/verify.sh` step 15)
+  proof-shape PROOF` (`src/proofshape.rs`, `release/verify.sh` step 16)
   reads it and refuses unless the bytes are exactly the proof's own
   encoding, so no byte sits outside its fields. Each field is a part of
   the view Lean's transcript theorems simulate: the commitments, the

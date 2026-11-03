@@ -72,9 +72,16 @@
 #      a temporary directory: the bits are the prover's secret.  Lean first
 #      checks that the piers' pill is K applied to the kernel it compiles
 #      (`lake exe entropy pill`, against `avon prefix`).
+#  14. the `dec` jet (release/dec): Lean emits `decpre p`, the composed
+#      statement whose verifier applies the `dec` data jet J to a subject
+#      [n 0] in the region and checks the result is [p 0] (`lake exe composed
+#      emit-dec`, Ski/ComposedDText.lean), n fresh below 2^32; ski-air
+#      compd-prove proves it and writes the run, and Lean replays the run
+#      (`composed check-dec-run`): every row a plain step or DecJet.decRow.
+#      p is public, so n is too: the statement shows the jet, not a secret.
 #
 # Stages: `release/produce.sh [STAGE…]` runs the named ones, of sumto,
-# composed, split8, csplit8, sudoku, jets, p2, entropy; all by default.  The proofs are
+# composed, split8, csplit8, sudoku, jets, p2, dec, entropy; all by default.  The proofs are
 # randomized, so a stage rewrites its own and leaves the others' bytes.
 # Run from anywhere; writes release/sumto/.  One job at a time.
 #
@@ -92,10 +99,10 @@ case "$WITNESS" in avon|ski-air) ;; *) echo "WITNESS is avon or ski-air" >&2; ex
 R=release/sumto
 tmp=$(mktemp -d)
 trap '/bin/rm -rf "$tmp"' EXIT
-STAGES=" ${*:-sumto composed split8 csplit8 sudoku jets p2 entropy} "
+STAGES=" ${*:-sumto composed split8 csplit8 sudoku jets p2 dec entropy} "
 want() { case "$STAGES" in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
 for st in $STAGES; do
-    case " sumto composed split8 csplit8 sudoku jets p2 entropy " in *" $st "*) ;; *) echo "no stage $st" >&2; exit 2 ;; esac
+    case " sumto composed split8 csplit8 sudoku jets p2 dec entropy " in *" $st "*) ;; *) echo "no stage $st" >&2; exit 2 ;; esac
 done
 (cd bench/plonky3 && cargo build --release --locked --quiet)
 A=bench/plonky3/target/release/ski-air
@@ -331,6 +338,18 @@ T="$tmp/p2"
 "$A" compp-prove "$T/handoff2.public.txt" "$T/handoff.witness.txt" "$T/handoff2.proof" > /dev/null
 "$A" compp-chain "$T/handoff1.public.txt" "$T/handoff1.proof" "$T/handoff2.public.txt" "$T/handoff2.proof" | tail -n 1
 for n in p2pre handoff1 handoff2; do /bin/cp "$T/$n.public.txt" "$T/$n.proof" "$P/"; done
+fi
+
+if want dec; then
+echo "--- the dec jet: a decrement"
+lake build composed > /dev/null
+D=release/dec
+T="$tmp/dec"
+mkdir -p "$D" "$T"
+lake exe composed emit-dec "$T" --fresh > /dev/null
+"$A" compd-prove "$T/decpre.public.txt" "$T/decpre.witness.txt" "$T/decpre.proof" --table="$T/run.txt" | cut -c1-160
+lake exe composed check-dec-run "$T/decpre.public.txt" "$T/run.txt"
+/bin/cp "$T/decpre.public.txt" "$T/decpre.proof" "$D/"
 fi
 
 if want entropy; then

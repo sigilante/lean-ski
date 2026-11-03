@@ -895,7 +895,7 @@ uniform `ζ` with probability `p^-2`, about `2^-62`) and the honest chunks
 show the quotient (`RecOK`, read from Plonky3's source)
 (`pcsCloseN_chunks`, `*_transcriptG_chunks`, `Ski/ZK/MaskChunk.lean`). Every
 byte of a released hiding proof lies in a field of that view: `ski-air
-proof-shape` (`release/verify.sh` step 15) refuses a proof whose bytes
+proof-shape` (`release/verify.sh` step 16) refuses a proof whose bytes
 are not its fields' own encoding, and proofs of one statement differ in
 size only in the Merkle digests their query paths share.
 The closure rule, the design's milestone 3 (`Ski/JetPublic.lean`): the
@@ -1074,6 +1074,28 @@ value that meets both stages' patterns, or a collision read from the two
 proofs' tables
 (`Circuit.p2commit_chainB`, `ski-air compp-chain`). Open: the binding and
 hiding assumptions, which are computational and stated in prose.
+
+A second data jet, `dec` (`Ski/DecJet.lean`, `Ski/Circuit/DecAir.lean`,
+branch `dec-jet`): skinock's contract `nounContract decC` (Nock's
+decrement on a Λ stack noun, `Nock2Ski/JetTransport.lean`, implemented by
+`jetT decF`, `dec_transport`) restated over lean-ski's copy of `encNoun`
+and restricted to well-formed subjects whose head atom has at most 32 bits
+(`DecJet.decContract`, `decContract_respects`). The machine's row
+(`DecJet.decRow`) reads the subject cell by cell and writes the
+decrement's cells, sharing the bits above the first set bit and the tail,
+or `errT`; it reads back as one jet step (`decRow_cstep`). The table DEC
+has one row per cell pattern (the `Cell` and `Atom` wrappers, a `Cons`,
+a nil), 25 range-checked reads muxed by the kind, the borrow chain on
+`decb`, the subject's need tree on `decn`; 741 columns before its blinding
+block, 717 constraints of degree at most 3, 69 interactions; its Rust
+export matches Lean's (`compare-compd`). Proved: the contract, the row's
+semantics, each DEC row's facts (`Circuit.dec_sound_row`), and what the
+verifier of `decpre p` means and accepts (`DecPre.decpre_meaning`,
+`decpre_complete`). Open: the circuit's soundness and completeness, the
+analogue of `CompP*` (`Ski/DecJetTodo.lean` states `decpreExport_sound`
+and the route; the new argument is the need tree's finiteness, from the
+heap's acyclicity). A proof of `decpre p` is released (`release/dec`,
+verify.sh step 13).
 
 Fiat–Shamir, round by round (`Ski/ZK/FSRound.lean`, `ski-air fs-budget`).
 Lean proves the counting step: `q` adaptive hash calls hit a round of bad

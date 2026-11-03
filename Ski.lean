@@ -46,6 +46,10 @@ import Ski.P2Commit
 import Ski.P2Chain
 import Ski.P2Complete
 import Ski.P2Once
+import Ski.DecJet
+import Ski.ComposedDText
+import Ski.DecPreSound
+import Ski.Circuit.DecAir
 import Ski.ZK.CompPHonest
 import Ski.Circuit.CompPCompleteFinal
 import Ski.ZK.CompP

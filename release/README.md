@@ -37,16 +37,17 @@ forgeries the sections below list.
 | `3 sumto` decodes to `[6]` | `sumto/` | 5 | `probeExport_sound`, `Air.checkPA_decodes` |
 | A forged jet table proves nothing | `forgeries/omega/` | 3 | the statement check refuses it |
 | The ∨ and the ∧ of two atoms, hidden | `composed/` | 6 | `compExportG_sound` |
-| Each proof binds its CPU constants (start registers, acceptance), which no committed table holds | `composed/`, `entropy/` | 6, 13 | none: the statement digest, tested by `ski-air composed-digest-bound` |
+| Each proof binds its CPU constants (start registers, acceptance), which no committed table holds | `composed/`, `entropy/` | 6, 14 | none: the statement digest, tested by `ski-air composed-digest-bound` |
 | Some 16 bits make `split` accept `x = 200` | `skilark/split8/` | 7 | `predExport_sound` |
 | The same, with a toy commitment | `skilark/csplit8/` | 8 | `predExport_sound` |
 | Wikipedia's Sudoku has a hidden solution | `sudoku/` | 9 | `sudExport_sound` |
 | `split` and `csplit` with jets, hidden | `skilark/*/jets/` | 10–11 | `compJExport_sound`, `Air.jetStmtC_sound` |
 | A Poseidon2 preimage of `h` | `p2/` | 12 | `p2preExport_sound` |
 | A hidden hand-off over one commitment | `p2/` | 12 | `p2commitExport_sound`, `p2commit_chainB` |
-| A kernel's poke with a private entropy reply | `entropy/` | 13 | `entropyExport_sound` |
-| Every zero-knowledge proof has the random rows its hiding needs | all but `sumto/` | 14 | `masks_hide`'s hypothesis, `\|S\| + 4\|Z\| ≤ n`, for the column openings, `q + 8 = 108`; the quotient's recombined values, two points a query, `2q + 8 = 208`, the hypothesis of `pcsCloseN_quot`; Plonky3's `HidingFriPcs` asks `2(q + 8) = 216`; every committed table has at least `2^9` rows, 296 to spare |
-| Every byte of a zero-knowledge proof lies in a field of the view the transcript theorems simulate | all but `sumto/` | 15 | `ski-air proof-shape`: the bytes are the fields' own encoding; the PCS's view, the terminals, the heights, and two proof-of-work witnesses unique given the transcript |
+| A decrement under the `dec` data jet | `dec/` | 13 | `DecPre.decpre_meaning`, `DecJet.decRow_cstep`; the export theorem is open (`Ski/DecJetTodo.lean`) |
+| A kernel's poke with a private entropy reply | `entropy/` | 14 | `entropyExport_sound` |
+| Every zero-knowledge proof has the random rows its hiding needs | all but `sumto/` | 15 | `masks_hide`'s hypothesis, `\|S\| + 4\|Z\| ≤ n`, for the column openings, `q + 8 = 108`; the quotient's recombined values, two points a query, `2q + 8 = 208`, the hypothesis of `pcsCloseN_quot`; Plonky3's `HidingFriPcs` asks `2(q + 8) = 216`; every committed table has at least `2^9` rows, 296 to spare |
+| Every byte of a zero-knowledge proof lies in a field of the view the transcript theorems simulate | all but `sumto/` | 16 | `ski-air proof-shape`: the bytes are the fields' own encoding; the PCS's view, the terminals, the heights, and two proof-of-work witnesses unique given the transcript |
 
 The theorems are in namespace `Circuit` unless prefixed.
 
@@ -203,7 +204,21 @@ The theorems are in namespace `Circuit` unless prefixed.
       prints `CHAIN OK`. It refuses the chain with the proofs swapped, paired
       with `p2pre`, or through FIFOs that answer Lean's read with the
       hand-off and the verifier's with `p2pre`.
-14. **A poke whose event is an entropy reply.** `entropy` holds two
+14. **The `dec` data jet.** `dec` holds `decpre p` and its proof: the
+    composed statement whose verifier, `λ β w. CHECK_p (J w)`, applies the
+    `dec` data jet `J` to the subject `w`, a stack noun `[n 0]` in the
+    region, and accepts when the result is `[p 0]`; `n` is drawn fresh
+    below `2^32`, and `p = n - 1` is public, so `n` is not a secret.
+    `verify.sh` checks that the statement is Lean's at the documented
+    heights (`lake exe composed check-decpre`); `ski-air compd-verify`
+    pipes it to Lean (`composed statement-dec`), has Lean compare the six
+    AIRs with `Circuit.compDAirs` (`compare-compd`), and verifies the
+    proof. With one byte changed, a byte appended, a region cell exposed
+    in the statement, offered for Lean's statement of `p xor 1`, or for
+    `p2pre`'s statement, it is refused. The producer also has Lean replay
+    the honest run (`composed check-dec-run`): each row a step or
+    `DecJet.decRow`.
+15. **A poke whose event is an entropy reply.** `entropy` holds two
     statements and their proofs. `source.ski` is Avon's entropy kernel
     (avon `tests/kernel/entropy.ascii.ski`, which Lean's front end and
     SKIjack's compile to the same term) with two checks. `verify.sh`
@@ -371,6 +386,20 @@ Each proof publishes one jet call, the same for every witness
 run within `2^20` rows are accepted, with the published level table
 (`Circuit.compP_complete_log`, `Circuit.compPC_complete_log`); that an
 evaluation yields such a run is tested, not proved.
+
+**The `dec` jet's proof.** What is proved: the contract is skinock's
+`nounContract decC` on the subjects the jet fires on (well formed, head
+atom of at most 32 bits), and respects its encoding; a row the machine
+takes at `J` is one step of the contract (`DecJet.decRow_cstep`); every
+row of a table that satisfies DEC takes the decrement's borrow step
+(`Circuit.dec_sound_row`); and the verifier of `decpre p`, with `J` closed
+to any implementation of the contract (skinock's `jetT decF`), accepts a
+subject exactly when its decrement is `[p …]` (`DecPre.decpre_meaning`,
+`DecPre.decpre_complete`). What is not: that an accepted proof's tables
+are such a run, the analogue of `Circuit.p2preExport_sound`
+(`Ski/DecJetTodo.lean` states it, and the route). Until then the proof's
+meaning rests on DEC's design, the Lean–Rust AIR match, and the replay of
+the released run.
 
 **The entropy proofs.** An accepted proof of either entropy statement
 holds in its memory 128 Booleans `bs` for which the check accepts the

@@ -8,6 +8,7 @@ import Ski.ProbeText
 import Ski.Circuit.CompJAir
 import Ski.ComposedText
 import Ski.Circuit.P2Air
+import Ski.Circuit.DecAir
 import Ski.Circuit.CompPAir
 open Term
 
@@ -351,6 +352,24 @@ def compareCompP (path : String) : IO UInt32 := do
   let some rust := parseAirs (rest.length + 1) rest | do IO.println "MALFORMED AIRS"; return 1
   compareAirs rust (compPAirsG st.Vs)
 
+/-- The composed circuit with the `dec` jet: `public N`, the statement's
+    `N` lines, then the six AIRs.  The statement must be exactly
+    `ComposedDText.publicTextD` of `p`, a region size and heights, as `lake
+    exe composed statement-dec` checks. -/
+def compareCompD (path : String) : IO UInt32 := do
+  let text ← readInput path
+  let ls := text.splitOn "\n"
+  let some n := (match ls with
+      | l :: _ => match words l with
+        | ["public", k] => k.toNat?
+        | _ => none
+      | [] => none) | do IO.println "MALFORMED: no statement"; return 1
+  let stmt := "\n".intercalate ((ls.drop 1).take n) ++ "\n"
+  let some (p, W, _) := ComposedDText.statementOfTextD stmt | do IO.println "NOT A STATEMENT"; return 1
+  let rest := ((ls.drop (n + 1)).filter (fun l => !l.trimAscii.toString.isEmpty))
+  let some rust := parseAirs (rest.length + 1) rest | do IO.println "MALFORMED AIRS"; return 1
+  compareAirs rust (compDAirs p W)
+
 /-- The probe circuit: `term T`, `outcome …`, then the ten AIRs.  The jet
     table is Lean's for the term, as for `compare-jets`; the plan is Lean's
     for the outcome's tree, `Air.planOf v 0` (`treeOfWordsC`: `Probe.toV`
@@ -437,7 +456,8 @@ def main (args : List String) : IO UInt32 := do
   | ["compare-probe", path] => compareProbe path
   | ["compare-p2", path] => compareP2 path
   | ["compare-compp", path] => compareCompP path
+  | ["compare-compd", path] => compareCompD path
   | ["compare-compJ", src, path] => compareCompJ src path
   | _ =>
-    IO.eprintln "usage: circuit compare|compare-composed|compare-witness|compare-sudoku|compare-jets|compare-probe|compare-p2|compare-compp FILE|-\n       circuit compare-compJ SRC FILE|- | circuit compare-compJ - - (stdin: the source, a NUL, the export)"
+    IO.eprintln "usage: circuit compare|compare-composed|compare-witness|compare-sudoku|compare-jets|compare-probe|compare-p2|compare-compp|compare-compd FILE|-\n       circuit compare-compJ SRC FILE|- | circuit compare-compJ - - (stdin: the source, a NUL, the export)"
     return 2
