@@ -1,5 +1,6 @@
 import Ski.JetTable
 import Ski.AirProbe
+import Ski.ProbeText
 open Term
 
 /-!
@@ -275,10 +276,19 @@ def planText (plan : List Seg) : String :=
   plan.foldl (fun s g => s ++ s!"{g.base} {g.k} {g.ctor} {g.arity} {g.parent} {g.field}\n")
     s!"plan {plan.length}\n"
 
-def planOfOutcome (o : Outcome) : Option (List Seg) := (Probe.toV o).map (planOf · 0)
+/-- The probe tree the outcome words name: a SKIlark outcome's
+    (`parseOutcome`, `Probe.toV`), or a literal tree, `tree` and its nodes
+    in preorder, `c k n` each (`Probe.vOfWords`, `Ski/ProbeText.lean`),
+    with the same cap on segments. -/
+def treeOfWords : List String → Option Probe.V
+  | "tree" :: ws => if ws.length > 3 * parseOutcome.maxSegs then none else Probe.vOfWords ws
+  | ws => parseOutcome ws >>= Probe.toV
+
+/-- The plan of the outcome words' tree, `Air.planOf` from marker `0`. -/
+def planOfWords (ws : List String) : Option (List Seg) := (treeOfWords ws).map (planOf · 0)
 
 def plan (ws : List String) : IO UInt32 := do
-  match parseOutcome ws >>= planOfOutcome with
+  match planOfWords ws with
   | some p =>
     IO.print (planText p)
     return 0
@@ -312,8 +322,7 @@ def parseProbe (ls : List String) : Option (Array Nat × Array (List Nat)) := do
 
 def checkProbe (row : Option String) (path : String) (ws : List String) : IO UInt32 := do
   let tmpls := allTemplates
-  let some o := parseOutcome ws | do IO.println "MALFORMED OUTCOME"; return 1
-  let some pl := planOfOutcome o | do IO.println "NO PLAN FOR THE OUTCOME"; return 1
+  let some pl := planOfWords ws | do IO.println "NO PLAN FOR THE OUTCOME"; return 1
   let text ← match ← (IO.FS.readFile path).toBaseIO with
     | .ok t => pure t
     | .error _ => do IO.println s!"MALFORMED {path}"; return 1
@@ -349,5 +358,5 @@ def main (args : List String) : IO UInt32 := do
   | "check-probe" :: "--row" :: name :: path :: ws => checkProbe (some name) path ws
   | "check-probe" :: path :: ws => checkProbe none path ws
   | _ =>
-    IO.eprintln "usage: jets emit DIR | jets statement CORPUS DIR | jets statement-stdin | jets check [--row NAME] TABLE...\n       jets plan OUTCOME | jets check-probe [--row NAME] TABLE OUTCOME"
+    IO.eprintln "usage: jets emit DIR | jets statement CORPUS DIR | jets statement-stdin | jets check [--row NAME] TABLE...\n       jets plan OUTCOME | jets check-probe [--row NAME] TABLE OUTCOME\n       OUTCOME: err | val N... | tree C K N... (the tree's nodes in preorder)"
     return 2

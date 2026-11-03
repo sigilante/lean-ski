@@ -13,6 +13,7 @@ import Ski.AirJet
 import Ski.JetTable
 import Ski.InstOpen
 import Ski.ProbeTree
+import Ski.ProbeText
 import Ski.AirProbe
 import Ski.Witness
 import Ski.WitnessExamples

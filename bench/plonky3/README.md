@@ -1131,6 +1131,20 @@ own term, the one on its first line: `ACCEPT` names it (the corpus row it
 equals), and `--row NAME` refuses a table whose term is not that row's.
 `DESIGN.md` §3 gives the argument.
 
+The outcome is words: a SKIlark outcome, `err` or `val N…` (its tree is
+`Probe.toV`), or any probe tree written out, `tree` and then its nodes in
+preorder, `c k n` each for `V.node c k ch` with `n = ch.length`
+(`Ski/ProbeText.lean`, `Probe.vOfWords`; plain decimal, `c < k`, so one
+tree has one spelling). The tree form is for terms that encode values of
+another language, whose trees `Probe.toV` does not produce (skinock's
+Nock nouns: `Atom` is constructor 0 of 4 with its bits as the field).
+`jets plan`, `jets check-probe`, `circuit compare-probe` and ski-air's
+`probe-prove`, `probe-prove-table` and `probe-verify` take either form
+and pass the words through unchanged; the plan is `Air.planOf` of the
+tree, and the soundness theorem of the export path is
+`Circuit.probeExport_sound_tree`, generic in the tree (`probeExport_sound`
+is its instance at `Probe.toV o`), concluding `Probe.DecV t.toO v`.
+
 `3 sumto` decodes to `[6]` in 11 segments and 4,144 CPU rows, proved in
 0.24 s and verified in 0.02 s. The prover refuses the plans of `[5]` and
 of the error outcome (a segment ends at the wrong marker), and the

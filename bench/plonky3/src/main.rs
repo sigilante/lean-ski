@@ -1751,6 +1751,7 @@ fn main() {
              ski-air probes CORPUS JETSDIR OUTDIR | ski-air probe-prove TERM JETS TABLE PROOF OUTCOME...\n       \
              ski-air probe-prove-table TERM JETS TABLE PROOF OUTCOME...\n       \
              ski-air probe-verify CORPUS JETSDIR NAME PROOF OUTCOME...\n       \
+               (OUTCOME...: err | val N... | tree C K N..., a probe tree's nodes in preorder)\n       \
              ski-air export-compj PUBLIC JETS | ski-air compj-prove PUBLIC JETS SRC WITNESS PROOF [TABLE]\n       \
              ski-air compj-verify PUBLIC JETS SRC PROOF [split K X | csplit K M SEED X C] | ski-air compj-tamper PUBLIC JETS SRC WITNESS\n       \
              ski-air compj-prove-table PUBLIC JETS SRC TABLE PROOF\n       \

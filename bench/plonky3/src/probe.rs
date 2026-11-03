@@ -97,7 +97,10 @@ pub fn parse_plan(text: &str) -> Result<Vec<Seg>, String> {
     Ok(plan)
 }
 
-/// The plan of an outcome, from Lean: `lake exe jets plan OUTCOME`.
+/// The plan of an outcome, from Lean: `lake exe jets plan OUTCOME`.  The
+/// words pass through as given: a SKIlark outcome (`err`, `val N…`) or a
+/// literal probe tree (`tree C K N…`, its nodes in preorder; Lean's
+/// `Probe.vOfWords`), which Lean turns into `Air.planOf` of its tree.
 pub fn lean_plan(outcome: &[&str]) -> Result<(Vec<Seg>, String), String> {
     let mut args = vec!["plan"];
     args.extend_from_slice(outcome);

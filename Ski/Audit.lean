@@ -851,7 +851,8 @@ open Ski.Audit
   Circuit.ProbeOK.nilRead Circuit.ProbeOK.sSeg Circuit.ProbeOK.eSeg Circuit.ProbeOK.probeWrites
   Circuit.ProbeOK.probeStep Circuit.ProbeOK.popPathL Circuit.ProbeOK.endLater Circuit.ProbeOK.endLast
   Circuit.ProbeOK.segendHit Circuit.ProbeOK.childPtr Circuit.ProbeOK.norm Circuit.ProbeOK.acceptsP
-  Circuit.ProbeOK.heap0 Circuit.ProbeOK.sound Circuit.probe_guarded Circuit.probeOK_of Circuit.probeExport_sound
+  Circuit.ProbeOK.heap0 Circuit.ProbeOK.sound Circuit.probe_guarded Circuit.probeOK_of
+  Circuit.probeExport_sound_tree Circuit.probeExport_sound
 
 -- Probe completeness: the honest tables satisfy the AIRs and balance
 #audit_clean Circuit.PRun.jok Circuit.PRun.probe_spec Circuit.PRun.later_end Circuit.PRun.probe_rowSat

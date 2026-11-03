@@ -1282,22 +1282,33 @@ theorem probeOK_of {t : Term} {roots : List (Nat × Nat)} {jets : List Air.Jet} 
       pre _ _ (by simp [probeTables]) (by show (11 : Nat) ≠ 0; decide),
       pre _ _ (by simp [probeTables]) (by show (7 : Nat) ≠ 0; decide), hbal, hht, htwo⟩⟩
 
-/-- **Soundness of the probe circuit.**  If Plonky3 accepts a proof against
-    AIRs the same as the probe circuit for `t`, a jet table whose roots are
-    licensed (`rootsOKB`) and whose numbers fit (`jetFitB`), and the plan of
-    the outcome `o`'s probe tree, whose numbers fit (`planFitB`) — all of
-    which `compare-probe` checks — then `t` decodes to `o`.  The plan's last
-    segment has no fields (`planOf_last`). -/
+/-- **Soundness of the probe circuit, for any probe tree.**  If Plonky3
+    accepts a proof against AIRs the same as the probe circuit for `t`, a
+    jet table whose roots are licensed (`rootsOKB`) and whose numbers fit
+    (`jetFitB`), and the plan of the tree `v`, whose numbers fit
+    (`planFitB`) — all of which `compare-probe` checks, for the tree it is
+    given — then `t` reads as `v` (`Probe.DecV`).  The plan's last segment
+    has no fields (`planOf_last`). -/
+theorem probeExport_sound_tree [Kit] {t : Term} {roots : List (Nat × Nat)} {jets : List Air.Jet}
+    {v : Probe.V}
+    (hroots : rootsOKB (load t).heap roots jets = true) (hjfit : jets.all jetFitB = true)
+    (hfit : planFitB (planOf v 0) = true)
+    {Rs : List AirD} {ts : List Table} (hs : sameAirsB Rs (probeAirs t roots jets (planOf v 0)) = true)
+    (h : AcceptedP Rs ts) : Probe.DecV t.toO v := by
+  have hacc := accepted_transfer hs ((acceptedP_iff_of (probe_guarded t roots jets (planOf v 0)) hs ts).1 h)
+  obtain ⟨C, Mm, Pg, Rt, Hd, Tm, Po, Iw, Pl, Pw, rfl, hok⟩ := probeOK_of hacc
+  have hR := rootsOKB_sound hroots
+  have hl : ∀ s, (planOf v 0).getLast? = some s → s.arity = 0 := fun _ hs' => planOf_last hs'
+  exact air_probe_sound (hok.sound hR hjfit hfit hl) hR
+
+/-- **Soundness of the probe circuit** at the tree of a SKIlark outcome:
+    `probeExport_sound_tree` for `Probe.toV o`, so `t` decodes to `o`. -/
 theorem probeExport_sound [Kit] {t : Term} {roots : List (Nat × Nat)} {jets : List Air.Jet} {o : Outcome}
     {v : Probe.V} (hv : Probe.toV o = some v)
     (hroots : rootsOKB (load t).heap roots jets = true) (hjfit : jets.all jetFitB = true)
     (hfit : planFitB (planOf v 0) = true)
     {Rs : List AirD} {ts : List Table} (hs : sameAirsB Rs (probeAirs t roots jets (planOf v 0)) = true)
-    (h : AcceptedP Rs ts) : Decodes t o := by
-  have hacc := accepted_transfer hs ((acceptedP_iff_of (probe_guarded t roots jets (planOf v 0)) hs ts).1 h)
-  obtain ⟨C, Mm, Pg, Rt, Hd, Tm, Po, Iw, Pl, Pw, rfl, hok⟩ := probeOK_of hacc
-  have hR := rootsOKB_sound hroots
-  have hl : ∀ s, (planOf v 0).getLast? = some s → s.arity = 0 := fun _ hs' => planOf_last hs'
-  exact air_probe_decodes hv (hok.sound hR hjfit hfit hl) hR
+    (h : AcceptedP Rs ts) : Decodes t o :=
+  Probe.decodes_of_decV hv (probeExport_sound_tree hroots hjfit hfit hs h)
 
 end Circuit

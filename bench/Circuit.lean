@@ -4,6 +4,7 @@ import Ski.Circuit.WitAir
 import Ski.Circuit.SudAir
 import Ski.Circuit.JetAir
 import Ski.Circuit.ProbeAir
+import Ski.ProbeText
 import Ski.Circuit.CompJAir
 import Ski.ComposedText
 import Ski.Circuit.P2Air
@@ -317,6 +318,14 @@ where
   decimal (w : String) : Option Nat :=
     if !w.isEmpty && w.all Char.isDigit && (w == "0" || w.front != '0') then w.toNat? else none
 
+/-- The probe tree of outcome words, as `lake exe jets plan` reads them: a
+    SKIlark outcome's (`parseOutcomeC`, `Probe.toV`), or a literal tree,
+    `tree` and its nodes in preorder, `c k n` each (`Probe.vOfWords`), with
+    the same cap on segments. -/
+def treeOfWordsC : List String → Option Probe.V
+  | "tree" :: ws => if ws.length > 3 * 65536 then none else Probe.vOfWords ws
+  | ws => parseOutcomeC ws >>= Probe.toV
+
 /-- The Poseidon2 table alone (`ski-air export-p2`) against `P2Air.p2Air`. -/
 def compareP2 (path : String) : IO UInt32 := do
   let text ← readInput path
@@ -344,10 +353,11 @@ def compareCompP (path : String) : IO UInt32 := do
 
 /-- The probe circuit: `term T`, `outcome …`, then the ten AIRs.  The jet
     table is Lean's for the term, as for `compare-jets`; the plan is Lean's
-    for the outcome, `Air.planOf (Probe.toV o) 0`, what `lake exe jets plan`
-    prints.  `MATCH` also means the side conditions of the soundness
-    theorem hold: licensed roots, numbers that fit, and a last segment with
-    no fields. -/
+    for the outcome's tree, `Air.planOf v 0` (`treeOfWordsC`: `Probe.toV`
+    of a SKIlark outcome, or the tree written after `tree`), what `lake exe
+    jets plan` prints.  `MATCH` also means the side conditions of the
+    soundness theorem (`probeExport_sound_tree`) hold: licensed roots,
+    numbers that fit, and a last segment with no fields. -/
 def compareProbe (path : String) : IO UInt32 := do
   let text ← readInput path
   let ls := (text.splitOn "\n").filter (fun l => !l.trimAscii.toString.isEmpty)
@@ -356,12 +366,12 @@ def compareProbe (path : String) : IO UInt32 := do
         | ["term", s] => parseTerm s
         | _ => none
       | [] => none) | do IO.println "MALFORMED: no term"; return 1
-  let some o := (match ls.drop 1 with
+  let some ws := (match ls.drop 1 with
       | l :: _ => match words l with
-        | "outcome" :: ws => parseOutcomeC ws
+        | "outcome" :: ws => some ws
         | _ => none
       | [] => none) | do IO.println "MALFORMED: no outcome"; return 1
-  let some v := Probe.toV o | do IO.println "NO PLAN FOR THE OUTCOME"; return 1
+  let some v := treeOfWordsC ws | do IO.println "NO PLAN FOR THE OUTCOME"; return 1
   let plan := Air.planOf v 0
   let some rust := parseAirs (ls.length + 1) (ls.drop 2) | do IO.println "MALFORMED AIRS"; return 1
   let (roots, jets) := JetTable.jetTable (Mach.load t).heap JetTable.allTemplates
