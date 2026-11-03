@@ -1592,7 +1592,7 @@ open Ski.Audit
 
 -- The `dec` data jet: skinock's decC contract over its encoding, the jet's
 -- row read back as one step of the contract, the table DEC's rows, and what a
--- proof of decpre p means (Ski/DecJetTodo.lean holds the open export theorems)
+-- proof of decpre p means
 #audit_clean DecJet.decB_val DecJet.decB_canon DecJet.canon_val_inj DecJet.bl_inj DecJet.encNn_inj
   DecJet.decContract_respects DecJet.decSpec_val DecJet.readCons_peel DecJet.readBits_ot DecJet.readAtom_peel
   DecJet.readCell_peel DecJet.readNn_ot DecJet.readNn_wf DecJet.readSubj_ot DecJet.readSubj_wf DecJet.out_ot
@@ -1604,6 +1604,39 @@ open Ski.Audit
 #audit_clean DecPre.thetaK_not_K DecPre.chkL_sound DecPre.checkD_sound DecPre.decpre_meaning
   DecPre.decpre_meaning_eval DecPre.chkL_complete DecPre.checkD_complete DecPre.decSpec_canon
   DecPre.decpre_complete
+
+-- The circuit with the `dec` jet is sound: the bus lemma between private
+-- tables (BusMatch); the dec CPU's rows and lookups (CompDRow/Kind/Step); a DEC
+-- row's columns, kind, slots and readers (CompDDec/Read); the four buses signed
+-- and matched (CompDBus/Match); the counter, jet keys unique (CompDCtr); the
+-- need tree finite at the read-back's fuel (CompDTree); the head's chain, no
+-- stray rows, its writes and the verdict (CompDHead/Write/Fwd/Verd); the jet's
+-- row is decRow (CompDJetRow); the run (ComposedD, CompDPrefix/Sound/Final);
+-- and what the run of decpre p means (DecPreSound)
+#audit_clean Circuit.bus_match Circuit.bus_match' Circuit.hitsAll_eq Circuit.sub_add_sub
+#audit_clean Circuit.kind_ofD Circuit.kindOKD_all Circuit.kind_factsD Circuit.next_regsD Circuit.cnt_rowsD
+  Circuit.CompDOK.memHit Circuit.CompDOK.segHit Circuit.CompDOK.read Circuit.CompDOK.step Circuit.CompDOK.halt
+  Circuit.CompDOK.ctr_eq Circuit.CompDOK.jetReads Circuit.CompDOK.jetNext
+#audit_clean Circuit.decRowF_of Circuit.dkind_of Circuit.slotOK_all Circuit.slot_kind Circuit.slot_cols
+  Circuit.rangeValD_lt Circuit.dec_mem_count Circuit.CompDOK.slotRead Circuit.CompDOK.decWrite
+  Circuit.CompDOK.slotS Circuit.CompDOK.cellRead Circuit.CompDOK.atomRead Circuit.CompDOK.consRead
+  Circuit.CompDOK.nilRead
+#audit_clean Circuit.CompDOK.signed Circuit.CompDOK.hit_split Circuit.CompDOK.need_recv Circuit.CompDOK.need_sent
+  Circuit.CompDOK.chain_recv Circuit.CompDOK.chain_sent Circuit.CompDOK.verd_sent Circuit.CompDOK.res_sent
+#audit_clean Circuit.CompDOK.chain_wc Circuit.CompDOK.verd_wc Circuit.CompDOK.res_ctr Circuit.CompDOK.jet_next_ctr
+  Circuit.CompDOK.next_ctr Circuit.CompDOK.ctr_le Circuit.CompDOK.jet_key_unique
+#audit_clean DecJet.readNn_mono DecJet.readBits_K DecJet.readBits_cons DecJet.readBits_nil_K
+  Circuit.CompDOK.subj_pc Circuit.CompDOK.head_pc Circuit.CompDOK.chain_bits Circuit.CompDOK.need_nn
+#audit_clean DecJet.walk_succ Circuit.CompDOK.on_walk Circuit.CompDOK.subWrites Circuit.CompDOK.errWrites
+  Circuit.CompDOK.hcWrites Circuit.CompDOK.hatWrites Circuit.CompDOK.asubWrites Circuit.CompDOK.nlkWrite
+  Circuit.CompDOK.consWrites DecJet.readBits_cons_inv Circuit.CompDOK.head_fwd DecJet.bitCells_len
+  DecJet.walk_end Circuit.CompDOK.verdict Circuit.decRow_of Circuit.CompDOK.jetRow
+#audit_clean CompM.decRow_hstep CompM.normRowD_spec CompM.AcceptsCD.within CompM.composedD_sound_of
+  Circuit.CompDOK.heap0 Circuit.CompDOK.regionWF Circuit.CompDOK.normRow Circuit.CompDOK.acceptsCD
+  Circuit.compDG_guarded Circuit.compDOK_ofG Circuit.compDExportG_sound Circuit.verifierD_occ
+  Circuit.compDExport_sound
+#audit_clean DecPre.verifier_spine DecPre.owsteps_spineD DecPre.appL_var_inj DecPre.first_jet DecPre.HSteps.close
+  DecPre.decpre_hsteps Circuit.decpreExport_sound
 
 -- The circuit with the Poseidon2 jet under Fiat–Shamir: its hiding PCS, P2OUT
 -- and Poseidon2 at degree 3 over eight chunks (CompPInst), the honest run's

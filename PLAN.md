@@ -1091,10 +1091,23 @@ block, 717 constraints of degree at most 3, 69 interactions; its Rust
 export matches Lean's (`compare-compd`). Proved: the contract, the row's
 semantics, each DEC row's facts (`Circuit.dec_sound_row`), and what the
 verifier of `decpre p` means and accepts (`DecPre.decpre_meaning`,
-`decpre_complete`). Open: the circuit's soundness and completeness, the
-analogue of `CompP*` (`Ski/DecJetTodo.lean` states `decpreExport_sound`
-and the route; the new argument is the need tree's finiteness, from the
-heap's acyclicity). A proof of `decpre p` is released (`release/dec`,
+`decpre_complete`), and the circuit's soundness: an accepted proof of
+`decpre p` holds in its memory a subject in the jet's domain whose
+decrement is a cell headed by the atom `p` (`Circuit.decpreExport_sound`,
+`Ski/Circuit/CompD*.lean`, `Ski/ComposedD.lean`). DEC's four buses have no
+provider, so the bus lemma is between private tables: on a balanced bus
+with counts `0`, `±1`, a tuple sent is received (`Circuit.bus_match`). A
+jet row whose state decodes is `DecJet.decRow`'s step
+(`Circuit.CompDOK.jetRow`): the subject's need tree is finite at the
+decoded state's read-back fuel, each row peeling its pattern from it
+(`CompDOK.need_nn`, `chain_bits`; no acyclicity of the heap is assumed,
+a cycle having no finite read-back), the head's chain has no stray rows
+(`on_walk`) and writes `DecJet.bitCells` (`head_fwd`), and the verdict is
+the head's. The run is head reduction with the jet (`CompM.AcceptsCD`), so
+the verifier's first jet step fires on a reduct of its witness, with
+`CHECK_p`'s continuations (`DecPre.decpre_hsteps`). Open: completeness,
+that the honest tables are accepted (the analogue of
+`compP_complete_log`). A proof of `decpre p` is released (`release/dec`,
 verify.sh step 13).
 
 Fiat–Shamir, round by round (`Ski/ZK/FSRound.lean`, `ski-air fs-budget`).

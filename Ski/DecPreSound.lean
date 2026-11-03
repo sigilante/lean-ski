@@ -17,6 +17,17 @@ cell whose head is the atom `p`: `decSpec s = some [d r]` with `val d = p`.
   against `p`'s (`chkL_sound`).  Weak reduction is confluent
   (`church_rosser`), so every reduct of a term that reaches `K` still
   reaches it.
+
+**`Circuit.decpreExport_sound`** composes it with the circuit's soundness:
+an accepted proof of `decpre p` holds in its memory a subject in the jet's
+domain whose decrement is a cell headed by the atom `p`.  The circuit
+gives a run of the verifier on the bit and the region's witness that
+head-reduces with the jet to `K` (`Circuit.compDExport_sound`); head
+reduction is deterministic up to the jet, and the verifier head-reduces
+to the jet applied to a reduct of the witness and `CHECK_p`'s
+continuations (`verifier_spine`), so the run's first jet step fires there,
+on a subject the memory holds (`first_jet`), and the rest of the run is
+`CHECK_p` on its decrement (`decpre_hsteps`).
 -/
 
 open Term Compose DecJet ComposedDText BitArith

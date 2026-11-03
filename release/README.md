@@ -44,7 +44,7 @@ forgeries the sections below list.
 | `split` and `csplit` with jets, hidden | `skilark/*/jets/` | 10–11 | `compJExport_sound`, `Air.jetStmtC_sound` |
 | A Poseidon2 preimage of `h` | `p2/` | 12 | `p2preExport_sound` |
 | A hidden hand-off over one commitment | `p2/` | 12 | `p2commitExport_sound`, `p2commit_chainB` |
-| A decrement under the `dec` data jet | `dec/` | 13 | `DecPre.decpre_meaning`, `DecJet.decRow_cstep`; the export theorem is open (`Ski/DecJetTodo.lean`) |
+| A decrement under the `dec` data jet | `dec/` | 13 | `decpreExport_sound` |
 | A kernel's poke with a private entropy reply | `entropy/` | 14 | `entropyExport_sound` |
 | Every zero-knowledge proof has the random rows its hiding needs | all but `sumto/` | 15 | `masks_hide`'s hypothesis, `\|S\| + 4\|Z\| ≤ n`, for the column openings, `q + 8 = 108`; the quotient's recombined values, two points a query, `2q + 8 = 208`, the hypothesis of `pcsCloseN_quot`; Plonky3's `HidingFriPcs` asks `2(q + 8) = 216`; every committed table has at least `2^9` rows, 296 to spare |
 | Every byte of a zero-knowledge proof lies in a field of the view the transcript theorems simulate | all but `sumto/` | 16 | `ski-air proof-shape`: the bytes are the fields' own encoding; the PCS's view, the terminals, the heights, and two proof-of-work witnesses unique given the transcript |
@@ -395,11 +395,18 @@ row of a table that satisfies DEC takes the decrement's borrow step
 (`Circuit.dec_sound_row`); and the verifier of `decpre p`, with `J` closed
 to any implementation of the contract (skinock's `jetT decF`), accepts a
 subject exactly when its decrement is `[p …]` (`DecPre.decpre_meaning`,
-`DecPre.decpre_complete`). What is not: that an accepted proof's tables
-are such a run, the analogue of `Circuit.p2preExport_sound`
-(`Ski/DecJetTodo.lean` states it, and the route). Until then the proof's
-meaning rests on DEC's design, the Lean–Rust AIR match, and the replay of
-the released run.
+`DecPre.decpre_complete`). An accepted proof of `decpre p`, for AIRs with
+the normal forms of `compDAirs p W`, holds in its memory a subject in the
+jet's domain whose decrement is a cell headed by the atom `p`
+(`Circuit.decpreExport_sound`, the analogue of `Circuit.p2preExport_sound`):
+each jet row whose state decodes is `DecJet.decRow`'s step
+(`Circuit.CompDOK.jetRow`), the subject's need tree on `decn` being finite
+at the decoded state's read-back fuel, so the run is head reduction with
+the jet, and the verifier's first jet step fires on a reduct of its witness
+with `CHECK_p`'s continuations. What is not proved: completeness, that the
+honest tables of a run are accepted (the analogue of
+`Circuit.compP_complete_log`); it is tested by the replay of the released
+run (`lake exe composed check-dec-run`).
 
 **The entropy proofs.** An accepted proof of either entropy statement
 holds in its memory 128 Booleans `bs` for which the check accepts the

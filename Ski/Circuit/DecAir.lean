@@ -32,7 +32,9 @@ kind or none (`dec_kinds`); a wrapper row has one of the three roles
 (`dec_role`); a `Cons` row takes the borrow step (`decStep_sound`), and in
 the head's mode its level is below `W = 32` (`dec_level`), so the head
 atom the jet decrements has at most 32 bits.  What DEC's tables prove
-together, across rows and buses, is open (`Ski/DecJetTodo.lean`).
+together, across rows and buses, is that a jet row whose state decodes is
+`DecJet.decRow`'s step (`Circuit.CompDOK.jetRow`, `Ski/Circuit/CompDJetRow.lean`),
+and so `Circuit.decpreExport_sound` (`Ski/DecPreSound.lean`).
 
 `lake exe circuit compare-compd` checks the Rust export (`ski-air
 export-compd PUBLIC`) against `compDAirsG`.

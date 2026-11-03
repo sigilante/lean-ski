@@ -50,6 +50,9 @@ import Ski.DecJet
 import Ski.ComposedDText
 import Ski.DecPreSound
 import Ski.Circuit.DecAir
+import Ski.Circuit.BusMatch
+import Ski.ComposedD
+import Ski.Circuit.CompDFinal
 import Ski.ZK.CompPHonest
 import Ski.Circuit.CompPCompleteFinal
 import Ski.ZK.CompP

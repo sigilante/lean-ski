@@ -721,9 +721,10 @@ N              rows    jet rows   memory   prove    verify    proof
 ```
 
 The heights are `log 12 13 9`; verifying includes Lean's AIR comparison.
-The released proof is `release/dec` (`verify.sh` step 13). That an
-accepted proof's tables are a run of `DecJet.decRow` is not yet proved
-(`Ski/DecJetTodo.lean`).
+The released proof is `release/dec` (`verify.sh` step 13). An accepted
+proof's tables are a run of `DecJet.decRow` (`Circuit.CompDOK.jetRow`), so
+its memory holds a subject whose decrement is `[p …]`
+(`Circuit.decpreExport_sound`).
 
 ## A SKIlark predicate in zero knowledge
 
