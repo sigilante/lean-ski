@@ -114,7 +114,12 @@ theorem dec_bus_cases {I : Inter} (hI : I ∈ Dec.decAir.inters) :
 theorem busI_buses : ∀ I ∈ Dec.busI, I.bus = "decn" ∨ I.bus = "decb" ∨ I.bus = "decd" ∨ I.bus = "decx" := by
   intro I hI
   simp only [Dec.busI, List.mem_cons, List.not_mem_nil, or_false] at hI
-  rcases hI with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> simp
+  rcases hI with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
+  all_goals first
+    | exact .inl rfl
+    | exact .inr (.inl rfl)
+    | exact .inr (.inr (.inl rfl))
+    | exact .inr (.inr (.inr rfl))
 
 /-- DEC sends on the lookup buses with counts `0` or `1`. -/
 theorem dec_senderD (hs : Sat Dec.decAir D) {B : String} (hB : LookupBusD B) : SenderOn B (Dec.decAir, D) := by

@@ -76,19 +76,19 @@ theorem CompDOK.subWrites {q : Nat} (hq : q < D.h) (hk : (D.main q Dec.KEY).val 
   have k1 : ∀ i, i ≤ 14 → ((Dec.kE i).eval (D.env q)).val = k + i := fun i hi => by
     simp only [Dec.kE, E.eval, cv, c]; exact val_key_add hk (by omega)
   refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
-  · have := w (i := 0) (by decide) (xe := c 0) (ye := Dec.kE 1) (by simp [Dec.writesI])
+  · have := w (i := 0) (by decide) (xe := c 0) (ye := Dec.kE 1) (by unfold Dec.writesI; mem_tac)
     rw [Nat.add_zero, k1 1 (by decide)] at this; exact this
-  · have := w (i := 1) (by decide) (xe := Dec.f1 2) (ye := Dec.kE 2) (by simp [Dec.writesI])
+  · have := w (i := 1) (by decide) (xe := Dec.f1 2) (ye := Dec.kE 2) (by unfold Dec.writesI; mem_tac)
     rw [k1 2 (by decide)] at this; simpa [Dec.f1, cv] using this
-  · have := w (i := 2) (by decide) (xe := Dec.f1 8) (ye := Dec.kE 3) (by simp [Dec.writesI])
+  · have := w (i := 2) (by decide) (xe := Dec.f1 8) (ye := Dec.kE 3) (by unfold Dec.writesI; mem_tac)
     rw [k1 3 (by decide)] at this; simpa [Dec.f1, cv] using this
-  · have := w (i := 3) (by decide) (xe := Dec.kE 4) (ye := Dec.f2 14) (by simp [Dec.writesI])
+  · have := w (i := 3) (by decide) (xe := Dec.kE 4) (ye := Dec.f2 14) (by unfold Dec.writesI; mem_tac)
     rw [k1 4 (by decide)] at this; simpa [Dec.f2, cv] using this
-  · have := w (i := 4) (by decide) (xe := Dec.f1 15) (ye := Dec.kE 5) (by simp [Dec.writesI])
+  · have := w (i := 4) (by decide) (xe := Dec.f1 15) (ye := Dec.kE 5) (by unfold Dec.writesI; mem_tac)
     rw [k1 5 (by decide)] at this; simpa [Dec.f1, cv] using this
-  · have := w (i := 5) (by decide) (xe := Dec.f1 17) (ye := Dec.kE 6) (by simp [Dec.writesI])
+  · have := w (i := 5) (by decide) (xe := Dec.f1 17) (ye := Dec.kE 6) (by unfold Dec.writesI; mem_tac)
     rw [k1 6 (by decide)] at this; simpa [Dec.f1, cv] using this
-  · have := w (i := 6) (by decide) (xe := c 0) (ye := Dec.kE 7) (by simp [Dec.writesI])
+  · have := w (i := 6) (by decide) (xe := c 0) (ye := Dec.kE 7) (by unfold Dec.writesI; mem_tac)
     rw [k1 7 (by decide)] at this; exact this
 
 
@@ -104,11 +104,11 @@ theorem CompDOK.errWrites {q : Nat} (hq : q < D.h) (hk : (D.main q Dec.KEY).val 
   have k1 : ∀ i, i ≤ 14 → ((Dec.kE i).eval (D.env q)).val = k + i := fun i hi => by
     simp only [Dec.kE, E.eval, cv, c]; exact val_key_add hk (by omega)
   refine ⟨?_, ?_, ?_⟩
-  · have := h.wrK hq hk (i := 12) (by decide) (xe := c 0) (ye := Dec.kE 13) (by simp [Dec.writesI]) hc
+  · have := h.wrK hq hk (i := 12) (by decide) (xe := c 0) (ye := Dec.kE 13) (by unfold Dec.writesI; mem_tac) hc
     rw [k1 13 (by decide)] at this; exact this
-  · have := h.wrK hq hk (i := 13) (by decide) (xe := c 0) (ye := Dec.kE 14) (by simp [Dec.writesI]) hc
+  · have := h.wrK hq hk (i := 13) (by decide) (xe := c 0) (ye := Dec.kE 14) (by unfold Dec.writesI; mem_tac) hc
     rw [k1 14 (by decide)] at this; exact this
-  · exact h.wrK hq hk (i := 14) (by decide) (xe := c 0) (ye := c 1) (by simp [Dec.writesI]) hc
+  · exact h.wrK hq hk (i := 14) (by decide) (xe := c 0) (ye := c 1) (by unfold Dec.writesI; mem_tac) hc
 
 /-- **A cell head's blank `Atom`**: five `app 0 0` cells after the wrapper. -/
 theorem CompDOK.hcWrites {q : Nat} (hq : q < D.h) (hk : (D.main q Dec.KEY).val < 2 ^ 28) (hs : D.main q Dec.HC = 1) :
@@ -117,11 +117,11 @@ theorem CompDOK.hcWrites {q : Nat} (hq : q < D.h) (hk : (D.main q Dec.KEY).val <
   intro i hi
   rw [Nat.add_assoc]
   rcases (show i = 0 ∨ i = 1 ∨ i = 2 ∨ i = 3 ∨ i = 4 by omega) with rfl | rfl | rfl | rfl | rfl
-  · exact h.wrK hq hk (i := 7) (by decide) (xe := c 0) (ye := c 0) (by simp [Dec.writesI]) hc
-  · exact h.wrK hq hk (i := 8) (by decide) (xe := c 0) (ye := c 0) (by simp [Dec.writesI]) hc
-  · exact h.wrK hq hk (i := 9) (by decide) (xe := c 0) (ye := c 0) (by simp [Dec.writesI]) hc
-  · exact h.wrK hq hk (i := 10) (by decide) (xe := c 0) (ye := c 0) (by simp [Dec.writesI]) hc
-  · exact h.wrK hq hk (i := 11) (by decide) (xe := c 0) (ye := c 0) (by simp [Dec.writesI]) hc
+  · exact h.wrK hq hk (i := 7) (by decide) (xe := c 0) (ye := c 0) (by unfold Dec.writesI; mem_tac) hc
+  · exact h.wrK hq hk (i := 8) (by decide) (xe := c 0) (ye := c 0) (by unfold Dec.writesI; mem_tac) hc
+  · exact h.wrK hq hk (i := 9) (by decide) (xe := c 0) (ye := c 0) (by unfold Dec.writesI; mem_tac) hc
+  · exact h.wrK hq hk (i := 10) (by decide) (xe := c 0) (ye := c 0) (by unfold Dec.writesI; mem_tac) hc
+  · exact h.wrK hq hk (i := 11) (by decide) (xe := c 0) (ye := c 0) (by unfold Dec.writesI; mem_tac) hc
 
 /-- **The head's `Atom` wrapper**, its first four cells. -/
 theorem CompDOK.hatWrites {q : Nat} (hq : q < D.h) (hk : (D.main q Dec.KEY).val < 2 ^ 28) (hs : D.main q Dec.HAT = 1) :
@@ -136,13 +136,13 @@ theorem CompDOK.hatWrites {q : Nat} (hq : q < D.h) (hk : (D.main q Dec.KEY).val 
   have k1 : ∀ i, i ≤ 14 → ((Dec.kE i).eval (D.env q)).val = k + i := fun i hi => by
     simp only [Dec.kE, E.eval, cv, c]; exact val_key_add hk (by omega)
   refine ⟨?_, ?_, ?_, ?_⟩
-  · have := h.wrK hq hk (i := 7) (by decide) (xe := Dec.f1 0) (ye := Dec.kE 8) (by simp [Dec.writesI]) hc
+  · have := h.wrK hq hk (i := 7) (by decide) (xe := Dec.f1 0) (ye := Dec.kE 8) (by unfold Dec.writesI; mem_tac) hc
     rw [k1 8 (by decide)] at this; simpa [Dec.f1, cv] using this
-  · have := h.wrK hq hk (i := 8) (by decide) (xe := Dec.f1 6) (ye := Dec.kE 9) (by simp [Dec.writesI]) hc
+  · have := h.wrK hq hk (i := 8) (by decide) (xe := Dec.f1 6) (ye := Dec.kE 9) (by unfold Dec.writesI; mem_tac) hc
     rw [k1 9 (by decide)] at this; simpa [Dec.f1, cv] using this
-  · have := h.wrK hq hk (i := 9) (by decide) (xe := Dec.f1 12) (ye := Dec.kE 10) (by simp [Dec.writesI]) hc
+  · have := h.wrK hq hk (i := 9) (by decide) (xe := Dec.f1 12) (ye := Dec.kE 10) (by unfold Dec.writesI; mem_tac) hc
     rw [k1 10 (by decide)] at this; simpa [Dec.f1, cv] using this
-  · have := h.wrK hq hk (i := 10) (by decide) (xe := Dec.f1 18) (ye := Dec.kE 11) (by simp [Dec.writesI]) hc
+  · have := h.wrK hq hk (i := 10) (by decide) (xe := Dec.f1 18) (ye := Dec.kE 11) (by unfold Dec.writesI; mem_tac) hc
     rw [k1 11 (by decide)] at this; simpa [Dec.f1, cv] using this
 
 /-- **An atom subject's crash**, written at the key. -/
@@ -157,16 +157,16 @@ theorem CompDOK.asubWrites {q : Nat} (hq : q < D.h) (hk : (D.main q Dec.KEY).val
   have k1 : ∀ i, i ≤ 14 → ((Dec.kE i).eval (D.env q)).val = k + i := fun i hi => by
     simp only [Dec.kE, E.eval, cv, c]; exact val_key_add hk (by omega)
   refine ⟨?_, ?_, ?_⟩
-  · have := h.wrK hq hk (i := 0) (by decide) (xe := c 0) (ye := Dec.kE 1) (by simp [Dec.writesI]) hc
+  · have := h.wrK hq hk (i := 0) (by decide) (xe := c 0) (ye := Dec.kE 1) (by unfold Dec.writesI; mem_tac) hc
     rw [Nat.add_zero, k1 1 (by decide)] at this; exact this
-  · have := h.wrK hq hk (i := 1) (by decide) (xe := c 0) (ye := Dec.kE 2) (by simp [Dec.writesI]) hc
+  · have := h.wrK hq hk (i := 1) (by decide) (xe := c 0) (ye := Dec.kE 2) (by unfold Dec.writesI; mem_tac) hc
     rw [k1 2 (by decide)] at this; exact this
-  · exact h.wrK hq hk (i := 2) (by decide) (xe := c 0) (ye := c 1) (by simp [Dec.writesI]) hc
+  · exact h.wrK hq hk (i := 2) (by decide) (xe := c 0) (ye := c 1) (by unfold Dec.writesI; mem_tac) hc
 
 /-- **An empty head's link**: `app 0 0` at the key plus `11`. -/
 theorem CompDOK.nlkWrite {q : Nat} (hq : q < D.h) (hk : (D.main q Dec.KEY).val < 2 ^ 28) (hs : D.main q Dec.NLK = 1) :
     (memOf Mm)[(D.main q Dec.KEY).val + 11]? = some (.app 0 0) :=
-  h.wrK hq hk (i := 11) (by decide) (xe := c 0) (ye := c 0) (ce := col Dec.NLK) (by simp [Dec.writesI])
+  h.wrK hq hk (i := 11) (by decide) (xe := c 0) (ye := c 0) (ce := col Dec.NLK) (by unfold Dec.writesI; mem_tac)
     (by rw [col_eval hq, hs])
 
 /-- **A `Cons` row's writes**, at `c = key + 12 + 6 · level`: under the
@@ -190,23 +190,23 @@ theorem CompDOK.consWrites {q : Nat} (hq : q < D.h) (hk : (D.main q Dec.KEY).val
     simp only [Dec.apE, Dec.aE, E.eval, cv, c]; exact val_aE_add hk hl' hi
   refine ⟨fun hs => ?_, fun hs => ?_, fun hs => ?_⟩
   · have := h.wrAt hq (ae := .add (.add (col Dec.KEY) (c 11)) (.mul (c 6) (col Dec.LVL))) (xe := c 0)
-      (ye := col Dec.NEXTL) (ce := col Dec.CLK) (by simp [Dec.writesI]) (by rw [cv, hs])
+      (ye := col Dec.NEXTL) (ce := col Dec.CLK) (by unfold Dec.writesI; mem_tac) (by rw [cv, hs])
     simp only [E.eval, cv, c] at this
     rw [val_link hk hl'] at this
     exact this
   · have hc : (col Dec.CW).eval (D.env q) = 1 := by rw [cv, hs]
     refine ⟨?_, ?_, ?_, ?_, ?_⟩
-    · have := h.wrAt hq (ae := Dec.apE 0) (xe := c 0) (ye := Dec.apE 1) (by simp [Dec.writesI]) hc
+    · have := h.wrAt hq (ae := Dec.apE 0) (xe := c 0) (ye := Dec.apE 1) (by unfold Dec.writesI; mem_tac) hc
       rw [ap 0 (by decide), ap 1 (by decide)] at this; exact this
-    · have := h.wrAt hq (ae := Dec.apE 1) (xe := Dec.apE 2) (ye := Dec.apE 5) (by simp [Dec.writesI]) hc
+    · have := h.wrAt hq (ae := Dec.apE 1) (xe := Dec.apE 2) (ye := Dec.apE 5) (by unfold Dec.writesI; mem_tac) hc
       rw [ap 1 (by decide), ap 2 (by decide), ap 5 (by decide)] at this; exact this
-    · have := h.wrAt hq (ae := Dec.apE 2) (xe := Dec.f1 3) (ye := Dec.apE 3) (by simp [Dec.writesI]) hc
+    · have := h.wrAt hq (ae := Dec.apE 2) (xe := Dec.f1 3) (ye := Dec.apE 3) (by unfold Dec.writesI; mem_tac) hc
       rw [ap 2 (by decide), ap 3 (by decide)] at this; simpa [Dec.f1, cv] using this
-    · have := h.wrAt hq (ae := Dec.apE 3) (xe := Dec.f1 5) (ye := Dec.apE 4) (by simp [Dec.writesI]) hc
+    · have := h.wrAt hq (ae := Dec.apE 3) (xe := Dec.f1 5) (ye := Dec.apE 4) (by unfold Dec.writesI; mem_tac) hc
       rw [ap 3 (by decide), ap 4 (by decide)] at this; simpa [Dec.f1, cv] using this
-    · have := h.wrAt hq (ae := Dec.apE 4) (xe := c 0) (ye := col Dec.PTR) (by simp [Dec.writesI]) hc
+    · have := h.wrAt hq (ae := Dec.apE 4) (xe := c 0) (ye := col Dec.PTR) (by unfold Dec.writesI; mem_tac) hc
       rw [ap 4 (by decide)] at this; simp only [cv] at this; exact this
-  · have := h.wrAt hq (ae := Dec.apE 5) (xe := c 0) (ye := Dec.f2 14) (ce := col Dec.CWL) (by simp [Dec.writesI])
+  · have := h.wrAt hq (ae := Dec.apE 5) (xe := c 0) (ye := Dec.f2 14) (ce := col Dec.CWL) (by unfold Dec.writesI; mem_tac)
       (by rw [cv, hs])
     rw [ap 5 (by decide)] at this; simp only [Dec.f2, cv] at this; exact this
 

@@ -63,7 +63,7 @@ theorem cpuBusI_mem : ∀ I ∈ cpuBusI, I ∈ cpuIntersD := by
   intro I hI
   rw [cpuIntersD_eq]
   simp only [cpuBusI, List.mem_cons, List.not_mem_nil, or_false] at hI
-  rcases hI with rfl | rfl <;> simp
+  rcases hI with rfl | rfl <;> mem_tac
 
 theorem neg_ne_one {x : F} (hx : x = 0 ∨ x = 1) : -x ≠ 1 := by rcases hx with rfl | rfl <;> decide
 theorem bit_ne_neg {x : F} (hx : x = 0 ∨ x = 1) : x ≠ -1 := by rcases hx with rfl | rfl <;> decide
@@ -104,14 +104,14 @@ theorem CompDOK.need_recv {v : List F} (hs : NeedSent C D v) : NeedRecv D v := b
         I.count.eval (p.2.env r) = 1 := by
     rcases hs with ⟨r, hr, hd, rfl⟩ | ⟨q, hq, hk, rfl | rfl⟩
     · have cv := col_eval hr
-      exact h.cpuHit hr (I := ⟨"decn", 1, sDec, [col CTR, fld 2, c 0]⟩) (by simp [cpuBusI]) rfl
+      exact h.cpuHit hr (I := ⟨"decn", 1, sDec, [col CTR, fld 2, c 0]⟩) (by unfold cpuBusI; mem_tac) rfl
         (by simp [fld, cv]; rfl) (by show (col DECSEL).eval _ = 1; rw [cv, hd])
     · have cv := col_eval hq
       exact h.decHit hq (I := ⟨"decn", 1, col Dec.KCELL, [col Dec.KEY, Dec.f2 21, .sub (c 2) (col Dec.H0)]⟩)
-        (by simp [Dec.busI]) rfl (by simp [Dec.f2, cv, E.eval, c]) (by rw [cv, hk])
+        (by unfold Dec.busI; mem_tac) rfl (by simp [Dec.f2, cv, E.eval, c]) (by rw [cv, hk])
     · have cv := col_eval hq
       exact h.decHit hq (I := ⟨"decn", 1, col Dec.KCELL, [col Dec.KEY, Dec.f2 23, c 2]⟩)
-        (by simp [Dec.busI]) rfl (by simp [Dec.f2, cv, E.eval, c]) (by rw [cv, hk])
+        (by unfold Dec.busI; mem_tac) rfl (by simp [Dec.f2, cv, E.eval, c]) (by rw [cv, hk])
   obtain hm := bus_match h.bal h.hts (h.signed (.inl rfl)) hit
   rcases h.hit_split (.inl rfl) hm with ⟨r, hr, I, hI, hb, hf, hc⟩ | ⟨q, hq, I, hI, hb, hf, hc⟩
   · simp only [cpuBusI, List.mem_cons, List.not_mem_nil, or_false] at hI
@@ -134,7 +134,7 @@ theorem CompDOK.need_sent {v : List F} (hr : NeedRecv D v) : NeedSent C D v := b
   obtain ⟨q, hq, hk, rfl⟩ := hr
   have cv := col_eval hq
   have hit := h.decHit hq (I := ⟨"decn", 1, .neg (.add (col Dec.KCELL) (col Dec.KATOM)), [col Dec.KEY, col Dec.PC,
-      col Dec.RO]⟩) (B := "decn") (s := -1) (v := [D.main q Dec.KEY, D.main q Dec.PC, D.main q Dec.RO]) (by simp [Dec.busI]) rfl (by simp [cv]) (by simp only [E.eval, cv, hk])
+      col Dec.RO]⟩) (B := "decn") (s := -1) (v := [D.main q Dec.KEY, D.main q Dec.PC, D.main q Dec.RO]) (by unfold Dec.busI; mem_tac) rfl (by simp [cv]) (by simp only [E.eval, cv, hk])
   obtain hm := bus_match' h.bal h.hts (h.signed (.inl rfl)) hit
   rcases h.hit_split (.inl rfl) hm with ⟨r, hr, I, hI, hb, hf, hc⟩ | ⟨q', hq', I, hI, hb, hf, hc⟩
   · simp only [cpuBusI, List.mem_cons, List.not_mem_nil, or_false] at hI
@@ -164,10 +164,10 @@ theorem CompDOK.chain_recv {v : List F} (hs : ChainSent D v) : ChainRecv D v := 
     rcases hs with ⟨q, hq, hk, rfl⟩ | ⟨q, hq, hk, rfl⟩
     · have cv := col_eval hq
       exact h.decHit hq (I := ⟨"decb", 1, col Dec.KATOM, [col Dec.KEY, Dec.f2 22, .sub one (col Dec.H1), c 0,
-        col Dec.H1, c 0]⟩) (by simp [Dec.busI]) rfl (by simp [Dec.f2, cv, E.eval, c, one, ofN_one, ofN_zero]) (by rw [cv, hk])
+        col Dec.H1, c 0]⟩) (by unfold Dec.busI; mem_tac) rfl (by simp [Dec.f2, cv, E.eval, c, one, ofN_one, ofN_zero]) (by rw [cv, hk])
     · have cv := col_eval hq
       exact h.decHit hq (I := ⟨"decb", 1, col Dec.CSEND, [col Dec.KEY, Dec.f2 14, col Dec.MODE,
-        .add (col Dec.LVL) one, col Dec.NBW, col Dec.WCN]⟩) (by simp [Dec.busI]) rfl
+        .add (col Dec.LVL) one, col Dec.NBW, col Dec.WCN]⟩) (by unfold Dec.busI; mem_tac) rfl
         (by simp [Dec.f2, cv, E.eval, c, one, ofN_one, ofN_zero]) (by rw [cv, hk])
   obtain hm := bus_match h.bal h.hts (h.signed (.inr (.inl rfl))) hit
   rcases h.hit_split (.inr (.inl rfl)) hm with ⟨r, hr, I, hI, hb, hf, hc⟩ | ⟨q, hq, I, hI, hb, hf, hc⟩
@@ -195,9 +195,9 @@ theorem CompDOK.chain_sent {v : List F} (hr : ChainRecv D v) : ChainSent D v := 
         I.count.eval (p.2.env r) = -1 := by
     rcases hk with hk | hk
     · exact h.decHit hq (I := ⟨"decb", 1, .neg (col Dec.KCONS), [col Dec.KEY, col Dec.PC, col Dec.MODE, col Dec.LVL,
-        col Dec.BW, col Dec.WC]⟩) (by simp [Dec.busI]) rfl (by simp [cv]) (by simp only [E.eval, cv, hk])
+        col Dec.BW, col Dec.WC]⟩) (by unfold Dec.busI; mem_tac) rfl (by simp [cv]) (by simp only [E.eval, cv, hk])
     · exact h.decHit hq (I := ⟨"decb", 1, .neg (col Dec.KNIL), [col Dec.KEY, col Dec.PC, col Dec.MODE, col Dec.LVL,
-        col Dec.BW, col Dec.WC]⟩) (by simp [Dec.busI]) rfl (by simp [cv]) (by simp only [E.eval, cv, hk])
+        col Dec.BW, col Dec.WC]⟩) (by unfold Dec.busI; mem_tac) rfl (by simp [cv]) (by simp only [E.eval, cv, hk])
   obtain hm := bus_match' h.bal h.hts (h.signed (.inr (.inl rfl))) hit
   rcases h.hit_split (.inr (.inl rfl)) hm with ⟨r, hr, I, hI, hb, hf, hc⟩ | ⟨q', hq', I, hI, hb, hf, hc⟩
   · simp only [cpuBusI, List.mem_cons, List.not_mem_nil, or_false] at hI
@@ -220,7 +220,7 @@ theorem CompDOK.verd_sent {v : List F} (hr : VerdRecv D v) : VerdSent D v := by
   have cv := col_eval hq
   have hit := h.decHit hq (I := ⟨"decd", 1, .neg (col Dec.SUB), [col Dec.KEY, col Dec.ERR, col Dec.WC]⟩)
     (B := "decd") (s := -1) (v := [D.main q Dec.KEY, D.main q Dec.ERR, D.main q Dec.WC])
-    (by simp [Dec.busI]) rfl (by simp [cv]) (by simp only [E.eval, cv, hk])
+    (by unfold Dec.busI; mem_tac) rfl (by simp [cv]) (by simp only [E.eval, cv, hk])
   obtain hm := bus_match' h.bal h.hts (h.signed (.inr (.inr (.inl rfl)))) hit
   rcases h.hit_split (.inr (.inr (.inl rfl))) hm with ⟨r, hr, I, hI, hb, hf, hc⟩ | ⟨q', hq', I, hI, hb, hf, hc⟩
   · simp only [cpuBusI, List.mem_cons, List.not_mem_nil, or_false] at hI
@@ -245,7 +245,7 @@ theorem CompDOK.res_sent {v : List F} (hr : ResRecv C v) : ResSent D v := by
   have cv := col_eval hr
   have hit := h.cpuHit hr (I := ⟨"decx", 1, .neg sDec, [col CTR, col DROOT, col DCTR]⟩)
     (B := "decx") (s := -1) (v := [C.main r CTR, C.main r DROOT, C.main r DCTR])
-    (by simp [cpuBusI]) rfl (by simp [cv]) (by simp only [sDec, E.eval, cv, hd])
+    (by unfold cpuBusI; mem_tac) rfl (by simp [cv]) (by simp only [sDec, E.eval, cv, hd])
   obtain hm := bus_match' h.bal h.hts (h.signed (.inr (.inr (.inr rfl)))) hit
   rcases h.hit_split (.inr (.inr (.inr rfl))) hm with ⟨r', hr', I, hI, hb, hf, hc⟩ | ⟨q', hq', I, hI, hb, hf, hc⟩
   · simp only [cpuBusI, List.mem_cons, List.not_mem_nil, or_false] at hI

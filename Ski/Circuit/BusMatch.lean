@@ -16,6 +16,9 @@ balance in the field is balance in the numbers (`hitsAll_eq`).
 
 namespace Circuit
 
+/-- Membership in a literal list, by position: no decision procedure. -/
+macro "mem_tac" : tactic => `(tactic| repeat (first | exact List.mem_cons_self | apply List.mem_cons_of_mem))
+
 /-- A table whose messages on `B` weigh at least `1` and have counts `0`,
     `1` or `-1` on every row. -/
 def SignedOn (B : String) (p : AirD × Table) : Prop :=

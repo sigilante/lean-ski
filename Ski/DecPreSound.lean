@@ -1,4 +1,4 @@
-import Ski.ComposedDText
+import Ski.Circuit.CompDFinal
 
 /-!
 # What a proof of `decpre p` proves
@@ -291,3 +291,251 @@ theorem decpre_complete {p : Nat} {P : Term} (hP : DataJet.Implements decContrac
   exact hb.trans ((WSteps.right _ hP').trans (checkD_complete p σ r))
 
 end DecPre
+
+-- ---------------------------------------------------------------------------
+-- The run's meaning: the jet fires on the witness's reduct, at the head
+-- ---------------------------------------------------------------------------
+
+namespace DecPre
+
+open CompM Mach
+
+theorem mem_false {x : Nat} : ∀ {t : OTerm}, ¬ Occ x t → t.mem x = false
+  | .S, _ => rfl
+  | .K, _ => rfl
+  | .I, _ => rfl
+  | .var y, h => by
+    simp only [OTerm.mem, beq_eq_false_iff_ne]
+    intro e; subst e; exact h (.var _)
+  | .app f a, h => by
+    simp only [OTerm.mem, Bool.or_eq_false_iff]
+    exact ⟨mem_false (fun hf => h (.left _ hf)), mem_false (fun ha => h (.right _ ha))⟩
+
+/-- The verifier's check of the head, once it is a cell's. -/
+def chkX (p : Nat) : OTerm := absN [1, 2] (.var 1 ⬝ₒ chkL (bitsN p) ⬝ₒ badO ⬝ₒ badO ⬝ₒ badO)
+
+theorem checkD_eq (p : Nat) : checkD p = absN [0] (.var 0 ⬝ₒ badO ⬝ₒ chkX p ⬝ₒ badO ⬝ₒ badO) := rfl
+
+theorem chkX_closed (p x : Nat) : ¬ Occ x (chkX p) := fun h => by
+  obtain ⟨h3, h4⟩ := Circuit.occ_absN [1, 2] h
+  rcases Circuit.occ_app h3 with h3 | h3
+  · rcases Circuit.occ_app h3 with h3 | h3
+    · rcases Circuit.occ_app h3 with h3 | h3
+      · rcases Circuit.occ_app h3 with h3 | h3
+        · cases h3; exact h4 (by simp)
+        · exact Circuit.chkL_closed _ x h3
+      · exact Circuit.badD_closed x h3
+    · exact Circuit.badD_closed x h3
+  · exact Circuit.badD_closed x h3
+
+/-- **The verifier reduces to the jet on the witness**, with `CHECK_p`'s
+    continuations. -/
+theorem verifier_spine (p : Nat) (β w : Term) :
+    OWSteps (verifierD p ⬝ₒ β.toO ⬝ₒ w.toO) (appL (.var JD) [w.toO, badO, chkX p, badO, badO]) := by
+  have h1 := absN_beta [0, 1] [β, w] (checkD p ⬝ₒ (.var JD ⬝ₒ .var 1)) ⟨by decide, by decide, trivial⟩ rfl
+  have e1 : substL [0, 1] [β, w] (checkD p ⬝ₒ (.var JD ⬝ₒ .var 1)) = checkD p ⬝ₒ (.var JD ⬝ₒ w.toO) := by
+    show ((checkD p ⬝ₒ (.var JD ⬝ₒ .var 1)).subst (single 0 β.toO)).subst (single 1 w.toO) = _
+    show OTerm.app (((checkD p).subst (single 0 β.toO)).subst (single 1 w.toO))
+      (OTerm.app ((single 0 β.toO JD).subst (single 1 w.toO)) ((single 0 β.toO 1).subst (single 1 w.toO))) = _
+    rw [subst_single_of_not_mem (mem_false (Circuit.checkD_closed p 0)),
+      subst_single_of_not_mem (mem_false (Circuit.checkD_closed p 1)),
+      single_ne _ (by decide : JD ≠ 0), single_ne _ (by decide : 1 ≠ 0)]
+    show OTerm.app (checkD p) (OTerm.app (single 1 w.toO JD) (single 1 w.toO 1)) = _
+    rw [single_ne _ (by decide : JD ≠ 1), single_self]
+  rw [e1] at h1
+  have h2 := abs_beta 0 (.var JD ⬝ₒ w.toO) (.var 0 ⬝ₒ badO ⬝ₒ chkX p ⬝ₒ badO ⬝ₒ badO)
+  have e2 : (OTerm.var 0 ⬝ₒ badO ⬝ₒ chkX p ⬝ₒ badO ⬝ₒ badO).subst (single 0 (.var JD ⬝ₒ w.toO)) =
+      appL (.var JD) [w.toO, badO, chkX p, badO, badO] := by
+    show OTerm.app (OTerm.app (OTerm.app (OTerm.app (single 0 (.var JD ⬝ₒ w.toO) 0)
+      (badO.subst (single 0 (.var JD ⬝ₒ w.toO)))) ((chkX p).subst (single 0 (.var JD ⬝ₒ w.toO))))
+      (badO.subst (single 0 (.var JD ⬝ₒ w.toO)))) (badO.subst (single 0 (.var JD ⬝ₒ w.toO))) = _
+    rw [single_self, subst_single_of_not_mem (mem_false (Circuit.badD_closed 0)),
+      subst_single_of_not_mem (mem_false (chkX_closed p 0))]
+    rfl
+  rw [e2] at h2
+  exact h1.trans h2
+
+-- The spine of a weak reduction to a variable-headed term (as
+-- `Probe.owsteps_spine`, without its section's quotation table).
+
+/-- Pairwise weak reduction of two lists of terms. -/
+inductive AllW : List OTerm → List OTerm → Prop
+  | nil : AllW [] []
+  | cons {a b : OTerm} {as bs : List OTerm} : OWSteps a b → AllW as bs → AllW (a :: as) (b :: bs)
+
+theorem AllW.refl : ∀ (as : List OTerm), AllW as as
+  | [] => .nil
+  | a :: as => .cons (.refl a) (AllW.refl as)
+
+theorem AllW.trans : ∀ {as bs cs : List OTerm}, AllW as bs → AllW bs cs → AllW as cs
+  | [], [], [], .nil, .nil => .nil
+  | _ :: _, _ :: _, _ :: _, .cons h1 t1, .cons h2 t2 => .cons (h1.trans h2) (AllW.trans t1 t2)
+
+theorem AllW.snoc : ∀ {as bs : List OTerm} {a b : OTerm}, AllW as bs → OWSteps a b →
+    AllW (as ++ [a]) (bs ++ [b])
+  | [], [], _, _, .nil, h => .cons h .nil
+  | _ :: _, _ :: _, _, _, .cons h1 t1, h => .cons h1 (AllW.snoc t1 h)
+
+theorem oparI_spineN {c : Nat} (n : Nat) : ∀ (fs : List OTerm) {w : OTerm}, fs.length = n →
+    OParI w (appL (.var c) fs) → ∃ fs', w = appL (.var c) fs' ∧ AllW fs' fs := by
+  induction n with
+  | zero =>
+    intro fs w hl h
+    rw [List.length_eq_zero_iff] at hl
+    subst hl
+    cases h
+    exact ⟨[], rfl, .nil⟩
+  | succ n ih =>
+    intro fs w hl h
+    have hne : fs ≠ [] := by intro e; subst e; cases hl
+    rw [← List.dropLast_concat_getLast hne, appL_snoc] at h
+    cases h with
+    | app h1 hx =>
+      obtain ⟨fs', e, hall⟩ := ih fs.dropLast (by rw [List.length_dropLast, hl]; rfl) h1
+      subst e
+      refine ⟨fs' ++ [_], by rw [appL_snoc], ?_⟩
+      have := hall.snoc hx.wsteps
+      rw [List.dropLast_concat_getLast hne] at this
+      exact this
+
+theorem oparIs_spine {c : Nat} {w v : OTerm} (h : OParIs w v) :
+    ∀ {fs : List OTerm}, v = appL (.var c) fs → ∃ fs', w = appL (.var c) fs' ∧ AllW fs' fs := by
+  induction h with
+  | refl _ => exact fun e => ⟨_, e, AllW.refl _⟩
+  | step h _ ih =>
+    intro fs e
+    obtain ⟨fs1, e1, h1⟩ := ih e
+    subst e1
+    obtain ⟨fs0, e0, h0⟩ := oparI_spineN fs1.length fs1 rfl h
+    exact ⟨fs0, e0, h0.trans h1⟩
+
+theorem owsteps_spineD {t : OTerm} {c : Nat} {fs : List OTerm} (h : OWSteps t (appL (.var c) fs)) :
+    ∃ fs', OSteps t (appL (.var c) fs') ∧ AllW fs' fs := by
+  obtain ⟨t', h1, h2⟩ := owsteps_split h
+  obtain ⟨fs', e, hall⟩ := oparIs_spine h2 rfl
+  exact ⟨fs', e ▸ h1, hall⟩
+
+/-- An open term's arguments. -/
+def oargs : OTerm → List OTerm
+  | .app f x => oargs f ++ [x]
+  | _ => []
+
+theorem oargs_appL : ∀ (l : List OTerm) (f : OTerm), oargs (appL f l) = oargs f ++ l
+  | [], _ => by simp [appL]
+  | x :: l, f => by rw [show appL f (x :: l) = appL (f ⬝ₒ x) l from rfl, oargs_appL l]; simp [oargs]
+
+theorem appL_var_inj {c : Nat} {l₁ l₂ : List OTerm} (h : appL (.var c) l₁ = appL (.var c) l₂) : l₁ = l₂ := by
+  have := congrArg oargs h
+  rw [oargs_appL, oargs_appL] at this
+  simpa [oargs] using this
+
+theorem osteps_of_neutral {t u : OTerm} (hn : ONeutral t) (h : OSteps t u) : u = t := by
+  cases h with
+  | refl => rfl
+  | step hs _ => exact (hn.no_step hs).elim
+
+/-- **The first jet step is where head reduction stops**: a run to `K`
+    from a term whose head reduction reaches a neutral term `n` fires the
+    jet at `n`. -/
+theorem first_jet {A : Dom → Prop} {J : Nat} : ∀ {t u : OTerm}, HSteps A J t u → u = .K →
+    ∀ {n : OTerm}, OSteps t n → ONeutral n →
+      ∃ s R, A s ∧ n = appL (.var J) ((encNn s.1).toO :: R) ∧ HSteps A J (appL (encO (decSpec s.1)).toO R) .K := by
+  intro t u h
+  induction h with
+  | refl t =>
+    intro hu n hn nn
+    subst hu
+    rw [osteps_of_neutral nn (by
+      cases hn with
+      | refl => exact .refl _
+      | step hs _ => cases hs) |>.symm] at nn
+    · cases nn
+  | step hs hrest ih =>
+    intro hu n hn nn
+    cases hs with
+    | head hst =>
+      cases hn with
+      | refl => exact (nn.no_step hst).elim
+      | step h1 h2 =>
+        rw [OStep.det h1 hst] at h2
+        exact ih hu h2 nn
+    | jet s hA R =>
+      have hnt := osteps_of_neutral (ONeutral.appL _ (.var J)) hn
+      subst hnt
+      subst hu
+      exact ⟨s, R, hA, rfl, hrest⟩
+
+/-- **Closing the run** to an implementation of the contract. -/
+theorem HSteps.close {A : Dom → Prop} {J : Nat} (σ : Nat → Term) (hσ : DataJet.Implements decContract (σ J))
+    {t u : OTerm} (h : HSteps A J t u) : WSteps (t.close σ) (u.close σ) := by
+  induction h with
+  | refl _ => exact .refl _
+  | step hs _ ih =>
+    refine WSteps.trans ?_ ih
+    cases hs with
+    | head hst => exact .single (OStep.close σ hst).weak
+    | jet s _ R =>
+      rw [_root_.close_appL, _root_.close_appL]
+      show WSteps (appT (σ J ⬝ (encNn s.1).toO.close σ) _) _
+      rw [close_toO, close_toO]
+      exact appT_left (hσ s) _
+
+theorem allW_appT (σ : Nat → Term) : ∀ {l₁ l₂ : List OTerm}, AllW l₁ l₂ → ∀ (E : Term),
+    WSteps (appT E (l₁.map (OTerm.close σ))) (appT E (l₂.map (OTerm.close σ)))
+  | [], [], .nil, _ => .refl _
+  | _ :: _, _ :: _, .cons h t, E => by
+    show WSteps (appT (E ⬝ _) _) (appT (E ⬝ _) _)
+    exact (appT_left (WSteps.right E (h.close σ)) _).trans (allW_appT σ t _)
+
+/-- **What a run of the verifier of `decpre p` means**: its head reduction
+    with the jet reaches `K` only if a subject the jet took has a decrement
+    that is a cell headed by the atom `p`. -/
+theorem decpre_hsteps {p : Nat} {P : Term} (hP : DataJet.Implements decContract P) {A : Dom → Prop} {β w : Term}
+    (h : HSteps A JD (verifierD p ⬝ₒ β.toO ⬝ₒ w.toO) .K) :
+    ∃ s, A s ∧ ∃ d r, decSpec s.1 = some (.cell (.atom d) r) ∧ val d = p := by
+  obtain ⟨fs', h1, hall⟩ := owsteps_spineD (verifier_spine p β w)
+  obtain ⟨s, R, hA, hn, hrest⟩ := first_jet h rfl h1 (ONeutral.appL _ (.var _))
+  have e := appL_var_inj hn
+  subst e
+  cases hall with
+  | cons _ hR =>
+  refine ⟨s, hA, ?_⟩
+  let σ := envD P
+  have hJ : σ JD = P := by show (if JD = JD then P else K) = P; rw [if_pos rfl]
+  have hc := HSteps.close σ (by rw [hJ]; exact hP) hrest
+  rw [_root_.close_appL, close_toO] at hc
+  have hc2 := (wsteps_K_iff (allW_appT σ hR (encO (decSpec s.1)))).1 hc
+  have hb := absN_beta_close [0] (.var 0 ⬝ₒ badO ⬝ₒ chkX p ⬝ₒ badO ⬝ₒ badO) σ [encO (decSpec s.1)] rfl
+  rw [← checkD_eq] at hb
+  have e3 : (OTerm.var 0 ⬝ₒ badO ⬝ₒ chkX p ⬝ₒ badO ⬝ₒ badO).close (overrideC σ [0] [encO (decSpec s.1)]) =
+      appT (encO (decSpec s.1)) ([badO, chkX p, badO, badO].map (OTerm.close σ)) := by
+    show encO (decSpec s.1) ⬝ badO.close _ ⬝ (chkX p).close _ ⬝ badO.close _ ⬝ badO.close _ =
+      encO (decSpec s.1) ⬝ badO.close σ ⬝ (chkX p).close σ ⬝ badO.close σ ⬝ badO.close σ
+    rw [close_badO, close_badO, close_agree (fun i hi => absurd hi (chkX_closed p i))]
+  rw [e3] at hb
+  have hk := (wsteps_K_iff hb).2 hc2
+  obtain ⟨d, r, ho, hd⟩ := checkD_sound p σ _ hk
+  exact ⟨d, r, ho, by rw [hd, val_bitsN]⟩
+
+end DecPre
+
+namespace Circuit
+
+open Air
+
+/-- **Soundness of `decpre p`**: an accepted proof of the statement, for
+    AIRs with the normal forms of `compDAirs p W`, holds in its memory a
+    subject in the jet's domain whose decrement, under any implementation
+    of the contract (skinock's `jetT decF`), is a cell headed by the atom
+    `p`. -/
+theorem decpreExport_sound {p W : Nat} {P : Term} (hP : DataJet.Implements DecJet.decContract P)
+    {Rs : List AirD} {ts : List Table}
+    (hs : sameAirsB Rs (compDAirs p W) = true) (hacc : AcceptedP Rs ts) :
+    ∃ C Mm Pg Wt Sg D, ts = [C, Mm, Pg, Wt, Sg, D] ∧
+      ∃ (s : DecJet.Dom) (root : Nat), Mach.otermAt (memOf Mm) (memOf Mm).length root = some (DecJet.encNn s.1).toO ∧
+        ∃ d r, DecJet.decSpec s.1 = some (.cell (.atom d) r) ∧ BitArith.val d = p := by
+  obtain ⟨C, Mm, Pg, Wt, Sg, D, rfl, w, _, hrun⟩ := compDExport_sound hs hacc
+  obtain ⟨s, ⟨root, hroot⟩, hd⟩ := DecPre.decpre_hsteps hP hrun
+  exact ⟨C, Mm, Pg, Wt, Sg, D, rfl, s, root, hroot, hd⟩
+
+end Circuit

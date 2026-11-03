@@ -180,7 +180,7 @@ theorem CompDOK.hit_split {B : String} (hB : DBus B) {v : List F} {s : F}
     all_goals first
       | exact absurd hbus (nb _ (by decide))
       | exact absurd hbus (nb _ (by decide))
-      | simp [cpuBusI]
+      | (unfold cpuBusI; mem_tac)
   · simp only [memAirC, List.mem_cons, List.not_mem_nil, or_false] at hI
     rcases hI with rfl | rfl <;> exact absurd hbus (nb _ (by decide))
   · simp only [progAirC, List.mem_cons, List.not_mem_nil, or_false] at hI

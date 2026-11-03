@@ -50,7 +50,7 @@ theorem CompDOK.chain_wc : ∀ (m : Nat) (k a l bw wc : F), ChainSent D [k, a, 0
       obtain ⟨_, _, _, e3, _, e5⟩ := e
       rw [e3] at hl; rw [e5]
       simp only [show (0 : F).val = 0 from rfl] at hl ⊢
-      omega
+      exact ⟨by omega, by omega⟩
     · simp only [List.cons.injEq, and_true] at e
       obtain ⟨e0, e1, e2, e3, e4, e5⟩ := e
       have hf := decRowF_of h.dec hq
@@ -67,6 +67,7 @@ theorem CompDOK.chain_wc : ∀ (m : Nat) (k a l bw wc : F), ChainSent D [k, a, 0
       rw [e5, hwcn]
       unfold DecJet.W at hlv
       have hPP : P = 2013265921 := rfl
+      refine ⟨by omega, ?_⟩
       rcases hwr with z | z <;> rw [z]
       · rw [show ofN 6 * (0 : F) = 0 by decide, add_zero']; omega
       · rw [show ofN 6 * (1 : F) = ofN 6 by decide, val_add_nat (by omega)]; omega
