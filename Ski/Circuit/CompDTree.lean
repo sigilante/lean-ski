@@ -96,27 +96,6 @@ variable {hd0 stk0 ctr0 n nilA J : Nat} {heap : List Cell} {N W : Nat} {roots : 
   (h : CompDOK hd0 stk0 ctr0 n nilA J heap N W roots C Mm Pg Wt Sg D)
 include h
 
-theorem CompDOK.kind_of_ka {q : Nat} (hq : q < D.h) (hk : D.main q Dec.KCELL + D.main q Dec.KATOM = 1) :
-    DKind D q 1 ∨ DKind D q 2 := by
-  obtain ⟨dk, hd⟩ := dkind_of (decRowF_of h.dec hq)
-  rw [hd.2.1, hd.2.2.1] at hk
-  rcases (show dk = 0 ∨ dk = 1 ∨ dk = 2 ∨ dk = 3 ∨ dk = 4 by have := hd.1; omega) with rfl | rfl | rfl | rfl | rfl
-  · exact absurd hk (by decide)
-  · exact .inl hd
-  · exact .inr hd
-  · exact absurd hk (by decide)
-  · exact absurd hk (by decide)
-
-theorem CompDOK.kind_of_cn {q : Nat} (hq : q < D.h) (hk : D.main q Dec.KCONS = 1 ∨ D.main q Dec.KNIL = 1) :
-    DKind D q 3 ∨ DKind D q 4 := by
-  obtain ⟨dk, hd⟩ := dkind_of (decRowF_of h.dec hq)
-  rw [hd.2.2.2.1, hd.2.2.2.2] at hk
-  rcases (show dk = 0 ∨ dk = 1 ∨ dk = 2 ∨ dk = 3 ∨ dk = 4 by have := hd.1; omega) with rfl | rfl | rfl | rfl | rfl
-  all_goals first
-    | exact .inl hd
-    | exact .inr hd
-    | (rcases hk with hk | hk <;> exact absurd hk (by decide))
-
 /-- A wrapper row's role, from its kind's columns. -/
 theorem CompDOK.role_of {q : Nat} (hq : q < D.h) (hk : D.main q Dec.KCELL + D.main q Dec.KATOM = 1) :
     (D.main q Dec.H0 = 1 ∧ D.main q Dec.H1 = 0 ∧ D.main q Dec.RO = 0) ∨

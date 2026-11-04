@@ -1,4 +1,4 @@
-import Ski.Circuit.CompDMatch
+import Ski.Circuit.CompDBack
 
 /-!
 # The circuit with the `dec` jet: the counter
@@ -20,13 +20,17 @@ open B Air
 def incD (k : Nat) : Nat := if k = 0 then 1 else if k = 3 then 3 else 0
 
 theorem cons_of_csend {D : Table} {q : Nat} (hf : DecRowF D q) (h : D.main q Dec.CSEND = 1) :
-    D.main q Dec.KCONS = 1 ∧ D.main q Dec.ISLAST = 0 := by
-  rw [hf.csend] at h
-  rcases hf.kcons with a | a <;> rcases hf.last with b | b <;> rw [a, b] at h
-  · exact absurd h (by decide)
-  · exact absurd h (by decide)
-  · exact ⟨a, b⟩
-  · exact absurd h (by decide)
+    D.main q Dec.KCONS = 1 := by
+  rw [hf.csend] at h; exact h
+
+/-- Two bits under `a + 2 b` are read back. -/
+theorem bits2 {a b c d : F} (ha : a = 0 ∨ a = 1) (hb : b = 0 ∨ b = 1) (hc : c = 0 ∨ c = 1) (hd : d = 0 ∨ d = 1)
+    (h : a + ofN 2 * b = c + ofN 2 * d) : a = c ∧ b = d := by
+  rcases ha with rfl | rfl <;> rcases hb with rfl | rfl <;> rcases hc with rfl | rfl <;> rcases hd with rfl | rfl <;>
+    first | exact ⟨rfl, rfl⟩ | exact absurd h (by decide)
+
+theorem bits2_zero {a b : F} (ha : a = 0 ∨ a = 1) (hb : b = 0 ∨ b = 1) (h : a + ofN 2 * b = 0) : a = 0 ∧ b = 0 :=
+  bits2 ha hb (.inl rfl) (.inl rfl) (by rw [h]; decide)
 
 theorem val_succ_lt {x : F} (h : x.val < 32) : (x + 1).val = x.val + 1 := val_add_of_lt (by have := P_big; show _ + 1 < P; omega)
 
@@ -37,15 +41,33 @@ variable {hd0 stk0 ctr0 n nilA J : Nat} {heap : List Cell} {N W : Nat} {roots : 
   (h : CompDOK hd0 stk0 ctr0 n nilA J heap N W roots C Mm Pg Wt Sg D)
 include h
 
-/-- **The head's chain counts its writes**: a mode-`0` step at level `l`
-    has `l ≤ 32` and at most `6 l` written cells. -/
-theorem CompDOK.chain_wc : ∀ (m : Nat) (k a l bw wc : F), ChainSent D [k, a, 0, l, bw, wc] → l.val = m →
-    m ≤ 32 ∧ wc.val ≤ 6 * m := by
+/-- A `Cons` or nil row's pointer is not a thunk. -/
+theorem CompDOK.cn_noind {q : Nat} (hq : q < D.h) (hk : D.main q Dec.KCONS = 1 ∨ D.main q Dec.KNIL = 1) :
+    DecJet.readInd ((memOf Mm).take (D.main q Dec.KEY).val) (D.main q Dec.PC).val = none := by
+  rcases h.kind_of_cn hq hk with hd | hd
+  · obtain ⟨_, hrc⟩ := h.consRead hq hd
+    cases hi : DecJet.readInd ((memOf Mm).take (D.main q Dec.KEY).val) (D.main q Dec.PC).val with
+    | none => rfl
+    | some R => rw [DecJet.readInd_cons hi] at hrc; cases hrc
+  · have hK := h.nilRead hq hd
+    cases hi : DecJet.readInd ((memOf Mm).take (D.main q Dec.KEY).val) (D.main q Dec.PC).val with
+    | none => rfl
+    | some R => rw [DecJet.readInd_isK hi] at hK; cases hK
+
+/-- **The head's chain counts its writes**: a `Cons` or nil row in mode `0`,
+    not a list's end, at level `m` has `m ≤ 32` and at most `6 m` written
+    cells, back along its chain through any thunks. -/
+theorem CompDOK.chain_wc : ∀ (m q : Nat), q < D.h → (D.main q Dec.KCONS = 1 ∨ D.main q Dec.KNIL = 1) →
+    D.main q Dec.MODE + ofN 2 * D.main q Dec.TERM = 0 → (D.main q Dec.LVL).val = m →
+    m ≤ 32 ∧ (D.main q Dec.WC).val ≤ 6 * m := by
   intro m
   induction m using Nat.strongRecOn with
   | _ m ih =>
-    intro k a l bw wc hs hl
-    rcases hs with ⟨q, hq, hk, e⟩ | ⟨q, hq, hk, e⟩
+    intro q0 hq0 hkn hmf hl
+    have hrec := h.chain_sent ⟨q0, hq0, by rcases hkn with a | a; exact .inl a; exact .inr (.inl a), rfl⟩
+    rw [hmf] at hrec
+    obtain ⟨_, p, h0, _⟩ := h.chain_back' hrec (h.cn_noind hq0 hkn)
+    rcases h0 with ⟨q, hq, hk, e⟩ | ⟨q, hq, hk, e⟩
     · simp only [List.cons.injEq, and_true] at e
       obtain ⟨_, _, _, e3, _, e5⟩ := e
       rw [e3] at hl; rw [e5]
@@ -54,12 +76,12 @@ theorem CompDOK.chain_wc : ∀ (m : Nat) (k a l bw wc : F), ChainSent D [k, a, 0
     · simp only [List.cons.injEq, and_true] at e
       obtain ⟨e0, e1, e2, e3, e4, e5⟩ := e
       have hf := decRowF_of h.dec hq
-      obtain ⟨hkc, _⟩ := cons_of_csend hf hk
-      have hlv := dec_level h.dec hq hkc e2.symm
-      have hl' : l.val = (D.main q Dec.LVL).val + 1 := by rw [e3]; exact val_succ_lt hlv
-      have hrec := h.chain_sent ⟨q, hq, .inl hkc, rfl⟩
-      rw [← e2] at hrec
-      obtain ⟨_, hw⟩ := ih (D.main q Dec.LVL).val (by unfold DecJet.W at hlv; omega) _ _ _ _ _ hrec rfl
+      have hkc := cons_of_csend hf hk
+      have hm0 := (bits2_zero hf.mode hf.last e2.symm).1
+      have hlv := dec_level h.dec hq hkc hm0
+      have hl' : (D.main q0 Dec.LVL).val = (D.main q Dec.LVL).val + 1 := by rw [e3]; exact val_succ_lt hlv
+      have hmf' : D.main q Dec.MODE + ofN 2 * D.main q Dec.TERM = 0 := by rw [← h.cons_mf hq hkc, hm0]
+      obtain ⟨_, hw⟩ := ih (D.main q Dec.LVL).val (by unfold DecJet.W at hlv; omega) q hq (.inl hkc) hmf' rfl
       have hwr : D.main q Dec.WRITES = 0 ∨ D.main q Dec.WRITES = 1 := by
         rw [hf.writes, hf.dropped]
         rcases hf.bw with a | a <;> rcases hf.bit with b | b <;> rcases hf.last with c' | c' <;> rw [a, b, c'] <;> decide
@@ -68,6 +90,7 @@ theorem CompDOK.chain_wc : ∀ (m : Nat) (k a l bw wc : F), ChainSent D [k, a, 0
       unfold DecJet.W at hlv
       have hPP : P = 2013265921 := rfl
       refine ⟨by omega, ?_⟩
+      rw [← hl, hl']
       rcases hwr with z | z <;> rw [z]
       · rw [show ofN 6 * (0 : F) = 0 by decide, add_zero']; omega
       · rw [show ofN 6 * (1 : F) = ofN 6 by decide, val_add_nat (by omega)]; omega
@@ -82,9 +105,7 @@ theorem CompDOK.verd_wc {k e w : F} (hs : VerdSent D [k, e, w]) : (e = 0 ∨ e =
       rcases hf.kcons with a | a <;> rcases hf.last with b | b <;> rcases hf.mode with c' | c' <;> rw [a, b, c'] at hd
       all_goals first | exact absurd hd (by decide) | exact ⟨a, c'⟩
     have hlv := dec_level h.dec hq hkc.1 hkc.2
-    have hrec := h.chain_sent ⟨q, hq, .inl hkc.1, rfl⟩
-    rw [hkc.2] at hrec
-    obtain ⟨_, hw⟩ := h.chain_wc _ _ _ _ _ _ hrec rfl
+    obtain ⟨_, hw⟩ := h.chain_wc _ q hq (.inl hkc.1) (by rw [← h.cons_mf hq hkc.1, hkc.2]) rfl
     have hwr : D.main q Dec.WRITES = 0 ∨ D.main q Dec.WRITES = 1 := by
       rw [hf.writes, hf.dropped]
       rcases hf.bw with a | a <;> rcases hf.bit with b | b <;> rcases hf.last with c' | c' <;> rw [a, b, c'] <;> decide
@@ -97,12 +118,10 @@ theorem CompDOK.verd_wc {k e w : F} (hs : VerdSent D [k, e, w]) : (e = 0 ∨ e =
     · rw [show ofN 6 * (1 : F) = ofN 6 by decide, val_add_nat (by omega)]; omega
   · -- the head's nil, in mode `0`
     rw [hf.done1] at hd
-    have hkn : D.main q Dec.KNIL = 1 ∧ D.main q Dec.MODE = 0 := by
-      rcases hf.knil with a | a <;> rcases hf.mode with c' | c' <;> rw [a, c'] at hd
-      all_goals first | exact absurd hd (by decide) | exact ⟨a, c'⟩
-    have hrec := h.chain_sent ⟨q, hq, .inr hkn.1, rfl⟩
-    rw [hkn.2] at hrec
-    obtain ⟨hl, hw⟩ := h.chain_wc _ _ _ _ _ _ hrec rfl
+    have hkn : D.main q Dec.KNIL = 1 ∧ D.main q Dec.MODE = 0 ∧ D.main q Dec.TERM = 0 := by
+      rcases hf.knil with a | a <;> rcases hf.mode with c' | c' <;> rcases hf.term with t | t <;> rw [a, c', t] at hd
+      all_goals first | exact absurd hd (by decide) | exact ⟨a, c', t⟩
+    obtain ⟨hl, hw⟩ := h.chain_wc _ q hq (.inr hkn.1) (by rw [hkn.2.1, hkn.2.2]; decide) rfl
     exact ⟨.inr e1, by rw [e2]; omega⟩
   · exact ⟨.inr e1, by rw [e2]; decide⟩
 
