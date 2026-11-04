@@ -92,7 +92,8 @@ theorem CompDOK.cellRead {q : Nat} (hq : q < D.h) (hk : DKind D q 1) :
       (D.main q (Dec.DFLD + 30)).val, (D.main q (Dec.DFLD + 34)).val, (D.main q (Dec.DFLD + 29)).val,
       (D.main q (Dec.DFLD + 43)).val, (D.main q (Dec.DFLD + 53)).val⟩ ∧
     readAtom H (D.main q Dec.PC).val = none ∧ isK H (D.main q Dec.PC).val = false ∧
-    readInd H (D.main q Dec.PC).val = none := by
+    readInd H (D.main q Dec.PC).val = none ∧
+    ktAt H (D.main q (Dec.DFLD + 29)).val = some (D.main q (Dec.DFLD + 53)).val := by
   intro H
   have hf := decRowF_of h.dec hq
   have s0 : H[(D.main q Dec.PC).val]? = some (.app (D.main q Dec.DFLD).val (D.main q (Dec.DFLD + 1)).val) :=
@@ -181,7 +182,7 @@ theorem CompDOK.cellRead {q : Nat} (hq : q < D.h) (hk : DKind D q 1) :
       unfold ktAt
       rw [s23]
       simp only [hk46, Bool.false_eq_true, if_false, hind, s26, cellOf_app, hk27, if_true]
-  refine ⟨?_, ?_, ?_, ?_⟩
+  refine ⟨?_, ?_, ?_, ?_, hkt⟩
   · simp only [readCellI, s0, s2, s8, s14, s15, s17, s21, isK, isS, isI, isSI, isSKK, s1, s3, s4, s5, s6, s7, s9,
       s10, s11, s12, s13, s16, s18, s19, s20, s22, beq_self_eq_true, Bool.and_self, if_true, hkt]
   · have hS : isSKK H (D.main q Dec.DFLD).val = false := by simp [isSKK, s1]

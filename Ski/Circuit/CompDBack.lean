@@ -116,54 +116,93 @@ theorem iterI_none {H : List Cell} : ∀ {i x : Nat}, iterI H i x = none → ∀
       rw [show i + 1 + n = (i + n) + 1 by omega, iterI_succ hi]
       exact iterI_none h n
 
-/-- **A run of thunks longer than the memory ends at a thunk.** -/
-theorem iterI_long {H : List Cell} {x p : Nat} (h : iterI H (H.length + 1) x = some p) : readInd H p ≠ none := by
-  -- the points along the run
-  have hpt : ∀ i, i ≤ H.length + 1 → ∃ y, iterI H i x = some y := by
-    intro i hi
-    cases e : iterI H i x with
-    | some y => exact ⟨y, rfl⟩
+/-- **A run of thunks to a non-thunk in the memory is shorter than the
+    memory**: a longer run repeats a cell, so its end is on a cycle of
+    thunks. -/
+theorem iterI_bound {H : List Cell} {m x p : Nat} (h : iterI H m x = some p) (hp : p < H.length)
+    (hn : readInd H p = none) : m < H.length := by
+  cases Nat.lt_or_ge m H.length with
+  | inl hlt => exact hlt
+  | inr hge =>
+    exfalso
+    have hpt : ∀ i, i ≤ m → ∃ y, iterI H i x = some y := by
+      intro i hi
+      cases e : iterI H i x with
+      | some y => exact ⟨y, rfl⟩
+      | none =>
+        have := iterI_none e (m - i)
+        rw [show i + (m - i) = m by omega, h] at this
+        cases this
+    let g : Nat → Nat := fun i => (iterI H i x).getD 0
+    have hg : ∀ i, i ≤ H.length → g i < H.length := by
+      intro i hi
+      obtain ⟨y, hy⟩ := hpt i (by omega)
+      show (iterI H i x).getD 0 < _
+      rw [hy]
+      cases Nat.lt_or_ge i m with
+      | inl him =>
+        obtain ⟨y', hy'⟩ := hpt (i + 1) (by omega)
+        have e := iterI_add i 1 x hy
+        rw [hy'] at e
+        cases hr : readInd H y with
+        | none =>
+          have : iterI H 1 y = none := by
+            show (match readInd H y with | some y => iterI H 0 y | none => none) = _
+            rw [hr]
+          rw [this] at e; cases e
+        | some _ => exact readInd_lt hr
+      | inr him =>
+        have : i = m := by omega
+        subst this
+        rw [h] at hy; cases hy; exact hp
+    obtain ⟨i, j, hij, hj, e⟩ := pigeon H.length g hg
+    obtain ⟨yi, hyi⟩ := hpt i (by omega)
+    obtain ⟨yj, hyj⟩ := hpt j (by omega)
+    have e' : yi = yj := by
+      have : g i = yi := by show (iterI H i x).getD 0 = _; rw [hyi]; rfl
+      have h2 : g j = yj := by show (iterI H j x).getD 0 = _; rw [hyj]; rfl
+      rw [← this, ← h2, e]
+    subst e'
+    have hcyc : iterI H (j - i - 1 + 1) yi = some yi := by
+      have := iterI_add i (j - i) x hyi
+      rw [show i + (j - i) = j by omega, hyj] at this
+      rw [show j - i - 1 + 1 = j - i by omega]; exact this.symm
+    have hp' : iterI H (m - i) yi = some p := by
+      have := iterI_add i (m - i) x hyi
+      rw [show i + (m - i) = m by omega, h] at this
+      exact this.symm
+    obtain ⟨c, hc⟩ := periodic_after hcyc _ hp'
+    have : iterI H (c + 1) p = none := by
+      show (match readInd H p with | some y => iterI H c y | none => none) = _
+      rw [hn]
+    rw [this] at hc; cases hc
+
+/-- Two runs of thunks from one point to non-thunks end at the same point. -/
+theorem iterI_det {H : List Cell} : ∀ {m m' x y y' : Nat}, iterI H m x = some y → readInd H y = none →
+    iterI H m' x = some y' → readInd H y' = none → y = y'
+  | 0, 0, x, y, y', h, _, h', _ => by cases h; cases h'; rfl
+  | 0, m' + 1, x, y, y', h, hn, h', _ => by
+    cases h
+    have : iterI H (m' + 1) x = none := by
+      show (match readInd H x with | some y => iterI H m' y | none => none) = _
+      rw [hn]
+    rw [this] at h'; cases h'
+  | m + 1, 0, x, y, y', h, _, h', hn' => by
+    cases h'
+    have : iterI H (m + 1) x = none := by
+      show (match readInd H x with | some y => iterI H m y | none => none) = _
+      rw [hn']
+    rw [this] at h; cases h
+  | m + 1, m' + 1, x, y, y', h, hn, h', hn' => by
+    cases hi : readInd H x with
     | none =>
-      exfalso
-      have := iterI_none e (H.length + 1 - i)
-      rw [show H.length + 1 = i + (H.length + 1 - i) by omega, this] at h
-      cases h
-  let g : Nat → Nat := fun i => (iterI H i x).getD 0
-  have hg : ∀ i, i ≤ H.length → g i < H.length := by
-    intro i hi
-    obtain ⟨y, hy⟩ := hpt i (by omega)
-    obtain ⟨y', hy'⟩ := hpt (i + 1) (by omega)
-    have e := iterI_add i 1 x hy
-    rw [hy'] at e
-    cases hr : readInd H y with
-    | none =>
-      have : iterI H 1 y = none := by
-        show (match readInd H y with | some y => iterI H 0 y | none => none) = _
-        rw [hr]
-      rw [this] at e; cases e
-    | some _ => show (iterI H i x).getD 0 < _; rw [hy]; exact readInd_lt hr
-  obtain ⟨i, j, hij, hj, e⟩ := pigeon H.length g hg
-  obtain ⟨yi, hyi⟩ := hpt i (by omega)
-  obtain ⟨yj, hyj⟩ := hpt j (by omega)
-  have e' : yi = yj := by
-    have : g i = yi := by show (iterI H i x).getD 0 = _; rw [hyi]; rfl
-    have h2 : g j = yj := by show (iterI H j x).getD 0 = _; rw [hyj]; rfl
-    rw [← this, ← h2, e]
-  subst e'
-  have hcyc : iterI H (j - i - 1 + 1) yi = some yi := by
-    have := iterI_add i (j - i) x hyi
-    rw [show i + (j - i) = j by omega, hyj] at this
-    rw [show j - i - 1 + 1 = j - i by omega]; exact this.symm
-  have hp : iterI H (H.length + 1 - i) yi = some p := by
-    have := iterI_add i (H.length + 1 - i) x hyi
-    rw [show i + (H.length + 1 - i) = H.length + 1 by omega, h] at this
-    exact this.symm
-  obtain ⟨c, hc⟩ := periodic_after hcyc _ hp
-  intro hn
-  have : iterI H (c + 1) p = none := by
-    show (match readInd H p with | some y => iterI H c y | none => none) = _
-    rw [hn]
-  rw [this] at hc; cases hc
+      have : iterI H (m + 1) x = none := by
+        show (match readInd H x with | some y => iterI H m y | none => none) = _
+        rw [hi]
+      rw [this] at h; cases h
+    | some z =>
+      rw [iterI_succ hi] at h h'
+      exact iterI_det h hn h' hn'
 
 end DecJet
 
@@ -233,6 +272,22 @@ theorem CompDOK.kind_of_cn {q : Nat} (hq : q < D.h) (hk : D.main q Dec.KCONS = 1
     | exact .inr hd
     | (rcases hk with hk | hk <;> exact absurd hk (by decide))
 
+/-- **A row's pointer is in the memory below its key.** -/
+theorem CompDOK.pc_lt {q dk : Nat} (hq : q < D.h) (hk : DKind D q dk) (hdk : dk ≠ 0) :
+    (D.main q Dec.PC).val < ((memOf Mm).take (D.main q Dec.KEY).val).length := by
+  by_cases h4 : dk = 4
+  · subst h4
+    have hK := h.nilRead hq hk
+    unfold isK at hK
+    cases e : ((memOf Mm).take (D.main q Dec.KEY).val)[(D.main q Dec.PC).val]? with
+    | none => rw [e] at hK; cases hK
+    | some c => exact (List.getElem?_eq_some_iff.1 e).1
+  · have hdk' : dk = 1 ∨ dk = 2 ∨ dk = 3 ∨ dk = 5 := by have := hk.1; omega
+    have hs : (slotsOf dk)[0]? = some (.rowP, .C 3) := by
+      rcases hdk' with rfl | rfl | rfl | rfl <;> rfl
+    have := (h.slotS hq hk hdk' hs (fun _ hj => absurd hj (by decide)) (fun _ hj => absurd hj (by decide))).2
+    exact (List.getElem?_eq_some_iff.1 this).1
+
 /-- One step back along a chain: a step was sent by an `Atom` or `Cons`
     row, or by an indirection at a thunk whose target is the step's pointer,
     which itself received the step. -/
@@ -276,11 +331,12 @@ theorem CompDOK.chain_back (k mf l bw wc : F) : ∀ (n : Nat) (x : F), ChainSent
 /-- **A step received at a non-thunk** was sent by an `Atom` or `Cons` row,
     through at most as many thunks as the memory below the key has cells. -/
 theorem CompDOK.chain_back' {k x mf l bw wc : F} (hs : ChainSent D [k, x, mf, l, bw, wc])
-    (hx : readInd ((memOf Mm).take k.val) x.val = none) :
-    ∃ (m : Nat) (p : F), ChainSent0 D [k, p, mf, l, bw, wc] ∧ iterI ((memOf Mm).take k.val) m p.val = some x.val := by
-  rcases h.chain_back k mf l bw wc _ x hs with ⟨m, p, _, h0, hp⟩ | ⟨y, hy⟩
-  · exact ⟨m, p, h0, hp⟩
-  · exact absurd hx (iterI_long hy)
+    (hx : readInd ((memOf Mm).take k.val) x.val = none) (hlt : x.val < ((memOf Mm).take k.val).length) :
+    ∃ (m : Nat) (p : F), m < ((memOf Mm).take k.val).length ∧ ChainSent0 D [k, p, mf, l, bw, wc] ∧
+      iterI ((memOf Mm).take k.val) m p.val = some x.val := by
+  rcases h.chain_back k mf l bw wc ((memOf Mm).take k.val).length x hs with ⟨m, p, _, h0, hp⟩ | ⟨y, hy⟩
+  · exact ⟨m, p, iterI_bound hp hlt hx, h0, hp⟩
+  · exact absurd (iterI_bound hy hlt hx) (by omega)
 
 /-- One step back along the need tree. -/
 theorem CompDOK.need_step {k x ρ : F} (hs : NeedSent C D [k, x, ρ]) :
@@ -321,11 +377,12 @@ theorem CompDOK.need_back (k ρ : F) : ∀ (n : Nat) (x : F), NeedSent C D [k, x
 /-- **A need received at a non-thunk** was sent by the CPU or a `Cell` row,
     through a run of thunks. -/
 theorem CompDOK.need_back' {k x ρ : F} (hs : NeedSent C D [k, x, ρ])
-    (hx : readInd ((memOf Mm).take k.val) x.val = none) :
-    ∃ (m : Nat) (p : F), NeedSent0 C D [k, p, ρ] ∧ iterI ((memOf Mm).take k.val) m p.val = some x.val := by
-  rcases h.need_back k ρ _ x hs with ⟨m, p, h0, hp⟩ | ⟨y, hy⟩
-  · exact ⟨m, p, h0, hp⟩
-  · exact absurd hx (iterI_long hy)
+    (hx : readInd ((memOf Mm).take k.val) x.val = none) (hlt : x.val < ((memOf Mm).take k.val).length) :
+    ∃ (m : Nat) (p : F), m < ((memOf Mm).take k.val).length ∧ NeedSent0 C D [k, p, ρ] ∧
+      iterI ((memOf Mm).take k.val) m p.val = some x.val := by
+  rcases h.need_back k ρ ((memOf Mm).take k.val).length x hs with ⟨m, p, h0, hp⟩ | ⟨y, hy⟩
+  · exact ⟨m, p, iterI_bound hp hlt hx, h0, hp⟩
+  · exact absurd (iterI_bound hy hlt hx) (by omega)
 
 end
 

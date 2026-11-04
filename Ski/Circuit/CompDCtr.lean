@@ -66,7 +66,8 @@ theorem CompDOK.chain_wc : ∀ (m q : Nat), q < D.h → (D.main q Dec.KCONS = 1 
     intro q0 hq0 hkn hmf hl
     have hrec := h.chain_sent ⟨q0, hq0, by rcases hkn with a | a; exact .inl a; exact .inr (.inl a), rfl⟩
     rw [hmf] at hrec
-    obtain ⟨_, p, h0, _⟩ := h.chain_back' hrec (h.cn_noind hq0 hkn)
+    obtain ⟨_, p, _, h0, _⟩ := h.chain_back' hrec (h.cn_noind hq0 hkn)
+      (by rcases h.kind_of_cn hq0 hkn with hd | hd <;> exact h.pc_lt hq0 hd (by decide))
     rcases h0 with ⟨q, hq, hk, e⟩ | ⟨q, hq, hk, e⟩
     · simp only [List.cons.injEq, and_true] at e
       obtain ⟨_, _, _, e3, _, e5⟩ := e
