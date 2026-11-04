@@ -42,6 +42,8 @@ import Ski.DecJet
 import Ski.ComposedDText
 import Ski.DecPreSound
 import Ski.DecTerm
+import Ski.Circuit.CompDCompleteFinal
+import Ski.Circuit.CompDCompleteDec
 import Ski.Circuit.DecAir
 import Ski.ZK.CompPHonest
 import Ski.Circuit.CompPCompleteFinal
@@ -1638,6 +1640,28 @@ open Ski.Audit
   Circuit.compDExport_sound
 #audit_clean DecPre.verifier_spine DecPre.owsteps_spineD DecPre.appL_var_inj DecPre.first_jet DecPre.HSteps.close
   DecPre.decpre_hsteps Circuit.decpreExport_sound
+-- Completeness of the circuit with the dec jet, given honest CPU and DEC tables
+-- (CompDComplete): the memory bus for any senders, every bus, the assembly
+#audit_clean Circuit.memL_sat Circuit.sendsL_zero Circuit.bal_memL Circuit.bal_memD_identity Circuit.balancedD
+  Circuit.compDG_complete_of
+-- the honest CPU with the jet's columns (CompDHonest, CompDBal): its AIR, its
+-- memory and segment lookups, its jet buses; completeness given DEC (CompDCompleteFinal)
+#audit_clean Circuit.decRow_inv Circuit.decRow_halt Circuit.DRun.runC Circuit.DRun.plain_row
+  Circuit.DRun.kindD_isKind Circuit.DRun.cpuC_nextD Circuit.DRun.cpuD_read Circuit.DRun.cpuD_sat
+  Circuit.DRun.cpuD_honest Circuit.DRun.cpuD_segsHonest Circuit.DRun.cpuD_blindQuiet Circuit.DRun.cpuD_jetSends
+  Circuit.DRun.ctr_le Circuit.DRun.stk_le Circuit.compDG_complete_dec
+#audit_clean Circuit.decCons_zero Circuit.decZero_sat Circuit.decZero_sends Circuit.decProvides_none
+  Circuit.compDG_complete_nojet
+-- the honest DEC table (CompDTrace, CompDTraceRead/Rows/Bus/Tel/Call/Mem/Wr,
+-- CompDCompleteDec): a well-formed row satisfies DEC, a row reads its
+-- pattern, a call's rows are well formed, telescope on the jet's chains to
+-- the negation of the CPU's jet row, and read and write memory cells; the
+-- table provides the jet calls, and decpre's completeness
+#audit_clean Circuit.DecT.sl_spec Circuit.DecT.row_sat Circuit.DecT.cellReads Circuit.DecT.atomReads
+  Circuit.DecT.consReads Circuit.DecT.nilReads Circuit.DecT.callRows_ok Circuit.DecT.sendN Circuit.DecT.sendB
+  Circuit.DecT.sendD Circuit.DecT.sendX Circuit.DecT.S_noun_n Circuit.DecT.S_bits_b Circuit.DecT.S_bits_d
+  Circuit.DecT.S_head_d Circuit.DecT.call_sends Circuit.DecT.row_mem Circuit.DecT.bitsW Circuit.DecT.call_writes
+  Circuit.DRun.decRows_ok Circuit.DRun.decProvides_of Circuit.decProvides_exists Circuit.decpre_complete_log
 
 -- A `decterm` statement: any public verifiers open in the jet's atom, read
 -- off the statement's heap (DecTerm)

@@ -44,7 +44,7 @@ forgeries the sections below list.
 | `split` and `csplit` with jets, hidden | `skilark/*/jets/` | 10–11 | `compJExport_sound`, `Air.jetStmtC_sound` |
 | A Poseidon2 preimage of `h` | `p2/` | 12 | `p2preExport_sound` |
 | A hidden hand-off over one commitment | `p2/` | 12 | `p2commitExport_sound`, `p2commit_chainB` |
-| A decrement under the `dec` data jet | `dec/` | 13 | `decpreExport_sound` |
+| A decrement under the `dec` data jet | `dec/` | 13 | `decpreExport_sound`; completeness `decpre_complete_log` (an honest run whose DEC rows fit the DEC height; `compDG_complete_dec`, `decProvides_exists`) |
 | A kernel's poke with a private entropy reply | `entropy/` | 14 | `entropyExport_sound` |
 | Every zero-knowledge proof has the random rows its hiding needs | all but `sumto/` | 15 | `masks_hide`'s hypothesis, `\|S\| + 4\|Z\| ≤ n`, for the column openings, `q + 8 = 108`; the quotient's recombined values, two points a query, `2q + 8 = 208`, the hypothesis of `pcsCloseN_quot`; Plonky3's `HidingFriPcs` asks `2(q + 8) = 216`; every committed table has at least `2^9` rows, 296 to spare |
 | Every byte of a zero-knowledge proof lies in a field of the view the transcript theorems simulate | all but `sumto/` | 16 | `ski-air proof-shape`: the bytes are the fields' own encoding; the PCS's view, the terminals, the heights, and two proof-of-work witnesses unique given the transcript |
@@ -403,10 +403,17 @@ each jet row whose state decodes is `DecJet.decRow`'s step
 (`Circuit.CompDOK.jetRow`), the subject's need tree on `decn` being finite
 at the decoded state's read-back fuel, so the run is head reduction with
 the jet, and the verifier's first jet step fires on a reduct of its witness
-with `CHECK_p`'s continuations. What is not proved: completeness, that the
-honest tables of a run are accepted (the analogue of
-`Circuit.compP_complete_log`); it is tested by the replay of the released
-run (`lake exe composed check-dec-run`).
+with `CHECK_p`'s continuations. Completeness is proved down to DEC's table: an
+honest run (each row a step, a halted row, or `DecJet.decRow`'s step), with
+a DEC table that satisfies DEC, looks up only memory cells, and receives
+each jet row's need and sends its result (`Circuit.DecProvides`), gives
+tables the circuit accepts, the CPU the honest one with the jet's columns
+(`Circuit.compDG_complete_dec`; `DRun.cpuD_sat`, `cpuD_honest`,
+`cpuD_jetSends`), and every honest run has that DEC table, `decair.rs`'s
+rows of each call (`Circuit.decProvides_exists`, `DRun.decTable`): so
+`Circuit.decpre_complete_log`, for a run whose calls' DEC rows fit the
+DEC height. The released run is also replayed (`lake exe composed
+check-dec-run`).
 
 **The entropy proofs.** An accepted proof of either entropy statement
 holds in its memory 128 Booleans `bs` for which the check accepts the

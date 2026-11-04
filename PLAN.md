@@ -1105,10 +1105,34 @@ a cycle having no finite read-back), the head's chain has no stray rows
 (`on_walk`) and writes `DecJet.bitCells` (`head_fwd`), and the verdict is
 the head's. The run is head reduction with the jet (`CompM.AcceptsCD`), so
 the verifier's first jet step fires on a reduct of its witness, with
-`CHECK_p`'s continuations (`DecPre.decpre_hsteps`). Open: completeness,
-that the honest tables are accepted (the analogue of
-`compP_complete_log`). A proof of `decpre p` is released (`release/dec`,
-verify.sh step 13).
+`CHECK_p`'s continuations (`DecPre.decpre_hsteps`). Completeness, down
+to DEC's table: an honest run (`Circuit.DRun.Honest`: each row a plain
+step, a halted row repeated, or `DecJet.decRow`'s step, what `composed
+check-dec-run` replays) with a DEC table that provides its jet calls
+(`Circuit.DecProvides`: DEC's AIR, clear past its columns, memory lookups
+only, and on the other buses the negation of the CPU's sends) gives tables
+the circuit accepts with Plonky3's selectors at the statement's heights
+(`Circuit.compDG_complete_dec`). The CPU is the honest one with the jet's
+columns (`DRun.cpuTableD`): it satisfies `cpuAirDec` (`cpuD_sat`, the kinds
+by `kind_factsD`), its lookups are memory cells and segment rows
+(`cpuD_honest`, `cpuD_segsHonest`), and on each jet row it sends the need
+on `decn` and receives the result on `decx` (`cpuD_jetSends`); the memory
+bus is proved for any list of senders (`bal_memL`). The zero row satisfies
+DEC and is quiet, so a run that never fires the jet is complete
+(`compDG_complete_nojet`). DEC's honest table is proved
+(`Ski/Circuit/CompDTrace*.lean`, `CompDCompleteDec.lean`): one row per cell
+pattern of each call's subject, as `decair.rs`'s `Reader` builds them
+(`DecT.callRows`, along `DecJet`'s readers), padded with zero rows
+(`DRun.decTable`); a well-formed row satisfies DEC's constraints
+(`DecT.row_sat`, the slots by `slotOK_all` in the other direction), a row
+reads its pattern below the key (`cellReads`, `atomReads`, `consReads`,
+`nilReads`), its reads and writes are memory cells (`row_mem`; the writes
+`DecJet.outCells`, `call_writes`), and the `decn`/`decb`/`decd`/`decx`
+chains of a call telescope to the negation of the CPU's jet row
+(`call_sends`). So an honest run whose calls' rows fit `2^LD` has its DEC
+table (`decProvides_exists`) and `decpre_complete_log` holds, its only
+hypothesis beyond the run's that DEC height (`DRun.decRows ≤ 2^LD`). A
+proof of `decpre p` is released (`release/dec`, verify.sh step 13).
 
 Any public verifier with the `dec` jet (`Ski/DecTermText.lean`,
 `Ski/DecTerm.lean`, branch `dec-loop`). `compDAirsG Vs W` already took any
