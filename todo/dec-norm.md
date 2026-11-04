@@ -24,6 +24,10 @@ Done (branch `dec-thunk`, no `sorry`, audited `propext`, `Quot.sound`):
   `HSteps`'s jet step is up to `K`-contraction (`HSteps.close_K`).
   `decpreExport_sound` now gives a cell whose read-back `ORed`-reduces to
   `encNn s`; `dectermExport_close` is as stated.
+- Releases re-produced and verified on the new DEC: lean-ski `release/dec`
+  (`QUICK=1 VERIFY_ALL=1 release/verify.sh`), skinock
+  `release/nock/decloop` `dec_N` (`verify.sh`), one DEC row more per bit
+  list (its end).
 - skinock `Nock2Ski/DecLoopNorm.lean`: `nockLoopV`, `nockloop_close` (an
   accepted proof of the normalised loop's statement makes M4c's check, every
   occurrence of the word replaced by `normJ (nockToSki decF)`, reach `K`);
@@ -50,3 +54,14 @@ Open:
    to `*[s f] = p`, the compiler's correctness with every occurrence of the
    word replaced by `normJ (nockToSki decF)`, Forms' code fields included,
    and its converse (`nock_of_eqn_K`); `normDec_enc` is the per-call fact.
+3. **The loops jetted, proved** (`loop_1`, `loop_3`, `loop_10`, `loop_20`).
+   The statement exists (skinock `nockdec emit-loop`, `nockLoopV`, one
+   shared copy of `normT`) and the jet fires at every call on the circuit:
+   17,544 / 35,165 / 98,777 / 192,219 CPU rows and 20 / 64 / 238 / 508 DEC
+   rows (`ski-air compd-measure`; unjetted 20,757 / 57,785 / 336,681 /
+   1,152,824).  But the statement's heap is the compiled program as a tree,
+   2.35 million cells: memory log 22 (`dlogsOK` now allows 22).  A first
+   form of `loop_1` (13 copies of `normT`) proved in 129 s and verified in
+   37 s, a 1.56 MB proof, at a 13.5 GB peak, past the 4 GB budget.  Needed:
+   a statement heap that shares subterms (a DAG layout of the public
+   program in `cHeapO`), or a prover whose memory table is cheaper.
