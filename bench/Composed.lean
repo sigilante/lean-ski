@@ -6,6 +6,7 @@ import Ski.ComposeXExamples
 import Ski.ChainExamples
 import Ski.ComposedPText
 import Ski.ComposedDText
+import Ski.DecTermText
 import Ski.P2Commit
 import Ski.Circuit.CompPHonest
 import Ski.ZK.Blocks
@@ -843,13 +844,23 @@ def emitDecFresh (dir : String) : IO UInt32 := do
   if r = 0 then IO.println s!"wrote {dir}/decpre.public.txt (p = {n - 1}) and its witness"
   return r
 
-/-- `composed statement-dec PUBLIC`: `OK decpre p` when the file is exactly
-    a statement with the `dec` jet. -/
+/-- A statement with the `dec` jet: `decpre p`'s verifier, or the verifiers
+    a `decterm` statement's heap holds (`Ski/DecTerm.lean`). -/
+def statementAnyD (text : String) : Option (String × List OTerm × Nat) :=
+  match ComposedDText.statementOfTextD text with
+  | some (p, W, _) => some (s!"decpre {p}", ComposedDText.VsD p, W)
+  | none => (DecTerm.statementOfTextDG text).map fun (Vs, W, _) => (s!"decterm ({Vs.length} verifiers)", Vs, W)
+
+/-- `composed statement-dec PUBLIC`: `OK decpre p` or `OK decterm` when the
+    file is exactly a statement with the `dec` jet. -/
 def statementDec (path : String) : IO UInt32 := do
   let text ← if path == "-" then (← IO.getStdin).readToEnd else IO.FS.readFile path
   match ComposedDText.statementOfTextD text with
   | some (p, W, _) => IO.println s!"OK decpre {p} W {W}"; return 0
-  | none => IO.println "NOT A STATEMENT"; return 1
+  | none =>
+    match DecTerm.statementOfTextDG text with
+    | some (Vs, W, _) => IO.println s!"OK decterm {Vs.length} W {W}"; return 0
+    | none => IO.println "NOT A STATEMENT"; return 1
 
 /-- `composed check-decpre PUBLIC`: `OK DECPRE p` when the file is exactly
     the decrement statement at the documented region size and heights. -/
@@ -868,21 +879,21 @@ def checkDecpre (path : String) : IO UInt32 := do
     is `K` over the nil.  `OK DECRUN …` with the number of jet rows. -/
 def checkDecRun (pub run : String) : IO UInt32 := do
   let text ← IO.FS.readFile pub
-  let some (p, W, _) := ComposedDText.statementOfTextD text | do IO.println "NOT A STATEMENT"; return 1
+  let some (name, Vs, W) := statementAnyD text | do IO.println "NOT A STATEMENT"; return 1
   let ls := ((← IO.FS.readFile run).splitOn "\n").filter (fun l => !l.trimAscii.toString.isEmpty)
   let some (hl, rest) := (match ls with | l :: r => some (l, r) | [] => none) | do IO.println "MALFORMED run"; return 1
   if hl != (text.splitOn "\n").headD "" then IO.println "the run is not of the statement"; return 1
   let some (W', cells, ends, rows) := parseRun rest | do IO.println "MALFORMED run"; return 1
   if W' != W then IO.println "the run's region is not the statement's"; return 1
   let M := cells.toList
-  let m := CompM.cMachineO (fun _ => false) ComposedDText.shpD (List.replicate W Cell.S) (ComposedDText.VsD p)
+  let m := CompM.cMachineO (fun _ => false) ComposedDText.shpD (List.replicate W Cell.S) Vs
   let N := BT.nleaves ComposedDText.shpD
   -- The public cells, all but the bits and the region.
   let pubOK := (List.range m.heap.length).all fun i =>
     (3 ≤ i && i < N + 3 + W) || M[i]? == m.heap[i]?
   if !pubOK then IO.println "REJECT: the memory's public cells are not the statement's"; return 1
   let some last := ends.back? | do IO.println "MALFORMED run: no segment"; return 1
-  if ends.size != 1 then IO.println "REJECT: a decrement statement has one segment"; return 1
+  if ends.size != 1 || Vs.length != 1 then IO.println "REJECT: the run check takes one verifier, one segment"; return 1
   if rows.getD 0 ⟨0, 0, 0⟩ != ⟨m.hd, m.stk, m.heap.length⟩ then
     IO.println "REJECT: the run does not start at the statement's registers"; return 1
   -- The run halts at its first repeated row; the rows after it repeat it
@@ -901,7 +912,7 @@ def checkDecRun (pub run : String) : IO UInt32 := do
   let z := rows.getD stop ⟨0, 0, 0⟩
   if !(M[z.hd]? == some Cell.K && M[z.stk]? == some Cell.nil) then
     IO.println "REJECT: the run does not end at K over the nil"; return 1
-  IO.println s!"OK DECRUN decpre {p}: {stop + 1} rows, {jets} jet rows, each a step or DecJet.decRow"
+  IO.println s!"OK DECRUN {name}: {stop + 1} rows, {jets} jet rows, each a step or DecJet.decRow"
   return 0
 
 def main (args : List String) : IO UInt32 := do

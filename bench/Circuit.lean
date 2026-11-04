@@ -10,6 +10,7 @@ import Ski.ComposedText
 import Ski.Circuit.P2Air
 import Ski.Circuit.DecAir
 import Ski.Circuit.CompPAir
+import Ski.DecTermText
 open Term
 
 /-!
@@ -365,10 +366,12 @@ def compareCompD (path : String) : IO UInt32 := do
         | _ => none
       | [] => none) | do IO.println "MALFORMED: no statement"; return 1
   let stmt := "\n".intercalate ((ls.drop 1).take n) ++ "\n"
-  let some (p, W, _) := ComposedDText.statementOfTextD stmt | do IO.println "NOT A STATEMENT"; return 1
+  let some (Vs, W) := (match ComposedDText.statementOfTextD stmt with
+      | some (p, W, _) => some (ComposedDText.VsD p, W)
+      | none => (DecTerm.statementOfTextDG stmt).map fun (r : List OTerm × Nat × ComposedDText.DLogs) => (r.1, r.2.1)) | do IO.println "NOT A STATEMENT"; return 1
   let rest := ((ls.drop (n + 1)).filter (fun l => !l.trimAscii.toString.isEmpty))
   let some rust := parseAirs (rest.length + 1) rest | do IO.println "MALFORMED AIRS"; return 1
-  compareAirs rust (compDAirs p W)
+  compareAirs rust (compDAirsG Vs W)
 
 /-- The probe circuit: `term T`, `outcome …`, then the ten AIRs.  The jet
     table is Lean's for the term, as for `compare-jets`; the plan is Lean's

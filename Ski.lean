@@ -49,6 +49,8 @@ import Ski.P2Once
 import Ski.DecJet
 import Ski.ComposedDText
 import Ski.DecPreSound
+import Ski.DecTermText
+import Ski.DecTerm
 import Ski.Circuit.DecAir
 import Ski.Circuit.BusMatch
 import Ski.ComposedD

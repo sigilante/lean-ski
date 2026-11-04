@@ -41,6 +41,7 @@ import Ski.P2Once
 import Ski.DecJet
 import Ski.ComposedDText
 import Ski.DecPreSound
+import Ski.DecTerm
 import Ski.Circuit.DecAir
 import Ski.ZK.CompPHonest
 import Ski.Circuit.CompPCompleteFinal
@@ -1637,6 +1638,13 @@ open Ski.Audit
   Circuit.compDExport_sound
 #audit_clean DecPre.verifier_spine DecPre.owsteps_spineD DecPre.appL_var_inj DecPre.first_jet DecPre.HSteps.close
   DecPre.decpre_hsteps Circuit.decpreExport_sound
+
+-- A `decterm` statement: any public verifiers open in the jet's atom, read
+-- off the statement's heap (DecTerm)
+-- (the text's parser, `statementOfTextDG_vsOK`, reads strings through the core
+-- library's `String` functions, which use `Classical.choice`; it is tooling)
+#audit_clean DecTerm.occOK_sound DecTerm.vsOK_sound
+  Circuit.dectermExport_sound Circuit.verT_close Circuit.dectermExport_close
 
 -- The circuit with the Poseidon2 jet under Fiat–Shamir: its hiding PCS, P2OUT
 -- and Poseidon2 at degree 3 over eight chunks (CompPInst), the honest run's

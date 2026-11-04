@@ -87,10 +87,14 @@ pub fn parse_public_d(text: &str) -> Result<DPublic, String> {
     let header = next()?.to_string();
     let hw: Vec<&str> = header.split(' ').collect();
     let num = |x: &str| x.parse::<u32>().map_err(|_| "a bad header".to_string());
-    if hw.len() != 3 || hw[0] != "decpre" {
-        return Err("expected `decpre p J`".into());
-    }
-    let dp = DecPub { j: num(hw[2])? };
+    // `decpre p J` (one verifier, `λ β w. CHECK_p (J w)`) or `decterm J`
+    // (the verifiers the heap holds, `Ski/DecTermText.lean`); either way the
+    // circuit is the heap's, and Lean's `statement-dec` checks the text.
+    let dp = match (hw.len(), hw.first().copied()) {
+        (3, Some("decpre")) => DecPub { j: num(hw[2])? },
+        (2, Some("decterm")) => DecPub { j: num(hw[1])? },
+        _ => return Err("expected `decpre p J` or `decterm J`".into()),
+    };
     let w = nums(next()?, "W")?;
     let lg = nums(next()?, "log")?;
     if lg.len() != 3 || lg.iter().any(|&x| !(9..=20).contains(&x)) {

@@ -1110,6 +1110,45 @@ that the honest tables are accepted (the analogue of
 `compP_complete_log`). A proof of `decpre p` is released (`release/dec`,
 verify.sh step 13).
 
+Any public verifier with the `dec` jet (`Ski/DecTermText.lean`,
+`Ski/DecTerm.lean`, branch `dec-loop`). `compDAirsG Vs W` already took any
+verifiers open only in the jet's atom; a `decterm J` statement names them
+by their cells (`publicTextDG`, `publicTextD`'s layout with no parameter),
+and `statementOfTextDG` reads them back off the heap (`decodeDG`) and
+accepts the text only when it is exactly the re-emitted text, every
+verifier's variables are `JD` and there is at least one (`vsOK`). A
+consumer recomputes the term it means and compares the bytes (skinock's
+`nockdec check`). `Circuit.dectermExport_sound`: tables accepted for such
+verifiers carry a bit and a region whose witness makes each head-reduce
+with the jet to `K`; `Circuit.dectermExport_close`: for a verifier `verT C
+= λ β w. C`, `C` open only in `JD`, any implementation `P` of the contract
+closed in makes `C` reach `K` (`HSteps.close`, β, Church–Rosser). With `C`
+a program whose every occurrence of a term `P₀` is `JD` and `P₀`
+implementing the contract, the closed `C` is the program itself. `decpre`
+is unchanged; `composed statement-dec`, `check-dec-run` and `circuit
+compare-compd` take either form, and ski-air's `compd-*` read the header
+`decterm J`. Axioms `propext`, `Quot.sound` (the text's parser uses the
+core library's `String` functions, which use `Classical.choice`, and is
+tooling: the audited theorems take `vsOK Vs`).
+
+What the jet can fire on, measured with skinock: the row reads its
+subject from the memory cell by cell, so the subject must be an `encNn`
+laid out there, in the statement's heap or the witness region. A value
+computed in the run never is: head reduction does not reduce arguments,
+and a Scott cell's fields come out of elimination as thunks `K h c`, not
+as the field's cells, so the jet does not fire on its own output either.
+It fires once per laid-out subject. skinock's claim `*[[N 0] phi(dec)] =
+[N-1 0]` as a `decterm` statement (the word's compiled code the jet, on the
+literal subject) proves in 2,184 to 12,233 rows for `N` from 10 to
+`2^32 - 1`, against 48,316 rows unjetted at `N = 10` and 533,392 at `N =
+100` (skinock `release/nock/decloop`): the count-up loop inside the word
+collapses to one jet row and the rows follow the bits. A loop around the
+word (skinock's Λ `while (top ≠ 0) dec`) does not collapse: its word's
+argument is a computed stack, the run stops at the first call. Chaining
+the jet would need its output re-laid as cells the row reads (a strict
+jet that normalises its argument first, or an output the next call can
+read without elimination).
+
 Fiat–Shamir, round by round (`Ski/ZK/FSRound.lean`, `ski-air fs-budget`).
 Lean proves the counting step: `q` adaptive hash calls hit a round of bad
 fraction `ε` with probability at most `q ε`, grinding `b` bits divides `ε`
