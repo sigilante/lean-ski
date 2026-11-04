@@ -65,8 +65,8 @@ theorem quietW {A : List Cell} {d : DR} (h1 : d.kind = 1 ∨ d.kind = 2 → d.ro
   refine ⟨fun hk hr => ?_, fun hk hr => ?_, fun hk hr => ?_, fun hk hr => ?_, fun hk hr => ?_, fun hk hb => ?_,
     fun hk hb => ?_, fun hk hb => ?_, fun hk hb => ?_⟩ <;>
   first
-    | (have := h1 (.inl hk); omega)
-    | (have := h1 (.inr hk); omega)
+    | (have := h1 (.inl hk); rw [this] at hr; exact absurd hr (by decide))
+    | (have := h1 (.inr hk); rw [this] at hr; exact absurd hr (by decide))
     | (have := h3 (.inl hk); rw [this] at hb; cases hb)
     | (have := h3 (.inr hk); rw [this] at hb; cases hb)
 
@@ -79,10 +79,10 @@ theorem bits_quiet {m : Bool} : ∀ (n p lvl : Nat) (wc : Nat), ∀ d ∈ bitsRo
     intro d hd
     unfold bitsRows at hd
     split at hd
-    · rw [List.mem_singleton] at hd; subst hd; exact quietW (fun h => by simp [nilRow] at h) (fun _ => rfl)
+    · rw [List.mem_singleton] at hd; subst hd; exact quietW (fun h => by simp only [nilRow] at h; exact absurd h (by decide)) (fun _ => rfl)
     · split at hd
       · rcases List.mem_cons.1 hd with rfl | hd
-        · exact quietW (fun h => by simp [consRow] at h) (fun _ => rfl)
+        · exact quietW (fun h => by simp only [consRow] at h; exact absurd h (by decide)) (fun _ => rfl)
         · split at hd
           · cases hd
           · rw [show (false && !_) = false from rfl] at hd
@@ -96,11 +96,11 @@ theorem noun2_quiet : ∀ (n p : Nat), ∀ d ∈ nounRows A key n p 2, WritesOK 
     unfold nounRows at hd
     split at hd
     · rcases List.mem_cons.1 hd with rfl | hd
-      · exact quietW (fun _ => rfl) (fun h => by simp [atomRow] at h)
+      · exact quietW (fun _ => rfl) (fun h => by simp only [atomRow] at h; exact absurd h (by decide))
       · exact bits_quiet _ _ _ _ d hd
     · split at hd
       · rcases List.mem_cons.1 hd with rfl | hd
-        · exact quietW (fun _ => rfl) (fun h => by simp [cellRow] at h)
+        · exact quietW (fun _ => rfl) (fun h => by simp only [cellRow] at h; exact absurd h (by decide))
         · rcases List.mem_append.1 hd with hd | hd
           · exact noun2_quiet n _ d hd
           · exact noun2_quiet n _ d hd
@@ -148,9 +148,9 @@ theorem bitsW : ∀ (n p l : Nat) (bw : Bool) (wc : Nat) {bs : List Bool} {sks :
             rfl rfl (fun hK' => readBits_tail hb hK')
           rcases List.mem_cons.1 hd with rfl | hd
           · -- the row itself
-            refine ⟨fun h => by simp [consRow] at h, fun h => by simp [consRow] at h, fun h => by simp [consRow] at h,
-              fun h => by simp [consRow] at h, fun h => by simp [consRow] at h,
-              fun _ hbw hnl => ?_, fun _ hbw hbit hl => ?_, fun _ hbw => ?_, fun h => by simp [consRow] at h⟩
+            refine ⟨fun h => by simp only [consRow] at h; exact absurd h (by decide), fun h => by simp only [consRow] at h; exact absurd h (by decide), fun h => by simp only [consRow] at h; exact absurd h (by decide),
+              fun h => by simp only [consRow] at h; exact absurd h (by decide), fun h => by simp only [consRow] at h; exact absurd h (by decide),
+              fun _ hbw hnl => ?_, fun _ hbw hbit hl => ?_, fun _ hbw => ?_, fun h => by simp only [consRow] at h; exact absurd h (by decide)⟩
             · obtain ⟨hC, _⟩ := hinv hbw
               rw [h3, h5]
               simp only [consRow] at hbw hnl ⊢
@@ -232,9 +232,9 @@ theorem subjW {A : List Cell} {key p : Nat} {csk : DecJet.CellSk} {err : Bool} {
     (hE : err = true → Cells A (key + 12) (DecJet.errCells (key + 12))) :
     WritesOK A (cellRow key p 0 err wc) := by
   obtain ⟨_, h2, h8, h14, h15, h17, _, _⟩ := cellReads (d := cellRow key p 0 err wc) rfl hc
-  refine ⟨fun _ _ => ?_, fun _ _ he => ?_, fun _ h => by simp [cellRow] at h, fun h => by simp [cellRow] at h,
-    fun h => by simp [cellRow] at h, fun h => by simp [cellRow] at h, fun h => by simp [cellRow] at h,
-    fun h => by simp [cellRow] at h, fun h => by simp [cellRow] at h⟩
+  refine ⟨fun _ _ => ?_, fun _ _ he => ?_, fun _ h => by simp only [cellRow] at h; exact absurd h (by decide), fun h => by simp only [cellRow] at h; exact absurd h (by decide),
+    fun h => by simp only [cellRow] at h; exact absurd h (by decide), fun h => by simp only [cellRow] at h; exact absurd h (by decide), fun h => by simp only [cellRow] at h; exact absurd h (by decide),
+    fun h => by simp only [cellRow] at h; exact absurd h (by decide), fun h => by simp only [cellRow] at h; exact absurd h (by decide)⟩
   · rw [h2, h8, h14, h15, h17]
     exact Cells_l hC
   · exact hE he
@@ -255,9 +255,9 @@ theorem call_writes {M : List Cell} {J : Nat} {r r' : Air.Row} (h : DecJet.decRo
     simp only [DecJet.outCells, Option.some.injEq, Prod.mk.injEq] at hout
     obtain ⟨rfl, rfl⟩ := hout
     rcases List.mem_cons.1 hd with rfl | hd
-    · refine ⟨fun h => by simp [atomRow] at h, fun h => by simp [atomRow] at h, fun h => by simp [atomRow] at h,
-        fun _ h => by simp [atomRow] at h, fun _ _ => hC, fun h => by simp [atomRow] at h,
-        fun h => by simp [atomRow] at h, fun h => by simp [atomRow] at h, fun h => by simp [atomRow] at h⟩
+    · refine ⟨fun h => by simp only [atomRow] at h; exact absurd h (by decide), fun h => by simp only [atomRow] at h; exact absurd h (by decide), fun h => by simp only [atomRow] at h; exact absurd h (by decide),
+        fun _ h => by simp only [atomRow] at h; exact absurd h (by decide), fun _ _ => hC, fun h => by simp only [atomRow] at h; exact absurd h (by decide),
+        fun h => by simp only [atomRow] at h; exact absurd h (by decide), fun h => by simp only [atomRow] at h; exact absurd h (by decide), fun h => by simp only [atomRow] at h; exact absurd h (by decide)⟩
     · exact bits_quiet _ _ _ _ d hd
   · -- a cell subject, its head an atom
     rw [ha] at hd; simp only at hd; rw [hc] at hd; simp only at hd
@@ -272,9 +272,9 @@ theorem call_writes {M : List Cell} {J : Nat} {r r' : Air.Row} (h : DecJet.decRo
     have hhat : ∀ rt : Nat, Cells M key (DecJet.cellCells key csk' ++ DecJet.atomCells (key + 7) ask' rt ++ []) →
         WritesOK M (atomRow key csk'.h 1) := by
       intro rt hC'
-      refine ⟨fun h => by simp [atomRow] at h, fun h => by simp [atomRow] at h, fun h => by simp [atomRow] at h,
-        fun _ _ => ?_, fun _ h => by simp [atomRow] at h, fun h => by simp [atomRow] at h,
-        fun h => by simp [atomRow] at h, fun h => by simp [atomRow] at h, fun h => by simp [atomRow] at h⟩
+      refine ⟨fun h => by simp only [atomRow] at h; exact absurd h (by decide), fun h => by simp only [atomRow] at h; exact absurd h (by decide), fun h => by simp only [atomRow] at h; exact absurd h (by decide),
+        fun _ _ => ?_, fun _ h => by simp only [atomRow] at h; exact absurd h (by decide), fun h => by simp only [atomRow] at h; exact absurd h (by decide),
+        fun h => by simp only [atomRow] at h; exact absurd h (by decide), fun h => by simp only [atomRow] at h; exact absurd h (by decide), fun h => by simp only [atomRow] at h; exact absurd h (by decide)⟩
       have := Cells_r (Cells_l hC')
       rw [DecJet.cellCells_length] at this
       have := Cells_l (L1 := [.app ask'.a1 (key + 7 + 1), .app ask'.a2 (key + 7 + 2), .app ask'.a3 (key + 7 + 3),
@@ -298,9 +298,9 @@ theorem call_writes {M : List Cell} {J : Nat} {r r' : Air.Row} (h : DecJet.decRo
         · rcases List.mem_cons.1 hd with rfl | hd
           · exact hhat 0 (by rw [List.append_nil]; exact Cells_l hC)
           · rw [List.mem_singleton] at hd; subst hd
-            refine ⟨fun h => by simp [nilRow] at h, fun h => by simp [nilRow] at h, fun h => by simp [nilRow] at h,
-              fun h => by simp [nilRow] at h, fun h => by simp [nilRow] at h, fun h => by simp [nilRow] at h,
-              fun h => by simp [nilRow] at h, fun h => by simp [nilRow] at h, fun _ _ => ?_⟩
+            refine ⟨fun h => by simp only [nilRow] at h; exact absurd h (by decide), fun h => by simp only [nilRow] at h; exact absurd h (by decide), fun h => by simp only [nilRow] at h; exact absurd h (by decide),
+              fun h => by simp only [nilRow] at h; exact absurd h (by decide), fun h => by simp only [nilRow] at h; exact absurd h (by decide), fun h => by simp only [nilRow] at h; exact absurd h (by decide),
+              fun h => by simp only [nilRow] at h; exact absurd h (by decide), fun h => by simp only [nilRow] at h; exact absurd h (by decide), fun _ _ => ?_⟩
             exact Cells_at (Cells_l hC) 11 (by simp [DecJet.cellCells, DecJet.atomCells]) rfl rfl
         · exact noun2_quiet _ _ d hd
     | cons b bs =>
@@ -351,9 +351,9 @@ theorem call_writes {M : List Cell} {J : Nat} {r r' : Air.Row} (h : DecJet.decRo
           exact this
         · rcases List.mem_append.1 hd with hd | hd
           · rcases List.mem_cons.1 hd with rfl | hd
-            · refine ⟨fun _ h => by simp [cellRow] at h, fun _ h => by simp [cellRow] at h, fun _ _ => ?_,
-                fun h => by simp [cellRow] at h, fun h => by simp [cellRow] at h, fun h => by simp [cellRow] at h,
-                fun h => by simp [cellRow] at h, fun h => by simp [cellRow] at h, fun h => by simp [cellRow] at h⟩
+            · refine ⟨fun _ h => by simp only [cellRow] at h; exact absurd h (by decide), fun _ h => by simp only [cellRow] at h; exact absurd h (by decide), fun _ _ => ?_,
+                fun h => by simp only [cellRow] at h; exact absurd h (by decide), fun h => by simp only [cellRow] at h; exact absurd h (by decide), fun h => by simp only [cellRow] at h; exact absurd h (by decide),
+                fun h => by simp only [cellRow] at h; exact absurd h (by decide), fun h => by simp only [cellRow] at h; exact absurd h (by decide), fun h => by simp only [cellRow] at h; exact absurd h (by decide)⟩
               have := Cells_r (Cells_l hC)
               rw [DecJet.cellCells_length] at this
               exact this

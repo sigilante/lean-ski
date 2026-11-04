@@ -13,8 +13,8 @@ what the honest CPU sends, `DRun.jetSendsD`), gives tables that AIRs with
 the normal forms of `compDAirsG Vs W` accept, with Plonky3's selectors.
 The CPU table is the honest one (`DRun.cpuTableD`, `cpuD_sat`,
 `cpuD_honest`, `cpuD_segsHonest`, `cpuD_jetSends`), and it decodes back to
-the run.  What is left of completeness is DEC's honest table
-(`todo/DecCompleteTodo.lean`).
+the run.  DEC's honest table is `Ski/Circuit/CompDCompleteDec.lean`'s
+(`decProvides_exists`).
 -/
 
 namespace Circuit

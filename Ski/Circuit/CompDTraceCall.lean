@@ -139,8 +139,8 @@ theorem S_head_d {h : Nat} {hh : DecJet.Nn} (hn : DecJet.readNn (A.take key) (A.
     have hrows : nounRows A key (A.take key).length h 1 =
         atomRow key h 1 :: bitsRows A key false (A.take key).length ask.b 0 true 0 := by
       rw [hL]; unfold nounRows; rw [hah]; rfl
-    rw [hrows, S_cons, d_zero (d := atomRow key h 1) (by simp [atomRow]) (fun h => by simp [atomRow] at h)
-      (fun h => by simp [atomRow] at h), zero_add', S_bits_d _ _ _ _ _ hb]
+    rw [hrows, S_cons, d_zero (d := atomRow key h 1) (by simp only [atomRow]; decide) (fun h => by simp only [atomRow] at h; exact absurd h (by decide))
+      (fun h => by simp only [atomRow] at h; exact absurd h (by decide)), zero_add', S_bits_d _ _ _ _ _ hb]
     cases bs with
     | nil =>
       have hv : headV A key h = (true, 0) := by unfold headV; rw [hah]; simp only; rw [hb]
@@ -246,8 +246,8 @@ theorem call_sends {M : List Cell} {J : Nat} {r r' : Air.Row} (h : DecJet.decRow
     rcases readSubj_cases hrd with ⟨sk, bs, ha, hb, hc, rfl⟩ | ⟨csk', ask', bs, r, ha, hc, hah, hb, hcn, ht, rfl, rfl, rfl⟩ |
       ⟨csk', hh, tt, ha, hc, hah, hh', ht, rfl, rfl⟩
     · rw [ha]; simp only
-      rw [S_cons, d_zero (d := atomRow key p 0) (by simp [atomRow]) (fun h => by simp [atomRow] at h)
-        (fun h => by simp [atomRow] at h), S_bits_d1]
+      rw [S_cons, d_zero (d := atomRow key p 0) (by simp only [atomRow]; decide) (fun h => by simp only [atomRow] at h; exact absurd h (by decide))
+        (fun h => by simp only [atomRow] at h; exact absurd h (by decide)), S_bits_d1]
       exact add_zero' 0
     · rw [ha]; simp only; rw [hc]; simp only
       rw [S_cons, d_cellS (d := cellRow key p 0 _ _) rfl rfl, S_append, S_head_d (readNn_atomHead hah hb hcn),
@@ -275,7 +275,8 @@ theorem call_sends {M : List Cell} {J : Nat} {r r' : Air.Row} (h : DecJet.decRow
         obtain ⟨rfl, rfl⟩ := hout
         rw [hv]
         refine ind_congr ?_
-        exact crash_tup _ _ (by simp [DecJet.cellCells_length, DecJet.atomCells_length, DecJet.errCells_length])
+        exact crash_tup _ _ (by rw [List.length_append, List.length_append, DecJet.cellCells_length, DecJet.atomCells_length,
+          DecJet.errCells_length])
       | cons b bs =>
         have hv : headV M key csk'.h = (false, (DecJet.bitCells (key + 12) (b :: bs) sks).length) := by
           unfold headV; rw [hah]; simp only; rw [hb]
@@ -283,7 +284,7 @@ theorem call_sends {M : List Cell} {J : Nat} {r r' : Air.Row} (h : DecJet.decRow
         obtain ⟨rfl, rfl⟩ := hout
         rw [hv]
         refine ind_congr ?_
-        exact ok_tup _ _ _ (by simp [cellRow, DecJet.cellCells_length, DecJet.atomCells_length]; omega)
+        exact ok_tup _ _ _ (by rw [List.length_append, List.length_append, DecJet.cellCells_length, DecJet.atomCells_length]; rfl)
     · rw [ha]; simp only; rw [hc]; simp only
       rw [S_cons, x_cell (d := cellRow key p 0 _ _) rfl rfl, S_append, S_noun_x _ _ _ (by decide),
         S_noun_x _ _ _ (by decide), add_zero', add_zero']
@@ -295,7 +296,8 @@ theorem call_sends {M : List Cell} {J : Nat} {r r' : Air.Row} (h : DecJet.decRow
         simp only [DecJet.outCells, Option.some.injEq, Prod.mk.injEq] at hout
         obtain ⟨rfl, rfl⟩ := hout
         refine ind_congr ?_
-        exact crash_tup _ _ (by simp [DecJet.cellCells_length, DecJet.atomCells_length, DecJet.errCells_length])
+        exact crash_tup _ _ (by rw [List.length_append, List.length_append, DecJet.cellCells_length, List.length_replicate,
+          DecJet.errCells_length])
   -- assemble
   by_cases h1 : B = "decn"
   · subst h1
@@ -306,7 +308,8 @@ theorem call_sends {M : List Cell} {J : Nat} {r r' : Air.Row} (h : DecJet.decRow
     · subst h4
       rw [hX]
       simp only [true_and, show ("decx" = "decn") = False from by decide, false_and, if_false, zero_add']
-      unfold ind; split <;> grind
+      unfold ind; repeat' split
+      all_goals first | contradiction | decide
     · rw [if_neg (fun h => h1 h.1), if_neg (fun h => h4 h.1), zero_add', neg_zero_eq]
       by_cases h2 : B = "decb"
       · subst h2; exact hBb

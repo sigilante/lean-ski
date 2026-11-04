@@ -28,9 +28,9 @@ the composed machine of literal bits and a well-formed region, the public
 tables are the verifier's and the witness and memory tables are honest, so
 an honest CPU and DEC table as above give tables that AIRs with the normal
 forms of `compDAirsG Vs W` accept, with Plonky3's selectors, at the
-heights a statement names, decoding back to the memory.  What remains
-(`todo/DecCompleteTodo.lean`) is that every run has such a CPU and DEC
-table.
+heights a statement names, decoding back to the memory.  Every honest run
+has such a CPU (`Ski/Circuit/CompDCompleteFinal.lean`) and DEC table
+(`Ski/Circuit/CompDCompleteDec.lean`).
 -/
 
 namespace Circuit

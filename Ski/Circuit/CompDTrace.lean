@@ -554,7 +554,9 @@ theorem bitsN_eq {T : Table} {r b0 n k : Nat} (hr : r < T.h)
 omit hok in
 theorem key_range {key a n : Nat} (h : a < key) (hn : n = key - a - 1) : ofN key - ofN a - 1 - ofN n = 0 := by
   have : key = a + 1 + n := by omega
-  rw [this, ofN_add, ofN_add, ofN_one]; grind
+  rw [this, ofN_add, ofN_add, ofN_one]
+  exact E.eval_eq_of_norm (e := .sub (.sub (.sub (.add (.add (.atom (.main 0 0)) (.const 1)) (.atom (.main 0 1)))
+    (.atom (.main 0 0))) (.const 1)) (.atom (.main 0 1))) (e' := .const 0) (by decide) (at4 (ofN a) (ofN n) 0 0)
 
 theorem slot_sat {j : Nat} (hj : j < Dec.NSLOT) : ∀ e ∈ Dec.slotCons j, e.eval ((rowT A d).env 0) = 0 := by
   have hsk := slot_kind (D := rowT A d) (q := 0) (Nat.zero_lt_one) (rowF hok) (rowK hok) hj

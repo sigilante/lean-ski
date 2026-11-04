@@ -23,7 +23,9 @@ theorem bF_true : bF true = 1 := rfl
 theorem bF_false : bF false = 0 := rfl
 
 theorem ite_ind {t v : List F} (c : F) : (if t = v then c else 0) = c * ind (t = v) := by
-  unfold ind; split <;> grind
+  unfold ind; split
+  · exact (mul_one' c).symm
+  · exact (mul_zero' c).symm
 
 section Rows
 variable {A : List Cell} {d : DR} {v : List F}
@@ -31,42 +33,58 @@ variable {A : List Cell} {d : DR} {v : List F}
 -- decn
 
 theorem n_bits (hk : d.kind = 3 ∨ d.kind = 4) : sendsT A d "decn" v = 0 := by
-  rw [sendN]; simp only [ite_ind]
+  rw [sendN]
   rw [kc, ka, bF_f (by omega), bF_f (by omega)]
-  grind
+  (try unfold ind); repeat' split
+  all_goals first | contradiction | decide |
+    (simp only [zero_mul', mul_zero', zero_add', add_zero', neg_zero_eq]; done) |
+    (simp only [zero_mul', mul_zero', zero_add', add_zero', neg_zero_eq]; decide)
 
 theorem n_atom (hk : d.kind = 2) : sendsT A d "decn" v = -ind ([ofN d.key, ofN d.p, ofN d.ro] = v) := by
-  rw [sendN]; simp only [ite_ind]
+  rw [sendN]
   rw [kc, ka, bF_f (by omega), bF_t hk]
-  grind
+  (try unfold ind); repeat' split
+  all_goals first | contradiction | decide |
+    (simp only [zero_mul', mul_zero', zero_add', add_zero', neg_zero_eq]; done) |
+    (simp only [zero_mul', mul_zero', zero_add', add_zero', neg_zero_eq]; decide)
 
 theorem n_cell (hk : d.kind = 1) {hh tt : Nat} (h21 : (sl A d 21).2.2.2 = hh) (h23 : (sl A d 23).2.2.2 = tt) :
     sendsT A d "decn" v = -ind ([ofN d.key, ofN d.p, ofN d.ro] = v) +
       (ind ([ofN d.key, ofN hh, ofN 2 - h0 d] = v) + ind ([ofN d.key, ofN tt, ofN 2] = v)) := by
-  rw [sendN]; simp only [ite_ind]
+  rw [sendN]
   rw [kc, ka, bF_t hk, bF_f (by omega), h21, h23]
-  grind
+  (try unfold ind); repeat' split
+  all_goals first | contradiction | decide |
+    (simp only [zero_mul', mul_zero', zero_add', add_zero', neg_zero_eq]; done) |
+    (simp only [zero_mul', mul_zero', zero_add', add_zero', neg_zero_eq]; decide)
 
 -- decb
 
 theorem b_nil (hk : d.kind = 4) :
     sendsT A d "decb" v = -ind ([ofN d.key, ofN d.p, bF d.m, ofN d.lvl, bF d.bw, ofN d.wc] = v) := by
-  rw [sendB]; simp only [ite_ind]
+  rw [sendB]
   rw [ka, ks, kn, bF_f (by omega), bF_f (by omega), bF_t hk]
-  ; grind
+  (try unfold ind); repeat' split
+  all_goals first | contradiction | decide |
+    (simp only [zero_mul', mul_zero', zero_add', add_zero', neg_zero_eq]; done) |
+    (simp only [zero_mul', mul_zero', zero_add', add_zero', neg_zero_eq]; decide)
 
 theorem b_consL (hk : d.kind = 3) (hl : d.last = true) :
     sendsT A d "decb" v = -ind ([ofN d.key, ofN d.p, bF d.m, ofN d.lvl, bF d.bw, ofN d.wc] = v) := by
-  rw [sendB]; simp only [ite_ind]
+  rw [sendB]
   rw [ka, ks, kn, bF_f (by omega), bF_t hk, bF_f (by omega)]
   rw [vL, hl]
-  rw [show (1 - bF true : F) = 0 by decide]; grind
+  rw [show (1 - bF true : F) = 0 by decide]
+  (try unfold ind); repeat' split
+  all_goals first | contradiction | decide |
+    (simp only [zero_mul', mul_zero', zero_add', add_zero', neg_zero_eq]; done) |
+    (simp only [zero_mul', mul_zero', zero_add', add_zero', neg_zero_eq]; decide)
 
 theorem b_cons (hk : d.kind = 3) (hl : d.last = false) {t : Nat} (h14 : (sl A d 14).2.2.2 = t) :
     sendsT A d "decb" v = -ind ([ofN d.key, ofN d.p, bF d.m, ofN d.lvl, bF d.bw, ofN d.wc] = v) +
       ind ([ofN d.key, ofN t, bF d.m, ofN (d.lvl + 1), bF (d.bw && !d.bit),
         ofN (d.wc + 6 * (if d.bw then 1 else 0))] = v) := by
-  rw [sendB]; simp only [ite_ind]
+  rw [sendB]
   rw [ka, ks, kn, bF_f (by omega), bF_t hk, bF_f (by omega), h14]
   have e1 : ofN (d.lvl + 1) = ofN d.lvl + 1 := by rw [ofN_add]; rfl
   have e2 : bF (d.bw && !d.bit) = vBW d * (1 - vBIT d) := by
@@ -76,32 +94,42 @@ theorem b_cons (hk : d.kind = 3) (hl : d.last = false) {t : Nat} (h14 : (sl A d 
     cases d.bw <;> cases d.bit <;> rfl
   rw [e1, e2, e3]
   rw [vL, hl]
-  rw [show (1 - bF false : F) = 1 by decide]; grind
+  rw [show (1 - bF false : F) = 1 by decide]
+  (try unfold ind); repeat' split
+  all_goals first | contradiction | decide |
+    (simp only [zero_mul', mul_zero', zero_add', add_zero', neg_zero_eq]; done) |
+    (simp only [zero_mul', mul_zero', zero_add', add_zero', neg_zero_eq]; decide)
 
 theorem b_atom (hk : d.kind = 2) {b : Nat} (h22 : (sl A d 22).2.2.2 = b) :
     sendsT A d "decb" v = ind ([ofN d.key, ofN b, bF (d.ro != 1), ofN 0, bF (d.ro == 1), ofN 0] = v) := by
-  rw [sendB]; simp only [ite_ind]
+  rw [sendB]
   rw [ka, ks, kn, bF_t hk, bF_f (by omega), bF_f (by omega), h22]
   have e1 : h1 d = bF (d.ro == 1) := by
     unfold h1
     by_cases h : d.ro = 1
-    · rw [bF_t (P := (d.kind = 1 ∨ d.kind = 2) ∧ d.ro = 1) (by omega), h]; rfl
+    · rw [bF_t (P := (d.kind = 1 ∨ d.kind = 2) ∧ d.ro = 1) ⟨.inr hk, h⟩, h]; rfl
     · rw [bF_f (P := (d.kind = 1 ∨ d.kind = 2) ∧ d.ro = 1) (by omega), beq_false_of_ne h]; rfl
   have e2 : (1 : F) - bF (d.ro == 1) = bF (d.ro != 1) := by
     unfold bne; cases d.ro == 1 <;> decide
   rw [e1, e2]
-  grind
+  (try unfold ind); repeat' split
+  all_goals first | contradiction | decide |
+    (simp only [zero_mul', mul_zero', zero_add', add_zero', neg_zero_eq]; done) |
+    (simp only [zero_mul', mul_zero', zero_add', add_zero', neg_zero_eq]; decide)
 
 theorem b_cell (hk : d.kind = 1) : sendsT A d "decb" v = 0 := by
-  rw [sendB]; simp only [ite_ind]
+  rw [sendB]
   rw [ka, ks, kn, bF_f (by omega), bF_f (by omega), bF_f (by omega)]
-  grind
+  (try unfold ind); repeat' split
+  all_goals first | contradiction | decide |
+    (simp only [zero_mul', mul_zero', zero_add', add_zero', neg_zero_eq]; done) |
+    (simp only [zero_mul', mul_zero', zero_add', add_zero', neg_zero_eq]; decide)
 
 -- decd
 
 theorem d_zero (hk : 1 ≤ d.kind ∧ d.kind ≤ 4) (h1' : d.kind = 1 → d.ro ≠ 0 ∧ d.ro ≠ 1)
     (h3 : d.kind = 3 ∨ d.kind = 4 → d.m = true) : sendsT A d "decd" v = 0 := by
-  rw [sendD]; simp only [ite_ind]
+  rw [sendD]
   have hs : vSUB d = 0 := by
     unfold vSUB kc h0
     by_cases h : d.kind = 1
@@ -123,18 +151,25 @@ theorem d_zero (hk : 1 ≤ d.kind ∧ d.kind ≤ 4) (h1' : d.kind = 1 → d.ro �
     · rw [vM, h3 (.inr h)]; rw [show (1 - bF true : F) = 0 by decide, mul_zero']
     · rw [bF_f h, zero_mul']
   rw [hs, hc, hd0, hd1]
-  grind
+  (try unfold ind); repeat' split
+  all_goals first | contradiction | decide |
+    (simp only [zero_mul', mul_zero', zero_add', add_zero', neg_zero_eq]; done) |
+    (simp only [zero_mul', mul_zero', zero_add', add_zero', neg_zero_eq]; decide)
 
 theorem d_nil (hk : d.kind = 4) (hm : d.m = false) : sendsT A d "decd" v = ind ([ofN d.key, ofN 1, ofN d.wc] = v) := by
-  rw [sendD]; simp only [ite_ind]
+  rw [sendD]
   rw [show vSUB d = 0 by unfold vSUB kc; rw [bF_f (by omega), zero_mul'],
     show kc d * h1 d = 0 by unfold kc; rw [bF_f (by omega), zero_mul'],
     show ks d = 0 by unfold ks; rw [bF_f (by omega)], show kn d = 1 by unfold kn; rw [bF_t hk], vM, hm]
-  rw [show (1 - bF false : F) = 1 by decide]; grind
+  rw [show (1 - bF false : F) = 1 by decide]
+  (try unfold ind); repeat' split
+  all_goals first | contradiction | decide |
+    (simp only [zero_mul', mul_zero', zero_add', add_zero', neg_zero_eq]; done) |
+    (simp only [zero_mul', mul_zero', zero_add', add_zero', neg_zero_eq]; decide)
 
 theorem d_consL (hk : d.kind = 3) (hm : d.m = false) (hl : d.last = true) :
     sendsT A d "decd" v = ind ([ofN d.key, ofN 0, ofN (d.wc + (if d.bw && !d.bit then 6 else 0))] = v) := by
-  rw [sendD]; simp only [ite_ind]
+  rw [sendD]
   rw [show vSUB d = 0 by unfold vSUB kc; rw [bF_f (by omega), zero_mul'],
     show kc d * h1 d = 0 by unfold kc; rw [bF_f (by omega), zero_mul'],
     show ks d = 1 by unfold ks; rw [bF_t hk], show kn d = 0 by unfold kn; rw [bF_f (by omega)], vM, hm, vL, hl]
@@ -142,53 +177,76 @@ theorem d_consL (hk : d.kind = 3) (hm : d.m = false) (hl : d.last = true) :
     simp only [vWR, vDROP, vBW, vBIT, vL, hl, ofN_add]
     cases d.bw <;> cases d.bit <;> rfl
   rw [e3]
-  rw [show (1 - bF false : F) = 1 by decide, show bF true = 1 from rfl]; grind
+  rw [show (1 - bF false : F) = 1 by decide, show bF true = 1 from rfl]
+  (try unfold ind); repeat' split
+  all_goals first | contradiction | decide |
+    (simp only [zero_mul', mul_zero', zero_add', add_zero', neg_zero_eq]; done) |
+    (simp only [zero_mul', mul_zero', zero_add', add_zero', neg_zero_eq]; decide)
 
 theorem d_cons (hk : d.kind = 3) (hl : d.last = false) : sendsT A d "decd" v = 0 := by
-  rw [sendD]; simp only [ite_ind]
+  rw [sendD]
   rw [show vSUB d = 0 by unfold vSUB kc; rw [bF_f (by omega), zero_mul'],
     show kc d * h1 d = 0 by unfold kc; rw [bF_f (by omega), zero_mul'],
     show kn d = 0 by unfold kn; rw [bF_f (by omega)], vL, hl]
-  rw [show bF false = 0 from rfl]; grind
+  rw [show bF false = 0 from rfl]
+  (try unfold ind); repeat' split
+  all_goals first | contradiction | decide |
+    (simp only [zero_mul', mul_zero', zero_add', add_zero', neg_zero_eq]; done) |
+    (simp only [zero_mul', mul_zero', zero_add', add_zero', neg_zero_eq]; decide)
 
 theorem d_cellH (hk : d.kind = 1) (hro : d.ro = 1) : sendsT A d "decd" v = ind ([ofN d.key, ofN 1, ofN 0] = v) := by
-  rw [sendD]; simp only [ite_ind]
+  rw [sendD]
   rw [show vSUB d = 0 by unfold vSUB h0; rw [bF_f (by omega), mul_zero'],
-    show kc d * h1 d = 1 by unfold kc h1; rw [bF_t hk, bF_t (by omega)]; rfl,
+    show kc d * h1 d = 1 by unfold kc h1; rw [bF_t hk, bF_t ⟨.inl hk, hro⟩]; rfl,
     show ks d = 0 by unfold ks; rw [bF_f (by omega)], show kn d = 0 by unfold kn; rw [bF_f (by omega)]]
-  grind
+  (try unfold ind); repeat' split
+  all_goals first | contradiction | decide |
+    (simp only [zero_mul', mul_zero', zero_add', add_zero', neg_zero_eq]; done) |
+    (simp only [zero_mul', mul_zero', zero_add', add_zero', neg_zero_eq]; decide)
 
 theorem d_cellS (hk : d.kind = 1) (hro : d.ro = 0) :
     sendsT A d "decd" v = -ind ([ofN d.key, bF d.err, ofN d.wc] = v) := by
-  rw [sendD]; simp only [ite_ind]
-  rw [show vSUB d = 1 by unfold vSUB kc h0; rw [bF_t hk, bF_t (by omega)]; rfl,
+  rw [sendD]
+  rw [show vSUB d = 1 by unfold vSUB kc h0; rw [bF_t hk, bF_t ⟨.inl hk, hro⟩]; rfl,
     show kc d * h1 d = 0 by unfold h1; rw [bF_f (by omega), mul_zero'],
     show ks d = 0 by unfold ks; rw [bF_f (by omega)], show kn d = 0 by unfold kn; rw [bF_f (by omega)]]
-  grind
+  (try unfold ind); repeat' split
+  all_goals first | contradiction | decide |
+    (simp only [zero_mul', mul_zero', zero_add', add_zero', neg_zero_eq]; done) |
+    (simp only [zero_mul', mul_zero', zero_add', add_zero', neg_zero_eq]; decide)
 
 -- decx
 
 theorem x_zero (hk : d.kind = 1 ∨ d.kind = 2 → d.ro ≠ 0) : sendsT A d "decx" v = 0 := by
-  rw [sendX]; simp only [ite_ind]
+  rw [sendX]
   have : h0 d = 0 := by
     unfold h0
     rw [bF_f]; intro ⟨h1, h2⟩; exact hk h1 h2
   rw [show vSUB d = 0 by unfold vSUB; rw [this, mul_zero'], this, mul_zero']
-  simp only [zero_mul', add_zero']
+  (try unfold ind); repeat' split
+  all_goals first | contradiction | decide |
+    (simp only [zero_mul', mul_zero', zero_add', add_zero', neg_zero_eq]; done) |
+    (simp only [zero_mul', mul_zero', zero_add', add_zero', neg_zero_eq]; decide)
 
 theorem x_cell (hk : d.kind = 1) (hro : d.ro = 0) : sendsT A d "decx" v =
     ind ([ofN d.key, ofN d.key + ofN 12 * bF d.err, ofN d.key + ofN 12 + ofN d.wc + ofN 3 * bF d.err] = v) := by
-  rw [sendX]; simp only [ite_ind]
-  rw [show vSUB d = 1 by unfold vSUB kc h0; rw [bF_t hk, bF_t (by omega)]; rfl,
+  rw [sendX]
+  rw [show vSUB d = 1 by unfold vSUB kc h0; rw [bF_t hk, bF_t ⟨.inl hk, hro⟩]; rfl,
     show ka d * h0 d = 0 by unfold ka; rw [bF_f (by omega), zero_mul']]
-  grind
+  (try unfold ind); repeat' split
+  all_goals first | contradiction | decide |
+    (simp only [zero_mul', mul_zero', zero_add', add_zero', neg_zero_eq]; done) |
+    (simp only [zero_mul', mul_zero', zero_add', add_zero', neg_zero_eq]; decide)
 
 theorem x_atom (hk : d.kind = 2) (hro : d.ro = 0) : sendsT A d "decx" v =
     ind ([ofN d.key, ofN d.key, ofN d.key + ofN 3] = v) := by
-  rw [sendX]; simp only [ite_ind]
+  rw [sendX]
   rw [show vSUB d = 0 by unfold vSUB kc; rw [bF_f (by omega), zero_mul'],
-    show ka d * h0 d = 1 by unfold ka h0; rw [bF_t hk, bF_t (by omega)]; rfl]
-  grind
+    show ka d * h0 d = 1 by unfold ka h0; rw [bF_t hk, bF_t ⟨.inr hk, hro⟩]; rfl]
+  (try unfold ind); repeat' split
+  all_goals first | contradiction | decide |
+    (simp only [zero_mul', mul_zero', zero_add', add_zero', neg_zero_eq]; done) |
+    (simp only [zero_mul', mul_zero', zero_add', add_zero', neg_zero_eq]; decide)
 
 end Rows
 
@@ -218,9 +276,16 @@ theorem S_zero : ∀ {L : List DR}, (∀ d ∈ L, sendsT A d B v = 0) → S A B 
 
 end Sums
 
-theorem tel3 (a b c : F) : -a + (b + c) + (-b + -c) = -a := by grind
-theorem tel2 (a b : F) : -a + b + -b = -a := by grind
-theorem tel0 (b : F) : b + (-b) = 0 := by grind
+theorem tel3 (a b c : F) : -a + (b + c) + (-b + -c) = -a :=
+  E.eval_eq_of_norm (e := .add (.add (.neg (.atom (.main 0 0))) (.add (.atom (.main 0 1)) (.atom (.main 0 2))))
+    (.add (.neg (.atom (.main 0 1))) (.neg (.atom (.main 0 2))))) (e' := .neg (.atom (.main 0 0))) (by decide)
+    (at4 a b c 0)
+theorem tel2 (a b : F) : -a + b + -b = -a :=
+  E.eval_eq_of_norm (e := .add (.add (.neg (.atom (.main 0 0))) (.atom (.main 0 1))) (.neg (.atom (.main 0 1))))
+    (e' := .neg (.atom (.main 0 0))) (by decide) (at4 a b 0 0)
+theorem tel0 (b : F) : b + (-b) = 0 :=
+  E.eval_eq_of_norm (e := .add (.atom (.main 0 0)) (.neg (.atom (.main 0 0)))) (e' := .const 0) (by decide)
+    (at4 b 0 0 0)
 
 -- ---------------------------------------------------------------------------
 -- The rows' shapes
@@ -255,12 +320,12 @@ theorem noun_shape : ∀ (n p ro : Nat), ∀ d ∈ nounRows A key n p ro,
     unfold nounRows at hd
     split at hd
     · rcases List.mem_cons.1 hd with rfl | hd
-      · exact ⟨fun _ => .inl rfl, fun h => by simp [atomRow] at h, by simp [atomRow], by simp [atomRow]⟩
+      · exact ⟨fun _ => .inl rfl, fun h => by simp only [atomRow] at h; exact absurd h (by decide), by simp [atomRow], by simp [atomRow]⟩
       · obtain ⟨hk, hm⟩ := bits_shape _ _ _ _ _ d hd
         exact ⟨fun h => by omega, fun _ => .inl hm, by omega, by omega⟩
     · split at hd
       · rcases List.mem_cons.1 hd with rfl | hd
-        · exact ⟨fun _ => .inl rfl, fun h => by simp [cellRow] at h, by simp [cellRow], by simp [cellRow]⟩
+        · exact ⟨fun _ => .inl rfl, fun h => by simp only [cellRow] at h; exact absurd h (by decide), by simp [cellRow], by simp [cellRow]⟩
         · have : ∀ q, d ∈ nounRows A key n q 2 → _ := fun q h => noun_shape n q 2 d h
           rcases List.mem_append.1 hd with hd | hd <;>
           · obtain ⟨h1, h2, h3, h4⟩ := noun_shape n _ 2 d hd
@@ -395,15 +460,15 @@ theorem wcAdd_false : ∀ bs, wcAdd false bs = 0
 theorem wcAdd_cells : ∀ (c : Nat) (bs : List Bool) (sks : List DecJet.ConsSk), sks.length = bs.length →
     wcAdd true bs = (DecJet.bitCells c bs sks).length
   | _, [], _, _ => rfl
-  | _, _ :: _, [], h => by simp at h
+  | _, _ :: _, [], h => absurd h (by rw [List.length_nil, List.length_cons]; exact Nat.noConfusion)
   | c, false :: bs, sk :: sks, h => by
-    simp only [wcAdd, DecJet.bitCells, List.length_append, Bool.false_and, Bool.not_false, Bool.and_true,
-      if_true, Bool.not_false]
-    rw [wcAdd_cells (c + 6) bs sks (by simpa using h)]; simp
+    show 6 + wcAdd true bs = ([Cell.app 0 (c + 1), .app (c + 2) (c + 5), .app sk.s (c + 3), .app sk.c5 (c + 4), .app 0 0,
+      .app 0 (if DecJet.dropped bs then 0 else c + 6)] ++ DecJet.bitCells (c + 6) bs sks).length
+    rw [List.length_append, wcAdd_cells (c + 6) bs sks (Nat.succ.inj h)]; rfl
   | c, true :: bs, sk :: sks, _ => by
     cases bs with
     | nil => rfl
-    | cons b bs => simp [wcAdd, DecJet.bitCells, wcAdd_false]
+    | cons b bs => show 6 + wcAdd false (b :: bs) = 6; rw [wcAdd_false]
 
 theorem readBits_ne {H : List Cell} {n t : Nat} {bs : List Bool} {sks : List DecJet.ConsSk}
     (h : DecJet.readBits H n t = some (bs, sks)) (hK : DecJet.isK H t = false) : bs ≠ [] := by
@@ -484,7 +549,8 @@ theorem S_bits_d1 (n p lvl : Nat) (bw : Bool) (wc : Nat) :
     S A "decd" v (bitsRows A key true n p lvl bw wc) = 0 :=
   S_zero (fun d hd => by
     obtain ⟨hk, hm⟩ := bits_shape n p lvl bw wc d hd
-    exact d_zero (by omega) (fun h => by omega) (fun _ => hm))
+    have h14 : 1 ≤ d.kind ∧ d.kind ≤ 4 := ⟨by rcases hk with e | e <;> omega, by rcases hk with e | e <;> omega⟩
+    exact d_zero h14 (fun h => absurd h (by rcases hk with e | e <;> omega)) (fun _ => hm))
 
 theorem S_bits_b0 {m : Bool} (n p lvl : Nat) (bw : Bool) (wc : Nat) :
     S A "decn" v (bitsRows A key m n p lvl bw wc) = 0 := S_bits_n n p lvl bw wc

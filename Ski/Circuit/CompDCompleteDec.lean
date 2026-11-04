@@ -69,7 +69,11 @@ theorem foldr_neg_ite (P : Nat → Bool) (f : Nat → F) : ∀ l : List Nat,
   | r :: l => by
     simp only [List.foldr_cons]
     rw [foldr_neg_ite P f l]
-    cases P r <;> simp only [Bool.false_eq_true, if_false, if_true] <;> grind
+    cases P r
+    · show 0 + -_ = -(0 + _); rw [zero_add', zero_add']
+    · show -f r + -_ = -(f r + _)
+      exact E.eval_eq_of_norm (e := .add (.neg (.atom (.main 0 0))) (.neg (.atom (.main 0 1))))
+        (e' := .neg (.add (.atom (.main 0 0)) (.atom (.main 0 1)))) (by decide) (at4 (f r) _ 0 0)
 
 theorem bits_key {A : List Cell} {key : Nat} {m : Bool} : ∀ (n p lvl : Nat) (bw : Bool) (wc : Nat),
     ∀ d ∈ bitsRows A key m n p lvl bw wc, d.key = key

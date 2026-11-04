@@ -86,19 +86,23 @@ theorem evNEXTL (hk : d.kind = 3) (hb : d.bw = true) :
     rw [ofN_add, ofN_add, ofN_mul]
   cases d.bit <;> cases d.last
   · show 1 * (1 - 1 * 0 * 0) * _ = ofN (d.key + 12 + 6 * d.lvl)
-    rw [e]; grind
+    rw [e, show (1 * (1 - 1 * 0 * 0) : F) = 1 by decide, one_mul']
   · show 1 * (1 - 1 * 0 * 1) * _ = ofN (d.key + 12 + 6 * d.lvl)
-    rw [e]; grind
+    rw [e, show (1 * (1 - 1 * 0 * 1) : F) = 1 by decide, one_mul']
   · show 1 * (1 - 1 * 1 * 0) * _ = ofN (d.key + 12 + 6 * d.lvl)
-    rw [e]; grind
+    rw [e, show (1 * (1 - 1 * 1 * 0) : F) = 1 by decide, one_mul']
   · show 1 * (1 - 1 * 1 * 1) * _ = (0 : F)
-    grind
+    rw [show (1 * (1 - 1 * 1 * 1) : F) = 0 by decide, zero_mul']
 
 theorem nz {P : Prop} [Decidable P] {x : F} (h : bF (decide P) * x ≠ 0) : P := by
-  exact Classical.byContradiction fun hp => by rw [bF_f hp, zero_mul'] at h; exact h rfl
+  by_cases hp : P
+  · exact hp
+  · rw [bF_f hp, zero_mul'] at h; exact absurd rfl h
 
 theorem nz' {P : Prop} [Decidable P] {x : F} (h : x * bF (decide P) ≠ 0) : P := by
-  exact Classical.byContradiction fun hp => by rw [bF_f hp, mul_zero'] at h; exact h rfl
+  by_cases hp : P
+  · exact hp
+  · rw [bF_f hp, mul_zero'] at h; exact absurd rfl h
 
 theorem sub_nz (h : vSUB d ≠ 0) : d.kind = 1 ∧ d.ro = 0 := by
   unfold vSUB kc h0 at h

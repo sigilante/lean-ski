@@ -140,55 +140,55 @@ theorem cellReads {A : List Cell} {d : DR} (hk : d.kind = 1) {sk : DecJet.CellSk
   obtain ⟨l_kt, g_kt⟩ := tk h_kt
   obtain ⟨l_k6, g_k6⟩ := tk h_k6
   have e0 : sl A d 0 = (d.p, 3, k0, y1) := by
-    rw [sl_eq A d (j := 0) (s := .rowP) (t := (.C 3)) (a := d.p) (by rw [hk]; rfl) rfl g_p]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 0) (s := .rowP) (t := (.C 3)) (a := d.p) (by rw [hk]; rfl) rfl g_p]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e1 : sl A d 1 = (k0, 1, 0, 0) := by
-    rw [sl_eq A d (j := 1) (s := (.F1 0)) (t := (.C 1)) (a := k0) (by rw [hk]; rfl) (by show (sl A d 0).2.2.1 = k0; rw [e0]) g_k0]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 1) (s := (.F1 0)) (t := (.C 1)) (a := k0) (by rw [hk]; rfl) (by show (sl A d 0).2.2.1 = k0; rw [e0]) g_k0]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e2 : sl A d 2 = (y1, 3, a1, y2) := by
-    rw [sl_eq A d (j := 2) (s := (.F2 0)) (t := (.C 3)) (a := y1) (by rw [hk]; rfl) (by show (sl A d 0).2.2.2 = y1; rw [e0]) g_y1]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 2) (s := (.F2 0)) (t := (.C 3)) (a := y1) (by rw [hk]; rfl) (by show (sl A d 0).2.2.2 = y1; rw [e0]) g_y1]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e3 : sl A d 3 = (a1, 3, sa, kka) := by
-    rw [sl_eq A d (j := 3) (s := (.F1 2)) (t := (.C 3)) (a := a1) (by rw [hk]; rfl) (by show (sl A d 2).2.2.1 = a1; rw [e2]) g_a1]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 3) (s := (.F1 2)) (t := (.C 3)) (a := a1) (by rw [hk]; rfl) (by show (sl A d 2).2.2.1 = a1; rw [e2]) g_a1]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e4 : sl A d 4 = (sa, 0, 0, 0) := by
-    rw [sl_eq A d (j := 4) (s := (.F1 3)) (t := (.C 0)) (a := sa) (by rw [hk]; rfl) (by show (sl A d 3).2.2.1 = sa; rw [e3]) g_sa]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 4) (s := (.F1 3)) (t := (.C 0)) (a := sa) (by rw [hk]; rfl) (by show (sl A d 3).2.2.1 = sa; rw [e3]) g_sa]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e5 : sl A d 5 = (kka, 3, k1a, k2a) := by
-    rw [sl_eq A d (j := 5) (s := (.F2 3)) (t := (.C 3)) (a := kka) (by rw [hk]; rfl) (by show (sl A d 3).2.2.2 = kka; rw [e3]) g_kka]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 5) (s := (.F2 3)) (t := (.C 3)) (a := kka) (by rw [hk]; rfl) (by show (sl A d 3).2.2.2 = kka; rw [e3]) g_kka]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e6 : sl A d 6 = (k1a, 1, 0, 0) := by
-    rw [sl_eq A d (j := 6) (s := (.F1 5)) (t := (.C 1)) (a := k1a) (by rw [hk]; rfl) (by show (sl A d 5).2.2.1 = k1a; rw [e5]) g_k1a]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 6) (s := (.F1 5)) (t := (.C 1)) (a := k1a) (by rw [hk]; rfl) (by show (sl A d 5).2.2.1 = k1a; rw [e5]) g_k1a]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e7 : sl A d 7 = (k2a, 1, 0, 0) := by
-    rw [sl_eq A d (j := 7) (s := (.F2 5)) (t := (.C 1)) (a := k2a) (by rw [hk]; rfl) (by show (sl A d 5).2.2.2 = k2a; rw [e5]) g_k2a]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 7) (s := (.F2 5)) (t := (.C 1)) (a := k2a) (by rw [hk]; rfl) (by show (sl A d 5).2.2.2 = k2a; rw [e5]) g_k2a]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e8 : sl A d 8 = (y2, 3, a2, y3) := by
-    rw [sl_eq A d (j := 8) (s := (.F2 2)) (t := (.C 3)) (a := y2) (by rw [hk]; rfl) (by show (sl A d 2).2.2.2 = y2; rw [e2]) g_y2]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 8) (s := (.F2 2)) (t := (.C 3)) (a := y2) (by rw [hk]; rfl) (by show (sl A d 2).2.2.2 = y2; rw [e2]) g_y2]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e9 : sl A d 9 = (a2, 3, sb, kkb) := by
-    rw [sl_eq A d (j := 9) (s := (.F1 8)) (t := (.C 3)) (a := a2) (by rw [hk]; rfl) (by show (sl A d 8).2.2.1 = a2; rw [e8]) g_a2]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 9) (s := (.F1 8)) (t := (.C 3)) (a := a2) (by rw [hk]; rfl) (by show (sl A d 8).2.2.1 = a2; rw [e8]) g_a2]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e10 : sl A d 10 = (sb, 0, 0, 0) := by
-    rw [sl_eq A d (j := 10) (s := (.F1 9)) (t := (.C 0)) (a := sb) (by rw [hk]; rfl) (by show (sl A d 9).2.2.1 = sb; rw [e9]) g_sb]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 10) (s := (.F1 9)) (t := (.C 0)) (a := sb) (by rw [hk]; rfl) (by show (sl A d 9).2.2.1 = sb; rw [e9]) g_sb]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e11 : sl A d 11 = (kkb, 3, k1b, k2b) := by
-    rw [sl_eq A d (j := 11) (s := (.F2 9)) (t := (.C 3)) (a := kkb) (by rw [hk]; rfl) (by show (sl A d 9).2.2.2 = kkb; rw [e9]) g_kkb]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 11) (s := (.F2 9)) (t := (.C 3)) (a := kkb) (by rw [hk]; rfl) (by show (sl A d 9).2.2.2 = kkb; rw [e9]) g_kkb]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e12 : sl A d 12 = (k1b, 1, 0, 0) := by
-    rw [sl_eq A d (j := 12) (s := (.F1 11)) (t := (.C 1)) (a := k1b) (by rw [hk]; rfl) (by show (sl A d 11).2.2.1 = k1b; rw [e11]) g_k1b]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 12) (s := (.F1 11)) (t := (.C 1)) (a := k1b) (by rw [hk]; rfl) (by show (sl A d 11).2.2.1 = k1b; rw [e11]) g_k1b]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e13 : sl A d 13 = (k2b, 1, 0, 0) := by
-    rw [sl_eq A d (j := 13) (s := (.F2 11)) (t := (.C 1)) (a := k2b) (by rw [hk]; rfl) (by show (sl A d 11).2.2.2 = k2b; rw [e11]) g_k2b]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 13) (s := (.F2 11)) (t := (.C 1)) (a := k2b) (by rw [hk]; rfl) (by show (sl A d 11).2.2.2 = k2b; rw [e11]) g_k2b]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e14 : sl A d 14 = (y3, 3, p1, kt) := by
-    rw [sl_eq A d (j := 14) (s := (.F2 8)) (t := (.C 3)) (a := y3) (by rw [hk]; rfl) (by show (sl A d 8).2.2.2 = y3; rw [e8]) g_y3]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 14) (s := (.F2 8)) (t := (.C 3)) (a := y3) (by rw [hk]; rfl) (by show (sl A d 8).2.2.2 = y3; rw [e8]) g_y3]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e15 : sl A d 15 = (p1, 3, s3, p2) := by
-    rw [sl_eq A d (j := 15) (s := (.F1 14)) (t := (.C 3)) (a := p1) (by rw [hk]; rfl) (by show (sl A d 14).2.2.1 = p1; rw [e14]) g_p1]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 15) (s := (.F1 14)) (t := (.C 3)) (a := p1) (by rw [hk]; rfl) (by show (sl A d 14).2.2.1 = p1; rw [e14]) g_p1]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e16 : sl A d 16 = (s3, 0, 0, 0) := by
-    rw [sl_eq A d (j := 16) (s := (.F1 15)) (t := (.C 0)) (a := s3) (by rw [hk]; rfl) (by show (sl A d 15).2.2.1 = s3; rw [e15]) g_s3]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 16) (s := (.F1 15)) (t := (.C 0)) (a := s3) (by rw [hk]; rfl) (by show (sl A d 15).2.2.1 = s3; rw [e15]) g_s3]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e17 : sl A d 17 = (p2, 3, si, kh) := by
-    rw [sl_eq A d (j := 17) (s := (.F2 15)) (t := (.C 3)) (a := p2) (by rw [hk]; rfl) (by show (sl A d 15).2.2.2 = p2; rw [e15]) g_p2]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 17) (s := (.F2 15)) (t := (.C 3)) (a := p2) (by rw [hk]; rfl) (by show (sl A d 15).2.2.2 = p2; rw [e15]) g_p2]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e18 : sl A d 18 = (si, 3, sc, ic) := by
-    rw [sl_eq A d (j := 18) (s := (.F1 17)) (t := (.C 3)) (a := si) (by rw [hk]; rfl) (by show (sl A d 17).2.2.1 = si; rw [e17]) g_si]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 18) (s := (.F1 17)) (t := (.C 3)) (a := si) (by rw [hk]; rfl) (by show (sl A d 17).2.2.1 = si; rw [e17]) g_si]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e19 : sl A d 19 = (sc, 0, 0, 0) := by
-    rw [sl_eq A d (j := 19) (s := (.F1 18)) (t := (.C 0)) (a := sc) (by rw [hk]; rfl) (by show (sl A d 18).2.2.1 = sc; rw [e18]) g_sc]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 19) (s := (.F1 18)) (t := (.C 0)) (a := sc) (by rw [hk]; rfl) (by show (sl A d 18).2.2.1 = sc; rw [e18]) g_sc]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e20 : sl A d 20 = (ic, 2, 0, 0) := by
-    rw [sl_eq A d (j := 20) (s := (.F2 18)) (t := (.C 2)) (a := ic) (by rw [hk]; rfl) (by show (sl A d 18).2.2.2 = ic; rw [e18]) g_ic]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 20) (s := (.F2 18)) (t := (.C 2)) (a := ic) (by rw [hk]; rfl) (by show (sl A d 18).2.2.2 = ic; rw [e18]) g_ic]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e21 : sl A d 21 = (kh, 3, k5, hh) := by
-    rw [sl_eq A d (j := 21) (s := (.F2 17)) (t := (.C 3)) (a := kh) (by rw [hk]; rfl) (by show (sl A d 17).2.2.2 = kh; rw [e17]) g_kh]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 21) (s := (.F2 17)) (t := (.C 3)) (a := kh) (by rw [hk]; rfl) (by show (sl A d 17).2.2.2 = kh; rw [e17]) g_kh]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e22 : sl A d 22 = (k5, 1, 0, 0) := by
-    rw [sl_eq A d (j := 22) (s := (.F1 21)) (t := (.C 1)) (a := k5) (by rw [hk]; rfl) (by show (sl A d 21).2.2.1 = k5; rw [e21]) g_k5]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 22) (s := (.F1 21)) (t := (.C 1)) (a := k5) (by rw [hk]; rfl) (by show (sl A d 21).2.2.1 = k5; rw [e21]) g_k5]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e23 : sl A d 23 = (kt, 3, k6, t) := by
-    rw [sl_eq A d (j := 23) (s := (.F2 14)) (t := (.C 3)) (a := kt) (by rw [hk]; rfl) (by show (sl A d 14).2.2.2 = kt; rw [e14]) g_kt]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 23) (s := (.F2 14)) (t := (.C 3)) (a := kt) (by rw [hk]; rfl) (by show (sl A d 14).2.2.2 = kt; rw [e14]) g_kt]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e24 : sl A d 24 = (k6, 1, 0, 0) := by
-    rw [sl_eq A d (j := 24) (s := (.F1 23)) (t := (.C 1)) (a := k6) (by rw [hk]; rfl) (by show (sl A d 23).2.2.1 = k6; rw [e23]) g_k6]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 24) (s := (.F1 23)) (t := (.C 1)) (a := k6) (by rw [hk]; rfl) (by show (sl A d 23).2.2.1 = k6; rw [e23]) g_k6]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   refine ⟨fun j hj => ?_, ?_⟩
   · have hjl := act_lt hj
     rw [hk] at hjl; simp only [patOf, Dec.cellSlots, Dec.atomSlots, Dec.consSlots] at hjl
@@ -262,53 +262,53 @@ theorem atomReads {A : List Cell} {d : DR} (hk : d.kind = 2) {sk : DecJet.AtomSk
   obtain ⟨l_kb, g_kb⟩ := tk h_kb
   obtain ⟨l_k, g_k⟩ := tk h_k
   have e0 : sl A d 0 = (d.p, 3, a1, x1) := by
-    rw [sl_eq A d (j := 0) (s := .rowP) (t := (.C 3)) (a := d.p) (by rw [hk]; rfl) rfl g_p]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 0) (s := .rowP) (t := (.C 3)) (a := d.p) (by rw [hk]; rfl) rfl g_p]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e1 : sl A d 1 = (a1, 3, sa, kka) := by
-    rw [sl_eq A d (j := 1) (s := (.F1 0)) (t := (.C 3)) (a := a1) (by rw [hk]; rfl) (by show (sl A d 0).2.2.1 = a1; rw [e0]) g_a1]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 1) (s := (.F1 0)) (t := (.C 3)) (a := a1) (by rw [hk]; rfl) (by show (sl A d 0).2.2.1 = a1; rw [e0]) g_a1]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e2 : sl A d 2 = (sa, 0, 0, 0) := by
-    rw [sl_eq A d (j := 2) (s := (.F1 1)) (t := (.C 0)) (a := sa) (by rw [hk]; rfl) (by show (sl A d 1).2.2.1 = sa; rw [e1]) g_sa]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 2) (s := (.F1 1)) (t := (.C 0)) (a := sa) (by rw [hk]; rfl) (by show (sl A d 1).2.2.1 = sa; rw [e1]) g_sa]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e3 : sl A d 3 = (kka, 3, k1a, k2a) := by
-    rw [sl_eq A d (j := 3) (s := (.F2 1)) (t := (.C 3)) (a := kka) (by rw [hk]; rfl) (by show (sl A d 1).2.2.2 = kka; rw [e1]) g_kka]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 3) (s := (.F2 1)) (t := (.C 3)) (a := kka) (by rw [hk]; rfl) (by show (sl A d 1).2.2.2 = kka; rw [e1]) g_kka]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e4 : sl A d 4 = (k1a, 1, 0, 0) := by
-    rw [sl_eq A d (j := 4) (s := (.F1 3)) (t := (.C 1)) (a := k1a) (by rw [hk]; rfl) (by show (sl A d 3).2.2.1 = k1a; rw [e3]) g_k1a]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 4) (s := (.F1 3)) (t := (.C 1)) (a := k1a) (by rw [hk]; rfl) (by show (sl A d 3).2.2.1 = k1a; rw [e3]) g_k1a]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e5 : sl A d 5 = (k2a, 1, 0, 0) := by
-    rw [sl_eq A d (j := 5) (s := (.F2 3)) (t := (.C 1)) (a := k2a) (by rw [hk]; rfl) (by show (sl A d 3).2.2.2 = k2a; rw [e3]) g_k2a]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 5) (s := (.F2 3)) (t := (.C 1)) (a := k2a) (by rw [hk]; rfl) (by show (sl A d 3).2.2.2 = k2a; rw [e3]) g_k2a]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e6 : sl A d 6 = (x1, 3, a2, x2) := by
-    rw [sl_eq A d (j := 6) (s := (.F2 0)) (t := (.C 3)) (a := x1) (by rw [hk]; rfl) (by show (sl A d 0).2.2.2 = x1; rw [e0]) g_x1]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 6) (s := (.F2 0)) (t := (.C 3)) (a := x1) (by rw [hk]; rfl) (by show (sl A d 0).2.2.2 = x1; rw [e0]) g_x1]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e7 : sl A d 7 = (a2, 3, sb, kkb) := by
-    rw [sl_eq A d (j := 7) (s := (.F1 6)) (t := (.C 3)) (a := a2) (by rw [hk]; rfl) (by show (sl A d 6).2.2.1 = a2; rw [e6]) g_a2]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 7) (s := (.F1 6)) (t := (.C 3)) (a := a2) (by rw [hk]; rfl) (by show (sl A d 6).2.2.1 = a2; rw [e6]) g_a2]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e8 : sl A d 8 = (sb, 0, 0, 0) := by
-    rw [sl_eq A d (j := 8) (s := (.F1 7)) (t := (.C 0)) (a := sb) (by rw [hk]; rfl) (by show (sl A d 7).2.2.1 = sb; rw [e7]) g_sb]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 8) (s := (.F1 7)) (t := (.C 0)) (a := sb) (by rw [hk]; rfl) (by show (sl A d 7).2.2.1 = sb; rw [e7]) g_sb]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e9 : sl A d 9 = (kkb, 3, k1b, k2b) := by
-    rw [sl_eq A d (j := 9) (s := (.F2 7)) (t := (.C 3)) (a := kkb) (by rw [hk]; rfl) (by show (sl A d 7).2.2.2 = kkb; rw [e7]) g_kkb]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 9) (s := (.F2 7)) (t := (.C 3)) (a := kkb) (by rw [hk]; rfl) (by show (sl A d 7).2.2.2 = kkb; rw [e7]) g_kkb]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e10 : sl A d 10 = (k1b, 1, 0, 0) := by
-    rw [sl_eq A d (j := 10) (s := (.F1 9)) (t := (.C 1)) (a := k1b) (by rw [hk]; rfl) (by show (sl A d 9).2.2.1 = k1b; rw [e9]) g_k1b]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 10) (s := (.F1 9)) (t := (.C 1)) (a := k1b) (by rw [hk]; rfl) (by show (sl A d 9).2.2.1 = k1b; rw [e9]) g_k1b]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e11 : sl A d 11 = (k2b, 1, 0, 0) := by
-    rw [sl_eq A d (j := 11) (s := (.F2 9)) (t := (.C 1)) (a := k2b) (by rw [hk]; rfl) (by show (sl A d 9).2.2.2 = k2b; rw [e9]) g_k2b]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 11) (s := (.F2 9)) (t := (.C 1)) (a := k2b) (by rw [hk]; rfl) (by show (sl A d 9).2.2.2 = k2b; rw [e9]) g_k2b]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e12 : sl A d 12 = (x2, 3, a3, x3) := by
-    rw [sl_eq A d (j := 12) (s := (.F2 6)) (t := (.C 3)) (a := x2) (by rw [hk]; rfl) (by show (sl A d 6).2.2.2 = x2; rw [e6]) g_x2]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 12) (s := (.F2 6)) (t := (.C 3)) (a := x2) (by rw [hk]; rfl) (by show (sl A d 6).2.2.2 = x2; rw [e6]) g_x2]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e13 : sl A d 13 = (a3, 3, sc, kkc) := by
-    rw [sl_eq A d (j := 13) (s := (.F1 12)) (t := (.C 3)) (a := a3) (by rw [hk]; rfl) (by show (sl A d 12).2.2.1 = a3; rw [e12]) g_a3]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 13) (s := (.F1 12)) (t := (.C 3)) (a := a3) (by rw [hk]; rfl) (by show (sl A d 12).2.2.1 = a3; rw [e12]) g_a3]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e14 : sl A d 14 = (sc, 0, 0, 0) := by
-    rw [sl_eq A d (j := 14) (s := (.F1 13)) (t := (.C 0)) (a := sc) (by rw [hk]; rfl) (by show (sl A d 13).2.2.1 = sc; rw [e13]) g_sc]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 14) (s := (.F1 13)) (t := (.C 0)) (a := sc) (by rw [hk]; rfl) (by show (sl A d 13).2.2.1 = sc; rw [e13]) g_sc]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e15 : sl A d 15 = (kkc, 3, k1c, k2c) := by
-    rw [sl_eq A d (j := 15) (s := (.F2 13)) (t := (.C 3)) (a := kkc) (by rw [hk]; rfl) (by show (sl A d 13).2.2.2 = kkc; rw [e13]) g_kkc]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 15) (s := (.F2 13)) (t := (.C 3)) (a := kkc) (by rw [hk]; rfl) (by show (sl A d 13).2.2.2 = kkc; rw [e13]) g_kkc]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e16 : sl A d 16 = (k1c, 1, 0, 0) := by
-    rw [sl_eq A d (j := 16) (s := (.F1 15)) (t := (.C 1)) (a := k1c) (by rw [hk]; rfl) (by show (sl A d 15).2.2.1 = k1c; rw [e15]) g_k1c]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 16) (s := (.F1 15)) (t := (.C 1)) (a := k1c) (by rw [hk]; rfl) (by show (sl A d 15).2.2.1 = k1c; rw [e15]) g_k1c]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e17 : sl A d 17 = (k2c, 1, 0, 0) := by
-    rw [sl_eq A d (j := 17) (s := (.F2 15)) (t := (.C 1)) (a := k2c) (by rw [hk]; rfl) (by show (sl A d 15).2.2.2 = k2c; rw [e15]) g_k2c]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 17) (s := (.F2 15)) (t := (.C 1)) (a := k2c) (by rw [hk]; rfl) (by show (sl A d 15).2.2.2 = k2c; rw [e15]) g_k2c]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e18 : sl A d 18 = (x3, 3, si, kb) := by
-    rw [sl_eq A d (j := 18) (s := (.F2 12)) (t := (.C 3)) (a := x3) (by rw [hk]; rfl) (by show (sl A d 12).2.2.2 = x3; rw [e12]) g_x3]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 18) (s := (.F2 12)) (t := (.C 3)) (a := x3) (by rw [hk]; rfl) (by show (sl A d 12).2.2.2 = x3; rw [e12]) g_x3]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e19 : sl A d 19 = (si, 3, sd, id) := by
-    rw [sl_eq A d (j := 19) (s := (.F1 18)) (t := (.C 3)) (a := si) (by rw [hk]; rfl) (by show (sl A d 18).2.2.1 = si; rw [e18]) g_si]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 19) (s := (.F1 18)) (t := (.C 3)) (a := si) (by rw [hk]; rfl) (by show (sl A d 18).2.2.1 = si; rw [e18]) g_si]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e20 : sl A d 20 = (sd, 0, 0, 0) := by
-    rw [sl_eq A d (j := 20) (s := (.F1 19)) (t := (.C 0)) (a := sd) (by rw [hk]; rfl) (by show (sl A d 19).2.2.1 = sd; rw [e19]) g_sd]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 20) (s := (.F1 19)) (t := (.C 0)) (a := sd) (by rw [hk]; rfl) (by show (sl A d 19).2.2.1 = sd; rw [e19]) g_sd]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e21 : sl A d 21 = (id, 2, 0, 0) := by
-    rw [sl_eq A d (j := 21) (s := (.F2 19)) (t := (.C 2)) (a := id) (by rw [hk]; rfl) (by show (sl A d 19).2.2.2 = id; rw [e19]) g_id]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 21) (s := (.F2 19)) (t := (.C 2)) (a := id) (by rw [hk]; rfl) (by show (sl A d 19).2.2.2 = id; rw [e19]) g_id]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e22 : sl A d 22 = (kb, 3, k, b) := by
-    rw [sl_eq A d (j := 22) (s := (.F2 18)) (t := (.C 3)) (a := kb) (by rw [hk]; rfl) (by show (sl A d 18).2.2.2 = kb; rw [e18]) g_kb]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 22) (s := (.F2 18)) (t := (.C 3)) (a := kb) (by rw [hk]; rfl) (by show (sl A d 18).2.2.2 = kb; rw [e18]) g_kb]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   have e23 : sl A d 23 = (k, 1, 0, 0) := by
-    rw [sl_eq A d (j := 23) (s := (.F1 22)) (t := (.C 1)) (a := k) (by rw [hk]; rfl) (by show (sl A d 22).2.2.1 = k; rw [e22]) g_k]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+    rw [sl_eq A d (j := 23) (s := (.F1 22)) (t := (.C 1)) (a := k) (by rw [hk]; rfl) (by show (sl A d 22).2.2.1 = k; rw [e22]) g_k]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
   refine ⟨fun j hj => ?_, ?_⟩
   · have hjl := act_lt hj
     rw [hk] at hjl; simp only [patOf, Dec.cellSlots, Dec.atomSlots, Dec.consSlots] at hjl
@@ -376,35 +376,35 @@ theorem consReads {A : List Cell} {d : DR} (hk : d.kind = 3) {b : Bool} {sk : De
     obtain ⟨l_hb, g_hb⟩ := tk h_hb
     obtain ⟨l_t, g_t⟩ := tk h_t
     have e0 : sl A d 0 = (d.p, 3, k, c1) := by
-      rw [sl_eq A d (j := 0) (s := .rowP) (t := (.C 3)) (a := d.p) (by rw [hk]; rfl) rfl g_p]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 0) (s := .rowP) (t := (.C 3)) (a := d.p) (by rw [hk]; rfl) rfl g_p]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e1 : sl A d 1 = (k, 1, 0, 0) := by
-      rw [sl_eq A d (j := 1) (s := (.F1 0)) (t := (.C 1)) (a := k) (by rw [hk]; rfl) (by show (sl A d 0).2.2.1 = k; rw [e0]) g_k]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 1) (s := (.F1 0)) (t := (.C 1)) (a := k) (by rw [hk]; rfl) (by show (sl A d 0).2.2.1 = k; rw [e0]) g_k]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e2 : sl A d 2 = (c1, 3, c2, c3) := by
-      rw [sl_eq A d (j := 2) (s := (.F2 0)) (t := (.C 3)) (a := c1) (by rw [hk]; rfl) (by show (sl A d 0).2.2.2 = c1; rw [e0]) g_c1]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 2) (s := (.F2 0)) (t := (.C 3)) (a := c1) (by rw [hk]; rfl) (by show (sl A d 0).2.2.2 = c1; rw [e0]) g_c1]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e3 : sl A d 3 = (c2, 3, s, c4) := by
-      rw [sl_eq A d (j := 3) (s := (.F1 2)) (t := (.C 3)) (a := c2) (by rw [hk]; rfl) (by show (sl A d 2).2.2.1 = c2; rw [e2]) g_c2]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 3) (s := (.F1 2)) (t := (.C 3)) (a := c2) (by rw [hk]; rfl) (by show (sl A d 2).2.2.1 = c2; rw [e2]) g_c2]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e4 : sl A d 4 = (s, 0, 0, 0) := by
-      rw [sl_eq A d (j := 4) (s := (.F1 3)) (t := (.C 0)) (a := s) (by rw [hk]; rfl) (by show (sl A d 3).2.2.1 = s; rw [e3]) g_s]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 4) (s := (.F1 3)) (t := (.C 0)) (a := s) (by rw [hk]; rfl) (by show (sl A d 3).2.2.1 = s; rw [e3]) g_s]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e5 : sl A d 5 = (c4, 3, c5, c6) := by
-      rw [sl_eq A d (j := 5) (s := (.F2 3)) (t := (.C 3)) (a := c4) (by rw [hk]; rfl) (by show (sl A d 3).2.2.2 = c4; rw [e3]) g_c4]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 5) (s := (.F2 3)) (t := (.C 3)) (a := c4) (by rw [hk]; rfl) (by show (sl A d 3).2.2.2 = c4; rw [e3]) g_c4]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e6 : sl A d 6 = (c5, 3, s5, i5) := by
-      rw [sl_eq A d (j := 6) (s := (.F1 5)) (t := (.C 3)) (a := c5) (by rw [hk]; rfl) (by show (sl A d 5).2.2.1 = c5; rw [e5]) g_c5]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 6) (s := (.F1 5)) (t := (.C 3)) (a := c5) (by rw [hk]; rfl) (by show (sl A d 5).2.2.1 = c5; rw [e5]) g_c5]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e7 : sl A d 7 = (s5, 0, 0, 0) := by
-      rw [sl_eq A d (j := 7) (s := (.F1 6)) (t := (.C 0)) (a := s5) (by rw [hk]; rfl) (by show (sl A d 6).2.2.1 = s5; rw [e6]) g_s5]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 7) (s := (.F1 6)) (t := (.C 0)) (a := s5) (by rw [hk]; rfl) (by show (sl A d 6).2.2.1 = s5; rw [e6]) g_s5]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e8 : sl A d 8 = (i5, 2, 0, 0) := by
-      rw [sl_eq A d (j := 8) (s := (.F2 6)) (t := (.C 2)) (a := i5) (by rw [hk]; rfl) (by show (sl A d 6).2.2.2 = i5; rw [e6]) g_i5]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 8) (s := (.F2 6)) (t := (.C 2)) (a := i5) (by rw [hk]; rfl) (by show (sl A d 6).2.2.2 = i5; rw [e6]) g_i5]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e9 : sl A d 9 = (c6, 3, k2, hb) := by
-      rw [sl_eq A d (j := 9) (s := (.F2 5)) (t := (.C 3)) (a := c6) (by rw [hk]; rfl) (by show (sl A d 5).2.2.2 = c6; rw [e5]) g_c6]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 9) (s := (.F2 5)) (t := (.C 3)) (a := c6) (by rw [hk]; rfl) (by show (sl A d 5).2.2.2 = c6; rw [e5]) g_c6]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e10 : sl A d 10 = (k2, 1, 0, 0) := by
-      rw [sl_eq A d (j := 10) (s := (.F1 9)) (t := (.C 1)) (a := k2) (by rw [hk]; rfl) (by show (sl A d 9).2.2.1 = k2; rw [e9]) g_k2]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 10) (s := (.F1 9)) (t := (.C 1)) (a := k2) (by rw [hk]; rfl) (by show (sl A d 9).2.2.1 = k2; rw [e9]) g_k2]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e11 : sl A d 11 = (hb, 1, 0, 0) := by
-      rw [sl_eq A d (j := 11) (s := (.F2 9)) (t := .BitTag) (a := hb) (by rw [hk]; rfl) (by show (sl A d 9).2.2.2 = hb; rw [e9]) g_hb]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 11) (s := (.F2 9)) (t := .BitTag) (a := hb) (by rw [hk]; rfl) (by show (sl A d 9).2.2.2 = hb; rw [e9]) g_hb]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e14 : sl A d 14 = (c3, 3, k3, t) := by
-      rw [sl_eq A d (j := 14) (s := (.F2 2)) (t := (.C 3)) (a := c3) (by rw [hk]; rfl) (by show (sl A d 2).2.2.2 = c3; rw [e2]) g_c3]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 14) (s := (.F2 2)) (t := (.C 3)) (a := c3) (by rw [hk]; rfl) (by show (sl A d 2).2.2.2 = c3; rw [e2]) g_c3]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e15 : sl A d 15 = (k3, 1, 0, 0) := by
-      rw [sl_eq A d (j := 15) (s := (.F1 14)) (t := (.C 1)) (a := k3) (by rw [hk]; rfl) (by show (sl A d 14).2.2.1 = k3; rw [e14]) g_k3]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 15) (s := (.F1 14)) (t := (.C 1)) (a := k3) (by rw [hk]; rfl) (by show (sl A d 14).2.2.1 = k3; rw [e14]) g_k3]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e16 : sl A d 16 = (t, 3, tx, ty) := by
-      rw [sl_eq A d (j := 16) (s := (.F2 14)) (t := .LastTag) (a := t) (by rw [hk]; rfl) (by show (sl A d 14).2.2.2 = t; rw [e14]) g_t]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 16) (s := (.F2 14)) (t := .LastTag) (a := t) (by rw [hk]; rfl) (by show (sl A d 14).2.2.2 = t; rw [e14]) g_t]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     refine ⟨fun j hj => ?_, ?_⟩
     · have hjl := act_lt hj
       rw [hk] at hjl; simp only [patOf, Dec.cellSlots, Dec.atomSlots, Dec.consSlots] at hjl
@@ -422,8 +422,8 @@ theorem consReads {A : List Cell} {d : DR} (hk : d.kind = 3) {b : Bool} {sk : De
       · rw [e9]; exact ⟨l_c6, by rw [g_c6]; rfl⟩
       · rw [e10]; exact ⟨l_k2, by rw [g_k2]; rfl⟩
       · rw [e11]; exact ⟨l_hb, by rw [g_hb]; rfl⟩
-      · exact absurd hj (by simp [act, hk, hbit])
-      · exact absurd hj (by simp [act, hk, hbit])
+      · exact absurd hj (by unfold act; rw [hk, hbit]; decide)
+      · exact absurd hj (by unfold act; rw [hk, hbit]; decide)
       · rw [e14]; exact ⟨l_c3, by rw [g_c3]; rfl⟩
       · rw [e15]; exact ⟨l_k3, by rw [g_k3]; rfl⟩
       · rw [e16]; exact ⟨l_t, by rw [g_t]; rfl⟩
@@ -432,35 +432,35 @@ theorem consReads {A : List Cell} {d : DR} (hk : d.kind = 3) {b : Bool} {sk : De
     obtain ⟨l_hb, g_hb⟩ := tk h_hb
     obtain ⟨l_t, g_t⟩ := tk h_t
     have e0 : sl A d 0 = (d.p, 3, k, c1) := by
-      rw [sl_eq A d (j := 0) (s := .rowP) (t := (.C 3)) (a := d.p) (by rw [hk]; rfl) rfl g_p]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 0) (s := .rowP) (t := (.C 3)) (a := d.p) (by rw [hk]; rfl) rfl g_p]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e1 : sl A d 1 = (k, 1, 0, 0) := by
-      rw [sl_eq A d (j := 1) (s := (.F1 0)) (t := (.C 1)) (a := k) (by rw [hk]; rfl) (by show (sl A d 0).2.2.1 = k; rw [e0]) g_k]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 1) (s := (.F1 0)) (t := (.C 1)) (a := k) (by rw [hk]; rfl) (by show (sl A d 0).2.2.1 = k; rw [e0]) g_k]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e2 : sl A d 2 = (c1, 3, c2, c3) := by
-      rw [sl_eq A d (j := 2) (s := (.F2 0)) (t := (.C 3)) (a := c1) (by rw [hk]; rfl) (by show (sl A d 0).2.2.2 = c1; rw [e0]) g_c1]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 2) (s := (.F2 0)) (t := (.C 3)) (a := c1) (by rw [hk]; rfl) (by show (sl A d 0).2.2.2 = c1; rw [e0]) g_c1]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e3 : sl A d 3 = (c2, 3, s, c4) := by
-      rw [sl_eq A d (j := 3) (s := (.F1 2)) (t := (.C 3)) (a := c2) (by rw [hk]; rfl) (by show (sl A d 2).2.2.1 = c2; rw [e2]) g_c2]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 3) (s := (.F1 2)) (t := (.C 3)) (a := c2) (by rw [hk]; rfl) (by show (sl A d 2).2.2.1 = c2; rw [e2]) g_c2]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e4 : sl A d 4 = (s, 0, 0, 0) := by
-      rw [sl_eq A d (j := 4) (s := (.F1 3)) (t := (.C 0)) (a := s) (by rw [hk]; rfl) (by show (sl A d 3).2.2.1 = s; rw [e3]) g_s]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 4) (s := (.F1 3)) (t := (.C 0)) (a := s) (by rw [hk]; rfl) (by show (sl A d 3).2.2.1 = s; rw [e3]) g_s]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e5 : sl A d 5 = (c4, 3, c5, c6) := by
-      rw [sl_eq A d (j := 5) (s := (.F2 3)) (t := (.C 3)) (a := c4) (by rw [hk]; rfl) (by show (sl A d 3).2.2.2 = c4; rw [e3]) g_c4]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 5) (s := (.F2 3)) (t := (.C 3)) (a := c4) (by rw [hk]; rfl) (by show (sl A d 3).2.2.2 = c4; rw [e3]) g_c4]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e6 : sl A d 6 = (c5, 3, s5, i5) := by
-      rw [sl_eq A d (j := 6) (s := (.F1 5)) (t := (.C 3)) (a := c5) (by rw [hk]; rfl) (by show (sl A d 5).2.2.1 = c5; rw [e5]) g_c5]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 6) (s := (.F1 5)) (t := (.C 3)) (a := c5) (by rw [hk]; rfl) (by show (sl A d 5).2.2.1 = c5; rw [e5]) g_c5]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e7 : sl A d 7 = (s5, 0, 0, 0) := by
-      rw [sl_eq A d (j := 7) (s := (.F1 6)) (t := (.C 0)) (a := s5) (by rw [hk]; rfl) (by show (sl A d 6).2.2.1 = s5; rw [e6]) g_s5]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 7) (s := (.F1 6)) (t := (.C 0)) (a := s5) (by rw [hk]; rfl) (by show (sl A d 6).2.2.1 = s5; rw [e6]) g_s5]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e8 : sl A d 8 = (i5, 2, 0, 0) := by
-      rw [sl_eq A d (j := 8) (s := (.F2 6)) (t := (.C 2)) (a := i5) (by rw [hk]; rfl) (by show (sl A d 6).2.2.2 = i5; rw [e6]) g_i5]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 8) (s := (.F2 6)) (t := (.C 2)) (a := i5) (by rw [hk]; rfl) (by show (sl A d 6).2.2.2 = i5; rw [e6]) g_i5]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e9 : sl A d 9 = (c6, 3, k2, hb) := by
-      rw [sl_eq A d (j := 9) (s := (.F2 5)) (t := (.C 3)) (a := c6) (by rw [hk]; rfl) (by show (sl A d 5).2.2.2 = c6; rw [e5]) g_c6]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 9) (s := (.F2 5)) (t := (.C 3)) (a := c6) (by rw [hk]; rfl) (by show (sl A d 5).2.2.2 = c6; rw [e5]) g_c6]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e10 : sl A d 10 = (k2, 1, 0, 0) := by
-      rw [sl_eq A d (j := 10) (s := (.F1 9)) (t := (.C 1)) (a := k2) (by rw [hk]; rfl) (by show (sl A d 9).2.2.1 = k2; rw [e9]) g_k2]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 10) (s := (.F1 9)) (t := (.C 1)) (a := k2) (by rw [hk]; rfl) (by show (sl A d 9).2.2.1 = k2; rw [e9]) g_k2]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e11 : sl A d 11 = (hb, 1, 0, 0) := by
-      rw [sl_eq A d (j := 11) (s := (.F2 9)) (t := .BitTag) (a := hb) (by rw [hk]; rfl) (by show (sl A d 9).2.2.2 = hb; rw [e9]) g_hb]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 11) (s := (.F2 9)) (t := .BitTag) (a := hb) (by rw [hk]; rfl) (by show (sl A d 9).2.2.2 = hb; rw [e9]) g_hb]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e14 : sl A d 14 = (c3, 3, k3, t) := by
-      rw [sl_eq A d (j := 14) (s := (.F2 2)) (t := (.C 3)) (a := c3) (by rw [hk]; rfl) (by show (sl A d 2).2.2.2 = c3; rw [e2]) g_c3]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 14) (s := (.F2 2)) (t := (.C 3)) (a := c3) (by rw [hk]; rfl) (by show (sl A d 2).2.2.2 = c3; rw [e2]) g_c3]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e15 : sl A d 15 = (k3, 1, 0, 0) := by
-      rw [sl_eq A d (j := 15) (s := (.F1 14)) (t := (.C 1)) (a := k3) (by rw [hk]; rfl) (by show (sl A d 14).2.2.1 = k3; rw [e14]) g_k3]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 15) (s := (.F1 14)) (t := (.C 1)) (a := k3) (by rw [hk]; rfl) (by show (sl A d 14).2.2.1 = k3; rw [e14]) g_k3]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e16 : sl A d 16 = (t, 1, 0, 0) := by
-      rw [sl_eq A d (j := 16) (s := (.F2 14)) (t := .LastTag) (a := t) (by rw [hk]; rfl) (by show (sl A d 14).2.2.2 = t; rw [e14]) g_t]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 16) (s := (.F2 14)) (t := .LastTag) (a := t) (by rw [hk]; rfl) (by show (sl A d 14).2.2.2 = t; rw [e14]) g_t]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     refine ⟨fun j hj => ?_, ?_⟩
     · have hjl := act_lt hj
       rw [hk] at hjl; simp only [patOf, Dec.cellSlots, Dec.atomSlots, Dec.consSlots] at hjl
@@ -478,8 +478,8 @@ theorem consReads {A : List Cell} {d : DR} (hk : d.kind = 3) {b : Bool} {sk : De
       · rw [e9]; exact ⟨l_c6, by rw [g_c6]; rfl⟩
       · rw [e10]; exact ⟨l_k2, by rw [g_k2]; rfl⟩
       · rw [e11]; exact ⟨l_hb, by rw [g_hb]; rfl⟩
-      · exact absurd hj (by simp [act, hk, hbit])
-      · exact absurd hj (by simp [act, hk, hbit])
+      · exact absurd hj (by unfold act; rw [hk, hbit]; decide)
+      · exact absurd hj (by unfold act; rw [hk, hbit]; decide)
       · rw [e14]; exact ⟨l_c3, by rw [g_c3]; rfl⟩
       · rw [e15]; exact ⟨l_k3, by rw [g_k3]; rfl⟩
       · rw [e16]; exact ⟨l_t, by rw [g_t]; rfl⟩
@@ -490,39 +490,39 @@ theorem consReads {A : List Cell} {d : DR} (hk : d.kind = 3) {b : Bool} {sk : De
     obtain ⟨l_f, g_f⟩ := tk h_f
     obtain ⟨l_x, g_x⟩ := tk h_x
     have e0 : sl A d 0 = (d.p, 3, k, c1) := by
-      rw [sl_eq A d (j := 0) (s := .rowP) (t := (.C 3)) (a := d.p) (by rw [hk]; rfl) rfl g_p]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 0) (s := .rowP) (t := (.C 3)) (a := d.p) (by rw [hk]; rfl) rfl g_p]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e1 : sl A d 1 = (k, 1, 0, 0) := by
-      rw [sl_eq A d (j := 1) (s := (.F1 0)) (t := (.C 1)) (a := k) (by rw [hk]; rfl) (by show (sl A d 0).2.2.1 = k; rw [e0]) g_k]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 1) (s := (.F1 0)) (t := (.C 1)) (a := k) (by rw [hk]; rfl) (by show (sl A d 0).2.2.1 = k; rw [e0]) g_k]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e2 : sl A d 2 = (c1, 3, c2, c3) := by
-      rw [sl_eq A d (j := 2) (s := (.F2 0)) (t := (.C 3)) (a := c1) (by rw [hk]; rfl) (by show (sl A d 0).2.2.2 = c1; rw [e0]) g_c1]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 2) (s := (.F2 0)) (t := (.C 3)) (a := c1) (by rw [hk]; rfl) (by show (sl A d 0).2.2.2 = c1; rw [e0]) g_c1]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e3 : sl A d 3 = (c2, 3, s, c4) := by
-      rw [sl_eq A d (j := 3) (s := (.F1 2)) (t := (.C 3)) (a := c2) (by rw [hk]; rfl) (by show (sl A d 2).2.2.1 = c2; rw [e2]) g_c2]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 3) (s := (.F1 2)) (t := (.C 3)) (a := c2) (by rw [hk]; rfl) (by show (sl A d 2).2.2.1 = c2; rw [e2]) g_c2]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e4 : sl A d 4 = (s, 0, 0, 0) := by
-      rw [sl_eq A d (j := 4) (s := (.F1 3)) (t := (.C 0)) (a := s) (by rw [hk]; rfl) (by show (sl A d 3).2.2.1 = s; rw [e3]) g_s]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 4) (s := (.F1 3)) (t := (.C 0)) (a := s) (by rw [hk]; rfl) (by show (sl A d 3).2.2.1 = s; rw [e3]) g_s]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e5 : sl A d 5 = (c4, 3, c5, c6) := by
-      rw [sl_eq A d (j := 5) (s := (.F2 3)) (t := (.C 3)) (a := c4) (by rw [hk]; rfl) (by show (sl A d 3).2.2.2 = c4; rw [e3]) g_c4]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 5) (s := (.F2 3)) (t := (.C 3)) (a := c4) (by rw [hk]; rfl) (by show (sl A d 3).2.2.2 = c4; rw [e3]) g_c4]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e6 : sl A d 6 = (c5, 3, s5, i5) := by
-      rw [sl_eq A d (j := 6) (s := (.F1 5)) (t := (.C 3)) (a := c5) (by rw [hk]; rfl) (by show (sl A d 5).2.2.1 = c5; rw [e5]) g_c5]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 6) (s := (.F1 5)) (t := (.C 3)) (a := c5) (by rw [hk]; rfl) (by show (sl A d 5).2.2.1 = c5; rw [e5]) g_c5]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e7 : sl A d 7 = (s5, 0, 0, 0) := by
-      rw [sl_eq A d (j := 7) (s := (.F1 6)) (t := (.C 0)) (a := s5) (by rw [hk]; rfl) (by show (sl A d 6).2.2.1 = s5; rw [e6]) g_s5]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 7) (s := (.F1 6)) (t := (.C 0)) (a := s5) (by rw [hk]; rfl) (by show (sl A d 6).2.2.1 = s5; rw [e6]) g_s5]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e8 : sl A d 8 = (i5, 2, 0, 0) := by
-      rw [sl_eq A d (j := 8) (s := (.F2 6)) (t := (.C 2)) (a := i5) (by rw [hk]; rfl) (by show (sl A d 6).2.2.2 = i5; rw [e6]) g_i5]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 8) (s := (.F2 6)) (t := (.C 2)) (a := i5) (by rw [hk]; rfl) (by show (sl A d 6).2.2.2 = i5; rw [e6]) g_i5]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e9 : sl A d 9 = (c6, 3, k2, hb) := by
-      rw [sl_eq A d (j := 9) (s := (.F2 5)) (t := (.C 3)) (a := c6) (by rw [hk]; rfl) (by show (sl A d 5).2.2.2 = c6; rw [e5]) g_c6]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 9) (s := (.F2 5)) (t := (.C 3)) (a := c6) (by rw [hk]; rfl) (by show (sl A d 5).2.2.2 = c6; rw [e5]) g_c6]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e10 : sl A d 10 = (k2, 1, 0, 0) := by
-      rw [sl_eq A d (j := 10) (s := (.F1 9)) (t := (.C 1)) (a := k2) (by rw [hk]; rfl) (by show (sl A d 9).2.2.1 = k2; rw [e9]) g_k2]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 10) (s := (.F1 9)) (t := (.C 1)) (a := k2) (by rw [hk]; rfl) (by show (sl A d 9).2.2.1 = k2; rw [e9]) g_k2]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e11 : sl A d 11 = (hb, 3, f, x) := by
-      rw [sl_eq A d (j := 11) (s := (.F2 9)) (t := .BitTag) (a := hb) (by rw [hk]; rfl) (by show (sl A d 9).2.2.2 = hb; rw [e9]) g_hb]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 11) (s := (.F2 9)) (t := .BitTag) (a := hb) (by rw [hk]; rfl) (by show (sl A d 9).2.2.2 = hb; rw [e9]) g_hb]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e12 : sl A d 12 = (f, 1, 0, 0) := by
-      rw [sl_eq A d (j := 12) (s := (.F1 11)) (t := (.C 1)) (a := f) (by rw [hk]; rfl) (by show (sl A d 11).2.2.1 = f; rw [e11]) g_f]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 12) (s := (.F1 11)) (t := (.C 1)) (a := f) (by rw [hk]; rfl) (by show (sl A d 11).2.2.1 = f; rw [e11]) g_f]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e13 : sl A d 13 = (x, 2, 0, 0) := by
-      rw [sl_eq A d (j := 13) (s := (.F2 11)) (t := (.C 2)) (a := x) (by rw [hk]; rfl) (by show (sl A d 11).2.2.2 = x; rw [e11]) g_x]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 13) (s := (.F2 11)) (t := (.C 2)) (a := x) (by rw [hk]; rfl) (by show (sl A d 11).2.2.2 = x; rw [e11]) g_x]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e14 : sl A d 14 = (c3, 3, k3, t) := by
-      rw [sl_eq A d (j := 14) (s := (.F2 2)) (t := (.C 3)) (a := c3) (by rw [hk]; rfl) (by show (sl A d 2).2.2.2 = c3; rw [e2]) g_c3]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 14) (s := (.F2 2)) (t := (.C 3)) (a := c3) (by rw [hk]; rfl) (by show (sl A d 2).2.2.2 = c3; rw [e2]) g_c3]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e15 : sl A d 15 = (k3, 1, 0, 0) := by
-      rw [sl_eq A d (j := 15) (s := (.F1 14)) (t := (.C 1)) (a := k3) (by rw [hk]; rfl) (by show (sl A d 14).2.2.1 = k3; rw [e14]) g_k3]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 15) (s := (.F1 14)) (t := (.C 1)) (a := k3) (by rw [hk]; rfl) (by show (sl A d 14).2.2.1 = k3; rw [e14]) g_k3]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e16 : sl A d 16 = (t, 3, tx, ty) := by
-      rw [sl_eq A d (j := 16) (s := (.F2 14)) (t := .LastTag) (a := t) (by rw [hk]; rfl) (by show (sl A d 14).2.2.2 = t; rw [e14]) g_t]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 16) (s := (.F2 14)) (t := .LastTag) (a := t) (by rw [hk]; rfl) (by show (sl A d 14).2.2.2 = t; rw [e14]) g_t]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     refine ⟨fun j hj => ?_, ?_⟩
     · have hjl := act_lt hj
       rw [hk] at hjl; simp only [patOf, Dec.cellSlots, Dec.atomSlots, Dec.consSlots] at hjl
@@ -552,39 +552,39 @@ theorem consReads {A : List Cell} {d : DR} (hk : d.kind = 3) {b : Bool} {sk : De
     obtain ⟨l_f, g_f⟩ := tk h_f
     obtain ⟨l_x, g_x⟩ := tk h_x
     have e0 : sl A d 0 = (d.p, 3, k, c1) := by
-      rw [sl_eq A d (j := 0) (s := .rowP) (t := (.C 3)) (a := d.p) (by rw [hk]; rfl) rfl g_p]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 0) (s := .rowP) (t := (.C 3)) (a := d.p) (by rw [hk]; rfl) rfl g_p]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e1 : sl A d 1 = (k, 1, 0, 0) := by
-      rw [sl_eq A d (j := 1) (s := (.F1 0)) (t := (.C 1)) (a := k) (by rw [hk]; rfl) (by show (sl A d 0).2.2.1 = k; rw [e0]) g_k]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 1) (s := (.F1 0)) (t := (.C 1)) (a := k) (by rw [hk]; rfl) (by show (sl A d 0).2.2.1 = k; rw [e0]) g_k]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e2 : sl A d 2 = (c1, 3, c2, c3) := by
-      rw [sl_eq A d (j := 2) (s := (.F2 0)) (t := (.C 3)) (a := c1) (by rw [hk]; rfl) (by show (sl A d 0).2.2.2 = c1; rw [e0]) g_c1]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 2) (s := (.F2 0)) (t := (.C 3)) (a := c1) (by rw [hk]; rfl) (by show (sl A d 0).2.2.2 = c1; rw [e0]) g_c1]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e3 : sl A d 3 = (c2, 3, s, c4) := by
-      rw [sl_eq A d (j := 3) (s := (.F1 2)) (t := (.C 3)) (a := c2) (by rw [hk]; rfl) (by show (sl A d 2).2.2.1 = c2; rw [e2]) g_c2]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 3) (s := (.F1 2)) (t := (.C 3)) (a := c2) (by rw [hk]; rfl) (by show (sl A d 2).2.2.1 = c2; rw [e2]) g_c2]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e4 : sl A d 4 = (s, 0, 0, 0) := by
-      rw [sl_eq A d (j := 4) (s := (.F1 3)) (t := (.C 0)) (a := s) (by rw [hk]; rfl) (by show (sl A d 3).2.2.1 = s; rw [e3]) g_s]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 4) (s := (.F1 3)) (t := (.C 0)) (a := s) (by rw [hk]; rfl) (by show (sl A d 3).2.2.1 = s; rw [e3]) g_s]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e5 : sl A d 5 = (c4, 3, c5, c6) := by
-      rw [sl_eq A d (j := 5) (s := (.F2 3)) (t := (.C 3)) (a := c4) (by rw [hk]; rfl) (by show (sl A d 3).2.2.2 = c4; rw [e3]) g_c4]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 5) (s := (.F2 3)) (t := (.C 3)) (a := c4) (by rw [hk]; rfl) (by show (sl A d 3).2.2.2 = c4; rw [e3]) g_c4]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e6 : sl A d 6 = (c5, 3, s5, i5) := by
-      rw [sl_eq A d (j := 6) (s := (.F1 5)) (t := (.C 3)) (a := c5) (by rw [hk]; rfl) (by show (sl A d 5).2.2.1 = c5; rw [e5]) g_c5]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 6) (s := (.F1 5)) (t := (.C 3)) (a := c5) (by rw [hk]; rfl) (by show (sl A d 5).2.2.1 = c5; rw [e5]) g_c5]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e7 : sl A d 7 = (s5, 0, 0, 0) := by
-      rw [sl_eq A d (j := 7) (s := (.F1 6)) (t := (.C 0)) (a := s5) (by rw [hk]; rfl) (by show (sl A d 6).2.2.1 = s5; rw [e6]) g_s5]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 7) (s := (.F1 6)) (t := (.C 0)) (a := s5) (by rw [hk]; rfl) (by show (sl A d 6).2.2.1 = s5; rw [e6]) g_s5]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e8 : sl A d 8 = (i5, 2, 0, 0) := by
-      rw [sl_eq A d (j := 8) (s := (.F2 6)) (t := (.C 2)) (a := i5) (by rw [hk]; rfl) (by show (sl A d 6).2.2.2 = i5; rw [e6]) g_i5]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 8) (s := (.F2 6)) (t := (.C 2)) (a := i5) (by rw [hk]; rfl) (by show (sl A d 6).2.2.2 = i5; rw [e6]) g_i5]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e9 : sl A d 9 = (c6, 3, k2, hb) := by
-      rw [sl_eq A d (j := 9) (s := (.F2 5)) (t := (.C 3)) (a := c6) (by rw [hk]; rfl) (by show (sl A d 5).2.2.2 = c6; rw [e5]) g_c6]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 9) (s := (.F2 5)) (t := (.C 3)) (a := c6) (by rw [hk]; rfl) (by show (sl A d 5).2.2.2 = c6; rw [e5]) g_c6]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e10 : sl A d 10 = (k2, 1, 0, 0) := by
-      rw [sl_eq A d (j := 10) (s := (.F1 9)) (t := (.C 1)) (a := k2) (by rw [hk]; rfl) (by show (sl A d 9).2.2.1 = k2; rw [e9]) g_k2]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 10) (s := (.F1 9)) (t := (.C 1)) (a := k2) (by rw [hk]; rfl) (by show (sl A d 9).2.2.1 = k2; rw [e9]) g_k2]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e11 : sl A d 11 = (hb, 3, f, x) := by
-      rw [sl_eq A d (j := 11) (s := (.F2 9)) (t := .BitTag) (a := hb) (by rw [hk]; rfl) (by show (sl A d 9).2.2.2 = hb; rw [e9]) g_hb]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 11) (s := (.F2 9)) (t := .BitTag) (a := hb) (by rw [hk]; rfl) (by show (sl A d 9).2.2.2 = hb; rw [e9]) g_hb]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e12 : sl A d 12 = (f, 1, 0, 0) := by
-      rw [sl_eq A d (j := 12) (s := (.F1 11)) (t := (.C 1)) (a := f) (by rw [hk]; rfl) (by show (sl A d 11).2.2.1 = f; rw [e11]) g_f]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 12) (s := (.F1 11)) (t := (.C 1)) (a := f) (by rw [hk]; rfl) (by show (sl A d 11).2.2.1 = f; rw [e11]) g_f]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e13 : sl A d 13 = (x, 2, 0, 0) := by
-      rw [sl_eq A d (j := 13) (s := (.F2 11)) (t := (.C 2)) (a := x) (by rw [hk]; rfl) (by show (sl A d 11).2.2.2 = x; rw [e11]) g_x]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 13) (s := (.F2 11)) (t := (.C 2)) (a := x) (by rw [hk]; rfl) (by show (sl A d 11).2.2.2 = x; rw [e11]) g_x]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e14 : sl A d 14 = (c3, 3, k3, t) := by
-      rw [sl_eq A d (j := 14) (s := (.F2 2)) (t := (.C 3)) (a := c3) (by rw [hk]; rfl) (by show (sl A d 2).2.2.2 = c3; rw [e2]) g_c3]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 14) (s := (.F2 2)) (t := (.C 3)) (a := c3) (by rw [hk]; rfl) (by show (sl A d 2).2.2.2 = c3; rw [e2]) g_c3]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e15 : sl A d 15 = (k3, 1, 0, 0) := by
-      rw [sl_eq A d (j := 15) (s := (.F1 14)) (t := (.C 1)) (a := k3) (by rw [hk]; rfl) (by show (sl A d 14).2.2.1 = k3; rw [e14]) g_k3]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 15) (s := (.F1 14)) (t := (.C 1)) (a := k3) (by rw [hk]; rfl) (by show (sl A d 14).2.2.1 = k3; rw [e14]) g_k3]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     have e16 : sl A d 16 = (t, 1, 0, 0) := by
-      rw [sl_eq A d (j := 16) (s := (.F2 14)) (t := .LastTag) (a := t) (by rw [hk]; rfl) (by show (sl A d 14).2.2.2 = t; rw [e14]) g_t]; first | rfl | simp [tgN, cellFields, hbit, hlast, hl]
+      rw [sl_eq A d (j := 16) (s := (.F2 14)) (t := .LastTag) (a := t) (by rw [hk]; rfl) (by show (sl A d 14).2.2.2 = t; rw [e14]) g_t]; first | rfl | (simp only [tgN, hbit, hlast, hl]; rfl)
     refine ⟨fun j hj => ?_, ?_⟩
     · have hjl := act_lt hj
       rw [hk] at hjl; simp only [patOf, Dec.cellSlots, Dec.atomSlots, Dec.consSlots] at hjl
