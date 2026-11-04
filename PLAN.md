@@ -1115,7 +1115,7 @@ program and segment tables public, the witness table honest and the memory
 table counting every sender's lookups (`Circuit.compDG_complete_of`,
 `Ski/Circuit/CompDComplete.lean`; the memory bus for any list of senders,
 `Circuit.bal_memL`). Open: that every run has such tables
-(`decHonest_exists`, `Ski/DecCompleteTodo.lean`, not imported, from which
+(`decHonest_exists`, `todo/DecCompleteTodo.lean`, not imported, from which
 `decpre_complete_log` follows): the honest CPU with the jet's columns (the
 analogue of `P2Run.cpuP_sat`/`cpuP_honest`) and DEC's honest rows, one per
 cell pattern of each call's subject, with its 717 constraints and the

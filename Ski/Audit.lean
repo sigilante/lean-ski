@@ -1640,7 +1640,7 @@ open Ski.Audit
   DecPre.decpre_hsteps Circuit.decpreExport_sound
 -- Completeness of the circuit with the dec jet, given honest CPU and DEC tables
 -- (CompDComplete): the memory bus for any senders, every bus, the assembly; the
--- tables' existence is the open gap (Ski/DecCompleteTodo.lean, not imported)
+-- tables' existence is the open gap (todo/DecCompleteTodo.lean, not imported)
 #audit_clean Circuit.memL_sat Circuit.sendsL_zero Circuit.bal_memL Circuit.bal_memD_identity Circuit.balancedD
   Circuit.compDG_complete_of
 

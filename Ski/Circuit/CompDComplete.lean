@@ -29,7 +29,7 @@ tables are the verifier's and the witness and memory tables are honest, so
 an honest CPU and DEC table as above give tables that AIRs with the normal
 forms of `compDAirsG Vs W` accept, with Plonky3's selectors, at the
 heights a statement names, decoding back to the memory.  What remains
-(`Ski/DecCompleteTodo.lean`) is that every run has such a CPU and DEC
+(`todo/DecCompleteTodo.lean`) is that every run has such a CPU and DEC
 table.
 -/
 
