@@ -1677,6 +1677,7 @@ open Ski.Audit
 #audit_clean DecJet.ORed.close DecJet.readInd_peel DecJet.readBitsI_ot DecJet.ktAt_peel DecJet.readCellI_peel
   DecJet.readNnI_ot DecJet.readNnI_wf DecJet.headAtom_peel DecJet.readSubjI_ot DecJet.readSubjI_wf
   DecJet.bitsI_ot DecJet.out_otI DecJet.decRowI_step DecJet.decRowI_jstep DecJet.JStepsI.close_K
+  DecJet.readSubj_readSubjI DecJet.decRow_decRowI
 
 -- The circuit with the Poseidon2 jet under Fiat–Shamir: its hiding PCS, P2OUT
 -- and Poseidon2 at degree 3 over eight chunks (CompPInst), the honest run's

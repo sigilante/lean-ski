@@ -48,6 +48,9 @@ closed to any implementation of the contract, to a weak reduction to `K`
 (Church–Rosser, `wsteps_K_iff`).  The contract (`decContract`) is
 unchanged.
 
+**`decRow_decRowI`**: the reader extends `decRow`'s; on a subject laid out
+without thunks the two rows agree.
+
 The circuit's DEC table still reads `decRow`'s patterns; carrying this
 reader into it (an indirection row kind in the need tree and the bit
 chains, and the tail slot's thunk in the `Cell` row) is the open part of
@@ -1126,6 +1129,196 @@ theorem decRowI_ctr_len {M : List Cell} {J : Nat} {r r' : Row} (h : decRowI M J 
   have hl := congrArg List.length ht
   rw [List.length_take, List.length_append, List.length_take] at hl
   exact ⟨Nat.le_add_right _ _, by show r.ctr + cells.length ≤ M.length; omega⟩
+
+-- ---------------------------------------------------------------------------
+-- The reader extends `decRow`'s
+-- ---------------------------------------------------------------------------
+
+theorem readInd_none_of_K {H : List Cell} {p f x : Nat} (hp : H[p]? = some (.app f x)) (hf : isK H f = true) :
+    readInd H p = none := by
+  unfold readInd; rw [hp]; dsimp only; rw [isK_eq hf]
+
+theorem readInd_none_of_S {H : List Cell} {p f x : Nat} (hp : H[p]? = some (.app f x)) (hf : isSKK H f = true) :
+    readInd H p = none := by
+  unfold readInd; rw [hp]; dsimp only
+  unfold isSKK at hf
+  split at hf
+  · rename_i s kk hs
+    rw [hs]; dsimp only
+    have : isK H s = false := by
+      simp only [Bool.and_eq_true] at hf
+      unfold isK; rw [isS_eq hf.1]; rfl
+    rw [if_neg (by rw [this]; decide)]
+  · cases hf
+
+theorem readBits_readBitsI {H : List Cell} : ∀ {n p : Nat} {x : List Bool × List ConsSk},
+    readBits H n p = some x → readBitsI H n p = some x
+  | 0, _, _, h => nomatch h
+  | n + 1, p, x, h => by
+    unfold readBits at h; unfold readBitsI
+    split at h
+    · rename_i hk; rw [if_pos hk]; exact h
+    · rename_i hk
+      rw [if_neg hk]
+      cases hc : readCons H p with
+      | none => rw [hc] at h; cases h
+      | some q =>
+        rw [hc] at h; dsimp only at h ⊢
+        cases hr : readBits H n q.2.t with
+        | none => rw [hr] at h; cases h
+        | some q' => rw [hr] at h; rw [readBits_readBitsI hr]; exact h
+
+theorem readCell_readCellI {H : List Cell} {p : Nat} {sk : CellSk} (h : readCell H p = some sk) :
+    readCellI H p = some sk := by
+  unfold readCell at h
+  unfold readCellI
+  split at h <;> try cases h
+  rename_i k0 y1 hp
+  rw [hp]; dsimp only
+  split at h <;> try cases h
+  rename_i a1 y2 h1
+  rw [h1]; dsimp only
+  split at h <;> try cases h
+  rename_i a2 y3 h2
+  rw [h2]; dsimp only
+  split at h <;> try cases h
+  rename_i p1 kt h3
+  rw [h3]; dsimp only
+  split at h <;> try cases h
+  rename_i s3 p2 k6 t h4 h5
+  rw [h4]; dsimp only
+  split at h <;> try cases h
+  rename_i si kh h6
+  rw [h6]; dsimp only
+  split at h <;> try cases h
+  rename_i k5 hh h7
+  rw [h7]; dsimp only
+  split at h
+  · rename_i hall
+    cases h
+    simp only [Bool.and_eq_true] at hall
+    obtain ⟨⟨⟨⟨⟨⟨hk0, ha1⟩, ha2⟩, hs3⟩, hsi⟩, hk5⟩, hk6⟩ := hall
+    rw [if_pos (by simp only [hk0, ha1, ha2, hs3, hsi, hk5, Bool.and_self])]
+    have : ktAt H kt = some t := by unfold ktAt; rw [h5]; dsimp only; rw [if_pos hk6]
+    rw [this]
+  · cases h
+
+theorem readCell_ind {H : List Cell} {p : Nat} {sk : CellSk} (h : readCell H p = some sk) : readInd H p = none := by
+  unfold readCell at h
+  split at h <;> try cases h
+  rename_i k0 y1 hp
+  repeat (split at h <;> try cases h)
+  rename_i hall
+  simp only [Bool.and_eq_true] at hall
+  exact readInd_none_of_K hp hall.1.1.1.1.1.1
+
+theorem readAtom_ind {H : List Cell} {p : Nat} {sk : AtomSk} (h : readAtom H p = some sk) : readInd H p = none := by
+  unfold readAtom at h
+  split at h <;> try cases h
+  rename_i a1 x1 hp
+  repeat (split at h <;> try cases h)
+  rename_i hall
+  simp only [Bool.and_eq_true] at hall
+  exact readInd_none_of_S hp hall.1.1.1.1
+
+theorem readNn_readNnI {H : List Cell} : ∀ {n p : Nat} {s : Nn}, readNn H n p = some s → readNnI H n p = some s
+  | 0, _, _, h => nomatch h
+  | n + 1, p, s, h => by
+    unfold readNn at h; unfold readNnI
+    cases ha : readAtom H p with
+    | some sk =>
+      rw [ha] at h; dsimp only at h ⊢
+      cases hb : readBits H (n + 1) sk.b with
+      | none => rw [hb] at h; cases h
+      | some q => rw [hb] at h; rw [readBits_readBitsI hb]; exact h
+    | none =>
+      rw [ha] at h; dsimp only at h ⊢
+      cases hc : readCell H p with
+      | none => rw [hc] at h; cases h
+      | some sk =>
+        rw [hc] at h; dsimp only at h
+        rw [readCell_readCellI hc]; dsimp only
+        cases hh : readNn H n sk.h with
+        | none => rw [hh] at h; cases h
+        | some sh =>
+          cases ht : readNn H n sk.t with
+          | none => rw [hh, ht] at h; cases h
+          | some st => rw [hh, ht] at h; rw [readNn_readNnI hh, readNn_readNnI ht]; exact h
+
+/-- **The reader extends `readSubj`**: a subject laid out without thunks is
+    read the same. -/
+theorem readSubj_readSubjI {H : List Cell} {p : Nat} {x : Nn × Option CellSk × Option AtomSk × List ConsSk}
+    (hn : 1 ≤ H.length) (h : readSubj H p = some x) : ∀ n, 1 ≤ n → readSubjI H n p = some x := by
+  intro n hn'
+  obtain ⟨n, rfl⟩ : ∃ m, n = m + 1 := ⟨n - 1, by omega⟩
+  obtain ⟨L, hL⟩ : ∃ L, H.length = L + 1 := ⟨H.length - 1, by omega⟩
+  unfold readSubj at h; unfold readSubjI
+  cases ha : readAtom H p with
+  | some sk =>
+    rw [ha] at h; dsimp only at h ⊢
+    cases hb : readBits H H.length sk.b with
+    | none => rw [hb] at h; cases h
+    | some q => rw [hb] at h; rw [readBits_readBitsI hb]; exact h
+  | none =>
+    rw [ha] at h; dsimp only at h ⊢
+    cases hc : readCell H p with
+    | none => rw [hc] at h; cases h
+    | some csk =>
+      rw [hc] at h; dsimp only at h
+      rw [readCell_readCellI hc]; dsimp only
+      cases ha2 : readAtom H csk.h with
+      | some ask =>
+        rw [ha2] at h; dsimp only at h
+        have hhd : headAtom H H.length csk.h = some (csk.h, ask) := by
+          rw [hL]; unfold headAtom; rw [ha2]
+        rw [hhd]; dsimp only
+        cases hb : readBits H H.length ask.b with
+        | none => rw [hb] at h; cases h
+        | some q =>
+          rw [hb] at h; rw [readBits_readBitsI hb]; dsimp only at h ⊢
+          split at h
+          · rename_i hcan
+            rw [if_pos hcan]
+            cases ht : readNn H H.length csk.t with
+            | none => rw [ht] at h; cases h
+            | some r => rw [ht] at h; rw [readNn_readNnI ht]; exact h
+          · cases h
+      | none =>
+        rw [ha2] at h; dsimp only at h
+        cases hh : readNn H H.length csk.h with
+        | none => rw [hh] at h; cases h
+        | some hh' =>
+          cases ht : readNn H H.length csk.t with
+          | none => rw [hh, ht] at h; cases h
+          | some tt' =>
+            rw [hh, ht] at h
+            -- the head is a cell (`readAtom` failed), so not a thunk
+            have hci : readInd H csk.h = none := by
+              rw [hL] at hh
+              unfold readNn at hh
+              rw [ha2] at hh; dsimp only at hh
+              cases hc2 : readCell H csk.h with
+              | none => rw [hc2] at hh; cases hh
+              | some _ => exact readCell_ind hc2
+            have hhd : headAtom H H.length csk.h = none := by
+              rw [hL]; unfold headAtom; rw [ha2]; dsimp only; rw [hci]
+            rw [hhd]; dsimp only
+            rw [readNn_readNnI hh, readNn_readNnI ht]; exact h
+
+/-- **`decRowI` extends `decRow`**: on a subject laid out without thunks the
+    rows agree. -/
+theorem decRow_decRowI {M : List Cell} {J : Nat} {r r' : Row} (h : decRow M J r = some r') :
+    decRowI M J r = some r' := by
+  obtain ⟨p, rest, s, csk, ask, sks, cells, root, hhd, hs, hpop, hrd, hfit, hout, hw, rfl⟩ := decRow_unfold h
+  have hn : 1 ≤ (M.take r.ctr).length := by have := slots_len hs; omega
+  have hrd' := readSubj_readSubjI hn hrd _ hn
+  unfold decRowI
+  dsimp only
+  rw [hhd]; dsimp only
+  rw [if_pos ⟨rfl, hs⟩, hpop]; dsimp only
+  rw [hrd']; dsimp only
+  rw [if_pos hfit, hout]; dsimp only
+  rw [if_pos hw]
 
 -- ---------------------------------------------------------------------------
 -- Head reduction with the jet, up to `K`-contraction
