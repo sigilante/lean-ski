@@ -67,10 +67,10 @@ include h hr0
 theorem CompDOK.key_lt : (C.main r0 CTR).val < 2 ^ 28 := by
   have := h.ctr_lt hr0; omega
 
-/-- **The head's chain writes the decrement.** -/
-theorem CompDOK.head_fwd : ∀ (bs : List Bool) (sks : List ConsSk) (nf : Nat) (A L BW WC : F),
+/-- **The head's chain writes the decrement**, through thunks. -/
+theorem CompDOK.head_fwd : ∀ (nf : Nat) (bs : List Bool) (sks : List ConsSk) (A L BW WC : F),
     ChainSent D [C.main r0 CTR, A, 0, L, BW, WC] →
-    readBits ((memOf Mm).take (C.main r0 CTR).val) nf A.val = some (bs, sks) → canonB bs = true →
+    readBitsI ((memOf Mm).take (C.main r0 CTR).val) nf A.val = some (bs, sks) → canonB bs = true →
     (BW = 0 ∨ BW = 1) →
     (bs ≠ [] → L.val + bs.length ≤ 32) ∧
     (BW = 1 → bs ≠ [] → wrs (memOf Mm) ((C.main r0 CTR).val + 11 + 6 * L.val)
@@ -78,40 +78,50 @@ theorem CompDOK.head_fwd : ∀ (bs : List Bool) (sks : List ConsSk) (nf : Nat) (
           bitCells ((C.main r0 CTR).val + 12 + 6 * L.val) bs sks) = true) ∧
     (BW = 1 → bs = [] → (memOf Mm)[(C.main r0 CTR).val + 11]? = some (.app 0 0)) := by
   have hkl := h.key_lt hr0
-  intro bs
-  induction bs with
-  | nil =>
-    intro sks nf A L BW WC hs hrb _ _
-    obtain ⟨q, hq, hkn, e⟩ := h.chain_recv hs
-    simp only [List.cons.injEq, and_true] at e
-    obtain ⟨e0, e1, _, _, e4, _⟩ := e
-    have hK := readBits_nil_K hrb
-    have hf := decRowF_of h.dec hq
+  intro nf
+  induction nf using Nat.strongRecOn with
+  | _ nf ih =>
+  intro bs sks A L BW WC hs hrb hcan hbw
+  obtain ⟨q, hq, hkn, e⟩ := h.chain_recv hs
+  simp only [List.cons.injEq, and_true] at e
+  obtain ⟨e0, e1, e2, e3, e4, e5⟩ := e
+  have hf := decRowF_of h.dec hq
+  obtain ⟨nf', rfl, hcs⟩ := readBitsI_inv hrb
+  rcases hcs with ⟨hK, hx⟩ | ⟨b, sk, bs', sks', hnk, hrc, hrb', hx⟩ | ⟨R, hi, hrb'⟩
+  · -- `K`: the empty head
+    cases hx
     refine ⟨fun hne => absurd rfl hne, fun _ hne => absurd rfl hne, fun hb _ => ?_⟩
-    rcases h.kind_of_cn hq hkn with hk | hk
-    · have := (h.consRead hq hk).1
-      rw [← e0, ← e1, hK] at this; exact absurd this (by decide)
-    · have hn : D.main q Dec.NLK = 1 := by rw [hf.nlk, hk.2.2.2.2, ← e4, hb]; decide
-      have := h.nlkWrite hq (by rw [← e0]; exact hkl) hn
-      rw [← e0] at this; exact this
-  | cons b bs' ih =>
-    intro sks nf A L BW WC hs hrb hcan hbw
-    obtain ⟨nf', sk, sks', rfl, hnk, hrc, hrb', rfl⟩ := readBits_cons_inv hrb
-    obtain ⟨q, hq, hkn, e⟩ := h.chain_recv hs
-    simp only [List.cons.injEq, and_true] at e
-    obtain ⟨e0, e1, e2, e3, e4, e5⟩ := e
-    have hf := decRowF_of h.dec hq
+    rcases hkn with hkc | hkn | hkb
+    · rcases h.kind_of_cn hq (.inl hkc) with hk | hk
+      · have := (h.consRead hq hk).1
+        rw [← e0, ← e1, hK] at this; exact absurd this (by decide)
+      · rw [hk.2.2.2.1] at hkc; exact absurd hkc (by decide)
+    · rcases h.kind_of_cn hq (.inr hkn) with hk | hk
+      · rw [hk.2.2.2.2.1] at hkn; exact absurd hkn (by decide)
+      · have hn : D.main q Dec.NLK = 1 := by rw [hf.nlk, hkn, ← e4, hb]; decide
+        have := h.nlkWrite hq (by rw [← e0]; exact hkl) hn
+        rw [← e0] at this; exact this
+    · have := readInd_isK (h.indRead hq (kind_of_inb hf hkb)).1
+      rw [← e0, ← e1, hK] at this; cases this
+  · cases hx
     have hk : DKind D q 3 := by
-      rcases h.kind_of_cn hq hkn with hk | hk
-      · exact hk
-      · have := h.nilRead hq hk
-        rw [← e0, ← e1, hnk] at this; exact absurd this (by decide)
+      rcases hkn with hkc | hkn | hkb
+      · rcases h.kind_of_cn hq (.inl hkc) with hk | hk
+        · exact hk
+        · rw [hk.2.2.2.1] at hkc; exact absurd hkc (by decide)
+      · rcases h.kind_of_cn hq (.inr hkn) with hk | hk
+        · rw [hk.2.2.2.2.1] at hkn; exact absurd hkn (by decide)
+        · have := h.nilRead hq hk
+          rw [← e0, ← e1, hnk] at this; exact absurd this (by decide)
+      · have := (h.indRead hq (kind_of_inb hf hkb)).1
+        rw [← e0, ← e1, readCons_noind hrc] at this; cases this
     have hkc : D.main q Dec.KCONS = 1 := by rw [hk.2.2.2.1]; rfl
-    obtain ⟨_, hrc', hlast, hnl⟩ := h.consRead hq hk
+    have htm : D.main q Dec.TERM = 0 := by have := hf.consTerm; rwa [hkc, one_mul'] at this
+    have e2' : D.main q Dec.MODE = 0 := by rw [h.cons_mf hq hkc]; exact e2.symm
+    obtain ⟨_, hrc'⟩ := h.consRead hq hk
     rw [← e0, ← e1, hrc] at hrc'
-    rw [← e0] at hlast hnl
     cases hrc'
-    have hlv := dec_level h.dec hq hkc e2.symm
+    have hlv := dec_level h.dec hq hkc e2'
     unfold DecJet.W at hlv
     rw [← e3] at hlv
     have hkq : (D.main q Dec.KEY).val < 2 ^ 28 := by rw [← e0]; exact hkl
@@ -125,20 +135,19 @@ theorem CompDOK.head_fwd : ∀ (bs : List Bool) (sks : List ConsSk) (nf : Nat) (
       · rw [hf.nextl, hkc, hdr, h0, ← e0, ← e3, show (1 : F) * (1 - 0) = 1 by decide, one_mul']
         exact val_aE hkl (by omega)
       · rw [hf.nextl, hkc, hdr, h1, show (1 : F) * (1 - 1) = 0 by decide, zero_mul']; rfl
+    have hcs : D.main q Dec.CSEND = 1 := by rw [hf.csend, hkc]
+    have hsent : ChainSent D [C.main r0 CTR, D.main q (Dec.DFLD + 29), 0 + ofN 2 * D.main q Dec.ISLAST, L + 1,
+        D.main q Dec.NBW, D.main q Dec.WCN] := by
+      have := (Or.inr (Or.inl ⟨q, hq, hcs, rfl⟩) : ChainSent D _)
+      rwa [← e0, e2', ← e3] at this
+    have hL1 : (L + 1).val = L.val + 1 := val_succ_lt hlv
     rcases hf.last with hl | hl
     · -- not the last: the chain goes on
-      have hcs : D.main q Dec.CSEND = 1 := by rw [hf.csend, hkc, hl]; decide
-      have hs' : ChainSent D [C.main r0 CTR, D.main q (Dec.DFLD + 29), 0, L + 1, D.main q Dec.NBW, D.main q Dec.WCN] := by
-        have := (Or.inr ⟨q, hq, hcs, rfl⟩ : ChainSent D _)
-        rwa [← e0, ← e2, ← e3] at this
-      have hnk' := isK_app (hnl hl)
-      have hne : bs' ≠ [] := by
-        intro he; subst he
-        have := readBits_nil_K hrb'
-        rw [hnk'] at this; exact absurd this (by decide)
+      rw [hl, show (0 : F) + ofN 2 * 0 = 0 by decide] at hsent
+      have hne : bs' ≠ [] := h.chain_nonterm _ _ _ _ _ _ _ _ _ hsent (.inl rfl)
+        (by intro z; rw [z] at hL1; exact absurd hL1 (by show ¬ (0 = _ + 1); omega)) hrb'
       have hbw' : D.main q Dec.NBW = 0 ∨ D.main q Dec.NBW = 1 := by rw [hf.nbw]; exact bit_mul hf.bw (bit_one_sub hf.bit)
-      obtain ⟨ihl, ihw, _⟩ := ih sks' nf' _ _ _ _ hs' hrb' (canonB_tail hcan) hbw'
-      have hL1 : (L + 1).val = L.val + 1 := val_succ_lt hlv
+      obtain ⟨ihl, ihw, _⟩ := ih nf' (by omega) _ _ _ _ _ _ hsent hrb' (canonB_tail hcan) hbw'
       rw [hL1] at ihl ihw
       have hdr0 : D.main q Dec.DROPPED = 0 := by rw [hf.dropped, hl, mul_zero']
       refine ⟨fun _ => ?_, fun hb _ => ?_, fun _ he => nomatch he⟩
@@ -188,11 +197,9 @@ theorem CompDOK.head_fwd : ∀ (bs : List Bool) (sks : List ConsSk) (nf : Nat) (
         rcases hf.bit with z | z
         · rw [z] at this; exact absurd this (by decide)
         · exact z
-      have hnil : bs' = [] ∧ sks' = [] := by
-        have := readBits_K_eq (hlast hl) hrb'
-        simp only [Prod.mk.injEq] at this
-        exact this
-      obtain ⟨rfl, rfl⟩ := hnil
+      rw [hl, show (0 : F) + ofN 2 * 1 = 0 + ofN 2 * 1 from rfl] at hsent
+      have hnil : bs' = [] := h.chain_term _ _ _ _ _ _ _ _ _ hsent (.inl rfl) hrb'
+      subst hnil
       rw [hbit, show decide ((1 : F) = 1) = true by decide]
       refine ⟨fun _ => by simp only [List.length_cons, List.length_nil]; omega, fun hb _ => ?_, fun _ he => nomatch he⟩
       have hclk : D.main q Dec.CLK = 1 := by rw [hf.clk, hkc, ← e4, hb]; decide
@@ -202,6 +209,20 @@ theorem CompDOK.head_fwd : ∀ (bs : List Bool) (sks : List ConsSk) (nf : Nat) (
       have hroot : bitsRoot ((C.main r0 CTR).val + 12 + 6 * L.val) [true] = 0 := rfl
       rw [hroot]
       exact wrs_of hw1 rfl
+  · -- a thunk: its row passes the step on to the target
+    have hkb : D.main q Dec.INB = 1 := by
+      rcases hkn with hkc | hkn | hkb
+      · rw [e0, e1, h.cn_noind hq (.inl hkc)] at hi; cases hi
+      · rw [e0, e1, h.cn_noind hq (.inr hkn)] at hi; cases hi
+      · exact hkb
+    obtain ⟨hi', _⟩ := h.indRead hq (kind_of_inb hf hkb)
+    rw [← e0, ← e1, hi] at hi'
+    cases hi'
+    have hsent : ChainSent D [D.main q Dec.KEY, D.main q (Dec.DFLD + 3),
+        D.main q Dec.MODE + ofN 2 * D.main q Dec.TERM, D.main q Dec.LVL, D.main q Dec.BW,
+        D.main q Dec.WC] := .inr (.inr ⟨q, hq, hkb, rfl⟩)
+    rw [← e0, ← e2, ← e3, ← e4, ← e5] at hsent
+    exact ih nf' (by omega) _ _ _ _ _ _ hsent hrb' hcan hbw
 
 end
 
