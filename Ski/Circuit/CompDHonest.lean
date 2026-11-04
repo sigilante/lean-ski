@@ -6,7 +6,7 @@ import Ski.Circuit.CompPCpuSat
 
 From an honest run of the circuit with the `dec` jet (`DRun.Honest`: the
 run `CompM.AcceptsCD` accepts, each row within a segment a plain step, a
-halted row repeated, or `DecJet.decRow`'s step, as `composed check-dec-run`
+halted row repeated, or `DecJet.decRowI`'s step (the subject read through `K`-thunks), as `composed check-dec-run`
 replays it), padded to `K` rows by repeating its last, the honest CPU
 table (`DRun.cpuTableD`): the composed CPU's honest row (`cpuColC`), and
 on a jet row the selector `DECSEL`, the kinds cleared, the reads of the
@@ -41,7 +41,7 @@ variable (R : DRun)
 structure Honest (m0 : Mach) (nilA : Nat) : Prop where
   acc : AcceptsCD R.A m0 R.J R.segRoots nilA R.n R.e R.row
   step : ∀ i, i < R.e (R.n - 1) → (∀ j, j + 1 < R.n → i ≠ R.e j) →
-    NormRow R.A [] [] (R.row i) (R.row (i + 1)) ∨ DecJet.decRow R.A R.J (R.row i) = some (R.row (i + 1))
+    NormRow R.A [] [] (R.row i) (R.row (i + 1)) ∨ DecJet.decRowI R.A R.J (R.row i) = some (R.row (i + 1))
 
 /-- The run, padded by repeating its last row. -/
 def rowQ (i : Nat) : Air.Row := rowP R.row R.e R.n i
@@ -50,7 +50,7 @@ def rowQ (i : Nat) : Air.Row := rowP R.row R.e R.n i
     row to the next. -/
 def jetAt (i : Nat) : Bool :=
   !isRestart R.e R.n i && decide (i < R.e (R.n - 1)) &&
-    decide (DecJet.decRow R.A R.J (R.row i) = some (R.row (i + 1)))
+    decide (DecJet.decRowI R.A R.J (R.row i) = some (R.row (i + 1)))
 
 /-- A jet row's range checks: its reads of the atom and the stack cell lie
     below the counter; its other reads are inactive. -/
@@ -77,10 +77,10 @@ end DRun
 
 /-- **What a jet row reads**: the atom `J` at the head, the stack cell
     `cons p rest`, the slots; the next stack is `rest`. -/
-theorem decRow_inv {M : List Cell} {J : Nat} {r r' : Air.Row} (h : DecJet.decRow M J r = some r') :
+theorem decRow_inv {M : List Cell} {J : Nat} {r r' : Air.Row} (h : DecJet.decRowI M J r = some r') :
     rd M r.ctr r.hd = some (.atom J) ∧ DecJet.slotsOK (M.take r.ctr) = true ∧
       ∃ p rest, rd M r.ctr r.stk = some (.cons p rest) ∧ r'.stk = rest := by
-  obtain ⟨p, rest, _, _, _, _, cells, root, hhd, hs, hpop, _, _, _, _, rfl⟩ := DecJet.decRow_unfold h
+  obtain ⟨p, rest, _, _, _, _, cells, root, hhd, hs, hpop, _, _, _, _, rfl⟩ := DecJet.decRowI_unfold h
   refine ⟨rd_of_take hhd, hs, ?_⟩
   unfold popN at hpop
   cases hc : (M.take r.ctr)[r.stk]? with
@@ -95,7 +95,7 @@ theorem decRow_inv {M : List Cell} {J : Nat} {r r' : Air.Row} (h : DecJet.decRow
     | _ => cases hpop
 
 /-- A jet row halts, to the base classification: its head is an atom. -/
-theorem decRow_halt {M : List Cell} {J : Nat} {r r' : Air.Row} (h : DecJet.decRow M J r = some r') :
+theorem decRow_halt {M : List Cell} {J : Nat} {r r' : Air.Row} (h : DecJet.decRowI M J r = some r') :
     haltRow M r = true := by
   have h1 := (decRow_inv h).1
   simp only [haltRow, h1]
@@ -113,7 +113,7 @@ include hA
 
 /-- A row within the run, no restart, steps plainly or by the jet. -/
 theorem step_row {i : Nat} (hi : i < R.e (R.n - 1)) (hr : isRestart R.e R.n i = false) :
-    NormRow R.A [] [] (R.row i) (R.row (i + 1)) ∨ DecJet.decRow R.A R.J (R.row i) = some (R.row (i + 1)) := by
+    NormRow R.A [] [] (R.row i) (R.row (i + 1)) ∨ DecJet.decRowI R.A R.J (R.row i) = some (R.row (i + 1)) := by
   refine hA.step i hi (fun j hj h' => ?_)
   rw [isRestart_iff.2 ⟨j, hj, h'.symm⟩] at hr; cases hr
 
@@ -151,7 +151,7 @@ omit hA in
 /-- **A jet row**: no restart, within the run, the jet's row to the next. -/
 theorem jetAt_spec {i : Nat} (h : R.jetAt i = true) :
     isRestart R.e R.n i = false ∧ i < R.e (R.n - 1) ∧
-      DecJet.decRow R.A R.J (R.rowQ i) = some (R.rowQ (i + 1)) := by
+      DecJet.decRowI R.A R.J (R.rowQ i) = some (R.rowQ (i + 1)) := by
   unfold jetAt at h
   simp only [Bool.and_eq_true, Bool.not_eq_true', decide_eq_true_eq] at h
   obtain ⟨⟨hr, hi⟩, hp⟩ := h

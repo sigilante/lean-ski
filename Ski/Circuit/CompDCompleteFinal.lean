@@ -54,7 +54,7 @@ theorem ctr_le : ∀ i, i ≤ R.e (R.n - 1) → (R.row i).ctr ≤ R.A.length := 
       rcases step_row hA (by omega) hr with h | h
       · have hroots : RootsOK (R.A.take (R.row i).ctr) [] [] := fun _ _ h => nomatch h
         exact (Air.normRow_spec hroots (Nat.le_refl _) hc h).2.1
-      · exact (DecJet.decRow_ctr_len h hc).2
+      · exact (DecJet.decRowI_ctr_len h hc).2
 
 /-- **Every stack pointer of an honest run is in memory.** -/
 theorem stk_le (hfit : Fits R.A) (hnil : nilA ≤ R.A.length) :
