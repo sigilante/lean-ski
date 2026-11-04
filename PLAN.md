@@ -1105,9 +1105,21 @@ a cycle having no finite read-back), the head's chain has no stray rows
 (`on_walk`) and writes `DecJet.bitCells` (`head_fwd`), and the verdict is
 the head's. The run is head reduction with the jet (`CompM.AcceptsCD`), so
 the verifier's first jet step fires on a reduct of its witness, with
-`CHECK_p`'s continuations (`DecPre.decpre_hsteps`). Open: completeness,
-that the honest tables are accepted (the analogue of
-`compP_complete_log`). A proof of `decpre p` is released (`release/dec`,
+`CHECK_p`'s continuations (`DecPre.decpre_hsteps`). Completeness, down
+to the run's two private tables: a run `AcceptsCD` accepts, with a CPU and
+a DEC table meeting `Circuit.DecHonest` (each satisfies its AIR, DEC clear
+past its columns, both look up only memory cells, the CPU's restarts the
+segments' rows, and the two balance on every other bus), gives tables the
+circuit accepts with Plonky3's selectors at the statement's heights, the
+program and segment tables public, the witness table honest and the memory
+table counting every sender's lookups (`Circuit.compDG_complete_of`,
+`Ski/Circuit/CompDComplete.lean`; the memory bus for any list of senders,
+`Circuit.bal_memL`). Open: that every run has such tables
+(`decHonest_exists`, `Ski/DecCompleteTodo.lean`, not imported, from which
+`decpre_complete_log` follows): the honest CPU with the jet's columns (the
+analogue of `P2Run.cpuP_sat`/`cpuP_honest`) and DEC's honest rows, one per
+cell pattern of each call's subject, with its 717 constraints and the
+`decn`/`decb`/`decd`/`decx` chains telescoping. A proof of `decpre p` is released (`release/dec`,
 verify.sh step 13).
 
 Fiat–Shamir, round by round (`Ski/ZK/FSRound.lean`, `ski-air fs-budget`).

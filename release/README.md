@@ -44,7 +44,7 @@ forgeries the sections below list.
 | `split` and `csplit` with jets, hidden | `skilark/*/jets/` | 10–11 | `compJExport_sound`, `Air.jetStmtC_sound` |
 | A Poseidon2 preimage of `h` | `p2/` | 12 | `p2preExport_sound` |
 | A hidden hand-off over one commitment | `p2/` | 12 | `p2commitExport_sound`, `p2commit_chainB` |
-| A decrement under the `dec` data jet | `dec/` | 13 | `decpreExport_sound` |
+| A decrement under the `dec` data jet | `dec/` | 13 | `decpreExport_sound`; completeness given honest CPU and DEC tables, `compDG_complete_of` (their existence open, `Ski/DecCompleteTodo.lean`) |
 | A kernel's poke with a private entropy reply | `entropy/` | 14 | `entropyExport_sound` |
 | Every zero-knowledge proof has the random rows its hiding needs | all but `sumto/` | 15 | `masks_hide`'s hypothesis, `\|S\| + 4\|Z\| ≤ n`, for the column openings, `q + 8 = 108`; the quotient's recombined values, two points a query, `2q + 8 = 208`, the hypothesis of `pcsCloseN_quot`; Plonky3's `HidingFriPcs` asks `2(q + 8) = 216`; every committed table has at least `2^9` rows, 296 to spare |
 | Every byte of a zero-knowledge proof lies in a field of the view the transcript theorems simulate | all but `sumto/` | 16 | `ski-air proof-shape`: the bytes are the fields' own encoding; the PCS's view, the terminals, the heights, and two proof-of-work witnesses unique given the transcript |
@@ -403,10 +403,17 @@ each jet row whose state decodes is `DecJet.decRow`'s step
 (`Circuit.CompDOK.jetRow`), the subject's need tree on `decn` being finite
 at the decoded state's read-back fuel, so the run is head reduction with
 the jet, and the verifier's first jet step fires on a reduct of its witness
-with `CHECK_p`'s continuations. What is not proved: completeness, that the
-honest tables of a run are accepted (the analogue of
-`Circuit.compP_complete_log`); it is tested by the replay of the released
-run (`lake exe composed check-dec-run`).
+with `CHECK_p`'s continuations. Completeness is proved down to the two
+private tables a run determines: a run `AcceptsCD` accepts, with a CPU and
+a DEC table that satisfy their AIRs, look up only memory cells (the CPU
+also the segments) and balance each other on the jet's buses
+(`Circuit.DecHonest`), gives tables the circuit accepts, with the public
+program and segment tables, the honest witness table and a memory table
+counting every lookup (`Circuit.compDG_complete_of`; the memory bus for
+any senders, `Circuit.bal_memL`). What is not proved: that every run has
+such a CPU and DEC table (`Ski/DecCompleteTodo.lean`'s `decHonest_exists`,
+from which `decpre_complete_log` follows); it is tested by the replay of
+the released run (`lake exe composed check-dec-run`).
 
 **The entropy proofs.** An accepted proof of either entropy statement
 holds in its memory 128 Booleans `bs` for which the check accepts the

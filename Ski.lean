@@ -53,6 +53,7 @@ import Ski.Circuit.DecAir
 import Ski.Circuit.BusMatch
 import Ski.ComposedD
 import Ski.Circuit.CompDFinal
+import Ski.Circuit.CompDComplete
 import Ski.ZK.CompPHonest
 import Ski.Circuit.CompPCompleteFinal
 import Ski.ZK.CompP

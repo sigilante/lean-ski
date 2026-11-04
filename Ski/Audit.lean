@@ -41,6 +41,7 @@ import Ski.P2Once
 import Ski.DecJet
 import Ski.ComposedDText
 import Ski.DecPreSound
+import Ski.Circuit.CompDComplete
 import Ski.Circuit.DecAir
 import Ski.ZK.CompPHonest
 import Ski.Circuit.CompPCompleteFinal
@@ -1637,6 +1638,11 @@ open Ski.Audit
   Circuit.compDExport_sound
 #audit_clean DecPre.verifier_spine DecPre.owsteps_spineD DecPre.appL_var_inj DecPre.first_jet DecPre.HSteps.close
   DecPre.decpre_hsteps Circuit.decpreExport_sound
+-- Completeness of the circuit with the dec jet, given honest CPU and DEC tables
+-- (CompDComplete): the memory bus for any senders, every bus, the assembly; the
+-- tables' existence is the open gap (Ski/DecCompleteTodo.lean, not imported)
+#audit_clean Circuit.memL_sat Circuit.sendsL_zero Circuit.bal_memL Circuit.bal_memD_identity Circuit.balancedD
+  Circuit.compDG_complete_of
 
 -- The circuit with the Poseidon2 jet under Fiat–Shamir: its hiding PCS, P2OUT
 -- and Poseidon2 at degree 3 over eight chunks (CompPInst), the honest run's
