@@ -21,6 +21,10 @@ wrapper and a `Cons` per bit and a nil per atom), padded with zero rows,
   `CompDTree`, `CompDHead`, `CompDVerd` read back), leaving the call's
   `decnT` received and `decxT` sent, the negation of `DRun.jetSendsD`.
 
+The padding is done: the zero row satisfies DEC and is quiet (`decZero_sat`,
+`decZero_sends`), so a run without jet calls is complete unconditionally
+(`compDG_complete_nojet`); what remains is the calls' rows.
+
 The DEC height must hold the run's DEC rows; the hypothesis `hHD` is to
 be stated once the rows are defined (`decRows.length ≤ 2 ^ LD`).
 -/

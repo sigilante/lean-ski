@@ -179,3 +179,85 @@ theorem compDG_complete_dec {R Lm LD : Nat} (hR : R ≤ 20) (hLm : Lm ≤ 20) (h
     val_ofN hst', val_ofN (by omega)]
 
 end Circuit
+
+namespace Circuit
+
+open B Air
+
+-- ---------------------------------------------------------------------------
+-- A run without jet calls: the zero DEC table
+-- ---------------------------------------------------------------------------
+
+/-- The zero DEC table of `H` rows: DEC's padding. -/
+def decZero (H : Nat) : Table := ⟨H, fun _ _ => 0, fun _ _ => 0⟩
+
+set_option maxRecDepth 100000 in
+theorem decCons_now : Dec.decCons.all (fun c => c.onlyAtoms nowAtom) = true := by decide
+
+set_option maxRecDepth 100000 in
+theorem decCons_zero : Dec.decCons.all (fun c => decide (c.eval (fun _ => 0) = 0)) = true := by decide
+
+set_option maxRecDepth 100000 in
+theorem decInters_now : Dec.decInters.all (fun I => I.count.onlyAtoms nowAtom) = true := by decide
+
+set_option maxRecDepth 100000 in
+theorem decInters_zero : Dec.decInters.all (fun I => decide (I.count.eval (fun _ => 0) = 0)) = true := by decide
+
+theorem decZero_env {H r : Nat} : ∀ a, nowAtom a = true → (decZero H).env r a = (fun _ => (0 : F)) a := by
+  intro a ha
+  cases a with
+  | main o c =>
+    cases o with
+    | zero => rfl
+    | succ o => simp [nowAtom] at ha
+  | _ => simp [nowAtom] at ha
+
+/-- **The zero row satisfies DEC.** -/
+theorem decZero_sat {H : Nat} (hH : 0 < H) : Sat Dec.decAir (decZero H) := by
+  refine ⟨hH, fun c hc r _ => ?_⟩
+  rw [E.eval_congr decZero_env c (List.all_eq_true.1 decCons_now c hc)]
+  exact of_decide_eq_true (List.all_eq_true.1 decCons_zero c hc)
+
+/-- The zero row's messages are quiet. -/
+theorem decZero_quiet {H r : Nat} {I : Inter} (hI : I ∈ Dec.decAir.inters) :
+    I.count.eval ((decZero H).env r) = 0 := by
+  rw [E.eval_congr decZero_env I.count (List.all_eq_true.1 decInters_now I hI)]
+  exact of_decide_eq_true (List.all_eq_true.1 decInters_zero I hI)
+
+theorem decZero_sends {H : Nat} (B : String) (v : List F) : tableSends Dec.decAir (decZero H) B v = 0 :=
+  sends_zero_of (Q := fun _ => False) (fun _ _ I hI _ hc => hc (decZero_quiet hI)) id
+
+/-- With no jet row, the CPU sends nothing on the jet's buses. -/
+theorem jetSendsD_none {R : DRun} {K : Nat} (h : ∀ r, r < K → R.jetAt r = false) (B : String) (v : List F) :
+    DRun.jetSendsD R K B v = 0 := by
+  unfold DRun.jetSendsD
+  apply fold_zero
+  intro r hr
+  rw [h r (List.mem_range.1 hr)]; rfl
+
+/-- **A run without jet calls has its DEC table**: the zero one. -/
+theorem decProvides_none {R : DRun} {K H : Nat} (hH : 0 < H) (h : ∀ r, r < K → R.jetAt r = false) :
+    DecProvides R K (decZero H) :=
+  ⟨decZero_sat hH, fun _ _ _ _ => rfl, fun _ _ _ hI _ hc => absurd (decZero_quiet hI) hc,
+   fun B _ _ v => by rw [decZero_sends, jetSendsD_none h]; exact neg_zero_eq.symm⟩
+
+open Stmt Wit ComposedDText CompM Compose Mach in
+/-- **Completeness for a run that never fires the jet**: unconditional, DEC
+    the zero table. -/
+theorem compDG_complete_nojet {R Lm LD : Nat} (hR : R ≤ 20) (hLm : Lm ≤ 20) (hLD : LD ≤ 20)
+    {Vs : List OTerm} {W : Nat} {Rs : List AirD} (hs : sameAirsB Rs (compDAirsG Vs W) = true)
+    {ρ : Nat → Bool} {region : List Cell} (hrl : region.length = W)
+    (hr : ∀ i c, region[i]? = some c → cellOK (BT.nleaves shpD + 3 + i) c = true)
+    (hNW : BT.nleaves shpD + W ≤ 2 ^ 8)
+    {A : List Cell} {e : Nat → Nat} {row : Nat → Air.Row}
+    (hA : DRun.Honest ⟨A, JD, (cHeapO ρ shpD region Vs).2, e, Vs.length, row⟩ (cMachineO ρ shpD region Vs)
+      (cHeapO ρ shpD region Vs).1.length)
+    (hfit : Fits A) (hlen : A.length = 2 ^ Lm) (hK : e (Vs.length - 1) < 2 ^ R)
+    (hnone : ∀ r, r < 2 ^ R → DRun.jetAt ⟨A, JD, (cHeapO ρ shpD region Vs).2, e, Vs.length, row⟩ r = false) :
+    ∃ C Mm Pg Wt Sg, AcceptedP Rs [C, Mm, Pg, Wt, Sg, decZero (2 ^ LD)] ∧ memOf Mm = A ∧
+      ∀ i, i ≤ e (Vs.length - 1) → rowOf C i = row i := by
+  obtain ⟨C, Mm, Pg, Wt, Sg, hacc, _, _, _, _, _, hmem, hrow⟩ :=
+    compDG_complete_dec hR hLm hLD hs hrl hr hNW hA hfit hlen hK rfl (decProvides_none (Nat.two_pow_pos _) hnone)
+  exact ⟨C, Mm, Pg, Wt, Sg, hacc, hmem, hrow⟩
+
+end Circuit

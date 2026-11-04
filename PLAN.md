@@ -1106,19 +1106,24 @@ a cycle having no finite read-back), the head's chain has no stray rows
 the head's. The run is head reduction with the jet (`CompM.AcceptsCD`), so
 the verifier's first jet step fires on a reduct of its witness, with
 `CHECK_p`'s continuations (`DecPre.decpre_hsteps`). Completeness, down
-to the run's two private tables: a run `AcceptsCD` accepts, with a CPU and
-a DEC table meeting `Circuit.DecHonest` (each satisfies its AIR, DEC clear
-past its columns, both look up only memory cells, the CPU's restarts the
-segments' rows, and the two balance on every other bus), gives tables the
-circuit accepts with Plonky3's selectors at the statement's heights, the
-program and segment tables public, the witness table honest and the memory
-table counting every sender's lookups (`Circuit.compDG_complete_of`,
-`Ski/Circuit/CompDComplete.lean`; the memory bus for any list of senders,
-`Circuit.bal_memL`). Open: that every run has such tables
-(`decHonest_exists`, `todo/DecCompleteTodo.lean`, not imported, from which
-`decpre_complete_log` follows): the honest CPU with the jet's columns (the
-analogue of `P2Run.cpuP_sat`/`cpuP_honest`) and DEC's honest rows, one per
-cell pattern of each call's subject, with its 717 constraints and the
+to DEC's table: an honest run (`Circuit.DRun.Honest`: each row a plain
+step, a halted row repeated, or `DecJet.decRow`'s step, what `composed
+check-dec-run` replays) with a DEC table that provides its jet calls
+(`Circuit.DecProvides`: DEC's AIR, clear past its columns, memory lookups
+only, and on the other buses the negation of the CPU's sends) gives tables
+the circuit accepts with Plonky3's selectors at the statement's heights
+(`Circuit.compDG_complete_dec`). The CPU is the honest one with the jet's
+columns (`DRun.cpuTableD`): it satisfies `cpuAirDec` (`cpuD_sat`, the kinds
+by `kind_factsD`), its lookups are memory cells and segment rows
+(`cpuD_honest`, `cpuD_segsHonest`), and on each jet row it sends the need
+on `decn` and receives the result on `decx` (`cpuD_jetSends`); the memory
+bus is proved for any list of senders (`bal_memL`). The zero row satisfies
+DEC and is quiet, so a run that never fires the jet is complete
+(`compDG_complete_nojet`). Open: DEC's honest rows for the calls
+(`decProvides_exists`, `todo/DecCompleteTodo.lean`, not on the lib path,
+from which `decpre_complete_log` follows): one row per cell pattern of each
+call's subject, as `decair.rs`'s `Reader` builds them, its 717 constraints
+per kind, its reads and writes memory cells, and the
 `decn`/`decb`/`decd`/`decx` chains telescoping. A proof of `decpre p` is released (`release/dec`,
 verify.sh step 13).
 

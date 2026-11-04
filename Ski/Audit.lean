@@ -1649,6 +1649,8 @@ open Ski.Audit
   Circuit.DRun.kindD_isKind Circuit.DRun.cpuC_nextD Circuit.DRun.cpuD_read Circuit.DRun.cpuD_sat
   Circuit.DRun.cpuD_honest Circuit.DRun.cpuD_segsHonest Circuit.DRun.cpuD_blindQuiet Circuit.DRun.cpuD_jetSends
   Circuit.DRun.ctr_le Circuit.DRun.stk_le Circuit.compDG_complete_dec
+#audit_clean Circuit.decCons_zero Circuit.decZero_sat Circuit.decZero_sends Circuit.decProvides_none
+  Circuit.compDG_complete_nojet
 
 -- The circuit with the Poseidon2 jet under Fiat–Shamir: its hiding PCS, P2OUT
 -- and Poseidon2 at degree 3 over eight chunks (CompPInst), the honest run's
