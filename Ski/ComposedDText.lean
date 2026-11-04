@@ -123,7 +123,7 @@ structure DLogs where
   dec : Nat
   deriving BEq, Repr
 
-def dlogsOK (l : DLogs) : Bool := [l.rows, l.mem, l.dec].all fun x => 9 ≤ x && x ≤ 20
+def dlogsOK (l : DLogs) : Bool := [l.rows, l.mem, l.dec].all fun x => 9 ≤ x && x ≤ 22
 
 /-- The region's size is within the witness table's private cells. -/
 def regionOKD (W : Nat) : Bool := 0 < W && 1 + W ≤ 2 ^ 8

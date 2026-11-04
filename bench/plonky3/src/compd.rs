@@ -97,7 +97,7 @@ pub fn parse_public_d(text: &str) -> Result<DPublic, String> {
     };
     let w = nums(next()?, "W")?;
     let lg = nums(next()?, "log")?;
-    if lg.len() != 3 || lg.iter().any(|&x| !(9..=20).contains(&x)) {
+    if lg.len() != 3 || lg.iter().any(|&x| !(9..=22).contains(&x)) {
         return Err("a bad `log` line".into());
     }
     let nbits = nums(next()?, "bits")?;

@@ -7,6 +7,7 @@ import Ski.ChainExamples
 import Ski.ComposedPText
 import Ski.ComposedDText
 import Ski.DecTermText
+import Ski.DecInd
 import Ski.P2Commit
 import Ski.Circuit.CompPHonest
 import Ski.ZK.Blocks
@@ -875,7 +876,7 @@ def checkDecpre (path : String) : IO UInt32 := do
     `compd-dump` (or `compd-prove --table=`) writes for a decrement
     statement: the run starts at the statement's registers over its public
     cells, each row within the segment is a plain step (`Air.stepRow`) or
-    the jet's (`DecJet.decRow`, at the statement's atom), and the last row
+    the jet's (`DecJet.decRowI`, the subject read through `K`-thunks, at the statement's atom), and the last row
     is `K` over the nil.  `OK DECRUN …` with the number of jet rows. -/
 def checkDecRun (pub run : String) : IO UInt32 := do
   let text ← IO.FS.readFile pub
@@ -905,14 +906,14 @@ def checkDecRun (pub run : String) : IO UInt32 := do
   for r in [0:stop] do
     let a := rows.getD r ⟨0, 0, 0⟩
     let b := rows.getD (r + 1) ⟨0, 0, 0⟩
-    if DecJet.decRow M ComposedDText.JD a == some b then
+    if DecJet.decRowI M ComposedDText.JD a == some b then
       jets := jets + 1
     else if Air.stepRow M a != some b then
       IO.println s!"REJECT: row {r} is neither a step nor the jet's"; return 1
   let z := rows.getD stop ⟨0, 0, 0⟩
   if !(M[z.hd]? == some Cell.K && M[z.stk]? == some Cell.nil) then
     IO.println "REJECT: the run does not end at K over the nil"; return 1
-  IO.println s!"OK DECRUN {name}: {stop + 1} rows, {jets} jet rows, each a step or DecJet.decRow"
+  IO.println s!"OK DECRUN {name}: {stop + 1} rows, {jets} jet rows, each a step or DecJet.decRowI"
   return 0
 
 def main (args : List String) : IO UInt32 := do
