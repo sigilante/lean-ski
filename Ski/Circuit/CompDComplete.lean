@@ -409,7 +409,7 @@ theorem compDG_complete_of {R Lm LD : Nat} (hR : R ≤ 20) (hLm : Lm ≤ 20) (hL
       unfold HeightsOK compDTables
       simp only [List.foldr_cons, List.foldr_nil]
       have hMm : Mm.h = 2 ^ Lm := hlen
-      show 17 * C.h + (1 * Mm.h + (1 * Pg.h + (2 * Wt.h + (0 * Sg.h + (69 * D.h + 0))))) < P
+      show 17 * C.h + (1 * Mm.h + (1 * Pg.h + (2 * Wt.h + (0 * Sg.h + (76 * D.h + 0))))) < P
       omega
     · rw [z]
       intro p hp

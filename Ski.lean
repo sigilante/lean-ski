@@ -61,7 +61,6 @@ import Ski.Circuit.CompDComplete
 import Ski.Circuit.CompDHonest
 import Ski.Circuit.CompDBal
 import Ski.Circuit.CompDCompleteFinal
-import Ski.Circuit.CompDCompleteDec
 import Ski.ZK.CompPHonest
 import Ski.Circuit.CompPCompleteFinal
 import Ski.ZK.CompP

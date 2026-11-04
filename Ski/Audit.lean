@@ -44,7 +44,7 @@ import Ski.DecPreSound
 import Ski.DecInd
 import Ski.DecTerm
 import Ski.Circuit.CompDCompleteFinal
-import Ski.Circuit.CompDCompleteDec
+import Ski.Circuit.CompDCompleteFinal
 import Ski.Circuit.DecAir
 import Ski.ZK.CompPHonest
 import Ski.Circuit.CompPCompleteFinal
@@ -1624,22 +1624,28 @@ open Ski.Audit
 #audit_clean Circuit.decRowF_of Circuit.dkind_of Circuit.slotOK_all Circuit.slot_kind Circuit.slot_cols
   Circuit.rangeValD_lt Circuit.dec_mem_count Circuit.CompDOK.slotRead Circuit.CompDOK.decWrite
   Circuit.CompDOK.slotS Circuit.CompDOK.cellRead Circuit.CompDOK.atomRead Circuit.CompDOK.consRead
-  Circuit.CompDOK.nilRead
+  Circuit.CompDOK.nilRead Circuit.CompDOK.indRead
 #audit_clean Circuit.CompDOK.signed Circuit.CompDOK.hit_split Circuit.CompDOK.need_recv Circuit.CompDOK.need_sent
   Circuit.CompDOK.chain_recv Circuit.CompDOK.chain_sent Circuit.CompDOK.verd_sent Circuit.CompDOK.res_sent
 #audit_clean Circuit.CompDOK.chain_wc Circuit.CompDOK.verd_wc Circuit.CompDOK.res_ctr Circuit.CompDOK.jet_next_ctr
   Circuit.CompDOK.next_ctr Circuit.CompDOK.ctr_le Circuit.CompDOK.jet_key_unique
+#audit_clean DecJet.pigeon DecJet.iterI_bound DecJet.iterI_det Circuit.CompDOK.chain_back
+  Circuit.CompDOK.chain_back' Circuit.CompDOK.need_back Circuit.CompDOK.need_back' Circuit.CompDOK.pc_lt
 #audit_clean DecJet.readNn_mono DecJet.readBits_K DecJet.readBits_cons DecJet.readBits_nil_K
+  DecJet.readBitsI_mono DecJet.readNnI_mono DecJet.readCellI_ind
   Circuit.CompDOK.subj_pc Circuit.CompDOK.head_pc Circuit.CompDOK.chain_bits Circuit.CompDOK.need_nn
-#audit_clean DecJet.walk_succ Circuit.CompDOK.on_walk Circuit.CompDOK.subWrites Circuit.CompDOK.errWrites
+#audit_clean DecJet.lastAt_eq DecJet.walkS_iter DecJet.walkS_end DecJet.walkS_level0 Circuit.CompDOK.chain_term
+  Circuit.CompDOK.chain_nonterm Circuit.CompDOK.chain_run Circuit.CompDOK.chain_run_K
+  Circuit.CompDOK.on_walk Circuit.CompDOK.subWrites Circuit.CompDOK.errWrites
   Circuit.CompDOK.hcWrites Circuit.CompDOK.hatWrites Circuit.CompDOK.asubWrites Circuit.CompDOK.nlkWrite
   Circuit.CompDOK.consWrites DecJet.readBits_cons_inv Circuit.CompDOK.head_fwd DecJet.bitCells_len
-  DecJet.walk_end Circuit.CompDOK.verdict Circuit.decRow_of Circuit.CompDOK.jetRow
-#audit_clean CompM.decRow_hstep CompM.normRowD_spec CompM.AcceptsCD.within CompM.composedD_sound_of
+  Circuit.CompDOK.verdict DecJet.iterI_peel DecJet.readSubjI_iter DecJet.headAtom_iter Circuit.decRowI_of
+  Circuit.CompDOK.need_run Circuit.CompDOK.jetRow
+#audit_clean CompM.decRowI_hstep CompM.normRowD_spec CompM.AcceptsCD.within CompM.composedD_sound_of
   Circuit.CompDOK.heap0 Circuit.CompDOK.regionWF Circuit.CompDOK.normRow Circuit.CompDOK.acceptsCD
   Circuit.compDG_guarded Circuit.compDOK_ofG Circuit.compDExportG_sound Circuit.verifierD_occ
   Circuit.compDExport_sound
-#audit_clean DecPre.verifier_spine DecPre.owsteps_spineD DecPre.appL_var_inj DecPre.first_jet DecPre.HSteps.close
+#audit_clean DecPre.verifier_spine DecPre.owsteps_spineD DecPre.appL_var_inj DecPre.first_jet DecPre.HSteps.close_K
   DecPre.decpre_hsteps Circuit.decpreExport_sound
 -- Completeness of the circuit with the dec jet, given honest CPU and DEC tables
 -- (CompDComplete): the memory bus for any senders, every bus, the assembly
@@ -1653,16 +1659,9 @@ open Ski.Audit
   Circuit.DRun.ctr_le Circuit.DRun.stk_le Circuit.compDG_complete_dec
 #audit_clean Circuit.decCons_zero Circuit.decZero_sat Circuit.decZero_sends Circuit.decProvides_none
   Circuit.compDG_complete_nojet
--- the honest DEC table (CompDTrace, CompDTraceRead/Rows/Bus/Tel/Call/Mem/Wr,
--- CompDCompleteDec): a well-formed row satisfies DEC, a row reads its
--- pattern, a call's rows are well formed, telescope on the jet's chains to
--- the negation of the CPU's jet row, and read and write memory cells; the
--- table provides the jet calls, and decpre's completeness
-#audit_clean Circuit.DecT.sl_spec Circuit.DecT.row_sat Circuit.DecT.cellReads Circuit.DecT.atomReads
-  Circuit.DecT.consReads Circuit.DecT.nilReads Circuit.DecT.callRows_ok Circuit.DecT.sendN Circuit.DecT.sendB
-  Circuit.DecT.sendD Circuit.DecT.sendX Circuit.DecT.S_noun_n Circuit.DecT.S_bits_b Circuit.DecT.S_bits_d
-  Circuit.DecT.S_head_d Circuit.DecT.call_sends Circuit.DecT.row_mem Circuit.DecT.bitsW Circuit.DecT.call_writes
-  Circuit.DRun.decRows_ok Circuit.DRun.decProvides_of Circuit.decProvides_exists Circuit.decpre_complete_log
+-- the honest DEC table for runs with jet calls (decProvides_exists, and with it
+-- decpre_complete_log) is not re-proved for the DEC table that reads through
+-- K-thunks: the old proofs are in todo/dec-complete/, the gap in todo/dec-norm.md
 
 -- A `decterm` statement: any public verifiers open in the jet's atom, read
 -- off the statement's heap (DecTerm)

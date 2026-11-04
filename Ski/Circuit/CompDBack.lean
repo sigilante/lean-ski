@@ -63,7 +63,7 @@ theorem pigeon : ∀ (N : Nat) (g : Nat → Nat), (∀ i, i ≤ N → g i < N) �
       have hne : ∀ i, i ≤ N → g i ≠ g (N + 1) := by
         intro i hi e
         have := List.any_eq_false.1 hb i (List.mem_range.2 (by omega))
-        rw [e] at this; exact this (beq_self_eq_true _)
+        rw [e] at this; exact this (beq_iff_eq.2 rfl)
       let g' : Nat → Nat := fun i => if g i = N then g (N + 1) else g i
       have hg' : ∀ i, i ≤ N → g' i < N := by
         intro i hi
@@ -78,11 +78,15 @@ theorem pigeon : ∀ (N : Nat) (g : Nat → Nat), (∀ i, i ≤ N → g i < N) �
       obtain ⟨i, j, hij, hj, e⟩ := pigeon N g' hg'
       refine ⟨i, j, hij, by omega, ?_⟩
       simp only [g'] at e
-      by_cases a : g i = N <;> by_cases b : g j = N <;> simp only [a, b, if_true, if_false] at e
-      · rw [a, b]
-      · exact absurd e.symm (hne j hj)
-      · exact absurd e (hne i (by omega))
-      · exact e
+      cases Nat.decEq (g i) N with
+      | isTrue a =>
+        cases Nat.decEq (g j) N with
+        | isTrue b => rw [a, b]
+        | isFalse b => rw [if_pos a, if_neg b] at e; exact absurd e.symm (hne j hj)
+      | isFalse a =>
+        cases Nat.decEq (g j) N with
+        | isTrue b => rw [if_neg a, if_pos b] at e; exact absurd e (hne i (by omega))
+        | isFalse b => rw [if_neg a, if_neg b] at e; exact e
 
 /-- A point on a cycle of thunks is a thunk, and so is every point after it. -/
 theorem periodic_after {H : List Cell} {a z : Nat} (hz : iterI H (a + 1) z = some z) :
