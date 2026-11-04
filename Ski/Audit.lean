@@ -41,6 +41,7 @@ import Ski.P2Once
 import Ski.DecJet
 import Ski.ComposedDText
 import Ski.DecPreSound
+import Ski.DecInd
 import Ski.DecTerm
 import Ski.Circuit.CompDCompleteFinal
 import Ski.Circuit.CompDCompleteDec
@@ -1669,6 +1670,13 @@ open Ski.Audit
 -- library's `String` functions, which use `Classical.choice`; it is tooling)
 #audit_clean DecTerm.occOK_sound DecTerm.vsOK_sound
   Circuit.dectermExport_sound Circuit.verT_close Circuit.dectermExport_close
+
+-- The dec jet's row reading through K-thunks (DecInd): the reader's
+-- read-back up to K-contraction, the output's, the row's step, and closing a
+-- run of the jet's head reduction through thunks to K
+#audit_clean DecJet.ORed.close DecJet.readInd_peel DecJet.readBitsI_ot DecJet.ktAt_peel DecJet.readCellI_peel
+  DecJet.readNnI_ot DecJet.readNnI_wf DecJet.headAtom_peel DecJet.readSubjI_ot DecJet.readSubjI_wf
+  DecJet.bitsI_ot DecJet.out_otI DecJet.decRowI_step DecJet.decRowI_jstep DecJet.JStepsI.close_K
 
 -- The circuit with the Poseidon2 jet under Fiat–Shamir: its hiding PCS, P2OUT
 -- and Poseidon2 at degree 3 over eight chunks (CompPInst), the honest run's
