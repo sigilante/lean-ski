@@ -1168,10 +1168,24 @@ literal subject) proves in 2,184 to 12,233 rows for `N` from 10 to
 100` (skinock `release/nock/decloop`): the count-up loop inside the word
 collapses to one jet row and the rows follow the bits. A loop around the
 word (skinock's Λ `while (top ≠ 0) dec`) does not collapse: its word's
-argument is a computed stack, the run stops at the first call. Chaining
-the jet would need its output re-laid as cells the row reads (a strict
-jet that normalises its argument first, or an output the next call can
-read without elimination).
+argument is a computed stack, the run stops at the first call. No term
+can fix that (`Ski/NoLayout.lean`, branch `dec-norm`). Mark the
+input-dependent cells by `D`; on every reachable state of the write-once
+machine no input-independent stack entry follows an input-dependent one
+and no cell has an input-dependent function over an input-independent
+argument (`inv_step`, `inv_reach`). So the `S` that writes a
+constant-function cell over a computed field, as every wrapper the row
+reads is, continues with constant code (`S_cont_const`). A dynamic
+continuation receives a fresh cell `R` only folded as the thunk `K R w`
+(skinock `release/nock/decloop/layout`: a 12-leaf term does it; no term
+up to 10 leaves hands `K P` over bare, and none up to 9 lays out a
+two-field cell of two computed fields). A normaliser `norm` with `J ⬝
+(norm ⬝ x)` laid out therefore does not exist. Collapsing the loop is a
+circuit change: a row that follows `K R w` at its subject and slots (then
+a continuation-passing `norm` exists; the change spans `DecJet`'s readers,
+the DEC table's need tree and its proofs, and `decair.rs`), or a machine
+that reduces the argument in place before the row reads, as Avon's
+`jet-reduce-arg` does at run time (the graph machine's circuit, §1, open).
 
 Fiat–Shamir, round by round (`Ski/ZK/FSRound.lean`, `ski-air fs-budget`).
 Lean proves the counting step: `q` adaptive hash calls hit a round of bad
