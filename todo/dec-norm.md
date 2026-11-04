@@ -28,6 +28,12 @@ Done (branch `dec-thunk`, no `sorry`, audited `propext`, `Quot.sound`):
   (`QUICK=1 VERIFY_ALL=1 release/verify.sh`), skinock
   `release/nock/decloop` `dec_N` (`verify.sh`), one DEC row more per bit
   list (its end).
+- **Completeness with the new DEC** (`Ski/Circuit/CompDTrace*.lean`,
+  `CompDCompleteDec.lean`): `DRun.Honest`'s jet rows are `decRowI`'s; the
+  honest rows follow `readSubjI` (an indirection row per thunk on the need
+  tree and the bit chains, the `Cell` row's `IKT` from `iktOf`, a last
+  `Cons` marked and the chain ended at a `TERM` nil); `decProvides_exists`,
+  `decpre_complete_log` re-proved and audited.
 - skinock `Nock2Ski/DecLoopNorm.lean`: `nockLoopV`, `nockloop_close` (an
   accepted proof of the normalised loop's statement makes M4c's check, every
   occurrence of the word replaced by `normJ (nockToSki decF)`, reach `K`);
@@ -35,26 +41,11 @@ Done (branch `dec-thunk`, no `sorry`, audited `propext`, `Quot.sound`):
 
 Open:
 
-1. **Completeness with the new DEC** (`decProvides_exists`,
-   `decpre_complete_log`).  The old proofs are in `todo/dec-complete/*.txt`
-   (`CompDTrace*`, `CompDCompleteDec`), out of the build.  To port: `DecT.DR`
-   gains `ib`, `ikt`, `term`; `DR.col` the columns 36–42 (`KIND`, `IB`,
-   `INN`, `INB`, `IKT`, `CKT`, `TERM`), `CSEND = KCONS`, `DONE1` with
-   `TERM`; `patOf 5 = indSlots`, the `KT` source, the `Cell` row's gated
-   slots 23–25 (`act`); `bitsRows` gains the terminal nil after the last
-   `Cons` (at level `|bs|`, `TERM = 1`, its borrow `0`), so `callB`
-   telescopes the marked step; `consReads` loses slot 16.  For `decpre`'s
-   runs (no thunks: `DRun.Honest` keeps `decRow`, `decRow_decRowI`) no
-   indirection row is needed; with thunks, `callRows` follows `readSubjI`
-   (an indirection row per thunk on the need tree and the chains, `IKT`
-   from `ktAt`), as `decair.rs`'s `Reader` does.  `compDG_complete_dec`
-   (given a DEC table that provides the calls) and `compDG_complete_nojet`
-   are proved.
-2. **The Nock claim with the normaliser** (skinock): from `nockloop_close`
+1. **The Nock claim with the normaliser** (skinock): from `nockloop_close`
    to `*[s f] = p`, the compiler's correctness with every occurrence of the
    word replaced by `normJ (nockToSki decF)`, Forms' code fields included,
    and its converse (`nock_of_eqn_K`); `normDec_enc` is the per-call fact.
-3. **The loops jetted, proved** (`loop_1`, `loop_3`, `loop_10`, `loop_20`).
+2. **The loops jetted, proved** (`loop_1`, `loop_3`, `loop_10`, `loop_20`).
    The statement exists (skinock `nockdec emit-loop`, `nockLoopV`, one
    shared copy of `normT`) and the jet fires at every call on the circuit:
    17,544 / 35,165 / 98,777 / 192,219 CPU rows and 20 / 64 / 238 / 508 DEC

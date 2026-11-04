@@ -1225,11 +1225,21 @@ memory cell whose read-back `K`-contracts to `encNn s`. A backward step
 through indirection rows could in principle go round a cycle of thunks;
 it cannot reach a non-thunk, since a run of more thunk steps than the
 memory has cells repeats a cell and its end is a thunk (`CompDBack`,
-`iterI_bound`). Axioms `propext`, `Quot.sound`. Completeness is not
-re-proved for this table: `compDG_complete_dec` (given a DEC table that
-provides the jet's calls) and `compDG_complete_nojet` hold, but the honest
-DEC table's proofs (`decProvides_exists`, `decpre_complete_log`) are out of
-the build (`todo/dec-complete/`, `todo/dec-norm.md`). The releases with
+`iterI_bound`). Axioms `propext`, `Quot.sound`. Completeness is re-proved for this
+table, the honest run's jet rows now `decRowI`'s (`DRun.Honest`): the
+honest DEC rows follow `readSubjI` (`DecT.callRows`, `subjRows`,
+`nounRows`, `bitsRows`), one indirection row per thunk on the need tree
+(the root, the head, a cell's halves) and on each bit chain, the `Cell`
+row's `IKT` the tail slot's (`iktOf`, slots 23–25 read only behind a
+thunk), a last `Cons` marked (`ISLAST`, its step `MODE + 2`) and its
+chain ending, through any thunks, at a nil with `TERM = 1`, the empty
+list's nil unmarked at level `0`. Each row satisfies DEC (`row_sat`),
+reads its pattern (`indReads`, `cellReads` through `ktAt_cases`), the
+chains telescope through the indirection rows to the terminal nil
+(`S_bits_b`, `S_bits_d`, `subj_chains`, `call_sends`), and the writes are
+`outCells`' (`call_writes`); so `decProvides_exists` and
+`decpre_complete_log` hold again (`Ski/Circuit/CompDTrace*.lean`,
+`CompDCompleteDec.lean`, audited `propext`, `Quot.sound`). The releases with
 the `dec` jet are re-produced and verify (lean-ski `release/dec`, skinock
 `release/nock/decloop`'s `dec_N`, a DEC row more per bit list, its list's
 end).

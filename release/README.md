@@ -44,7 +44,7 @@ forgeries the sections below list.
 | `split` and `csplit` with jets, hidden | `skilark/*/jets/` | 10–11 | `compJExport_sound`, `Air.jetStmtC_sound` |
 | A Poseidon2 preimage of `h` | `p2/` | 12 | `p2preExport_sound` |
 | A hidden hand-off over one commitment | `p2/` | 12 | `p2commitExport_sound`, `p2commit_chainB` |
-| A decrement under the `dec` data jet | `dec/` | 13 | `decpreExport_sound` (the DEC table reading through `K`-thunks); completeness given a DEC table that provides the calls (`compDG_complete_dec`); the honest DEC table's proof (`decProvides_exists`, `decpre_complete_log`) is open for this table (`todo/dec-norm.md`) |
+| A decrement under the `dec` data jet | `dec/` | 13 | `decpreExport_sound` (the DEC table reading through `K`-thunks); completeness with the honest DEC table through thunks (`decProvides_exists`, `decpre_complete_log`) |
 | A kernel's poke with a private entropy reply | `entropy/` | 14 | `entropyExport_sound` |
 | Every zero-knowledge proof has the random rows its hiding needs | all but `sumto/` | 15 | `masks_hide`'s hypothesis, `\|S\| + 4\|Z\| ≤ n`, for the column openings, `q + 8 = 108`; the quotient's recombined values, two points a query, `2q + 8 = 208`, the hypothesis of `pcsCloseN_quot`; Plonky3's `HidingFriPcs` asks `2(q + 8) = 216`; every committed table has at least `2^9` rows, 296 to spare |
 | Every byte of a zero-knowledge proof lies in a field of the view the transcript theorems simulate | all but `sumto/` | 16 | `ski-air proof-shape`: the bytes are the fields' own encoding; the PCS's view, the terminals, the heights, and two proof-of-work witnesses unique given the transcript |
@@ -217,7 +217,7 @@ The theorems are in namespace `Circuit` unless prefixed.
     in the statement, offered for Lean's statement of `p xor 1`, or for
     `p2pre`'s statement, it is refused. The producer also has Lean replay
     the honest run (`composed check-dec-run`): each row a step or
-    `DecJet.decRow`.
+    `DecJet.decRowI`.
 15. **A poke whose event is an entropy reply.** `entropy` holds two
     statements and their proofs. `source.ski` is Avon's entropy kernel
     (avon `tests/kernel/entropy.ascii.ski`, which Lean's front end and
@@ -411,17 +411,17 @@ an indirection row kind passes a need or a chain's step from `K R w` to
 last `Cons` marks its step so the chain must end, through any thunks, at
 a nil that ends a list (`Ski/Circuit/DecAir.lean`, `decair.rs`); backward
 chains through thunks end (`Ski/Circuit/CompDBack.lean`). Completeness is
-proved down to DEC's table: an honest run (each row a step, a halted row,
-or `DecJet.decRow`'s step), with a DEC table that satisfies DEC, looks up
+proved: an honest run (each row a step, a halted row, or
+`DecJet.decRowI`'s step), with a DEC table that satisfies DEC, looks up
 only memory cells, and receives each jet row's need and sends its result
 (`Circuit.DecProvides`), gives tables the circuit accepts, the CPU the
 honest one with the jet's columns (`Circuit.compDG_complete_dec`;
-`DRun.cpuD_sat`, `cpuD_honest`, `cpuD_jetSends`). That every honest run
-has that DEC table (`decProvides_exists`, and so `decpre_complete_log`)
-was proved for the previous DEC and is not re-proved for this one
-(`todo/dec-complete/`, `todo/dec-norm.md`); the released proof exists, and
-the released run is replayed (`lake exe composed check-dec-run`, each row
-a step or `DecJet.decRowI`).
+`DRun.cpuD_sat`, `cpuD_honest`, `cpuD_jetSends`), and every honest run
+whose calls' rows fit the DEC height has that DEC table, an indirection
+row per thunk on each call's need tree and bit chains
+(`decProvides_exists`, and so `decpre_complete_log`). The released run is
+replayed (`lake exe composed check-dec-run`, each row a step or
+`DecJet.decRowI`).
 
 **Not released: the loop.** skinock's normalised Λ loop is a `decterm`
 statement on this circuit (`Nock2Ski/DecLoopNorm.lean`, `nockloop_close`)
