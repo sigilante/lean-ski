@@ -415,6 +415,17 @@ rows of each call (`Circuit.decProvides_exists`, `DRun.decTable`): so
 DEC height. The released run is also replayed (`lake exe composed
 check-dec-run`).
 
+**Not released: the row through thunks.** The released DEC table reads
+`DecJet.decRow`'s patterns, so the jet fires only on a subject laid out
+cell by cell; inside a loop no term lays one out (`Ski/NoLayout.lean`).
+`Ski/DecInd.lean` proves the row that reads through `K`-thunks
+(`DecJet.decRowI_step`, `DecJet.JStepsI.close_K`, `DecJet.decRow_decRowI`;
+`propext`, `Quot.sound`), and skinock's continuation-passing normaliser
+makes the jet fire at every call of a Λ loop on the heap machine
+(`release/nock/decloop/results-norm.txt` there). No proof uses it: the DEC
+table, `decair.rs` and their soundness and completeness do not carry the
+new reader yet (`todo/dec-norm.md`).
+
 **The entropy proofs.** An accepted proof of either entropy statement
 holds in its memory 128 Booleans `bs` for which the check accepts the
 kernel's poke with the reply `[0 [0 (listT bs)]]`, Avon's encoding of the

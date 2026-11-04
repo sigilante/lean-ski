@@ -1180,12 +1180,40 @@ continuation receives a fresh cell `R` only folded as the thunk `K R w`
 (skinock `release/nock/decloop/layout`: a 12-leaf term does it; no term
 up to 10 leaves hands `K P` over bare, and none up to 9 lays out a
 two-field cell of two computed fields). A normaliser `norm` with `J ⬝
-(norm ⬝ x)` laid out therefore does not exist. Collapsing the loop is a
-circuit change: a row that follows `K R w` at its subject and slots (then
-a continuation-passing `norm` exists; the change spans `DecJet`'s readers,
-the DEC table's need tree and its proofs, and `decair.rs`), or a machine
-that reduces the argument in place before the row reads, as Avon's
-`jet-reduce-arg` does at run time (the graph machine's circuit, §1, open).
+(norm ⬝ x)` laid out therefore does not exist.
+
+Route (B), a row that reads through the thunks, is done at the row and
+the term, not yet in the DEC table (`Ski/DecInd.lean`, branch `dec-norm`;
+the gap is `todo/dec-norm.md`). `readInd` follows `K R w` to `R`; the
+reader `readSubjI` follows chains of them at every need-tree pointer (the
+root, the head, a cell's halves, an atom's bits and each tail) and one at
+a `Cell` wrapper's tail slot `K t` (`ktAt`). `decRowI` is `decRow` with
+that reader. `decRowI_step` reads a row back as `J ⬝ u ⬝ R` with `u ↠
+encNn s` and the next state as `v ⬝ R` with `v ↠ encO (decSpec s)`, by
+`K`-contraction anywhere (`ORed`); `JStepsI.close_K` closes a run of that
+head reduction to `K` with any implementation of the unchanged contract
+(Church–Rosser, `wsteps_K_iff`); `decRow_decRowI`: on a subject without
+thunks the rows agree. Axioms `propext`, `Quot.sound`. skinock's
+`Nock2Ski/DecNorm.lean` gives the continuation-passing normaliser `normT`:
+it forces its argument, normalises a cell's halves and an atom's bits,
+builds each value by straight-line code and delivers it as a `K`-thunk, a
+cell's tail slot folded over its head. `norm_enc`: on any encoding of `s`,
+`normT ⬝ es ⬝ k ↠ k ⬝ encNoun s`; `normJ_impl`: `S normT (K P)` implements
+the contract when `P` does. On the heap machine with `decRowI` as the row
+(skinock `bench/NockNorm.lean`), the check of `*[[N [0 0]] decLoopF] = [0
+[0 0]]` with every occurrence of the word replaced by `normJ JD` fires the
+jet at every call and reaches `K`: 7,051 / 14,139 / 39,730 / 77,294
+contractions for `N` = 1, 3, 10, 20, against 8,434 / 23,459 / 136,500 /
+466,653 unjetted on the same machine (17,348 / 34,805 / 97,843 / 190,465
+transitions against 20,757 / 57,785 / 336,681 / 1,152,824). The jetted cost
+is linear in `N` (about 3,700 contractions a call, the normaliser and the
+loop's own work); the unjetted is quadratic. These are machine runs. A
+proof needs the DEC table to read through thunks: an indirection row in
+the need tree and the bit chains, and three slots for the tail slot's
+thunk in the `Cell` row, with `decpreExport_sound` and
+`decpre_complete_log` re-proved; and the Nock claim needs the compiler's
+correctness with the word replaced by `normJ` (`normDec_enc` is its
+per-call fact).
 
 Fiat–Shamir, round by round (`Ski/ZK/FSRound.lean`, `ski-air fs-budget`).
 Lean proves the counting step: `q` adaptive hash calls hit a round of bad
