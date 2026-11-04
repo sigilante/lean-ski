@@ -80,10 +80,10 @@ def ks : F := bF (decide (d.kind = 3))
 def kn : F := bF (decide (d.kind = 4))
 def h0 : F := bF (decide ((d.kind = 1 ∨ d.kind = 2) ∧ d.ro = 0))
 def h1 : F := bF (decide ((d.kind = 1 ∨ d.kind = 2) ∧ d.ro = 1))
-def vBW : F := bF d.bw
-def vBIT : F := bF d.bit
-def vL : F := bF d.last
-def vM : F := bF d.m
+abbrev vBW : F := bF d.bw
+abbrev vBIT : F := bF d.bit
+abbrev vL : F := bF d.last
+abbrev vM : F := bF d.m
 def vDROP : F := vBW d * vBIT d * vL d
 def vWR : F := vBW d - vDROP d
 def vWL : F := vBW d * vBIT d * (1 - vL d)
