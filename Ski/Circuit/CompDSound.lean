@@ -141,7 +141,7 @@ theorem CompDOK.normRowSel {r : Nat} (hr : r + 1 < C.h) (hrs : C.main r RS = 0) 
     (h3 : 3 ≤ (blankMO shp W Vs).heap.length) :
     (C.main r DECSEL = 0 ∧ Air.NormRow (memOf Mm) [] [] (rowOf C r) (rowOf C (r + 1))) ∨
       (C.main r DECSEL = 1 ∧ ∀ t, odecode (Air.st (memOf Mm) (rowOf C r)) = some t →
-        DecJet.decRow (memOf Mm) J (rowOf C r) = some (rowOf C (r + 1))) := by
+        DecJet.decRowI (memOf Mm) J (rowOf C r) = some (rowOf C (r + 1))) := by
   have hr' : r < C.h := Nat.lt_of_succ_lt hr
   obtain ⟨k, hk⟩ := kind_ofD h.cpu hr'
   have hk11 : k ≠ 11 := fun e => by

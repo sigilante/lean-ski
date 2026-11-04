@@ -448,9 +448,10 @@ theorem osteps_of_neutral {t u : OTerm} (hn : ONeutral t) (h : OSteps t u) : u =
 /-- **The first jet step is where head reduction stops**: a run to `K`
     from a term whose head reduction reaches a neutral term `n` fires the
     jet at `n`. -/
-theorem first_jet {A : Dom → Prop} {J : Nat} : ∀ {t u : OTerm}, HSteps A J t u → u = .K →
+theorem first_jet {A : OTerm → Prop} {J : Nat} : ∀ {t u : OTerm}, HSteps A J t u → u = .K →
     ∀ {n : OTerm}, OSteps t n → ONeutral n →
-      ∃ s R, A s ∧ n = appL (.var J) ((encNn s.1).toO :: R) ∧ HSteps A J (appL (encO (decSpec s.1)).toO R) .K := by
+      ∃ (s : Dom) (a v : OTerm) (R : List OTerm), A a ∧ ORed a (encNn s.1).toO ∧ ORed v (encO (decSpec s.1)).toO ∧
+        n = appL (.var J) (a :: R) ∧ HSteps A J (appL v R) .K := by
   intro t u h
   induction h with
   | refl t =>
@@ -470,26 +471,37 @@ theorem first_jet {A : Dom → Prop} {J : Nat} : ∀ {t u : OTerm}, HSteps A J t
       | step h1 h2 =>
         rw [OStep.det h1 hst] at h2
         exact ih hu h2 nn
-    | jet s hA R =>
+    | jet s hA hu' hv R =>
       have hnt := osteps_of_neutral (ONeutral.appL _ (.var J)) hn
       subst hnt
       subst hu
-      exact ⟨s, R, hA, rfl, hrest⟩
+      exact ⟨s, _, _, R, hA, hu', hv, rfl, hrest⟩
 
-/-- **Closing the run** to an implementation of the contract. -/
-theorem HSteps.close {A : Dom → Prop} {J : Nat} (σ : Nat → Term) (hσ : DataJet.Implements decContract (σ J))
-    {t u : OTerm} (h : HSteps A J t u) : WSteps (t.close σ) (u.close σ) := by
+/-- **Closing a run to `K`** with an implementation of the contract: a
+    jet step closes to two reductions to a common term, and a term reduces
+    to `K` exactly when any of its reducts does (Church–Rosser). -/
+theorem HSteps.close_K {A : OTerm → Prop} {J : Nat} (σ : Nat → Term) (hσ : DataJet.Implements decContract (σ J))
+    {t : OTerm} (h : HSteps A J t .K) : WSteps (t.close σ) Term.K := by
+  generalize hK : OTerm.K = k at h
   induction h with
-  | refl _ => exact .refl _
+  | refl _ => subst hK; exact .refl _
   | step hs _ ih =>
-    refine WSteps.trans ?_ ih
+    have ih := ih hK
     cases hs with
-    | head hst => exact .single (OStep.close σ hst).weak
-    | jet s _ R =>
-      rw [_root_.close_appL, _root_.close_appL]
-      show WSteps (appT (σ J ⬝ (encNn s.1).toO.close σ) _) _
-      rw [close_toO, close_toO]
-      exact appT_left (hσ s) _
+    | head hst => exact (WSteps.single (OStep.close σ hst).weak).trans ih
+    | @jet s u v _ hu hv R =>
+      rw [_root_.close_appL] at ih
+      have e : (appL (.var J) (u :: R)).close σ = appT (σ J ⬝ u.close σ) (R.map (OTerm.close σ)) := by
+        rw [_root_.close_appL]; rfl
+      rw [e]
+      have hP : WSteps (σ J ⬝ u.close σ) (encO (decSpec s.1)) := by
+        refine (WSteps.right _ (hu.close σ)).trans ?_
+        rw [close_toO]
+        exact hσ s
+      have hv' := hv.close σ
+      rw [close_toO] at hv'
+      have e1 := (wsteps_K_iff (appT_left hv' (R.map (OTerm.close σ)))).1 ih
+      exact (wsteps_K_iff (appT_left hP (R.map (OTerm.close σ)))).2 e1
 
 theorem allW_appT (σ : Nat → Term) : ∀ {l₁ l₂ : List OTerm}, AllW l₁ l₂ → ∀ (E : Term),
     WSteps (appT E (l₁.map (OTerm.close σ))) (appT E (l₂.map (OTerm.close σ)))
@@ -501,21 +513,24 @@ theorem allW_appT (σ : Nat → Term) : ∀ {l₁ l₂ : List OTerm}, AllW l₁ 
 /-- **What a run of the verifier of `decpre p` means**: its head reduction
     with the jet reaches `K` only if a subject the jet took has a decrement
     that is a cell headed by the atom `p`. -/
-theorem decpre_hsteps {p : Nat} {P : Term} (hP : DataJet.Implements decContract P) {A : Dom → Prop} {β w : Term}
+theorem decpre_hsteps {p : Nat} {P : Term} (hP : DataJet.Implements decContract P) {A : OTerm → Prop} {β w : Term}
     (h : HSteps A JD (verifierD p ⬝ₒ β.toO ⬝ₒ w.toO) .K) :
-    ∃ s, A s ∧ ∃ d r, decSpec s.1 = some (.cell (.atom d) r) ∧ val d = p := by
+    ∃ (s : Dom) (a : OTerm), A a ∧ ORed a (encNn s.1).toO ∧ ∃ d r, decSpec s.1 = some (.cell (.atom d) r) ∧ val d = p := by
   obtain ⟨fs', h1, hall⟩ := owsteps_spineD (verifier_spine p β w)
-  obtain ⟨s, R, hA, hn, hrest⟩ := first_jet h rfl h1 (ONeutral.appL _ (.var _))
+  obtain ⟨s, a, v, R, hA, ha, hv, hn, hrest⟩ := first_jet h rfl h1 (ONeutral.appL _ (.var _))
   have e := appL_var_inj hn
   subst e
   cases hall with
   | cons _ hR =>
-  refine ⟨s, hA, ?_⟩
+  refine ⟨s, a, hA, ha, ?_⟩
   let σ := envD P
   have hJ : σ JD = P := by show (if JD = JD then P else K) = P; rw [if_pos rfl]
-  have hc := HSteps.close σ (by rw [hJ]; exact hP) hrest
-  rw [_root_.close_appL, close_toO] at hc
-  have hc2 := (wsteps_K_iff (allW_appT σ hR (encO (decSpec s.1)))).1 hc
+  have hc := HSteps.close_K σ (by rw [hJ]; exact hP) hrest
+  rw [_root_.close_appL] at hc
+  have hv' := hv.close σ
+  rw [close_toO] at hv'
+  have hc1 := (wsteps_K_iff (appT_left hv' (R.map (OTerm.close σ)))).1 hc
+  have hc2 := (wsteps_K_iff (allW_appT σ hR (encO (decSpec s.1)))).1 hc1
   have hb := absN_beta_close [0] (.var 0 ⬝ₒ badO ⬝ₒ chkX p ⬝ₒ badO ⬝ₒ badO) σ [encO (decSpec s.1)] rfl
   rw [← checkD_eq] at hb
   have e3 : (OTerm.var 0 ⬝ₒ badO ⬝ₒ chkX p ⬝ₒ badO ⬝ₒ badO).close (overrideC σ [0] [encO (decSpec s.1)]) =
@@ -543,10 +558,11 @@ theorem decpreExport_sound {p W : Nat} {P : Term} (hP : DataJet.Implements DecJe
     {Rs : List AirD} {ts : List Table}
     (hs : sameAirsB Rs (compDAirs p W) = true) (hacc : AcceptedP Rs ts) :
     ∃ C Mm Pg Wt Sg D, ts = [C, Mm, Pg, Wt, Sg, D] ∧
-      ∃ (s : DecJet.Dom) (root : Nat), Mach.otermAt (memOf Mm) (memOf Mm).length root = some (DecJet.encNn s.1).toO ∧
+      ∃ (s : DecJet.Dom) (root : Nat) (a : OTerm), Mach.otermAt (memOf Mm) (memOf Mm).length root = some a ∧
+        DecJet.ORed a (DecJet.encNn s.1).toO ∧
         ∃ d r, DecJet.decSpec s.1 = some (.cell (.atom d) r) ∧ BitArith.val d = p := by
   obtain ⟨C, Mm, Pg, Wt, Sg, D, rfl, w, _, hrun⟩ := compDExport_sound hs hacc
-  obtain ⟨s, ⟨root, hroot⟩, hd⟩ := DecPre.decpre_hsteps hP hrun
-  exact ⟨C, Mm, Pg, Wt, Sg, D, rfl, s, root, hroot, hd⟩
+  obtain ⟨s, a, ⟨root, hroot⟩, ha, hd⟩ := DecPre.decpre_hsteps hP hrun
+  exact ⟨C, Mm, Pg, Wt, Sg, D, rfl, s, root, a, hroot, ha, hd⟩
 
 end Circuit

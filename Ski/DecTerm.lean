@@ -30,7 +30,7 @@ text and a meaning:
   `K` (`compDExportG_sound`).
 - **`dectermExport_close`**: for a verifier `λ β w. C` that ignores its
   arguments (`verT C`), any implementation `P` of the `dec` contract closed
-  in for the jet makes `C` reach `K` by weak reduction (`HSteps.close`,
+  in for the jet makes `C` reach `K` by weak reduction (`HSteps.close_K`,
   β, Church–Rosser).  With `C` a public program whose every occurrence of
   some term `P₀` is replaced by `J` (`P₀` implementing the contract), the
   closed `C` is the program itself: an accepted proof shows the program
@@ -65,13 +65,13 @@ theorem dectermExport_sound {Vs : List OTerm} {W : Nat} (hV : vsOK Vs = true)
 /-- **A verifier that ignores its arguments**: its check term, with any
     implementation of the `dec` contract closed in for the jet, reaches
     `K` by weak reduction. -/
-theorem verT_close {C : OTerm} (hocc : ∀ x, Occ x C → x = JD) {A : DecJet.Dom → Prop} {b w : Term}
+theorem verT_close {C : OTerm} (hocc : ∀ x, Occ x C → x = JD) {A : OTerm → Prop} {b w : Term}
     {P : Term} (hP : DataJet.Implements DecJet.decContract P)
     (h : HSteps A JD (verT C ⬝ₒ b.toO ⬝ₒ w.toO) .K) : WSteps (C.close (DecPre.envD P)) Term.K := by
   have hσ : DataJet.Implements DecJet.decContract (DecPre.envD P JD) := by
     show DataJet.Implements DecJet.decContract (if JD = JD then P else Term.K)
     rw [if_pos rfl]; exact hP
-  have hk := DecPre.HSteps.close (DecPre.envD P) hσ h
+  have hk := DecPre.HSteps.close_K (DecPre.envD P) hσ h
   have e : (verT C ⬝ₒ b.toO ⬝ₒ w.toO).close (DecPre.envD P) = appT ((verT C).close (DecPre.envD P)) [b, w] := by
     show (verT C).close _ ⬝ b.toO.close _ ⬝ w.toO.close _ = _
     rw [close_toO, close_toO]; rfl

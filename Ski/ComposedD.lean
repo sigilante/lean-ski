@@ -1,5 +1,5 @@
 import Ski.ComposedO
-import Ski.DecJet
+import Ski.DecInd
 
 /-!
 # Composed statements with the `dec` jet: the run
@@ -7,13 +7,14 @@ import Ski.DecJet
 A statement whose verifiers use the `dec` jet is a list of open terms, the
 jet the variable `J`.  **`AcceptsCD`** is `AcceptsCP` (`Ski/ComposedP.lean`)
 with the `dec` jet's row in place of Poseidon2's: each row within a segment
-steps, halts, or, once its state decodes, takes `DecJet.decRow`'s step
-(`NormRowD`).  The decode is the read-back the circuit's need tree uses for
+steps, halts, or, once its state decodes, takes `DecJet.decRowI`'s step,
+the subject read through `K`-thunks (`NormRowD`).  The decode is the read-back the circuit's need tree uses for
 its fuel; every row of a run from a decoded start decodes.
 
 **`HSteps`**: what the run reads back as, head reduction with the jet's
-rule at the head, `J ⬝ encNn s ⬝ R ⟶ encO (decSpec s) ⬝ R`, for subjects
-`s` the memory holds (`InMem`).  The machine contracts only the head, so
+rule at the head, `J ⬝ u ⬝ R ⟶ v ⬝ R` with `u ↠ encNn s` and `v ↠ encO
+(decSpec s)` by `K`-contraction (`DecJet.ORed`), for arguments `u` the
+memory holds (`InMem`).  The machine contracts only the head, so
 the run is head reduction, which is deterministic up to the jet's row;
 this is what lets a verifier's meaning be read off its run
 (`Ski/DecPreSound.lean`).
@@ -32,32 +33,34 @@ open Mach Stmt Compose Wit DecJet
 /-- A row: a step or a halted row repeated (`Air.NormRow`, no template
     jets), or, once its state decodes, the `dec` jet's row. -/
 def NormRowD (M : List Cell) (J : Nat) (r r' : Air.Row) : Prop :=
-  Air.NormRow M [] [] r r' ∨ (∀ t, odecode (Air.st M r) = some t → decRow M J r = some r')
+  Air.NormRow M [] [] r r' ∨ (∀ t, odecode (Air.st M r) = some t → decRowI M J r = some r')
 
-/-- A subject the memory holds. -/
-def InMem (M : List Cell) (s : Dom) : Prop := ∃ root, otermAt M M.length root = some (encNn s.1).toO
+/-- An argument the memory holds: the read-back of a cell. -/
+def InMem (M : List Cell) (u : OTerm) : Prop := ∃ root, otermAt M M.length root = some u
 
-/-- **Head reduction with the `dec` jet**, the jet's subjects in `A`. -/
-inductive HStep (A : Dom → Prop) (J : Nat) : OTerm → OTerm → Prop
+/-- **Head reduction with the `dec` jet**, the jet's arguments in `A`: the
+    argument reduces to an encoded subject, the outcome to its encoded
+    decrement, by `K`-contraction. -/
+inductive HStep (A : OTerm → Prop) (J : Nat) : OTerm → OTerm → Prop
   | head {t u : OTerm} (h : OStep t u) : HStep A J t u
-  | jet (s : Dom) (hs : A s) (R : List OTerm) :
-      HStep A J (appL (.var J) ((encNn s.1).toO :: R)) (appL (DecJet.encO (decSpec s.1)).toO R)
+  | jet (s : Dom) {u v : OTerm} (hA : A u) (hu : ORed u (encNn s.1).toO) (hv : ORed v (DecJet.encO (decSpec s.1)).toO)
+      (R : List OTerm) : HStep A J (appL (.var J) (u :: R)) (appL v R)
 
-inductive HSteps (A : Dom → Prop) (J : Nat) : OTerm → OTerm → Prop
+inductive HSteps (A : OTerm → Prop) (J : Nat) : OTerm → OTerm → Prop
   | refl (t : OTerm) : HSteps A J t t
   | step {t t' u : OTerm} (h : HStep A J t t') (hs : HSteps A J t' u) : HSteps A J t u
 
-theorem HSteps.trans {A : Dom → Prop} {J : Nat} {t u v : OTerm} (h₁ : HSteps A J t u) (h₂ : HSteps A J u v) :
+theorem HSteps.trans {A : OTerm → Prop} {J : Nat} {t u v : OTerm} (h₁ : HSteps A J t u) (h₂ : HSteps A J u v) :
     HSteps A J t v := by
   induction h₁ with
   | refl _ => exact h₂
   | step h _ ih => exact .step h (ih h₂)
 
-/-- **A jet row, read back**, with its subject in the memory. -/
-theorem decRow_hstep {M : List Cell} {J : Nat} {r r' : Air.Row} (h : decRow M J r = some r')
+/-- **A jet row, read back**, with its argument in the memory. -/
+theorem decRowI_hstep {M : List Cell} {J : Nat} {r r' : Air.Row} (h : decRowI M J r = some r')
     (hc : r.ctr ≤ M.length) {t : OTerm} (hdec : odecode (Air.st M r) = some t) :
     r'.ctr ≤ M.length ∧ ∃ u, odecode (Air.st M r') = some u ∧ HSteps (InMem M) J t u := by
-  obtain ⟨p, rest, s, csk, ask, sks, cells, root, hhd, hs, hpop, hrd, hfit, hout, hw, rfl⟩ := decRow_unfold h
+  obtain ⟨p, rest, s, csk, ask, sks, cells, root, hhd, hs, hpop, hrd, hfit, hout, hw, rfl⟩ := decRowI_unfold h
   generalize hH : M.take r.ctr = H at hhd hs hpop hrd hout
   have hHl : H.length = r.ctr := by rw [← hH, List.length_take]; omega
   have htake := Air.take_of_wrs hw
@@ -77,18 +80,17 @@ theorem decRow_hstep {M : List Cell} {J : Nat} {r r' : Air.Row} (h : decRow M J 
   obtain ⟨Ns, R, G, hG, hargs, hNl, hpl, hok, hR⟩ := popN_ospec 1 hpop h2
   match Ns, hNl, hok with
   | [N], _, ⟨hN, _⟩ =>
-    have hNe := readSubj_ot hrd hN
-    subst hNe
+    have hNe := readSubjI_ot hrd hN
     rw [← hHl] at hout
-    have hroot := out_ot hs hrd hout hN
-    let sd : Dom := ⟨s, readSubj_wf hrd, hfit⟩
-    have hmem : InMem M sd := by
+    obtain ⟨v, hroot, hv⟩ := out_otI hs H.length p hrd hout hN (Nat.le_refl _)
+    let sd : Dom := ⟨s, readSubjI_wf hrd, hfit⟩
+    have hmem : InMem M N := by
       refine ⟨p, ?_⟩
       have := Air.otermAt_take (M := M) (c := r.ctr) (c' := M.length) (f := H.length + 1) (f' := M.length) hc
         (by omega) (by rw [hH]; exact hN)
       rw [List.take_length] at this
       exact this
-    refine ⟨_, ?_, .step (by rw [hargs, hj]; exact HStep.jet sd hmem R) (.refl _)⟩
+    refine ⟨_, ?_, .step (by rw [hargs, hj]; exact HStep.jet sd hmem hNe hv R) (.refl _)⟩
     show odecode ⟨M.take (r.ctr + cells.length), root, rest⟩ = _
     rw [htake]
     apply odecode_of hroot
@@ -111,8 +113,8 @@ theorem normRowD_spec {M : List Cell} {J : Nat} {r r' : Air.Row} (hc : r.ctr ≤
     · exact nomatch hm
     · exact ⟨t, hdec, .refl t⟩
   · have hd := hj t hdec
-    obtain ⟨a1, _⟩ := decRow_ctr_len hd hc
-    obtain ⟨a2, hu⟩ := decRow_hstep hd hc hdec
+    obtain ⟨a1, _⟩ := decRowI_ctr_len hd hc
+    obtain ⟨a2, hu⟩ := decRowI_hstep hd hc hdec
     exact ⟨a1, a2, hu⟩
 
 /-- **The AIR with segments and the `dec` jet accepts**: as `AcceptsCP`,
