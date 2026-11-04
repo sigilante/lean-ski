@@ -1183,8 +1183,8 @@ two-field cell of two computed fields). A normaliser `norm` with `J ⬝
 (norm ⬝ x)` laid out therefore does not exist.
 
 Route (B), a row that reads through the thunks, is done at the row and
-the term, not yet in the DEC table (`Ski/DecInd.lean`, branch `dec-norm`;
-the gap is `todo/dec-norm.md`). `readInd` follows `K R w` to `R`; the
+the term (`Ski/DecInd.lean`), and in the DEC table (below; the gaps are
+`todo/dec-norm.md`). `readInd` follows `K R w` to `R`; the
 reader `readSubjI` follows chains of them at every need-tree pointer (the
 root, the head, a cell's halves, an atom's bits and each tail) and one at
 a `Cell` wrapper's tail slot `K t` (`ktAt`). `decRowI` is `decRow` with
@@ -1207,13 +1207,49 @@ contractions for `N` = 1, 3, 10, 20, against 8,434 / 23,459 / 136,500 /
 466,653 unjetted on the same machine (17,348 / 34,805 / 97,843 / 190,465
 transitions against 20,757 / 57,785 / 336,681 / 1,152,824). The jetted cost
 is linear in `N` (about 3,700 contractions a call, the normaliser and the
-loop's own work); the unjetted is quadratic. These are machine runs. A
-proof needs the DEC table to read through thunks: an indirection row in
-the need tree and the bit chains, and three slots for the tail slot's
-thunk in the `Cell` row, with `decpreExport_sound` and
-`decpre_complete_log` re-proved; and the Nock claim needs the compiler's
-correctness with the word replaced by `normJ` (`normDec_enc` is its
-per-call fact).
+loop's own work); the unjetted is quadratic.
+
+The DEC table now reads through the thunks (branch `dec-thunk`). A fifth
+row kind, the indirection, reads `K R w` through three slots and passes a
+need or a chain's step on from the thunk to `R`; the `Cell` row reads its
+tail slot bare or through one thunk (`IKT`, 28 slots). A normalised bit
+list ends in the thunk `K K k`, not `K`, so the `Cons` row no longer peeks
+at its tail: the last `Cons` says it is the last, marks its step to the
+tail, and the chain must end, through any thunks, at a nil that ends a
+list; an unmarked nil is the empty list at level `0`. Soundness is
+re-proved for that table (`compare-compd` matches the Rust):
+`CompDOK.jetRow` concludes `decRowI`, the run is head reduction with the
+jet up to `K`-contraction (`HSteps.close_K`), and `decpreExport_sound` and
+`dectermExport_close` hold as before, `decpreExport_sound`'s subject now a
+memory cell whose read-back `K`-contracts to `encNn s`. A backward step
+through indirection rows could in principle go round a cycle of thunks;
+it cannot reach a non-thunk, since a run of more thunk steps than the
+memory has cells repeats a cell and its end is a thunk (`CompDBack`,
+`iterI_bound`). Axioms `propext`, `Quot.sound`. Completeness is not
+re-proved for this table: `compDG_complete_dec` (given a DEC table that
+provides the jet's calls) and `compDG_complete_nojet` hold, but the honest
+DEC table's proofs (`decProvides_exists`, `decpre_complete_log`) are out of
+the build (`todo/dec-complete/`, `todo/dec-norm.md`). The releases with
+the `dec` jet are re-produced and verify (lean-ski `release/dec`, skinock
+`release/nock/decloop`'s `dec_N`, a DEC row more per bit list, its list's
+end).
+
+The loop on the circuit (skinock `Nock2Ski/DecLoopNorm.lean`): the
+`decterm` statement whose verifier is the loop's check with every
+occurrence of the word replaced by `normJ J`, one copy of `normT` shared
+(`nockLoopV`). `nockloop_close`: an accepted proof makes that check, with
+the bare word for `J`, reach `K`. That this gives `*[[N [0 0]] decLoopF] =
+[0 [0 0]]` needs the compiler's correctness with the replacement and its
+converse, not proved (`normDec_enc` is the per-call fact). The jet fires at
+every call on the circuit: 17,544 / 35,165 / 98,777 / 192,219 CPU rows and
+20 / 64 / 238 / 508 DEC rows for `N` = 1, 3, 10, 20 (`ski-air
+compd-measure`), against 20,757 / 57,785 / 336,681 / 1,152,824 rows
+unjetted. The statement's heap is the compiled program as a tree, 2.35
+million cells, so the memory table is `2^22` rows. In a first form of the
+statement (`normT` at each of the 13 occurrences, 2.36 million cells)
+`loop_1` proved in 129 s (17,355 CPU rows, 20 DEC rows) and verified in 37
+s, a 1.56 MB proof, at a 13.5 GB peak, beyond this machine's 4 GB budget;
+no loop is proved in the released form, and none is released.
 
 Fiat–Shamir, round by round (`Ski/ZK/FSRound.lean`, `ski-air fs-budget`).
 Lean proves the counting step: `q` adaptive hash calls hit a round of bad
