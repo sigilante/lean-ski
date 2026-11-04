@@ -41,7 +41,7 @@ import Ski.P2Once
 import Ski.DecJet
 import Ski.ComposedDText
 import Ski.DecPreSound
-import Ski.Circuit.CompDComplete
+import Ski.Circuit.CompDCompleteFinal
 import Ski.Circuit.DecAir
 import Ski.ZK.CompPHonest
 import Ski.Circuit.CompPCompleteFinal
@@ -1643,6 +1643,12 @@ open Ski.Audit
 -- tables' existence is the open gap (todo/DecCompleteTodo.lean, not imported)
 #audit_clean Circuit.memL_sat Circuit.sendsL_zero Circuit.bal_memL Circuit.bal_memD_identity Circuit.balancedD
   Circuit.compDG_complete_of
+-- the honest CPU with the jet's columns (CompDHonest, CompDBal): its AIR, its
+-- memory and segment lookups, its jet buses; completeness given DEC (CompDCompleteFinal)
+#audit_clean Circuit.decRow_inv Circuit.decRow_halt Circuit.DRun.runC Circuit.DRun.plain_row
+  Circuit.DRun.kindD_isKind Circuit.DRun.cpuC_nextD Circuit.DRun.cpuD_read Circuit.DRun.cpuD_sat
+  Circuit.DRun.cpuD_honest Circuit.DRun.cpuD_segsHonest Circuit.DRun.cpuD_blindQuiet Circuit.DRun.cpuD_jetSends
+  Circuit.DRun.ctr_le Circuit.DRun.stk_le Circuit.compDG_complete_dec
 
 -- The circuit with the Poseidon2 jet under Fiat–Shamir: its hiding PCS, P2OUT
 -- and Poseidon2 at degree 3 over eight chunks (CompPInst), the honest run's
