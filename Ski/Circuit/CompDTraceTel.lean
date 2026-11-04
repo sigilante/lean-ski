@@ -192,6 +192,305 @@ theorem x_atom (hk : d.kind = 2) (hro : d.ro = 0) : sendsT A d "decx" v =
 
 end Rows
 
+-- ---------------------------------------------------------------------------
+-- Sums over rows
+-- ---------------------------------------------------------------------------
+
+/-- What a list of rows sends on `B` with the tuple `v`. -/
+def S (A : List Cell) (B : String) (v : List F) (L : List DR) : F :=
+  (L.map (fun d => sendsT A d B v)).foldr (· + ·) 0
+
+section Sums
+variable {A : List Cell} {B : String} {v : List F}
+
+theorem S_cons (d : DR) (L : List DR) : S A B v (d :: L) = sendsT A d B v + S A B v L := rfl
+
+theorem S_nil : S A B v [] = 0 := rfl
+
+theorem S_append : ∀ (L1 L2 : List DR), S A B v (L1 ++ L2) = S A B v L1 + S A B v L2
+  | [], L2 => (zero_add' _).symm
+  | d :: L1, L2 => by rw [List.cons_append, S_cons, S_cons, S_append L1 L2, add_assoc']
+
+theorem S_zero : ∀ {L : List DR}, (∀ d ∈ L, sendsT A d B v = 0) → S A B v L = 0
+  | [], _ => rfl
+  | d :: L, h => by
+    rw [S_cons, h d List.mem_cons_self, S_zero (fun d' hd => h d' (List.mem_cons_of_mem _ hd))]; exact zero_add' 0
+
+end Sums
+
+theorem tel3 (a b c : F) : -a + (b + c) + (-b + -c) = -a := by grind
+theorem tel2 (a b : F) : -a + b + -b = -a := by grind
+theorem tel0 (b : F) : b + (-b) = 0 := by grind
+
+-- ---------------------------------------------------------------------------
+-- The rows' shapes
+-- ---------------------------------------------------------------------------
+
+section Shape
+variable {A : List Cell} {key : Nat}
+
+theorem bits_shape {m : Bool} : ∀ (n p lvl : Nat) (bw : Bool) (wc : Nat), ∀ d ∈ bitsRows A key m n p lvl bw wc,
+    (d.kind = 3 ∨ d.kind = 4) ∧ d.m = m
+  | 0, _, _, _, _ => by intro d hd; cases hd
+  | n + 1, p, lvl, bw, wc => by
+    intro d hd
+    unfold bitsRows at hd
+    split at hd
+    · rw [List.mem_singleton] at hd; subst hd; exact ⟨.inr rfl, rfl⟩
+    · split at hd
+      · rcases List.mem_cons.1 hd with rfl | hd
+        · exact ⟨.inl rfl, rfl⟩
+        · split at hd
+          · cases hd
+          · exact bits_shape n _ _ _ _ d hd
+      · cases hd
+
+/-- A noun's rows: wrappers in its role or a tail's, chains in its mode or `1`. -/
+theorem noun_shape : ∀ (n p ro : Nat), ∀ d ∈ nounRows A key n p ro,
+    (d.kind = 1 ∨ d.kind = 2 → d.ro = ro ∨ d.ro = 2) ∧ (d.kind = 3 ∨ d.kind = 4 → d.m = (ro != 1) ∨ d.m = true) ∧
+      1 ≤ d.kind ∧ d.kind ≤ 4
+  | 0, _, _ => by intro d hd; cases hd
+  | n + 1, p, ro => by
+    intro d hd
+    unfold nounRows at hd
+    split at hd
+    · rcases List.mem_cons.1 hd with rfl | hd
+      · exact ⟨fun _ => .inl rfl, fun h => by simp [atomRow] at h, by simp [atomRow], by simp [atomRow]⟩
+      · obtain ⟨hk, hm⟩ := bits_shape _ _ _ _ _ d hd
+        exact ⟨fun h => by omega, fun _ => .inl hm, by omega, by omega⟩
+    · split at hd
+      · rcases List.mem_cons.1 hd with rfl | hd
+        · exact ⟨fun _ => .inl rfl, fun h => by simp [cellRow] at h, by simp [cellRow], by simp [cellRow]⟩
+        · have : ∀ q, d ∈ nounRows A key n q 2 → _ := fun q h => noun_shape n q 2 d h
+          rcases List.mem_append.1 hd with hd | hd <;>
+          · obtain ⟨h1, h2, h3, h4⟩ := noun_shape n _ 2 d hd
+            exact ⟨fun h => .inr ((h1 h).elim id id), fun h => .inr ((h2 h).elim (fun e => by rw [e]; rfl) id), h3, h4⟩
+      · cases hd
+
+end Shape
+
+-- ---------------------------------------------------------------------------
+-- decn: the nouns' needs
+-- ---------------------------------------------------------------------------
+
+section Chains
+variable {A : List Cell} {key : Nat} {v : List F}
+
+theorem S_bits_n {m : Bool} (n p lvl : Nat) (bw : Bool) (wc : Nat) :
+    S A "decn" v (bitsRows A key m n p lvl bw wc) = 0 :=
+  S_zero (fun d hd => n_bits (bits_shape n p lvl bw wc d hd).1)
+
+theorem S_noun_n : ∀ (n p ro : Nat) {s : DecJet.Nn}, ro ≠ 0 → DecJet.readNn (A.take key) n p = some s →
+    S A "decn" v (nounRows A key n p ro) = -ind ([ofN key, ofN p, ofN ro] = v)
+  | 0, _, _, _, _, h => by cases h
+  | n + 1, p, ro, s, hro, h => by
+    unfold nounRows
+    unfold DecJet.readNn at h
+    cases ha : DecJet.readAtom (A.take key) p with
+    | some sk =>
+      simp only
+      rw [S_cons, n_atom (d := atomRow key p ro) rfl, S_bits_n]
+      exact add_zero' _
+    | none =>
+      rw [ha] at h
+      simp only at h ⊢
+      cases hc : DecJet.readCell (A.take key) p with
+      | none => rw [hc] at h; cases h
+      | some sk =>
+        rw [hc] at h
+        simp only at h ⊢
+        cases hh : DecJet.readNn (A.take key) n sk.h with
+        | none => rw [hh] at h; cases h
+        | some hn =>
+          cases ht : DecJet.readNn (A.take key) n sk.t with
+          | none => rw [hh, ht] at h; cases h
+          | some tn =>
+            obtain ⟨_, _, _, _, _, _, h21, h23⟩ := cellReads (d := cellRow key p ro false 0) rfl hc
+            rw [S_cons, n_cell (d := cellRow key p ro false 0) rfl h21 h23, S_append,
+              S_noun_n n sk.h 2 (by decide) hh, S_noun_n n sk.t 2 (by decide) ht]
+            have : h0 (cellRow key p ro false 0) = 0 := bF_f (by simp [cellRow]; omega)
+            rw [this, show (ofN 2 - 0 : F) = ofN 2 from rfl]
+            exact tel3 _ _ _
+
+-- ---------------------------------------------------------------------------
+-- decb: the bits' chains
+-- ---------------------------------------------------------------------------
+
+theorem S_bits_b {m : Bool} : ∀ (n p lvl : Nat) (bw : Bool) (wc : Nat) {bs : List Bool} {sks : List DecJet.ConsSk},
+    DecJet.readBits (A.take key) n p = some (bs, sks) →
+    S A "decb" v (bitsRows A key m n p lvl bw wc) = -ind ([ofN key, ofN p, bF m, ofN lvl, bF bw, ofN wc] = v)
+  | 0, _, _, _, _, _, _, h => by cases h
+  | n + 1, p, lvl, bw, wc, bs, sks, h => by
+    unfold bitsRows
+    unfold DecJet.readBits at h
+    by_cases hK : DecJet.isK (A.take key) p = true
+    · rw [if_pos hK, S_cons, b_nil (d := nilRow key p m lvl bw wc) rfl, S_nil]; exact add_zero' _
+    · rw [if_neg hK] at h ⊢
+      cases hr : DecJet.readCons (A.take key) p with
+      | none => rw [hr] at h; cases h
+      | some q =>
+        obtain ⟨b, sk⟩ := q
+        rw [hr] at h
+        simp only at h ⊢
+        cases hb : DecJet.readBits (A.take key) n sk.t with
+        | none => rw [hb] at h; cases h
+        | some q2 =>
+          obtain ⟨bs', sks'⟩ := q2
+          by_cases hl : DecJet.isK (A.take key) sk.t = true
+          · rw [if_pos hl, S_cons, b_consL (d := consRow key p m lvl bw wc b (DecJet.isK (A.take key) sk.t)) rfl hl, S_nil]; exact add_zero' _
+          · have hl' : DecJet.isK (A.take key) sk.t = false := by simpa using hl
+            obtain ⟨_, _, _, h14⟩ := consReads (d := consRow key p m lvl bw wc b (DecJet.isK (A.take key) sk.t)) rfl hr
+              rfl rfl (fun hK' => readBits_tail hb hK')
+            rw [if_neg hl, S_cons, b_cons (d := consRow key p m lvl bw wc b (DecJet.isK (A.take key) sk.t)) rfl hl' h14,
+              S_bits_b n sk.t (lvl + 1) _ _ hb]
+            exact tel2 _ _
+
+theorem S_noun_b : ∀ (n p ro : Nat) {s : DecJet.Nn}, DecJet.readNn (A.take key) n p = some s →
+    S A "decb" v (nounRows A key n p ro) = 0
+  | 0, _, _, _, h => by cases h
+  | n + 1, p, ro, s, h => by
+    unfold nounRows
+    unfold DecJet.readNn at h
+    cases ha : DecJet.readAtom (A.take key) p with
+    | some sk =>
+      rw [ha] at h
+      simp only at h ⊢
+      cases hb : DecJet.readBits (A.take key) (n + 1) sk.b with
+      | none => rw [hb] at h; cases h
+      | some q =>
+        obtain ⟨_, _, _, _, _, h22⟩ := atomReads (d := atomRow key p ro) rfl ha
+        rw [S_cons, b_atom (d := atomRow key p ro) rfl h22, S_bits_b _ _ _ _ _ hb]
+        exact tel0 (ind ([ofN key, ofN sk.b, bF (ro != 1), ofN 0, bF (ro == 1), ofN 0] = v))
+    | none =>
+      rw [ha] at h
+      simp only at h ⊢
+      cases hc : DecJet.readCell (A.take key) p with
+      | none => rw [hc] at h; cases h
+      | some sk =>
+        rw [hc] at h
+        simp only at h ⊢
+        cases hh : DecJet.readNn (A.take key) n sk.h with
+        | none => rw [hh] at h; cases h
+        | some hn =>
+          cases ht : DecJet.readNn (A.take key) n sk.t with
+          | none => rw [hh, ht] at h; cases h
+          | some tn =>
+            rw [S_cons, b_cell (d := cellRow key p ro false 0) rfl, S_append, S_noun_b n sk.h 2 hh,
+              S_noun_b n sk.t 2 ht]
+            simp only [zero_add']
+
+-- ---------------------------------------------------------------------------
+-- decd: the head's verdict
+-- ---------------------------------------------------------------------------
+
+/-- The cells the head's rewritten bits take, from a borrow. -/
+def wcAdd : Bool → List Bool → Nat
+  | _, [] => 0
+  | bw, b :: bs => (if bw && !(b && bs.isEmpty) then 6 else 0) + wcAdd (bw && !b) bs
+
+theorem wcAdd_false : ∀ bs, wcAdd false bs = 0
+  | [] => rfl
+  | b :: bs => by simp [wcAdd, wcAdd_false bs]
+
+theorem wcAdd_cells : ∀ (c : Nat) (bs : List Bool) (sks : List DecJet.ConsSk), sks.length = bs.length →
+    wcAdd true bs = (DecJet.bitCells c bs sks).length
+  | _, [], _, _ => rfl
+  | _, _ :: _, [], h => by simp at h
+  | c, false :: bs, sk :: sks, h => by
+    simp only [wcAdd, DecJet.bitCells, List.length_append, Bool.false_and, Bool.not_false, Bool.and_true,
+      if_true, Bool.not_false]
+    rw [wcAdd_cells (c + 6) bs sks (by simpa using h)]; simp
+  | c, true :: bs, sk :: sks, _ => by
+    cases bs with
+    | nil => rfl
+    | cons b bs => simp [wcAdd, DecJet.bitCells, wcAdd_false]
+
+theorem readBits_ne {H : List Cell} {n t : Nat} {bs : List Bool} {sks : List DecJet.ConsSk}
+    (h : DecJet.readBits H n t = some (bs, sks)) (hK : DecJet.isK H t = false) : bs ≠ [] := by
+  cases n with
+  | zero => cases h
+  | succ n =>
+    unfold DecJet.readBits at h
+    rw [hK, if_neg (by decide)] at h
+    split at h
+    · split at h
+      · cases h; exact List.cons_ne_nil _ _
+      · cases h
+    · cases h
+
+theorem S_bits_d : ∀ (n p lvl : Nat) (bw : Bool) (wc : Nat) {bs : List Bool} {sks : List DecJet.ConsSk},
+    DecJet.readBits (A.take key) n p = some (bs, sks) →
+    S A "decd" v (bitsRows A key false n p lvl bw wc) =
+      if bs = [] then ind ([ofN key, ofN 1, ofN wc] = v) else ind ([ofN key, ofN 0, ofN (wc + wcAdd bw bs)] = v)
+  | 0, _, _, _, _, _, _, h => by cases h
+  | n + 1, p, lvl, bw, wc, bs, sks, h => by
+    unfold bitsRows
+    unfold DecJet.readBits at h
+    by_cases hK : DecJet.isK (A.take key) p = true
+    · rw [if_pos hK] at h ⊢
+      cases h
+      rw [S_cons, d_nil (d := nilRow key p false lvl bw wc) rfl rfl, S_nil, if_pos rfl]; exact add_zero' _
+    · rw [if_neg hK] at h ⊢
+      cases hr : DecJet.readCons (A.take key) p with
+      | none => rw [hr] at h; cases h
+      | some q =>
+        obtain ⟨b, sk⟩ := q
+        rw [hr] at h
+        simp only at h ⊢
+        cases hb : DecJet.readBits (A.take key) n sk.t with
+        | none => rw [hb] at h; cases h
+        | some q2 =>
+          obtain ⟨bs', sks'⟩ := q2
+          rw [hb] at h
+          simp only [Option.some.injEq, Prod.mk.injEq] at h
+          obtain ⟨rfl, rfl⟩ := h
+          rw [if_neg (List.cons_ne_nil _ _)]
+          by_cases hl : DecJet.isK (A.take key) sk.t = true
+          · rw [if_pos hl, S_cons, d_consL (d := consRow key p false lvl bw wc b (DecJet.isK (A.take key) sk.t)) rfl rfl hl, S_nil, add_zero']
+            rw [readBits_K hb hl]
+            show ind ([ofN key, ofN 0, ofN (wc + (if bw && !b then 6 else 0))] = v) = _
+            congr 4
+            cases bw <;> cases b <;> rfl
+          · have hl' : DecJet.isK (A.take key) sk.t = false := by simpa using hl
+            have hne := readBits_ne hb hl'
+            rw [if_neg hl, S_cons, d_cons (d := consRow key p false lvl bw wc b (DecJet.isK (A.take key) sk.t)) rfl hl', zero_add',
+              S_bits_d n sk.t (lvl + 1) _ _ hb, if_neg hne]
+            congr 4
+            have : bs'.isEmpty = false := by cases bs' with | nil => exact absurd rfl hne | cons _ _ => rfl
+            simp only [wcAdd, this, Bool.and_false, Bool.not_false, Bool.and_true]
+            cases bw <;> simp [Nat.add_assoc]
+
+theorem S_noun2_d : ∀ (n p : Nat), S A "decd" v (nounRows A key n p 2) = 0 := by
+  intro n p
+  apply S_zero
+  intro d hd
+  obtain ⟨h1, h2, h3, h4⟩ := noun_shape n p 2 d hd
+  refine d_zero ⟨h3, h4⟩ (fun h => ?_) (fun h => ?_)
+  · rcases h1 (.inl h) with e | e <;> rw [e] <;> decide
+  · rcases h2 h with e | e <;> rw [e] <;> rfl
+
+theorem S_noun_x : ∀ (n p ro : Nat), ro ≠ 0 → S A "decx" v (nounRows A key n p ro) = 0 := by
+  intro n p ro hro
+  apply S_zero
+  intro d hd
+  obtain ⟨h1, _, _, _⟩ := noun_shape n p ro d hd
+  exact x_zero (fun h => by rcases h1 h with e | e <;> rw [e] <;> omega)
+
+theorem S_bits_x {m : Bool} (n p lvl : Nat) (bw : Bool) (wc : Nat) :
+    S A "decx" v (bitsRows A key m n p lvl bw wc) = 0 :=
+  S_zero (fun d hd => x_zero (fun h => by have := (bits_shape n p lvl bw wc d hd).1; omega))
+
+theorem S_bits_d1 (n p lvl : Nat) (bw : Bool) (wc : Nat) :
+    S A "decd" v (bitsRows A key true n p lvl bw wc) = 0 :=
+  S_zero (fun d hd => by
+    obtain ⟨hk, hm⟩ := bits_shape n p lvl bw wc d hd
+    exact d_zero (by omega) (fun h => by omega) (fun _ => hm))
+
+theorem S_bits_b0 {m : Bool} (n p lvl : Nat) (bw : Bool) (wc : Nat) :
+    S A "decn" v (bitsRows A key m n p lvl bw wc) = 0 := S_bits_n n p lvl bw wc
+
+end Chains
+
 end DecT
 
 end Circuit
