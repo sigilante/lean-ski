@@ -143,9 +143,20 @@ def CLK : Nat := 32
 def NLK : Nat := 33
 def SUBERR : Nat := 34
 def CG : Nat := 35
-def LB : Nat := 36
+/-- The indirection row's kind, its bus selector (`0`: a need, `1`: a chain)
+    and their products. -/
+def KIND : Nat := 36
+def IB : Nat := 37
+def INN : Nat := 38
+def INB : Nat := 39
+/-- A `Cell` row whose tail slot is behind one `K`-thunk, and its product. -/
+def IKT : Nat := 40
+def CKT : Nat := 41
+/-- A nil that ends a list whose last `Cons` said so. -/
+def TERM : Nat := 42
+def LB : Nat := 43
 def NLB : Nat := 5
-def NSLOT : Nat := 25
+def NSLOT : Nat := 28
 def ADDR : Nat := LB + NLB
 def TAG : Nat := ADDR + NSLOT
 def DFLD : Nat := TAG + NSLOT
@@ -161,18 +172,25 @@ inductive Src
   | rowP
   | F1 (i : Nat)
   | F2 (i : Nat)
+  /-- The `Cell` row's tail slot: `F2 14`, or through the thunk `F2 24`. -/
+  | KT
 
-/-- What tag a slot expects: a constant, the bit's, or the peeked tail's. -/
+/-- What tag a slot expects: a constant, or the bit's. -/
 inductive Tg
   | C (n : Nat)
   | BitTag
-  | LastTag
 
 def cellSlots : List (Src × Tg) :=
   [(.rowP, .C 3), (.F1 0, .C 1), (.F2 0, .C 3), (.F1 2, .C 3), (.F1 3, .C 0), (.F2 3, .C 3), (.F1 5, .C 1),
    (.F2 5, .C 1), (.F2 2, .C 3), (.F1 8, .C 3), (.F1 9, .C 0), (.F2 9, .C 3), (.F1 11, .C 1), (.F2 11, .C 1),
    (.F2 8, .C 3), (.F1 14, .C 3), (.F1 15, .C 0), (.F2 15, .C 3), (.F1 17, .C 3), (.F1 18, .C 0), (.F2 18, .C 2),
-   (.F2 17, .C 3), (.F1 21, .C 1), (.F2 14, .C 3), (.F1 23, .C 1)]
+   (.F2 17, .C 3), (.F1 21, .C 1), (.F2 14, .C 3), (.F1 23, .C 3), (.F1 24, .C 1), (.KT, .C 3), (.F1 26, .C 1)]
+
+/-- The `Cell` row's thunk slots, gated by `CKT`. -/
+def cellGated : List Nat := [23, 24, 25]
+
+/-- The indirection `K R w` at the row's pointer: `p = f w`, `f = k R`, `k = K`. -/
+def indSlots : List (Src × Tg) := [(.rowP, .C 3), (.F1 0, .C 3), (.F1 1, .C 1)]
 
 def atomSlots : List (Src × Tg) :=
   [(.rowP, .C 3), (.F1 0, .C 3), (.F1 1, .C 0), (.F2 1, .C 3), (.F1 3, .C 1), (.F2 3, .C 1), (.F2 0, .C 3),
@@ -183,7 +201,7 @@ def atomSlots : List (Src × Tg) :=
 def consSlots : List (Src × Tg) :=
   [(.rowP, .C 3), (.F1 0, .C 1), (.F2 0, .C 3), (.F1 2, .C 3), (.F1 3, .C 0), (.F2 3, .C 3), (.F1 5, .C 3),
    (.F1 6, .C 0), (.F2 6, .C 2), (.F2 5, .C 3), (.F1 9, .C 1), (.F2 9, .BitTag), (.F1 11, .C 1), (.F2 11, .C 2),
-   (.F2 2, .C 3), (.F1 14, .C 1), (.F2 14, .LastTag)]
+   (.F2 2, .C 3), (.F1 14, .C 1)]
 
 def consGated : List Nat := [12, 13]
 
@@ -191,11 +209,11 @@ def src : Src → E
   | .rowP => col PC
   | .F1 i => f1 i
   | .F2 i => f2 i
+  | .KT => .add (.mul (.sub one (col IKT)) (f2 14)) (.mul (col IKT) (f2 24))
 
 def tg : Tg → E
   | .C n => c n
   | .BitTag => .sub (c 3) (.mul (c 2) (col BIT))
-  | .LastTag => .sub (c 3) (.mul (c 2) (col ISLAST))
 
 /-- A kind's part of slot `j`'s address, tag and activity. -/
 def part (k : Nat) (slots : List (Src × Tg)) (j : Nat) (gate : E) : E × E × E :=
@@ -208,21 +226,24 @@ def addrE (j : Nat) : E :=
   let (a2, _, _) := part KATOM atomSlots j (col KATOM)
   let (a3, _, _) := part KCONS consSlots j (col KCONS)
   let a4 : E := if j = 0 then .mul (col KNIL) (col PC) else zero
-  .add (.add (.add a1 a2) a3) a4
+  let (a5, _, _) := part KIND indSlots j (col KIND)
+  .add (.add (.add (.add a1 a2) a3) a4) a5
 
 def tagE (j : Nat) : E :=
   let (_, t1, _) := part KCELL cellSlots j (col KCELL)
   let (_, t2, _) := part KATOM atomSlots j (col KATOM)
   let (_, t3, _) := part KCONS consSlots j (col KCONS)
   let t4 : E := if j = 0 then .mul (col KNIL) (c 1) else zero
-  .add (.add (.add t1 t2) t3) t4
+  let (_, t5, _) := part KIND indSlots j (col KIND)
+  .add (.add (.add (.add t1 t2) t3) t4) t5
 
 def actE (j : Nat) : E :=
-  let (_, _, g1) := part KCELL cellSlots j (col KCELL)
+  let (_, _, g1) := part KCELL cellSlots j (if j ∈ cellGated then col CKT else col KCELL)
   let (_, _, g2) := part KATOM atomSlots j (col KATOM)
   let (_, _, g3) := part KCONS consSlots j (if j ∈ consGated then col CG else col KCONS)
   let g4 : E := if j = 0 then col KNIL else zero
-  .add (.add (.add g1 g2) g3) g4
+  let (_, _, g5) := part KIND indSlots j (col KIND)
+  .add (.add (.add (.add g1 g2) g3) g4) g5
 
 def rangeValD (j : Nat) : E :=
   (List.range RANGE_BITS).foldl (fun v i => .add v (.mul (col (DBITS + j * RANGE_BITS + i)) (c (2 ^ i)))) zero
@@ -242,10 +263,22 @@ def aE : E := .add (.add (col KEY) (c 12)) (.mul (c 6) (col LVL))
 
 def levelVal : E := (List.range NLB).foldl (fun v i => .add v (.mul (col (LB + i)) (c (2 ^ i)))) zero
 
+/-- The indirection's and the tail thunk's selectors. -/
+def indCons : List E :=
+  [B.bool (col KIND), B.bool (col IB), B.bool (col IKT), B.bool (col TERM),
+   eq (col INN) (.mul (col KIND) (.sub one (col IB))),
+   eq (col INB) (.mul (col KIND) (col IB)),
+   eq (col CKT) (.mul (col KCELL) (col IKT)),
+   .mul (col KCONS) (col TERM),
+   .mul (.mul (col KNIL) (.sub one (col TERM))) (col LVL)]
+
+/-- A chain's mode field: the mode, and `2` on a list's end. -/
+def mfE : E := .add (col MODE) (.mul (c 2) (col TERM))
+
 /-- **DEC's constraints**, in the Rust's order. -/
 def decCons : List E :=
   [B.bool (col KCELL), B.bool (col KATOM), B.bool (col KCONS), B.bool (col KNIL),
-   B.bool (.add (.add (.add (col KCELL) (col KATOM)) (col KCONS)) (col KNIL)),
+   B.bool (.add (.add (.add (.add (col KCELL) (col KATOM)) (col KCONS)) (col KNIL)) (col KIND)),
    B.bool (col H0), B.bool (col H1), .mul (col H0) (col H1),
    .mul (.add (col KCELL) (col KATOM))
      (.sub (col RO) (.add (col H1) (.mul (c 2) (.sub (.sub one (col H0)) (col H1))))),
@@ -258,9 +291,9 @@ def decCons : List E :=
    eq (col WCN) (.add (col WC) (.mul (c 6) (col WRITES))),
    eq (col NEXTL) (.mul (.mul (col KCONS) (.sub one (col DROPPED))) aE),
    eq (col PTR) (.mul (col KCONS) (.sub (c 2) (.mul (c 2) (.sub (.add (col BIT) (col BW)) (.mul (.mul (c 2) (col BIT)) (col BW)))))),
-   eq (col CSEND) (.mul (col KCONS) (.sub one (col ISLAST))),
+   eq (col CSEND) (col KCONS),
    eq (col DONE0) (.mul (.mul (col KCONS) (col ISLAST)) (.sub one (col MODE))),
-   eq (col DONE1) (.mul (col KNIL) (.sub one (col MODE))),
+   eq (col DONE1) (.mul (.mul (col KNIL) (.sub one (col MODE))) (.sub one (col TERM))),
    eq (col SUB) (.mul (col KCELL) (col H0)),
    eq (col HC) (.mul (col KCELL) (col H1)),
    eq (col ASUB) (.mul (col KATOM) (col H0)),
@@ -273,6 +306,7 @@ def decCons : List E :=
    eq (col CG) (.mul (col KCONS) (.sub one (col BIT)))] ++
   (List.range NLB).map (fun i => B.bool (col (LB + i))) ++
   [.mul (.mul (col KCONS) (.sub one (col MODE))) (.sub (col LVL) levelVal)] ++
+  indCons ++
   (List.range NSLOT).flatMap slotCons
 
 /-- A write of the cell `app x y` at `addr`, counted by `count`. -/
@@ -281,25 +315,35 @@ def wr (addr x y count : E) : Inter := ⟨"mem", 1, count, [addr, c 3, x, y]⟩
 def kE (n : Nat) : E := .add (col KEY) (c n)
 def apE (n : Nat) : E := .add aE (c n)
 
+/-- **The indirection's messages**: a need, or a chain's step, received at
+    the thunk and sent at its target, unchanged. -/
+def indInters : List Inter :=
+  [⟨"decn", 1, .neg (col INN), [col KEY, col PC, col RO]⟩,
+   ⟨"decn", 1, col INN, [col KEY, f2 1, col RO]⟩,
+   ⟨"decb", 1, .neg (col INB), [col KEY, col PC, mfE, col LVL, col BW, col WC]⟩,
+   ⟨"decb", 1, col INB, [col KEY, f2 1, mfE, col LVL, col BW, col WC]⟩]
+
 /-- **DEC's messages**, in the Rust's order. -/
 def decInters : List Inter :=
   (List.range NSLOT).map slotInter ++
   [⟨"decn", 1, .neg (.add (col KCELL) (col KATOM)), [col KEY, col PC, col RO]⟩,
    ⟨"decn", 1, col KCELL, [col KEY, f2 21, .sub (c 2) (col H0)]⟩,
-   ⟨"decn", 1, col KCELL, [col KEY, f2 23, c 2]⟩,
+   ⟨"decn", 1, col KCELL, [col KEY, f2 26, c 2]⟩,
    ⟨"decb", 1, col KATOM, [col KEY, f2 22, .sub one (col H1), c 0, col H1, c 0]⟩,
    ⟨"decb", 1, .neg (col KCONS), [col KEY, col PC, col MODE, col LVL, col BW, col WC]⟩,
-   ⟨"decb", 1, col CSEND, [col KEY, f2 14, col MODE, .add (col LVL) one, col NBW, col WCN]⟩,
-   ⟨"decb", 1, .neg (col KNIL), [col KEY, col PC, col MODE, col LVL, col BW, col WC]⟩,
+   ⟨"decb", 1, col CSEND, [col KEY, f2 14, .add (col MODE) (.mul (c 2) (col ISLAST)), .add (col LVL) one, col NBW,
+     col WCN]⟩,
+   ⟨"decb", 1, .neg (col KNIL), [col KEY, col PC, mfE, col LVL, col BW, col WC]⟩,
    ⟨"decd", 1, .neg (col SUB), [col KEY, col ERR, col WC]⟩,
    ⟨"decd", 1, col DONE0, [col KEY, c 0, col WCN]⟩,
    ⟨"decd", 1, col DONE1, [col KEY, c 1, col WC]⟩,
    ⟨"decd", 1, col HC, [col KEY, c 1, c 0]⟩,
    ⟨"decx", 1, col SUB, [col KEY, .add (col KEY) (.mul (c 12) (col ERR)),
      .add (.add (.add (col KEY) (c 12)) (col WC)) (.mul (c 3) (col ERR))]⟩,
-   ⟨"decx", 1, col ASUB, [col KEY, col KEY, .add (col KEY) (c 3)]⟩,
-   -- The subject's `Cell` wrapper at `key`.
-   wr (kE 0) (c 0) (kE 1) (col SUB), wr (kE 1) (f1 2) (kE 2) (col SUB), wr (kE 2) (f1 8) (kE 3) (col SUB),
+   ⟨"decx", 1, col ASUB, [col KEY, col KEY, .add (col KEY) (c 3)]⟩] ++
+  indInters ++
+  -- The subject's `Cell` wrapper at `key`.
+  [wr (kE 0) (c 0) (kE 1) (col SUB), wr (kE 1) (f1 2) (kE 2) (col SUB), wr (kE 2) (f1 8) (kE 3) (col SUB),
    wr (kE 3) (kE 4) (f2 14) (col SUB), wr (kE 4) (f1 15) (kE 5) (col SUB), wr (kE 5) (f1 17) (kE 6) (col SUB),
    wr (kE 6) (c 0) (kE 7) (col SUB),
    -- `errT` at `key + 12` on a crash.
@@ -449,8 +493,8 @@ theorem dec_ev (i : Nat) : (col i).eval (T.env r) = T.main r i := by
 theorem dec_kinds :
     (T.main r Dec.KCELL = 0 ∨ T.main r Dec.KCELL = 1) ∧ (T.main r Dec.KATOM = 0 ∨ T.main r Dec.KATOM = 1) ∧
     (T.main r Dec.KCONS = 0 ∨ T.main r Dec.KCONS = 1) ∧ (T.main r Dec.KNIL = 0 ∨ T.main r Dec.KNIL = 1) ∧
-    (T.main r Dec.KCELL + T.main r Dec.KATOM + T.main r Dec.KCONS + T.main r Dec.KNIL = 0 ∨
-      T.main r Dec.KCELL + T.main r Dec.KATOM + T.main r Dec.KCONS + T.main r Dec.KNIL = 1) := by
+    (T.main r Dec.KCELL + T.main r Dec.KATOM + T.main r Dec.KCONS + T.main r Dec.KNIL + T.main r Dec.KIND = 0 ∨
+      T.main r Dec.KCELL + T.main r Dec.KATOM + T.main r Dec.KCONS + T.main r Dec.KNIL + T.main r Dec.KIND = 1) := by
   have h0 := dec_cons hT hr (i := 0) rfl
   have h1 := dec_cons hT hr (i := 1) rfl
   have h2 := dec_cons hT hr (i := 2) rfl
@@ -492,7 +536,7 @@ theorem dec_levelVal_lt : ∀ n, n ≤ Dec.NLB →
     generalize (List.foldl (fun v i => E.add v (E.mul (col (Dec.LB + i)) (c (2 ^ i)))) zero (List.range n)) = X at ih ⊢
     have hmem : B.bool (col (Dec.LB + n)) ∈ Dec.decCons := by
       unfold Dec.decCons
-      apply List.mem_append_left; apply List.mem_append_left; apply List.mem_append_right
+      apply List.mem_append_left; apply List.mem_append_left; apply List.mem_append_left; apply List.mem_append_right
       exact List.mem_map.2 ⟨n, List.mem_range.2 (by omega), rfl⟩
     have hb := hT.2 _ hmem r hr
     simp only [E.eval, B.bool, B.one, B.c, dec_ev hT hr, ofN_one] at hb
@@ -523,8 +567,8 @@ theorem dec_level (hk : T.main r Dec.KCONS = 1) (hm : T.main r Dec.MODE = 0) :
     decrement's borrow step (`decStep_sound`), and in mode `0` its level is
     below `W`. -/
 theorem dec_sound_row :
-    (T.main r Dec.KCELL + T.main r Dec.KATOM + T.main r Dec.KCONS + T.main r Dec.KNIL = 0 ∨
-      T.main r Dec.KCELL + T.main r Dec.KATOM + T.main r Dec.KCONS + T.main r Dec.KNIL = 1) ∧
+    (T.main r Dec.KCELL + T.main r Dec.KATOM + T.main r Dec.KCONS + T.main r Dec.KNIL + T.main r Dec.KIND = 0 ∨
+      T.main r Dec.KCELL + T.main r Dec.KATOM + T.main r Dec.KCONS + T.main r Dec.KNIL + T.main r Dec.KIND = 1) ∧
     (T.main r Dec.KCELL + T.main r Dec.KATOM = 1 →
       (T.main r Dec.H0 = 1 ∧ T.main r Dec.H1 = 0 ∧ T.main r Dec.RO = 0) ∨
       (T.main r Dec.H0 = 0 ∧ T.main r Dec.H1 = 1 ∧ T.main r Dec.RO = 1) ∨

@@ -85,9 +85,20 @@ pub const CLK: usize = 32;
 pub const NLK: usize = 33;
 pub const SUBERR: usize = 34;
 pub const CG: usize = 35;
-pub const LB: usize = 36;
+/// The indirection row: its kind, its bus (0: a need, 1: a chain), and
+/// their products.
+pub const KIND: usize = 36;
+pub const IB: usize = 37;
+pub const INN: usize = 38;
+pub const INB: usize = 39;
+/// A `Cell` row whose tail slot is behind one `K`-thunk, and its product.
+pub const IKT: usize = 40;
+pub const CKT: usize = 41;
+/// A nil that ends a list whose last `Cons` said so.
+pub const TERM: usize = 42;
+pub const LB: usize = 43;
 pub const NLB: usize = 5;
-pub const NSLOT: usize = 25;
+pub const NSLOT: usize = 28;
 pub const ADDR: usize = LB + NLB;
 pub const TAG: usize = ADDR + NSLOT;
 pub const DFLD: usize = TAG + NSLOT;
@@ -103,27 +114,32 @@ pub enum Src {
     P,
     F1(usize),
     F2(usize),
+    /// The `Cell` row's tail slot: `F2(14)`, or through the thunk `F2(24)`.
+    KT,
 }
 
-/// What tag a slot expects: a constant, the bit's (`3 - 2·bit`), or the
-/// peeked tail's (`3 - 2·islast`).
+/// What tag a slot expects: a constant, or the bit's (`3 - 2·bit`).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Tg {
     C(u32),
     BitTag,
-    LastTag,
 }
 
 use Src::*;
 use Tg::*;
 
 /// The CELL pattern's slots.
-pub const CELL_SLOTS: [(Src, Tg); 25] = [
+pub const CELL_SLOTS: [(Src, Tg); 28] = [
     (P, C(3)), (F1(0), C(1)), (F2(0), C(3)), (F1(2), C(3)), (F1(3), C(0)), (F2(3), C(3)), (F1(5), C(1)),
     (F2(5), C(1)), (F2(2), C(3)), (F1(8), C(3)), (F1(9), C(0)), (F2(9), C(3)), (F1(11), C(1)), (F2(11), C(1)),
     (F2(8), C(3)), (F1(14), C(3)), (F1(15), C(0)), (F2(15), C(3)), (F1(17), C(3)), (F1(18), C(0)), (F2(18), C(2)),
-    (F2(17), C(3)), (F1(21), C(1)), (F2(14), C(3)), (F1(23), C(1)),
+    (F2(17), C(3)), (F1(21), C(1)), (F2(14), C(3)), (F1(23), C(3)), (F1(24), C(1)), (KT, C(3)), (F1(26), C(1)),
 ];
+/// The CELL pattern's thunk slots (the tail slot `K t` behind `K R w`),
+/// gated by `CKT`.
+pub const CELL_GATED: [usize; 3] = [23, 24, 25];
+/// The indirection `K R w` at the row's pointer: `p = f w`, `f = k R`, `k = K`.
+pub const IND_SLOTS: [(Src, Tg); 3] = [(P, C(3)), (F1(0), C(3)), (F1(1), C(1))];
 /// The ATOM pattern's slots.
 pub const ATOM_SLOTS: [(Src, Tg); 24] = [
     (P, C(3)), (F1(0), C(3)), (F1(1), C(0)), (F2(1), C(3)), (F1(3), C(1)), (F2(3), C(1)), (F2(0), C(3)),
@@ -132,11 +148,12 @@ pub const ATOM_SLOTS: [(Src, Tg); 24] = [
     (F2(19), C(2)), (F2(18), C(3)), (F1(22), C(1)),
 ];
 /// The CONS pattern's slots; slots 12 and 13 read the clear bit's `K` and
-/// `I`, gated by `1 - bit`.
-pub const CONS_SLOTS: [(Src, Tg); 17] = [
+/// `I`, gated by `1 - bit`.  Its tail is not peeked: a last `Cons` says so,
+/// and its tail's chain must end at a nil that ends a list (`TERM`).
+pub const CONS_SLOTS: [(Src, Tg); 16] = [
     (P, C(3)), (F1(0), C(1)), (F2(0), C(3)), (F1(2), C(3)), (F1(3), C(0)), (F2(3), C(3)), (F1(5), C(3)),
     (F1(6), C(0)), (F2(6), C(2)), (F2(5), C(3)), (F1(9), C(1)), (F2(9), BitTag), (F1(11), C(1)), (F2(11), C(2)),
-    (F2(2), C(3)), (F1(14), C(1)), (F2(14), LastTag),
+    (F2(2), C(3)), (F1(14), C(1)),
 ];
 pub const CONS_GATED: [usize; 2] = [12, 13];
 
@@ -167,11 +184,12 @@ pub fn eval_dec<AB: PermutationAirBuilder + InteractionBuilder>(b: &mut AB) {
     let (csend, done0, done1, sub, hc, asub, hat, cw, cwl, clk, nlk, suberr, cg) = (
         v(CSEND), v(DONE0), v(DONE1), v(SUB), v(HC), v(ASUB), v(HAT), v(CW), v(CWL), v(CLK), v(NLK), v(SUBERR), v(CG),
     );
+    let (kind, ib, inn, inb, ikt, ckt, term) = (v(KIND), v(IB), v(INN), v(INB), v(IKT), v(CKT), v(TERM));
     // One kind at most.
     for k in [KCELL, KATOM, KCONS, KNIL] {
         b.assert_bool(v(k));
     }
-    let act = kcell.clone() + katom.clone() + kcons.clone() + knil.clone();
+    let act = kcell.clone() + katom.clone() + kcons.clone() + knil.clone() + kind.clone();
     b.assert_bool(act.clone());
     // The role: 0, 1 or 2, with its indicators.
     b.assert_bool(h0.clone());
@@ -194,9 +212,9 @@ pub fn eval_dec<AB: PermutationAirBuilder + InteractionBuilder>(b: &mut AB) {
     b.assert_eq(nextl.clone(), kcons.clone() * (one.clone() - dropped.clone()) * a.clone());
     b.assert_eq(ptr.clone(), kcons.clone() * (c(2) - c(2) * (bit.clone() + bw.clone() - c(2) * bit.clone() * bw.clone())));
     // The counts.
-    b.assert_eq(csend.clone(), kcons.clone() * (one.clone() - islast.clone()));
+    b.assert_eq(csend.clone(), kcons.clone());
     b.assert_eq(done0.clone(), kcons.clone() * islast.clone() * (one.clone() - m.clone()));
-    b.assert_eq(done1.clone(), knil.clone() * (one.clone() - m.clone()));
+    b.assert_eq(done1.clone(), knil.clone() * (one.clone() - m.clone()) * (one.clone() - term.clone()));
     b.assert_eq(sub.clone(), kcell.clone() * h0.clone());
     b.assert_eq(hc.clone(), kcell.clone() * h1.clone());
     b.assert_eq(asub.clone(), katom.clone() * h0.clone());
@@ -214,17 +232,28 @@ pub fn eval_dec<AB: PermutationAirBuilder + InteractionBuilder>(b: &mut AB) {
         lv = lv + v(LB + i) * c(1 << i);
     }
     b.assert_zero(kcons.clone() * (one.clone() - m.clone()) * (lvl.clone() - lv));
+    // The indirection's and the tail thunk's selectors; a list's end.
+    b.assert_bool(kind.clone());
+    b.assert_bool(ib.clone());
+    b.assert_bool(ikt.clone());
+    b.assert_bool(term.clone());
+    b.assert_eq(inn.clone(), kind.clone() * (one.clone() - ib.clone()));
+    b.assert_eq(inb.clone(), kind.clone() * ib.clone());
+    b.assert_eq(ckt.clone(), kcell.clone() * ikt.clone());
+    b.assert_zero(kcons.clone() * term.clone());
+    b.assert_zero(knil.clone() * (one.clone() - term.clone()) * lvl.clone());
+    let mf = m.clone() + c(2) * term.clone();
     // The reads: each slot's address and tag, muxed by the kind; the
     // address below the key.
     let src = |s: Src| match s {
         P => p.clone(),
         F1(i) => v(f1(i)),
         F2(i) => v(f2(i)),
+        KT => (one.clone() - ikt.clone()) * v(f2(14)) + ikt.clone() * v(f2(24)),
     };
     let tg = |t: Tg| match t {
         C(n) => c(n),
         BitTag => c(3) - c(2) * bit.clone(),
-        LastTag => c(3) - c(2) * islast.clone(),
     };
     for j in 0..NSLOT {
         let mut addr = AB::Expr::ZERO;
@@ -233,7 +262,7 @@ pub fn eval_dec<AB: PermutationAirBuilder + InteractionBuilder>(b: &mut AB) {
         if let Some(&(s, t)) = CELL_SLOTS.get(j) {
             addr = addr + kcell.clone() * src(s);
             tag = tag + kcell.clone() * tg(t);
-            actj = actj + kcell.clone();
+            actj = actj + if CELL_GATED.contains(&j) { ckt.clone() } else { kcell.clone() };
         }
         if let Some(&(s, t)) = ATOM_SLOTS.get(j) {
             addr = addr + katom.clone() * src(s);
@@ -250,6 +279,11 @@ pub fn eval_dec<AB: PermutationAirBuilder + InteractionBuilder>(b: &mut AB) {
             tag = tag + knil.clone() * c(1);
             actj = actj + knil.clone();
         }
+        if let Some(&(s, t)) = IND_SLOTS.get(j) {
+            addr = addr + kind.clone() * src(s);
+            tag = tag + kind.clone() * tg(t);
+            actj = actj + kind.clone();
+        }
         b.assert_eq(v(ADDR + j), addr);
         b.assert_eq(v(TAG + j), tag);
         let mut val = AB::Expr::ZERO;
@@ -264,7 +298,7 @@ pub fn eval_dec<AB: PermutationAirBuilder + InteractionBuilder>(b: &mut AB) {
     // The needs: this row's, received; the halves', sent.
     b.push_interaction(DECN, [key.clone(), p.clone(), ro.clone()], -Count::bounded(kcell.clone() + katom.clone(), 1));
     b.push_interaction(DECN, [key.clone(), v(f2(21)), c(2) - h0.clone()], Count::bounded(kcell.clone(), 1));
-    b.push_interaction(DECN, [key.clone(), v(f2(23)), c(2)], Count::bounded(kcell.clone(), 1));
+    b.push_interaction(DECN, [key.clone(), v(f2(26)), c(2)], Count::bounded(kcell.clone(), 1));
     // The bits' chain.
     b.push_interaction(
         DECB,
@@ -274,10 +308,10 @@ pub fn eval_dec<AB: PermutationAirBuilder + InteractionBuilder>(b: &mut AB) {
     b.push_interaction(DECB, [key.clone(), p.clone(), m.clone(), lvl.clone(), bw.clone(), wc.clone()], -Count::bounded(kcons.clone(), 1));
     b.push_interaction(
         DECB,
-        [key.clone(), v(f2(14)), m.clone(), lvl.clone() + one.clone(), nbw.clone(), wcn.clone()],
+        [key.clone(), v(f2(14)), m.clone() + c(2) * islast.clone(), lvl.clone() + one.clone(), nbw.clone(), wcn.clone()],
         Count::bounded(csend, 1),
     );
-    b.push_interaction(DECB, [key.clone(), p.clone(), m.clone(), lvl.clone(), bw.clone(), wc.clone()], -Count::bounded(knil.clone(), 1));
+    b.push_interaction(DECB, [key.clone(), p.clone(), mf.clone(), lvl.clone(), bw.clone(), wc.clone()], -Count::bounded(knil.clone(), 1));
     // The head's verdict.
     b.push_interaction(DECD, [key.clone(), err.clone(), wc.clone()], -Count::bounded(sub.clone(), 1));
     b.push_interaction(DECD, [key.clone(), c(0), wcn.clone()], Count::bounded(done0, 1));
@@ -290,6 +324,11 @@ pub fn eval_dec<AB: PermutationAirBuilder + InteractionBuilder>(b: &mut AB) {
         Count::bounded(sub.clone(), 1),
     );
     b.push_interaction(DECX, [key.clone(), key.clone(), key.clone() + c(3)], Count::bounded(asub.clone(), 1));
+    // The indirection: a need, or a chain's step, passed on to the target.
+    b.push_interaction(DECN, [key.clone(), p.clone(), ro.clone()], -Count::bounded(inn.clone(), 1));
+    b.push_interaction(DECN, [key.clone(), v(f2(1)), ro.clone()], Count::bounded(inn, 1));
+    b.push_interaction(DECB, [key.clone(), p.clone(), mf.clone(), lvl.clone(), bw.clone(), wc.clone()], -Count::bounded(inb.clone(), 1));
+    b.push_interaction(DECB, [key.clone(), v(f2(1)), mf.clone(), lvl.clone(), bw.clone(), wc.clone()], Count::bounded(inb, 1));
     // The writes.
     let w = |b: &mut AB, addr: AB::Expr, x: AB::Expr, y: AB::Expr, count: AB::Expr| {
         b.push_interaction(BUS, [addr, c(3), x, y], Count::bounded(count, 1));
@@ -351,6 +390,12 @@ pub struct DecRow {
     pub bit: u32,
     pub islast: u32,
     pub err: u32,
+    /// An indirection's bus: 0 a need, 1 a chain's step.
+    pub ib: u32,
+    /// A `Cell` row's tail slot behind a thunk.
+    pub ikt: u32,
+    /// A nil that ends a list.
+    pub term: u32,
     pub slots: Vec<Option<(u32, u32, u32, u32)>>,
 }
 
@@ -362,6 +407,45 @@ pub struct DecCall {
     pub rows: Vec<DecRow>,
     pub cells: Vec<Cell>,
     pub root: u32,
+}
+
+/// A `Cell` wrapper's reusable cells, its tail slot possibly behind a thunk.
+#[derive(Clone, Copy, Debug)]
+struct CellSk {
+    a1: u32,
+    a2: u32,
+    s3: u32,
+    si: u32,
+    kt: u32,
+    h: u32,
+    t: u32,
+    ikt: u32,
+}
+
+/// A row to push, before its slots.
+struct Pending {
+    kind: usize,
+    ro: u32,
+    m: u32,
+    p: u32,
+    lvl: u32,
+    bw: u32,
+    wc: u32,
+    bit: u32,
+    islast: u32,
+    ib: u32,
+    ikt: u32,
+    term: u32,
+}
+
+impl Pending {
+    fn new(kind: usize, p: u32) -> Self {
+        Pending { kind, ro: 0, m: 0, p, lvl: 0, bw: 0, wc: 0, bit: 0, islast: 0, ib: 0, ikt: 0, term: 0 }
+    }
+}
+
+fn canon(bs: &[bool]) -> bool {
+    bs.last().copied().unwrap_or(true)
 }
 
 struct Reader<'a> {
@@ -400,23 +484,29 @@ impl<'a> Reader<'a> {
         assert!(old.is_none(), "a cell written twice");
     }
     /// The slots' tuples for a pattern at `p`, from the heap, or none when
-    /// a cell is not the pattern's.
-    fn slots(&self, p: u32, pat: &[(Src, Tg)], bit: u32, islast: u32, gated: &[usize]) -> Option<Vec<Option<(u32, u32, u32, u32)>>> {
+    /// a cell is not the pattern's; `off` lists the gated slots that are
+    /// inactive (their address and tag columns still hold the muxed values,
+    /// their fields 0).
+    fn slots(&self, p: u32, pat: &[(Src, Tg)], bit: u32, ikt: u32, off: &[usize]) -> Option<Vec<Option<(u32, u32, u32, u32)>>> {
         let mut out: Vec<Option<(u32, u32, u32, u32)>> = vec![None; NSLOT];
         for (j, &(s, t)) in pat.iter().enumerate() {
             let addr = match s {
                 P => p,
                 F1(i) => out[i]?.2,
                 F2(i) => out[i]?.3,
+                KT => {
+                    if ikt == 1 {
+                        out[24]?.3
+                    } else {
+                        out[14]?.3
+                    }
+                }
             };
             let want = match t {
                 C(n) => n,
                 BitTag => 3 - 2 * bit,
-                LastTag => 3 - 2 * islast,
             };
-            if gated.contains(&j) && bit == 1 {
-                // An inactive gated slot: its address and tag columns still hold
-                // the muxed values (the field, 0 for a `K` bit, and the tag).
+            if off.contains(&j) {
                 out[j] = Some((addr, want, 0, 0));
                 continue;
             }
@@ -432,27 +522,74 @@ impl<'a> Reader<'a> {
         }
         Some(out)
     }
-    fn push(&mut self, kind: usize, ro: u32, m: u32, p: u32, lvl: u32, bw: u32, wc: u32, bit: u32, islast: u32, err: u32,
-        slots: Vec<Option<(u32, u32, u32, u32)>>) {
-        self.rows.push(DecRow { kind, ro, m, p, lvl, bw, wc, bit, islast, err, slots });
+    fn push(&mut self, r: Pending, slots: Vec<Option<(u32, u32, u32, u32)>>) {
+        self.rows.push(DecRow {
+            kind: r.kind,
+            ro: r.ro,
+            m: r.m,
+            p: r.p,
+            lvl: r.lvl,
+            bw: r.bw,
+            wc: r.wc,
+            bit: r.bit,
+            islast: r.islast,
+            err: 0,
+            ib: r.ib,
+            ikt: r.ikt,
+            term: r.term,
+            slots,
+        });
     }
-    /// A `Cell` wrapper at `p`: its reusable cells `(a1, a2, s3, si, kt, h, t)`.
-    fn read_cell(&self, p: u32) -> Option<(u32, u32, u32, u32, u32, u32, u32)> {
+    /// A `K`-thunk at `p` (`DecJet.readInd`): `p = f w`, `f = k R`, `k = K`;
+    /// its target `R`.
+    fn ind(&self, p: u32) -> Option<u32> {
+        let (f, _) = self.app(p)?;
+        let (k, r) = self.app(f)?;
+        if self.is(k, Cell::K) {
+            Some(r)
+        } else {
+            None
+        }
+    }
+    /// Push an indirection row at `p` (a need when `ib = 0`, a chain's step
+    /// when `ib = 1`) and return its target.
+    fn push_ind(&mut self, mut r: Pending) -> Option<u32> {
+        let target = self.ind(r.p)?;
+        let slots = self.slots(r.p, &IND_SLOTS, 0, 0, &[])?;
+        r.kind = KIND;
+        self.push(r, slots);
+        Some(target)
+    }
+    /// A `Cell` wrapper at `p` (`DecJet.readCellI`), its tail slot `K t`
+    /// bare or behind one thunk (`DecJet.ktAt`).
+    fn read_cell(&self, p: u32) -> Option<CellSk> {
         let (k0, y1) = self.app(p)?;
         let (a1, y2) = self.app(y1)?;
         let (a2, y3) = self.app(y2)?;
         let (p1, kt) = self.app(y3)?;
         let (s3, p2) = self.app(p1)?;
-        let (k6, t) = self.app(kt)?;
         let (si, kh) = self.app(p2)?;
         let (k5, h) = self.app(kh)?;
-        if self.is(k0, Cell::K) && self.is_skk(a1) && self.is_skk(a2) && self.is(s3, Cell::S) && self.is_si(si)
-            && self.is(k5, Cell::K) && self.is(k6, Cell::K)
+        if !(self.is(k0, Cell::K) && self.is_skk(a1) && self.is_skk(a2) && self.is(s3, Cell::S) && self.is_si(si)
+            && self.is(k5, Cell::K))
         {
-            Some((a1, a2, s3, si, kt, h, t))
+            return None;
+        }
+        let (k6, t) = self.app(kt)?;
+        if self.is(k6, Cell::K) {
+            return Some(CellSk { a1, a2, s3, si, kt, h, t, ikt: 0 });
+        }
+        let kt2 = self.ind(kt)?;
+        let (k6, t) = self.app(kt2)?;
+        if self.is(k6, Cell::K) {
+            Some(CellSk { a1, a2, s3, si, kt, h, t, ikt: 1 })
         } else {
             None
         }
+    }
+    fn cell_slots(&self, p: u32, sk: &CellSk) -> Option<Vec<Option<(u32, u32, u32, u32)>>> {
+        let off: &[usize] = if sk.ikt == 1 { &[] } else { &CELL_GATED };
+        self.slots(p, &CELL_SLOTS, 0, sk.ikt, off)
     }
     /// An `Atom` wrapper at `p`: `(a1, a2, a3, si, b)`.
     fn read_atom(&self, p: u32) -> Option<(u32, u32, u32, u32, u32)> {
@@ -470,6 +607,9 @@ impl<'a> Reader<'a> {
     /// A `Cons` at `p`: `(bit, s, c5, t)`.
     fn read_cons(&self, p: u32) -> Option<(bool, u32, u32, u32)> {
         let (k, c1) = self.app(p)?;
+        if !self.is(k, Cell::K) {
+            return None;
+        }
         let (c2, c3) = self.app(c1)?;
         let (s, c4) = self.app(c2)?;
         let (k3, t) = self.app(c3)?;
@@ -480,26 +620,68 @@ impl<'a> Reader<'a> {
             Cell::App(f, x) if self.is(f, Cell::K) && self.is(x, Cell::I) => false,
             _ => return None,
         };
-        if self.is(k, Cell::K) && self.is(s, Cell::S) && self.is(k3, Cell::K) && self.is_si(c5) && self.is(k2, Cell::K) {
+        if self.is(s, Cell::S) && self.is(k3, Cell::K) && self.is_si(c5) && self.is(k2, Cell::K) {
             Some((bit, s, c5, t))
         } else {
             None
         }
     }
-    /// The bits' chain from `b`: in mode 0 with the borrow, writing the
-    /// rewritten bits; returns `(err, wc)`, or none when the list is not
-    /// canonical, too long, or not a list.
-    fn bits(&mut self, b: u32, m: u32) -> Option<(u32, u32)> {
-        let (mut p, mut lvl, mut bw, mut wc) = (b, 0u32, 1 - m, 0u32);
-        let mut fuel = self.heap.len() + 1;
+    /// The bits at `p` (`DecJet.readBitsI` at fuel `n`), without rows.
+    fn bits_of(&self, n: usize, p: u32) -> Option<Vec<bool>> {
+        let (mut p, mut n, mut out) = (p, n, Vec::new());
         loop {
-            fuel = fuel.checked_sub(1)?;
-            if p >= self.key {
-                return None;
+            n = n.checked_sub(1)?;
+            if self.is(p, Cell::K) {
+                return Some(out);
             }
+            if let Some((b, _, _, t)) = self.read_cons(p) {
+                out.push(b);
+                p = t;
+                continue;
+            }
+            p = self.ind(p)?;
+        }
+    }
+    /// Whether a noun is at `p` (`DecJet.readNnI` at fuel `n`), without rows.
+    fn noun_of(&self, n: usize, p: u32) -> Option<()> {
+        let n = n.checked_sub(1)?;
+        if let Some((_, _, _, _, b)) = self.read_atom(p) {
+            let bs = self.bits_of(n + 1, b)?;
+            return if canon(&bs) { Some(()) } else { None };
+        }
+        if let Some(sk) = self.read_cell(p) {
+            self.noun_of(n, sk.h)?;
+            self.noun_of(n, sk.t)?;
+            return Some(());
+        }
+        let r = self.ind(p)?;
+        self.noun_of(n, r)
+    }
+    /// The head atom at `q` (`DecJet.headAtom` at fuel `n`): its `Atom` wrapper's address.
+    fn head_atom(&self, n: usize, q: u32) -> Option<u32> {
+        let (mut q, mut n) = (q, n);
+        loop {
+            n = n.checked_sub(1)?;
+            if self.read_atom(q).is_some() {
+                return Some(q);
+            }
+            q = self.ind(q)?;
+        }
+    }
+    /// The rows of the bits' chain at `b` (read by `bits_of`): in mode 0
+    /// with the borrow, writing the rewritten bits; returns `(err, wc)`.
+    fn bits(&mut self, b: u32, m: u32) -> Option<(u32, u32)> {
+        let (mut p, mut lvl, mut bw, mut wc, mut term) = (b, 0u32, 1 - m, 0u32, 0u32);
+        let mut out = (0u32, 0u32);
+        loop {
             if self.is(p, Cell::K) {
                 let slots = self.slots(p, &[(P, C(1))], 0, 0, &[])?;
-                self.push(KNIL, 0, m, p, lvl, bw, wc, 0, 0, 0, slots);
+                let mut r = Pending::new(KNIL, p);
+                (r.m, r.lvl, r.bw, r.wc, r.term) = (m, lvl, bw, wc, term);
+                self.push(r, slots);
+                if term == 1 {
+                    return Some(out);
+                }
                 if m == 0 {
                     // The head is `0`: a crash; the `Atom` wrapper's link is nil.
                     if bw == 1 {
@@ -509,104 +691,165 @@ impl<'a> Reader<'a> {
                 }
                 return Some((0, 0));
             }
-            let (bit, s, c5, t) = self.read_cons(p)?;
-            if m == 0 && lvl >= DEC_W {
-                return None;
+            if let Some((bit, s, c5, t)) = self.read_cons(p) {
+                if term == 1 {
+                    return None;
+                }
+                if m == 0 && lvl >= DEC_W {
+                    return None;
+                }
+                // The last bit: its tail's chain ends at a nil.
+                let islast = self.bits_of(self.heap.len(), t).map(|bs| bs.is_empty()).unwrap_or(false);
+                if islast && !bit {
+                    return None;
+                }
+                let (bit, islast) = (bit as u32, islast as u32);
+                let off: &[usize] = if bit == 1 { &CONS_GATED } else { &[] };
+                let slots = self.slots(p, &CONS_SLOTS, bit, 0, off)?;
+                let nbw = bw * (1 - bit);
+                let dropped = bw * bit * islast;
+                let writes = bw - dropped;
+                let wl = bw * bit * (1 - islast);
+                let o = bit + bw - 2 * bit * bw;
+                let a = self.key + 12 + 6 * lvl;
+                if bw == 1 {
+                    self.write(self.key + 11 + 6 * lvl, Cell::App(0, (1 - dropped) * a));
+                }
+                if writes == 1 {
+                    self.write(a, Cell::App(0, a + 1));
+                    self.write(a + 1, Cell::App(a + 2, a + 5));
+                    self.write(a + 2, Cell::App(s, a + 3));
+                    self.write(a + 3, Cell::App(c5, a + 4));
+                    self.write(a + 4, Cell::App(0, 2 - 2 * o));
+                }
+                if wl == 1 {
+                    self.write(a + 5, Cell::App(0, t));
+                }
+                let mut r = Pending::new(KCONS, p);
+                (r.m, r.lvl, r.bw, r.wc, r.bit, r.islast) = (m, lvl, bw, wc, bit, islast);
+                self.push(r, slots);
+                wc += 6 * writes;
+                if islast == 1 {
+                    out = (0, if m == 0 { wc } else { 0 });
+                    term = 1;
+                }
+                p = t;
+                lvl += 1;
+                bw = nbw;
+                continue;
             }
-            let islast = self.is(t, Cell::K);
-            if islast && !bit {
-                return None;
-            }
-            let (bit, islast) = (bit as u32, islast as u32);
-            let slots = self.slots(p, &CONS_SLOTS, bit, islast, &CONS_GATED)?;
-            let nbw = bw * (1 - bit);
-            let dropped = bw * bit * islast;
-            let writes = bw - dropped;
-            let wl = bw * bit * (1 - islast);
-            let o = bit + bw - 2 * bit * bw;
-            let a = self.key + 12 + 6 * lvl;
-            if bw == 1 {
-                self.write(self.key + 11 + 6 * lvl, Cell::App(0, (1 - dropped) * a));
-            }
-            if writes == 1 {
-                self.write(a, Cell::App(0, a + 1));
-                self.write(a + 1, Cell::App(a + 2, a + 5));
-                self.write(a + 2, Cell::App(s, a + 3));
-                self.write(a + 3, Cell::App(c5, a + 4));
-                self.write(a + 4, Cell::App(0, 2 - 2 * o));
-            }
-            if wl == 1 {
-                self.write(a + 5, Cell::App(0, t));
-            }
-            self.push(KCONS, 0, m, p, lvl, bw, wc, bit, islast, 0, slots);
-            wc += 6 * writes;
-            if islast == 1 {
-                return Some((0, if m == 0 { wc } else { 0 }));
-            }
-            p = t;
-            lvl += 1;
-            bw = nbw;
+            let mut r = Pending::new(KIND, p);
+            (r.m, r.lvl, r.bw, r.wc, r.ib, r.term) = (m, lvl, bw, wc, 1, term);
+            p = self.push_ind(r)?;
         }
     }
-    /// A noun at `p` with the role `ro` (1: the head; 2: a tail): an atom
-    /// or a cell; returns `(err, wc)` of a head.
-    fn noun(&mut self, p: u32, ro: u32, depth: usize) -> Option<(u32, u32)> {
-        if depth > self.heap.len() || p >= self.key {
-            return None;
-        }
-        if let Some((a1, a2, a3, si, b)) = self.read_atom(p) {
-            let slots = self.slots(p, &ATOM_SLOTS, 0, 0, &[])?;
-            self.push(KATOM, ro, 0, p, 0, 0, 0, 0, 0, 0, slots);
-            if ro == 1 {
-                let k = self.key;
-                self.write(k + 7, Cell::App(a1, k + 8));
-                self.write(k + 8, Cell::App(a2, k + 9));
-                self.write(k + 9, Cell::App(a3, k + 10));
-                self.write(k + 10, Cell::App(si, k + 11));
-                return self.bits(b, 0);
+    /// The rows of a noun at `p` with the role `ro` (1: the head; 2: a
+    /// tail), read by `noun_of`; returns `(err, wc)` of a head.
+    fn noun(&mut self, p: u32, ro: u32) -> Option<(u32, u32)> {
+        let mut p = p;
+        loop {
+            if let Some((a1, a2, a3, si, b)) = self.read_atom(p) {
+                let slots = self.slots(p, &ATOM_SLOTS, 0, 0, &[])?;
+                let mut r = Pending::new(KATOM, p);
+                r.ro = ro;
+                self.push(r, slots);
+                if ro == 1 {
+                    let k = self.key;
+                    self.write(k + 7, Cell::App(a1, k + 8));
+                    self.write(k + 8, Cell::App(a2, k + 9));
+                    self.write(k + 9, Cell::App(a3, k + 10));
+                    self.write(k + 10, Cell::App(si, k + 11));
+                    return self.bits(b, 0);
+                }
+                self.bits(b, 1)?;
+                return Some((0, 0));
             }
-            self.bits(b, 1)?;
-            return Some((0, 0));
-        }
-        let (_, _, _, _, _, h, t) = self.read_cell(p)?;
-        let slots = self.slots(p, &CELL_SLOTS, 0, 0, &[])?;
-        self.push(KCELL, ro, 0, p, 0, 0, 0, 0, 0, 0, slots);
-        if ro == 1 {
-            let k = self.key;
-            for i in 7..12 {
-                self.write(k + i, Cell::App(0, 0));
+            if let Some(sk) = self.read_cell(p) {
+                let slots = self.cell_slots(p, &sk)?;
+                let mut r = Pending::new(KCELL, p);
+                (r.ro, r.ikt) = (ro, sk.ikt);
+                self.push(r, slots);
+                if ro == 1 {
+                    let k = self.key;
+                    for i in 7..12 {
+                        self.write(k + i, Cell::App(0, 0));
+                    }
+                }
+                self.noun(sk.h, 2)?;
+                self.noun(sk.t, 2)?;
+                return Some((if ro == 1 { 1 } else { 0 }, 0));
             }
+            let mut r = Pending::new(KIND, p);
+            r.ro = ro;
+            p = self.push_ind(r)?;
         }
-        self.noun(h, 2, depth + 1)?;
-        self.noun(t, 2, depth + 1)?;
-        Some((if ro == 1 { 1 } else { 0 }, 0))
     }
-    /// The subject at `p`: the result's root.
+    /// The subject at `p` (`DecJet.readSubjI`): the result's root.
     fn subject(&mut self, p: u32) -> Option<u32> {
         let k = self.key;
-        if self.read_atom(p).is_some() {
+        let n = self.heap.len();
+        // What `readSubjI` reads: refuse what it refuses.
+        let mut q = p;
+        let mut fuel = n;
+        loop {
+            fuel = fuel.checked_sub(1)?;
+            if let Some((_, _, _, _, b)) = self.read_atom(q) {
+                if !canon(&self.bits_of(n, b)?) {
+                    return None;
+                }
+                break;
+            }
+            if let Some(sk) = self.read_cell(q) {
+                match self.head_atom(n, sk.h) {
+                    Some(a) => {
+                        let (_, _, _, _, b) = self.read_atom(a)?;
+                        let bs = self.bits_of(n, b)?;
+                        if !canon(&bs) || bs.len() > DEC_W as usize {
+                            return None;
+                        }
+                        self.noun_of(n, sk.t)?;
+                    }
+                    None => {
+                        self.noun_of(n, sk.h)?;
+                        self.noun_of(n, sk.t)?;
+                    }
+                }
+                break;
+            }
+            q = self.ind(q)?;
+        }
+        // The rows: the root's indirections, then its wrapper.
+        let mut p = p;
+        loop {
+            if self.read_atom(p).is_some() || self.read_cell(p).is_some() {
+                break;
+            }
+            p = self.push_ind(Pending::new(KIND, p))?;
+        }
+        if let Some((_, _, _, _, b)) = self.read_atom(p) {
             let slots = self.slots(p, &ATOM_SLOTS, 0, 0, &[])?;
-            let (_, _, _, _, b) = self.read_atom(p)?;
-            self.push(KATOM, 0, 0, p, 0, 0, 0, 0, 0, 0, slots);
+            self.push(Pending::new(KATOM, p), slots);
             self.bits(b, 1)?;
             self.write(k, Cell::App(0, k + 1));
             self.write(k + 1, Cell::App(0, k + 2));
             self.write(k + 2, Cell::App(0, 1));
             return Some(k);
         }
-        let (a1, a2, s3, si, kt, h, t) = self.read_cell(p)?;
-        let slots = self.slots(p, &CELL_SLOTS, 0, 0, &[])?;
+        let sk = self.read_cell(p)?;
+        let slots = self.cell_slots(p, &sk)?;
         let at = self.rows.len();
-        self.push(KCELL, 0, 0, p, 0, 0, 0, 0, 0, 0, slots);
+        let mut r = Pending::new(KCELL, p);
+        r.ikt = sk.ikt;
+        self.push(r, slots);
         self.write(k, Cell::App(0, k + 1));
-        self.write(k + 1, Cell::App(a1, k + 2));
-        self.write(k + 2, Cell::App(a2, k + 3));
-        self.write(k + 3, Cell::App(k + 4, kt));
-        self.write(k + 4, Cell::App(s3, k + 5));
-        self.write(k + 5, Cell::App(si, k + 6));
+        self.write(k + 1, Cell::App(sk.a1, k + 2));
+        self.write(k + 2, Cell::App(sk.a2, k + 3));
+        self.write(k + 3, Cell::App(k + 4, sk.kt));
+        self.write(k + 4, Cell::App(sk.s3, k + 5));
+        self.write(k + 5, Cell::App(sk.si, k + 6));
         self.write(k + 6, Cell::App(0, k + 7));
-        let (err, wc) = self.noun(h, 1, 0)?;
-        self.noun(t, 2, 0)?;
+        let (err, wc) = self.noun(sk.h, 1)?;
+        self.noun(sk.t, 2)?;
         self.rows[at].err = err;
         self.rows[at].wc = wc;
         if err == 1 {
@@ -618,10 +861,11 @@ impl<'a> Reader<'a> {
     }
 }
 
-/// **The jet's step** at `(hd, stk)` (`DecJet.decRow`): when the head is
+/// **The jet's step** at `(hd, stk)` (`DecJet.decRowI`): when the head is
 /// the atom `j`, the slots are in place, and the stack's first cell points
-/// at a well-formed subject whose head atom fits; the next head and stack,
-/// the cells written from the counter, and the call's rows.
+/// at a well-formed subject, read through `K`-thunks, whose head atom fits;
+/// the next head and stack, the cells written from the counter, and the
+/// call's rows.
 pub fn dec_step(heap: &[Cell], hd: u32, stk: u32, j: u32) -> Option<(u32, u32, Vec<Cell>, DecCall)> {
     match heap.get(hd as usize) {
         Some(&Cell::Atom(a)) if a == j => {}
@@ -657,7 +901,13 @@ pub fn dec_row_values(call: &DecCall, row: &DecRow) -> (Vec<u32>, Vec<[u32; 4]>)
     let key = call.key;
     v[KEY] = key;
     v[row.kind] = 1;
-    let (kcell, katom, kcons, knil) = ((row.kind == KCELL) as u32, (row.kind == KATOM) as u32, (row.kind == KCONS) as u32, (row.kind == KNIL) as u32);
+    let (kcell, katom, kcons, knil, kind) = (
+        (row.kind == KCELL) as u32,
+        (row.kind == KATOM) as u32,
+        (row.kind == KCONS) as u32,
+        (row.kind == KNIL) as u32,
+        (row.kind == KIND) as u32,
+    );
     v[RO] = row.ro;
     let (h0, h1) = if kcell + katom == 1 { ((row.ro == 0) as u32, (row.ro == 1) as u32) } else { (0, 0) };
     v[H0] = h0;
@@ -686,9 +936,9 @@ pub fn dec_row_values(call: &DecCall, row: &DecRow) -> (Vec<u32>, Vec<[u32; 4]>)
     v[PTR] = ptr;
     v[ERR] = row.err;
     v[MODE] = m;
-    v[CSEND] = kcons * (1 - islast);
+    v[CSEND] = kcons;
     v[DONE0] = kcons * islast * (1 - m);
-    v[DONE1] = knil * (1 - m);
+    v[DONE1] = knil * (1 - m) * (1 - row.term);
     v[SUB] = kcell * h0;
     v[HC] = kcell * h1;
     v[ASUB] = katom * h0;
@@ -699,6 +949,12 @@ pub fn dec_row_values(call: &DecCall, row: &DecRow) -> (Vec<u32>, Vec<[u32; 4]>)
     v[NLK] = knil * bw;
     v[SUBERR] = v[SUB] * row.err;
     v[CG] = kcons * (1 - bit);
+    v[IB] = row.ib;
+    v[INN] = kind * (1 - row.ib);
+    v[INB] = kind * row.ib;
+    v[IKT] = row.ikt;
+    v[CKT] = kcell * row.ikt;
+    v[TERM] = row.term;
     if kcons == 1 && m == 0 {
         for i in 0..NLB {
             v[LB + i] = (row.lvl >> i) & 1;
@@ -711,7 +967,8 @@ pub fn dec_row_values(call: &DecCall, row: &DecRow) -> (Vec<u32>, Vec<[u32; 4]>)
             v[TAG + j] = tag;
             v[f1(j)] = x;
             v[f2(j)] = y;
-            let active = !(kcons == 1 && CONS_GATED.contains(&j) && bit == 1);
+            let active = !(kcons == 1 && CONS_GATED.contains(&j) && bit == 1)
+                && !(kcell == 1 && CELL_GATED.contains(&j) && row.ikt == 0);
             if active {
                 assert!(addr < key, "a read at or above the key");
                 let d = key - addr - 1;

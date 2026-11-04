@@ -114,7 +114,7 @@ theorem dec_bus_cases {I : Inter} (hI : I ∈ Dec.decAir.inters) :
 theorem busI_buses : ∀ I ∈ Dec.busI, I.bus = "decn" ∨ I.bus = "decb" ∨ I.bus = "decd" ∨ I.bus = "decx" := by
   intro I hI
   simp only [Dec.busI, List.mem_cons, List.not_mem_nil, or_false] at hI
-  rcases hI with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
+  rcases hI with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
   all_goals first
     | exact .inl rfl
     | exact .inr (.inl rfl)

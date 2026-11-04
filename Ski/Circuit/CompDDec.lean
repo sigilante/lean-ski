@@ -26,8 +26,8 @@ structure DecRowF (D : Table) (q : Nat) : Prop where
   katom : D.main q Dec.KATOM = 0 ∨ D.main q Dec.KATOM = 1
   kcons : D.main q Dec.KCONS = 0 ∨ D.main q Dec.KCONS = 1
   knil : D.main q Dec.KNIL = 0 ∨ D.main q Dec.KNIL = 1
-  ksum : D.main q Dec.KCELL + D.main q Dec.KATOM + D.main q Dec.KCONS + D.main q Dec.KNIL = 0 ∨
-    D.main q Dec.KCELL + D.main q Dec.KATOM + D.main q Dec.KCONS + D.main q Dec.KNIL = 1
+  ksum : D.main q Dec.KCELL + D.main q Dec.KATOM + D.main q Dec.KCONS + D.main q Dec.KNIL + D.main q Dec.KIND = 0 ∨
+    D.main q Dec.KCELL + D.main q Dec.KATOM + D.main q Dec.KCONS + D.main q Dec.KNIL + D.main q Dec.KIND = 1
   h0 : D.main q Dec.H0 = 0 ∨ D.main q Dec.H0 = 1
   h1 : D.main q Dec.H1 = 0 ∨ D.main q Dec.H1 = 1
   h01 : D.main q Dec.H0 * D.main q Dec.H1 = 0
@@ -48,9 +48,9 @@ structure DecRowF (D : Table) (q : Nat) : Prop where
     (D.main q Dec.KEY + ofN 12 + ofN 6 * D.main q Dec.LVL)
   ptr : D.main q Dec.PTR = D.main q Dec.KCONS * (ofN 2 - ofN 2 * (D.main q Dec.BIT + D.main q Dec.BW -
     ofN 2 * D.main q Dec.BIT * D.main q Dec.BW))
-  csend : D.main q Dec.CSEND = D.main q Dec.KCONS * (1 - D.main q Dec.ISLAST)
+  csend : D.main q Dec.CSEND = D.main q Dec.KCONS
   done0 : D.main q Dec.DONE0 = D.main q Dec.KCONS * D.main q Dec.ISLAST * (1 - D.main q Dec.MODE)
-  done1 : D.main q Dec.DONE1 = D.main q Dec.KNIL * (1 - D.main q Dec.MODE)
+  done1 : D.main q Dec.DONE1 = D.main q Dec.KNIL * (1 - D.main q Dec.MODE) * (1 - D.main q Dec.TERM)
   sub : D.main q Dec.SUB = D.main q Dec.KCELL * D.main q Dec.H0
   hc : D.main q Dec.HC = D.main q Dec.KCELL * D.main q Dec.H1
   asub : D.main q Dec.ASUB = D.main q Dec.KATOM * D.main q Dec.H0
@@ -61,6 +61,15 @@ structure DecRowF (D : Table) (q : Nat) : Prop where
   nlk : D.main q Dec.NLK = D.main q Dec.KNIL * D.main q Dec.BW
   suberr : D.main q Dec.SUBERR = D.main q Dec.SUB * D.main q Dec.ERR
   cg : D.main q Dec.CG = D.main q Dec.KCONS * (1 - D.main q Dec.BIT)
+  kind : D.main q Dec.KIND = 0 ∨ D.main q Dec.KIND = 1
+  ib : D.main q Dec.IB = 0 ∨ D.main q Dec.IB = 1
+  ikt : D.main q Dec.IKT = 0 ∨ D.main q Dec.IKT = 1
+  term : D.main q Dec.TERM = 0 ∨ D.main q Dec.TERM = 1
+  inn : D.main q Dec.INN = D.main q Dec.KIND * (1 - D.main q Dec.IB)
+  inb : D.main q Dec.INB = D.main q Dec.KIND * D.main q Dec.IB
+  ckt : D.main q Dec.CKT = D.main q Dec.KCELL * D.main q Dec.IKT
+  consTerm : D.main q Dec.KCONS * D.main q Dec.TERM = 0
+  nilLvl : D.main q Dec.KNIL * (1 - D.main q Dec.TERM) * D.main q Dec.LVL = 0
 
 section Row
 
@@ -103,9 +112,16 @@ theorem decRowF_of : DecRowF D q := by
   have f32 := e 32 _ _ rfl
   have f33 := e 33 _ _ rfl
   have f34 := e 34 _ _ rfl
-  simp only [E.eval, B.one, B.c, ev, ofN_one, Dec.aE] at f15 f16 f17 f18 f19 f20 f21 f22 f23 f24 f25 f26 f27 f28 f29 f30 f31 f32 f33 f34
+  have f45 := e 45 _ _ rfl
+  have f46 := e 46 _ _ rfl
+  have f47 := e 47 _ _ rfl
+  have k48 := g 48 _ rfl
+  have k49 := g 49 _ rfl
+  simp only [E.eval, B.one, B.c, ev, ofN_one, Dec.aE] at f15 f16 f17 f18 f19 f20 f21 f22 f23 f24 f25 f26 f27 f28 f29 f30 f31 f32 f33 f34 f45 f46 f47 k48 k49
   exact ⟨b 0 _ rfl, b 1 _ rfl, b 2 _ rfl, b 3 _ rfl, bit_of k4, b 5 _ rfl, b 6 _ rfl, k7, k8,
-    b 9 _ rfl, b 10 _ rfl, b 11 _ rfl, b 12 _ rfl, b 13 _ rfl, k14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24, f25, f26, f27, f28, f29, f30, f31, f32, f33, f34⟩
+    b 9 _ rfl, b 10 _ rfl, b 11 _ rfl, b 12 _ rfl, b 13 _ rfl, k14, f15, f16, f17, f18, f19, f20, f21, f22, f23, f24,
+    f25, f26, f27, f28, f29, f30, f31, f32, f33, f34, b 41 _ rfl, b 42 _ rfl, b 43 _ rfl, b 44 _ rfl, f45, f46, f47,
+    k48, k49⟩
 
 end Row
 
@@ -114,23 +130,24 @@ end Row
 -- ---------------------------------------------------------------------------
 
 /-- **A DEC row of kind `dk`**: none (`0`), a `Cell` wrapper (`1`), an `Atom`
-    wrapper (`2`), a `Cons` (`3`), a nil (`4`). -/
+    wrapper (`2`), a `Cons` (`3`), a nil (`4`), an indirection (`5`). -/
 def DKind (D : Table) (q dk : Nat) : Prop :=
-  dk < 5 ∧ D.main q Dec.KCELL = (if dk = 1 then 1 else 0) ∧ D.main q Dec.KATOM = (if dk = 2 then 1 else 0) ∧
-    D.main q Dec.KCONS = (if dk = 3 then 1 else 0) ∧ D.main q Dec.KNIL = (if dk = 4 then 1 else 0)
+  dk < 6 ∧ D.main q Dec.KCELL = (if dk = 1 then 1 else 0) ∧ D.main q Dec.KATOM = (if dk = 2 then 1 else 0) ∧
+    D.main q Dec.KCONS = (if dk = 3 then 1 else 0) ∧ D.main q Dec.KNIL = (if dk = 4 then 1 else 0) ∧
+    D.main q Dec.KIND = (if dk = 5 then 1 else 0)
 
 theorem dkind_of {D : Table} {q : Nat} (hf : DecRowF D q) : ∃ dk, DKind D q dk := by
   have hs := hf.ksum
   rcases hf.kcell with a | a <;> rcases hf.katom with b | b <;> rcases hf.kcons with c' | c' <;>
-    rcases hf.knil with d | d <;> rw [a, b, c', d] at hs
-  · exact ⟨0, by decide, a, b, c', d⟩
-  · exact ⟨4, by decide, a, b, c', d⟩
-  · exact ⟨3, by decide, a, b, c', d⟩
-  · exact absurd hs (by decide)
-  · exact ⟨2, by decide, a, b, c', d⟩
+    rcases hf.knil with d | d <;> rcases hf.kind with i | i <;> rw [a, b, c', d, i] at hs
   all_goals first
     | exact absurd hs (by decide)
-    | exact ⟨1, by decide, a, b, c', d⟩
+    | exact ⟨0, by decide, a, b, c', d, i⟩
+    | exact ⟨1, by decide, a, b, c', d, i⟩
+    | exact ⟨2, by decide, a, b, c', d, i⟩
+    | exact ⟨3, by decide, a, b, c', d, i⟩
+    | exact ⟨4, by decide, a, b, c', d, i⟩
+    | exact ⟨5, by decide, a, b, c', d, i⟩
 
 /-- Kind `dk`'s columns, as constants. -/
 def decSubK (dk : Nat) : Atom → E
@@ -139,7 +156,9 @@ def decSubK (dk : Nat) : Atom → E
     else if i = Dec.KATOM then .const (if dk = 2 then 1 else 0)
     else if i = Dec.KCONS then .const (if dk = 3 then 1 else 0)
     else if i = Dec.KNIL then .const (if dk = 4 then 1 else 0)
+    else if i = Dec.KIND then .const (if dk = 5 then 1 else 0)
     else if i = Dec.CG ∧ dk ≠ 3 then .const 0
+    else if i = Dec.CKT ∧ dk ≠ 1 then .const 0
     else .atom (.main 0 i)
   | a => .atom a
 
@@ -157,12 +176,18 @@ theorem decSubK_eval {D : Table} {q dk : Nat} (hq : q < D.h) (hf : DecRowF D q) 
         · split
           · next h => subst h; rw [env_main0 hq, hk.2.2.2.1]; rfl
           · split
-            · next h => subst h; rw [env_main0 hq, hk.2.2.2.2]; rfl
+            · next h => subst h; rw [env_main0 hq, hk.2.2.2.2.1]; rfl
             · split
-              · next h =>
-                obtain ⟨rfl, hne⟩ := h
-                rw [env_main0 hq, hf.cg, hk.2.2.2.1, if_neg hne, zero_mul']; rfl
-              · rfl
+              · next h => subst h; rw [env_main0 hq, hk.2.2.2.2.2]; rfl
+              · split
+                · next h =>
+                  obtain ⟨rfl, hne⟩ := h
+                  rw [env_main0 hq, hf.cg, hk.2.2.2.1, if_neg hne, zero_mul']; rfl
+                · split
+                  · next h =>
+                    obtain ⟨rfl, hne⟩ := h
+                    rw [env_main0 hq, hf.ckt, hk.2.1, if_neg hne, zero_mul']; rfl
+                  · rfl
     | succ o => rfl
   | pre _ _ => rfl
   | first => rfl
@@ -171,7 +196,8 @@ theorem decSubK_eval {D : Table} {q dk : Nat} (hq : q < D.h) (hf : DecRowF D q) 
 
 /-- A kind's pattern: its slots. -/
 def slotsOf (dk : Nat) : List (Dec.Src × Dec.Tg) :=
-  if dk = 1 then Dec.cellSlots else if dk = 2 then Dec.atomSlots else if dk = 3 then Dec.consSlots else []
+  if dk = 1 then Dec.cellSlots else if dk = 2 then Dec.atomSlots else if dk = 3 then Dec.consSlots
+  else if dk = 5 then Dec.indSlots else []
 
 /-- Slot `j`'s address, tag and activity on a row of kind `dk`. -/
 def expAddr (dk j : Nat) : E :=
@@ -189,7 +215,8 @@ def expTag (dk j : Nat) : E :=
 def expAct (dk j : Nat) : E :=
   if dk = 4 then (if j = 0 then one else zero)
   else match (slotsOf dk)[j]? with
-    | some _ => if dk = 3 ∧ j ∈ Dec.consGated then col Dec.CG else one
+    | some _ => if dk = 3 ∧ j ∈ Dec.consGated then col Dec.CG
+      else if dk = 1 ∧ j ∈ Dec.cellGated then col Dec.CKT else one
     | none => zero
 
 def slotEq (dk : Nat) (e e' : E) : Bool := (e.subst (decSubK dk)).norm == e'.norm
@@ -201,7 +228,7 @@ def slotOK (dk : Nat) : Bool :=
       slotEq dk (Dec.actE j) (expAct dk j)
 
 set_option maxRecDepth 100000 in
-theorem slotOK_all : (List.range 5).all slotOK = true := by decide
+theorem slotOK_all : (List.range 6).all slotOK = true := by decide
 
 theorem slot_eval {D : Table} {q dk : Nat} (hq : q < D.h) (hf : DecRowF D q) (hk : DKind D q dk) {e e' : E}
     (h : slotEq dk e e' = true) : e.eval (D.env q) = e'.eval (D.env q) := by
@@ -291,18 +318,23 @@ namespace Dec
 def busI : List Inter :=
   [⟨"decn", 1, .neg (.add (col KCELL) (col KATOM)), [col KEY, col PC, col RO]⟩,
    ⟨"decn", 1, col KCELL, [col KEY, f2 21, .sub (c 2) (col H0)]⟩,
-   ⟨"decn", 1, col KCELL, [col KEY, f2 23, c 2]⟩,
+   ⟨"decn", 1, col KCELL, [col KEY, f2 26, c 2]⟩,
    ⟨"decb", 1, col KATOM, [col KEY, f2 22, .sub one (col H1), c 0, col H1, c 0]⟩,
    ⟨"decb", 1, .neg (col KCONS), [col KEY, col PC, col MODE, col LVL, col BW, col WC]⟩,
-   ⟨"decb", 1, col CSEND, [col KEY, f2 14, col MODE, .add (col LVL) one, col NBW, col WCN]⟩,
-   ⟨"decb", 1, .neg (col KNIL), [col KEY, col PC, col MODE, col LVL, col BW, col WC]⟩,
+   ⟨"decb", 1, col CSEND, [col KEY, f2 14, .add (col MODE) (.mul (c 2) (col ISLAST)), .add (col LVL) one, col NBW,
+     col WCN]⟩,
+   ⟨"decb", 1, .neg (col KNIL), [col KEY, col PC, mfE, col LVL, col BW, col WC]⟩,
    ⟨"decd", 1, .neg (col SUB), [col KEY, col ERR, col WC]⟩,
    ⟨"decd", 1, col DONE0, [col KEY, c 0, col WCN]⟩,
    ⟨"decd", 1, col DONE1, [col KEY, c 1, col WC]⟩,
    ⟨"decd", 1, col HC, [col KEY, c 1, c 0]⟩,
    ⟨"decx", 1, col SUB, [col KEY, .add (col KEY) (.mul (c 12) (col ERR)),
      .add (.add (.add (col KEY) (c 12)) (col WC)) (.mul (c 3) (col ERR))]⟩,
-   ⟨"decx", 1, col ASUB, [col KEY, col KEY, .add (col KEY) (c 3)]⟩]
+   ⟨"decx", 1, col ASUB, [col KEY, col KEY, .add (col KEY) (c 3)]⟩,
+   ⟨"decn", 1, .neg (col INN), [col KEY, col PC, col RO]⟩,
+   ⟨"decn", 1, col INN, [col KEY, f2 1, col RO]⟩,
+   ⟨"decb", 1, .neg (col INB), [col KEY, col PC, mfE, col LVL, col BW, col WC]⟩,
+   ⟨"decb", 1, col INB, [col KEY, f2 1, mfE, col LVL, col BW, col WC]⟩]
 
 /-- DEC's writes. -/
 def writesI : List Inter :=
@@ -336,7 +368,8 @@ theorem writesI_mem : ∀ I ∈ writesI, I.bus = "mem" ∧ ∃ X ∈ wcols, I.co
 theorem busI_ne_mem : ∀ I ∈ busI, I.bus ≠ "mem" := by
   intro I hI
   simp only [busI, List.mem_cons, List.not_mem_nil, or_false] at hI
-  rcases hI with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> decide
+  rcases hI with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;>
+    decide
 
 end Dec
 
@@ -367,7 +400,8 @@ theorem DecRowF.wbit {D : Table} {q : Nat} (hf : DecRowF D q) : ∀ X ∈ Dec.wc
   · rw [hf.clk]; exact bit_mul hf.kcons hf.bw
   · rw [hf.nlk]; exact bit_mul hf.knil hf.bw
 
-theorem expAct_cases (dk j : Nat) : expAct dk j = one ∨ expAct dk j = zero ∨ expAct dk j = col Dec.CG := by
+theorem expAct_cases (dk j : Nat) :
+    expAct dk j = one ∨ expAct dk j = zero ∨ expAct dk j = col Dec.CG ∨ expAct dk j = col Dec.CKT := by
   unfold expAct
   split
   · split
@@ -375,8 +409,10 @@ theorem expAct_cases (dk j : Nat) : expAct dk j = one ∨ expAct dk j = zero ∨
     · exact .inr (.inl rfl)
   · split
     · split
-      · exact .inr (.inr rfl)
-      · exact .inl rfl
+      · exact .inr (.inr (.inl rfl))
+      · split
+        · exact .inr (.inr (.inr rfl))
+        · exact .inl rfl
     · exact .inr (.inl rfl)
 
 /-- **A slot's activity is a bit.** -/
@@ -384,11 +420,13 @@ theorem actE_bit {D : Table} {q : Nat} (hq : q < D.h) (hf : DecRowF D q) {j : Na
     (Dec.actE j).eval (D.env q) = 0 ∨ (Dec.actE j).eval (D.env q) = 1 := by
   obtain ⟨dk, hk⟩ := dkind_of hf
   rw [(slot_kind hq hf hk hj).2.2]
-  rcases expAct_cases dk j with e | e | e <;> rw [e]
+  rcases expAct_cases dk j with e | e | e | e <;> rw [e]
   · exact .inr rfl
   · exact .inl rfl
   · show D.env q (.main 0 Dec.CG) = 0 ∨ D.env q (.main 0 Dec.CG) = 1
     rw [env_main0 hq, hf.cg]; exact bit_mul hf.kcons (bit_one_sub hf.bit)
+  · show D.env q (.main 0 Dec.CKT) = 0 ∨ D.env q (.main 0 Dec.CKT) = 1
+    rw [env_main0 hq, hf.ckt]; exact bit_mul hf.kcell hf.ikt
 
 /-- **DEC's `mem` messages have counts `0` or `1`.** -/
 theorem dec_mem_count {D : Table} {q : Nat} (hq : q < D.h) (hf : DecRowF D q) {I : Inter}

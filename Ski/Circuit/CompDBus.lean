@@ -45,22 +45,24 @@ variable {hd0 stk0 ctr0 n nilA J : Nat} {heap : List Cell} {N W : Nat} {roots : 
 include h
 
 theorem CompDOK.dbit {q : Nat} (hq : q < D.h) :
-    ∀ X ∈ [Dec.KCELL, Dec.KATOM, Dec.KCONS, Dec.KNIL, Dec.CSEND, Dec.DONE0, Dec.DONE1, Dec.SUB, Dec.HC, Dec.ASUB],
-      D.main q X = 0 ∨ D.main q X = 1 := by
+    ∀ X ∈ [Dec.KCELL, Dec.KATOM, Dec.KCONS, Dec.KNIL, Dec.CSEND, Dec.DONE0, Dec.DONE1, Dec.SUB, Dec.HC, Dec.ASUB,
+      Dec.INN, Dec.INB], D.main q X = 0 ∨ D.main q X = 1 := by
   have hf := decRowF_of h.dec hq
   intro X hX
   simp only [List.mem_cons, List.not_mem_nil, or_false] at hX
-  rcases hX with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
+  rcases hX with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
   · exact hf.kcell
   · exact hf.katom
   · exact hf.kcons
   · exact hf.knil
-  · rw [hf.csend]; exact bit_mul hf.kcons (bit_one_sub hf.last)
+  · rw [hf.csend]; exact hf.kcons
   · rw [hf.done0]; exact bit_mul (bit_mul hf.kcons hf.last) (bit_one_sub hf.mode)
-  · rw [hf.done1]; exact bit_mul hf.knil (bit_one_sub hf.mode)
+  · rw [hf.done1]; exact bit_mul (bit_mul hf.knil (bit_one_sub hf.mode)) (bit_one_sub hf.term)
   · exact hf.wbit _ (by simp [Dec.wcols])
   · exact hf.wbit _ (by simp [Dec.wcols])
   · exact hf.wbit _ (by simp [Dec.wcols])
+  · rw [hf.inn]; exact bit_mul hf.kind (bit_one_sub hf.ib)
+  · rw [hf.inb]; exact bit_mul hf.kind hf.ib
 
 /-- **The jet's buses are signed**: every message's count is `0`, `1` or `-1`. -/
 theorem CompDOK.signed {B : String} (hB : DBus B) :
@@ -133,7 +135,7 @@ theorem CompDOK.signed {B : String} (hB : DBus B) :
           intro X hX; simp only [E.eval]; rw [cv]; rcases neg_bit hX with e | e
           · exact .inl e
           · exact .inr (.inr e)
-        rcases hI with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
+        rcases hI with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
         · show (E.neg (E.add (col Dec.KCELL) (col Dec.KATOM))).eval _ = 0 ∨ _ = 1 ∨ _ = -1
           simp only [E.eval, cv]; rcases neg_bit hsum with e | e
           · exact .inl e
@@ -149,6 +151,10 @@ theorem CompDOK.signed {B : String} (hB : DBus B) :
         · exact col1 _ (hbit _ (by simp))
         · exact col1 _ (hbit _ (by simp))
         · exact col1 _ (hbit _ (by simp))
+        · exact col1 _ (hbit _ (by simp))
+        · exact neg1 _ (hbit _ (by simp))
+        · exact col1 _ (hbit _ (by simp))
+        · exact neg1 _ (hbit _ (by simp))
         · exact col1 _ (hbit _ (by simp))
     · obtain ⟨b, hbm, hbus', _⟩ := withBlocks_block_bus hI
       simp only [List.mem_cons, List.not_mem_nil, or_false] at hbm

@@ -14,30 +14,41 @@ open B Air
 
 /-- **A need on `decn`**: the CPU's jet row asks for its subject, in the
     role `0`; a `Cell` row asks for its head (role `1` under the subject,
-    `2` else) and its tail (role `2`). -/
+    `2` else) and its tail (role `2`); an indirection passes a need on to its
+    target, in the same role. -/
 def NeedSent (C D : Table) (v : List F) : Prop :=
   (∃ r, r < C.h ∧ C.main r DECSEL = 1 ∧ v = [C.main r CTR, C.main r (FLD + 2), 0]) ∨
   (∃ q, q < D.h ∧ D.main q Dec.KCELL = 1 ∧
     (v = [D.main q Dec.KEY, D.main q (Dec.DFLD + 43), ofN 2 - D.main q Dec.H0] ∨
-      v = [D.main q Dec.KEY, D.main q (Dec.DFLD + 47), ofN 2]))
+      v = [D.main q Dec.KEY, D.main q (Dec.DFLD + 53), ofN 2])) ∨
+  (∃ q, q < D.h ∧ D.main q Dec.INN = 1 ∧ v = [D.main q Dec.KEY, D.main q (Dec.DFLD + 3), D.main q Dec.RO])
 
-/-- A need received: by a `Cell` or an `Atom` row, at its key, pointer and role. -/
+/-- A need received: by a `Cell`, an `Atom` or an indirection row, at its
+    key, pointer and role. -/
 def NeedRecv (D : Table) (v : List F) : Prop :=
-  ∃ q, q < D.h ∧ D.main q Dec.KCELL + D.main q Dec.KATOM = 1 ∧ v = [D.main q Dec.KEY, D.main q Dec.PC, D.main q Dec.RO]
+  ∃ q, q < D.h ∧ (D.main q Dec.KCELL + D.main q Dec.KATOM = 1 ∨ D.main q Dec.INN = 1) ∧
+    v = [D.main q Dec.KEY, D.main q Dec.PC, D.main q Dec.RO]
 
 /-- **A chain's step on `decb`**: an `Atom` row starts its bits' chain (mode
-    `0` for the head, `1` else); a `Cons` row that is not the last passes
-    on to its tail. -/
+    `0` for the head, `1` else); a `Cons` row passes on to its tail, the
+    mode field marked by `2` when it says it is the last; an indirection
+    passes a step on to its target. -/
 def ChainSent (D : Table) (v : List F) : Prop :=
   (∃ q, q < D.h ∧ D.main q Dec.KATOM = 1 ∧
     v = [D.main q Dec.KEY, D.main q (Dec.DFLD + 45), 1 - D.main q Dec.H1, 0, D.main q Dec.H1, 0]) ∨
   (∃ q, q < D.h ∧ D.main q Dec.CSEND = 1 ∧
-    v = [D.main q Dec.KEY, D.main q (Dec.DFLD + 29), D.main q Dec.MODE, D.main q Dec.LVL + 1, D.main q Dec.NBW,
-      D.main q Dec.WCN])
+    v = [D.main q Dec.KEY, D.main q (Dec.DFLD + 29), D.main q Dec.MODE + ofN 2 * D.main q Dec.ISLAST,
+      D.main q Dec.LVL + 1, D.main q Dec.NBW, D.main q Dec.WCN]) ∨
+  (∃ q, q < D.h ∧ D.main q Dec.INB = 1 ∧
+    v = [D.main q Dec.KEY, D.main q (Dec.DFLD + 3), D.main q Dec.MODE + ofN 2 * D.main q Dec.TERM,
+      D.main q Dec.LVL, D.main q Dec.BW, D.main q Dec.WC])
 
+/-- A chain's step received: by a `Cons`, a nil or an indirection row, at its
+    mode field (a `Cons` row's `TERM` is `0`). -/
 def ChainRecv (D : Table) (v : List F) : Prop :=
-  ∃ q, q < D.h ∧ (D.main q Dec.KCONS = 1 ∨ D.main q Dec.KNIL = 1) ∧
-    v = [D.main q Dec.KEY, D.main q Dec.PC, D.main q Dec.MODE, D.main q Dec.LVL, D.main q Dec.BW, D.main q Dec.WC]
+  ∃ q, q < D.h ∧ (D.main q Dec.KCONS = 1 ∨ D.main q Dec.KNIL = 1 ∨ D.main q Dec.INB = 1) ∧
+    v = [D.main q Dec.KEY, D.main q Dec.PC, D.main q Dec.MODE + ofN 2 * D.main q Dec.TERM, D.main q Dec.LVL,
+      D.main q Dec.BW, D.main q Dec.WC]
 
 /-- **The verdict on `decd`**: the head's last `Cons` in mode `0`, its nil, or
     a cell head; received by the subject's `Cell` row. -/
@@ -102,7 +113,7 @@ theorem CompDOK.need_recv {v : List F} (hs : NeedSent C D v) : NeedRecv D v := b
   have hit : ∃ p ∈ compDTables hd0 stk0 ctr0 n nilA J heap N W roots C Mm Pg Wt Sg D, ∃ r, r < p.2.h ∧
       ∃ I ∈ p.1.inters, I.bus = "decn" ∧ I.fields.map (fun e => e.eval (p.2.env r)) = v ∧
         I.count.eval (p.2.env r) = 1 := by
-    rcases hs with ⟨r, hr, hd, rfl⟩ | ⟨q, hq, hk, rfl | rfl⟩
+    rcases hs with ⟨r, hr, hd, rfl⟩ | ⟨q, hq, hk, rfl | rfl⟩ | ⟨q, hq, hk, rfl⟩
     · have cv := col_eval hr
       exact h.cpuHit hr (I := ⟨"decn", 1, sDec, [col CTR, fld 2, c 0]⟩) (by unfold cpuBusI; mem_tac) rfl
         (by simp [fld, cv]; rfl) (by show (col DECSEL).eval _ = 1; rw [cv, hd])
@@ -110,7 +121,10 @@ theorem CompDOK.need_recv {v : List F} (hs : NeedSent C D v) : NeedRecv D v := b
       exact h.decHit hq (I := ⟨"decn", 1, col Dec.KCELL, [col Dec.KEY, Dec.f2 21, .sub (c 2) (col Dec.H0)]⟩)
         (by unfold Dec.busI; mem_tac) rfl (by simp [Dec.f2, cv, E.eval, c]) (by rw [cv, hk])
     · have cv := col_eval hq
-      exact h.decHit hq (I := ⟨"decn", 1, col Dec.KCELL, [col Dec.KEY, Dec.f2 23, c 2]⟩)
+      exact h.decHit hq (I := ⟨"decn", 1, col Dec.KCELL, [col Dec.KEY, Dec.f2 26, c 2]⟩)
+        (by unfold Dec.busI; mem_tac) rfl (by simp [Dec.f2, cv, E.eval, c]) (by rw [cv, hk])
+    · have cv := col_eval hq
+      exact h.decHit hq (I := ⟨"decn", 1, col Dec.INN, [col Dec.KEY, Dec.f2 1, col Dec.RO]⟩)
         (by unfold Dec.busI; mem_tac) rfl (by simp [Dec.f2, cv, E.eval, c]) (by rw [cv, hk])
   obtain hm := bus_match h.bal h.hts (h.signed (.inl rfl)) hit
   rcases h.hit_split (.inl rfl) hm with ⟨r, hr, I, hI, hb, hf, hc⟩ | ⟨q, hq, I, hI, hb, hf, hc⟩
@@ -121,11 +135,13 @@ theorem CompDOK.need_recv {v : List F} (hs : NeedSent C D v) : NeedRecv D v := b
   · have cv := col_eval hq
     obtain ⟨dk, hk⟩ := dkind_of (decRowF_of h.dec hq)
     simp only [Dec.busI, List.mem_cons, List.not_mem_nil, or_false] at hI
-    rcases hI with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
+    rcases hI with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
     · simp only [E.eval, cv] at hc
-      exact ⟨q, hq, neg_eq_neg_one (sum_bit_of_kind hk) hc, by rw [← hf]; simp [cv]⟩
+      exact ⟨q, hq, .inl (neg_eq_neg_one (sum_bit_of_kind hk) hc), by rw [← hf]; simp [cv]⟩
     all_goals first
       | exact absurd hb (by decide)
+      | (simp only [E.eval, cv] at hc
+         exact ⟨q, hq, .inr (neg_eq_neg_one (h.dbit hq _ (by simp)) hc), by rw [← hf]; simp [cv]⟩)
       | (simp only [E.eval, cv] at hc
          exact absurd hc (bit_ne_neg (h.dbit hq _ (by simp))))
 
@@ -133,8 +149,14 @@ theorem CompDOK.need_recv {v : List F} (hs : NeedSent C D v) : NeedRecv D v := b
 theorem CompDOK.need_sent {v : List F} (hr : NeedRecv D v) : NeedSent C D v := by
   obtain ⟨q, hq, hk, rfl⟩ := hr
   have cv := col_eval hq
-  have hit := h.decHit hq (I := ⟨"decn", 1, .neg (.add (col Dec.KCELL) (col Dec.KATOM)), [col Dec.KEY, col Dec.PC,
-      col Dec.RO]⟩) (B := "decn") (s := -1) (v := [D.main q Dec.KEY, D.main q Dec.PC, D.main q Dec.RO]) (by unfold Dec.busI; mem_tac) rfl (by simp [cv]) (by simp only [E.eval, cv, hk])
+  have hit : ∃ p ∈ compDTables hd0 stk0 ctr0 n nilA J heap N W roots C Mm Pg Wt Sg D, ∃ r, r < p.2.h ∧
+      ∃ I ∈ p.1.inters, I.bus = "decn" ∧ I.fields.map (fun e => e.eval (p.2.env r)) =
+        [D.main q Dec.KEY, D.main q Dec.PC, D.main q Dec.RO] ∧ I.count.eval (p.2.env r) = -1 := by
+    rcases hk with hk | hk
+    · exact h.decHit hq (I := ⟨"decn", 1, .neg (.add (col Dec.KCELL) (col Dec.KATOM)), [col Dec.KEY, col Dec.PC,
+        col Dec.RO]⟩) (by unfold Dec.busI; mem_tac) rfl (by simp [cv]) (by simp only [E.eval, cv, hk])
+    · exact h.decHit hq (I := ⟨"decn", 1, .neg (col Dec.INN), [col Dec.KEY, col Dec.PC, col Dec.RO]⟩)
+        (by unfold Dec.busI; mem_tac) rfl (by simp [cv]) (by simp only [E.eval, cv, hk])
   obtain hm := bus_match' h.bal h.hts (h.signed (.inl rfl)) hit
   rcases h.hit_split (.inl rfl) hm with ⟨r, hr, I, hI, hb, hf, hc⟩ | ⟨q', hq', I, hI, hb, hf, hc⟩
   · simp only [cpuBusI, List.mem_cons, List.not_mem_nil, or_false] at hI
@@ -146,42 +168,63 @@ theorem CompDOK.need_sent {v : List F} (hr : NeedRecv D v) : NeedSent C D v := b
   · have cv' := col_eval hq'
     obtain ⟨dk, hk'⟩ := dkind_of (decRowF_of h.dec hq')
     simp only [Dec.busI, List.mem_cons, List.not_mem_nil, or_false] at hI
-    rcases hI with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
+    rcases hI with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
     · simp only [E.eval, cv'] at hc
       exact absurd hc (neg_ne_one (sum_bit_of_kind hk'))
     · simp only [cv'] at hc
-      exact .inr ⟨q', hq', hc, .inl (by rw [← hf]; simp [Dec.f2, cv', E.eval, c])⟩
+      exact .inr (.inl ⟨q', hq', hc, .inl (by rw [← hf]; simp [Dec.f2, cv', E.eval, c])⟩)
     · simp only [cv'] at hc
-      exact .inr ⟨q', hq', hc, .inr (by rw [← hf]; simp [Dec.f2, cv', E.eval, c])⟩
-    all_goals exact absurd hb (by decide)
+      exact .inr (.inl ⟨q', hq', hc, .inr (by rw [← hf]; simp [Dec.f2, cv', E.eval, c])⟩)
+    all_goals first
+      | exact absurd hb (by decide)
+      | (simp only [E.eval, cv'] at hc
+         exact absurd hc (neg_ne_one (h.dbit hq' _ (by simp))))
+      | (simp only [cv'] at hc
+         exact .inr (.inr ⟨q', hq', hc, by rw [← hf]; simp [Dec.f2, cv', E.eval, c]⟩))
 
+/-- A `Cons` row's mode field: its `TERM` is `0`. -/
+theorem CompDOK.cons_mf {q : Nat} (hq : q < D.h) (hk : D.main q Dec.KCONS = 1) :
+    D.main q Dec.MODE = D.main q Dec.MODE + ofN 2 * D.main q Dec.TERM := by
+  have ht := (decRowF_of h.dec hq).consTerm
+  rw [hk, one_mul'] at ht
+  rw [ht, show ofN 2 * (0 : F) = 0 by decide, add_zero']
 
 /-- **A chain's step is received.** -/
 theorem CompDOK.chain_recv {v : List F} (hs : ChainSent D v) : ChainRecv D v := by
   have hit : ∃ p ∈ compDTables hd0 stk0 ctr0 n nilA J heap N W roots C Mm Pg Wt Sg D, ∃ r, r < p.2.h ∧
       ∃ I ∈ p.1.inters, I.bus = "decb" ∧ I.fields.map (fun e => e.eval (p.2.env r)) = v ∧
         I.count.eval (p.2.env r) = 1 := by
-    rcases hs with ⟨q, hq, hk, rfl⟩ | ⟨q, hq, hk, rfl⟩
+    rcases hs with ⟨q, hq, hk, rfl⟩ | ⟨q, hq, hk, rfl⟩ | ⟨q, hq, hk, rfl⟩
     · have cv := col_eval hq
       exact h.decHit hq (I := ⟨"decb", 1, col Dec.KATOM, [col Dec.KEY, Dec.f2 22, .sub one (col Dec.H1), c 0,
         col Dec.H1, c 0]⟩) (by unfold Dec.busI; mem_tac) rfl (by simp [Dec.f2, cv, E.eval, c, one, ofN_one, ofN_zero]) (by rw [cv, hk])
     · have cv := col_eval hq
-      exact h.decHit hq (I := ⟨"decb", 1, col Dec.CSEND, [col Dec.KEY, Dec.f2 14, col Dec.MODE,
-        .add (col Dec.LVL) one, col Dec.NBW, col Dec.WCN]⟩) (by unfold Dec.busI; mem_tac) rfl
+      exact h.decHit hq (I := ⟨"decb", 1, col Dec.CSEND, [col Dec.KEY, Dec.f2 14,
+        .add (col Dec.MODE) (.mul (c 2) (col Dec.ISLAST)), .add (col Dec.LVL) one, col Dec.NBW, col Dec.WCN]⟩)
+        (by unfold Dec.busI; mem_tac) rfl
         (by simp [Dec.f2, cv, E.eval, c, one, ofN_one, ofN_zero]) (by rw [cv, hk])
+    · have cv := col_eval hq
+      exact h.decHit hq (I := ⟨"decb", 1, col Dec.INB, [col Dec.KEY, Dec.f2 1, Dec.mfE, col Dec.LVL, col Dec.BW,
+        col Dec.WC]⟩) (by unfold Dec.busI; mem_tac) rfl
+        (by simp [Dec.f2, Dec.mfE, cv, E.eval, c, one, ofN_one, ofN_zero]) (by rw [cv, hk])
   obtain hm := bus_match h.bal h.hts (h.signed (.inr (.inl rfl))) hit
   rcases h.hit_split (.inr (.inl rfl)) hm with ⟨r, hr, I, hI, hb, hf, hc⟩ | ⟨q, hq, I, hI, hb, hf, hc⟩
   · simp only [cpuBusI, List.mem_cons, List.not_mem_nil, or_false] at hI
     rcases hI with rfl | rfl <;> exact absurd hb (by decide)
   · have cv := col_eval hq
     simp only [Dec.busI, List.mem_cons, List.not_mem_nil, or_false] at hI
-    rcases hI with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
+    rcases hI with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
     all_goals first
       | exact absurd hb (by decide)
       | (simp only [E.eval, cv] at hc
-         exact ⟨q, hq, .inl (neg_eq_neg_one (h.dbit hq _ (by simp)) hc), by rw [← hf]; simp [cv]⟩)
+         have hk := neg_eq_neg_one (h.dbit hq _ (by simp)) hc
+         exact ⟨q, hq, .inl hk, by rw [← hf, ← h.cons_mf hq hk]; simp [cv]⟩)
       | (simp only [E.eval, cv] at hc
-         exact ⟨q, hq, .inr (neg_eq_neg_one (h.dbit hq _ (by simp)) hc), by rw [← hf]; simp [cv]⟩)
+         exact ⟨q, hq, .inr (.inl (neg_eq_neg_one (h.dbit hq _ (by simp)) hc)), by
+           rw [← hf]; simp [cv, Dec.mfE, E.eval, c]⟩)
+      | (simp only [E.eval, cv] at hc
+         exact ⟨q, hq, .inr (.inr (neg_eq_neg_one (h.dbit hq _ (by simp)) hc)), by
+           rw [← hf]; simp [cv, Dec.mfE, E.eval, c]⟩)
       | (simp only [E.eval, cv] at hc
          exact absurd hc (bit_ne_neg (h.dbit hq _ (by simp))))
 
@@ -191,20 +234,26 @@ theorem CompDOK.chain_sent {v : List F} (hr : ChainRecv D v) : ChainSent D v := 
   have cv := col_eval hq
   have hit : ∃ p ∈ compDTables hd0 stk0 ctr0 n nilA J heap N W roots C Mm Pg Wt Sg D, ∃ r, r < p.2.h ∧
       ∃ I ∈ p.1.inters, I.bus = "decb" ∧ I.fields.map (fun e => e.eval (p.2.env r)) =
-        [D.main q Dec.KEY, D.main q Dec.PC, D.main q Dec.MODE, D.main q Dec.LVL, D.main q Dec.BW, D.main q Dec.WC] ∧
+        [D.main q Dec.KEY, D.main q Dec.PC, D.main q Dec.MODE + ofN 2 * D.main q Dec.TERM, D.main q Dec.LVL,
+          D.main q Dec.BW, D.main q Dec.WC] ∧
         I.count.eval (p.2.env r) = -1 := by
-    rcases hk with hk | hk
-    · exact h.decHit hq (I := ⟨"decb", 1, .neg (col Dec.KCONS), [col Dec.KEY, col Dec.PC, col Dec.MODE, col Dec.LVL,
+    rcases hk with hk | hk | hk
+    · rw [← h.cons_mf hq hk]
+      exact h.decHit hq (I := ⟨"decb", 1, .neg (col Dec.KCONS), [col Dec.KEY, col Dec.PC, col Dec.MODE, col Dec.LVL,
         col Dec.BW, col Dec.WC]⟩) (by unfold Dec.busI; mem_tac) rfl (by simp [cv]) (by simp only [E.eval, cv, hk])
-    · exact h.decHit hq (I := ⟨"decb", 1, .neg (col Dec.KNIL), [col Dec.KEY, col Dec.PC, col Dec.MODE, col Dec.LVL,
-        col Dec.BW, col Dec.WC]⟩) (by unfold Dec.busI; mem_tac) rfl (by simp [cv]) (by simp only [E.eval, cv, hk])
+    · exact h.decHit hq (I := ⟨"decb", 1, .neg (col Dec.KNIL), [col Dec.KEY, col Dec.PC, Dec.mfE, col Dec.LVL,
+        col Dec.BW, col Dec.WC]⟩) (by unfold Dec.busI; mem_tac) rfl (by simp [cv, Dec.mfE, E.eval, c])
+        (by simp only [E.eval, cv, hk])
+    · exact h.decHit hq (I := ⟨"decb", 1, .neg (col Dec.INB), [col Dec.KEY, col Dec.PC, Dec.mfE, col Dec.LVL,
+        col Dec.BW, col Dec.WC]⟩) (by unfold Dec.busI; mem_tac) rfl (by simp [cv, Dec.mfE, E.eval, c])
+        (by simp only [E.eval, cv, hk])
   obtain hm := bus_match' h.bal h.hts (h.signed (.inr (.inl rfl))) hit
   rcases h.hit_split (.inr (.inl rfl)) hm with ⟨r, hr, I, hI, hb, hf, hc⟩ | ⟨q', hq', I, hI, hb, hf, hc⟩
   · simp only [cpuBusI, List.mem_cons, List.not_mem_nil, or_false] at hI
     rcases hI with rfl | rfl <;> exact absurd hb (by decide)
   · have cv' := col_eval hq'
     simp only [Dec.busI, List.mem_cons, List.not_mem_nil, or_false] at hI
-    rcases hI with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
+    rcases hI with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
     all_goals first
       | exact absurd hb (by decide)
       | (simp only [E.eval, cv'] at hc
@@ -212,7 +261,10 @@ theorem CompDOK.chain_sent {v : List F} (hr : ChainRecv D v) : ChainSent D v := 
       | (simp only [cv'] at hc
          exact .inl ⟨q', hq', hc, by rw [← hf]; simp [Dec.f2, cv', E.eval, c, one, ofN_one, ofN_zero]⟩)
       | (simp only [cv'] at hc
-         exact .inr ⟨q', hq', hc, by rw [← hf]; simp [Dec.f2, cv', E.eval, c, one, ofN_one, ofN_zero]⟩)
+         exact .inr (.inl ⟨q', hq', hc, by rw [← hf]; simp [Dec.f2, cv', E.eval, c, one, ofN_one, ofN_zero]⟩))
+      | (simp only [cv'] at hc
+         exact .inr (.inr ⟨q', hq', hc, by rw [← hf]; simp [Dec.f2, Dec.mfE, cv', E.eval, c, one, ofN_one,
+           ofN_zero]⟩))
 
 /-- **The verdict received was sent.** -/
 theorem CompDOK.verd_sent {v : List F} (hr : VerdRecv D v) : VerdSent D v := by
@@ -227,7 +279,7 @@ theorem CompDOK.verd_sent {v : List F} (hr : VerdRecv D v) : VerdSent D v := by
     rcases hI with rfl | rfl <;> exact absurd hb (by decide)
   · have cv' := col_eval hq'
     simp only [Dec.busI, List.mem_cons, List.not_mem_nil, or_false] at hI
-    rcases hI with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
+    rcases hI with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
     all_goals first
       | exact absurd hb (by decide)
       | (simp only [E.eval, cv'] at hc
@@ -255,7 +307,7 @@ theorem CompDOK.res_sent {v : List F} (hr : ResRecv C v) : ResSent D v := by
       exact absurd hc (neg_ne_one (h.cpu_dsel hr'))
   · have cv' := col_eval hq'
     simp only [Dec.busI, List.mem_cons, List.not_mem_nil, or_false] at hI
-    rcases hI with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
+    rcases hI with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
     all_goals first
       | exact absurd hb (by decide)
       | (simp only [cv'] at hc
