@@ -148,6 +148,20 @@ theorem lastAt_eq {H : List Cell} : ∀ {n t : Nat} {bs : List Bool} {sks : List
     | none => simp
     | some x => simp [k2 (List.cons_ne_nil _ _) j x hj]
 
+theorem readBitsI_run_K {H : List Cell} : ∀ {n t : Nat} {bs : List Bool} {sks : List ConsSk},
+    readBitsI H n t = some (bs, sks) → ∀ {j x : Nat}, iterI H j t = some x → isK H x = true → bs = [] := by
+  intro n t bs sks h j x hj hx
+  cases bs with
+  | nil => rfl
+  | cons b bs' =>
+    exfalso
+    have := lastAt_eq h
+    have h2 : lastAt H t = true := by
+      apply List.any_eq_true.2
+      refine ⟨j, List.mem_range.2 ?_, by rw [hj]; exact hx⟩
+      have := iterI_bound hj (isK_lt hx) (isK_noind hx); omega
+    rw [h2] at this; cases this
+
 /-- **The head chain's states**, step by step: the pointer, the level, the
     borrow and the cells written. -/
 def walkS (H : List Cell) (b0 : Nat) : Nat → Option (Nat × Nat × Bool × Nat)
@@ -237,12 +251,39 @@ theorem walkS_iter {H : List Cell} {b0 j l : Nat} {bw : Bool} {wc : Nat} :
       rw [show j + 1 + m = j + (m + 1) by omega] at this
       exact this
 
+/-- At level `0` the walk has only passed thunks. -/
+theorem walkS_level0 {H : List Cell} {b0 : Nat} : ∀ (j : Nat) {x : Nat} {bw : Bool} {wc : Nat},
+    walkS H b0 j = some (x, 0, bw, wc) → iterI H j b0 = some x ∧ bw = true ∧ wc = 0
+  | 0, x, bw, wc, h => by cases h; exact ⟨rfl, rfl, rfl⟩
+  | j + 1, x, bw, wc, h => by
+    cases hw : walkS H b0 j with
+    | none =>
+      have := walkS_none hw 1
+      rw [h] at this; cases this
+    | some st =>
+      obtain ⟨a, l, bw', wc'⟩ := st
+      cases hi : readInd H a with
+      | some R =>
+        rw [walkS_ind hw hi] at h
+        cases h
+        obtain ⟨h1, h2, h3⟩ := walkS_level0 j hw
+        refine ⟨?_, h2, h3⟩
+        rw [iterI_add j 1 b0 h1, iterI_succ hi]; rfl
+      | none =>
+        cases hc : readCons H a with
+        | none => rw [walkS_stop hw hi hc] at h; cases h
+        | some r =>
+          obtain ⟨b, sk⟩ := r
+          rw [walkS_cons hw hi hc] at h
+          cases h
+
 /-- **The head chain's last `Cons` counts every rewritten cell.** -/
 theorem walkS_end {H : List Cell} {b0 : Nat} : ∀ (n : Nat) (bs : List Bool) (sks : List ConsSk) (j a l : Nat)
     (bw : Bool) (wc : Nat), readBitsI H n a = some (bs, sks) → walkS H b0 j = some (a, l, bw, wc) →
     ∀ (i a' l' : Nat) (bw' : Bool) (wc' : Nat) (b' : Bool) (sk' : ConsSk),
       walkS H b0 (j + i) = some (a', l', bw', wc') → readInd H a' = none → readCons H a' = some (b', sk') →
-      lastAt H sk'.t = true → bs ≠ [] ∧ wc' + (if bw' && !b' then 6 else 0) = wc + 6 * nwr bw bs := by
+      (∀ n bs sks, readBitsI H n sk'.t = some (bs, sks) → bs = []) →
+      bs ≠ [] ∧ wc' + (if bw' && !b' then 6 else 0) = wc + 6 * nwr bw bs := by
   intro n
   induction n with
   | zero => intro bs sks j a l bw wc hr; cases hr
@@ -272,11 +313,7 @@ theorem walkS_end {H : List Cell} {b0 : Nat} : ∀ (n : Nat) (bs : List Bool) (s
         cases hw'
         rw [hcons] at hc'
         cases hc'
-        have hnil : bs' = [] := by
-          have := lastAt_eq hr'; rw [hl'] at this
-          cases bs' with
-          | nil => rfl
-          | cons _ _ => cases this
+        have hnil : bs' = [] := hl' _ _ _ hr'
         subst hnil
         simp only [nwr, List.isEmpty_nil, Bool.and_true]
         split <;> simp
@@ -440,15 +477,15 @@ include hr0 hp0
 
 /-- **No chain row is a stray**: a mode-`0` `Cons` or nil row at the key,
     not a list's end, is a state of the walk from the head's bits. -/
-theorem CompDOK.on_walk {R m0 ma A : Nat} {csk : CellSk} {ask : AtomSk}
+theorem CompDOK.on_walk {R m0 : Nat} {csk : CellSk}
     (hR : iterI ((memOf Mm).take (C.main r0 CTR).val) m0 (C.main r0 (FLD + 2)).val = some R)
-    (hc : readCellI ((memOf Mm).take (C.main r0 CTR).val) R = some csk)
-    (hA : iterI ((memOf Mm).take (C.main r0 CTR).val) ma csk.h = some A)
-    (hask : readAtom ((memOf Mm).take (C.main r0 CTR).val) A = some ask) :
+    (hc : readCellI ((memOf Mm).take (C.main r0 CTR).val) R = some csk) :
     ∀ (m q : Nat), q < D.h → (D.main q Dec.KCONS = 1 ∨ D.main q Dec.KNIL = 1) → D.main q Dec.KEY = C.main r0 CTR →
       D.main q Dec.MODE + ofN 2 * D.main q Dec.TERM = 0 → (D.main q Dec.LVL).val = m →
-      ∃ j, walkS ((memOf Mm).take (C.main r0 CTR).val) ask.b j =
-        some ((D.main q Dec.PC).val, m, decide (D.main q Dec.BW = 1), (D.main q Dec.WC).val) := by
+      ∃ ma A ask, iterI ((memOf Mm).take (C.main r0 CTR).val) ma csk.h = some A ∧
+        readAtom ((memOf Mm).take (C.main r0 CTR).val) A = some ask ∧
+        ∃ j, walkS ((memOf Mm).take (C.main r0 CTR).val) ask.b j =
+          some ((D.main q Dec.PC).val, m, decide (D.main q Dec.BW = 1), (D.main q Dec.WC).val) := by
   intro m
   induction m using Nat.strongRecOn with
   | _ m ih =>
@@ -478,13 +515,10 @@ theorem CompDOK.on_walk {R m0 ma A : Nat} {csk : CellSk} {ask : AtomSk}
         · exact r
         · rw [h1] at z; exact absurd z (by decide)
       have hkey' : D.main qa Dec.KEY = C.main r0 CTR := by rw [← e0, hkey]
-      obtain ⟨_, _, hpc⟩ := h.head_pc hr0 hp0 hR hc hqa hsum hro hkey'
+      obtain ⟨ma, _, hpc⟩ := h.head_pc hr0 hp0 hR hc hqa hsum hro hkey'
       have hra := (h.atomRead hqa hk2).1
       rw [hkey'] at hra
-      have eA : A = (D.main qa Dec.PC).val := iterI_det hA (readAtom_ind hask) hpc (readAtom_ind hra)
-      rw [← eA, hask] at hra
-      cases hra
-      refine ⟨j0, ?_⟩
+      refine ⟨ma, _, _, hpc, hra, j0, ?_⟩
       rw [e1] at hit
       have := walkS_iter (H := (memOf Mm).take (C.main r0 CTR).val) (b0 := (D.main qa (Dec.DFLD + 45)).val) (j := 0)
         (l := 0) (bw := true) (wc := 0) j0 _ rfl hit
@@ -500,7 +534,8 @@ theorem CompDOK.on_walk {R m0 ma A : Nat} {csk : CellSk} {ask : AtomSk}
       unfold DecJet.W at hlv
       have hm : m = (D.main q' Dec.LVL).val + 1 := by rw [← hlvl, e3]; exact val_succ_lt hlv
       have hkey' : D.main q' Dec.KEY = C.main r0 CTR := by rw [← e0, hkey]
-      obtain ⟨j', hw⟩ := ih _ (by omega) q' hq' (.inl hkc') hkey' (by rw [← h.cons_mf hq' hkc', hml.1]) rfl
+      obtain ⟨ma, A, ask, hA, hask, j', hw⟩ :=
+        ih _ (by omega) q' hq' (.inl hkc') hkey' (by rw [← h.cons_mf hq' hkc', hml.1]) rfl
       have hk3 : DKind D q' 3 := by
         rcases h.kind_of_cn hq' (.inl hkc') with hd | hd
         · exact hd
@@ -529,7 +564,7 @@ theorem CompDOK.on_walk {R m0 ma A : Nat} {csk : CellSk} {ask : AtomSk}
       rw [hlast] at hstep
       have hit' := walkS_iter (j := j' + 1) j0 p.val (H := (memOf Mm).take (C.main r0 CTR).val) (b0 := ask.b)
         (by rw [e1]; exact hstep) hit
-      refine ⟨j' + 1 + j0, ?_⟩
+      refine ⟨ma, A, ask, hA, hask, j' + 1 + j0, ?_⟩
       rw [hit', hm]
       -- the received state is the sent one
       have hwr : D.main q' Dec.WRITES = D.main q' Dec.BW := by
