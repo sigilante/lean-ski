@@ -1119,13 +1119,20 @@ by `kind_factsD`), its lookups are memory cells and segment rows
 on `decn` and receives the result on `decx` (`cpuD_jetSends`); the memory
 bus is proved for any list of senders (`bal_memL`). The zero row satisfies
 DEC and is quiet, so a run that never fires the jet is complete
-(`compDG_complete_nojet`). Open: DEC's honest rows for the calls
-(`decProvides_exists`, `todo/DecCompleteTodo.lean`, not on the lib path,
-from which `decpre_complete_log` follows): one row per cell pattern of each
-call's subject, as `decair.rs`'s `Reader` builds them, its 717 constraints
-per kind, its reads and writes memory cells, and the
-`decn`/`decb`/`decd`/`decx` chains telescoping. A proof of `decpre p` is released (`release/dec`,
-verify.sh step 13).
+(`compDG_complete_nojet`). DEC's honest table is proved
+(`Ski/Circuit/CompDTrace*.lean`, `CompDCompleteDec.lean`): one row per cell
+pattern of each call's subject, as `decair.rs`'s `Reader` builds them
+(`DecT.callRows`, along `DecJet`'s readers), padded with zero rows
+(`DRun.decTable`); a well-formed row satisfies DEC's constraints
+(`DecT.row_sat`, the slots by `slotOK_all` in the other direction), a row
+reads its pattern below the key (`cellReads`, `atomReads`, `consReads`,
+`nilReads`), its reads and writes are memory cells (`row_mem`; the writes
+`DecJet.outCells`, `call_writes`), and the `decn`/`decb`/`decd`/`decx`
+chains of a call telescope to the negation of the CPU's jet row
+(`call_sends`). So an honest run whose calls' rows fit `2^LD` has its DEC
+table (`decProvides_exists`) and `decpre_complete_log` holds, its only
+hypothesis beyond the run's that DEC height (`DRun.decRows ≤ 2^LD`). A
+proof of `decpre p` is released (`release/dec`, verify.sh step 13).
 
 Fiat–Shamir, round by round (`Ski/ZK/FSRound.lean`, `ski-air fs-budget`).
 Lean proves the counting step: `q` adaptive hash calls hit a round of bad
