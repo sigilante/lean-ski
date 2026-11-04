@@ -196,6 +196,172 @@ theorem bitsW : ∀ (n p l : Nat) (bw : Bool) (wc : Nat) {bs : List Bool} {sks :
 
 end
 
+theorem nounRows_atom1 {A : List Cell} {key n h : Nat} {ask : DecJet.AtomSk}
+    (hah : DecJet.readAtom (A.take key) h = some ask) :
+    nounRows A key (n + 1) h 1 = atomRow key h 1 :: bitsRows A key false (n + 1) ask.b 0 true 0 := by
+  simp only [nounRows, hah]; rfl
+
+theorem nounRows_cell1 {A : List Cell} {key n h : Nat} {sk : DecJet.CellSk}
+    (hah : DecJet.readAtom (A.take key) h = none) (hc : DecJet.readCell (A.take key) h = some sk) :
+    nounRows A key (n + 1) h 1 = cellRow key h 1 false 0 :: (nounRows A key n sk.h 2 ++ nounRows A key n sk.t 2) := by
+  simp only [nounRows, hah, hc]
+
+theorem bitsRows_K {A : List Cell} {key n p lvl wc : Nat} {m bw : Bool} (hK : DecJet.isK (A.take key) p = true) :
+    bitsRows A key m (n + 1) p lvl bw wc = [nilRow key p m lvl bw wc] := by
+  simp only [bitsRows, hK, if_true]
+
+theorem readBits_nilK {H : List Cell} {n p : Nat} {sks : List DecJet.ConsSk}
+    (h : DecJet.readBits H n p = some ([], sks)) : DecJet.isK H p = true := by
+  cases n with
+  | zero => cases h
+  | succ n =>
+    unfold DecJet.readBits at h
+    by_cases hK : DecJet.isK H p = true
+    · exact hK
+    · rw [if_neg hK] at h
+      split at h
+      · split at h
+        · cases h
+        · cases h
+      · cases h
+
+/-- The subject's `Cell` row writes the wrapper, and `errT` on a crash. -/
+theorem subjW {A : List Cell} {key p : Nat} {csk : DecJet.CellSk} {err : Bool} {wc : Nat}
+    (hc : DecJet.readCell (A.take key) p = some csk) {rest : List Cell}
+    (hC : Cells A key (DecJet.cellCells key csk ++ rest))
+    (hE : err = true → Cells A (key + 12) (DecJet.errCells (key + 12))) :
+    WritesOK A (cellRow key p 0 err wc) := by
+  obtain ⟨_, h2, h8, h14, h15, h17, _, _⟩ := cellReads (d := cellRow key p 0 err wc) rfl hc
+  refine ⟨fun _ _ => ?_, fun _ _ he => ?_, fun _ h => by simp [cellRow] at h, fun h => by simp [cellRow] at h,
+    fun h => by simp [cellRow] at h, fun h => by simp [cellRow] at h, fun h => by simp [cellRow] at h,
+    fun h => by simp [cellRow] at h, fun h => by simp [cellRow] at h⟩
+  · rw [h2, h8, h14, h15, h17]
+    exact Cells_l hC
+  · exact hE he
+
+/-- **Every row of a jet call writes memory cells.** -/
+theorem call_writes {M : List Cell} {J : Nat} {r r' : Air.Row} (h : DecJet.decRow M J r = some r') :
+    ∀ d ∈ callRows M r.ctr (subj M r), WritesOK M d := by
+  obtain ⟨p, rest, s, csk, ask, sks, cells, root, _, _, hpop, hrd, _, hout, hw, rfl⟩ := DecJet.decRow_unfold h
+  rw [popN_subj hpop]
+  have hC := wrs_cells hw
+  generalize r.ctr = key at hpop hrd hout hC ⊢
+  intro d hd
+  unfold callRows at hd
+  rcases readSubj_cases hrd with ⟨sk, bs, ha, hb, hcn, rfl⟩ | ⟨csk', ask', bs, rr, ha, hc, hah, hb, hcn, ht, rfl, rfl, rfl⟩ |
+    ⟨csk', hh, tt, ha, hc, hah, hh', ht, rfl, rfl⟩
+  · -- an atom subject: `errT` at the key
+    rw [ha] at hd
+    simp only [DecJet.outCells, Option.some.injEq, Prod.mk.injEq] at hout
+    obtain ⟨rfl, rfl⟩ := hout
+    rcases List.mem_cons.1 hd with rfl | hd
+    · refine ⟨fun h => by simp [atomRow] at h, fun h => by simp [atomRow] at h, fun h => by simp [atomRow] at h,
+        fun _ h => by simp [atomRow] at h, fun _ _ => hC, fun h => by simp [atomRow] at h,
+        fun h => by simp [atomRow] at h, fun h => by simp [atomRow] at h, fun h => by simp [atomRow] at h⟩
+    · exact bits_quiet _ _ _ _ d hd
+  · -- a cell subject, its head an atom
+    rw [ha] at hd; simp only at hd; rw [hc] at hd; simp only at hd
+    obtain ⟨n, hL⟩ : ∃ n, (M.take key).length = n + 1 := by
+      cases hl : (M.take key).length with
+      | zero => rw [hl] at hb; cases hb
+      | succ k => exact ⟨k, rfl⟩
+    rw [hL, nounRows_atom1 hah] at hd
+    have hb0 := hb
+    rw [hL] at hb
+    obtain ⟨_, h0, h6, h12, h18, _⟩ := atomReads (d := atomRow key csk'.h 1) rfl hah
+    have hhat : ∀ rt : Nat, Cells M key (DecJet.cellCells key csk' ++ DecJet.atomCells (key + 7) ask' rt ++ []) →
+        WritesOK M (atomRow key csk'.h 1) := by
+      intro rt hC'
+      refine ⟨fun h => by simp [atomRow] at h, fun h => by simp [atomRow] at h, fun h => by simp [atomRow] at h,
+        fun _ _ => ?_, fun _ h => by simp [atomRow] at h, fun h => by simp [atomRow] at h,
+        fun h => by simp [atomRow] at h, fun h => by simp [atomRow] at h, fun h => by simp [atomRow] at h⟩
+      have := Cells_r (Cells_l hC')
+      rw [DecJet.cellCells_length] at this
+      have := Cells_l (L1 := [.app ask'.a1 (key + 7 + 1), .app ask'.a2 (key + 7 + 2), .app ask'.a3 (key + 7 + 3),
+        .app ask'.si (key + 7 + 4)]) (L2 := [.app 0 rt]) this
+      show Cells M (key + 7) [.app (sl M (atomRow key csk'.h 1) 0).2.2.1 (key + 8), _, _, _]
+      rw [h0, h6, h12, h18]
+      exact this
+    cases bs with
+    | nil =>
+      simp only [DecJet.outCells, Option.some.injEq, Prod.mk.injEq] at hout
+      obtain ⟨rfl, rfl⟩ := hout
+      have hK := readBits_nilK hb
+      rw [bitsRows_K hK] at hd
+      rcases List.mem_cons.1 hd with rfl | hd
+      · refine subjW hc (rest := DecJet.atomCells (key + 7) ask' 0 ++ DecJet.errCells (key + 12))
+          (by rw [← List.append_assoc]; exact hC) (fun _ => ?_)
+        have := Cells_r hC
+        simp only [List.length_append, DecJet.cellCells_length, DecJet.atomCells_length] at this
+        exact this
+      · rcases List.mem_append.1 hd with hd | hd
+        · rcases List.mem_cons.1 hd with rfl | hd
+          · exact hhat 0 (by rw [List.append_nil]; exact Cells_l hC)
+          · rw [List.mem_singleton] at hd; subst hd
+            refine ⟨fun h => by simp [nilRow] at h, fun h => by simp [nilRow] at h, fun h => by simp [nilRow] at h,
+              fun h => by simp [nilRow] at h, fun h => by simp [nilRow] at h, fun h => by simp [nilRow] at h,
+              fun h => by simp [nilRow] at h, fun h => by simp [nilRow] at h, fun _ _ => ?_⟩
+            exact Cells_at (Cells_l hC) 11 (by simp [DecJet.cellCells, DecJet.atomCells]) rfl rfl
+        · exact noun2_quiet _ _ d hd
+    | cons b bs =>
+      simp only [DecJet.outCells, Option.some.injEq, Prod.mk.injEq] at hout
+      obtain ⟨rfl, rfl⟩ := hout
+      have hv : headV M key csk'.h = (false, (DecJet.bitCells (key + 12) (b :: bs) sks).length) := by
+        unfold headV; rw [hah]; simp only; rw [hb0]
+      rcases List.mem_cons.1 hd with rfl | hd
+      · rw [hv]
+        exact subjW hc (rest := DecJet.atomCells (key + 7) ask' (DecJet.bitsRoot (key + 12) (b :: bs)) ++
+          DecJet.bitCells (key + 12) (b :: bs) sks) (by rw [← List.append_assoc]; exact hC) (fun h => by cases h)
+      · rcases List.mem_append.1 hd with hd | hd
+        · rcases List.mem_cons.1 hd with rfl | hd
+          · exact hhat _ (by rw [List.append_nil]; exact Cells_l hC)
+          · refine bitsW _ _ 0 true 0 hb (List.cons_ne_nil _ _) (fun _ => ⟨?_, ?_⟩) d hd
+            · have := Cells_r hC
+              simp only [List.length_append, DecJet.cellCells_length, DecJet.atomCells_length] at this
+              exact Cells_congr (by omega) rfl this
+            · exact Cells_at (Cells_l hC) 11 (by simp [DecJet.cellCells, DecJet.atomCells]) (by omega) rfl
+        · exact noun2_quiet _ _ d hd
+  · -- a cell subject, its head a cell
+    rw [ha] at hd; simp only at hd; rw [hc] at hd; simp only at hd
+    cases hh with
+    | atom bs => exact absurd hh' (fun h' => readNn_cell h' hah)
+    | cell x y =>
+      simp only [DecJet.outCells, Option.some.injEq, Prod.mk.injEq] at hout
+      obtain ⟨rfl, rfl⟩ := hout
+      obtain ⟨n, hL⟩ : ∃ n, (M.take key).length = n + 1 := by
+        cases hl : (M.take key).length with
+        | zero => rw [hl] at hh'; cases hh'
+        | succ k => exact ⟨k, rfl⟩
+      have hh2 := hh'
+      rw [hL] at hh2
+      unfold DecJet.readNn at hh2
+      rw [hah] at hh2
+      simp only at hh2
+      cases hc2 : DecJet.readCell (M.take key) csk'.h with
+      | none => rw [hc2] at hh2; cases hh2
+      | some sk2 =>
+        rw [hL, nounRows_cell1 hah hc2] at hd
+        have hv : headV M key csk'.h = (true, 0) := by unfold headV; rw [hah]
+        rcases List.mem_cons.1 hd with rfl | hd
+        · rw [hv]
+          refine subjW hc (rest := List.replicate 5 (.app 0 0) ++ DecJet.errCells (key + 12))
+            (by rw [← List.append_assoc]; exact hC) (fun _ => ?_)
+          have := Cells_r hC
+          simp only [List.length_append, DecJet.cellCells_length, List.length_replicate] at this
+          exact this
+        · rcases List.mem_append.1 hd with hd | hd
+          · rcases List.mem_cons.1 hd with rfl | hd
+            · refine ⟨fun _ h => by simp [cellRow] at h, fun _ h => by simp [cellRow] at h, fun _ _ => ?_,
+                fun h => by simp [cellRow] at h, fun h => by simp [cellRow] at h, fun h => by simp [cellRow] at h,
+                fun h => by simp [cellRow] at h, fun h => by simp [cellRow] at h, fun h => by simp [cellRow] at h⟩
+              have := Cells_r (Cells_l hC)
+              rw [DecJet.cellCells_length] at this
+              exact this
+            · rcases List.mem_append.1 hd with hd | hd
+              · exact noun2_quiet _ _ d hd
+              · exact noun2_quiet _ _ d hd
+          · exact noun2_quiet _ _ d hd
+
 end DecT
 
 end Circuit
