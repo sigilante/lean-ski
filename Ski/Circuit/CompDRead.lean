@@ -6,8 +6,10 @@ import Ski.DecInd
 
 A DEC row of each kind reads, through its slots, the cells of its pattern
 in the memory below its key (`CompDOK.slotS`), so the Lean readers of
-`Ski/DecJet.lean` succeed there: a `Cell` row is `DecJet.readCell` at its
-pointer and no `Atom` (`CompDOK.cellRead`), an `Atom` row is
+`Ski/DecJet.lean` and `Ski/DecInd.lean` succeed there: a `Cell` row is
+`DecJet.readCellI` at its pointer, its tail slot bare or through one thunk,
+and no `Atom` nor thunk (`CompDOK.cellRead`), an indirection row is
+`DecJet.readInd` (`indRead`), an `Atom` row is
 `DecJet.readAtom` (`atomRead`), a `Cons` row is `DecJet.readCons`, its tail
 `K` exactly when it is the last (`consRead`), and a nil row reads `K`
 (`nilRead`).

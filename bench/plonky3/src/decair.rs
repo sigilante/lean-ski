@@ -5,11 +5,13 @@
 //! (`DecJet.encNn`: an atom's canonical bits as a Scott list under
 //! `Atom`, a cell's halves under `Cell`).  The CPU's jet row sends the
 //! subject's pointer on `decn` with the role `0`; the table verifies the
-//! subject cell by cell with four kinds of row, each reading the cells of
-//! one pattern through up to 25 range-checked lookups:
+//! subject cell by cell with five kinds of row, each reading the cells of
+//! one pattern through up to 28 range-checked lookups, the subject read
+//! through `K`-thunks `K R w` (`DecJet.decRowI`):
 //!
 //! - **CELL** (role 0: the subject; 1: the head; 2: a tail noun): the
-//!   `Cell h t` wrapper, `K (S (K K) (S (K K) (S (S I (K h)) (K t))))`; it
+//!   `Cell h t` wrapper, `K (S (K K) (S (K K) (S (S I (K h)) kt)))`, `kt`
+//!   the slot `K t` or one thunk of it (`IKT`, slots 23–25); it
 //!   requests its halves on `decn` (the head with role 1 when it is the
 //!   subject's, else 2).  The subject's row writes the output `Cell`
 //!   wrapper at the call's counter `key`, receives the head's verdict on
@@ -22,16 +24,19 @@
 //!   wrapper at `key + 7`), else in mode 1.  An atom subject is a crash:
 //!   `errT` at `key`.
 //! - **CONS**: one bit, `K (S (S I (K bit)) (K t))`, the bit `K` or `K I`;
-//!   it peeks at `t` to know whether it is the last (a `K`, nil), which
-//!   must then be set (canonical bits).  In mode 0 it takes the borrow
+//!   it says whether it is the last (`ISLAST`), which must then be set
+//!   (canonical bits), and always passes on to `t`, the step marked (mode
+//!   field `m + 2`) when it is the last.  In mode 0 it takes the borrow
 //!   step: a clear bit under borrow becomes `K`; the first set bit becomes
 //!   `K I` over the input's tail, or is dropped when it is the top bit;
 //!   the bits above are shared.  A rewritten bit's six cells go at `key +
 //!   12 + 6·lvl` over the input's `S` and `S I` cells; the link to it is
 //!   written by the row itself when the borrow ends there, else by the
 //!   next row, which knows whether it is dropped.
-//! - **NIL**: the end of an empty list, `K`; in mode 0 the head is `0`, a
-//!   crash.
+//! - **NIL**: `K`: the end of a list a last `Cons` marked (`TERM`), or an
+//!   empty list at level 0; an empty head is a crash.
+//! - **IND**: a thunk `K R w` (`p = f w`, `f = k R`, `k = K`): a need or a
+//!   chain's step received at `p` and sent at `R` unchanged (`IB` picks).
 //!
 //! Every pointer read lies below `key` (24-bit range checks), as the
 //! machine's semantics requires; the outputs' cells point at the input's

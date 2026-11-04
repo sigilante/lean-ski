@@ -5,18 +5,22 @@ import Ski.Circuit.CompDCtr
 
 At a jet row's key `k`, with `H` the memory below `k`:
 
-- the subject's rows (role `0`) read the CPU's pointer (`CompDOK.subj_pc`),
-  and the head's rows (role `1`) the subject's head (`head_pc`);
+- the subject's rows (role `0`) read the CPU's pointer after a run of
+  thunks (`CompDOK.subj_pc`), and the head's rows (role `1`) the subject's
+  head after one (`head_pc`);
 - **the need tree is finite**: a need on `decn` at a pointer whose read-back
-  is finite is a noun `DecJet.readNn` reads, at the same fuel
+  is finite is a noun `DecJet.readNnI` reads, at the same fuel
   (`CompDOK.need_nn`).  A need is received by a `Cell` row, which reads the
-  pointer as `readCell` and needs its halves, seven and five fuels below,
-  or by an `Atom` row, which reads `readAtom` and starts its bits' chain;
+  pointer as `readCellI` and needs its halves, or by an `Atom` row, which
+  reads `readAtom` and starts its bits' chain, or by an indirection row,
+  which passes it on two fuels below;
 - **a chain is a canonical bit list**: a chain's step at a pointer whose
-  read-back is finite is `DecJet.readBits` there, canonical
-  (`CompDOK.chain_bits`).  A `Cons` row passes to its tail three fuels
-  below unless it is the last, whose tail is `K` and whose bit is set; a
-  nil row reads `K`.
+  read-back is finite is `DecJet.readBitsI` there, canonical
+  (`CompDOK.chain_bits`): empty when the step is marked as a list's end,
+  non-empty when it is not and its level is not `0`.  A `Cons` row passes
+  to its tail three fuels below, marking the step when it is the last, whose
+  bit is then set; a nil row reads `K`; an indirection row passes the step
+  on.
 
 The fuel is the read-back's: the CPU state decodes, so the subject's
 read-back is finite, and each row peels its pattern from it.  No

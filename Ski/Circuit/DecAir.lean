@@ -15,11 +15,19 @@ The six AIRs of `bench/plonky3/src/compd.rs` for a statement `decpre p`
   the head and the stack cell `cons p rest`, sends the subject's need and
   looks up the slots;
 - **DEC** (`bench/plonky3/src/decair.rs`): one row per cell pattern of the
-  subject (`decAir`), four kinds (the `Cell` wrapper, the `Atom` wrapper, a
-  `Cons`, a nil), each reading its pattern's cells through up to 25
+  subject (`decAir`), read through `K`-thunks (`DecJet.decRowI`), five
+  kinds (the `Cell` wrapper, the `Atom` wrapper, a `Cons`, a nil, an
+  indirection `K R w`), each reading its pattern's cells through up to 28
   range-checked lookups whose addresses and tags are muxed by the kind, and
   the borrow step of the decrement on the `Cons` rows (`DecJet.decB`); it
-  carries a blinding block, the blinding tree's edge `CPU —c— DEC`.
+  carries a blinding block, the blinding tree's edge `CPU —c— DEC`.  An
+  indirection row passes a need (`decn`) or a chain's step (`decb`) from
+  the thunk to its target; the `Cell` row reads its tail slot `K t` bare or
+  through one thunk (`IKT`, slots 23–25, slot 26's address `KT`).  A `Cons`
+  row does not peek at its tail: the last says so (`ISLAST`) and marks its
+  step to the tail (mode field `MODE + 2`), and the chain must end, through
+  any thunks, at a nil that ends a list (`TERM`); an unmarked nil is at
+  level `0`.
 
 **`decStep_sound`**: on every row of a table that satisfies `decAir`, the
 borrow step's columns are the decrement's: the next borrow clears exactly
@@ -33,7 +41,7 @@ kind or none (`dec_kinds`); a wrapper row has one of the three roles
 the head's mode its level is below `W = 32` (`dec_level`), so the head
 atom the jet decrements has at most 32 bits.  What DEC's tables prove
 together, across rows and buses, is that a jet row whose state decodes is
-`DecJet.decRow`'s step (`Circuit.CompDOK.jetRow`, `Ski/Circuit/CompDJetRow.lean`),
+`DecJet.decRowI`'s step (`Circuit.CompDOK.jetRow`, `Ski/Circuit/CompDJetRow.lean`),
 and so `Circuit.decpreExport_sound` (`Ski/DecPreSound.lean`).
 
 `lake exe circuit compare-compd` checks the Rust export (`ski-air
