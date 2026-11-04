@@ -6,8 +6,9 @@ import Ski.Circuit.CompPComplete
 # Completeness of the circuit with the `dec` jet
 
 **The honest DEC table** (`DRun.decTable`): `decair.rs`'s `dec_trace`, the
-rows of every jet call of the run (`DRun.decRows`, `DecT.callRows`) padded
-with zero rows.  **`decProvides_exists`**: for an honest run whose jet
+rows of every jet call of the run (`DRun.decRows`, `DecT.callRows`: through
+the subject's `K`-thunks, an indirection row per thunk on its need tree and
+bit chains) padded with zero rows.  **`decProvides_exists`**: for an honest run whose jet
 calls' rows fit the DEC height, it provides the run's jet calls
 (`DecProvides`): it satisfies DEC (`DecT.row_sat`), is clear past its
 columns, its reads and writes are memory cells (`DecT.row_mem`,
@@ -75,10 +76,10 @@ theorem foldr_neg_ite (P : Nat → Bool) (f : Nat → F) : ∀ l : List Nat,
       exact E.eval_eq_of_norm (e := .add (.neg (.atom (.main 0 0))) (.neg (.atom (.main 0 1))))
         (e' := .neg (.add (.atom (.main 0 0)) (.atom (.main 0 1)))) (by decide) (at4 (f r) _ 0 0)
 
-theorem bits_key {A : List Cell} {key : Nat} {m : Bool} : ∀ (n p lvl : Nat) (bw : Bool) (wc : Nat),
-    ∀ d ∈ bitsRows A key m n p lvl bw wc, d.key = key
-  | 0, _, _, _, _ => by intro d hd; cases hd
-  | n + 1, p, lvl, bw, wc => by
+theorem bits_key {A : List Cell} {key : Nat} {m : Bool} : ∀ (n p lvl : Nat) (bw : Bool) (wc : Nat) (term : Bool),
+    ∀ d ∈ bitsRows A key m n p lvl bw wc term, d.key = key
+  | 0, _, _, _, _, _ => by intro d hd; cases hd
+  | n + 1, p, lvl, bw, wc, term => by
     intro d hd
     unfold bitsRows at hd
     split at hd
@@ -86,10 +87,12 @@ theorem bits_key {A : List Cell} {key : Nat} {m : Bool} : ∀ (n p lvl : Nat) (b
     · split at hd
       · rcases List.mem_cons.1 hd with rfl | hd
         · rfl
-        · split at hd
-          · cases hd
-          · exact bits_key n _ _ _ _ d hd
-      · cases hd
+        · exact bits_key n _ _ _ _ _ d hd
+      · split at hd
+        · rcases List.mem_cons.1 hd with rfl | hd
+          · rfl
+          · exact bits_key n _ _ _ _ _ d hd
+        · cases hd
 
 theorem noun_key {A : List Cell} {key : Nat} : ∀ (n p ro : Nat), ∀ d ∈ nounRows A key n p ro, d.key = key
   | 0, _, _ => by intro d hd; cases hd
@@ -99,29 +102,42 @@ theorem noun_key {A : List Cell} {key : Nat} : ∀ (n p ro : Nat), ∀ d ∈ nou
     split at hd
     · rcases List.mem_cons.1 hd with rfl | hd
       · rfl
-      · exact bits_key _ _ _ _ _ d hd
+      · exact bits_key _ _ _ _ _ _ d hd
     · split at hd
       · rcases List.mem_cons.1 hd with rfl | hd
         · rfl
         · rcases List.mem_append.1 hd with hd | hd
           · exact noun_key n _ 2 d hd
           · exact noun_key n _ 2 d hd
-      · cases hd
+      · split at hd
+        · rcases List.mem_cons.1 hd with rfl | hd
+          · rfl
+          · exact noun_key n _ ro d hd
+        · cases hd
 
-theorem callRows_key {A : List Cell} {key p : Nat} : ∀ d ∈ callRows A key p, d.key = key := by
-  intro d hd
-  unfold callRows at hd
-  split at hd
-  · rcases List.mem_cons.1 hd with rfl | hd
-    · rfl
-    · exact bits_key _ _ _ _ _ d hd
-  · split at hd
+theorem subj_key {A : List Cell} {key : Nat} : ∀ (n p : Nat), ∀ d ∈ subjRows A key n p, d.key = key
+  | 0, _ => by intro d hd; cases hd
+  | n + 1, p => by
+    intro d hd
+    unfold subjRows at hd
+    split at hd
     · rcases List.mem_cons.1 hd with rfl | hd
       · rfl
-      · rcases List.mem_append.1 hd with hd | hd
-        · exact noun_key _ _ _ d hd
-        · exact noun_key _ _ _ d hd
-    · cases hd
+      · exact bits_key _ _ _ _ _ _ d hd
+    · split at hd
+      · rcases List.mem_cons.1 hd with rfl | hd
+        · rfl
+        · rcases List.mem_append.1 hd with hd | hd
+          · exact noun_key _ _ _ d hd
+          · exact noun_key _ _ _ d hd
+      · split at hd
+        · rcases List.mem_cons.1 hd with rfl | hd
+          · rfl
+          · exact subj_key n _ d hd
+        · cases hd
+
+theorem callRows_key {A : List Cell} {key p : Nat} : ∀ d ∈ callRows A key p, d.key = key :=
+  subj_key _ p
 
 theorem S_flatMap {A : List Cell} {B : String} {v : List F} (f : Nat → List DR) : ∀ l : List Nat,
     S A B v (l.flatMap f) = l.foldr (fun r acc => S A B v (f r) + acc) 0
@@ -137,7 +153,7 @@ include hA
 
 /-- A jet row's call: its step, its counter in memory. -/
 theorem jet_call {r : Nat} (hj : R.jetAt r = true) :
-    DecJet.decRow R.A R.J (R.rowQ r) = some (R.rowQ (r + 1)) ∧ (R.rowQ r).ctr ≤ R.A.length := by
+    DecJet.decRowI R.A R.J (R.rowQ r) = some (R.rowQ (r + 1)) ∧ (R.rowQ r).ctr ≤ R.A.length := by
   obtain ⟨_, hi, hd⟩ := jetAt_spec hj
   refine ⟨hd, ?_⟩
   rw [rowQ_of_le (by omega)]
@@ -153,7 +169,7 @@ theorem decRows_ok (hAl : R.A.length < 2 ^ 24) {K : Nat} :
   | true =>
     rw [hj, if_pos rfl] at hd
     obtain ⟨hstep, hc⟩ := jet_call hA hj
-    obtain ⟨p, rest, s, csk, ask, sks, cells, root, _, _, hpop, hrd, hfit, _, _, _⟩ := DecJet.decRow_unfold hstep
+    obtain ⟨p, rest, s, csk, ask, sks, cells, root, _, _, hpop, hrd, hfit, _, _, _⟩ := DecJet.decRowI_unfold hstep
     have hok := DecT.callRows_ok (key := (R.rowQ r).ctr) (by omega) hrd hfit
     rw [DecT.popN_subj hpop] at hd
     refine ⟨hok d hd, ?_, by rw [DecT.callRows_key d hd]; exact hc⟩

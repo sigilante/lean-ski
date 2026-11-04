@@ -44,7 +44,7 @@ import Ski.DecPreSound
 import Ski.DecInd
 import Ski.DecTerm
 import Ski.Circuit.CompDCompleteFinal
-import Ski.Circuit.CompDCompleteFinal
+import Ski.Circuit.CompDCompleteDec
 import Ski.Circuit.DecAir
 import Ski.ZK.CompPHonest
 import Ski.Circuit.CompPCompleteFinal
@@ -1659,9 +1659,22 @@ open Ski.Audit
   Circuit.DRun.ctr_le Circuit.DRun.stk_le Circuit.compDG_complete_dec
 #audit_clean Circuit.decCons_zero Circuit.decZero_sat Circuit.decZero_sends Circuit.decProvides_none
   Circuit.compDG_complete_nojet
--- the honest DEC table for runs with jet calls (decProvides_exists, and with it
--- decpre_complete_log) is not re-proved for the DEC table that reads through
--- K-thunks: the old proofs are in todo/dec-complete/, the gap in todo/dec-norm.md
+-- the honest DEC table (CompDTrace, CompDTraceRead/Rows/Bus/Tel/Call/Mem/Wr,
+-- CompDCompleteDec), reading through K-thunks as decRowI does: a well-formed
+-- row satisfies DEC, a row reads its pattern (an indirection row its thunk, a
+-- Cell row its tail slot bare or behind a thunk), a call's rows are well
+-- formed, telescope on the jet's chains (through the thunks, to the terminal
+-- nil) to the negation of the CPU's jet row, and read and write memory cells;
+-- the table provides the jet calls, and decpre's completeness
+#audit_clean Circuit.DecT.sl_spec Circuit.DecT.row_sat Circuit.DecT.cellReads Circuit.DecT.atomReads
+  Circuit.DecT.consReads Circuit.DecT.nilReads Circuit.DecT.indReads Circuit.DecT.readCellI_eq Circuit.DecT.ktAt_cases
+  Circuit.DecT.bitsRows_ok Circuit.DecT.nounRows_ok Circuit.DecT.headRows_ok Circuit.DecT.subjRows_ok
+  Circuit.DecT.callRows_ok Circuit.DecT.sendN Circuit.DecT.sendB Circuit.DecT.sendD Circuit.DecT.sendX
+  Circuit.DecT.S_noun_n Circuit.DecT.S_bits_b Circuit.DecT.S_noun_b Circuit.DecT.S_bits_d Circuit.DecT.S_headA_d
+  Circuit.DecT.S_headA_nb Circuit.DecT.S_headC_d Circuit.DecT.subj_chains Circuit.DecT.call_sends
+  Circuit.DecT.row_mem Circuit.DecT.bitsW Circuit.DecT.headW Circuit.DecT.headCW Circuit.DecT.subjRows_W
+  Circuit.DecT.call_writes Circuit.DRun.decRows_ok Circuit.DRun.decProvides_of Circuit.decProvides_exists
+  Circuit.decpre_complete_log
 
 -- A `decterm` statement: any public verifiers open in the jet's atom, read
 -- off the statement's heap (DecTerm)

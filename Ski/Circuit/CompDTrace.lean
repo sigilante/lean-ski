@@ -39,38 +39,46 @@ structure DR where
   bit : Bool
   last : Bool
   err : Bool
+  /-- An indirection row's bus: a chain's step (`true`) or a need. -/
+  ib : Bool
+  /-- A `Cell` row's tail slot behind one thunk. -/
+  ikt : Bool
+  /-- A nil, or an indirection, after a list's last `Cons`. -/
+  term : Bool
 
 /-- A kind's pattern; the nil reads `K` at its pointer. -/
 def patOf (k : Nat) : List (Dec.Src × Dec.Tg) :=
   if k = 1 then Dec.cellSlots else if k = 2 then Dec.atomSlots else if k = 3 then Dec.consSlots
-  else if k = 4 then [(.rowP, .C 1)] else []
+  else if k = 4 then [(.rowP, .C 1)] else if k = 5 then Dec.indSlots else []
 
-def srcN (out : List Sl) (p : Nat) : Dec.Src → Nat
+def srcN (out : List Sl) (p : Nat) (ikt : Bool) : Dec.Src → Nat
   | .rowP => p
   | .F1 i => (out.getD i (0, 0, 0, 0)).2.2.1
   | .F2 i => (out.getD i (0, 0, 0, 0)).2.2.2
+  | .KT => if ikt then (out.getD 24 (0, 0, 0, 0)).2.2.2 else (out.getD 14 (0, 0, 0, 0)).2.2.2
 
-def tgN (bit last : Bool) : Dec.Tg → Nat
+def tgN (bit : Bool) : Dec.Tg → Nat
   | .C n => n
   | .BitTag => if bit then 1 else 3
-  | .LastTag => if last then 1 else 3
 
 /-- A slot read from the memory. -/
-def mk (A : List Cell) (p : Nat) (bit last : Bool) (out : List Sl) (st : Dec.Src × Dec.Tg) : Sl :=
-  let a := srcN out p st.1
-  (a, tgN bit last st.2, (cellFields (A.getD a .nil)).1, (cellFields (A.getD a .nil)).2)
+def mk (A : List Cell) (p : Nat) (bit ikt : Bool) (out : List Sl) (st : Dec.Src × Dec.Tg) : Sl :=
+  let a := srcN out p ikt st.1
+  (a, tgN bit st.2, (cellFields (A.getD a .nil)).1, (cellFields (A.getD a .nil)).2)
 
-def step (A : List Cell) (p : Nat) (bit last : Bool) (out : List Sl) (st : Dec.Src × Dec.Tg) : List Sl :=
-  out ++ [mk A p bit last out st]
+def step (A : List Cell) (p : Nat) (bit ikt : Bool) (out : List Sl) (st : Dec.Src × Dec.Tg) : List Sl :=
+  out ++ [mk A p bit ikt out st]
 
 /-- **The row's slots**, read in order. -/
-def slots (A : List Cell) (d : DR) : List Sl := (patOf d.kind).foldl (step A d.p d.bit d.last) []
+def slots (A : List Cell) (d : DR) : List Sl := (patOf d.kind).foldl (step A d.p d.bit d.ikt) []
 
 def sl (A : List Cell) (d : DR) (j : Nat) : Sl := (slots A d).getD j (0, 0, 0, 0)
 
-/-- Whether slot `j` reads: in the pattern, and not a gated slot of a set bit. -/
+/-- Whether slot `j` reads: in the pattern, not a gated slot of a set bit,
+    and not a thunk slot of a bare tail. -/
 def act (d : DR) (j : Nat) : Bool :=
-  decide (j < (patOf d.kind).length) && !(decide (d.kind = 3) && (j == 12 || j == 13) && d.bit)
+  decide (j < (patOf d.kind).length) && !(decide (d.kind = 3) && (j == 12 || j == 13) && d.bit) &&
+    !(decide (d.kind = 1) && (j == 23 || j == 24 || j == 25) && !d.ikt)
 
 section Vals
 variable (d : DR)
@@ -78,12 +86,16 @@ def kc : F := bF (decide (d.kind = 1))
 def ka : F := bF (decide (d.kind = 2))
 def ks : F := bF (decide (d.kind = 3))
 def kn : F := bF (decide (d.kind = 4))
+def ki : F := bF (decide (d.kind = 5))
 def h0 : F := bF (decide ((d.kind = 1 ∨ d.kind = 2) ∧ d.ro = 0))
 def h1 : F := bF (decide ((d.kind = 1 ∨ d.kind = 2) ∧ d.ro = 1))
 abbrev vBW : F := bF d.bw
 abbrev vBIT : F := bF d.bit
 abbrev vL : F := bF d.last
 abbrev vM : F := bF d.m
+abbrev vIB : F := bF d.ib
+abbrev vIKT : F := bF d.ikt
+abbrev vT : F := bF d.term
 def vDROP : F := vBW d * vBIT d * vL d
 def vWR : F := vBW d - vDROP d
 def vWL : F := vBW d * vBIT d * (1 - vL d)
@@ -117,9 +129,9 @@ def DR.col (A : List Cell) (d : DR) (c : Nat) : F :=
     | 20 => ks d * (ofN 2 - ofN 2 * (vBIT d + vBW d - ofN 2 * vBIT d * vBW d))
     | 21 => bF d.err
     | 22 => vM d
-    | 23 => ks d * (1 - vL d)
+    | 23 => ks d
     | 24 => ks d * vL d * (1 - vM d)
-    | 25 => kn d * (1 - vM d)
+    | 25 => kn d * (1 - vM d) * (1 - vT d)
     | 26 => vSUB d
     | 27 => kc d * h1 d
     | 28 => ka d * h0 d
@@ -130,6 +142,13 @@ def DR.col (A : List Cell) (d : DR) (c : Nat) : F :=
     | 33 => kn d * vBW d
     | 34 => vSUB d * bF d.err
     | 35 => ks d * (1 - vBIT d)
+    | 36 => ki d
+    | 37 => vIB d
+    | 38 => ki d * (1 - vIB d)
+    | 39 => ki d * vIB d
+    | 40 => vIKT d
+    | 41 => kc d * vIKT d
+    | 42 => vT d
     | _ => 0
   else if c < Dec.ADDR then
     (if d.kind = 3 ∧ d.m = false then ofN ((d.lvl / 2 ^ (c - Dec.LB)) % 2) else 0)
@@ -151,12 +170,15 @@ def rowT (A : List Cell) (d : DR) : Table := ⟨1, fun _ c => d.col A c, fun _ _
 def vec (A : List Cell) (d : DR) : List F := (List.range Dec.WIDTH).map (d.col A)
 
 /-- **A well-formed row**: a kind, a role, canonical, its head's level below
-    `W`, its active slots below the key, the key within the range checks. -/
+    `W`, no `Cons` ending a list, an unmarked nil at level `0`, its active
+    slots below the key, the key within the range checks. -/
 structure RowOK (A : List Cell) (d : DR) : Prop where
-  kind : 1 ≤ d.kind ∧ d.kind ≤ 4
+  kind : 1 ≤ d.kind ∧ d.kind ≤ 5
   ro : d.ro ≤ 2
   canon : d.kind = 3 → d.last = true → d.bit = true
   lvl : d.kind = 3 → d.m = false → d.lvl < 32
+  cterm : d.kind = 3 → d.term = false
+  nlvl : d.kind = 4 → d.term = false → d.lvl = 0
   key : d.key < 2 ^ 24
   below : ∀ j, act d j = true → (sl A d j).1 < d.key
 
@@ -165,30 +187,30 @@ structure RowOK (A : List Cell) (d : DR) : Prop where
 -- The slots, read in order
 -- ---------------------------------------------------------------------------
 
-theorem foldl_step (A : List Cell) (p : Nat) (bit last : Bool) : ∀ (pat : List (Dec.Src × Dec.Tg)) (out : List Sl),
-    (pat.foldl (step A p bit last) out).length = out.length + pat.length ∧
-    (pat.foldl (step A p bit last) out).take out.length = out ∧
-    ∀ j (h : j < pat.length), (pat.foldl (step A p bit last) out)[out.length + j]? =
-      some (mk A p bit last ((pat.foldl (step A p bit last) out).take (out.length + j)) pat[j])
+theorem foldl_step (A : List Cell) (p : Nat) (bit ikt : Bool) : ∀ (pat : List (Dec.Src × Dec.Tg)) (out : List Sl),
+    (pat.foldl (step A p bit ikt) out).length = out.length + pat.length ∧
+    (pat.foldl (step A p bit ikt) out).take out.length = out ∧
+    ∀ j (h : j < pat.length), (pat.foldl (step A p bit ikt) out)[out.length + j]? =
+      some (mk A p bit ikt ((pat.foldl (step A p bit ikt) out).take (out.length + j)) pat[j])
   | [], out => ⟨by simp, by simp, fun j h => absurd h (Nat.not_lt_zero _)⟩
   | st :: rest, out => by
-    obtain ⟨h1, h2, h3⟩ := foldl_step A p bit last rest (step A p bit last out st)
-    have hl : (step A p bit last out st).length = out.length + 1 := by simp [step]
+    obtain ⟨h1, h2, h3⟩ := foldl_step A p bit ikt rest (step A p bit ikt out st)
+    have hl : (step A p bit ikt out st).length = out.length + 1 := by simp [step]
     rw [List.foldl_cons]
     refine ⟨by rw [h1, hl, List.length_cons]; omega, ?_, ?_⟩
-    · have : ((rest.foldl (step A p bit last) (step A p bit last out st)).take (out.length + 1)).take out.length = out := by
+    · have : ((rest.foldl (step A p bit ikt) (step A p bit ikt out st)).take (out.length + 1)).take out.length = out := by
         rw [← hl, h2]; simp [step]
       rw [List.take_take, Nat.min_eq_left (Nat.le_succ _)] at this
       exact this
     · intro j hj
       cases j with
       | zero =>
-        have e : (rest.foldl (step A p bit last) (step A p bit last out st))[out.length]? = some (mk A p bit last out st) := by
+        have e : (rest.foldl (step A p bit ikt) (step A p bit ikt out st))[out.length]? = some (mk A p bit ikt out st) := by
           have := congrArg (fun l => l[out.length]?) h2
           rw [hl, List.getElem?_take, if_pos (Nat.lt_succ_self _)] at this
           rw [this]; simp [step]
-        have e2 : (rest.foldl (step A p bit last) (step A p bit last out st)).take out.length = out := by
-          have : ((rest.foldl (step A p bit last) (step A p bit last out st)).take (out.length + 1)).take out.length = out := by
+        have e2 : (rest.foldl (step A p bit ikt) (step A p bit ikt out st)).take out.length = out := by
+          have : ((rest.foldl (step A p bit ikt) (step A p bit ikt out st)).take (out.length + 1)).take out.length = out := by
             rw [← hl, h2]; simp [step]
           rw [List.take_take, Nat.min_eq_left (Nat.le_succ _)] at this
           exact this
@@ -199,13 +221,13 @@ theorem foldl_step (A : List Cell) (p : Nat) (bit last : Bool) : ∀ (pat : List
         rw [this]; rfl
 
 theorem slots_length (A : List Cell) (d : DR) : (slots A d).length = (patOf d.kind).length := by
-  have := (foldl_step A d.p d.bit d.last (patOf d.kind) []).1
+  have := (foldl_step A d.p d.bit d.ikt (patOf d.kind) []).1
   simp only [List.length_nil, Nat.zero_add] at this
   exact this
 
 theorem sl_get (A : List Cell) (d : DR) {j : Nat} (hj : j < (patOf d.kind).length) :
-    sl A d j = mk A d.p d.bit d.last ((slots A d).take j) (patOf d.kind)[j] := by
-  have := (foldl_step A d.p d.bit d.last (patOf d.kind) []).2.2 j hj
+    sl A d j = mk A d.p d.bit d.ikt ((slots A d).take j) (patOf d.kind)[j] := by
+  have := (foldl_step A d.p d.bit d.ikt (patOf d.kind) []).2.2 j hj
   simp only [List.length_nil, Nat.zero_add] at this
   unfold sl slots
   rw [List.getD_eq_getElem?_getD, this]; rfl
@@ -219,6 +241,7 @@ def refsLt (j : Nat) : Dec.Src → Bool
   | .rowP => true
   | .F1 i => decide (i < j)
   | .F2 i => decide (i < j)
+  | .KT => decide (24 < j)
 
 def patRefs (pat : List (Dec.Src × Dec.Tg)) : Bool :=
   (List.range pat.length).all fun j => match pat[j]? with
@@ -236,15 +259,17 @@ theorem patRefs_all : ∀ k, patRefs (patOf k) = true := by
       · decide
       · split
         · decide
-        · decide
+        · split
+          · decide
+          · decide
 
 theorem pat_refs (k : Nat) {j : Nat} (hj : j < (patOf k).length) : refsLt j (patOf k)[j].1 = true := by
   have := List.all_eq_true.1 (patRefs_all k) j (List.mem_range.2 hj)
   rw [List.getElem?_eq_getElem hj] at this
   exact this
 
-theorem srcN_take (out : List Sl) (p j : Nat) (s : Dec.Src) (h : refsLt j s = true) :
-    srcN (out.take j) p s = srcN out p s := by
+theorem srcN_take (out : List Sl) (p j : Nat) (ikt : Bool) (s : Dec.Src) (h : refsLt j s = true) :
+    srcN (out.take j) p ikt s = srcN out p ikt s := by
   cases s with
   | rowP => rfl
   | F1 i =>
@@ -253,16 +278,19 @@ theorem srcN_take (out : List Sl) (p j : Nat) (s : Dec.Src) (h : refsLt j s = tr
   | F2 i =>
     simp only [refsLt, decide_eq_true_eq] at h
     simp only [srcN, List.getD_eq_getElem?_getD, List.getElem?_take, if_pos h]
+  | KT =>
+    simp only [refsLt, decide_eq_true_eq] at h
+    simp only [srcN, List.getD_eq_getElem?_getD, List.getElem?_take, if_pos h, if_pos (show 14 < j by omega)]
 
 /-- **Slot `j` of the pattern**: its address the source over the earlier
     slots, its tag the pattern's, its fields the memory cell's. -/
 theorem sl_spec (A : List Cell) (d : DR) {j : Nat} (hj : j < (patOf d.kind).length) :
-    (sl A d j).1 = srcN (slots A d) d.p (patOf d.kind)[j].1 ∧
-    (sl A d j).2.1 = tgN d.bit d.last (patOf d.kind)[j].2 ∧
+    (sl A d j).1 = srcN (slots A d) d.p d.ikt (patOf d.kind)[j].1 ∧
+    (sl A d j).2.1 = tgN d.bit (patOf d.kind)[j].2 ∧
     (sl A d j).2.2 = cellFields (A.getD (sl A d j).1 .nil) := by
   rw [sl_get A d hj]
   simp only [mk]
-  rw [srcN_take _ _ _ _ (pat_refs d.kind hj)]
+  rw [srcN_take _ _ _ _ _ (pat_refs d.kind hj)]
   refine ⟨?_, ?_, ?_⟩ <;> first | rfl | trivial
 
 
@@ -275,7 +303,7 @@ def cons35 : List E := Dec.decCons.take 35
 
 theorem decCons_split : Dec.decCons = cons35 ++ ((List.range Dec.NLB).map (fun i => B.bool (col (Dec.LB + i))) ++
     [.mul (.mul (col Dec.KCONS) (.sub one (col Dec.MODE))) (.sub (col Dec.LVL) Dec.levelVal)] ++
-    (List.range Dec.NSLOT).flatMap Dec.slotCons) := by
+    Dec.indCons ++ (List.range Dec.NSLOT).flatMap Dec.slotCons) := by
   unfold cons35 Dec.decCons; simp
 
 /-- **The columns' facts give the first constraints.** -/
@@ -351,7 +379,7 @@ theorem col_f2 {i : Nat} (hi : i < Dec.NSLOT) : d.col A (Dec.DFLD + 2 * i + 1) =
   unfold DR.col; simp only [Dec.ADDR, Dec.TAG, Dec.DFLD, Dec.DBITS, Dec.LB, Dec.NLB, Dec.NSLOT] at hi ⊢
   rw [if_neg (by omega), if_neg (by omega), if_neg (by omega), if_neg (by omega), if_pos (by omega),
     if_neg (by omega)]
-  have e2 : (36 + 5 + 25 + 25 + 2 * i + 1 - (36 + 5 + 25 + 25)) / 2 = i := by omega
+  have e2 : (43 + 5 + 28 + 28 + 2 * i + 1 - (43 + 5 + 28 + 28)) / 2 = i := by omega
   rw [e2]
 
 theorem col_bits {j i : Nat} (hj : j < Dec.NSLOT) (hi : i < RANGE_BITS) :
@@ -383,7 +411,7 @@ theorem ofN_bit01 (n : Nat) : ofN (n % 2) = 0 ∨ ofN (n % 2) = 1 := by
   · exact .inl rfl
   · exact .inr rfl
 
-theorem kind_cases {k : Nat} (h : 1 ≤ k ∧ k ≤ 4) : k = 1 ∨ k = 2 ∨ k = 3 ∨ k = 4 := by omega
+theorem kind_cases {k : Nat} (h : 1 ≤ k ∧ k ≤ 5) : k = 1 ∨ k = 2 ∨ k = 3 ∨ k = 4 ∨ k = 5 := by omega
 
 theorem env0 (A : List Cell) (d : DR) (i : Nat) : (col i).eval ((rowT A d).env 0) = d.col A i := rfl
 
@@ -396,15 +424,16 @@ theorem rowF : DecRowF (rowT A d) 0 := by
   have hk := kind_cases hok.kind
   have hro := hok.ro
   refine ⟨bF_01 _, bF_01 _, bF_01 _, bF_01 _, ?_, bF_01 _, bF_01 _, ?_, ?_, bF_01 _, bF_01 _, bF_01 _, bF_01 _,
-    bF_01 _, ?_, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩
-  · show kc d + ka d + ks d + kn d = 0 ∨ kc d + ka d + ks d + kn d = 1
-    rcases hk with h | h | h | h <;> simp only [kc, ka, ks, kn, h] <;> decide
+    bF_01 _, ?_, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl,
+    bF_01 _, bF_01 _, bF_01 _, bF_01 _, rfl, rfl, rfl, ?_, ?_⟩
+  · show kc d + ka d + ks d + kn d + ki d = 0 ∨ kc d + ka d + ks d + kn d + ki d = 1
+    rcases hk with h | h | h | h | h <;> simp only [kc, ka, ks, kn, ki, h] <;> decide
   · show h0 d * h1 d = 0
     have : d.ro = 0 ∨ d.ro = 1 ∨ d.ro = 2 := by omega
-    rcases hk with h | h | h | h <;> rcases this with h' | h' | h' <;> simp only [h0, h1, h, h'] <;> decide
+    rcases hk with h | h | h | h | h <;> rcases this with h' | h' | h' <;> simp only [h0, h1, h, h'] <;> decide
   · show (kc d + ka d) * (ofN d.ro - (h1 d + ofN 2 * (1 - h0 d - h1 d))) = 0
     have : d.ro = 0 ∨ d.ro = 1 ∨ d.ro = 2 := by omega
-    rcases hk with h | h | h | h <;> rcases this with h' | h' | h' <;> simp only [kc, ka, h0, h1, h, h'] <;> decide
+    rcases hk with h | h | h | h | h <;> rcases this with h' | h' | h' <;> simp only [kc, ka, h0, h1, h, h'] <;> decide
   · show ks d * vL d * (1 - vBIT d) = 0
     by_cases h : d.kind = 3
     · have hc := hok.canon h
@@ -413,10 +442,20 @@ theorem rowF : DecRowF (rowT A d) 0 := by
       · simp only [bF]; exact zero_mul' _
       · rw [hc hl]; decide
     · simp only [ks, h]; simp [bF, zero_mul']
+  · show ks d * vT d = 0
+    by_cases h : d.kind = 3
+    · simp only [vT, hok.cterm h]; exact mul_zero' _
+    · simp only [ks, h]; simp [bF, zero_mul']
+  · show kn d * (1 - vT d) * ofN d.lvl = 0
+    by_cases h : d.kind = 4
+    · cases ht : d.term
+      · rw [hok.nlvl h ht]; exact mul_zero' _
+      · simp only [vT, ht]; rw [show (1 - bF true : F) = 0 by decide, mul_zero', zero_mul']
+    · simp only [kn, h]; simp [bF, zero_mul']
 
 theorem rowK : DKind (rowT A d) 0 d.kind := by
-  refine ⟨by have := hok.kind; omega, ?_, ?_, ?_, ?_⟩ <;>
-    simp only [rowT, DR.col, kc, ka, ks, kn, bF, Dec.KCELL, Dec.KATOM, Dec.KCONS, Dec.KNIL, Dec.LB] <;>
+  refine ⟨by have := hok.kind; omega, ?_, ?_, ?_, ?_, ?_⟩ <;>
+    simp only [rowT, DR.col, kc, ka, ks, kn, ki, bF, Dec.KCELL, Dec.KATOM, Dec.KCONS, Dec.KNIL, Dec.KIND, Dec.LB] <;>
     simp
 
 
@@ -429,11 +468,13 @@ theorem slotsOf_eq {k : Nat} (h : k ≠ 4) : slotsOf k = patOf k := by
     · simp [h2]
     · by_cases h3 : k = 3
       · simp [h3]
-      · simp [h1, h2, h3, h]
+      · by_cases h5 : k = 5
+        · simp [h5]
+        · simp [h1, h2, h3, h, h5]
 
 omit hok in
 theorem src_val {j : Nat} (hj : j < Dec.NSLOT) (s : Dec.Src) (hr : refsLt j s = true) :
-    (Dec.src s).eval ((rowT A d).env 0) = ofN (srcN (slots A d) d.p s) := by
+    (Dec.src s).eval ((rowT A d).env 0) = ofN (srcN (slots A d) d.p d.ikt s) := by
   cases s with
   | rowP => rfl
   | F1 i =>
@@ -444,17 +485,24 @@ theorem src_val {j : Nat} (hj : j < Dec.NSLOT) (s : Dec.Src) (hr : refsLt j s = 
     simp only [refsLt, decide_eq_true_eq] at hr
     show d.col A (Dec.DFLD + 2 * i + 1) = _
     rw [col_f2 A d (by omega)]; rfl
+  | KT =>
+    simp only [refsLt, decide_eq_true_eq] at hr
+    show (1 - vIKT d) * d.col A (Dec.DFLD + 2 * 14 + 1) + vIKT d * d.col A (Dec.DFLD + 2 * 24 + 1) = _
+    rw [col_f2 A d (i := 14) (by decide), col_f2 A d (i := 24) (by decide)]
+    simp only [srcN, vIKT]
+    cases d.ikt
+    · show (1 - 0) * _ + 0 * _ = _
+      rw [zero_mul', add_zero', show (1 - 0 : F) = 1 from rfl, one_mul']; rfl
+    · show (1 - 1) * _ + 1 * _ = _
+      rw [show (1 - 1 : F) = 0 from rfl, zero_mul', zero_add', one_mul']; rfl
 
 omit hok in
-theorem tg_val (t : Dec.Tg) : (Dec.tg t).eval ((rowT A d).env 0) = ofN (tgN d.bit d.last t) := by
+theorem tg_val (t : Dec.Tg) : (Dec.tg t).eval ((rowT A d).env 0) = ofN (tgN d.bit t) := by
   cases t with
   | C n => rfl
   | BitTag =>
     show ofN 3 - ofN 2 * vBIT d = _
     simp only [vBIT, tgN]; cases d.bit <;> decide
-  | LastTag =>
-    show ofN 3 - ofN 2 * vL d = _
-    simp only [vL, tgN]; cases d.last <;> decide
 
 omit hok in
 theorem pat4 (h : d.kind = 4) : patOf d.kind = [(.rowP, .C 1)] := by simp [patOf, h]
@@ -465,7 +513,7 @@ theorem expAddr_val {j : Nat} (hj : j < Dec.NSLOT) :
   by_cases h4 : d.kind = 4
   · unfold expAddr; rw [if_pos h4]
     by_cases h0 : j = 0
-    · subst h0; rw [if_pos rfl, (sl_spec A d (by rw [pat4 h4]; decide)).1]; simp only [pat4 h4]; rfl
+    · subst h0; rw [if_pos rfl, (sl_spec A d (j := 0) (by rw [pat4 h4]; decide)).1]; simp only [pat4 h4]; rfl
     · rw [if_neg h0, sl_none A d (by rw [pat4 h4]; simp; omega)]; rfl
   · unfold expAddr; rw [if_neg h4, slotsOf_eq h4]
     cases hs : (patOf d.kind)[j]? with
@@ -485,7 +533,7 @@ theorem expTag_val {j : Nat} :
   by_cases h4 : d.kind = 4
   · unfold expTag; rw [if_pos h4]
     by_cases h0 : j = 0
-    · subst h0; rw [if_pos rfl, (sl_spec A d (by rw [pat4 h4]; decide)).2.1]; simp only [pat4 h4]; rfl
+    · subst h0; rw [if_pos rfl, (sl_spec A d (j := 0) (by rw [pat4 h4]; decide)).2.1]; simp only [pat4 h4]; rfl
     · rw [if_neg h0, sl_none A d (by rw [pat4 h4]; simp; omega)]; rfl
   · unfold expTag; rw [if_neg h4, slotsOf_eq h4]
     cases hs : (patOf d.kind)[j]? with
@@ -513,24 +561,31 @@ theorem expAct_val {j : Nat} :
     | some st =>
       obtain ⟨hjl, _⟩ := List.getElem?_eq_some_iff.1 hs
       simp only [decide_eq_true hjl, Bool.true_and]
+      have hc1 : (decide (d.kind = 1) && (j == 23 || j == 24 || j == 25) && !d.ikt) =
+          (decide (d.kind = 1 ∧ j ∈ Dec.cellGated) && !d.ikt) := by
+        rw [Bool.eq_iff_iff]
+        simp only [Bool.and_eq_true, decide_eq_true_eq, Bool.or_eq_true, beq_iff_eq, Dec.cellGated, List.mem_cons,
+          List.not_mem_nil, or_false]
+        all_goals (constructor <;> rintro ⟨⟨h1, h2⟩, h3⟩ <;> exact ⟨⟨h1, by omega⟩, h3⟩)
+      have hc3 : (decide (d.kind = 3) && (j == 12 || j == 13) && d.bit) =
+          (decide (d.kind = 3 ∧ j ∈ Dec.consGated) && d.bit) := by
+        rw [Bool.eq_iff_iff]
+        simp only [Bool.and_eq_true, decide_eq_true_eq, Bool.or_eq_true, beq_iff_eq, Dec.consGated, List.mem_cons,
+          List.not_mem_nil, or_false]
+        all_goals (constructor <;> rintro ⟨⟨h1, h2⟩, h3⟩ <;> exact ⟨⟨h1, by omega⟩, h3⟩)
+      rw [hc1, hc3]
       by_cases hg : d.kind = 3 ∧ j ∈ Dec.consGated
-      · rw [if_pos hg]
-        obtain ⟨h3, hj⟩ := hg
-        have : (j == 12 || j == 13) = true := by
-          simp only [Dec.consGated, List.mem_cons, List.not_mem_nil, or_false] at hj
-          rcases hj with rfl | rfl <;> rfl
+      · rw [if_pos hg, decide_eq_true hg]
+        have hg1 : ¬ (d.kind = 1 ∧ j ∈ Dec.cellGated) := fun h => absurd (hg.1.symm.trans h.1) (by decide)
+        rw [decide_eq_false hg1]
         show ks d * (1 - vBIT d) = _
-        simp only [ks, vBIT, h3, this]; cases d.bit <;> decide
-      · rw [if_neg hg]
-        have : (decide (d.kind = 3) && (j == 12 || j == 13) && d.bit) = false := by
-          by_cases h3 : d.kind = 3
-          · have hj : ¬ (j = 12 ∨ j = 13) := fun h => hg ⟨h3, by
-              simp only [Dec.consGated, List.mem_cons, List.not_mem_nil, or_false]; exact h⟩
-            have e1 : (j == 12) = false := beq_false_of_ne (fun h => hj (.inl h))
-            have e2 : (j == 13) = false := beq_false_of_ne (fun h => hj (.inr h))
-            simp [e1, e2]
-          · simp [h3]
-        rw [this]; rfl
+        simp only [ks, vBIT, hg.1]; cases d.bit <;> cases d.ikt <;> decide
+      · rw [if_neg hg, decide_eq_false hg]
+        by_cases hg1 : d.kind = 1 ∧ j ∈ Dec.cellGated
+        · rw [if_pos hg1, decide_eq_true hg1]
+          show kc d * vIKT d = _
+          simp only [kc, vIKT, hg1.1]; cases d.bit <;> cases d.ikt <;> decide
+        · rw [if_neg hg1, decide_eq_false hg1]; rfl
 
 omit hok in
 /-- `n` bits at columns `b0 + i` reassemble their value. -/
@@ -611,6 +666,23 @@ theorem lvl_sat : ∀ e ∈ (List.range Dec.NLB).map (fun i => B.bool (col (Dec.
         simp only [vM, hm]; rw [show (ofN 1 - bF true : F) = 0 by decide, mul_zero', zero_mul']
       · simp only [ks, h3]; rw [show bF (decide False) = 0 from rfl, zero_mul', zero_mul']
 
+theorem ind_sat : ∀ e ∈ Dec.indCons, e.eval ((rowT A d).env 0) = 0 := by
+  have hf := rowF hok
+  have hq : 0 < (rowT A d).h := Nat.zero_lt_one
+  intro e he
+  simp only [Dec.indCons, List.mem_cons, List.not_mem_nil, or_false] at he
+  rcases he with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
+  all_goals simp only [E.eval, B.bool, B.eq, B.one, B.c, col_eval hq, ofN_one]
+  · rcases hf.kind with h | h <;> rw [h] <;> decide
+  · rcases hf.ib with h | h <;> rw [h] <;> decide
+  · rcases hf.ikt with h | h <;> rw [h] <;> decide
+  · rcases hf.term with h | h <;> rw [h] <;> decide
+  · rw [hf.inn]; exact sub_self' _
+  · rw [hf.inb]; exact sub_self' _
+  · rw [hf.ckt]; exact sub_self' _
+  · exact hf.consTerm
+  · exact hf.nilLvl
+
 /-- **A well-formed row satisfies DEC's constraints.** -/
 theorem row_sat : ∀ e ∈ Dec.decCons, e.eval ((rowT A d).env 0) = 0 := by
   intro e he
@@ -618,7 +690,9 @@ theorem row_sat : ∀ e ∈ Dec.decCons, e.eval ((rowT A d).env 0) = 0 := by
   rcases List.mem_append.1 he with he | he
   · exact cons35_of (Nat.zero_lt_one) (rowF hok) e he
   · rcases List.mem_append.1 he with he | he
-    · exact lvl_sat hok e he
+    · rcases List.mem_append.1 he with he | he
+      · exact lvl_sat hok e he
+      · exact ind_sat hok e he
     · obtain ⟨j, hj, he⟩ := List.mem_flatMap.1 he
       exact slot_sat hok (List.mem_range.1 hj) e he
 

@@ -91,28 +91,37 @@ theorem sendO {B : String} (h1 : B ≠ "mem") (h2 : B ≠ "decn") (h3 : B ≠ "d
 theorem sendN : sendsT A d "decn" v =
     (if [ofN d.key, ofN d.p, ofN d.ro] = v then -(kc d + ka d) else 0) +
     ((if [ofN d.key, ofN (sl A d 21).2.2.2, ofN 2 - h0 d] = v then kc d else 0) +
-    ((if [ofN d.key, ofN (sl A d 23).2.2.2, ofN 2] = v then kc d else 0) + 0)) := by
+    ((if [ofN d.key, ofN (sl A d 26).2.2.2, ofN 2] = v then kc d else 0) +
+    ((if [ofN d.key, ofN d.p, ofN d.ro] = v then -(ki d * (1 - vIB d)) else 0) +
+    ((if [ofN d.key, ofN (sl A d 1).2.2.2, ofN d.ro] = v then ki d * (1 - vIB d) else 0) + 0)))) := by
   unfold sendsT
   rw [foldr_sends_filter, show Dec.decInters.filter (fun I => decide (I.bus = "decn")) =
     [⟨"decn", 1, .neg (.add (col Dec.KCELL) (col Dec.KATOM)), [col Dec.KEY, col Dec.PC, col Dec.RO]⟩,
      ⟨"decn", 1, col Dec.KCELL, [col Dec.KEY, Dec.f2 21, .sub (c 2) (col Dec.H0)]⟩,
-     ⟨"decn", 1, col Dec.KCELL, [col Dec.KEY, Dec.f2 23, c 2]⟩] from rfl]
+     ⟨"decn", 1, col Dec.KCELL, [col Dec.KEY, Dec.f2 26, c 2]⟩,
+     ⟨"decn", 1, .neg (col Dec.INN), [col Dec.KEY, col Dec.PC, col Dec.RO]⟩,
+     ⟨"decn", 1, col Dec.INN, [col Dec.KEY, Dec.f2 1, col Dec.RO]⟩] from rfl]
   simp only [List.foldr_cons, List.foldr_nil, List.map_cons, List.map_nil, true_and]
   rfl
 
 theorem sendB : sendsT A d "decb" v =
     (if [ofN d.key, ofN (sl A d 22).2.2.2, 1 - h1 d, ofN 0, h1 d, ofN 0] = v then ka d else 0) +
     ((if [ofN d.key, ofN d.p, vM d, ofN d.lvl, vBW d, ofN d.wc] = v then -ks d else 0) +
-    ((if [ofN d.key, ofN (sl A d 14).2.2.2, vM d, ofN d.lvl + 1, vBW d * (1 - vBIT d), ofN d.wc + ofN 6 * vWR d] = v
-      then ks d * (1 - vL d) else 0) +
-    ((if [ofN d.key, ofN d.p, vM d, ofN d.lvl, vBW d, ofN d.wc] = v then -kn d else 0) + 0))) := by
+    ((if [ofN d.key, ofN (sl A d 14).2.2.2, vM d + ofN 2 * vL d, ofN d.lvl + 1, vBW d * (1 - vBIT d),
+        ofN d.wc + ofN 6 * vWR d] = v then ks d else 0) +
+    ((if [ofN d.key, ofN d.p, vM d + ofN 2 * vT d, ofN d.lvl, vBW d, ofN d.wc] = v then -kn d else 0) +
+    ((if [ofN d.key, ofN d.p, vM d + ofN 2 * vT d, ofN d.lvl, vBW d, ofN d.wc] = v then -(ki d * vIB d) else 0) +
+    ((if [ofN d.key, ofN (sl A d 1).2.2.2, vM d + ofN 2 * vT d, ofN d.lvl, vBW d, ofN d.wc] = v
+      then ki d * vIB d else 0) + 0))))) := by
   unfold sendsT
   rw [foldr_sends_filter, show Dec.decInters.filter (fun I => decide (I.bus = "decb")) =
     [⟨"decb", 1, col Dec.KATOM, [col Dec.KEY, Dec.f2 22, .sub one (col Dec.H1), c 0, col Dec.H1, c 0]⟩,
      ⟨"decb", 1, .neg (col Dec.KCONS), [col Dec.KEY, col Dec.PC, col Dec.MODE, col Dec.LVL, col Dec.BW, col Dec.WC]⟩,
-     ⟨"decb", 1, col Dec.CSEND, [col Dec.KEY, Dec.f2 14, col Dec.MODE, .add (col Dec.LVL) one, col Dec.NBW,
-       col Dec.WCN]⟩,
-     ⟨"decb", 1, .neg (col Dec.KNIL), [col Dec.KEY, col Dec.PC, col Dec.MODE, col Dec.LVL, col Dec.BW, col Dec.WC]⟩]
+     ⟨"decb", 1, col Dec.CSEND, [col Dec.KEY, Dec.f2 14, .add (col Dec.MODE) (.mul (c 2) (col Dec.ISLAST)),
+       .add (col Dec.LVL) one, col Dec.NBW, col Dec.WCN]⟩,
+     ⟨"decb", 1, .neg (col Dec.KNIL), [col Dec.KEY, col Dec.PC, Dec.mfE, col Dec.LVL, col Dec.BW, col Dec.WC]⟩,
+     ⟨"decb", 1, .neg (col Dec.INB), [col Dec.KEY, col Dec.PC, Dec.mfE, col Dec.LVL, col Dec.BW, col Dec.WC]⟩,
+     ⟨"decb", 1, col Dec.INB, [col Dec.KEY, Dec.f2 1, Dec.mfE, col Dec.LVL, col Dec.BW, col Dec.WC]⟩]
     from rfl]
   simp only [List.foldr_cons, List.foldr_nil, List.map_cons, List.map_nil, true_and]
   rfl
@@ -120,7 +129,7 @@ theorem sendB : sendsT A d "decb" v =
 theorem sendD : sendsT A d "decd" v =
     (if [ofN d.key, bF d.err, ofN d.wc] = v then -vSUB d else 0) +
     ((if [ofN d.key, ofN 0, ofN d.wc + ofN 6 * vWR d] = v then ks d * vL d * (1 - vM d) else 0) +
-    ((if [ofN d.key, ofN 1, ofN d.wc] = v then kn d * (1 - vM d) else 0) +
+    ((if [ofN d.key, ofN 1, ofN d.wc] = v then kn d * (1 - vM d) * (1 - vT d) else 0) +
     ((if [ofN d.key, ofN 1, ofN 0] = v then kc d * h1 d else 0) + 0))) := by
   unfold sendsT
   rw [foldr_sends_filter, show Dec.decInters.filter (fun I => decide (I.bus = "decd")) =

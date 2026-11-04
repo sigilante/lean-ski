@@ -3,7 +3,7 @@ import Ski.Circuit.CompDTraceCall
 /-!
 # An honest DEC row's memory messages are memory cells
 
-A row's 25 reads are memory cells when it reads its pattern (`ReadsOK`);
+A row's 28 reads are memory cells when it reads its pattern (`ReadsOK`);
 its 30 writes are when the memory holds, at the call's key, the cells the
 row writes (`DecT.WritesOK`): the subject's `Cell` wrapper and `errT`,
 the head's `Atom` wrapper or a cell head's filler, a rewritten bit's
@@ -158,47 +158,6 @@ theorem nlk_nz (h : kn d * vBW d ≠ 0) : d.kind = 4 ∧ d.bw = true := by
   simp only [vBW] at h
   cases hb : d.bw <;> simp only [hb, bF_true, bF_false] at h <;> first | exact absurd h (by decide) | rfl
 
-theorem decInters_split : Dec.decInters = (List.range Dec.NSLOT).map Dec.slotInter ++ Dec.decInters.drop 25 := by
-  rfl
-
-theorem decInters_tail : Dec.decInters.drop 25 =
-  [⟨"decn", 1, .neg (.add (col Dec.KCELL) (col Dec.KATOM)), [col Dec.KEY, col Dec.PC, col Dec.RO]⟩,
-     ⟨"decn", 1, col Dec.KCELL, [col Dec.KEY, Dec.f2 21, .sub (c 2) (col Dec.H0)]⟩,
-     ⟨"decn", 1, col Dec.KCELL, [col Dec.KEY, Dec.f2 23, c 2]⟩,
-     ⟨"decb", 1, col Dec.KATOM, [col Dec.KEY, Dec.f2 22, .sub one (col Dec.H1), c 0, col Dec.H1, c 0]⟩,
-     ⟨"decb", 1, .neg (col Dec.KCONS), [col Dec.KEY, col Dec.PC, col Dec.MODE, col Dec.LVL, col Dec.BW, col Dec.WC]⟩,
-     ⟨"decb", 1, col Dec.CSEND, [col Dec.KEY, Dec.f2 14, col Dec.MODE, .add (col Dec.LVL) one, col Dec.NBW, col Dec.WCN]⟩,
-     ⟨"decb", 1, .neg (col Dec.KNIL), [col Dec.KEY, col Dec.PC, col Dec.MODE, col Dec.LVL, col Dec.BW, col Dec.WC]⟩,
-     ⟨"decd", 1, .neg (col Dec.SUB), [col Dec.KEY, col Dec.ERR, col Dec.WC]⟩,
-     ⟨"decd", 1, col Dec.DONE0, [col Dec.KEY, c 0, col Dec.WCN]⟩,
-     ⟨"decd", 1, col Dec.DONE1, [col Dec.KEY, c 1, col Dec.WC]⟩,
-     ⟨"decd", 1, col Dec.HC, [col Dec.KEY, c 1, c 0]⟩,
-     ⟨"decx", 1, col Dec.SUB, [col Dec.KEY, .add (col Dec.KEY) (.mul (c 12) (col Dec.ERR)),
-       .add (.add (.add (col Dec.KEY) (c 12)) (col Dec.WC)) (.mul (c 3) (col Dec.ERR))]⟩,
-     ⟨"decx", 1, col Dec.ASUB, [col Dec.KEY, col Dec.KEY, .add (col Dec.KEY) (c 3)]⟩,
-     -- The subject's `Cell` wrapper at `key`.
-     Dec.wr (Dec.kE 0) (c 0) (Dec.kE 1) (col Dec.SUB), Dec.wr (Dec.kE 1) (Dec.f1 2) (Dec.kE 2) (col Dec.SUB), Dec.wr (Dec.kE 2) (Dec.f1 8) (Dec.kE 3) (col Dec.SUB),
-     Dec.wr (Dec.kE 3) (Dec.kE 4) (Dec.f2 14) (col Dec.SUB), Dec.wr (Dec.kE 4) (Dec.f1 15) (Dec.kE 5) (col Dec.SUB), Dec.wr (Dec.kE 5) (Dec.f1 17) (Dec.kE 6) (col Dec.SUB),
-     Dec.wr (Dec.kE 6) (c 0) (Dec.kE 7) (col Dec.SUB),
-     -- `errT` at `key + 12` on a crash.
-     Dec.wr (Dec.kE 12) (c 0) (Dec.kE 13) (col Dec.SUBERR), Dec.wr (Dec.kE 13) (c 0) (Dec.kE 14) (col Dec.SUBERR), Dec.wr (Dec.kE 14) (c 0) (c 1) (col Dec.SUBERR),
-     -- A cell head: the `Atom` wrapper's slots filled.
-     Dec.wr (Dec.kE 7) (c 0) (c 0) (col Dec.HC), Dec.wr (Dec.kE 8) (c 0) (c 0) (col Dec.HC), Dec.wr (Dec.kE 9) (c 0) (c 0) (col Dec.HC),
-     Dec.wr (Dec.kE 10) (c 0) (c 0) (col Dec.HC), Dec.wr (Dec.kE 11) (c 0) (c 0) (col Dec.HC),
-     -- The head's `Atom` wrapper at `key + 7`.
-     Dec.wr (Dec.kE 7) (Dec.f1 0) (Dec.kE 8) (col Dec.HAT), Dec.wr (Dec.kE 8) (Dec.f1 6) (Dec.kE 9) (col Dec.HAT), Dec.wr (Dec.kE 9) (Dec.f1 12) (Dec.kE 10) (col Dec.HAT),
-     Dec.wr (Dec.kE 10) (Dec.f1 18) (Dec.kE 11) (col Dec.HAT),
-     -- An atom subject: `errT` at `key`.
-     Dec.wr (Dec.kE 0) (c 0) (Dec.kE 1) (col Dec.ASUB), Dec.wr (Dec.kE 1) (c 0) (Dec.kE 2) (col Dec.ASUB), Dec.wr (Dec.kE 2) (c 0) (c 1) (col Dec.ASUB),
-     -- A rewritten bit's `Cons`.
-     Dec.wr (Dec.apE 0) (c 0) (Dec.apE 1) (col Dec.CW), Dec.wr (Dec.apE 1) (Dec.apE 2) (Dec.apE 5) (col Dec.CW), Dec.wr (Dec.apE 2) (Dec.f1 3) (Dec.apE 3) (col Dec.CW),
-     Dec.wr (Dec.apE 3) (Dec.f1 5) (Dec.apE 4) (col Dec.CW), Dec.wr (Dec.apE 4) (c 0) (col Dec.PTR) (col Dec.CW),
-     Dec.wr (Dec.apE 5) (c 0) (Dec.f2 14) (col Dec.CWL),
-     -- The link to this bit, from the bit below or the `Atom` wrapper.
-     Dec.wr (.add (.add (col Dec.KEY) (c 11)) (.mul (c 6) (col Dec.LVL))) (c 0) (col Dec.NEXTL) (col Dec.CLK),
-     Dec.wr (Dec.kE 11) (c 0) (c 0) (col Dec.NLK)]
- := rfl
-
 set_option maxRecDepth 10000 in
 /-- **A well-formed row whose writes are in memory is honest on `mem`.** -/
 theorem row_mem (hok : OK A d) (hw : WritesOK A d) (hkl : d.key ≤ A.length) :
@@ -212,29 +171,28 @@ theorem row_mem (hok : OK A d) (hw : WritesOK A d) (hkl : d.key ≤ A.length) :
   generalize hρ : (rowT A d).env 0 = ρ at hc0
   have hc := hc0
   change I ∈ Dec.decInters at hI
-  rw [decInters_split] at hI
+  rw [Dec.decInters_split] at hI
   rcases List.mem_append.1 hI with hI | hI
-  · obtain ⟨j, hj, rfl⟩ := List.mem_map.1 hI
-    have hj : j < Dec.NSLOT := List.mem_range.1 hj
-    subst hρ
-    have hsk := slot_kind (D := rowT A d) (q := 0) Nat.zero_lt_one (rowF hok.1) (rowK hok.1) hj
-    change (Dec.actE j).eval _ ≠ 0 at hc
-    rw [hsk.2.2, expAct_val] at hc
-    have ha : act d j = true := by cases h : act d j; rw [h] at hc; exact absurd rfl hc; rfl
-    obtain ⟨hlt, htag⟩ := hok.2 j ha
-    have hsp := (sl_spec A d (act_lt ha)).2.2
-    refine ⟨(sl A d j).1, by omega, ?_⟩
-    show [d.col A (Dec.ADDR + j), d.col A (Dec.TAG + j), d.col A (Dec.DFLD + 2 * j), d.col A (Dec.DFLD + 2 * j + 1)] = _
-    rw [col_addr A d hj, col_tag A d hj, col_f1 A d hj, col_f2 A d hj]
-    unfold tupleOf
-    rw [htag, ← hsp]
+  · rcases List.mem_append.1 hI with hI | hI
+    · obtain ⟨j, hj, rfl⟩ := List.mem_map.1 hI
+      have hj : j < Dec.NSLOT := List.mem_range.1 hj
+      subst hρ
+      have hsk := slot_kind (D := rowT A d) (q := 0) Nat.zero_lt_one (rowF hok.1) (rowK hok.1) hj
+      change (Dec.actE j).eval _ ≠ 0 at hc
+      rw [hsk.2.2, expAct_val] at hc
+      have ha : act d j = true := by cases h : act d j; rw [h] at hc; exact absurd rfl hc; rfl
+      obtain ⟨hlt, htag⟩ := hok.2 j ha
+      have hsp := (sl_spec A d (act_lt ha)).2.2
+      refine ⟨(sl A d j).1, by omega, ?_⟩
+      show [d.col A (Dec.ADDR + j), d.col A (Dec.TAG + j), d.col A (Dec.DFLD + 2 * j), d.col A (Dec.DFLD + 2 * j + 1)] = _
+      rw [col_addr A d hj, col_tag A d hj, col_f1 A d hj, col_f2 A d hj]
+      unfold tupleOf
+      rw [htag, ← hsp]
+    · exact absurd hbus (Dec.busI_ne_mem I hI)
   · subst hρ
-    rw [decInters_tail] at hI
-    simp only [List.mem_cons, List.not_mem_nil, or_false] at hI
+    simp only [Dec.writesI, List.mem_cons, List.not_mem_nil, or_false] at hI
     rcases hI with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
-      rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
-      rfl | rfl | rfl | rfl | rfl | rfl | rfl
-    all_goals first | (exact absurd hbus (by decide)) | skip
+    rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
     · obtain ⟨hk, hr⟩ := sub_nz hc
       exact wr_case (hw.sub hk hr 0 (by simp)) (evK 0) rfl (evK 1)
     · obtain ⟨hk, hr⟩ := sub_nz hc
