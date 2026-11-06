@@ -22,8 +22,9 @@ The self-reference is diagonal: `h` is given its own encoding as an
 argument, and `R` supplies the encoding of that argument.  Dropping `g`
 from `h` gives a quine, `quineT ↠ ⟨quineT⟩`.
 
-Contrast: pure `S` has no fixed points of any kind (open question A6 in
-`OPEN-QUESTIONS.md`).  With `K` and `I` alongside, it has intensional ones.
+Contrast: whether pure `S` has any fixed point, combinatory or pointwise, is
+open and conjectured not (question A6 in `OPEN-QUESTIONS.md`).  With `K` and
+`I` alongside, the calculus has intensional ones.
 This is theorem 4 of the B2 working note, `notes/B2-staging-modality.md`.
 -/
 
