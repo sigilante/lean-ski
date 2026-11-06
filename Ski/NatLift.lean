@@ -29,9 +29,19 @@ space, Nat → Bool has a lift.
   **`natL f = App ⟨evalN⟩ (liftTreeN (treeN f))`** is a lift (`nat_lift`,
   `nat_canonical`).
 
-The witness of `no_lift`, `G ω` (constantly false, but walking its argument
-all the way down), is `m`-local for no `m`.  So among the functions total on
-the numerals, the line between lift and no lift is continuity at ∞.
+Where the impossibility sits.
+- `G (num k)` is `(k+1)`-local (`G_num_nlocal`).
+- The witness of `no_lift`, `G ω`, is `m`-local for no `m` (`G_omega_not_local`). It is
+  constantly false, but it walks its argument all the way down, so it has no value at the
+  infinite numeral.
+- No closed term lifts the `m`-local functions together with `G ω` (`no_lift_local_plus_one`).
+
+So the line among the functions total on the numerals is *totality at ∞* (on ℕ∞, not just ℕ).
+It is not continuity: `G ω` is extensionally constant. The obstruction is intensional, since
+m-local functions are, extensionally, exactly the eventually constant ones.
+
+Conjectured, not proved: totality on the numerals and at `ω` implies `m`-locality, by a
+generalization of `NoLift.sim` (the fan step at ℕ∞).
 -/
 
 namespace NatLift
@@ -427,8 +437,8 @@ def natL : Term :=
   toTerm (absN [0] (Requote.appC.toO ⬝ₒ (quoteT evalNT).toO ⬝ₒ (liftTreeNT.toO ⬝ₒ (treeNT.toO ⬝ₒ .var 0))))
 
 /-- **The lift at Nat → Bool for m-local functions.**  `natL f` reduces to a
-    code whose term agrees with `f` on every numeral (indeed on every term with
-    at least `m` successor layers, and at the numerals below). -/
+    code whose term agrees with `f` on every numeral (`evalN_spec` gives it on
+    every term with at least `m` successor layers too). -/
 theorem nat_lift {m : Nat} {φ : Nat → Bool} {f : Term} (hf : NLocal m φ f) :
     WSteps (natL ⬝ f) (quoteT (evalNT ⬝ DN m φ)) ∧
     ∀ (c : Nat) (r : Bool), WSteps (f ⬝ num c) (boolT r) →
@@ -455,5 +465,45 @@ theorem nat_canonical {m : Nat} {φ ψ : Nat → Bool} {f g : Term}
     `NoLift.no_lift_conv` shows no closed term lifts entirely. -/
 theorem nlocal_total {m : Nat} {φ : Nat → Bool} {f : Term} (hf : NLocal m φ f) : Total f :=
   fun c => ⟨_, nlocal_value hf c⟩
+
+-- ---------------------------------------------------------------------------
+-- Where the impossibility sits
+-- ---------------------------------------------------------------------------
+
+/-- `G (num k)`, which decides `n > k`, is `(k+1)`-local: the hypothesis is met
+    by the very functions `NoLift.no_lift_core` uses. -/
+theorem G_num_nlocal (k : Nat) : NLocal (k + 1) (fun c => decide (k < c)) (G ⬝ num k) := by
+  refine ⟨fun c _ => G_num c k, ?_⟩
+  suffices h : ∀ k n, AtLeast (k + 1) n → WSteps (G ⬝ num k ⬝ n) (boolT true) by
+    intro n hn; simpa using h k n hn
+  intro k
+  induction k with
+  | zero =>
+    intro n hn
+    obtain ⟨n', h1, _⟩ := hn
+    obtain ⟨X, hX, _⟩ := G_succ' (num 0) h1
+    exact hX.trans (.single (.K _ _))
+  | succ k ih =>
+    intro n hn
+    obtain ⟨n', h1, h2⟩ := hn
+    obtain ⟨X, hX, hrec⟩ := G_succ' (num (k + 1)) h1
+    exact (hX.trans (succS_wsteps (num k) K X)).trans ((hrec _).trans (ih n' h2))
+
+theorem liftsAt_of_nlocal {m : Nat} {φ : Nat → Bool} {f : Term} (hf : NLocal m φ f) :
+    LiftsAt natL f :=
+  ⟨_, _, (nat_lift hf).1, .refl _, (nat_lift hf).2⟩
+
+/-- **`G ω` is m-local for no m**: else `natL` would lift it together with every
+    `G (num k)`, which `no_lift_core` forbids. -/
+theorem G_omega_not_local (m : Nat) (φ : Nat → Bool) : ¬ NLocal m φ (G ⬝ omega0) := fun h =>
+  no_lift_core natL (liftsAt_of_nlocal h) fun k => liftsAt_of_nlocal (G_num_nlocal k)
+
+/-- **The sharp statement**: no closed term lifts every m-local function and
+    also the one function `G ω`, which is total on the numerals and diverges
+    only at the infinite numeral. -/
+theorem no_lift_local_plus_one (L : Term)
+    (hL : ∀ (m : Nat) (φ : Nat → Bool) (f : Term), NLocal m φ f → LiftsAt L f) :
+    ¬ LiftsAt L (G ⬝ omega0) := fun h0 =>
+  no_lift_core L h0 fun k => hL _ _ _ (G_num_nlocal k)
 
 end NatLift

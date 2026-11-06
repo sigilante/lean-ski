@@ -958,11 +958,11 @@ open Ski.Audit
 
 -- Intensional fixed points and a quine: fixQ g ↠ g ⟨fixQ g⟩, quineT ↠ ⟨quineT⟩
 #audit_clean Ifix.hG_beta Ifix.ifix Ifix.ifix_exists Ifix.quineT_spec Ifix.quine
-#audit_clean NoLift.sim NoLift.G_num NoLift.G_omega NoLift.eqT_spec NoLift.eqT_conv NoLift.no_lift_conv NoLift.no_lift
+#audit_clean NoLift.sim NoLift.G_num NoLift.G_omega NoLift.eqT_spec NoLift.eqT_conv NoLift.G_succ' NoLift.no_lift_core NoLift.no_lift_conv NoLift.no_lift
 #audit_clean LiftBool.canon_spec LiftBool.lift_bool LiftBool.lift_canonical
 #audit_clean Search.cons_sel Search.hd_local Search.local_pre Search.find_unfold Search.search Search.search_decides Search.nth_spec Search.flocal_stream Search.tab_spec
 #audit_clean CantorLift.every_spec CantorLift.const_spec CantorLift.D_congr CantorLift.tree_spec CantorLift.eval_spec CantorLift.liftTree_spec CantorLift.cantor_lift CantorLift.cantor_canonical CantorLift.fun_lift CantorLift.fun_canonical
-#audit_clean NatLift.omega_atLeast NatLift.search_nat NatLift.everyN_spec NatLift.constN_spec NatLift.DN_congr NatLift.treeN_spec NatLift.evalN_spec NatLift.liftTreeN_spec NatLift.nat_lift NatLift.nat_canonical NatLift.nlocal_total
+#audit_clean NatLift.omega_atLeast NatLift.search_nat NatLift.everyN_spec NatLift.constN_spec NatLift.DN_congr NatLift.treeN_spec NatLift.evalN_spec NatLift.liftTreeN_spec NatLift.nat_lift NatLift.nat_canonical NatLift.nlocal_total NatLift.G_num_nlocal NatLift.G_omega_not_local NatLift.no_lift_local_plus_one
 
 -- Graph reduction with update in place, sound and complete against L1, never more contractions
 #audit_clean Graph.Dec.det Graph.dec_spine Graph.spine_dec Graph.spine_ne Graph.dec_update Graph.gstep_sound

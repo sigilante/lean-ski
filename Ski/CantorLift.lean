@@ -34,8 +34,8 @@ Bool → Bool under totality on the literals (`TotalB`), a lift at Cantor space
 under an operational modulus (m-locality, `Local`/`FLocal`), and no lift at
 Nat → Bool under totality on the numerals (`Total`).  Under totality alone,
 nothing is proved at Cantor space: over closed terms a Kleene tree defeats
-Berger's search, and whether any lift exists there is open.  Nor is it shown
-that Nat → Bool lacks a lift under a hypothesis as strong as m-locality.
+Berger's search, and whether any lift exists there is open.  Under a hypothesis
+as strong as m-locality, Nat → Bool does have a lift (`NatLift.nat_lift`).
 That totality on all points of Cantor space would give m-locality is the fan
 step.  It is not established here: it would need an oracle semantics for weak
 CL and a sequentiality argument, since a term may apply a stream to arbitrary

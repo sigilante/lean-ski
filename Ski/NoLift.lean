@@ -418,6 +418,22 @@ theorem G_succ (c : Term) (k : Nat) : ∃ X, WSteps (G ⬝ c ⬝ num (k + 1)) (c
     simp only [OTerm.close] at h2
     exact h2
 
+/-- `G_succ` for any argument that reduces to a successor. -/
+theorem G_succ' (c : Term) {n n' : Term} (hn : WSteps n (succS ⬝ n')) : ∃ X,
+    WSteps (G ⬝ c ⬝ n) (c ⬝ K ⬝ X) ∧ ∀ c', WSteps (X ⬝ c') (G ⬝ c' ⬝ n') := by
+  have h := absN_beta_close [0, 1, 2] gBody (fun _ => K) [G, c, n] rfl
+  simp only [gBody, OTerm.close, close_toO] at h
+  let σ := overrideC (fun _ => K) [0, 1, 2] [G, c, n]
+  have h1 := absN_beta_close [3] (.var 1 ⬝ₒ .K ⬝ₒ gIn2) σ [n'] rfl
+  simp only [OTerm.close] at h1
+  refine ⟨gIn2.close (overrideC σ [3] [n']), ?_, fun c' => ?_⟩
+  · have h0 := (WSteps.left _ (WSteps.left _ G_unroll)).trans h
+    have hs := (WSteps.left _ (WSteps.left _ hn)).trans (succS_wsteps n' (K ⬝ I) (gIn1.close σ))
+    exact (h0.trans hs).trans h1
+  · have h2 := absN_beta_close [4] (.var 0 ⬝ₒ .var 4 ⬝ₒ .var 3) (overrideC σ [3] [n']) [c'] rfl
+    simp only [OTerm.close] at h2
+    exact h2
+
 /-- `G` on numerals decides `j < n`. -/
 theorem G_num : ∀ (n j : Nat), WSteps (G ⬝ num j ⬝ num n) (boolT (decide (j < n)))
   | 0, j => by simpa using G_zero (num j)
@@ -569,19 +585,23 @@ theorem eqT_conv {c d w x : Term} (hx : WSteps x w) (hd : WSteps (quoteT d) w) :
   (WSteps.right _ hx).trans
     (to_bool_of_join (eqT_spec c d) (WSteps.right _ hd))
 
-/-- **No behavioural lift at `Nat → Bool`, up to conversion.** -/
-theorem no_lift_conv (L : Term) : ¬ LiftNBc L := by
-  intro hL
-  have hf : Total (G ⬝ omega0) := fun n => ⟨false, G_omega n (.refl _)⟩
-  obtain ⟨c, w, hw, hcw, hag⟩ := hL _ hf
+/-- `L` lifts the one function `f`, up to conversion. -/
+def LiftsAt (L f : Term) : Prop :=
+  ∃ c w, WSteps (L ⬝ f) w ∧ WSteps (quoteT c) w ∧
+    ∀ (n : Nat) (b : Bool), WSteps (f ⬝ num n) (boolT b) → WSteps (c ⬝ num n) (boolT b)
+
+/-- **The core of the impossibility**: no closed `L` lifts both `G ω` and every
+    `G (num k)`.  The proof uses only these inputs. -/
+theorem no_lift_core (L : Term) (h0 : LiftsAt L (G ⬝ omega0)) (hk : ∀ k, LiftsAt L (G ⬝ num k)) :
+    False := by
+  obtain ⟨c, w, hw, hcw, hag⟩ := h0
   have h1 : WSteps (eqT c ⬝ (L ⬝ (G ⬝ omega0))) K := by
     simpa [boolT] using eqT_conv (c := c) hw hcw
   obtain ⟨n, hn⟩ := counted (steps_of_wsteps_K h1)
   have hrel : Rel (n + 1) (eqT c ⬝ (L ⬝ (G ⬝ omega0))) (eqT c ⬝ (L ⬝ (G ⬝ num (n + 1)))) :=
     .app (.refl _) (.app (.refl _) (.app (.refl _) (.omega (.refl _) (Nat.le_refl _))))
   have h2 := (sim n hrel hn (Nat.lt_succ_self n)).weak
-  have hg : Total (G ⬝ num (n + 1)) := fun m => ⟨_, G_num m (n + 1)⟩
-  obtain ⟨c', w', hw', hcw', hag'⟩ := hL _ hg
+  obtain ⟨c', w', hw', hcw', hag'⟩ := hk (n + 1)
   have h3 := eqT_conv (c := c) hw' hcw'
   have hcc : c = c' := by
     by_cases hne : c = c'
@@ -591,6 +611,11 @@ theorem no_lift_conv (L : Term) : ¬ LiftNBc L := by
   have e1 := hag (n + 2) false (G_omega (n + 2) (.refl _))
   have e2 := hag' (n + 2) true (by simpa using G_num (n + 2) (n + 1))
   exact bool_disjoint e1 e2
+
+/-- **No behavioural lift at `Nat → Bool`, up to conversion.** -/
+theorem no_lift_conv (L : Term) : ¬ LiftNBc L := fun hL =>
+  no_lift_core L (hL _ fun n => ⟨false, G_omega n (.refl _)⟩)
+    fun k => hL _ fun m => ⟨_, G_num m k⟩
 
 /-- **No behavioural lift at `Nat → Bool`** (the code reached by reduction). -/
 theorem no_lift (L : Term) : ¬ LiftNB L := fun hL =>
