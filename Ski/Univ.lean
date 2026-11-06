@@ -213,4 +213,130 @@ theorem stepC_spec : ∀ t : Term, WSteps (stepC ⬝ quoteT t) (mcode (step? t))
       rw [show step? (f ⬝ x) = some (f' ⬝ x) by simp [step?, hf]]
       exact e
 
+-- ---------------------------------------------------------------------------
+-- Component 2: at most N head steps
+-- ---------------------------------------------------------------------------
+
+/-- The Lean model: the whnf `t` reaches within `N` head steps, if any. -/
+def bnd : Nat → Term → Option Term
+  | N, t => match step? t with
+    | none => some t
+    | some u => match N with
+      | 0 => none
+      | N + 1 => bnd N u
+
+theorem bnd_mono : ∀ (N : Nat) (t v : Term), bnd N t = some v → bnd (N + 1) t = some v := by
+  intro N
+  induction N with
+  | zero =>
+    intro t v h
+    unfold bnd at h ⊢
+    cases hs : step? t with
+    | none => rw [hs] at h; exact h
+    | some u => rw [hs] at h; simp at h
+  | succ N ih =>
+    intro t v h
+    unfold bnd at h ⊢
+    cases hs : step? t with
+    | none => rw [hs] at h; exact h
+    | some u => rw [hs] at h; simp only at h ⊢; exact ih u v h
+
+theorem bnd_mono_le {N M : Nat} (hNM : N ≤ M) {t v : Term} (h : bnd N t = some v) : bnd M t = some v := by
+  induction hNM with
+  | refl => exact h
+  | step _ ih => exact bnd_mono _ _ _ ih
+
+/-- A head run to a whnf in `k ≤ N` steps is found. -/
+theorem bnd_of_run : ∀ (k : Nat) {t v : Term}, StepsN k t v → Whnf v → ∀ N, k ≤ N → bnd N t = some v := by
+  intro k
+  induction k with
+  | zero =>
+    intro t v h hv N _
+    cases h
+    unfold bnd
+    rw [whnf_iff_step?_none.1 hv]
+  | succ k ih =>
+    intro t v h hv N hN
+    cases h with
+    | step h1 hs =>
+      obtain ⟨N', rfl⟩ : ∃ N', N = N' + 1 := ⟨N - 1, by omega⟩
+      unfold bnd
+      rw [step?_complete h1]
+      exact ih hs hv N' (by omega)
+
+/-- What `bnd` returns is a whnf that `t` head-reduces to. -/
+theorem bnd_sound : ∀ (N : Nat) {t v : Term}, bnd N t = some v → Steps t v ∧ Whnf v := by
+  intro N
+  induction N with
+  | zero =>
+    intro t v h
+    unfold bnd at h
+    cases hs : step? t with
+    | none => rw [hs] at h; cases h; exact ⟨.refl _, step?_none hs⟩
+    | some u => rw [hs] at h; simp at h
+  | succ N ih =>
+    intro t v h
+    unfold bnd at h
+    cases hs : step? t with
+    | none => rw [hs] at h; cases h; exact ⟨.refl _, step?_none hs⟩
+    | some u =>
+      rw [hs] at h; simp only at h
+      obtain ⟨h1, h2⟩ := ih h
+      exact ⟨.step (step?_sound hs) h1, h2⟩
+
+/-- `ev r n q = stepC q (just q) (λ q'. n nothing (λ n'. r n' q'))`,
+    over `r` (0), `n` (1), `q` (2), `q'` (3), `n'` (4). -/
+def evIn : OTerm := absN [3] (.var 1 ⬝ₒ nothingT.toO ⬝ₒ absN [4] (.var 0 ⬝ₒ .var 4 ⬝ₒ .var 3))
+def evBody : OTerm := stepC.toO ⬝ₒ .var 2 ⬝ₒ (justT.toO ⬝ₒ .var 2) ⬝ₒ evIn
+def evStep : Term := toTerm (absN [0, 1, 2] evBody)
+
+/-- **`evalC`**, the fixpoint of `evStep`. -/
+def evalC : Term := fixSelf evStep (fixB evStep)
+
+theorem evalC_unroll : WSteps evalC (evStep ⬝ evalC) := by
+  have h := (fixSelf_unroll (F := evStep) (Steps.refl (fixB evStep))).weak
+  have hI : WSteps (fixSelf evStep (I ⬝ fixB evStep)) evalC := WSteps.right _ (.single (.I _))
+  exact h.trans (WSteps.right _ hI)
+
+theorem evalC_case (n q : Term) : ∃ Y,
+    WSteps (evalC ⬝ n ⬝ q) (stepC ⬝ q ⬝ (justT ⬝ q) ⬝ Y) ∧
+    ∀ q', ∃ Z, WSteps (Y ⬝ q') (n ⬝ nothingT ⬝ Z) ∧ ∀ n', WSteps (Z ⬝ n') (evalC ⬝ n' ⬝ q') := by
+  have h := absN_beta_close [0, 1, 2] evBody (fun _ => K) [evalC, n, q] rfl
+  simp only [evBody, OTerm.close, close_toO, appT] at h
+  refine ⟨_, (WSteps.left _ (WSteps.left _ evalC_unroll)).trans h, fun q' => ?_⟩
+  let σ := overrideC (fun _ => K) [0, 1, 2] [evalC, n, q]
+  have h2 := absN_beta_close [3] (.var 1 ⬝ₒ nothingT.toO ⬝ₒ absN [4] (.var 0 ⬝ₒ .var 4 ⬝ₒ .var 3)) σ [q'] rfl
+  simp only [OTerm.close, close_toO, appT] at h2
+  refine ⟨_, h2, fun n' => ?_⟩
+  have h3 := absN_beta_close [4] (.var 0 ⬝ₒ .var 4 ⬝ₒ .var 3) (overrideC σ [3] [q']) [n'] rfl
+  simp only [OTerm.close, appT] at h3
+  exact h3
+
+/-- **`evalC` is the bounded run on codes.** -/
+theorem evalC_spec : ∀ (N : Nat) (t : Term), WSteps (evalC ⬝ num N ⬝ quoteT t) (mcode (bnd N t)) := by
+  intro N
+  induction N with
+  | zero =>
+    intro t
+    obtain ⟨Y, hY, hYs⟩ := evalC_case (num 0) (quoteT t)
+    refine hY.trans ((WSteps.left _ (WSteps.left _ (stepC_spec t))).trans ?_)
+    unfold bnd
+    cases hs : step? t with
+    | none => simpa [mcode] using nothing_sel _ _
+    | some u =>
+      obtain ⟨Z, hZ, _⟩ := hYs (quoteT u)
+      simpa [mcode] using (just_sel _ _ _).trans (hZ.trans (.single (.K _ _)))
+  | succ N ih =>
+    intro t
+    obtain ⟨Y, hY, hYs⟩ := evalC_case (num (N + 1)) (quoteT t)
+    refine hY.trans ((WSteps.left _ (WSteps.left _ (stepC_spec t))).trans ?_)
+    unfold bnd
+    cases hs : step? t with
+    | none => simpa [mcode] using nothing_sel _ _
+    | some u =>
+      obtain ⟨Z, hZ, hZs⟩ := hYs (quoteT u)
+      have := (just_sel (quoteT u) (justT ⬝ quoteT t) Y).trans
+        (hZ.trans ((succS_wsteps (num N) _ Z).trans ((hZs _).trans (ih u))))
+      simpa [mcode] using this
+
 end Univ

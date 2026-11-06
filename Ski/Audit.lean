@@ -972,7 +972,7 @@ open Ski.Audit
 #audit_clean CantorTotal.no_lift_family CantorTotal.wordStream_isStream CantorTotal.walk_num CantorTotal.walk_omega CantorTotal.no_lift_cantor_total
 #audit_clean NatFan.simW NatFan.whnf_to_I NatFan.whnf_to_KI NatFan.finite_choice NatFan.fan_value NatFan.nat_fan NatFan.nat_lift_inf NatFan.local_iff_total_inf
 #audit_clean OracleFan.StepO.det OracleFan.simO OracleFan.relO_emb OracleFan.oracle_local OracleFan.relO_Kx OracleFan.oracle_local_w OracleFan.oracleTotal_weak
-#audit_clean Univ.fb_spec Univ.stepC_spec
+#audit_clean Univ.fb_spec Univ.stepC_spec Univ.bnd_mono Univ.bnd_mono_le Univ.bnd_of_run Univ.bnd_sound Univ.evalC_spec
 -- OracleFan.fan, cantor_fan and cantor_lift_oracle use Classical.choice (the fan theorem is classical); not in the gate.
 
 -- Graph reduction with update in place, sound and complete against L1, never more contractions
