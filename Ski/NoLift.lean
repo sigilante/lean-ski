@@ -8,12 +8,14 @@ open Term
 
 `no_quote` (Proposition 3.1) forbids *syntactic* quotation: no closed `Q`
 has `Q M ↠ ⟨M⟩` for every `M`.  A behavioural lift asks less: from a live
-function `f`, a code `⟨c⟩` whose term `c` *behaves* as `f` does.  At data
-types such a lift exists (it canonicalizes), and it exists at some function
-types too (B2's working note: at `(Nat → Bool) → Bool`, by Berger's search).
-This module proves it does not exist at `Nat → Bool`: no closed `L` sends
-every function that is total on the numerals to a code that agrees with it
-on the numerals (`no_lift`).
+function `f`, a code `⟨c⟩` whose term `c` *behaves* as `f` does.  B2's
+working note conjectures, and checks numerically (`notes/checks/cantor.py`;
+not in Lean), that such lifts exist at data types, where they canonicalize,
+and at some function types, `(Nat → Bool) → Bool` by Berger's search, for
+functionals total on all points.  This module proves the lift does not exist
+at `Nat → Bool`: no closed `L` sends every function that is total on the
+numerals to a term convertible with a code that agrees with it on the
+numerals (`no_lift_conv`, and `no_lift` for reduction to the code).
 
 The proof is a stuttering simulation, not a general continuity theorem.
 
@@ -23,8 +25,8 @@ The proof is a stuttering simulation, not a general continuity theorem.
   two arguments it head-reduces to `s ⬝ (K ⬝ ω' ⬝ s)`, `ω'` again such a
   term, exactly as `num (m+1)` reduces to `s ⬝ (K ⬝ num m ⬝ s)`.
 - `Rel b t t'`: `t'` is `t` with some infinite numerals replaced by numerals
-  `num m`, `m ≥ b`.  If `t` head-reduces to `K` in `n < b` steps, so does
-  `t'` (`sim`): a combinator head steps in lockstep; an infinite numeral at
+  `num m`, `m ≥ b`.  If `t` head-reduces to `K` in `n < b` steps, then `t'`
+  head-reduces to `K` too, in some number of steps (`sim`): a combinator head steps in lockstep; an infinite numeral at
   the head with two arguments takes one macro step on each side, and the
   numeral's count drops by one while the run drops by at least one step; with
   fewer arguments the run would stop at a weak head normal form other than
@@ -523,28 +525,65 @@ def LiftNB (L : Term) : Prop :=
   ∀ f, Total f → ∃ c, WSteps (L ⬝ f) (quoteT c) ∧
     ∀ (n : Nat) (b : Bool), WSteps (f ⬝ num n) (boolT b) → WSteps (c ⬝ num n) (boolT b)
 
-/-- **No behavioural lift at `Nat → Bool`.** -/
-theorem no_lift (L : Term) : ¬ LiftNB L := by
+theorem KI_wsteps {u : Term} (h : WSteps (K ⬝ I) u) : u = K ⬝ I := by
+  cases h with
+  | refl => rfl
+  | step h _ =>
+    cases h with
+    | left _ h => cases h
+    | right _ h => cases h
+
+theorem bool_wsteps {b : Bool} {u : Term} (h : WSteps (boolT b) u) : u = boolT b := by
+  cases b with
+  | true => exact K_wsteps h
+  | false => exact KI_wsteps h
+
+/-- A reduct of something that reaches a boolean reaches that boolean. -/
+theorem to_bool_of_join {t w : Term} {b : Bool} (ht : WSteps t (boolT b)) (hw : WSteps t w) :
+    WSteps w (boolT b) := by
+  obtain ⟨v, h1, h2⟩ := church_rosser ht hw
+  rw [bool_wsteps h1] at h2
+  exact h2
+
+/-- `L` lifts at `Nat → Bool` up to conversion: `L f` and some code agreeing
+    with `f` have a common reduct. -/
+def LiftNBc (L : Term) : Prop :=
+  ∀ f, Total f → ∃ c w, WSteps (L ⬝ f) w ∧ WSteps (quoteT c) w ∧
+    ∀ (n : Nat) (b : Bool), WSteps (f ⬝ num n) (boolT b) → WSteps (c ⬝ num n) (boolT b)
+
+/-- `eqT c` on a term convertible with `⟨d⟩`. -/
+theorem eqT_conv {c d w x : Term} (hx : WSteps x w) (hd : WSteps (quoteT d) w) :
+    WSteps (eqT c ⬝ x) (boolT (decide (c = d))) :=
+  (WSteps.right _ hx).trans
+    (to_bool_of_join (eqT_spec c d) (WSteps.right _ hd))
+
+/-- **No behavioural lift at `Nat → Bool`, up to conversion.** -/
+theorem no_lift_conv (L : Term) : ¬ LiftNBc L := by
   intro hL
   have hf : Total (G ⬝ omega0) := fun n => ⟨false, G_omega n (.refl _)⟩
-  obtain ⟨c, hc, hag⟩ := hL _ hf
+  obtain ⟨c, w, hw, hcw, hag⟩ := hL _ hf
   have h1 : WSteps (eqT c ⬝ (L ⬝ (G ⬝ omega0))) K := by
-    have := (WSteps.right (eqT c) hc).trans (eqT_spec c c)
-    simpa [boolT] using this
+    simpa [boolT] using eqT_conv (c := c) hw hcw
   obtain ⟨n, hn⟩ := counted (steps_of_wsteps_K h1)
   have hrel : Rel (n + 1) (eqT c ⬝ (L ⬝ (G ⬝ omega0))) (eqT c ⬝ (L ⬝ (G ⬝ num (n + 1)))) :=
     .app (.refl _) (.app (.refl _) (.app (.refl _) (.omega (.refl _) (Nat.le_refl _))))
   have h2 := (sim n hrel hn (Nat.lt_succ_self n)).weak
   have hg : Total (G ⬝ num (n + 1)) := fun m => ⟨_, G_num m (n + 1)⟩
-  obtain ⟨c', hc', hag'⟩ := hL _ hg
-  have h3 := (WSteps.right (eqT c) hc').trans (eqT_spec c c')
+  obtain ⟨c', w', hw', hcw', hag'⟩ := hL _ hg
+  have h3 := eqT_conv (c := c) hw' hcw'
   have hcc : c = c' := by
     by_cases hne : c = c'
     · exact hne
-    · simp [hne] at h3; exact (K_KI_disjoint h2 h3).elim
+    · simp [hne, boolT] at h3; exact (K_KI_disjoint h2 h3).elim
   subst hcc
   have e1 := hag (n + 2) false (G_omega (n + 2) (.refl _))
   have e2 := hag' (n + 2) true (by simpa using G_num (n + 2) (n + 1))
   exact bool_disjoint e1 e2
+
+/-- **No behavioural lift at `Nat → Bool`** (the code reached by reduction). -/
+theorem no_lift (L : Term) : ¬ LiftNB L := fun hL =>
+  no_lift_conv L fun f hf =>
+    let ⟨c, hc, hag⟩ := hL f hf
+    ⟨c, quoteT c, hc, .refl _, hag⟩
 
 end NoLift
