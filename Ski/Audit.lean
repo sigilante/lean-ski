@@ -965,11 +965,11 @@ open Ski.Audit
 
 -- Intensional fixed points and a quine: fixQ g ↠ g ⟨fixQ g⟩, quineT ↠ ⟨quineT⟩
 #audit_clean Ifix.hG_beta Ifix.ifix Ifix.ifix_exists Ifix.quineT_spec Ifix.quine
-#audit_clean NoLift.sim NoLift.G_num NoLift.G_omega NoLift.eqT_spec NoLift.eqT_conv NoLift.G_succ' NoLift.no_lift_core NoLift.no_lift_conv NoLift.no_lift
+#audit_clean NoLift.sim NoLift.omega_steps NoLift.omega_whnf0 NoLift.omega_whnf1 NoLift.G_num NoLift.G_omega NoLift.eqT_spec NoLift.eqT_conv NoLift.G_succ' NoLift.no_lift_core NoLift.no_lift_conv NoLift.no_lift
 #audit_clean LiftBool.canon_spec LiftBool.lift_bool LiftBool.lift_canonical
 #audit_clean Search.cons_sel Search.hd_local Search.local_pre Search.find_unfold Search.search Search.search_decides Search.nth_spec Search.flocal_stream Search.tab_spec
 #audit_clean CantorLift.every_spec CantorLift.const_spec CantorLift.D_congr CantorLift.tree_spec CantorLift.eval_spec CantorLift.liftTree_spec CantorLift.cantor_lift CantorLift.cantor_canonical CantorLift.fun_lift CantorLift.fun_canonical
-#audit_clean NatLift.omega_atLeast NatLift.search_nat NatLift.everyN_spec NatLift.constN_spec NatLift.DN_congr NatLift.treeN_spec NatLift.evalN_spec NatLift.liftTreeN_spec NatLift.nat_lift NatLift.nat_canonical NatLift.nlocal_total NatLift.G_num_nlocal NatLift.G_omega_not_local NatLift.no_lift_local_plus_one
+#audit_clean NatLift.omega_atLeast NatLift.nlocal_shift NatLift.search_nat NatLift.everyN_spec NatLift.constN_spec NatLift.DN_congr NatLift.treeN_spec NatLift.evalN_spec NatLift.liftTreeN_spec NatLift.nat_lift NatLift.nat_canonical NatLift.nlocal_total NatLift.G_num_nlocal NatLift.G_omega_not_local NatLift.no_lift_local_plus_one
 #audit_clean Coalgebra.lift_code Coalgebra.bool_idem Coalgebra.nat_idem Coalgebra.cantor_idem Coalgebra.coalg2 Coalgebra.bool_coalg2 Coalgebra.nat_coalg2 Coalgebra.cantor_coalg2
 #audit_clean CantorTotal.no_lift_family CantorTotal.wordStream_isStream CantorTotal.walk_num CantorTotal.walk_omega CantorTotal.no_lift_cantor_total
 #audit_clean NatFan.simW NatFan.whnf_to_I NatFan.whnf_to_KI NatFan.finite_choice NatFan.fan_value NatFan.nat_fan NatFan.nat_lift_inf NatFan.local_iff_total_inf
