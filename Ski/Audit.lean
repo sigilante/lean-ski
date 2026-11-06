@@ -246,6 +246,7 @@ import Ski.Lambda
 import Ski.Quote
 import Ski.Requote
 import Ski.Ifix
+import Ski.NoLift
 import Ski.Graph
 import Ski.RWMem
 import Ski.GraphMem
@@ -953,6 +954,7 @@ open Ski.Audit
 
 -- Intensional fixed points and a quine: fixQ g ↠ g ⟨fixQ g⟩, quineT ↠ ⟨quineT⟩
 #audit_clean Ifix.hG_beta Ifix.ifix Ifix.ifix_exists Ifix.quineT_spec Ifix.quine
+#audit_clean NoLift.sim NoLift.G_num NoLift.G_omega NoLift.eqT_spec NoLift.no_lift
 
 -- Graph reduction with update in place, sound and complete against L1, never more contractions
 #audit_clean Graph.Dec.det Graph.dec_spine Graph.spine_dec Graph.spine_ne Graph.dec_update Graph.gstep_sound
