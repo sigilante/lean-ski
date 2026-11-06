@@ -28,12 +28,18 @@ Theorem 6 of the B2 note `notes/B2-cantor-lift.md`, mechanized.  With
   form comparable with `NoLift.no_lift_conv`, whose functions are the same.
 
 The only quotations are of fixed closed terms (`evalT`, `leafT`, `nodeT` and
-the booleans).  Taken with `NoLift.no_lift_conv` and `LiftBool.lift_bool`:
-there is a lift at Bool → Bool and at m-local Stream → Bool, and none at
-Nat → Bool.  The remaining hypothesis is m-locality itself; totality on all
-points of Cantor space implies it by the fan theorem, which is not
-mechanized (it needs an oracle semantics; over closed terms alone a Kleene
-tree refutes it).
+the booleans).  Taken with `NoLift.no_lift_conv` and `LiftBool.lift_bool`, the
+conclusions have one form, but **the hypotheses are not parallel**: a lift at
+Bool → Bool under totality on the literals (`TotalB`), a lift at Cantor space
+under an operational modulus (m-locality, `Local`/`FLocal`), and no lift at
+Nat → Bool under totality on the numerals (`Total`).  Under totality alone,
+nothing is proved at Cantor space: over closed terms a Kleene tree defeats
+Berger's search, and whether any lift exists there is open.  Nor is it shown
+that Nat → Bool lacks a lift under a hypothesis as strong as m-locality.
+That totality on all points of Cantor space would give m-locality is the fan
+step.  It is not established here: it would need an oracle semantics for weak
+CL and a sequentiality argument, since a term may apply a stream to arbitrary
+continuations, not only to the head and tail selectors.
 -/
 
 namespace CantorLift

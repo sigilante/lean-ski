@@ -26,7 +26,7 @@ positive half of the staging line at Stream → Bool.
 length `k`, and `φ u` is true whenever `φ` is true anywhere.  So
 `p (find p)` decides whether `p` is satisfiable (`search_decides`).  The
 proof is the paper's induction on `k`; no termination of `find` is claimed
-or needed (it has no normal form), only existential weak reductions.
+or needed, only existential weak reductions.
 
 **From functions to streams and back** (the representation gap).  `nthT`
 reads a stream at a numeral (`nth_spec`), so a functional of functions on
