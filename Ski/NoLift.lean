@@ -17,6 +17,18 @@ at `Nat → Bool`: no closed `L` sends every function that is total on the
 numerals to a term convertible with a code that agrees with it on the
 numerals (`no_lift_conv`, and `no_lift` for reduction to the code).
 
+What it does not forbid: no *single* closed `L` lifts every total `f` to a
+finite `quoteT` code.  Untouched are:
+- non-uniform lifts (`K ⟨f⟩` for each `f`, or a lookup over a finite known set);
+- bounded domains (tabulating `0 … N−1` is exact at `Bool^N → Bool`);
+- `f` supplied together with a modulus or bound;
+- lifts correct only below a cutoff, or failing only by diverging;
+- lazy tabulations such as `cons (f 0) (L (f ∘ succ))`, which behave as `f` but
+  are infinite, so equality on them diverges.
+
+The statement is about `quoteT` codes; the proof uses only a per-code
+equality test (`eqT_conv`), so it carries over to any code type with one.
+
 The proof is a stuttering simulation, not a general continuity theorem.
 
 - `num m`: Scott numerals, `num 0 = K`, `num (m+1) = succS ⬝ num m`.
