@@ -252,6 +252,7 @@ import Ski.Search
 import Ski.CantorLift
 import Ski.NatLift
 import Ski.Coalgebra
+import Ski.CantorTotal
 import Ski.Graph
 import Ski.RWMem
 import Ski.GraphMem
@@ -965,6 +966,7 @@ open Ski.Audit
 #audit_clean CantorLift.every_spec CantorLift.const_spec CantorLift.D_congr CantorLift.tree_spec CantorLift.eval_spec CantorLift.liftTree_spec CantorLift.cantor_lift CantorLift.cantor_canonical CantorLift.fun_lift CantorLift.fun_canonical
 #audit_clean NatLift.omega_atLeast NatLift.search_nat NatLift.everyN_spec NatLift.constN_spec NatLift.DN_congr NatLift.treeN_spec NatLift.evalN_spec NatLift.liftTreeN_spec NatLift.nat_lift NatLift.nat_canonical NatLift.nlocal_total NatLift.G_num_nlocal NatLift.G_omega_not_local NatLift.no_lift_local_plus_one
 #audit_clean Coalgebra.lift_code Coalgebra.bool_idem Coalgebra.nat_idem Coalgebra.cantor_idem Coalgebra.coalg2 Coalgebra.bool_coalg2 Coalgebra.nat_coalg2 Coalgebra.cantor_coalg2
+#audit_clean CantorTotal.no_lift_family CantorTotal.wordStream_isStream CantorTotal.walk_num CantorTotal.walk_omega CantorTotal.no_lift_cantor_total
 
 -- Graph reduction with update in place, sound and complete against L1, never more contractions
 #audit_clean Graph.Dec.det Graph.dec_spine Graph.spine_dec Graph.spine_ne Graph.dec_update Graph.gstep_sound

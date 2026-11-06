@@ -94,6 +94,7 @@ import Ski.Search
 import Ski.CantorLift
 import Ski.NatLift
 import Ski.Coalgebra
+import Ski.CantorTotal
 import Ski.Graph
 import Ski.RWMem
 import Ski.GraphMem
