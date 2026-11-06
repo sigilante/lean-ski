@@ -14,9 +14,15 @@ re-encoding (`Requote.R`) and `□α` acts on a code `⟨t⟩` as the code of `�
     δ (α f)     ↠ R ⟨c⟩             ↠ ⟨⟨c⟩⟩
     □α (α f)    = App ⟨α⟩ (α f)     ↠ App ⟨α⟩ ⟨c⟩  =  ⟨α c⟩
 
-So the law holds, *under the box*, exactly when `α c ↠ ⟨c⟩`: the lift is
-idempotent on its own outputs.  Each of the three lifts is: its output term meets
-its own hypothesis with the same table, and canonicality returns the same code.
+So the law holds *up to conversion of the quoted terms* exactly when
+`α c ↠ ⟨c⟩`: the lift is idempotent on its own outputs.  Each of the three lifts
+is: its output term meets its own hypothesis with the same table, and
+canonicality returns the same code.
+
+This is not Kavvos's law with his `∼` at `□□A`.  The two codes `⟨⟨c⟩⟩` and
+`⟨α c⟩` are not convertible: `eqT ⟨c⟩` separates them.  So the literal law fails
+in this model, and the form proved here (agreement one level under the box) must
+not be fed into results that need `∼` at `□□A` together with point-univalence.
 
 - `bool_idem`, `nat_idem`, `cantor_idem`: idempotence.
 - `bool_coalg2`, `nat_coalg2`, `cantor_coalg2`: the second law, as

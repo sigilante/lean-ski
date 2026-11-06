@@ -8,12 +8,15 @@ open Term
 `NatLift.nat_lift` lifts every m-local `f : Nat → Bool`.  This module shows that
 m-locality is no stronger than totality on the points of ℕ∞: a function total
 on the numerals *and at the infinite numeral* is m-local for some `m`
-(`nat_fan`).  So among the functions total on the numerals, the line between lift
-and no lift is exactly totality at ∞:
+(`nat_fan`).  So, as a statement about classes, the line between lift and no
+lift is totality at ∞:
 
 - `nat_lift_inf`: `natL` lifts every `f` total on the numerals and at `ω`;
 - `NatLift.no_lift_local_plus_one`: no closed term lifts them together with
   `G ω`, which is total on the numerals and has no value at `ω`.
+
+Not proved: that adding *any* single function without a value at `ω` defeats
+every lift.
 
 The proof generalizes `NoLift.sim` in two ways.
 - **The right side.** `RelW` relates an infinite numeral to *any* term with

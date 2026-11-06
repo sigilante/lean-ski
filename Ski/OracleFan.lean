@@ -13,7 +13,10 @@ This module supplies them.
 **The oracle calculus.** `TermO` is SKI with a constant `ora α` for every
 `α : ℕ → Bool`.  It is a stream cell: `ora α ⬝ k → k (α 0) (ora (α ∘ succ))`.
 A closed CL functional `F` is *oracle-total* when `F ⬝ ora α` head-reduces to a
-boolean for every `α`, computable or not (`OracleTotal`).
+boolean for every `α`, computable or not (`OracleTotal`).  The run must end at
+exactly `K` or `K ⬝ I`.  That is slightly stronger than needed for false: it
+excludes runs ending at `K ⬝ x` with `x ↠ I`, `x ≠ I`, which `NatFan`'s two-stage
+argument would also handle.
 
 **Sequentiality.** The concern is that a term may apply a stream to arbitrary
 continuations, not just the head and tail selectors.  The simulation absorbs
