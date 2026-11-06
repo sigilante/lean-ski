@@ -1242,6 +1242,24 @@ ski-air fs-budget jet-verify CORPUS JETS NAME PROOF
 The witness and corpus test runs (`ski-air witness …`, `ski-air`) print
 one for each proof they verify; a command that prints none says so.
 
+**Reproducible proofs, for tests only.**  A proof's hiding draws come from
+a fresh 128-bit seed per proof (`src/seed.rs`), so two proofs of one
+statement differ, in their bytes and in their length.
+`--insecure-test-seed=HEX`, anywhere on the command line, fixes the run's
+randomness to the 128-bit `HEX`: each proof's seed is the next block of a
+ChaCha20 stream keyed by it, so a run makes the same proofs byte for byte,
+and the proofs within one run still differ.  Such a proof verifies as any
+other but hides nothing from whoever knows the seed.  The flag warns on
+stderr and prints `INSECURE-TEST-SEED: this run's proofs are not hiding` on
+stdout, for a release script to refuse it.
+
+```sh
+ski-air --insecure-test-seed=000102030405060708090a0b0c0d0e0f compd-prove PUBLIC WITNESS PROOF
+```
+
+skinock's `loop_1` under one seed, twice: 1,116,904 bytes both times,
+identical; under another, 1,124,200.  The length varies with the seed alone.
+
 The rounds of a batch proof (`src/fsbudget.rs`): the constraint
 combination (`ali`), at the batch's total constraint count; the
 out-of-domain point (`deep-ali`), a union over the AIRs, each at its own

@@ -13,9 +13,17 @@
 //! assumption, that ChaCha20 under a 128-bit seed is indistinguishable from
 //! uniform.  The seed is outside the statement, and no kernel entropy event
 //! feeds it.
+//!
+//! For tests only, `ski-air --insecure-test-seed=HEX` fixes the run's randomness:
+//! each proof's seed is then the next block of a ChaCha20 stream keyed by
+//! the 128-bit `HEX` (`set_test_seed`), so a run makes the same proofs byte
+//! for byte, and the proofs within one run still have distinct seeds.  Such
+//! proofs hide nothing from whoever knows the test seed.
 
 use chacha20::ChaCha20Rng;
 use core::convert::Infallible;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::OnceLock;
 use rand::rngs::{StdRng, SysRng};
 use rand::{SeedableRng, TryCryptoRng, TryRng};
 
@@ -48,11 +56,45 @@ pub(crate) struct PcsStreams {
     pub(crate) codewords: ChaCha20Rng,
 }
 
+/// The run's test seed, if `--insecure-test-seed` gave one, and the proofs drawn
+/// from it so far.
+static TEST_SEED: OnceLock<[u8; 16]> = OnceLock::new();
+static TEST_DRAWS: AtomicU64 = AtomicU64::new(0);
+
+/// Separates the test seed's stream from every proof stream.
+const TEST_DOMAIN: [u8; 16] = *b"ski-air testseed";
+
+/// Fix the run's randomness to `hex`, 32 hex digits (`--insecure-test-seed`): for
+/// reproducible proofs in tests, which then hide nothing from whoever knows
+/// it.  An error on a malformed seed, or a second one.
+pub(crate) fn set_test_seed(hex: &str) -> Result<(), String> {
+    if hex.len() != 32 {
+        return Err("--insecure-test-seed takes 32 hex digits (128 bits)".into());
+    }
+    let mut s = [0u8; 16];
+    for (i, b) in s.iter_mut().enumerate() {
+        *b = u8::from_str_radix(&hex[2 * i..2 * i + 2], 16)
+            .map_err(|_| "--insecure-test-seed takes 32 hex digits (128 bits)".to_string())?;
+    }
+    TEST_SEED.set(s).map_err(|_| "--insecure-test-seed given twice".to_string())
+}
+
 impl ProverSeed {
-    /// A fresh seed from the operating system.
+    /// A fresh seed from the operating system; under `--insecure-test-seed`, the
+    /// next block of the test seed's stream.
     pub(crate) fn fresh() -> Self {
         let mut s = [0u8; 16];
-        SysRng.try_fill_bytes(&mut s).expect("the operating system's generator");
+        match TEST_SEED.get() {
+            Some(t) => {
+                let mut key = [0u8; 32];
+                key[..16].copy_from_slice(t);
+                key[16..].copy_from_slice(&TEST_DOMAIN);
+                let mut r = ChaCha20Rng::from_seed(key);
+                r.set_stream(TEST_DRAWS.fetch_add(1, Ordering::Relaxed));
+                r.try_fill_bytes(&mut s).expect("a ChaCha20 stream");
+            }
+            None => SysRng.try_fill_bytes(&mut s).expect("the operating system's generator"),
+        }
         ProverSeed(s)
     }
 
@@ -122,5 +164,36 @@ impl SeedableRng for ProverRng {
 
     fn from_seed(seed: [u8; 32]) -> Self {
         ProverRng::Stream(ChaCha20Rng::from_seed(seed))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_seeds_are_reproducible_and_distinct() {
+        // the stream `fresh` reads under a test seed, at draw `n`
+        let draw = |t: [u8; 16], n: u64| {
+            let mut key = [0u8; 32];
+            key[..16].copy_from_slice(&t);
+            key[16..].copy_from_slice(&TEST_DOMAIN);
+            let mut r = ChaCha20Rng::from_seed(key);
+            r.set_stream(n);
+            let mut s = [0u8; 16];
+            r.try_fill_bytes(&mut s).unwrap();
+            s
+        };
+        let t = [7u8; 16];
+        assert_eq!(draw(t, 0), draw(t, 0));
+        assert_ne!(draw(t, 0), draw(t, 1));
+        assert_ne!(draw(t, 0), draw([8u8; 16], 0));
+        assert!(set_test_seed("00").is_err());
+        assert!(set_test_seed("zz000000000000000000000000000000").is_err());
+        assert!(set_test_seed("000102030405060708090a0b0c0d0e0f").is_ok());
+        assert!(set_test_seed("000102030405060708090a0b0c0d0e0f").is_err());
+        let a = ProverSeed::fresh().0;
+        let b = ProverSeed::fresh().0;
+        assert_ne!(a, b);
     }
 }
