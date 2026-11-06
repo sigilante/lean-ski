@@ -21,6 +21,11 @@ Theorem 6 of the B2 note `notes/B2-cantor-lift.md`, mechanized.  With
   `cantorL q ↠ ⟨evalT ⬝ D m φ⟩`, and that code's term agrees with `q` on every
   stream with an `m`-prefix (`cantor_lift`); two `m`-local functionals with the
   same table get the same code (`cantor_canonical`).
+- **`funL`**, the same for functionals of functions on Scott numerals that
+  read their argument at `0 … m−1` only (`Search.FLocal`): `funL Φ` reduces
+  to the code of `S (K (eval d)) tab`, which agrees with `Φ` on every `f`
+  whose values there are booleans (`fun_lift`, `fun_canonical`).  This is the
+  form comparable with `NoLift.no_lift_conv`, whose functions are the same.
 
 The only quotations are of fixed closed terms (`evalT`, `leafT`, `nodeT` and
 the booleans).  Taken with `NoLift.no_lift_conv` and `LiftBool.lift_bool`:
@@ -432,5 +437,49 @@ theorem cantor_canonical {m : Nat} {φ ψ : List Bool → Bool} {q q' : Term}
     (hq : Local m φ q) (hq' : Local m ψ q') (h : ∀ w : List Bool, w.length = m → φ w = ψ w) :
     ∃ c, WSteps (cantorL ⬝ q) (quoteT c) ∧ WSteps (cantorL ⬝ q') (quoteT c) :=
   ⟨evalT ⬝ D m φ, (cantor_lift hq).1, by rw [D_congr m φ ψ h]; exact (cantor_lift hq').1⟩
+
+-- ---------------------------------------------------------------------------
+-- The lift for functionals of functions on numerals
+-- ---------------------------------------------------------------------------
+
+/-- `λ Φ. App (App ⟨S⟩ (App ⟨K⟩ (L (Φ ∘ nth)))) ⟨tab⟩`: the code of
+    `S (K (eval d)) tab`, `d` the tree of `Φ ∘ nth`. -/
+def funL : Term :=
+  toTerm (absN [0] (Requote.appC.toO ⬝ₒ
+    (Requote.appC.toO ⬝ₒ (quoteT S).toO ⬝ₒ
+      (Requote.appC.toO ⬝ₒ (quoteT K).toO ⬝ₒ
+        (cantorL.toO ⬝ₒ (S.toO ⬝ₒ (K.toO ⬝ₒ .var 0) ⬝ₒ nthT.toO)))) ⬝ₒ
+    (quoteT tabT).toO))
+
+/-- **The lift at (Nat → Bool) → Bool, for functionals that read `f` at
+    `0 … m−1` only.**  `funL Φ` reduces to the code of a term that agrees with
+    `Φ` on every function whose values at `0 … m−1` are booleans. -/
+theorem fun_lift {m : Nat} {φ : List Bool → Bool} {Φ : Term} (hΦ : FLocal m φ Φ) :
+    WSteps (funL ⬝ Φ) (quoteT (S ⬝ (K ⬝ (evalT ⬝ D m φ)) ⬝ tabT)) ∧
+    ∀ (w : List Bool) (hw : w.length = m) (f : Term),
+      (∀ i (hi : i < m), WSteps (f ⬝ num i) (boolT (w.get ⟨i, hw ▸ hi⟩))) →
+      ∀ r : Bool, WSteps (Φ ⬝ f) (boolT r) →
+        WSteps (S ⬝ (K ⬝ (evalT ⬝ D m φ)) ⬝ tabT ⬝ f) (boolT r) := by
+  have hloc := flocal_stream hΦ
+  refine ⟨?_, fun w hw f hf r hr => ?_⟩
+  · have h := absN_beta_close [0]
+      (Requote.appC.toO ⬝ₒ
+        (Requote.appC.toO ⬝ₒ (quoteT S).toO ⬝ₒ
+          (Requote.appC.toO ⬝ₒ (quoteT K).toO ⬝ₒ
+            (cantorL.toO ⬝ₒ (S.toO ⬝ₒ (K.toO ⬝ₒ .var 0) ⬝ₒ nthT.toO)))) ⬝ₒ
+        (quoteT tabT).toO) (fun _ => K) [Φ] rfl
+    simp only [OTerm.close, close_toO, appT] at h
+    exact h.trans (WSteps.left _ (WSteps.right _ (WSteps.right _ (WSteps.right _ (cantor_lift hloc).1))))
+  · have h0 : WSteps (S ⬝ (K ⬝ (evalT ⬝ D m φ)) ⬝ tabT ⬝ f) (evalT ⬝ D m φ ⬝ (tabT ⬝ f)) :=
+      (WSteps.single (WStep.S _ _ _)).trans (WSteps.left _ (.single (.K _ _)))
+    have hpre : HasPrefix w (tabT ⬝ f) := tab_spec w f fun i hi => hf i (hw ▸ hi)
+    rw [bool_unique hr (hΦ w hw f hf)]
+    exact h0.trans (eval_spec m φ w _ hw hpre)
+
+/-- Canonicality for functionals of functions. -/
+theorem fun_canonical {m : Nat} {φ ψ : List Bool → Bool} {Φ Ψ : Term}
+    (hΦ : FLocal m φ Φ) (hΨ : FLocal m ψ Ψ) (h : ∀ w : List Bool, w.length = m → φ w = ψ w) :
+    ∃ c, WSteps (funL ⬝ Φ) (quoteT c) ∧ WSteps (funL ⬝ Ψ) (quoteT c) :=
+  ⟨_, (fun_lift hΦ).1, by rw [D_congr m φ ψ h]; exact (fun_lift hΨ).1⟩
 
 end CantorLift
