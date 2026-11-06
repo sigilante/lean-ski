@@ -499,7 +499,7 @@ open Search in
 theorem decC_spec : ∀ fuel n, n < fuel → WSteps (decC ⬝ num n) (quoteT (dec n)) := by
   intro fuel
   induction fuel with
-  | zero => intro n h; omega
+  | zero => intro n h; exact absurd h (Nat.not_lt_zero _)
   | succ fuel ih =>
     intro n hn
     let σ0 := overrideC (fun _ => K) [0, 1] [decC, num n]
@@ -508,17 +508,17 @@ theorem decC_spec : ∀ fuel n, n < fuel → WSteps (decC ⬝ num n) (quoteT (de
     have start := (WSteps.left _ decC_unroll).trans h0
     match n with
     | 0 =>
-      have e : dec 0 = S := by simp [dec]
+      have e : dec 0 = S := by rw [dec]
       rw [e]
       exact start.trans (.single (.K _ _))
     | 1 =>
-      have e : dec 1 = K := by simp [dec]
+      have e : dec 1 = K := by rw [dec]
       rw [e]
       have h1 := absN_beta_close [2] (.var 2 ⬝ₒ (quoteT K).toO ⬝ₒ dec2) σ0 [num 0] rfl
       simp only [OTerm.close, close_toO, appT] at h1
       exact (start.trans (succS_wsteps (num 0) _ _)).trans (h1.trans (.single (.K _ _)))
     | 2 =>
-      have e : dec 2 = I := by simp [dec]
+      have e : dec 2 = I := by rw [dec]
       rw [e]
       have h1 := absN_beta_close [2] (.var 2 ⬝ₒ (quoteT K).toO ⬝ₒ dec2) σ0 [num 1] rfl
       simp only [OTerm.close, close_toO, appT] at h1
