@@ -1377,6 +1377,17 @@ pub(crate) fn fs_budget_on() -> bool {
 
 fn main() {
     let mut args: Vec<String> = std::env::args().collect();
+    // `--insecure-test-seed=HEX`, anywhere: the run's proofs reproducible (seed.rs).
+    if let Some(i) = args.iter().position(|a| a.starts_with("--insecure-test-seed=")) {
+        let hex = args.remove(i)["--insecure-test-seed=".len()..].to_string();
+        if let Err(e) = seed::set_test_seed(&hex) {
+            eprintln!("ski-air: {e}");
+            std::process::exit(2);
+        }
+        eprintln!("ski-air: --insecure-test-seed: these proofs are reproducible and hide nothing from whoever knows the seed; for tests only");
+        // on stdout too, for a release script to refuse
+        println!("INSECURE-TEST-SEED: this run's proofs are not hiding");
+    }
     if args.len() >= 2 && args[1] == "fs-budget" {
         FS_BUDGET.store(true, std::sync::atomic::Ordering::Relaxed);
         args.remove(1);
