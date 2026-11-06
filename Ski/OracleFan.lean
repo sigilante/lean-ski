@@ -13,10 +13,9 @@ This module supplies them.
 **The oracle calculus.** `TermO` is SKI with a constant `ora α` for every
 `α : ℕ → Bool`.  It is a stream cell: `ora α ⬝ k → k (α 0) (ora (α ∘ succ))`.
 A closed CL functional `F` is *oracle-total* when `F ⬝ ora α` head-reduces to a
-boolean for every `α`, computable or not (`OracleTotal`).  The run must end at
-exactly `K` or `K ⬝ I`.  That is slightly stronger than needed for false: it
-excludes runs ending at `K ⬝ x` with `x ↠ I`, `x ≠ I`, which `NatFan`'s two-stage
-argument would also handle.
+boolean for every `α`, computable or not (`OracleTotal`, a run to exactly `K` or
+`K ⬝ I`; `OracleTotalW`, a run to any whnf that reads as a boolean, false being
+`K ⬝ x` with `x ↠ I`, by the two-stage argument, `cantor_fan_w`).
 
 **Sequentiality.** The concern is that a term may apply a stream to arbitrary
 continuations, not just the head and tail selectors.  The simulation absorbs
@@ -456,5 +455,88 @@ theorem cantor_lift_oracle {F : Term} (hF : OracleTotal F) :
         WSteps (F ⬝ s) (boolT r) → WSteps (evalT ⬝ D m φ ⬝ s) (boolT r) := by
   obtain ⟨m, φ, hl⟩ := cantor_fan hF
   exact ⟨m, φ, cantor_lift hl⟩
+
+-- ---------------------------------------------------------------------------
+-- Oracle totality, relaxed: any run to a whnf that reads as a boolean
+-- ---------------------------------------------------------------------------
+
+/-- `v` reads as the boolean `b` in the oracle calculus: `K` for true, and for
+    false `K ⬝ x` with `x` head-reducing to `I`. -/
+def ReadsBool : TermO → Bool → Prop
+  | v, true => v = .K
+  | v, false => ∃ x n, v = .K ⬝ₚ x ∧ StepsNO n x .I
+
+/-- **Oracle totality, relaxed**: `F ⬝ ora α` head-reduces to a whnf that reads
+    as a boolean, for every `α`.  `OracleTotal` implies it (`oracleTotal_weak`). -/
+def OracleTotalW (F : Term) : Prop :=
+  ∀ α : Nat → Bool, ∃ n v b, StepsNO n (emb F ⬝ₚ .ora α) v ∧ WhnfO v ∧ ReadsBool v b
+
+theorem relO_K {b : Nat} {v' : Term} (h : RelO b .K v') : v' = K := relO_emb h K rfl
+
+theorem relO_Kx {b : Nat} {x : TermO} {v' : Term} (h : RelO b (.K ⬝ₚ x) v') :
+    ∃ x', v' = K ⬝ x' ∧ RelO b x x' := by
+  generalize ht : TermO.K ⬝ₚ x = t at h
+  cases h with
+  | refl =>
+    cases v' with
+    | app f a =>
+      simp only [emb, TermO.app.injEq] at ht
+      obtain ⟨hf, rfl⟩ := ht
+      have hfK : f = K := emb_inj (show emb f = emb K from hf.symm)
+      exact ⟨a, by rw [hfK], .refl a⟩
+    | _ => simp [emb] at ht
+  | ora => cases ht
+  | app hf hx =>
+    simp only [TermO.app.injEq] at ht
+    obtain ⟨rfl, rfl⟩ := ht
+    exact ⟨_, by rw [relO_K hf], hx⟩
+
+/-- **Every point has a modulus, relaxed.** -/
+theorem oracle_local_w {F : Term} {α : Nat → Bool} {n : Nat} {v : TermO} {b : Bool}
+    (h : StepsNO n (emb F ⬝ₚ .ora α) v) (hv : WhnfO v) (hb : ReadsBool v b) :
+    ∃ N, ∀ s, HasPrefix (pre α N) s → WSteps (F ⬝ s) (boolT b) := by
+  cases b with
+  | true =>
+    have hvK : v = .K := hb
+    subst hvK
+    refine ⟨n + 1, fun s hs => ?_⟩
+    obtain ⟨v', hv', hrel⟩ := simO n n (Nat.le_refl _) (.app (.refl F) (.ora α hs)) h .K (by omega)
+    rw [relO_K hrel] at hv'
+    exact hv'
+  | false =>
+    obtain ⟨x, n2, rfl, hx⟩ := hb
+    refine ⟨n + n2 + 2, fun s hs => ?_⟩
+    obtain ⟨v', hv', hrel⟩ := simO n n (Nat.le_refl _) (.app (.refl F) (.ora α hs)) h (.K1 _) (by omega)
+    obtain ⟨x', rfl, hxx⟩ := relO_Kx hrel
+    obtain ⟨v'', hv'', hrel''⟩ := simO n2 n2 (Nat.le_refl _) hxx hx .I (by omega)
+    have : v'' = I := relO_emb hrel'' I rfl
+    rw [this] at hv''
+    exact hv'.trans (WSteps.right K hv'')
+
+theorem oracleTotal_weak {F : Term} (hF : OracleTotal F) : OracleTotalW F := by
+  intro α
+  obtain ⟨n, b, h⟩ := hF α
+  refine ⟨n, _, b, h, whnfO_bool b, ?_⟩
+  cases b with
+  | true => rfl
+  | false => exact ⟨.I, 0, rfl, .refl _⟩
+
+open Classical in
+/-- **The fan step at Cantor space, relaxed.** -/
+theorem cantor_fan_w {F : Term} (hF : OracleTotalW F) : ∃ m φ, Local m φ F := by
+  let B (w : List Bool) : Prop := ∃ b : Bool, ∀ s, HasPrefix w s → WSteps (F ⬝ s) (boolT b)
+  have hB : ∀ α : Nat → Bool, ∃ n, B (pre α n) := by
+    intro α
+    obtain ⟨n, v, b, hrun, hv, hb⟩ := hF α
+    obtain ⟨N, hN⟩ := oracle_local_w hrun hv hb
+    exact ⟨N, b, hN⟩
+  obtain ⟨m, hm⟩ := fan B hB
+  refine ⟨m, fun w => if h : B w then Classical.choose h else false, ?_⟩
+  intro w hw s hs
+  have hBw : B w := by
+    obtain ⟨j, _, b, hb⟩ := hm w hw
+    exact ⟨b, fun s' hs' => hb s' (take_prefix w j hs')⟩
+  simp only [hBw, dif_pos]
+  exact Classical.choose_spec hBw s hs
 
 end OracleFan
