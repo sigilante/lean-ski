@@ -245,6 +245,7 @@ import Ski.Weak
 import Ski.Lambda
 import Ski.Quote
 import Ski.Requote
+import Ski.Ifix
 import Ski.Graph
 import Ski.RWMem
 import Ski.GraphMem
@@ -949,6 +950,9 @@ open Ski.Audit
 -- Re-encoding is definable: one closed term takes ⟨t⟩ to ⟨⟨t⟩⟩
 #audit_clean Requote.quoteS_elim Requote.quoteK_elim Requote.quoteI_elim Requote.quoteApp_elim
   Requote.R_unroll Requote.R_case Requote.requote Requote.requote_iter
+
+-- Intensional fixed points and a quine: fixQ g ↠ g ⟨fixQ g⟩, quineT ↠ ⟨quineT⟩
+#audit_clean Ifix.hG_beta Ifix.ifix Ifix.ifix_exists Ifix.quineT_spec Ifix.quine
 
 -- Graph reduction with update in place, sound and complete against L1, never more contractions
 #audit_clean Graph.Dec.det Graph.dec_spine Graph.spine_dec Graph.spine_ne Graph.dec_update Graph.gstep_sound

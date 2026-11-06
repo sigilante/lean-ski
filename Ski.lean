@@ -87,6 +87,7 @@ import Ski.Outcome
 import Ski.Compile
 import Ski.Quote
 import Ski.Requote
+import Ski.Ifix
 import Ski.Graph
 import Ski.RWMem
 import Ski.GraphMem
