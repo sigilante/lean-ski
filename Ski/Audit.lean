@@ -249,6 +249,7 @@ import Ski.Ifix
 import Ski.NoLift
 import Ski.LiftBool
 import Ski.Search
+import Ski.CantorLift
 import Ski.Graph
 import Ski.RWMem
 import Ski.GraphMem
@@ -959,6 +960,7 @@ open Ski.Audit
 #audit_clean NoLift.sim NoLift.G_num NoLift.G_omega NoLift.eqT_spec NoLift.eqT_conv NoLift.no_lift_conv NoLift.no_lift
 #audit_clean LiftBool.canon_spec LiftBool.lift_bool LiftBool.lift_canonical
 #audit_clean Search.cons_sel Search.hd_local Search.local_pre Search.find_unfold Search.search Search.search_decides Search.nth_spec Search.flocal_stream Search.tab_spec
+#audit_clean CantorLift.every_spec CantorLift.const_spec CantorLift.D_congr CantorLift.tree_spec CantorLift.eval_spec CantorLift.liftTree_spec CantorLift.cantor_lift CantorLift.cantor_canonical
 
 -- Graph reduction with update in place, sound and complete against L1, never more contractions
 #audit_clean Graph.Dec.det Graph.dec_spine Graph.spine_dec Graph.spine_ne Graph.dec_update Graph.gstep_sound

@@ -91,6 +91,7 @@ import Ski.Ifix
 import Ski.NoLift
 import Ski.LiftBool
 import Ski.Search
+import Ski.CantorLift
 import Ski.Graph
 import Ski.RWMem
 import Ski.GraphMem
