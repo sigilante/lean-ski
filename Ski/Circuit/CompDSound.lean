@@ -174,7 +174,7 @@ theorem CompDOK.normRowSel {r : Nat} (hr : r + 1 < C.h) (hrs : C.main r RS = 0) 
       simp only [rowOf, B.col, E.eval, env_main0 hr']
 
 /-- **A row that does not restart steps**: plainly, or by the jet. -/
-theorem CompDOK.normRow {r : Nat} (hr : r + 1 < C.h) (hrs : C.main r RS = 0) (hJ : J < P)
+theorem CompDOK.normRowL {r : Nat} (hr : r + 1 < C.h) (hrs : C.main r RS = 0) (hJ : J < P)
     (h3 : 3 ≤ (L.blankM shp W Vs).heap.length) :
     NormRowD (memOf Mm) J (rowOf C r) (rowOf C (r + 1)) :=
   (h.normRowSel hr hrs hJ h3).imp (fun a => a.2) (fun a => a.2)
@@ -191,7 +191,7 @@ theorem CompDOK.endReads {r k : Nat} (hr : r < C.h) (hk : IsKindD C r k) (hk5 : 
 include hv in
 /-- **The decoded run is accepted by the AIR with segments and the
     Poseidon2 jet.** -/
-theorem CompDOK.acceptsCD (hVs : 0 < Vs.length) (hBd : Bd < P) (hJ : J < P)
+theorem CompDOK.acceptsCDL (hVs : 0 < Vs.length) (hBd : Bd < P) (hJ : J < P)
     (h3 : 3 ≤ (L.blankM shp W Vs).heap.length) :
     AcceptsCD (memOf Mm) (L.mach (bitsM (memOf Mm)) shp (regionM (memOf Mm) (BT.nleaves shp) W) Vs) J
       (L.blankRoots shp W Vs) (L.blankM shp W Vs).stk Vs.length
@@ -219,7 +219,7 @@ theorem CompDOK.acceptsCD (hVs : 0 < Vs.length) (hBd : Bd < P) (hJ : J < P)
     exact hfit.2.1 _ (List.getElem_mem this)
   have hf := h.rs_le
   refine ⟨hVs, ?_, ?_, ?_, ?_, endRow_mono _ hf hc, fun j hj => ?_, fun i hi hne => ?_, fun j hj => ?_⟩
-  · rw [ctr0]; exact h.heap0 hBd hfit.1
+  · rw [ctr0]; exact h.heap0L hBd hfit.1
   · show (C.main 0 HD).val = _; rw [r1, val_ofN (by omega)]; rfl
   · show (C.main 0 STK).val = _; rw [r2, val_ofN (by omega)]
   · rw [ctr0]; exact hlen.symm
@@ -246,7 +246,7 @@ theorem CompDOK.acceptsCD (hVs : 0 < Vs.length) (hBd : Bd < P) (hJ : J < P)
       have hb : i < C.h := by omega
       rw [rsF_eq hb] at hrs
       rw [← ofN_val (C.main i RS), hrs]; rfl
-    exact h.normRow (by omega) hrs' hJ h3
+    exact h.normRowL (by omega) hrs' hJ h3
   · -- a segment's end
     by_cases hj1 : j + 1 < Vs.length
     · obtain ⟨a1, a2, _⟩ := endRow_spec _ hf hc hj1
@@ -268,6 +268,33 @@ theorem CompDOK.acceptsCD (hVs : 0 < Vs.length) (hBd : Bd < P) (hJ : J < P)
         · exact e5.symm
         · rw [if_neg (fun h' => e5 h'.1)] at this; exact absurd this (by decide)
       exact h.endReads hl' hk (.inr hk5)
+
+end
+
+
+section
+
+/-! The audited statements, the statement as a tree. -/
+
+variable {shp : BT} {W : Nat} {Vs : List OTerm} {J Bd : Nat} {C Mm Pg Wt Sg D : Table}
+  (h : CompDOK (blankMO shp W Vs).hd (blankMO shp W Vs).stk (blankMO shp W Vs).heap.length
+    (blankRootsO shp W Vs).length (blankMO shp W Vs).stk J (blankMO shp W Vs).heap (BT.nleaves shp) W
+    (blankRootsO shp W Vs) C Mm Pg Wt Sg D)
+  (hv : ∀ V ∈ Vs, ∀ x, Occ x V → x < Bd)
+include h
+
+theorem CompDOK.normRow {r : Nat} (hr : r + 1 < C.h) (hrs : C.main r RS = 0) (hJ : J < P)
+    (h3 : 3 ≤ (blankMO shp W Vs).heap.length) :
+    NormRowD (memOf Mm) J (rowOf C r) (rowOf C (r + 1)) :=
+  CompDOK.normRowL (L := treeL) h hr hrs hJ h3
+
+include hv in
+theorem CompDOK.acceptsCD (hVs : 0 < Vs.length) (hBd : Bd < P) (hJ : J < P)
+    (h3 : 3 ≤ (blankMO shp W Vs).heap.length) :
+    AcceptsCD (memOf Mm) (cMachineO (bitsM (memOf Mm)) shp (regionM (memOf Mm) (BT.nleaves shp) W) Vs) J
+      (blankRootsO shp W Vs) (blankMO shp W Vs).stk Vs.length
+      (endRow (rsF C) (C.h - 1) Vs.length) (rowOf C) :=
+  CompDOK.acceptsCDL (L := treeL) h hv hVs hBd hJ h3
 
 end
 

@@ -128,7 +128,7 @@ theorem CompDOK.regionWF : ∀ i c, (regionM (memOf Mm) (BT.nleaves shp) W)[i]? 
 
 /-- **The memory's prefix is the open composed machine** of the bits and
     the region it holds. -/
-theorem CompDOK.heap0 {Bd : Nat} (hBd : Bd < P) (hfit : FitsB Bd (L.blankM shp W Vs).heap) :
+theorem CompDOK.heap0L {Bd : Nat} (hBd : Bd < P) (hfit : FitsB Bd (L.blankM shp W Vs).heap) :
     (memOf Mm).take (L.blankM shp W Vs).heap.length =
       (L.mach (bitsM (memOf Mm)) shp (regionM (memOf Mm) (BT.nleaves shp) W) Vs).heap := by
   let A := memOf Mm
@@ -179,6 +179,24 @@ theorem CompDOK.heap0 {Bd : Nat} (hBd : Bd < P) (hfit : FitsB Bd (L.blankM shp W
       rfl
   · next hi =>
     rw [List.getElem?_eq_none (by omega)]
+
+end
+
+
+section
+
+/-! The audited statement, the statement as a tree. -/
+
+variable {shp : BT} {W : Nat} {Vs : List OTerm} {J : Nat} {C Mm Pg Wt Sg D : Table}
+  (h : CompDOK (blankMO shp W Vs).hd (blankMO shp W Vs).stk (blankMO shp W Vs).heap.length
+    (blankRootsO shp W Vs).length (blankMO shp W Vs).stk J (blankMO shp W Vs).heap (BT.nleaves shp) W
+    (blankRootsO shp W Vs) C Mm Pg Wt Sg D)
+include h
+
+theorem CompDOK.heap0 {Bd : Nat} (hBd : Bd < P) (hfit : FitsB Bd (blankMO shp W Vs).heap) :
+    (memOf Mm).take (blankMO shp W Vs).heap.length =
+      (cMachineO (bitsM (memOf Mm)) shp (regionM (memOf Mm) (BT.nleaves shp) W) Vs).heap :=
+  CompDOK.heap0L (L := treeL) h hBd hfit
 
 end
 

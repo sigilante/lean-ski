@@ -1694,7 +1694,8 @@ open Ski.Audit
   CompM.cMachineOS_public Circuit.cMachineOS_fitsB CompM.composedD_sound_ofL Circuit.compDOK_ofGL
   Circuit.compDExportG_soundL Circuit.dectermExport_soundL Circuit.dectermExport_closeL
   Circuit.dectermSExport_sound Circuit.dectermSExport_close Circuit.compDG_complete_ofL
-  Circuit.compDG_complete_decL Circuit.compDG_complete_nojetL
+  Circuit.compDG_complete_decL Circuit.compDG_complete_nojetL Circuit.CompDOK.heap0L
+  Circuit.CompDOK.normRowL Circuit.CompDOK.acceptsCDL
 
 -- The dec jet's row reading through K-thunks (DecInd): the reader's
 -- read-back up to K-contraction, the output's, the row's step, and closing a

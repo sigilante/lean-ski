@@ -83,7 +83,7 @@ theorem compDExportG_soundL (L : Layout) {Vs : List OTerm} {W : Nat} (hVs : 0 < 
   have h3 : 3 ≤ (L.blankM shpD W Vs).heap.length := by
     have := L.blank_prefix shpD W Vs
     omega
-  have hcp := ok.acceptsCD hv hVs (by decide) (by decide) h3
+  have hcp := ok.acceptsCDL hv hVs (by decide) (by decide) h3
   have hl : (regionM (memOf Mm) (BT.nleaves shpD) W).length = (List.replicate W Cell.S).length := by
     rw [List.length_replicate]; exact ok.region_len
   obtain ⟨_, hstk, hR, _, _, _⟩ := L.pub (bitsM (memOf Mm)) (fun _ => false) shpD
