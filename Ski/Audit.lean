@@ -257,6 +257,7 @@ import Ski.NatFan
 import Ski.OracleFan
 import Ski.Univ
 import Ski.KleeneTree
+import Ski.OracleBar
 import Ski.Graph
 import Ski.RWMem
 import Ski.GraphMem
@@ -975,6 +976,8 @@ open Ski.Audit
 #audit_clean OracleFan.StepO.det OracleFan.simO OracleFan.relO_emb OracleFan.oracle_local OracleFan.relO_Kx OracleFan.oracle_local_w OracleFan.oracleTotal_weak
 #audit_clean Univ.fb_spec Univ.stepC_spec Univ.bnd_mono Univ.bnd_mono_le Univ.bnd_of_run Univ.bnd_sound Univ.evalC_spec Univ.walk_surj Univ.dec_surj Univ.next_spec Univ.walkC_spec Univ.decC_num Univ.liftN_spec
 #audit_clean KleeneTree.T_closed KleeneTree.T_infinite KleeneTree.T_noPath KleeneTree.checkWith_spec KleeneTree.checkC_spec KleeneTree.goK_spec KleeneTree.tau_decides KleeneTree.kleene KleeneTree.no_lift_cantor_total'
+#audit_clean OracleBar.obar_table OracleBar.obar_local OracleBar.local_obar OracleBar.obar_iff_local
+-- OracleBar.pointwise_obar and cantor_fan_bar use Classical.choice: the fan theorem is the one classical step.
 -- OracleFan.fan, cantor_fan and cantor_lift_oracle use Classical.choice (the fan theorem is classical); not in the gate.
 
 -- Graph reduction with update in place, sound and complete against L1, never more contractions
