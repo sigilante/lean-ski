@@ -339,4 +339,249 @@ theorem evalC_spec : ∀ (N : Nat) (t : Term), WSteps (evalC ⬝ num N ⬝ quote
         (hZ.trans ((succS_wsteps (num N) _ Z).trans ((hZs _).trans (ih u))))
       simpa [mcode] using this
 
+-- ---------------------------------------------------------------------------
+-- Component 3: enumeration of terms by numerals
+-- ---------------------------------------------------------------------------
+
+/-- One step of the diagonal walk through ℕ × ℕ. -/
+def next : Nat × Nat → Nat × Nat
+  | (x, 0) => (0, x + 1)
+  | (x, y + 1) => (x + 1, y)
+
+/-- The `k`-th pair. -/
+def walk : Nat → Nat × Nat
+  | 0 => (0, 0)
+  | k + 1 => next (walk k)
+
+theorem walk_le : ∀ k, (walk k).1 + (walk k).2 ≤ k
+  | 0 => Nat.le_refl _
+  | k + 1 => by
+    have ih := walk_le k
+    simp only [walk]
+    rcases h : walk k with ⟨x, y⟩
+    rw [h] at ih
+    cases y with
+    | zero => simp [next]; omega
+    | succ y => simp [next]; omega
+
+theorem walk_diag {k d : Nat} (h : walk k = (0, d)) : ∀ j, j ≤ d → walk (k + j) = (j, d - j)
+  | 0, _ => by simpa using h
+  | j + 1, hj => by
+    have ih := walk_diag h j (by omega)
+    rw [← Nat.add_assoc, walk, ih]
+    obtain ⟨e, he⟩ : ∃ e, d - j = e + 1 := ⟨d - j - 1, by omega⟩
+    rw [he]; simp [next]; omega
+
+theorem walk_zero : ∀ d, ∃ k, walk k = (0, d)
+  | 0 => ⟨0, rfl⟩
+  | d + 1 => by
+    obtain ⟨k, hk⟩ := walk_zero d
+    have h := walk_diag hk d (Nat.le_refl _)
+    simp at h
+    exact ⟨k + d + 1, by rw [walk, h]; rfl⟩
+
+/-- **Every pair is visited.** -/
+theorem walk_surj (x y : Nat) : ∃ k, walk k = (x, y) := by
+  obtain ⟨k, hk⟩ := walk_zero (x + y)
+  exact ⟨k + x, by rw [walk_diag hk x (by omega)]; simp⟩
+
+/-- The term numbered `n`. -/
+def dec : Nat → Term
+  | 0 => S
+  | 1 => K
+  | 2 => I
+  | k + 3 =>
+    have h1 : (walk k).1 < k + 3 := by have := walk_le k; omega
+    have h2 : (walk k).2 < k + 3 := by have := walk_le k; omega
+    dec (walk k).1 ⬝ dec (walk k).2
+termination_by n => n
+
+/-- **Every term is numbered.** -/
+theorem dec_surj : ∀ t : Term, ∃ n, dec n = t
+  | .S => ⟨0, by simp [dec]⟩
+  | .K => ⟨1, by simp [dec]⟩
+  | .I => ⟨2, by simp [dec]⟩
+  | .app f a => by
+    obtain ⟨nf, hf⟩ := dec_surj f
+    obtain ⟨na, ha⟩ := dec_surj a
+    obtain ⟨k, hk⟩ := walk_surj nf na
+    exact ⟨k + 3, by rw [dec, hk]; simp [hf, ha]⟩
+
+-- The walk on Scott numerals
+
+open Search in
+/-- `next p = p (λ x y. y (pair 0 (succ x)) (λ y'. pair (succ x) y'))`,
+    over `p` (0), `x` (1), `y` (2), `y'` (3). -/
+def nextIn : OTerm :=
+  absN [1, 2] (.var 2 ⬝ₒ (consC.toO ⬝ₒ (num 0).toO ⬝ₒ (succS.toO ⬝ₒ .var 1)) ⬝ₒ
+    absN [3] (consC.toO ⬝ₒ (succS.toO ⬝ₒ .var 1) ⬝ₒ .var 3))
+def nextT : Term := toTerm (absN [0] (.var 0 ⬝ₒ nextIn))
+
+open Search in
+theorem next_spec (x y : Nat) :
+    WSteps (nextT ⬝ (consC ⬝ num x ⬝ num y)) (consC ⬝ num (next (x, y)).1 ⬝ num (next (x, y)).2) := by
+  have h := absN_beta_close [0] (.var 0 ⬝ₒ nextIn) (fun _ => K) [consC ⬝ num x ⬝ num y] rfl
+  simp only [OTerm.close, appT] at h
+  refine h.trans ((cons_sel _ _ _).trans ?_)
+  have h2 := absN_beta_close [1, 2] (.var 2 ⬝ₒ (consC.toO ⬝ₒ (num 0).toO ⬝ₒ (succS.toO ⬝ₒ .var 1)) ⬝ₒ
+    absN [3] (consC.toO ⬝ₒ (succS.toO ⬝ₒ .var 1) ⬝ₒ .var 3))
+    (overrideC (fun _ => K) [0] [consC ⬝ num x ⬝ num y]) [num x, num y] rfl
+  simp only [OTerm.close, close_toO, appT] at h2
+  refine h2.trans ?_
+  cases y with
+  | zero => exact .single (.K _ _)
+  | succ y =>
+    refine (succS_wsteps (num y) _ _).trans ?_
+    have h3 := absN_beta_close [3] (consC.toO ⬝ₒ (succS.toO ⬝ₒ .var 1) ⬝ₒ .var 3)
+      (overrideC (overrideC (fun _ => K) [0] [consC ⬝ num x ⬝ num (y + 1)]) [1, 2] [num x, num (y + 1)])
+      [num y] rfl
+    simp only [OTerm.close, close_toO, appT] at h3
+    exact h3
+
+open Search in
+/-- `walk n = n (pair 0 0) (λ n'. next (walk n'))`, over `r` (0), `n` (1), `n'` (2). -/
+def walkBody : OTerm :=
+  .var 1 ⬝ₒ (consC ⬝ num 0 ⬝ num 0).toO ⬝ₒ absN [2] (nextT.toO ⬝ₒ (.var 0 ⬝ₒ .var 2))
+def walkStep : Term := toTerm (absN [0, 1] walkBody)
+/-- **`walkC`**. -/
+def walkC : Term := fixSelf walkStep (fixB walkStep)
+
+theorem walkC_unroll : WSteps walkC (walkStep ⬝ walkC) := by
+  have h := (fixSelf_unroll (F := walkStep) (Steps.refl (fixB walkStep))).weak
+  have hI : WSteps (fixSelf walkStep (I ⬝ fixB walkStep)) walkC := WSteps.right _ (.single (.I _))
+  exact h.trans (WSteps.right _ hI)
+
+open Search in
+theorem walkC_spec : ∀ k, WSteps (walkC ⬝ num k) (consC ⬝ num (walk k).1 ⬝ num (walk k).2) := by
+  have hcase : ∀ n, ∃ Z, WSteps (walkC ⬝ n) (n ⬝ (consC ⬝ num 0 ⬝ num 0) ⬝ Z) ∧
+      ∀ n', WSteps (Z ⬝ n') (nextT ⬝ (walkC ⬝ n')) := by
+    intro n
+    have h := absN_beta_close [0, 1] walkBody (fun _ => K) [walkC, n] rfl
+    simp only [walkBody, OTerm.close, close_toO, appT] at h
+    refine ⟨_, (WSteps.left _ walkC_unroll).trans h, fun n' => ?_⟩
+    have h2 := absN_beta_close [2] (nextT.toO ⬝ₒ (.var 0 ⬝ₒ .var 2))
+      (overrideC (fun _ => K) [0, 1] [walkC, n]) [n'] rfl
+    simp only [OTerm.close, close_toO, appT] at h2
+    exact h2
+  intro k
+  induction k with
+  | zero =>
+    obtain ⟨Z, hZ, _⟩ := hcase (num 0)
+    exact hZ.trans (.single (.K _ _))
+  | succ k ih =>
+    obtain ⟨Z, hZ, hZs⟩ := hcase (num (k + 1))
+    rcases hw : walk k with ⟨x, y⟩
+    rw [hw] at ih
+    have e : walk (k + 1) = next (x, y) := by simp [walk, hw]
+    rw [e]
+    exact (hZ.trans ((succS_wsteps (num k) _ Z).trans ((hZs _).trans (WSteps.right _ ih)))).trans
+      (next_spec x y)
+
+-- The decoder
+
+/-- `dec n = n ⟨S⟩ (λ n1. n1 ⟨K⟩ (λ n2. n2 ⟨I⟩ (λ n3. walk n3 (λ x y. App (r x) (r y)))))`,
+    over `r` (0), `n` (1), `n1` (2), `n2` (3), `n3` (4), `x` (5), `y` (6). -/
+def decXY : OTerm := absN [5, 6] (appC.toO ⬝ₒ (.var 0 ⬝ₒ .var 5) ⬝ₒ (.var 0 ⬝ₒ .var 6))
+def dec3 : OTerm := absN [4] (walkC.toO ⬝ₒ .var 4 ⬝ₒ decXY)
+def dec2 : OTerm := absN [3] (.var 3 ⬝ₒ (quoteT I).toO ⬝ₒ dec3)
+def dec1 : OTerm := absN [2] (.var 2 ⬝ₒ (quoteT K).toO ⬝ₒ dec2)
+def decBody : OTerm := .var 1 ⬝ₒ (quoteT S).toO ⬝ₒ dec1
+def decStep : Term := toTerm (absN [0, 1] decBody)
+/-- **`decC`**: the code of the term a numeral numbers. -/
+def decC : Term := fixSelf decStep (fixB decStep)
+
+theorem decC_unroll : WSteps decC (decStep ⬝ decC) := by
+  have h := (fixSelf_unroll (F := decStep) (Steps.refl (fixB decStep))).weak
+  have hI : WSteps (fixSelf decStep (I ⬝ fixB decStep)) decC := WSteps.right _ (.single (.I _))
+  exact h.trans (WSteps.right _ hI)
+
+open Search in
+theorem decC_spec : ∀ fuel n, n < fuel → WSteps (decC ⬝ num n) (quoteT (dec n)) := by
+  intro fuel
+  induction fuel with
+  | zero => intro n h; omega
+  | succ fuel ih =>
+    intro n hn
+    let σ0 := overrideC (fun _ => K) [0, 1] [decC, num n]
+    have h0 := absN_beta_close [0, 1] decBody (fun _ => K) [decC, num n] rfl
+    simp only [decBody, OTerm.close, close_toO, appT] at h0
+    have start := (WSteps.left _ decC_unroll).trans h0
+    match n with
+    | 0 =>
+      have e : dec 0 = S := by simp [dec]
+      rw [e]
+      exact start.trans (.single (.K _ _))
+    | 1 =>
+      have e : dec 1 = K := by simp [dec]
+      rw [e]
+      have h1 := absN_beta_close [2] (.var 2 ⬝ₒ (quoteT K).toO ⬝ₒ dec2) σ0 [num 0] rfl
+      simp only [OTerm.close, close_toO, appT] at h1
+      exact (start.trans (succS_wsteps (num 0) _ _)).trans (h1.trans (.single (.K _ _)))
+    | 2 =>
+      have e : dec 2 = I := by simp [dec]
+      rw [e]
+      have h1 := absN_beta_close [2] (.var 2 ⬝ₒ (quoteT K).toO ⬝ₒ dec2) σ0 [num 1] rfl
+      simp only [OTerm.close, close_toO, appT] at h1
+      have h2 := absN_beta_close [3] (.var 3 ⬝ₒ (quoteT I).toO ⬝ₒ dec3) (overrideC σ0 [2] [num 1]) [num 0] rfl
+      simp only [OTerm.close, close_toO, appT] at h2
+      exact (start.trans (succS_wsteps (num 1) _ _)).trans
+        ((h1.trans (succS_wsteps (num 0) _ _)).trans (h2.trans (.single (.K _ _))))
+    | k + 3 =>
+      refine (start.trans (succS_wsteps (num (k + 2)) _ _)).trans ?_
+      have h1 := absN_beta_close [2] (.var 2 ⬝ₒ (quoteT K).toO ⬝ₒ dec2) σ0 [num (k + 2)] rfl
+      simp only [OTerm.close, close_toO, appT] at h1
+      refine (h1.trans (succS_wsteps (num (k + 1)) _ _)).trans ?_
+      have h2 := absN_beta_close [3] (.var 3 ⬝ₒ (quoteT I).toO ⬝ₒ dec3) (overrideC σ0 [2] [num (k + 2)])
+        [num (k + 1)] rfl
+      simp only [OTerm.close, close_toO, appT] at h2
+      refine (h2.trans (succS_wsteps (num k) _ _)).trans ?_
+      let σ3 := overrideC (overrideC σ0 [2] [num (k + 2)]) [3] [num (k + 1)]
+      have h3 := absN_beta_close [4] (walkC.toO ⬝ₒ .var 4 ⬝ₒ decXY) σ3 [num k] rfl
+      simp only [OTerm.close, close_toO, appT] at h3
+      refine (h3.trans (WSteps.left _ (walkC_spec k))).trans ((cons_sel _ _ _).trans ?_)
+      have h4 := absN_beta_close [5, 6] (appC.toO ⬝ₒ (.var 0 ⬝ₒ .var 5) ⬝ₒ (.var 0 ⬝ₒ .var 6))
+        (overrideC σ3 [4] [num k]) [num (walk k).1, num (walk k).2] rfl
+      simp only [OTerm.close, close_toO, appT] at h4
+      refine h4.trans ?_
+      have hx := ih (walk k).1 (by have := walk_le k; omega)
+      have hy := ih (walk k).2 (by have := walk_le k; omega)
+      have e : quoteT (dec (k + 3)) = appC ⬝ quoteT (dec (walk k).1) ⬝ quoteT (dec (walk k).2) := by
+        rw [dec]; rfl
+      rw [e]
+      exact WSteps.app (WSteps.right _ hx) hy
+
+theorem decC_num (n : Nat) : WSteps (decC ⬝ num n) (quoteT (dec n)) := decC_spec (n + 1) n (by omega)
+
+-- The code of a numeral
+
+/-- `lift n = n ⟨K⟩ (λ n'. App ⟨succ⟩ (lift n'))`, over `r` (0), `n` (1), `n'` (2). -/
+def liftBody : OTerm :=
+  .var 1 ⬝ₒ (quoteT K).toO ⬝ₒ absN [2] (appC.toO ⬝ₒ (quoteT succS).toO ⬝ₒ (.var 0 ⬝ₒ .var 2))
+def liftStep : Term := toTerm (absN [0, 1] liftBody)
+/-- **`liftN`**: lift at Nat. -/
+def liftN : Term := fixSelf liftStep (fixB liftStep)
+
+theorem liftN_unroll : WSteps liftN (liftStep ⬝ liftN) := by
+  have h := (fixSelf_unroll (F := liftStep) (Steps.refl (fixB liftStep))).weak
+  have hI : WSteps (fixSelf liftStep (I ⬝ fixB liftStep)) liftN := WSteps.right _ (.single (.I _))
+  exact h.trans (WSteps.right _ hI)
+
+theorem liftN_case (n : Term) : ∃ X, WSteps (liftN ⬝ n) (n ⬝ quoteT K ⬝ X) ∧
+    ∀ n', WSteps (X ⬝ n') (appC ⬝ quoteT succS ⬝ (liftN ⬝ n')) := by
+  have h := absN_beta_close [0, 1] liftBody (fun _ => K) [liftN, n] rfl
+  simp only [liftBody, OTerm.close, close_toO, appT] at h
+  refine ⟨_, (WSteps.left _ liftN_unroll).trans h, fun n' => ?_⟩
+  have h2 := absN_beta_close [2] (appC.toO ⬝ₒ (quoteT succS).toO ⬝ₒ (.var 0 ⬝ₒ .var 2))
+    (overrideC (fun _ => K) [0, 1] [liftN, n]) [n'] rfl
+  simp only [OTerm.close, close_toO, appT] at h2
+  exact h2
+
+theorem liftN_spec : ∀ n, WSteps (liftN ⬝ num n) (quoteT (num n))
+  | 0 => by
+    obtain ⟨X, hX, _⟩ := liftN_case (num 0)
+    exact hX.trans (.single (.K _ _))
+  | n + 1 => by
+    obtain ⟨X, hX, hXs⟩ := liftN_case (num (n + 1))
+    exact (hX.trans (succS_wsteps (num n) _ X)).trans ((hXs _).trans (WSteps.right _ (liftN_spec n)))
+
 end Univ
