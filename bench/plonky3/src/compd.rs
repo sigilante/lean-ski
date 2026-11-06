@@ -87,13 +87,14 @@ pub fn parse_public_d(text: &str) -> Result<DPublic, String> {
     let header = next()?.to_string();
     let hw: Vec<&str> = header.split(' ').collect();
     let num = |x: &str| x.parse::<u32>().map_err(|_| "a bad header".to_string());
-    // `decpre p J` (one verifier, `λ β w. CHECK_p (J w)`) or `decterm J`
-    // (the verifiers the heap holds, `Ski/DecTermText.lean`); either way the
-    // circuit is the heap's, and Lean's `statement-dec` checks the text.
+    // `decpre p J` (one verifier, `λ β w. CHECK_p (J w)`), `decterm J` (the
+    // verifiers the heap holds, `Ski/DecTermText.lean`) or `dectermS J` (the
+    // same, the heap shared: `Ski/HeapShared.lean`); either way the circuit
+    // is the heap's, and Lean's `statement-dec` checks the text.
     let dp = match (hw.len(), hw.first().copied()) {
         (3, Some("decpre")) => DecPub { j: num(hw[2])? },
-        (2, Some("decterm")) => DecPub { j: num(hw[1])? },
-        _ => return Err("expected `decpre p J` or `decterm J`".into()),
+        (2, Some("decterm")) | (2, Some("dectermS")) => DecPub { j: num(hw[1])? },
+        _ => return Err("expected `decpre p J`, `decterm J` or `dectermS J`".into()),
     };
     let w = nums(next()?, "W")?;
     let lg = nums(next()?, "log")?;

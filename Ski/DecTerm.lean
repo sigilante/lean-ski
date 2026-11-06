@@ -54,13 +54,22 @@ open B Air Compose CompM Stmt Mach Wit ComposedDText DecTerm
     verifiers are: `statementOfTextDG_vsOK`) carry, in their memory, a bit
     and a region whose witness makes every verifier head-reduce with the
     `dec` jet to `K`, every subject the jet takes held in the memory. -/
+theorem dectermExport_soundL (L : Layout) {Vs : List OTerm} {W : Nat} (hV : vsOK Vs = true)
+    {Rs : List AirD} {ts : List Table}
+    (hs : sameAirsB Rs (compDAirsGL L Vs W) = true) (hacc : AcceptedP Rs ts) :
+    ∃ C Mm Pg Wt Sg D, ts = [C, Mm, Pg, Wt, Sg, D] ∧ ∃ w,
+      cWitness (bitsM (memOf Mm)) 1 (regionM (memOf Mm) 1 W) = some w ∧
+      ∀ V ∈ Vs, HSteps (InMem (memOf Mm)) JD (V ⬝ₒ (fillB shpD (bitsM (memOf Mm)) 0).enc.toO ⬝ₒ w.toO) .K :=
+  compDExportG_soundL L (vsOK_sound hV).1 (vsOK_sound hV).2 hs hacc
+
+/-- `dectermExport_soundL` for the statement as a tree. -/
 theorem dectermExport_sound {Vs : List OTerm} {W : Nat} (hV : vsOK Vs = true)
     {Rs : List AirD} {ts : List Table}
     (hs : sameAirsB Rs (compDAirsG Vs W) = true) (hacc : AcceptedP Rs ts) :
     ∃ C Mm Pg Wt Sg D, ts = [C, Mm, Pg, Wt, Sg, D] ∧ ∃ w,
       cWitness (bitsM (memOf Mm)) 1 (regionM (memOf Mm) 1 W) = some w ∧
       ∀ V ∈ Vs, HSteps (InMem (memOf Mm)) JD (V ⬝ₒ (fillB shpD (bitsM (memOf Mm)) 0).enc.toO ⬝ₒ w.toO) .K :=
-  compDExportG_sound (vsOK_sound hV).1 (vsOK_sound hV).2 hs hacc
+  dectermExport_soundL treeL hV hs hacc
 
 /-- **A verifier that ignores its arguments**: its check term, with any
     implementation of the `dec` contract closed in for the jet, reaches
@@ -89,13 +98,42 @@ theorem verT_close {C : OTerm} (hocc : ∀ x, Occ x C → x = JD) {A : OTerm →
     (`vsOK`) one of which is `verT C`, `C` open only in the jet's atom,
     shows `C` reaches `K` with any implementation of the `dec` contract in
     the jet's place. -/
+theorem dectermExport_closeL (L : Layout) {Vs : List OTerm} {W : Nat} (hV : vsOK Vs = true) {C : OTerm}
+    (hC : verT C ∈ Vs) (hocc : ∀ x, Occ x C → x = JD)
+    {Rs : List AirD} {ts : List Table}
+    (hs : sameAirsB Rs (compDAirsGL L Vs W) = true) (hacc : AcceptedP Rs ts)
+    {P : Term} (hP : DataJet.Implements DecJet.decContract P) :
+    WSteps (C.close (DecPre.envD P)) Term.K := by
+  obtain ⟨_, _, _, _, _, _, _, w, _, hrun⟩ := dectermExport_soundL L hV hs hacc
+  exact verT_close hocc hP (hrun _ hC)
+
+/-- `dectermExport_closeL` for the statement as a tree. -/
 theorem dectermExport_close {Vs : List OTerm} {W : Nat} (hV : vsOK Vs = true) {C : OTerm} (hC : verT C ∈ Vs)
     (hocc : ∀ x, Occ x C → x = JD)
     {Rs : List AirD} {ts : List Table}
     (hs : sameAirsB Rs (compDAirsG Vs W) = true) (hacc : AcceptedP Rs ts)
     {P : Term} (hP : DataJet.Implements DecJet.decContract P) :
-    WSteps (C.close (DecPre.envD P)) Term.K := by
-  obtain ⟨_, _, _, _, _, _, _, w, _, hrun⟩ := dectermExport_sound hV hs hacc
-  exact verT_close hocc hP (hrun _ hC)
+    WSteps (C.close (DecPre.envD P)) Term.K :=
+  dectermExport_closeL treeL hV hC hocc hs hacc hP
+
+/-- **Soundness of a shared `decterm` statement** (header `dectermS`): as
+    `dectermExport_sound`, the statement laid out by `sharedL`. -/
+theorem dectermSExport_sound {Vs : List OTerm} {W : Nat} (hV : vsOK Vs = true)
+    {Rs : List AirD} {ts : List Table}
+    (hs : sameAirsB Rs (compDAirsGL sharedL Vs W) = true) (hacc : AcceptedP Rs ts) :
+    ∃ C Mm Pg Wt Sg D, ts = [C, Mm, Pg, Wt, Sg, D] ∧ ∃ w,
+      cWitness (bitsM (memOf Mm)) 1 (regionM (memOf Mm) 1 W) = some w ∧
+      ∀ V ∈ Vs, HSteps (InMem (memOf Mm)) JD (V ⬝ₒ (fillB shpD (bitsM (memOf Mm)) 0).enc.toO ⬝ₒ w.toO) .K :=
+  dectermExport_soundL sharedL hV hs hacc
+
+/-- **`dectermSExport_close`**: as `dectermExport_close`, the statement
+    shared. -/
+theorem dectermSExport_close {Vs : List OTerm} {W : Nat} (hV : vsOK Vs = true) {C : OTerm} (hC : verT C ∈ Vs)
+    (hocc : ∀ x, Occ x C → x = JD)
+    {Rs : List AirD} {ts : List Table}
+    (hs : sameAirsB Rs (compDAirsGL sharedL Vs W) = true) (hacc : AcceptedP Rs ts)
+    {P : Term} (hP : DataJet.Implements DecJet.decContract P) :
+    WSteps (C.close (DecPre.envD P)) Term.K :=
+  dectermExport_closeL sharedL hV hC hocc hs hacc hP
 
 end Circuit

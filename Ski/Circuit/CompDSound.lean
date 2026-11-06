@@ -19,10 +19,10 @@ open B Air Compose CompM Stmt Mach Wit
 
 section
 
-variable {shp : BT} {W : Nat} {Vs : List OTerm} {J Bd : Nat} {C Mm Pg Wt Sg D : Table}
-  (h : CompDOK (blankMO shp W Vs).hd (blankMO shp W Vs).stk (blankMO shp W Vs).heap.length
-    (blankRootsO shp W Vs).length (blankMO shp W Vs).stk J (blankMO shp W Vs).heap (BT.nleaves shp) W
-    (blankRootsO shp W Vs) C Mm Pg Wt Sg D)
+variable {L : Layout} {shp : BT} {W : Nat} {Vs : List OTerm} {J Bd : Nat} {C Mm Pg Wt Sg D : Table}
+  (h : CompDOK (L.blankM shp W Vs).hd (L.blankM shp W Vs).stk (L.blankM shp W Vs).heap.length
+    (L.blankRoots shp W Vs).length (L.blankM shp W Vs).stk J (L.blankM shp W Vs).heap (BT.nleaves shp) W
+    (L.blankRoots shp W Vs) C Mm Pg Wt Sg D)
   (hv : ∀ V ∈ Vs, ∀ x, Occ x V → x < Bd)
 include h
 
@@ -36,7 +36,7 @@ theorem CompDOK.rs_le : ∀ r, rsF C r ≤ 1 := by
     split <;> decide
   · exact Nat.zero_le _
 
-theorem CompDOK.sg_h : Sg.h ≤ 2 ^ 27 := h.two (segsAir (blankRootsO shp W Vs), Sg) (by simp [compDTables])
+theorem CompDOK.sg_h : Sg.h ≤ 2 ^ 27 := h.two (segsAir (L.blankRoots shp W Vs), Sg) (by simp [compDTables])
 
 /-- The segment counter counts the restarts before the row. -/
 theorem CompDOK.cnt : ∀ r, r < C.h → C.main r CNT = ofN (cntS (rsF C) r)
@@ -54,15 +54,15 @@ theorem CompDOK.cnt_val {r : Nat} (hr : r < C.h) : (C.main r CNT).val = cntS (rs
   exact val_ofN (Nat.lt_of_le_of_lt (cntS_le _ h.rs_le r) (Nat.lt_of_lt_of_le hr
     (Nat.le_trans h.cpu_h (by decide))))
 
-theorem CompDOK.roots_le : (blankRootsO shp W Vs).length ≤ 2 ^ 27 := by
+theorem CompDOK.roots_le : (L.blankRoots shp W Vs).length ≤ 2 ^ 27 := by
   have := h.sgpre.1
   have := h.sg_h
-  have : (blankRootsO shp W Vs).length ≤ (segRows (blankRootsO shp W Vs)).length := by unfold segRows; simp
+  have : (L.blankRoots shp W Vs).length ≤ (segRows (L.blankRoots shp W Vs)).length := by unfold segRows; simp
   simp only [segsAir] at *
   omega
 
 /-- The last row has counted every segment but the last. -/
-theorem CompDOK.cnt_last : cntS (rsF C) (C.h - 1) = (blankRootsO shp W Vs).length - 1 := by
+theorem CompDOK.cnt_last : cntS (rsF C) (C.h - 1) = (L.blankRoots shp W Vs).length - 1 := by
   have h0 := h.cpu.1
   have hl : C.h - 1 < C.h := by omega
   have e := (cnt_rowsD h.cpu hl).2.2 (by omega)
@@ -82,8 +82,8 @@ include hv in
 /-- **A restart jumps** to the next segment's root, over the nil, the
     counter unchanged. -/
 theorem CompDOK.restart {r j : Nat} (hr : r + 1 < C.h) (hrs : C.main r RS = 1)
-    (hc : C.main r CNT = ofN j) (hj : j + 1 < (blankRootsO shp W Vs).length) :
-    rowOf C (r + 1) = ⟨(blankRootsO shp W Vs).getD (j + 1) 0, (blankMO shp W Vs).stk, (rowOf C r).ctr⟩ := by
+    (hc : C.main r CNT = ofN j) (hj : j + 1 < (L.blankRoots shp W Vs).length) :
+    rowOf C (r + 1) = ⟨(L.blankRoots shp W Vs).getD (j + 1) 0, (L.blankM shp W Vs).stk, (rowOf C r).ctr⟩ := by
   have hr' : r < C.h := Nat.lt_of_succ_lt hr
   have hk := h.kind11 hr' hrs
   obtain ⟨_, _, _, _, _, _, _, nh, ns, nc⟩ := kind_factsD hr' hk
@@ -96,10 +96,10 @@ theorem CompDOK.restart {r j : Nat} (hr : r + 1 < C.h) (hrs : C.main r RS = 1)
   rw [ns, zs, hrs, zero_add', one_mul', hp0, zero_mul', add_zero'] at m2
   rw [nc, zc, hp0, zero_mul', add_zero'] at m3
   -- the segment table's root
-  have hn : 0 < (blankRootsO shp W Vs).length := by omega
+  have hn : 0 < (L.blankRoots shp W Vs).length := by omega
   have hit := h.segHit (v := [C.main r CNT + 1, C.main r ROOT])
-    ⟨(cpuAirDec (blankMO shp W Vs).hd (blankMO shp W Vs).stk (blankMO shp W Vs).heap.length
-        (blankRootsO shp W Vs).length (blankMO shp W Vs).stk J, C), by simp [compDTables], rfl, r, hr',
+    ⟨(cpuAirDec (L.blankM shp W Vs).hd (L.blankM shp W Vs).stk (L.blankM shp W Vs).heap.length
+        (L.blankRoots shp W Vs).length (L.blankM shp W Vs).stk J, C), by simp [compDTables], rfl, r, hr',
       ⟨"segs", 1, sRS, [.add (col CNT) one, col ROOT]⟩,
       by show _ ∈ cpuIntersD; rw [cpuIntersD_eq]; simp only [List.mem_cons, true_or, or_true], rfl,
       by simp only [List.map_cons, List.map_nil, E.eval, B.col, B.one, B.c, ofN_one, env_main0 hr'],
@@ -107,8 +107,8 @@ theorem CompDOK.restart {r j : Nat} (hr : r + 1 < C.h) (hrs : C.main r RS = 1)
   obtain ⟨i, hi, e⟩ := hit
   simp only [List.cons.injEq, and_true] at e
   obtain ⟨e0, e1⟩ := e
-  have hiS : i < (segRows (blankRootsO shp W Vs)).length := by have := h.sgpre.1; simp only [segsAir] at this; omega
-  have pv : ∀ k, k < 2 → Sg.pre i k = ((segRows (blankRootsO shp W Vs)).getD i []).getD k 0 :=
+  have hiS : i < (segRows (L.blankRoots shp W Vs)).length := by have := h.sgpre.1; simp only [segsAir] at this; omega
+  have pv : ∀ k, k < 2 → Sg.pre i k = ((segRows (L.blankRoots shp W Vs)).getD i []).getD k 0 :=
     fun k hk => h.sgpre.2 i k hi hk
   rw [pv 0 (by decide)] at e0
   rw [pv 1 (by decide)] at e1
@@ -119,17 +119,17 @@ theorem CompDOK.restart {r j : Nat} (hr : r + 1 < C.h) (hrs : C.main r RS = 1)
   · rw [ge] at e0 e1
     have hij : i = j + 1 := ofN_inj (by omega) (by omega) e0
     subst hij
-    have hroot : (blankRootsO shp W Vs).getD (j + 1) 0 < (blankMO shp W Vs).heap.length := by
+    have hroot : (L.blankRoots shp W Vs).getD (j + 1) 0 < (L.blankM shp W Vs).heap.length := by
       rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hin]
-      exact (cMachineO_fitsB Bd _ shp _ Vs (fun i c h' => blank_region W i c h' _) hv).2.1 _ (List.getElem_mem hin)
-    have hstk : (blankMO shp W Vs).stk < (blankMO shp W Vs).heap.length := by
-      show (cHeapO _ shp _ Vs).1.length < ((cHeapO _ shp _ Vs).1 ++ [Cell.nil]).length
+      exact (L.fitsB Bd _ shp _ Vs (fun i c h' => blank_region W i c h' _) hv).2.1 _ (List.getElem_mem hin)
+    have hstk : (L.blankM shp W Vs).stk < (L.blankM shp W Vs).heap.length := by
+      show (L.heap _ shp _ Vs).1.length < ((L.heap _ shp _ Vs).1 ++ [Cell.nil]).length
       simp
     have hH := h.heap_lt
     show (⟨(C.main (r + 1) HD).val, (C.main (r + 1) STK).val, (C.main (r + 1) CTR).val⟩ : Air.Row) = _
     rw [m1, m2, m3, ← e1, List.getD_cons_succ, List.getD_cons_zero,
-      val_ofN (n := (blankRootsO shp W Vs).getD (j + 1) 0) (by omega),
-      val_ofN (n := (blankMO shp W Vs).stk) (by omega)]
+      val_ofN (n := (L.blankRoots shp W Vs).getD (j + 1) 0) (by omega),
+      val_ofN (n := (L.blankM shp W Vs).stk) (by omega)]
     rfl
   · rw [ge] at e0
     exact absurd (ofN_inj (by omega) (by omega) e0) (by omega)
@@ -138,7 +138,7 @@ theorem CompDOK.restart {r j : Nat} (hr : r + 1 < C.h) (hrs : C.main r RS = 1)
 /-- **A row that is no restart steps or halts, with `DECSEL = 0`, or takes
     the jet's step, with `DECSEL = 1`.** -/
 theorem CompDOK.normRowSel {r : Nat} (hr : r + 1 < C.h) (hrs : C.main r RS = 0) (hJ : J < P)
-    (h3 : 3 ≤ (blankMO shp W Vs).heap.length) :
+    (h3 : 3 ≤ (L.blankM shp W Vs).heap.length) :
     (C.main r DECSEL = 0 ∧ Air.NormRow (memOf Mm) [] [] (rowOf C r) (rowOf C (r + 1))) ∨
       (C.main r DECSEL = 1 ∧ ∀ t, odecode (Air.st (memOf Mm) (rowOf C r)) = some t →
         DecJet.decRowI (memOf Mm) J (rowOf C r) = some (rowOf C (r + 1))) := by
@@ -175,7 +175,7 @@ theorem CompDOK.normRowSel {r : Nat} (hr : r + 1 < C.h) (hrs : C.main r RS = 0) 
 
 /-- **A row that does not restart steps**: plainly, or by the jet. -/
 theorem CompDOK.normRow {r : Nat} (hr : r + 1 < C.h) (hrs : C.main r RS = 0) (hJ : J < P)
-    (h3 : 3 ≤ (blankMO shp W Vs).heap.length) :
+    (h3 : 3 ≤ (L.blankM shp W Vs).heap.length) :
     NormRowD (memOf Mm) J (rowOf C r) (rowOf C (r + 1)) :=
   (h.normRowSel hr hrs hJ h3).imp (fun a => a.2) (fun a => a.2)
 
@@ -192,29 +192,29 @@ include hv in
 /-- **The decoded run is accepted by the AIR with segments and the
     Poseidon2 jet.** -/
 theorem CompDOK.acceptsCD (hVs : 0 < Vs.length) (hBd : Bd < P) (hJ : J < P)
-    (h3 : 3 ≤ (blankMO shp W Vs).heap.length) :
-    AcceptsCD (memOf Mm) (cMachineO (bitsM (memOf Mm)) shp (regionM (memOf Mm) (BT.nleaves shp) W) Vs) J
-      (blankRootsO shp W Vs) (blankMO shp W Vs).stk Vs.length
+    (h3 : 3 ≤ (L.blankM shp W Vs).heap.length) :
+    AcceptsCD (memOf Mm) (L.mach (bitsM (memOf Mm)) shp (regionM (memOf Mm) (BT.nleaves shp) W) Vs) J
+      (L.blankRoots shp W Vs) (L.blankM shp W Vs).stk Vs.length
       (endRow (rsF C) (C.h - 1) Vs.length) (rowOf C) := by
-  have hn : (blankRootsO shp W Vs).length = Vs.length := blankRootsO_length shp W Vs
+  have hn : (L.blankRoots shp W Vs).length = Vs.length := L.blankRoots_length shp W Vs
   have hc := h.cnt_last
   rw [hn] at hc
   have h0 : 0 < C.h := h.cpu.1
   obtain ⟨r1, r2, r3⟩ := first_regsD h.cpu h0 rfl
   have hH := h.heap_lt
-  have hfit := cMachineO_fitsB Bd (fun _ => false) shp (List.replicate W .S) Vs (fun i c h' => blank_region W i c h' _) hv
+  have hfit := L.fitsB Bd (fun _ => false) shp (List.replicate W .S) Vs (fun i c h' => blank_region W i c h' _) hv
   have hl : (regionM (memOf Mm) (BT.nleaves shp) W).length = (List.replicate W Cell.S).length := by
     rw [List.length_replicate]; exact h.region_len
-  obtain ⟨_, _, _, hlen, _, _⟩ := cMachineO_public (bitsM (memOf Mm)) (fun _ => false) shp
+  obtain ⟨_, _, _, hlen, _, _⟩ := L.pub (bitsM (memOf Mm)) (fun _ => false) shp
     (regionM (memOf Mm) (BT.nleaves shp) W) (List.replicate W .S) Vs hl
-  have ctr0 : (rowOf C 0).ctr = (blankMO shp W Vs).heap.length := by
+  have ctr0 : (rowOf C 0).ctr = (L.blankM shp W Vs).heap.length := by
     show (C.main 0 CTR).val = _; rw [r3, val_ofN hH]
-  have hstk : (blankMO shp W Vs).stk < (blankMO shp W Vs).heap.length := by
-    show (cHeapO _ shp _ Vs).1.length < ((cHeapO _ shp _ Vs).1 ++ [Cell.nil]).length
+  have hstk : (L.blankM shp W Vs).stk < (L.blankM shp W Vs).heap.length := by
+    show (L.heap _ shp _ Vs).1.length < ((L.heap _ shp _ Vs).1 ++ [Cell.nil]).length
     simp
-  have hhd : (blankMO shp W Vs).hd < (blankMO shp W Vs).heap.length := by
-    show (blankRootsO shp W Vs).getD 0 0 < _
-    have : 0 < (blankRootsO shp W Vs).length := by omega
+  have hhd : (L.blankM shp W Vs).hd < (L.blankM shp W Vs).heap.length := by
+    show (L.blankRoots shp W Vs).getD 0 0 < _
+    have : 0 < (L.blankRoots shp W Vs).length := by omega
     rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem this]
     exact hfit.2.1 _ (List.getElem_mem this)
   have hf := h.rs_le

@@ -22,36 +22,36 @@ open B Air Compose CompM Stmt Mach Wit ComposedDText
 
 set_option maxRecDepth 100000 in
 /-- The circuit is guarded. -/
-theorem compDG_guarded (Vs : List OTerm) (W : Nat) : ∀ A ∈ compDAirsG Vs W, A.cons.all E.guarded = true := by
+theorem compDG_guardedL (L : Layout) (Vs : List OTerm) (W : Nat) : ∀ A ∈ compDAirsGL L Vs W, A.cons.all E.guarded = true := by
   intro A hA
-  simp only [compDAirsG, List.mem_cons, List.not_mem_nil, or_false] at hA
+  simp only [compDAirsGL, List.mem_cons, List.not_mem_nil, or_false] at hA
   rcases hA with rfl | rfl | rfl | rfl | rfl | rfl <;> rfl
 
 /-- Acceptance of the circuit's data is `CompDOK`. -/
-theorem compDOK_ofG {Vs : List OTerm} {W : Nat} {ts : List Table} (hacc : Accepted (compDAirsG Vs W) ts) :
+theorem compDOK_ofGL (L : Layout) {Vs : List OTerm} {W : Nat} {ts : List Table} (hacc : Accepted (compDAirsGL L Vs W) ts) :
     ∃ C Mm Pg Wt Sg D, ts = [C, Mm, Pg, Wt, Sg, D] ∧
-      CompDOK (blankMO shpD W Vs).hd (blankMO shpD W Vs).stk
-        (blankMO shpD W Vs).heap.length (blankRootsO shpD W Vs).length
-        (blankMO shpD W Vs).stk JD (blankMO shpD W Vs).heap (BT.nleaves shpD) W
-        (blankRootsO shpD W Vs) C Mm Pg Wt Sg D := by
+      CompDOK (L.blankM shpD W Vs).hd (L.blankM shpD W Vs).stk
+        (L.blankM shpD W Vs).heap.length (L.blankRoots shpD W Vs).length
+        (L.blankM shpD W Vs).stk JD (L.blankM shpD W Vs).heap (BT.nleaves shpD) W
+        (L.blankRoots shpD W Vs) C Mm Pg Wt Sg D := by
   obtain ⟨hl, hsat, hbal, hht, htwo⟩ := hacc
   match ts, hl with
   | [C, Mm, Pg, Wt, Sg, D], _ =>
-    have z : (compDAirsG Vs W).zip [C, Mm, Pg, Wt, Sg, D] =
-        compDTables (blankMO shpD W Vs).hd (blankMO shpD W Vs).stk
-          (blankMO shpD W Vs).heap.length (blankRootsO shpD W Vs).length
-          (blankMO shpD W Vs).stk JD (blankMO shpD W Vs).heap (BT.nleaves shpD) W
-          (blankRootsO shpD W Vs) C Mm Pg Wt Sg D := rfl
-    have mem : ∀ A T, (A, T) ∈ compDTables (blankMO shpD W Vs).hd (blankMO shpD W Vs).stk
-          (blankMO shpD W Vs).heap.length (blankRootsO shpD W Vs).length
-          (blankMO shpD W Vs).stk JD (blankMO shpD W Vs).heap (BT.nleaves shpD) W
-          (blankRootsO shpD W Vs) C Mm Pg Wt Sg D → Sat A T ∧ (A.pre = 0 ∨ PreIs A T) :=
+    have z : (compDAirsGL L Vs W).zip [C, Mm, Pg, Wt, Sg, D] =
+        compDTables (L.blankM shpD W Vs).hd (L.blankM shpD W Vs).stk
+          (L.blankM shpD W Vs).heap.length (L.blankRoots shpD W Vs).length
+          (L.blankM shpD W Vs).stk JD (L.blankM shpD W Vs).heap (BT.nleaves shpD) W
+          (L.blankRoots shpD W Vs) C Mm Pg Wt Sg D := rfl
+    have mem : ∀ A T, (A, T) ∈ compDTables (L.blankM shpD W Vs).hd (L.blankM shpD W Vs).stk
+          (L.blankM shpD W Vs).heap.length (L.blankRoots shpD W Vs).length
+          (L.blankM shpD W Vs).stk JD (L.blankM shpD W Vs).heap (BT.nleaves shpD) W
+          (L.blankRoots shpD W Vs) C Mm Pg Wt Sg D → Sat A T ∧ (A.pre = 0 ∨ PreIs A T) :=
       fun A T hm => hsat (A, T) (z ▸ hm)
     rw [z] at hbal hht htwo
-    have pre : ∀ A T, (A, T) ∈ compDTables (blankMO shpD W Vs).hd (blankMO shpD W Vs).stk
-          (blankMO shpD W Vs).heap.length (blankRootsO shpD W Vs).length
-          (blankMO shpD W Vs).stk JD (blankMO shpD W Vs).heap (BT.nleaves shpD) W
-          (blankRootsO shpD W Vs) C Mm Pg Wt Sg D → A.pre ≠ 0 → PreIs A T := by
+    have pre : ∀ A T, (A, T) ∈ compDTables (L.blankM shpD W Vs).hd (L.blankM shpD W Vs).stk
+          (L.blankM shpD W Vs).heap.length (L.blankRoots shpD W Vs).length
+          (L.blankM shpD W Vs).stk JD (L.blankM shpD W Vs).heap (BT.nleaves shpD) W
+          (L.blankRoots shpD W Vs) C Mm Pg Wt Sg D → A.pre ≠ 0 → PreIs A T := by
       intro A T hm hp
       rcases (mem A T hm).2 with h0 | h0
       · exact absurd h0 hp
@@ -64,39 +64,63 @@ theorem compDOK_ofG {Vs : List OTerm} {W : Nat} {ts : List Table} (hacc : Accept
       pre _ _ (by simp [compDTables]) (by show (3 : Nat) ≠ 0; decide),
       pre _ _ (by simp [compDTables]) (by show (2 : Nat) ≠ 0; decide), hbal, hht, htwo⟩⟩
 
-theorem shpD_nleaves : BT.nleaves shpD = 1 := rfl
-
 /-- **Soundness of the circuit with the `dec` jet**, for any verifiers whose
     only free variable is the jet's: an accepted proof has in its memory a
     bit and a region whose witness makes every verifier head-reduce with
     the jet to `K`, its subjects in the memory. -/
+theorem compDExportG_soundL (L : Layout) {Vs : List OTerm} {W : Nat} (hVs : 0 < Vs.length)
+    (hocc : ∀ V ∈ Vs, ∀ x, Occ x V → x = JD)
+    {Rs : List AirD} {ts : List Table}
+    (hs : sameAirsB Rs (compDAirsGL L Vs W) = true) (hacc : AcceptedP Rs ts) :
+    ∃ C Mm Pg Wt Sg D, ts = [C, Mm, Pg, Wt, Sg, D] ∧ ∃ w,
+      cWitness (bitsM (memOf Mm)) 1 (regionM (memOf Mm) 1 W) = some w ∧
+      ∀ V ∈ Vs, HSteps (InMem (memOf Mm)) JD (V ⬝ₒ (fillB shpD (bitsM (memOf Mm)) 0).enc.toO ⬝ₒ w.toO) .K := by
+  have hacc' := accepted_transfer hs ((acceptedP_iff_of (compDG_guardedL L Vs W) hs ts).1 hacc)
+  obtain ⟨C, Mm, Pg, Wt, Sg, D, rfl, ok⟩ := compDOK_ofGL L hacc'
+  refine ⟨C, Mm, Pg, Wt, Sg, D, rfl, ?_⟩
+  have hv : ∀ V ∈ Vs, ∀ x, Occ x V → x < JD + 1 := fun V hV x hx => by
+    rw [hocc V hV x hx]; exact Nat.lt_succ_self _
+  have h3 : 3 ≤ (L.blankM shpD W Vs).heap.length := by
+    have := L.blank_prefix shpD W Vs
+    omega
+  have hcp := ok.acceptsCD hv hVs (by decide) (by decide) h3
+  have hl : (regionM (memOf Mm) (BT.nleaves shpD) W).length = (List.replicate W Cell.S).length := by
+    rw [List.length_replicate]; exact ok.region_len
+  obtain ⟨_, hstk, hR, _, _, _⟩ := L.pub (bitsM (memOf Mm)) (fun _ => false) shpD
+    (regionM (memOf Mm) (BT.nleaves shpD) W) (List.replicate W .S) Vs hl
+  have hroots : L.blankRoots shpD W Vs = (L.heap (bitsM (memOf Mm)) shpD (regionM (memOf Mm) (BT.nleaves shpD) W) Vs).2 :=
+    hR.symm
+  have hnil : (L.blankM shpD W Vs).stk =
+      (L.heap (bitsM (memOf Mm)) shpD (regionM (memOf Mm) (BT.nleaves shpD) W) Vs).1.length := hstk.symm
+  rw [hroots, hnil] at hcp
+  have hwf := ok.regionWF
+  exact composedD_sound_ofL L hwf hcp
+
+/-- The tree layout's circuit is guarded. -/
+theorem compDG_guarded (Vs : List OTerm) (W : Nat) : ∀ A ∈ compDAirsG Vs W, A.cons.all E.guarded = true :=
+  compDG_guardedL treeL Vs W
+
+/-- Acceptance of the tree layout's circuit is `CompDOK`. -/
+theorem compDOK_ofG {Vs : List OTerm} {W : Nat} {ts : List Table} (hacc : Accepted (compDAirsG Vs W) ts) :
+    ∃ C Mm Pg Wt Sg D, ts = [C, Mm, Pg, Wt, Sg, D] ∧
+      CompDOK (blankMO shpD W Vs).hd (blankMO shpD W Vs).stk
+        (blankMO shpD W Vs).heap.length (blankRootsO shpD W Vs).length
+        (blankMO shpD W Vs).stk JD (blankMO shpD W Vs).heap (BT.nleaves shpD) W
+        (blankRootsO shpD W Vs) C Mm Pg Wt Sg D :=
+  compDOK_ofGL treeL hacc
+
+theorem shpD_nleaves : BT.nleaves shpD = 1 := rfl
+
+/-- **Soundness of the circuit with the `dec` jet**, the statement as a
+    tree: `compDExportG_soundL` at `treeL`. -/
 theorem compDExportG_sound {Vs : List OTerm} {W : Nat} (hVs : 0 < Vs.length)
     (hocc : ∀ V ∈ Vs, ∀ x, Occ x V → x = JD)
     {Rs : List AirD} {ts : List Table}
     (hs : sameAirsB Rs (compDAirsG Vs W) = true) (hacc : AcceptedP Rs ts) :
     ∃ C Mm Pg Wt Sg D, ts = [C, Mm, Pg, Wt, Sg, D] ∧ ∃ w,
       cWitness (bitsM (memOf Mm)) 1 (regionM (memOf Mm) 1 W) = some w ∧
-      ∀ V ∈ Vs, HSteps (InMem (memOf Mm)) JD (V ⬝ₒ (fillB shpD (bitsM (memOf Mm)) 0).enc.toO ⬝ₒ w.toO) .K := by
-  have hacc' := accepted_transfer hs ((acceptedP_iff_of (compDG_guarded Vs W) hs ts).1 hacc)
-  obtain ⟨C, Mm, Pg, Wt, Sg, D, rfl, ok⟩ := compDOK_ofG hacc'
-  refine ⟨C, Mm, Pg, Wt, Sg, D, rfl, ?_⟩
-  have hv : ∀ V ∈ Vs, ∀ x, Occ x V → x < JD + 1 := fun V hV x hx => by
-    rw [hocc V hV x hx]; exact Nat.lt_succ_self _
-  have h3 : 3 ≤ (blankMO shpD W Vs).heap.length := by
-    have := blankO_prefix shpD W Vs
-    omega
-  have hcp := ok.acceptsCD hv hVs (by decide) (by decide) h3
-  have hl : (regionM (memOf Mm) (BT.nleaves shpD) W).length = (List.replicate W Cell.S).length := by
-    rw [List.length_replicate]; exact ok.region_len
-  obtain ⟨_, hstk, hR, _, _, _⟩ := cMachineO_public (bitsM (memOf Mm)) (fun _ => false) shpD
-    (regionM (memOf Mm) (BT.nleaves shpD) W) (List.replicate W .S) Vs hl
-  have hroots : blankRootsO shpD W Vs = (cHeapO (bitsM (memOf Mm)) shpD (regionM (memOf Mm) (BT.nleaves shpD) W) Vs).2 :=
-    hR.symm
-  have hnil : (blankMO shpD W Vs).stk =
-      (cHeapO (bitsM (memOf Mm)) shpD (regionM (memOf Mm) (BT.nleaves shpD) W) Vs).1.length := hstk.symm
-  rw [hroots, hnil] at hcp
-  have hwf := ok.regionWF
-  exact composedD_sound_of hwf hcp
+      ∀ V ∈ Vs, HSteps (InMem (memOf Mm)) JD (V ⬝ₒ (fillB shpD (bitsM (memOf Mm)) 0).enc.toO ⬝ₒ w.toO) .K :=
+  compDExportG_soundL treeL hVs hocc hs hacc
 
 theorem occ_absN : ∀ (xs : List Nat) {t : OTerm} {x : Nat}, Occ x (absN xs t) → Occ x t ∧ x ∉ xs
   | [], _, _, h => ⟨h, List.not_mem_nil⟩

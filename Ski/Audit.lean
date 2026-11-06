@@ -1686,6 +1686,15 @@ open Ski.Audit
 -- library's `String` functions, which use `Classical.choice`; it is tooling)
 #audit_clean DecTerm.occOK_sound DecTerm.vsOK_sound
   Circuit.dectermExport_sound Circuit.verT_close Circuit.dectermExport_close
+-- The statement heap shared (HeapShared, ComposedOS, Layout): the hash-consing
+-- builder's memo law and contract, the shared machine's three facts, the dec
+-- circuit's soundness and completeness over any layout, and the shared
+-- decterm statement (header dectermS)
+#audit_clean Mach.Memo.find_add Mach.obuildS_spec Mach.obuildS_shape CompM.cMachineOS_decode
+  CompM.cMachineOS_public Circuit.cMachineOS_fitsB CompM.composedD_sound_ofL Circuit.compDOK_ofGL
+  Circuit.compDExportG_soundL Circuit.dectermExport_soundL Circuit.dectermExport_closeL
+  Circuit.dectermSExport_sound Circuit.dectermSExport_close Circuit.compDG_complete_ofL
+  Circuit.compDG_complete_decL Circuit.compDG_complete_nojetL
 
 -- The dec jet's row reading through K-thunks (DecInd): the reader's
 -- read-back up to K-contraction, the output's, the row's step, and closing a
