@@ -98,6 +98,7 @@ import Ski.CantorTotal
 import Ski.NatFan
 import Ski.OracleFan
 import Ski.Univ
+import Ski.KleeneTree
 import Ski.Graph
 import Ski.RWMem
 import Ski.GraphMem
