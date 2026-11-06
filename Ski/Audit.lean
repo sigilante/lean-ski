@@ -254,6 +254,7 @@ import Ski.NatLift
 import Ski.Coalgebra
 import Ski.CantorTotal
 import Ski.NatFan
+import Ski.OracleFan
 import Ski.Graph
 import Ski.RWMem
 import Ski.GraphMem
@@ -969,6 +970,8 @@ open Ski.Audit
 #audit_clean Coalgebra.lift_code Coalgebra.bool_idem Coalgebra.nat_idem Coalgebra.cantor_idem Coalgebra.coalg2 Coalgebra.bool_coalg2 Coalgebra.nat_coalg2 Coalgebra.cantor_coalg2
 #audit_clean CantorTotal.no_lift_family CantorTotal.wordStream_isStream CantorTotal.walk_num CantorTotal.walk_omega CantorTotal.no_lift_cantor_total
 #audit_clean NatFan.simW NatFan.whnf_to_I NatFan.whnf_to_KI NatFan.finite_choice NatFan.fan_value NatFan.nat_fan NatFan.nat_lift_inf NatFan.local_iff_total_inf
+#audit_clean OracleFan.StepO.det OracleFan.simO OracleFan.relO_emb OracleFan.oracle_local
+-- OracleFan.fan, cantor_fan and cantor_lift_oracle use Classical.choice (the fan theorem is classical); not in the gate.
 
 -- Graph reduction with update in place, sound and complete against L1, never more contractions
 #audit_clean Graph.Dec.det Graph.dec_spine Graph.spine_dec Graph.spine_ne Graph.dec_update Graph.gstep_sound

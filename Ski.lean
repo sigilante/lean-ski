@@ -96,6 +96,7 @@ import Ski.NatLift
 import Ski.Coalgebra
 import Ski.CantorTotal
 import Ski.NatFan
+import Ski.OracleFan
 import Ski.Graph
 import Ski.RWMem
 import Ski.GraphMem
