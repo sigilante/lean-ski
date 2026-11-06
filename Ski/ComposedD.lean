@@ -1,5 +1,6 @@
 import Ski.ComposedO
 import Ski.DecInd
+import Ski.Layout
 
 /-!
 # Composed statements with the `dec` jet: the run
@@ -164,27 +165,27 @@ end
 /-- **A table the AIR with the `dec` jet accepts from the composed machine
     of an open statement** makes every verifier, applied to the bits and
     the region's witness, head-reduce with the jet to `K`, the jet's
-    subjects in the memory. -/
-theorem composedD_sound_of {ρ : Nat → Bool} {shp : BT} {region : List Cell} {Vs : List OTerm} {J : Nat}
+    subjects in the memory.  For any layout. -/
+theorem composedD_sound_ofL (L : Layout) {ρ : Nat → Bool} {shp : BT} {region : List Cell} {Vs : List OTerm} {J : Nat}
     (hr : ∀ i c, region[i]? = some c → cellOK (BT.nleaves shp + 3 + i) c = true)
     {M : List Cell} {e : Nat → Nat} {row : Nat → Air.Row}
-    (h : AcceptsCD M (cMachineO ρ shp region Vs) J (cHeapO ρ shp region Vs).2
-      (cHeapO ρ shp region Vs).1.length Vs.length e row) :
+    (h : AcceptsCD M (L.mach ρ shp region Vs) J (L.heap ρ shp region Vs).2
+      (L.heap ρ shp region Vs).1.length Vs.length e row) :
     ∃ w, cWitness ρ (BT.nleaves shp) region = some w ∧
       ∀ V ∈ Vs, HSteps (InMem M) J (V ⬝ₒ (fillB shp ρ 0).enc.toO ⬝ₒ w.toO) .K := by
   let N := BT.nleaves shp
   obtain ⟨w, hw⟩ := witnessOf_some (slots_wf ρ N hr) (by simp [slotHeap_length]; omega)
   refine ⟨w, hw, ?_⟩
-  obtain ⟨_, hdec⟩ := cMachineO_decode (Vs := Vs) hw
-  let m0 := cMachineO ρ shp region Vs
+  obtain ⟨_, hdec⟩ := L.decode (Vs := Vs) hw
+  let m0 := L.mach ρ shp region Vs
   have hm0 : m0.heap = M.take (row 0).ctr := h.heap0.symm
   have hc0 : (row 0).ctr = m0.heap.length := h.ctr0
   have hcM : (row 0).ctr ≤ M.length := by
     have := congrArg List.length h.heap0
     rw [List.length_take, ← h.ctr0] at this
     omega
-  have hregs : ∀ j, j < Vs.length → (row (segStart e j)).hd = (cHeapO ρ shp region Vs).2.getD j 0 ∧
-      (row (segStart e j)).stk = (cHeapO ρ shp region Vs).1.length := by
+  have hregs : ∀ j, j < Vs.length → (row (segStart e j)).hd = (L.heap ρ shp region Vs).2.getD j 0 ∧
+      (row (segStart e j)).stk = (L.heap ρ shp region Vs).1.length := by
     intro j hj
     cases j with
     | zero => exact ⟨h.hd0, h.stk0⟩
@@ -215,8 +216,8 @@ theorem composedD_sound_of {ρ : Nat → Bool} {shp : BT} {region : List Cell} {
       omega
     · show ostackAt (M.take (row (segStart e j)).ctr) (_ + 1) (row (segStart e j)).stk = _
       rw [(hregs j hj).2]
-      have hn : (M.take (row (segStart e j)).ctr)[(cHeapO ρ shp region Vs).1.length]? = some .nil := by
-        have h1 : m0.heap[(cHeapO ρ shp region Vs).1.length]? = some .nil := by simp [m0, cMachineO]
+      have hn : (M.take (row (segStart e j)).ctr)[(L.heap ρ shp region Vs).1.length]? = some .nil := by
+        have h1 : m0.heap[(L.heap ρ shp region Vs).1.length]? = some .nil := by simp [m0, mkMach]
         rw [hm0, List.getElem?_take] at h1
         rw [List.getElem?_take]
         split at h1
@@ -251,5 +252,15 @@ theorem composedD_sound_of {ρ : Nat → Bool} {shp : BT} {region : List Cell} {
     · rw [← (h.ends j hj).2, Air.rd_eq]; rfl
   rw [hK] at hsteps
   exact hsteps
+
+/-- `composedD_sound_ofL` for the tree layout. -/
+theorem composedD_sound_of {ρ : Nat → Bool} {shp : BT} {region : List Cell} {Vs : List OTerm} {J : Nat}
+    (hr : ∀ i c, region[i]? = some c → cellOK (BT.nleaves shp + 3 + i) c = true)
+    {M : List Cell} {e : Nat → Nat} {row : Nat → Air.Row}
+    (h : AcceptsCD M (cMachineO ρ shp region Vs) J (cHeapO ρ shp region Vs).2
+      (cHeapO ρ shp region Vs).1.length Vs.length e row) :
+    ∃ w, cWitness ρ (BT.nleaves shp) region = some w ∧
+      ∀ V ∈ Vs, HSteps (InMem M) J (V ⬝ₒ (fillB shp ρ 0).enc.toO ⬝ₒ w.toO) .K :=
+  composedD_sound_ofL treeL hr h
 
 end CompM

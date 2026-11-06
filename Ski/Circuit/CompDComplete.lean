@@ -266,10 +266,10 @@ structure DecHonest (A : List Cell) (cpu : AirD) (roots : List Nat) (C D : Table
   decM : HonestMem A Dec.decAir D
   jet : ∀ B, B ≠ "mem" → B ≠ "segs" → ∀ v, tableSends cpu C B v + tableSends Dec.decAir D B v = 0
 
-/-- The CPU AIR of `compDAirsG Vs W`. -/
-def cpuDG (Vs : List OTerm) (W : Nat) : AirD :=
-  cpuAirDec (blankMO shpD W Vs).hd (blankMO shpD W Vs).stk (blankMO shpD W Vs).heap.length
-    (blankRootsO shpD W Vs).length (blankMO shpD W Vs).stk JD
+/-- The CPU AIR of `compDAirsGL L Vs W`. -/
+def cpuDGL (L : Layout) (Vs : List OTerm) (W : Nat) : AirD :=
+  cpuAirDec (L.blankM shpD W Vs).hd (L.blankM shpD W Vs).stk (L.blankM shpD W Vs).heap.length
+    (L.blankRoots shpD W Vs).length (L.blankM shpD W Vs).stk JD
 
 set_option maxRecDepth 100000 in
 /-- **Completeness of the circuit with the `dec` jet, given the CPU and DEC
@@ -277,28 +277,28 @@ set_option maxRecDepth 100000 in
     bits and a well-formed region of `W` cells, over a memory of `2^Lm`
     cells whose cells point into it, with a CPU table of `2^R` rows and a
     DEC table of `2^LD` rows meeting `DecHonest`, gives tables that AIRs
-    with the normal forms of `compDAirsG Vs W` accept, with Plonky3's
+    with the normal forms of `compDAirsGL L Vs W` accept, with Plonky3's
     selectors: the public program and segment tables, the honest witness
     table, and the memory table counting every lookup, which decodes back
     to the memory. -/
-theorem compDG_complete_of {R Lm LD : Nat} (hR : R ≤ 20) (hLm : Lm ≤ 20) (hLD : LD ≤ 20)
-    {Vs : List OTerm} {W : Nat} {Rs : List AirD} (hs : sameAirsB Rs (compDAirsG Vs W) = true)
+theorem compDG_complete_ofL (L : Layout) {R Lm LD : Nat} (hR : R ≤ 20) (hLm : Lm ≤ 20) (hLD : LD ≤ 20)
+    {Vs : List OTerm} {W : Nat} {Rs : List AirD} (hs : sameAirsB Rs (compDAirsGL L Vs W) = true)
     {ρ : Nat → Bool} {region : List Cell} (hrl : region.length = W)
     (hr : ∀ i c, region[i]? = some c → cellOK (BT.nleaves shpD + 3 + i) c = true)
     (hNW : BT.nleaves shpD + W ≤ 2 ^ 8)
     {A : List Cell} {e : Nat → Nat} {row : Nat → Air.Row}
-    (hA : AcceptsCD A (cMachineO ρ shpD region Vs) JD (cHeapO ρ shpD region Vs).2
-      (cHeapO ρ shpD region Vs).1.length Vs.length e row)
+    (hA : AcceptsCD A (L.mach ρ shpD region Vs) JD (L.heap ρ shpD region Vs).2
+      (L.heap ρ shpD region Vs).1.length Vs.length e row)
     (hfit : Fits A) (hlen : A.length = 2 ^ Lm) (hK : e (Vs.length - 1) < 2 ^ R)
     {C D : Table} (hC : C.h = 2 ^ R) (hD : D.h = 2 ^ LD)
-    (hH : DecHonest A (cpuDG Vs W) (blankRootsO shpD W Vs) C D) :
-    AcceptedP Rs [C, memTableD A (cpuDG Vs W) (progAirC (blankMO shpD W Vs).heap (BT.nleaves shpD) W)
-        (witAir (BT.nleaves shpD) W) C (progTableC (blankMO shpD W Vs).heap (BT.nleaves shpD) W)
+    (hH : DecHonest A (cpuDGL L Vs W) (L.blankRoots shpD W Vs) C D) :
+    AcceptedP Rs [C, memTableD A (cpuDGL L Vs W) (progAirC (L.blankM shpD W Vs).heap (BT.nleaves shpD) W)
+        (witAir (BT.nleaves shpD) W) C (progTableC (L.blankM shpD W Vs).heap (BT.nleaves shpD) W)
         (witTable A (BT.nleaves shpD) W) D,
-      progTableC (blankMO shpD W Vs).heap (BT.nleaves shpD) W, witTable A (BT.nleaves shpD) W,
-      segsTableC (blankRootsO shpD W Vs) (cpuDG Vs W) C, D] ∧
-    memOf (memTableD A (cpuDG Vs W) (progAirC (blankMO shpD W Vs).heap (BT.nleaves shpD) W)
-        (witAir (BT.nleaves shpD) W) C (progTableC (blankMO shpD W Vs).heap (BT.nleaves shpD) W)
+      progTableC (L.blankM shpD W Vs).heap (BT.nleaves shpD) W, witTable A (BT.nleaves shpD) W,
+      segsTableC (L.blankRoots shpD W Vs) (cpuDGL L Vs W) C, D] ∧
+    memOf (memTableD A (cpuDGL L Vs W) (progAirC (L.blankM shpD W Vs).heap (BT.nleaves shpD) W)
+        (witAir (BT.nleaves shpD) W) C (progTableC (L.blankM shpD W Vs).heap (BT.nleaves shpD) W)
         (witTable A (BT.nleaves shpD) W) D) = A ∧
     (witTable A (BT.nleaves shpD) W).h = 2 ^ 9 := by
   have hRb : 2 ^ R ≤ 1048576 := Nat.pow_le_pow_right (by decide) hR
@@ -306,11 +306,11 @@ theorem compDG_complete_of {R Lm LD : Nat} (hR : R ≤ 20) (hLm : Lm ≤ 20) (hL
   have hDb : 2 ^ LD ≤ 1048576 := Nat.pow_le_pow_right (by decide) hLD
   have hl : region.length = (List.replicate W Cell.S).length := by rw [List.length_replicate, hrl]
   obtain ⟨_, _, _, hlenm, htake, hpub⟩ :=
-    cMachineO_public ρ (fun _ => false) shpD region (List.replicate W .S) Vs hl
-  obtain ⟨m0, hm0⟩ : ∃ m, cMachineO ρ shpD region Vs = m := ⟨_, rfl⟩
+    L.pubM ρ (fun _ => false) shpD region (List.replicate W .S) Vs hl
+  obtain ⟨m0, hm0⟩ : ∃ m, L.mach ρ shpD region Vs = m := ⟨_, rfl⟩
   rw [hm0] at hA htake hpub hlenm
   have hn : 0 < Vs.length := hA.npos
-  have hnR : (blankRootsO shpD W Vs).length = Vs.length := blankRootsO_length _ _ _
+  have hnR : (L.blankRoots shpD W Vs).length = Vs.length := L.blankRoots_length _ _ _
   -- the memory holds the machine
   have h0 : A.take m0.heap.length = m0.heap := by rw [← hA.ctr0]; exact hA.heap0
   have hmlen : m0.heap.length ≤ A.length := by
@@ -356,17 +356,17 @@ theorem compDG_complete_of {R Lm LD : Nat} (hR : R ≤ 20) (hLm : Lm ≤ 20) (hL
   have hAl : A.length < P := by rw [hlen, hPP]; omega
   have hsmall : 3 + BT.nleaves shpD + W ≤ 2 ^ 24 := by omega
   have hlenW : 3 + BT.nleaves shpD + W ≤ A.length := by omega
-  have hbl : (blankMO shpD W Vs).heap.length = m0.heap.length := hlenm.symm
+  have hbl : (L.blankM shpD W Vs).heap.length = m0.heap.length := hlenm.symm
   have hnK : Vs.length ≤ 2 ^ 24 := by
     have := emono_ge hA.emono (Vs.length - 1) (by omega); omega
   -- the tables
-  let cpu := cpuDG Vs W
-  let heap := (blankMO shpD W Vs).heap
+  let cpu := cpuDGL L Vs W
+  let heap := (L.blankM shpD W Vs).heap
   let N := BT.nleaves shpD
   let Pg := progTableC heap N W
   let Wt := witTable A N W
   let Mm := memTableD A cpu (progAirC heap N W) (witAir N W) C Pg Wt D
-  let Sg := segsTableC (blankRootsO shpD W Vs) cpu C
+  let Sg := segsTableC (L.blankRoots shpD W Vs) cpu C
   have hpubA : ∀ i, i < heap.length → ¬ (3 ≤ i ∧ i < 3 + N + W) →
       i < A.length ∧ A.getD i .nil = heap.getD i .nil := by
     intro i hi hp
@@ -385,11 +385,11 @@ theorem compDG_complete_of {R Lm LD : Nat} (hR : R ≤ 20) (hLm : Lm ≤ 20) (hL
   have hWt : Wt.h = 2 ^ 9 := witRows_len hNW
   have hPg : Pg.h ≤ 2 ^ 24 := progRowsC_le (by have : heap.length = m0.heap.length := hbl; omega)
   have hSg : Sg.h ≤ 2 ^ 24 := segRows_le (by rw [hnR]; exact hnK)
-  have hacc : Accepted (compDAirsG Vs W) [C, Mm, Pg, Wt, Sg, D] := by
-    have z : (compDAirsG Vs W).zip [C, Mm, Pg, Wt, Sg, D] =
-        compDTables (blankMO shpD W Vs).hd (blankMO shpD W Vs).stk
-          (blankMO shpD W Vs).heap.length (blankRootsO shpD W Vs).length
-          (blankMO shpD W Vs).stk JD heap N W (blankRootsO shpD W Vs) C Mm Pg Wt Sg D := rfl
+  have hacc : Accepted (compDAirsGL L Vs W) [C, Mm, Pg, Wt, Sg, D] := by
+    have z : (compDAirsGL L Vs W).zip [C, Mm, Pg, Wt, Sg, D] =
+        compDTables (L.blankM shpD W Vs).hd (L.blankM shpD W Vs).stk
+          (L.blankM shpD W Vs).heap.length (L.blankRoots shpD W Vs).length
+          (L.blankM shpD W Vs).stk JD heap N W (L.blankRoots shpD W Vs) C Mm Pg Wt Sg D := rfl
     refine ⟨rfl, ?_, ?_, ?_, ?_⟩
     · rw [z]
       intro p hp
@@ -421,7 +421,7 @@ theorem compDG_complete_of {R Lm LD : Nat} (hR : R ≤ 20) (hLm : Lm ≤ 20) (hL
       · show Wt.h ≤ 2 ^ 27; rw [hWt]; decide
       · show Sg.h ≤ 2 ^ 27; omega
       · show D.h ≤ 2 ^ 27; rw [hD]; exact Nat.pow_le_pow_right (by decide) (by omega)
-  refine ⟨(acceptedP_iff_of (compDG_guarded Vs W) hs _).2 (accepted_transfer (sameAirsB_symm hs) hacc), ?_, hWt⟩
+  refine ⟨(acceptedP_iff_of (compDG_guardedL L Vs W) hs _).2 (accepted_transfer (sameAirsB_symm hs) hacc), ?_, hWt⟩
   -- the memory decodes back
   apply List.ext_getElem?
   intro m
@@ -437,4 +437,30 @@ theorem compDG_complete_of {R Lm LD : Nat} (hR : R ≤ 20) (hLm : Lm ≤ 20) (hL
     rw [hg, cellOf_enc _ (by omega) (by omega), List.getElem?_eq_getElem hm']
   · rw [List.getElem?_eq_none (by rw [List.length_range]; exact hm), List.getElem?_eq_none hm]; rfl
 
+
+/-- The tree layout's CPU AIR. -/
+def cpuDG (Vs : List OTerm) (W : Nat) : AirD := cpuDGL treeL Vs W
+
+/-- `compDG_complete_ofL` for the statement as a tree. -/
+theorem compDG_complete_of {R Lm LD : Nat} (hR : R ≤ 20) (hLm : Lm ≤ 20) (hLD : LD ≤ 20)
+    {Vs : List OTerm} {W : Nat} {Rs : List AirD} (hs : sameAirsB Rs (compDAirsG Vs W) = true)
+    {ρ : Nat → Bool} {region : List Cell} (hrl : region.length = W)
+    (hr : ∀ i c, region[i]? = some c → cellOK (BT.nleaves shpD + 3 + i) c = true)
+    (hNW : BT.nleaves shpD + W ≤ 2 ^ 8)
+    {A : List Cell} {e : Nat → Nat} {row : Nat → Air.Row}
+    (hA : AcceptsCD A (cMachineO ρ shpD region Vs) JD (cHeapO ρ shpD region Vs).2
+      (cHeapO ρ shpD region Vs).1.length Vs.length e row)
+    (hfit : Fits A) (hlen : A.length = 2 ^ Lm) (hK : e (Vs.length - 1) < 2 ^ R)
+    {C D : Table} (hC : C.h = 2 ^ R) (hD : D.h = 2 ^ LD)
+    (hH : DecHonest A (cpuDG Vs W) (blankRootsO shpD W Vs) C D) :
+    AcceptedP Rs [C, memTableD A (cpuDG Vs W) (progAirC (blankMO shpD W Vs).heap (BT.nleaves shpD) W)
+        (witAir (BT.nleaves shpD) W) C (progTableC (blankMO shpD W Vs).heap (BT.nleaves shpD) W)
+        (witTable A (BT.nleaves shpD) W) D,
+      progTableC (blankMO shpD W Vs).heap (BT.nleaves shpD) W, witTable A (BT.nleaves shpD) W,
+      segsTableC (blankRootsO shpD W Vs) (cpuDG Vs W) C, D] ∧
+    memOf (memTableD A (cpuDG Vs W) (progAirC (blankMO shpD W Vs).heap (BT.nleaves shpD) W)
+        (witAir (BT.nleaves shpD) W) C (progTableC (blankMO shpD W Vs).heap (BT.nleaves shpD) W)
+        (witTable A (BT.nleaves shpD) W) D) = A ∧
+    (witTable A (BT.nleaves shpD) W).h = 2 ^ 9 :=
+  compDG_complete_ofL treeL hR hLm hLD hs hrl hr hNW hA hfit hlen hK hC hD hH
 end Circuit

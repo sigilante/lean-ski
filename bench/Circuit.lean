@@ -366,12 +366,16 @@ def compareCompD (path : String) : IO UInt32 := do
         | _ => none
       | [] => none) | do IO.println "MALFORMED: no statement"; return 1
   let stmt := "\n".intercalate ((ls.drop 1).take n) ++ "\n"
-  let some (Vs, W) := (match ComposedDText.statementOfTextD stmt with
-      | some (p, W, _) => some (ComposedDText.VsD p, W)
-      | none => (DecTerm.statementOfTextDG stmt).map fun (r : List OTerm × Nat × ComposedDText.DLogs) => (r.1, r.2.1)) | do IO.println "NOT A STATEMENT"; return 1
+  let some (Vs, W, L) := (match ComposedDText.statementOfTextD stmt with
+      | some (p, W, _) => some (ComposedDText.VsD p, W, CompM.treeL)
+      | none =>
+        match DecTerm.statementOfTextDG stmt with
+        | some (Vs, W, _) => some (Vs, W, CompM.treeL)
+        | none => (DecTerm.statementOfTextDGS stmt).map fun (r : List OTerm × Nat × ComposedDText.DLogs) =>
+            (r.1, r.2.1, CompM.sharedL)) | do IO.println "NOT A STATEMENT"; return 1
   let rest := ((ls.drop (n + 1)).filter (fun l => !l.trimAscii.toString.isEmpty))
   let some rust := parseAirs (rest.length + 1) rest | do IO.println "MALFORMED AIRS"; return 1
-  compareAirs rust (compDAirsG Vs W)
+  compareAirs rust (compDAirsGL L Vs W)
 
 /-- The probe circuit: `term T`, `outcome …`, then the ten AIRs.  The jet
     table is Lean's for the term, as for `compare-jets`; the plan is Lean's

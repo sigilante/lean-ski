@@ -1,11 +1,12 @@
 import Ski.Circuit.CompDJetRow
 import Ski.Circuit.CompPPrefix
+import Ski.Layout
 
 /-!
 # The circuit with the `dec` jet: the memory's prefix
 
 As `Ski/Circuit/CompPPrefix.lean` for the circuit with the Poseidon2 jet,
-over the same open composed machine (`CompM.cMachineO`, `blankMO`): the
+over the same open composed machine, in any layout (`CompM.Layout`, `Layout.blankM`): the
 program table's lookups pin its public cells, the witness table's the bit
 cells and the region's, so the memory's prefix is the open machine of the
 bits and region it holds (`CompDOK.heap0`), and the region is well formed
@@ -18,20 +19,20 @@ open B Compose CompM Stmt Mach Wit
 
 section
 
-variable {shp : BT} {W : Nat} {Vs : List OTerm} {J : Nat} {C Mm Pg Wt Sg D : Table}
-  (h : CompDOK (blankMO shp W Vs).hd (blankMO shp W Vs).stk (blankMO shp W Vs).heap.length
-    (blankRootsO shp W Vs).length (blankMO shp W Vs).stk J (blankMO shp W Vs).heap (BT.nleaves shp) W
-    (blankRootsO shp W Vs) C Mm Pg Wt Sg D)
+variable {L : Layout} {shp : BT} {W : Nat} {Vs : List OTerm} {J : Nat} {C Mm Pg Wt Sg D : Table}
+  (h : CompDOK (L.blankM shp W Vs).hd (L.blankM shp W Vs).stk (L.blankM shp W Vs).heap.length
+    (L.blankRoots shp W Vs).length (L.blankM shp W Vs).stk J (L.blankM shp W Vs).heap (BT.nleaves shp) W
+    (L.blankRoots shp W Vs) C Mm Pg Wt Sg D)
 include h
 
-theorem CompDOK.pg_h : Pg.h ≤ 2 ^ 27 := h.two (progAirC (blankMO shp W Vs).heap (BT.nleaves shp) W, Pg) (by simp [compDTables])
+theorem CompDOK.pg_h : Pg.h ≤ 2 ^ 27 := h.two (progAirC (L.blankM shp W Vs).heap (BT.nleaves shp) W, Pg) (by simp [compDTables])
 theorem CompDOK.wt_h : Wt.h ≤ 2 ^ 27 := h.two (witAir (BT.nleaves shp) W, Wt) (by simp [compDTables])
 
 /-- The blank heap is small: its public cells are program rows, its private
     ones witness rows. -/
-theorem CompDOK.heap_le : (blankMO shp W Vs).heap.length ≤ 2 ^ 28 := by
-  have e := public_length (blankMO shp W Vs).heap (BT.nleaves shp) W (blankO_prefix shp W Vs)
-  have p1 := progRowsC_length (blankMO shp W Vs).heap (BT.nleaves shp) W
+theorem CompDOK.heap_le : (L.blankM shp W Vs).heap.length ≤ 2 ^ 28 := by
+  have e := public_length (L.blankM shp W Vs).heap (BT.nleaves shp) W (L.blank_prefix shp W Vs)
+  have p1 := progRowsC_length (L.blankM shp W Vs).heap (BT.nleaves shp) W
   have p2 := witRows_length (BT.nleaves shp) W
   have hp := h.pgpre.1
   have hw := h.wtpre.1
@@ -41,7 +42,7 @@ theorem CompDOK.heap_le : (blankMO shp W Vs).heap.length ≤ 2 ^ 28 := by
   have : (2 : Nat) ^ 28 = 2 ^ 27 + 2 ^ 27 := by decide
   omega
 
-theorem CompDOK.heap_lt : (blankMO shp W Vs).heap.length < P :=
+theorem CompDOK.heap_lt : (L.blankM shp W Vs).heap.length < P :=
   Nat.lt_of_le_of_lt h.heap_le (by decide)
 
 theorem CompDOK.memW {c : E} (hc : c ∈ witCons) {q : Nat} (hq : q < Wt.h) : c.eval (Wt.env q) = 0 :=
@@ -56,17 +57,17 @@ theorem CompDOK.witCell {q : Nat} (hq : q < Wt.h) (hact : Wt.pre q 1 = 1) :
     (mem_addrC h.mem) h.mem_h hq hact
 
 /-- **A public cell is in memory.** -/
-theorem CompDOK.pubCell {Bd : Nat} (hBd : Bd < P) (hfit : FitsB Bd (blankMO shp W Vs).heap)
-    {i : Nat} (hi : i < (blankMO shp W Vs).heap.length) (hp : ¬ (3 ≤ i ∧ i < 3 + BT.nleaves shp + W)) :
-    i < Mm.h ∧ (memOf Mm)[i]? = (blankMO shp W Vs).heap[i]? := by
+theorem CompDOK.pubCell {Bd : Nat} (hBd : Bd < P) (hfit : FitsB Bd (L.blankM shp W Vs).heap)
+    {i : Nat} (hi : i < (L.blankM shp W Vs).heap.length) (hp : ¬ (3 ≤ i ∧ i < 3 + BT.nleaves shp + W)) :
+    i < Mm.h ∧ (memOf Mm)[i]? = (L.blankM shp W Vs).heap[i]? := by
   obtain ⟨q, hq, e⟩ := progRowsC_has (N := BT.nleaves shp) (W := W) hi hp
   have hqP : q < Pg.h := by rw [h.pgpre.1]; exact hq
   have pv : ∀ j, j < 5 → (prec j).eval (Pg.env q) =
-      ((progRowsC (blankMO shp W Vs).heap (BT.nleaves shp) W).getD q []).getD j 0 :=
+      ((progRowsC (L.blankM shp W Vs).heap (BT.nleaves shp) W).getD q []).getD j 0 :=
     fun j hj => prec_eval h.pgpre hqP hj
-  let hp' := (blankMO shp W Vs).heap
+  let hp' := (L.blankM shp W Vs).heap
   have hit := h.memHit (v := [ofN i, ofN (cellTag hp'[i]), ofN (cellFields hp'[i]).1, ofN (cellFields hp'[i]).2])
-    ⟨(progAirC (blankMO shp W Vs).heap (BT.nleaves shp) W, Pg), by simp [compDTables], rfl, q, hqP, _,
+    ⟨(progAirC (L.blankM shp W Vs).heap (BT.nleaves shp) W, Pg), by simp [compDTables], rfl, q, hqP, _,
       List.mem_cons_self, rfl,
       by simp only [progAirC, List.map_cons, List.map_nil, pv 0 (by decide), pv 1 (by decide), pv 2 (by decide),
         pv 3 (by decide), e]; rfl,
@@ -74,7 +75,7 @@ theorem CompDOK.pubCell {Bd : Nat} (hBd : Bd < P) (hfit : FitsB Bd (blankMO shp 
   obtain ⟨hlt, hget⟩ := h.cell hit
   have hP := h.heap_lt
   have hf := hfit _ (List.getElem_mem hi)
-  have hm : max (blankMO shp W Vs).heap.length Bd < P := Nat.max_lt.2 ⟨hP, hBd⟩
+  have hm : max (L.blankM shp W Vs).heap.length Bd < P := Nat.max_lt.2 ⟨hP, hBd⟩
   rw [val_ofN (Nat.lt_trans hi hP)] at hlt hget
   rw [cellOf_enc _ (Nat.lt_trans hf.1 hm) (Nat.lt_trans hf.2 hm)] at hget
   exact ⟨hlt, by rw [hget, List.getElem?_eq_getElem hi]⟩
@@ -127,18 +128,18 @@ theorem CompDOK.regionWF : ∀ i c, (regionM (memOf Mm) (BT.nleaves shp) W)[i]? 
 
 /-- **The memory's prefix is the open composed machine** of the bits and
     the region it holds. -/
-theorem CompDOK.heap0 {Bd : Nat} (hBd : Bd < P) (hfit : FitsB Bd (blankMO shp W Vs).heap) :
-    (memOf Mm).take (blankMO shp W Vs).heap.length =
-      (cMachineO (bitsM (memOf Mm)) shp (regionM (memOf Mm) (BT.nleaves shp) W) Vs).heap := by
+theorem CompDOK.heap0L {Bd : Nat} (hBd : Bd < P) (hfit : FitsB Bd (L.blankM shp W Vs).heap) :
+    (memOf Mm).take (L.blankM shp W Vs).heap.length =
+      (L.mach (bitsM (memOf Mm)) shp (regionM (memOf Mm) (BT.nleaves shp) W) Vs).heap := by
   let A := memOf Mm
   let N := BT.nleaves shp
   let ρ := bitsM A
   let region := regionM A N W
   have hl : region.length = (List.replicate W Cell.S).length := by rw [List.length_replicate]; exact h.region_len
-  obtain ⟨_, _, _, hlen, htake, hpub⟩ := cMachineO_public ρ (fun _ => false) shp region (List.replicate W .S) Vs hl
+  obtain ⟨_, _, _, hlen, htake, hpub⟩ := L.pub ρ (fun _ => false) shp region (List.replicate W .S) Vs hl
   have hRL : region.length = W := h.region_len
-  have hlen2 : (cMachineO (bitsM (memOf Mm)) shp (regionM (memOf Mm) (BT.nleaves shp) W) Vs).heap.length =
-      (blankMO shp W Vs).heap.length := hlen
+  have hlen2 : (L.mach (bitsM (memOf Mm)) shp (regionM (memOf Mm) (BT.nleaves shp) W) Vs).heap.length =
+      (L.blankM shp W Vs).heap.length := hlen
   apply List.ext_getElem?
   intro i
   rw [List.getElem?_take]
@@ -178,6 +179,24 @@ theorem CompDOK.heap0 {Bd : Nat} (hBd : Bd < P) (hfit : FitsB Bd (blankMO shp W 
       rfl
   · next hi =>
     rw [List.getElem?_eq_none (by omega)]
+
+end
+
+
+section
+
+/-! The audited statement, the statement as a tree. -/
+
+variable {shp : BT} {W : Nat} {Vs : List OTerm} {J : Nat} {C Mm Pg Wt Sg D : Table}
+  (h : CompDOK (blankMO shp W Vs).hd (blankMO shp W Vs).stk (blankMO shp W Vs).heap.length
+    (blankRootsO shp W Vs).length (blankMO shp W Vs).stk J (blankMO shp W Vs).heap (BT.nleaves shp) W
+    (blankRootsO shp W Vs) C Mm Pg Wt Sg D)
+include h
+
+theorem CompDOK.heap0 {Bd : Nat} (hBd : Bd < P) (hfit : FitsB Bd (blankMO shp W Vs).heap) :
+    (memOf Mm).take (blankMO shp W Vs).heap.length =
+      (cMachineO (bitsM (memOf Mm)) shp (regionM (memOf Mm) (BT.nleaves shp) W) Vs).heap :=
+  CompDOK.heap0L (L := treeL) h hBd hfit
 
 end
 

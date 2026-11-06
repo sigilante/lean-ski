@@ -53,6 +53,32 @@ Open:
    1,152,824).  But the statement's heap is the compiled program as a tree,
    2.35 million cells: memory log 22 (`dlogsOK` now allows 22).  A first
    form of `loop_1` (13 copies of `normT`) proved in 129 s and verified in
-   37 s, a 1.56 MB proof, at a 13.5 GB peak, past the 4 GB budget.  Needed:
-   a statement heap that shares subterms (a DAG layout of the public
-   program in `cHeapO`), or a prover whose memory table is cheaper.
+   37 s, a 1.56 MB proof, at a 13.5 GB peak, past the 4 GB budget.
+
+   **The shared statement heap (branch `shared-heap`).**  `obuildS`
+   (`Ski/HeapShared.lean`) writes a statement hash-consed, its memo a table
+   of association lists (`Memo.find_add`, `propext` only); `cHeapOS`
+   (`Ski/ComposedOS.lean`) meets the three facts the `dec` circuit reads
+   off `cHeapO` (`cMachineOS_decode`, `_public`, `_fitsB`).  The circuit and
+   its soundness and completeness are proved once over a `Layout`
+   (`Ski/Layout.lean`; `compDAirsGL`, `compDExportG_soundL`,
+   `dectermExport_closeL`, `compDG_complete_ofL`/`_decL`/`_nojetL`), the
+   audited tree names their `treeL` instances, statements unchanged.  A
+   shared statement has the header `dectermS` (`publicTextDGS`,
+   `statementOfTextDGS`, `dectermSExport_close`); `composed reshare-dec`
+   writes one from a `decterm` text.  Sharing is safe as no composed run
+   writes a cell in place (`Air.st`, `AcceptsCD.heap0`, `normRowD_spec`).
+   The loops' heaps fall from 2,329,975–2,330,037 cells to 2,300–2,313;
+   proved and verified under 4 GB (`compd-prove`, `compd-verify`, Lean's
+   `check-dec-run`):
+
+   | loop | CPU rows | memory cells | heights | prove | verify | proof | peak |
+   |--:|--:|--:|--:|--:|--:|--:|--:|
+   | 1 | 17,544 | 23,429 | 15 15 9 | 1.73 s | 1.6 s | 1.13 MB | 0.69 GB |
+   | 3 | 35,165 | 44,514 | 16 16 9 | 3.34 s | 1.6 s | 1.17 MB | 0.87 GB |
+   | 10 | 98,777 | 120,437 | 17 17 9 | 6.52 s | 1.6 s | 1.22 MB | 1.39 GB |
+   | 20 | 192,219 | 231,457 | 18 18 9 | 12.94 s | 2.0 s | 1.28 MB | 2.77 GB |
+
+   Open: skinock's `emit-loop`/`check-loop` writing `dectermS` and
+   `nockloop_close` through `dectermSExport_close`, and the proofs released
+   under `skinock/release/nock/`.

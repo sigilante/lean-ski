@@ -1,6 +1,7 @@
 import Ski.Circuit.CompAir
 import Ski.Circuit.CompJAir
 import Ski.ComposedDText
+import Ski.Layout
 
 /-!
 # The composed circuit with the `dec` jet, as data
@@ -381,16 +382,20 @@ end Dec
 def decAirB : AirD := withBlocks Dec.decAir [("blind_c", false)]
 
 /-- **The composed circuit with the `dec` jet** for verifiers `Vs`, open in
-    the jet's atom, over one bit and a region of `W` cells: what its
-    verifier builds. -/
-def compDAirsG (Vs : List OTerm) (W : Nat) : List AirD :=
+    the jet's atom, over one bit and a region of `W` cells, the statement
+    laid out by `L`: what its verifier builds.  The layout sets only the
+    program table's cells and the registers; the constraints are the same. -/
+def compDAirsGL (L : CompM.Layout) (Vs : List OTerm) (W : Nat) : List AirD :=
   let N := BT.nleaves ComposedDText.shpD
   let region := List.replicate W Cell.S
   let ρ0 : Nat → Bool := fun _ => false
-  let m := cMachineO ρ0 ComposedDText.shpD region Vs
-  let roots := (cHeapO ρ0 ComposedDText.shpD region Vs).2
+  let m := L.mach ρ0 ComposedDText.shpD region Vs
+  let roots := (L.heap ρ0 ComposedDText.shpD region Vs).2
   [cpuAirDec m.hd m.stk m.heap.length roots.length m.stk ComposedDText.JD, memAirC,
    progAirC m.heap N W, witAir N W, segsAir roots, decAirB]
+
+/-- The circuit with the statement as a tree, the audited layout. -/
+def compDAirsG (Vs : List OTerm) (W : Nat) : List AirD := compDAirsGL CompM.treeL Vs W
 
 /-- The circuit for `decpre p` over a region of `W` cells. -/
 def compDAirs (p W : Nat) : List AirD := compDAirsG (ComposedDText.VsD p) W

@@ -92,6 +92,94 @@ set_option maxRecDepth 100000 in
     memory table counting every lookup, the public program and segment
     tables, the honest witness table, and DEC; the memory and the rows
     decode back. -/
+theorem compDG_complete_decL L {R Lm LD : Nat} (hR : R ≤ 20) (hLm : Lm ≤ 20) (hLD : LD ≤ 20)
+    {Vs : List OTerm} {W : Nat} {Rs : List AirD} (hs : sameAirsB Rs (compDAirsGL L Vs W) = true)
+    {ρ : Nat → Bool} {region : List Cell} (hrl : region.length = W)
+    (hr : ∀ i c, region[i]? = some c → cellOK (BT.nleaves shpD + 3 + i) c = true)
+    (hNW : BT.nleaves shpD + W ≤ 2 ^ 8)
+    {A : List Cell} {e : Nat → Nat} {row : Nat → Air.Row}
+    (hA : DRun.Honest ⟨A, JD, (L.heap ρ shpD region Vs).2, e, Vs.length, row⟩ (L.mach ρ shpD region Vs)
+      (L.heap ρ shpD region Vs).1.length)
+    (hfit : Fits A) (hlen : A.length = 2 ^ Lm) (hK : e (Vs.length - 1) < 2 ^ R)
+    {D : Table} (hD : D.h = 2 ^ LD)
+    (hdec : DecProvides ⟨A, JD, (L.heap ρ shpD region Vs).2, e, Vs.length, row⟩ (2 ^ R) D) :
+    ∃ C Mm Pg Wt Sg, AcceptedP Rs [C, Mm, Pg, Wt, Sg, D] ∧
+      C = DRun.cpuTableD ⟨A, JD, (L.heap ρ shpD region Vs).2, e, Vs.length, row⟩ (2 ^ R) ∧
+      Pg = progTableC (L.blankM shpD W Vs).heap (BT.nleaves shpD) W ∧ Wt = witTable A (BT.nleaves shpD) W ∧
+      C.h = 2 ^ R ∧ Mm.h = 2 ^ Lm ∧ memOf Mm = A ∧ ∀ i, i ≤ e (Vs.length - 1) → rowOf C i = row i := by
+  let Rn : DRun := ⟨A, JD, (L.heap ρ shpD region Vs).2, e, Vs.length, row⟩
+  have hl : region.length = (List.replicate W Cell.S).length := by rw [List.length_replicate, hrl]
+  obtain ⟨_, hstk, hroots', hlenm, _, _⟩ :=
+    L.pubM ρ (fun _ => false) shpD region (List.replicate W .S) Vs hl
+  have eR : (L.heap ρ shpD region Vs).2 = L.blankRoots shpD W Vs := hroots'
+  have hn : 0 < Vs.length := hA.acc.npos
+  have hnR : (L.blankRoots shpD W Vs).length = Vs.length := L.blankRoots_length _ _ _
+  have hRb : 2 ^ R ≤ 1048576 := Nat.pow_le_pow_right (by decide) hR
+  have hLb : 2 ^ Lm ≤ 1048576 := Nat.pow_le_pow_right (by decide) hLm
+  have hctr := DRun.ctr_le hA
+  have hK' : Rn.e (Rn.n - 1) < 2 ^ R := hK
+  let C := Rn.cpuTableD (2 ^ R)
+  have hb : ∀ i, i < 2 ^ R → (rowP Rn.row Rn.e Rn.n i).ctr ≤ 2 ^ 24 := by
+    intro i _
+    unfold rowP
+    split
+    · next h => exact Nat.le_trans (hctr i h) (by show A.length ≤ _; omega)
+    · exact Nat.le_trans (hctr _ (Nat.le_refl _)) (by show A.length ≤ _; omega)
+  have eAir : cpuAirDec (Rn.segRoots.getD 0 0) (L.heap ρ shpD region Vs).1.length
+      (L.mach ρ shpD region Vs).heap.length Rn.n (L.heap ρ shpD region Vs).1.length Rn.J = cpuDGL L Vs W := by
+    show cpuAirDec ((L.heap ρ shpD region Vs).2.getD 0 0) (L.heap ρ shpD region Vs).1.length
+      (L.mach ρ shpD region Vs).heap.length Vs.length (L.heap ρ shpD region Vs).1.length JD = _
+    rw [eR, hlenm, ← hnR, show (L.heap ρ shpD region Vs).1.length = (L.blankM shpD W Vs).stk from hstk]
+    rfl
+  have hH : DecHonest A (cpuDGL L Vs W) (L.blankRoots shpD W Vs) C D := by
+    refine ⟨?_, ?_, ?_, hdec.sat, hdec.wide, hdec.mem, ?_⟩
+    · have := DRun.cpuD_sat hA hK' hb
+      rw [eAir] at this; exact this
+    · exact DRun.cpuD_honest hA hK' _ _ _ _ _ _
+    · have := DRun.cpuD_segsHonest hA hK' (L.blankM shpD W Vs).hd (L.blankM shpD W Vs).stk
+        (L.blankM shpD W Vs).heap.length (L.blankRoots shpD W Vs).length (L.blankM shpD W Vs).stk JD
+        (show Rn.segRoots.length = Rn.n by show (L.heap ρ shpD region Vs).2.length = _; rw [eR, hnR])
+      rw [show Rn.segRoots = L.blankRoots shpD W Vs from eR] at this
+      exact this
+    · intro B hBm hBs v
+      rw [show cpuDGL L Vs W = cpuAirDec _ _ _ _ _ _ from rfl, DRun.cpuD_jetSends Rn _ _ _ _ _ _ _ hBm hBs v,
+        hdec.sends B hBm hBs v, add_comm']
+      exact neg_add_cancel' _
+  have hA' : AcceptsCD A (L.mach ρ shpD region Vs) JD (L.heap ρ shpD region Vs).2
+      (L.heap ρ shpD region Vs).1.length Vs.length e row := hA.acc
+  obtain ⟨hacc, hmem, _⟩ := compDG_complete_ofL L hR hLm hLD hs hrl hr hNW hA' hfit hlen hK rfl hD hH
+  refine ⟨C, _, _, _, _, hacc, rfl, rfl, rfl, rfl, hlen, hmem, ?_⟩
+  -- the rows decode back
+  intro i hi
+  have hiK : i < 2 ^ R := by omega
+  have hR' := DRun.runC hA hK'
+  have hc : (row i).ctr ≤ A.length := hctr i hi
+  have hS := shape (hR'.valid i hiK)
+  obtain ⟨cell, hrd, _⟩ := hS.reads 0 (by decide) rfl
+  have hh := (rd_get hrd).1
+  have hq : Rn.rowQ i = row i := DRun.rowQ_of_le (R := Rn) hi
+  have e1 : rowP row e Vs.length i = row i := hq
+  rw [e1] at hh
+  have hnil : (L.heap ρ shpD region Vs).1.length ≤ A.length := by
+    have h0 : (A.take (row 0).ctr).length = (L.mach ρ shpD region Vs).heap.length :=
+      congrArg List.length hA.acc.heap0
+    rw [List.length_take] at h0
+    have h1 : (row 0).ctr = (L.mach ρ shpD region Vs).heap.length := hA.acc.ctr0
+    have : (L.heap ρ shpD region Vs).1.length < (L.mach ρ shpD region Vs).heap.length := by
+      show _ < ((L.heap ρ shpD region Vs).1 ++ [Cell.nil]).length; simp
+    omega
+  have hst : (row i).stk ≤ A.length := DRun.stk_le hA hfit hnil i hi
+  have hPP : P = 2013265921 := rfl
+  have hst' : (row i).stk < P := by
+    have : (row i).stk ≤ A.length := hst
+    omega
+  show (⟨(Rn.cpuColD i HD).val, (Rn.cpuColD i STK).val, (Rn.cpuColD i CTR).val⟩ : Air.Row) = row i
+  rw [Rn.colD_hd, Rn.colD_stk, Rn.colD_ctr, hq]
+  rw [val_ofN (by show (row i).hd < P; have : (row i).hd < (row i).ctr := hh; omega),
+    val_ofN hst', val_ofN (by omega)]
+
+open Stmt Wit ComposedDText CompM Compose Mach in
+/-- `compDG_complete_decL` for the statement as a tree. -/
 theorem compDG_complete_dec {R Lm LD : Nat} (hR : R ≤ 20) (hLm : Lm ≤ 20) (hLD : LD ≤ 20)
     {Vs : List OTerm} {W : Nat} {Rs : List AirD} (hs : sameAirsB Rs (compDAirsG Vs W) = true)
     {ρ : Nat → Bool} {region : List Cell} (hrl : region.length = W)
@@ -106,77 +194,8 @@ theorem compDG_complete_dec {R Lm LD : Nat} (hR : R ≤ 20) (hLm : Lm ≤ 20) (h
     ∃ C Mm Pg Wt Sg, AcceptedP Rs [C, Mm, Pg, Wt, Sg, D] ∧
       C = DRun.cpuTableD ⟨A, JD, (cHeapO ρ shpD region Vs).2, e, Vs.length, row⟩ (2 ^ R) ∧
       Pg = progTableC (blankMO shpD W Vs).heap (BT.nleaves shpD) W ∧ Wt = witTable A (BT.nleaves shpD) W ∧
-      C.h = 2 ^ R ∧ Mm.h = 2 ^ Lm ∧ memOf Mm = A ∧ ∀ i, i ≤ e (Vs.length - 1) → rowOf C i = row i := by
-  let Rn : DRun := ⟨A, JD, (cHeapO ρ shpD region Vs).2, e, Vs.length, row⟩
-  have hl : region.length = (List.replicate W Cell.S).length := by rw [List.length_replicate, hrl]
-  obtain ⟨_, hstk, hroots', hlenm, _, _⟩ :=
-    cMachineO_public ρ (fun _ => false) shpD region (List.replicate W .S) Vs hl
-  have eR : (cHeapO ρ shpD region Vs).2 = blankRootsO shpD W Vs := hroots'
-  have hn : 0 < Vs.length := hA.acc.npos
-  have hnR : (blankRootsO shpD W Vs).length = Vs.length := blankRootsO_length _ _ _
-  have hRb : 2 ^ R ≤ 1048576 := Nat.pow_le_pow_right (by decide) hR
-  have hLb : 2 ^ Lm ≤ 1048576 := Nat.pow_le_pow_right (by decide) hLm
-  have hctr := DRun.ctr_le hA
-  have hK' : Rn.e (Rn.n - 1) < 2 ^ R := hK
-  let C := Rn.cpuTableD (2 ^ R)
-  have hb : ∀ i, i < 2 ^ R → (rowP Rn.row Rn.e Rn.n i).ctr ≤ 2 ^ 24 := by
-    intro i _
-    unfold rowP
-    split
-    · next h => exact Nat.le_trans (hctr i h) (by show A.length ≤ _; omega)
-    · exact Nat.le_trans (hctr _ (Nat.le_refl _)) (by show A.length ≤ _; omega)
-  have eAir : cpuAirDec (Rn.segRoots.getD 0 0) (cHeapO ρ shpD region Vs).1.length
-      (cMachineO ρ shpD region Vs).heap.length Rn.n (cHeapO ρ shpD region Vs).1.length Rn.J = cpuDG Vs W := by
-    show cpuAirDec ((cHeapO ρ shpD region Vs).2.getD 0 0) (cHeapO ρ shpD region Vs).1.length
-      (cMachineO ρ shpD region Vs).heap.length Vs.length (cHeapO ρ shpD region Vs).1.length JD = _
-    rw [eR, hlenm, ← hnR, show (cHeapO ρ shpD region Vs).1.length = (blankMO shpD W Vs).stk from hstk]
-    rfl
-  have hH : DecHonest A (cpuDG Vs W) (blankRootsO shpD W Vs) C D := by
-    refine ⟨?_, ?_, ?_, hdec.sat, hdec.wide, hdec.mem, ?_⟩
-    · have := DRun.cpuD_sat hA hK' hb
-      rw [eAir] at this; exact this
-    · exact DRun.cpuD_honest hA hK' _ _ _ _ _ _
-    · have := DRun.cpuD_segsHonest hA hK' (blankMO shpD W Vs).hd (blankMO shpD W Vs).stk
-        (blankMO shpD W Vs).heap.length (blankRootsO shpD W Vs).length (blankMO shpD W Vs).stk JD
-        (show Rn.segRoots.length = Rn.n by show (cHeapO ρ shpD region Vs).2.length = _; rw [eR, hnR])
-      rw [show Rn.segRoots = blankRootsO shpD W Vs from eR] at this
-      exact this
-    · intro B hBm hBs v
-      rw [show cpuDG Vs W = cpuAirDec _ _ _ _ _ _ from rfl, DRun.cpuD_jetSends Rn _ _ _ _ _ _ _ hBm hBs v,
-        hdec.sends B hBm hBs v, add_comm']
-      exact neg_add_cancel' _
-  have hA' : AcceptsCD A (cMachineO ρ shpD region Vs) JD (cHeapO ρ shpD region Vs).2
-      (cHeapO ρ shpD region Vs).1.length Vs.length e row := hA.acc
-  obtain ⟨hacc, hmem, _⟩ := compDG_complete_of hR hLm hLD hs hrl hr hNW hA' hfit hlen hK rfl hD hH
-  refine ⟨C, _, _, _, _, hacc, rfl, rfl, rfl, rfl, hlen, hmem, ?_⟩
-  -- the rows decode back
-  intro i hi
-  have hiK : i < 2 ^ R := by omega
-  have hR' := DRun.runC hA hK'
-  have hc : (row i).ctr ≤ A.length := hctr i hi
-  have hS := shape (hR'.valid i hiK)
-  obtain ⟨cell, hrd, _⟩ := hS.reads 0 (by decide) rfl
-  have hh := (rd_get hrd).1
-  have hq : Rn.rowQ i = row i := DRun.rowQ_of_le (R := Rn) hi
-  have e1 : rowP row e Vs.length i = row i := hq
-  rw [e1] at hh
-  have hnil : (cHeapO ρ shpD region Vs).1.length ≤ A.length := by
-    have h0 : (A.take (row 0).ctr).length = (cMachineO ρ shpD region Vs).heap.length :=
-      congrArg List.length hA.acc.heap0
-    rw [List.length_take] at h0
-    have h1 : (row 0).ctr = (cMachineO ρ shpD region Vs).heap.length := hA.acc.ctr0
-    have : (cHeapO ρ shpD region Vs).1.length < (cMachineO ρ shpD region Vs).heap.length := by
-      show _ < ((cHeapO ρ shpD region Vs).1 ++ [Cell.nil]).length; simp
-    omega
-  have hst : (row i).stk ≤ A.length := DRun.stk_le hA hfit hnil i hi
-  have hPP : P = 2013265921 := rfl
-  have hst' : (row i).stk < P := by
-    have : (row i).stk ≤ A.length := hst
-    omega
-  show (⟨(Rn.cpuColD i HD).val, (Rn.cpuColD i STK).val, (Rn.cpuColD i CTR).val⟩ : Air.Row) = row i
-  rw [Rn.colD_hd, Rn.colD_stk, Rn.colD_ctr, hq]
-  rw [val_ofN (by show (row i).hd < P; have : (row i).hd < (row i).ctr := hh; omega),
-    val_ofN hst', val_ofN (by omega)]
+      C.h = 2 ^ R ∧ Mm.h = 2 ^ Lm ∧ memOf Mm = A ∧ ∀ i, i ≤ e (Vs.length - 1) → rowOf C i = row i :=
+  compDG_complete_decL treeL hR hLm hLD hs hrl hr hNW hA hfit hlen hK hD hdec
 
 end Circuit
 
@@ -244,6 +263,24 @@ theorem decProvides_none {R : DRun} {K H : Nat} (hH : 0 < H) (h : ∀ r, r < K �
 open Stmt Wit ComposedDText CompM Compose Mach in
 /-- **Completeness for a run that never fires the jet**: unconditional, DEC
     the zero table. -/
+theorem compDG_complete_nojetL (L : Layout) {R Lm LD : Nat} (hR : R ≤ 20) (hLm : Lm ≤ 20) (hLD : LD ≤ 20)
+    {Vs : List OTerm} {W : Nat} {Rs : List AirD} (hs : sameAirsB Rs (compDAirsGL L Vs W) = true)
+    {ρ : Nat → Bool} {region : List Cell} (hrl : region.length = W)
+    (hr : ∀ i c, region[i]? = some c → cellOK (BT.nleaves shpD + 3 + i) c = true)
+    (hNW : BT.nleaves shpD + W ≤ 2 ^ 8)
+    {A : List Cell} {e : Nat → Nat} {row : Nat → Air.Row}
+    (hA : DRun.Honest ⟨A, JD, (L.heap ρ shpD region Vs).2, e, Vs.length, row⟩ (L.mach ρ shpD region Vs)
+      (L.heap ρ shpD region Vs).1.length)
+    (hfit : Fits A) (hlen : A.length = 2 ^ Lm) (hK : e (Vs.length - 1) < 2 ^ R)
+    (hnone : ∀ r, r < 2 ^ R → DRun.jetAt ⟨A, JD, (L.heap ρ shpD region Vs).2, e, Vs.length, row⟩ r = false) :
+    ∃ C Mm Pg Wt Sg, AcceptedP Rs [C, Mm, Pg, Wt, Sg, decZero (2 ^ LD)] ∧ memOf Mm = A ∧
+      ∀ i, i ≤ e (Vs.length - 1) → rowOf C i = row i := by
+  obtain ⟨C, Mm, Pg, Wt, Sg, hacc, _, _, _, _, _, hmem, hrow⟩ :=
+    compDG_complete_decL L hR hLm hLD hs hrl hr hNW hA hfit hlen hK rfl (decProvides_none (Nat.two_pow_pos _) hnone)
+  exact ⟨C, Mm, Pg, Wt, Sg, hacc, hmem, hrow⟩
+
+open Stmt Wit ComposedDText CompM Compose Mach in
+/-- `compDG_complete_nojetL` for the statement as a tree. -/
 theorem compDG_complete_nojet {R Lm LD : Nat} (hR : R ≤ 20) (hLm : Lm ≤ 20) (hLD : LD ≤ 20)
     {Vs : List OTerm} {W : Nat} {Rs : List AirD} (hs : sameAirsB Rs (compDAirsG Vs W) = true)
     {ρ : Nat → Bool} {region : List Cell} (hrl : region.length = W)
@@ -255,9 +292,7 @@ theorem compDG_complete_nojet {R Lm LD : Nat} (hR : R ≤ 20) (hLm : Lm ≤ 20) 
     (hfit : Fits A) (hlen : A.length = 2 ^ Lm) (hK : e (Vs.length - 1) < 2 ^ R)
     (hnone : ∀ r, r < 2 ^ R → DRun.jetAt ⟨A, JD, (cHeapO ρ shpD region Vs).2, e, Vs.length, row⟩ r = false) :
     ∃ C Mm Pg Wt Sg, AcceptedP Rs [C, Mm, Pg, Wt, Sg, decZero (2 ^ LD)] ∧ memOf Mm = A ∧
-      ∀ i, i ≤ e (Vs.length - 1) → rowOf C i = row i := by
-  obtain ⟨C, Mm, Pg, Wt, Sg, hacc, _, _, _, _, _, hmem, hrow⟩ :=
-    compDG_complete_dec hR hLm hLD hs hrl hr hNW hA hfit hlen hK rfl (decProvides_none (Nat.two_pow_pos _) hnone)
-  exact ⟨C, Mm, Pg, Wt, Sg, hacc, hmem, hrow⟩
+      ∀ i, i ≤ e (Vs.length - 1) → rowOf C i = row i :=
+  compDG_complete_nojetL treeL hR hLm hLD hs hrl hr hNW hA hfit hlen hK hnone
 
 end Circuit

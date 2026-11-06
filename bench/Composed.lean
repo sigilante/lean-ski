@@ -846,11 +846,16 @@ def emitDecFresh (dir : String) : IO UInt32 := do
   return r
 
 /-- A statement with the `dec` jet: `decpre p`'s verifier, or the verifiers
-    a `decterm` statement's heap holds (`Ski/DecTerm.lean`). -/
-def statementAnyD (text : String) : Option (String × List OTerm × Nat) :=
+    a `decterm` statement's heap holds (`Ski/DecTerm.lean`), as a tree or,
+    header `dectermS`, shared; with the layout. -/
+def statementAnyD (text : String) : Option (String × List OTerm × Nat × CompM.Layout) :=
   match ComposedDText.statementOfTextD text with
-  | some (p, W, _) => some (s!"decpre {p}", ComposedDText.VsD p, W)
-  | none => (DecTerm.statementOfTextDG text).map fun (Vs, W, _) => (s!"decterm ({Vs.length} verifiers)", Vs, W)
+  | some (p, W, _) => some (s!"decpre {p}", ComposedDText.VsD p, W, CompM.treeL)
+  | none =>
+    match DecTerm.statementOfTextDG text with
+    | some (Vs, W, _) => some (s!"decterm ({Vs.length} verifiers)", Vs, W, CompM.treeL)
+    | none => (DecTerm.statementOfTextDGS text).map fun (Vs, W, _) =>
+        (s!"dectermS ({Vs.length} verifiers)", Vs, W, CompM.sharedL)
 
 /-- `composed statement-dec PUBLIC`: `OK decpre p` or `OK decterm` when the
     file is exactly a statement with the `dec` jet. -/
@@ -861,7 +866,26 @@ def statementDec (path : String) : IO UInt32 := do
   | none =>
     match DecTerm.statementOfTextDG text with
     | some (Vs, W, _) => IO.println s!"OK decterm {Vs.length} W {W}"; return 0
-    | none => IO.println "NOT A STATEMENT"; return 1
+    | none =>
+      match DecTerm.statementOfTextDGS text with
+      | some (Vs, W, _) => IO.println s!"OK dectermS {Vs.length} W {W}"; return 0
+      | none => IO.println "NOT A STATEMENT"; return 1
+
+/-- `composed reshare-dec PUBLIC OUT R M D`: a `decterm` statement, checked,
+    written again with its heap shared (`dectermS`, `publicTextDGS`) at the
+    heights `R M D`.  Only a convenience: whoever takes the output checks it
+    as any `dectermS` text (`statement-dec`). -/
+def reshareDec (pub out : String) (r m d : Nat) : IO UInt32 := do
+  match DecTerm.statementOfTextDG (← IO.FS.readFile pub) with
+  | some (Vs, W, _) =>
+    let lg : ComposedDText.DLogs := ⟨r, m, d⟩
+    if !ComposedDText.dlogsOK lg then IO.println "heights out of range"; return 1
+    let text := DecTerm.publicTextDGS Vs W lg
+    IO.FS.writeFile out text
+    let cells := (text.splitOn "\n").length - 8
+    IO.println s!"wrote {out}: dectermS, {Vs.length} verifiers, W {W}, heights {r} {m} {d}, {cells} heap cells"
+    return 0
+  | none => IO.println "NOT A decterm STATEMENT"; return 1
 
 /-- `composed check-decpre PUBLIC`: `OK DECPRE p` when the file is exactly
     the decrement statement at the documented region size and heights. -/
@@ -880,14 +904,14 @@ def checkDecpre (path : String) : IO UInt32 := do
     is `K` over the nil.  `OK DECRUN …` with the number of jet rows. -/
 def checkDecRun (pub run : String) : IO UInt32 := do
   let text ← IO.FS.readFile pub
-  let some (name, Vs, W) := statementAnyD text | do IO.println "NOT A STATEMENT"; return 1
+  let some (name, Vs, W, L) := statementAnyD text | do IO.println "NOT A STATEMENT"; return 1
   let ls := ((← IO.FS.readFile run).splitOn "\n").filter (fun l => !l.trimAscii.toString.isEmpty)
   let some (hl, rest) := (match ls with | l :: r => some (l, r) | [] => none) | do IO.println "MALFORMED run"; return 1
   if hl != (text.splitOn "\n").headD "" then IO.println "the run is not of the statement"; return 1
   let some (W', cells, ends, rows) := parseRun rest | do IO.println "MALFORMED run"; return 1
   if W' != W then IO.println "the run's region is not the statement's"; return 1
   let M := cells.toList
-  let m := CompM.cMachineO (fun _ => false) ComposedDText.shpD (List.replicate W Cell.S) Vs
+  let m := L.mach (fun _ => false) ComposedDText.shpD (List.replicate W Cell.S) Vs
   let N := BT.nleaves ComposedDText.shpD
   -- The public cells, all but the bits and the region.
   let pubOK := (List.range m.heap.length).all fun i =>
@@ -937,6 +961,10 @@ def main (args : List String) : IO UInt32 := do
   | ["emit-dec", dir, "--fresh"] => emitDecFresh dir
   | ["emit-dec", dir, n] => emitDec dir n.toNat!
   | ["statement-dec", pub] => statementDec pub
+  | ["reshare-dec", pub, out, r, m, d] =>
+    match r.toNat?, m.toNat?, d.toNat? with
+    | some r, some m, some d => reshareDec pub out r m d
+    | _, _, _ => IO.eprintln "reshare-dec: heights are numbers"; return 2
   | ["check-decpre", pub] => checkDecpre pub
   | ["check-dec-run", pub, run] => checkDecRun pub run
   | ["statement-p2", pub] => statementP2 pub
