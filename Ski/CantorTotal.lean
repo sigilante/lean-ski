@@ -9,7 +9,8 @@ open Term
 on the streams alone (the frame of `NoLift.no_lift`), Berger's search
 diverges on a functional built from a Kleene tree.  This module shows more:
 **no** closed term lifts every functional total on the streams, provided a
-Kleene tree is definable.
+Kleene tree is definable.  One is: `KleeneTree.kleene`, so the unconditional
+form is `KleeneTree.no_lift_cantor_total'`.
 
 The impossibility generalizes (`no_lift_family`).  For any `Ψ`, if `Ψ (num (k+1))`
 differs from `Ψ ω` at some test input for every `k`, then no closed `L` lifts
@@ -31,7 +32,8 @@ A tree with these properties, decided by a closed term on stream prefixes
 (`Kleene`), is a Kleene tree: a computable infinite binary tree with no
 computable path.  That one exists is standard recursion theory, and since
 weak CL computes every partial recursive function it is definable here.  That
-step is **not mechanized**: it is the hypothesis of `no_lift_cantor_total`.
+step is the hypothesis of `no_lift_cantor_total`; `Ski/KleeneTree.lean`
+discharges it by building the tree inside the calculus.
 -/
 
 namespace CantorTotal

@@ -14,9 +14,10 @@ For each `e`, let `P e = dec e ⬝ num e ⬝ K ⬝ (K ⬝ I)`, the term numbered
 applied to its own number, then read as a boolean.  `verdict N e` is what `P e`
 reaches within `N` head steps: `some true` at `K`, `some false` at `K ⬝ x`, and
 `none` otherwise or out of steps.  A word `w` is in the tree `T` iff
-`verdict |w| e ≠ some w[e]` for every `e < |w|`.  This is the diagonal: every
-infinite path disagrees, somewhere, with every definable function total on the
-numerals.
+`verdict |w| e ≠ some w[e]` for every `e < |w|`.  This is the diagonal.
+What is proved is the stream case (`T_noPath`): every definable stream leaves
+`T`.  The same argument applies to any definable function total on the
+numerals, but that is not stated as a theorem.
 
 - `closed`: a verdict found with less fuel stands with more (`Univ.bnd_mono_le`).
 - `infinite`: choose each bit against its verdict.

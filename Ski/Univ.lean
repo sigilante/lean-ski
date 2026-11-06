@@ -3,10 +3,18 @@ import Ski.OracleFan
 open Term
 
 /-!
-# A universal machine on codes, component 1: one head step
+# A universal machine on codes
 
-`stepC` performs one head step on the code of a term, mirroring the
-computable contraction `step?` of `Ski/Fuel.lean` case for case:
+Components 1–3 of `notes/mech-kleene.md`.
+
+- **One head step.** `stepC` performs one head step on the code of a term,
+  mirroring the computable contraction `step?` of `Ski/Fuel.lean` case for case.
+- **A bounded run.** `evalC` runs at most `N` head steps (`evalC_spec`, against
+  `bnd`).
+- **Enumeration.** `dec` numbers every term (`dec_surj`); `decC` and `liftN`
+  compute codes from numerals.
+
+For the head step:
 
     stepC ⟨t⟩ ↠ nothing        when step? t = none  (t is a whnf)
     stepC ⟨t⟩ ↠ just ⟨u⟩       when step? t = some u
