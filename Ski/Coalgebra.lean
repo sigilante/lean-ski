@@ -105,4 +105,28 @@ theorem cantor_coalg2 {m : Nat} {φ : List Bool → Bool} {q : Term} (hq : Local
     WSteps (cantorL ⬝ (evalT ⬝ D m φ)) (quoteT (evalT ⬝ D m φ)) :=
   coalg2 (cantor_lift hq).1 (cantor_idem m φ)
 
+/-- The argument of an application, and a leaf itself. -/
+def argOf : Term → Term
+  | .app _ x => x
+  | t => t
+
+/-- A code is never an application to the term it encodes: `⟨c⟩ ≠ f c`.  For a
+    leaf the encoding's argument is not the leaf; for `a b` the encoding's
+    argument is `⟨b⟩`, so `⟨b⟩ = a b`, which is the case for `b`. -/
+theorem quoteT_ne_app : ∀ c f : Term, quoteT c ≠ f ⬝ c
+  | .S, f, h => absurd (show argOf (quoteT .S) = .S from (congrArg argOf h).trans rfl) (by decide)
+  | .K, f, h => absurd (show argOf (quoteT .K) = .K from (congrArg argOf h).trans rfl) (by decide)
+  | .I, f, h => absurd (show argOf (quoteT .I) = .I from (congrArg argOf h).trans rfl) (by decide)
+  | .app a b, f, h => by
+    rw [Requote.quoteT_app] at h
+    exact quoteT_ne_app b a (Term.app.inj h).2
+
+/-- **The second law fails at Kavvos's `∼`**, which compares codes as codes:
+    `⟨⟨c⟩⟩` and `⟨α c⟩` are codes of distinct terms, and the equality test
+    separates them, `EqT_{⟨c⟩} ⟨α c⟩ ↠ F`, for every `α` and `c`. -/
+theorem coalg2_strict_fails (α c : Term) :
+    WSteps (eqT (quoteT c) ⬝ quoteT (α ⬝ c)) (boolT false) := by
+  have h := eqT_spec (quoteT c) (α ⬝ c)
+  simpa [quoteT_ne_app c α] using h
+
 end Coalgebra
