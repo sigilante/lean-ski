@@ -1,0 +1,14 @@
+{
+  "title": "lean-ski: SKI combinatory logic in Lean 4",
+  "upload_type": "software",
+  "description": "A Lean 4 mechanization of weak combinatory logic over S, K and I: a relational semantics for reduction, a fuel interpreter proved to agree with it, Scott encodings and quotation, and the results of N. E. Davis, \"The Staging Line Is Compactness: Behavioral Reification in Weak Combinatory Logic\" (no-quote, re-encoding and unquoting, behavioral lifts at Bool to Bool, Nat to Bool and Cantor space, the stuttering simulation, the Kleene tree, and the fan step in an oracle semantics). Every listed theorem is kernel-checked against an axiom gate that admits only propext and Quot.sound, apart from the fan theorem and the results that use it, which add Classical.choice.",
+  "creators": [
+    {
+      "name": "Davis, N. E.",
+      "affiliation": "ZeroAttest",
+      "orcid": "0000-0002-1131-8319"
+    }
+  ],
+  "license": "MIT",
+  "keywords": ["combinatory logic", "SKI", "Lean 4", "mechanized proof", "staging", "reification", "fan theorem", "Kleene tree"]
+}
