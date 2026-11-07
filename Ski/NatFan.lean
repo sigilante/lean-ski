@@ -394,4 +394,23 @@ theorem local_iff_total_inf {f : Term} (hT : Total f) :
   · rintro ⟨m, φ, hf⟩; exact ⟨φ m, hf.2 _ (omega_atLeast m (.refl _))⟩
   · rintro ⟨b, hb⟩; exact nat_fan hT hb
 
+/-- `natL` lifts every function total on the points of ℕ∞ in the full sense of
+    the definition: `natL f` reduces to a code `⟨c⟩`, and `c` agrees with `f` on
+    the numerals. -/
+theorem nat_lift_inf' {f : Term} (hT : Total f) {b : Bool}
+    (hω : WSteps (f ⬝ omega0) (boolT b)) :
+    ∃ c, WSteps (natL ⬝ f) (quoteT c) ∧
+      ∀ (n : Nat) (r : Bool), WSteps (f ⬝ num n) (boolT r) → WSteps (c ⬝ num n) (boolT r) := by
+  obtain ⟨m, φ, hf⟩ := nat_fan hT hω
+  exact ⟨_, (nat_lift hf).1, (nat_lift hf).2⟩
+
+/-- **`G ω₀` has no value at `ω₀`**: it is total on the numerals (constantly
+    false), so a value at `ω₀` would give it a modulus (`nat_fan`), which it has
+    not (`G_omega_not_local`). -/
+theorem G_omega_no_value : ¬ ∃ b : Bool, WSteps (G ⬝ omega0 ⬝ omega0) (boolT b) := by
+  intro ⟨b, hb⟩
+  have hT : Total (G ⬝ omega0) := fun n => ⟨false, G_omega n (Steps.refl _)⟩
+  obtain ⟨m, φ, hf⟩ := nat_fan hT hb
+  exact G_omega_not_local m φ hf
+
 end NatFan

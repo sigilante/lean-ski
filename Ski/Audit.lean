@@ -245,6 +245,7 @@ import Ski.Weak
 import Ski.Lambda
 import Ski.Quote
 import Ski.Requote
+import Ski.Unquote
 import Ski.Ifix
 import Ski.NoLift
 import Ski.LiftBool
@@ -962,17 +963,20 @@ open Ski.Audit
 -- Re-encoding is definable: one closed term takes ⟨t⟩ to ⟨⟨t⟩⟩
 #audit_clean Requote.quoteS_elim Requote.quoteK_elim Requote.quoteI_elim Requote.quoteApp_elim
   Requote.R_unroll Requote.R_case Requote.requote Requote.requote_iter
+#audit_clean Unquote.E_unroll Unquote.E_case Unquote.appCase Unquote.unquote
+  Unquote.counit_delta Unquote.box_counit_delta
 
 -- Intensional fixed points and a quine: fixQ g ↠ g ⟨fixQ g⟩, quineT ↠ ⟨quineT⟩
 #audit_clean Ifix.hG_beta Ifix.ifix Ifix.ifix_exists Ifix.quineT_spec Ifix.quine
-#audit_clean NoLift.sim NoLift.G_num NoLift.G_omega NoLift.eqT_spec NoLift.eqT_conv NoLift.G_succ' NoLift.no_lift_core NoLift.no_lift_conv NoLift.no_lift
+#audit_clean NoLift.sim NoLift.omega_steps NoLift.omega_whnf0 NoLift.omega_whnf1 NoLift.G_num NoLift.G_omega NoLift.eqT_spec NoLift.eqT_conv NoLift.G_succ' NoLift.no_lift_core NoLift.no_lift_conv NoLift.no_lift
 #audit_clean LiftBool.canon_spec LiftBool.lift_bool LiftBool.lift_canonical
 #audit_clean Search.cons_sel Search.hd_local Search.local_pre Search.find_unfold Search.search Search.search_decides Search.nth_spec Search.flocal_stream Search.tab_spec
 #audit_clean CantorLift.every_spec CantorLift.const_spec CantorLift.D_congr CantorLift.tree_spec CantorLift.eval_spec CantorLift.liftTree_spec CantorLift.cantor_lift CantorLift.cantor_canonical CantorLift.fun_lift CantorLift.fun_canonical
-#audit_clean NatLift.omega_atLeast NatLift.search_nat NatLift.everyN_spec NatLift.constN_spec NatLift.DN_congr NatLift.treeN_spec NatLift.evalN_spec NatLift.liftTreeN_spec NatLift.nat_lift NatLift.nat_canonical NatLift.nlocal_total NatLift.G_num_nlocal NatLift.G_omega_not_local NatLift.no_lift_local_plus_one
+#audit_clean NatLift.omega_atLeast NatLift.nlocal_shift NatLift.search_nat NatLift.everyN_spec NatLift.constN_spec NatLift.DN_congr NatLift.treeN_spec NatLift.evalN_spec NatLift.liftTreeN_spec NatLift.nat_lift NatLift.nat_canonical NatLift.nlocal_total NatLift.G_num_nlocal NatLift.G_omega_not_local NatLift.no_lift_local_plus_one
 #audit_clean Coalgebra.lift_code Coalgebra.bool_idem Coalgebra.nat_idem Coalgebra.cantor_idem Coalgebra.coalg2 Coalgebra.bool_coalg2 Coalgebra.nat_coalg2 Coalgebra.cantor_coalg2
+#audit_clean Coalgebra.quoteT_ne_app Coalgebra.coalg2_strict_fails
 #audit_clean CantorTotal.no_lift_family CantorTotal.wordStream_isStream CantorTotal.walk_num CantorTotal.walk_omega CantorTotal.no_lift_cantor_total
-#audit_clean NatFan.simW NatFan.whnf_to_I NatFan.whnf_to_KI NatFan.finite_choice NatFan.fan_value NatFan.nat_fan NatFan.nat_lift_inf NatFan.local_iff_total_inf
+#audit_clean NatFan.simW NatFan.whnf_to_I NatFan.whnf_to_KI NatFan.finite_choice NatFan.fan_value NatFan.nat_fan NatFan.nat_lift_inf NatFan.nat_lift_inf' NatFan.G_omega_no_value NatFan.local_iff_total_inf
 #audit_clean OracleFan.StepO.det OracleFan.simO OracleFan.relO_emb OracleFan.oracle_local OracleFan.relO_Kx OracleFan.oracle_local_w OracleFan.oracleTotal_weak
 #audit_clean Univ.fb_spec Univ.stepC_spec Univ.bnd_mono Univ.bnd_mono_le Univ.bnd_of_run Univ.bnd_sound Univ.evalC_spec Univ.walk_surj Univ.dec_surj Univ.next_spec Univ.walkC_spec Univ.decC_num Univ.liftN_spec
 #audit_clean KleeneTree.T_closed KleeneTree.T_infinite KleeneTree.T_noPath KleeneTree.checkWith_spec KleeneTree.checkC_spec KleeneTree.goK_spec KleeneTree.tau_decides KleeneTree.kleene KleeneTree.no_lift_cantor_total'
