@@ -260,6 +260,7 @@ import Ski.Univ
 import Ski.KleeneTree
 import Ski.OracleBar
 import Ski.Fan
+import Ski.FanReverse
 import Ski.Graph
 import Ski.RWMem
 import Ski.GraphMem
@@ -989,6 +990,12 @@ open Ski.Audit
 #audit_clean Fan.fanDelta_localO Fan.fanDelta_cantor_fan
 -- Fan.fanDelta_classical proves FanDelta from OracleFan.fan: classical, and the only place the fan theorem is used as a fact.
 -- Fan.fanDelta_cantor_fan reproduces cantor_fan with FanDelta as a hypothesis: the classical step, calibrated to the decidable fan theorem.
+#audit_clean FanReverse.stepsNO_headO FanReverse.HeadO.trans FanReverse.stepsNO_left FanReverse.HeadO.left FanReverse.HeadO.of_run FanReverse.HeadO.ora FanReverse.shiftN_apply FanReverse.shiftN_shiftN
+#audit_clean FanReverse.M_unroll FanReverse.iterI_head FanReverse.Xk_unroll FanReverse.shifts_tl FanReverse.shifts_Ktl FanReverse.shifts_double FanReverse.isIdx_c0 FanReverse.isIdx_headO FanReverse.isIdx_succ FanReverse.isIdx_dbl FanReverse.isIdx_upd
+#audit_clean FanReverse.look_spec FanReverse.hd_spec FanReverse.w_spec FanReverse.bs_spec FanReverse.enc_append FanReverse.decode_encStep FanReverse.decode_foldl FanReverse.decode_enc FanReverse.βB_enc
+#audit_clean FanReverse.append_pre_succ FanReverse.loop_run FanReverse.loopSem_spec FanReverse.FB_run FanReverse.FB_total FanReverse.boolT_emb_inj FanReverse.headO_stepsNO_eq FanReverse.pre_flip
+#audit_clean FanReverse.localO_fanDelta FanReverse.fanDelta_iff
+-- FanReverse.fanDelta_iff: the decidable fan theorem is equivalent, over this gate, to "every oracle-total functional has a modulus".
 
 -- Graph reduction with update in place, sound and complete against L1, never more contractions
 #audit_clean Graph.Dec.det Graph.dec_spine Graph.spine_dec Graph.spine_ne Graph.dec_update Graph.gstep_sound

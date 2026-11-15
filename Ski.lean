@@ -102,6 +102,7 @@ import Ski.Univ
 import Ski.KleeneTree
 import Ski.OracleBar
 import Ski.Fan
+import Ski.FanReverse
 import Ski.Graph
 import Ski.RWMem
 import Ski.GraphMem
