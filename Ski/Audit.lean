@@ -259,6 +259,7 @@ import Ski.OracleFan
 import Ski.Univ
 import Ski.KleeneTree
 import Ski.OracleBar
+import Ski.Fan
 import Ski.Graph
 import Ski.RWMem
 import Ski.GraphMem
@@ -983,6 +984,11 @@ open Ski.Audit
 #audit_clean OracleBar.obar_table OracleBar.obar_local OracleBar.local_obar OracleBar.obar_iff_local
 -- OracleBar.pointwise_obar and cantor_fan_bar use Classical.choice: the fan theorem is the one classical step.
 -- OracleFan.fan, cantor_fan and cantor_lift_oracle use Classical.choice (the fan theorem is classical); not in the gate.
+#audit_clean Fan.agree_iff_pre Fan.pre_take Fan.pre_wordBits Fan.headStep_sound Fan.headStep_app_of_step Fan.stepO?_whnf Fan.stepO?_sound Fan.stepO?_complete Fan.runO_whnf Fan.runO_of_steps Fan.runO_steps
+#audit_clean Fan.Rel.refl Fan.Rel.mono Fan.Rel.emb_left Fan.Rel.step Fan.Rel.stepsN Fan.transfer Fan.isBoolT?_emb Fan.isBoolT?_some Fan.barF_sound Fan.barF_bar
+#audit_clean Fan.fanDelta_localO Fan.fanDelta_cantor_fan
+-- Fan.fanDelta_classical proves FanDelta from OracleFan.fan: classical, and the only place the fan theorem is used as a fact.
+-- Fan.fanDelta_cantor_fan reproduces cantor_fan with FanDelta as a hypothesis: the classical step, calibrated to the decidable fan theorem.
 
 -- Graph reduction with update in place, sound and complete against L1, never more contractions
 #audit_clean Graph.Dec.det Graph.dec_spine Graph.spine_dec Graph.spine_ne Graph.dec_update Graph.gstep_sound
