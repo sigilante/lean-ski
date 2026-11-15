@@ -987,7 +987,7 @@ open Ski.Audit
 -- OracleFan.fan, cantor_fan and cantor_lift_oracle use Classical.choice (the fan theorem is classical); not in the gate.
 #audit_clean Fan.agree_iff_pre Fan.pre_take Fan.pre_wordBits Fan.headStep_sound Fan.headStep_app_of_step Fan.stepO?_whnf Fan.stepO?_sound Fan.stepO?_complete Fan.runO_whnf Fan.runO_of_steps Fan.runO_steps
 #audit_clean Fan.Rel.refl Fan.Rel.mono Fan.Rel.emb_left Fan.Rel.step Fan.Rel.stepsN Fan.transfer Fan.isBoolT?_emb Fan.isBoolT?_some Fan.barF_sound Fan.barF_bar
-#audit_clean Fan.fanDelta_localO Fan.fanDelta_cantor_fan
+#audit_clean Fan.fanDelta_localO Fan.fanDelta_cantor_fan Fan.fanDelta_cantor_lift Fan.kleene_refutes_fan
 -- Fan.fanDelta_classical proves FanDelta from OracleFan.fan: classical, and the only place the fan theorem is used as a fact.
 -- Fan.fanDelta_cantor_fan reproduces cantor_fan with FanDelta as a hypothesis in place of Classical.choice.
 #audit_clean FanReverse.stepsNO_headO FanReverse.HeadO.trans FanReverse.stepsNO_left FanReverse.HeadO.left FanReverse.HeadO.of_run FanReverse.HeadO.ora FanReverse.shiftN_apply FanReverse.shiftN_shiftN

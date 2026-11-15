@@ -399,4 +399,34 @@ theorem fanDelta_cantor_fan (hfan : FanDelta) {F : Term} (hF : OracleTotal F) :
   rw [pre_word w (k + 1) (by omega)]
   exact take_prefix w (k + 1) hs
 
+/-- **A lift from the decidable fan theorem.**  Every oracle-total CL functional
+    is lifted by `cantorL`, with `FanDelta` in place of the choice that
+    `OracleFan.cantor_lift_oracle` uses. -/
+theorem fanDelta_cantor_lift (hfan : FanDelta) {F : Term} (hF : OracleTotal F) :
+    ∃ m φ, WSteps (cantorL ⬝ F) (quoteT (evalT ⬝ D m φ)) ∧
+      ∀ (w : List Bool) (s : Term) (r : Bool), w.length = m → HasPrefix w s →
+        WSteps (F ⬝ s) (boolT r) → WSteps (evalT ⬝ D m φ ⬝ s) (boolT r) := by
+  obtain ⟨m, φ, hl⟩ := fanDelta_cantor_fan hfan hF
+  exact ⟨m, φ, cantor_lift hl⟩
+
+-- ---------------------------------------------------------------------------
+-- Over the definable streams, the Kleene tree refutes the principle
+-- ---------------------------------------------------------------------------
+
+/-- **The decidable fan theorem fails over the definable streams**, in tree form
+    and for definable trees: there is a CL-decidable, prefix-closed tree that
+    every definable stream leaves and that has words of every length.  This is
+    `KleeneTree.kleene` read as a counterexample. -/
+theorem kleene_refutes_fan :
+    ¬ ∀ T : List Bool → Bool, (∃ τ, Decides τ T) →
+      (∀ w v, T (w ++ v) = true → T w = true) →
+      (∀ bits s, IsStream bits s → ∃ n, T (pre bits n) = false) →
+      ∃ m, ∀ w : List Bool, w.length = m → T w = false := by
+  intro h
+  obtain ⟨m, hm⟩ := h KleeneTree.T ⟨_, KleeneTree.tau_decides⟩ KleeneTree.T_closed
+    KleeneTree.T_noPath
+  obtain ⟨w, hw, hT⟩ := KleeneTree.T_infinite m
+  rw [hm w hw] at hT
+  cases hT
+
 end Fan
