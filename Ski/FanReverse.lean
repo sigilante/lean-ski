@@ -463,9 +463,19 @@ theorem pre_flip (α : Nat → Bool) (j : Nat) : ∀ i, i ≤ j → pre α i = p
 -- The converse, and the equivalence
 -- ---------------------------------------------------------------------------
 
+/-- A modulus over the oracle points without the bound on the run: `F ⬝ ora α`
+    reads `φ (α|m)`, in however many steps. -/
+def LocalO' (m : Nat) (φ : List Bool → Bool) (F : TermO) : Prop :=
+  ∀ α : Nat → Bool, ∃ k, StepsNO k (F ⬝ₚ .ora α) (emb (boolT (φ (pre α m))))
+
+theorem localO_localO' {m : Nat} {φ : List Bool → Bool} {F : TermO} (h : LocalO m φ F) :
+    LocalO' m φ F :=
+  fun α => let ⟨k, _, hs⟩ := h α; ⟨k, hs⟩
+
 /-- **Moduli give the decidable fan theorem.**  If every oracle-total functional
-    has a modulus over the oracle points, every decidable bar is uniform. -/
-theorem localO_fanDelta (h : ∀ F : TermO, OracleTotalO F → ∃ m φ, LocalO m φ F) : FanDelta := by
+    has a modulus over the oracle points, in however many steps, every decidable
+    bar is uniform. -/
+theorem localO'_fanDelta (h : ∀ F : TermO, OracleTotalO F → ∃ m φ, LocalO' m φ F) : FanDelta := by
   intro B hB
   obtain ⟨m, φ, hφ⟩ := h (FB B) (FB_total B hB)
   -- the table reads the bit at the first hit
@@ -480,7 +490,7 @@ theorem localO_fanDelta (h : ∀ F : TermO, OracleTotalO F → ∃ m φ, LocalO 
       · rw [hmin j' hlt] at hBj'; cases hBj'
       · exact heq
       · rw [hmin' j hgt] at hj; cases hj
-    obtain ⟨k, _, hs⟩ := hφ α
+    obtain ⟨k, hs⟩ := hφ α
     have := headO_stepsNO_eq (FB_run B hn) hs
     rw [hsem, hjj] at this
     exact this.symm
@@ -501,9 +511,20 @@ theorem localO_fanDelta (h : ∀ F : TermO, OracleTotalO F → ∃ m φ, LocalO 
     rw [if_pos rfl] at h1
     cases hb : wordBits w j <;> rw [hb] at h1 <;> cases h1
 
-/-- **The calibration.**  Over the base gate, the decidable fan theorem is
-    exactly "every oracle-total functional has a modulus". -/
+/-- The same, from the step-bounded modulus. -/
+theorem localO_fanDelta (h : ∀ F : TermO, OracleTotalO F → ∃ m φ, LocalO m φ F) : FanDelta :=
+  localO'_fanDelta fun F hF => let ⟨m, φ, hφ⟩ := h F hF; ⟨m, φ, localO_localO' hφ⟩
+
+/-- **The equivalence.**  Over the base gate, the decidable fan theorem is
+    exactly "every oracle-total functional has a modulus over the oracle points,
+    reached within the modulus many steps". -/
 theorem fanDelta_iff : FanDelta ↔ ∀ F : TermO, OracleTotalO F → ∃ m φ, LocalO m φ F :=
   ⟨fun hfan _ hF => fanDelta_localO hfan hF, localO_fanDelta⟩
+
+/-- **The equivalence, with the modulus alone.**  The bound on the run can be
+    dropped from the modulus; the three statements are equivalent. -/
+theorem fanDelta_iff' : FanDelta ↔ ∀ F : TermO, OracleTotalO F → ∃ m φ, LocalO' m φ F :=
+  ⟨fun hfan _ hF => let ⟨m, φ, hφ⟩ := fanDelta_localO hfan hF; ⟨m, φ, localO_localO' hφ⟩,
+    localO'_fanDelta⟩
 
 end FanReverse

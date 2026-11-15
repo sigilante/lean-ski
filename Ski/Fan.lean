@@ -3,7 +3,7 @@ import Ski.OracleBar
 open Term
 
 /-!
-# The fan step, calibrated: the decidable fan theorem suffices
+# The fan step from the decidable fan theorem
 
 `OracleFan.cantor_fan` proves that an oracle-total functional is m-local by the
 fan theorem for an *arbitrary* bar (`OracleFan.fan`, by König's lemma, classical),
