@@ -1,5 +1,7 @@
 # lean-ski
 
+Built by N. E. Davis under the auspices of [ZeroAttest Research](https://zeroattest.com).
+
 SKI in Lean 4, in the shape of [`lean-nock`](https://github.com/sigilante/lean-nock):
 an inductive relational semantics for normal-order reduction of the three
 combinators, a fuel interpreter proved to agree with it, execution-trace
