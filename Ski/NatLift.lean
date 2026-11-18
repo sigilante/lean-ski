@@ -84,6 +84,34 @@ theorem nlocal_value {m : Nat} {φ : Nat → Bool} {f : Term} (hf : NLocal m φ 
   · rw [Nat.min_eq_left (Nat.le_of_lt h)]; exact hf.1 c h
   · rw [Nat.min_eq_right (by omega)]; exact hf.2 _ (num_atLeast m c (by omega))
 
+/-- Fewer layers: `m + 1` successor layers include `m`. -/
+theorem atLeast_pred : ∀ (m : Nat) {n : Term}, AtLeast (m + 1) n → AtLeast m n
+  | 0, _, _ => trivial
+  | m + 1, _, ⟨n', h1, h2⟩ => ⟨n', h1, atLeast_pred m h2⟩
+
+theorem atLeast_mono {m M : Nat} {n : Term} (hm : m ≤ M) (hn : AtLeast M n) : AtLeast m n := by
+  obtain ⟨k, rfl⟩ := Nat.exists_eq_add_of_le hm
+  clear hm
+  induction k with
+  | zero => exact hn
+  | succ k ih => exact ih (atLeast_pred _ hn)
+
+/-- An `m`-local function is `(m+1)`-local, with the table frozen from `m` on. -/
+theorem nlocal_succ {m : Nat} {φ : Nat → Bool} {f : Term} (hf : NLocal m φ f) :
+    NLocal (m + 1) (fun k => φ (min k m)) f :=
+  ⟨fun c _ => nlocal_value hf c,
+   fun n hn => by
+     show WSteps _ (boolT (φ (min (m + 1) m)))
+     rw [Nat.min_eq_right (Nat.le_succ m)]; exact hf.2 n (atLeast_pred m hn)⟩
+
+/-- An `m`-local function is `M`-local for every `M ≥ m`. -/
+theorem nlocal_mono {m M : Nat} {φ : Nat → Bool} {f : Term} (hf : NLocal m φ f) (hm : m ≤ M) :
+    NLocal M (fun k => φ (min k m)) f :=
+  ⟨fun c _ => nlocal_value hf c,
+   fun n hn => by
+     show WSteps _ (boolT (φ (min M m)))
+     rw [Nat.min_eq_right hm]; exact hf.2 n (atLeast_mono hm hn)⟩
+
 /-- `f ∘ succ`. -/
 def shiftN (f : Term) : Term := S ⬝ (K ⬝ f) ⬝ succS
 
@@ -235,6 +263,41 @@ theorem DN_congr : ∀ (m : Nat) (φ ψ : Nat → Bool), (∀ k, k ≤ m → φ 
     have hr := DN_congr m (fun k => φ (k + 1)) (fun k => ψ (k + 1)) fun k hk => h _ (by omega)
     unfold DN
     rw [hc, hr, h 0 (by omega), h (m + 1) (Nat.le_refl _)]
+
+/-- **Raising the modulus by one does not change the datum.** -/
+theorem DN_succ_min : ∀ (m : Nat) (φ : Nat → Bool), DN (m + 1) (fun k => φ (min k m)) = DN m φ
+  | 0, φ => by
+    have hc : allTo 1 (fun _ => true) = true := (allTo_iff _ _).2 fun _ _ => rfl
+    simp [DN, hc]
+  | m + 1, φ => by
+    have hc : allTo (m + 1 + 1) (fun k => φ (min k (m + 1)) == φ (min (m + 1 + 1) (m + 1))) =
+        allTo (m + 1) (fun k => φ k == φ (m + 1)) := by
+      have e : min (m + 1 + 1) (m + 1) = m + 1 := Nat.min_eq_right (Nat.le_succ _)
+      apply Bool.eq_iff_iff.2
+      rw [allTo_iff, allTo_iff, e]
+      constructor
+      · intro H k hk; have := H k (by omega); rwa [Nat.min_eq_left hk] at this
+      · intro H k _; exact H _ (Nat.min_le_right _ _)
+    have hr : DN (m + 1) (fun k => φ (min (k + 1) (m + 1))) = DN m (fun k => φ (k + 1)) := by
+      rw [← DN_succ_min m (fun k => φ (k + 1))]
+      exact DN_congr _ _ _ fun k _ => congrArg φ (Nat.succ_min_succ k m)
+    conv => lhs; unfold DN
+    have e1 : min (m + 1 + 1) (m + 1) = m + 1 := Nat.min_eq_right (Nat.le_succ _)
+    have e0 : min 0 (m + 1) = 0 := Nat.min_eq_left (Nat.zero_le _)
+    rw [hc, hr]
+    conv => rhs; unfold DN
+    simp only [e1, e0]
+
+/-- **The datum is invariant under raising the modulus.** -/
+theorem DN_mono {m M : Nat} (φ : Nat → Bool) (hm : m ≤ M) :
+    DN M (fun k => φ (min k m)) = DN m φ := by
+  obtain ⟨j, rfl⟩ := Nat.exists_eq_add_of_le hm
+  clear hm
+  induction j with
+  | zero => exact DN_congr m _ _ fun k hk => congrArg φ (Nat.min_eq_left hk)
+  | succ j ih =>
+    rw [← ih, ← DN_succ_min (m + j) (fun k => φ (min k m))]
+    exact DN_congr _ _ _ fun k _ => congrArg φ (by omega)
 
 def everyNO (p : OTerm) : OTerm := notT.toO ⬝ₒ (compO notT.toO p ⬝ₒ (srchT.toO ⬝ₒ compO notT.toO p))
 def constNO (f : OTerm) : OTerm := everyNO (eqWithO f (f ⬝ₒ omega0.toO))
@@ -459,6 +522,29 @@ theorem nat_canonical {m : Nat} {φ ψ : Nat → Bool} {f g : Term}
     (hf : NLocal m φ f) (hg : NLocal m ψ g) (h : ∀ k, k ≤ m → φ k = ψ k) :
     ∃ c, WSteps (natL ⬝ f) (quoteT c) ∧ WSteps (natL ⬝ g) (quoteT c) :=
   ⟨_, (nat_lift hf).1, by rw [DN_congr m φ ψ h]; exact (nat_lift hg).1⟩
+
+/-- **Canonicality across moduli.**  An `m`-local `f` and an `m'`-local `g`
+    that agree on every numeral (`nlocal_value`) get the same code, the code
+    `nat_lift` gives `f` at its own modulus `m`. -/
+theorem nat_canonical' {m m' : Nat} {φ ψ : Nat → Bool} {f g : Term}
+    (hf : NLocal m φ f) (hg : NLocal m' ψ g) (h : ∀ c, φ (min c m) = ψ (min c m')) :
+    ∃ c, WSteps (natL ⬝ f) (quoteT c) ∧ WSteps (natL ⬝ g) (quoteT c) := by
+  refine ⟨evalNT ⬝ DN m φ, (nat_lift hf).1, ?_⟩
+  have e : DN (max m m') (fun k => ψ (min k m')) = DN m φ := by
+    rw [← DN_mono φ (Nat.le_max_left m m')]
+    exact (DN_congr _ _ _ fun k _ => h k).symm
+  rw [← e]
+  exact (nat_lift (nlocal_mono hg (Nat.le_max_right m m'))).1
+
+/-- **Extensional canonicality.**  Local functions (of any moduli) that reach
+    the same boolean on every numeral get the same code. -/
+theorem nat_canonical_ext {m m' : Nat} {φ ψ : Nat → Bool} {f g : Term}
+    (hf : NLocal m φ f) (hg : NLocal m' ψ g)
+    (h : ∀ c : Nat, ∃ b : Bool, WSteps (f ⬝ num c) (boolT b) ∧ WSteps (g ⬝ num c) (boolT b)) :
+    ∃ c, WSteps (natL ⬝ f) (quoteT c) ∧ WSteps (natL ⬝ g) (quoteT c) :=
+  nat_canonical' hf hg fun c => by
+    obtain ⟨b, hfb, hgb⟩ := h c
+    exact (bool_unique (nlocal_value hf c) hfb).trans (bool_unique hgb (nlocal_value hg c))
 
 /-- An m-local function is total on the numerals (`NoLift.Total`), so
     `natL` lifts, uniformly, the m-local part of the class that

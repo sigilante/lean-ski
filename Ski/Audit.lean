@@ -974,7 +974,9 @@ open Ski.Audit
 #audit_clean LiftBool.canon_spec LiftBool.lift_bool LiftBool.lift_canonical
 #audit_clean Search.cons_sel Search.hd_local Search.local_pre Search.find_unfold Search.search Search.search_decides Search.nth_spec Search.flocal_stream Search.tab_spec
 #audit_clean CantorLift.every_spec CantorLift.const_spec CantorLift.D_congr CantorLift.tree_spec CantorLift.eval_spec CantorLift.liftTree_spec CantorLift.cantor_lift CantorLift.cantor_canonical CantorLift.fun_lift CantorLift.fun_canonical
+#audit_clean CantorLift.hasPrefix_take CantorLift.local_succ CantorLift.local_mono CantorLift.constB_take CantorLift.D_succ_take CantorLift.D_mono CantorLift.cantor_canonical'
 #audit_clean NatLift.omega_atLeast NatLift.nlocal_shift NatLift.search_nat NatLift.everyN_spec NatLift.constN_spec NatLift.DN_congr NatLift.treeN_spec NatLift.evalN_spec NatLift.liftTreeN_spec NatLift.nat_lift NatLift.nat_canonical NatLift.nlocal_total NatLift.G_num_nlocal NatLift.G_omega_not_local NatLift.no_lift_local_plus_one
+#audit_clean NatLift.atLeast_pred NatLift.atLeast_mono NatLift.nlocal_succ NatLift.nlocal_mono NatLift.DN_succ_min NatLift.DN_mono NatLift.nat_canonical' NatLift.nat_canonical_ext
 #audit_clean Coalgebra.lift_code Coalgebra.bool_idem Coalgebra.nat_idem Coalgebra.cantor_idem Coalgebra.coalg2 Coalgebra.bool_coalg2 Coalgebra.nat_coalg2 Coalgebra.cantor_coalg2
 #audit_clean Coalgebra.quoteT_ne_app Coalgebra.coalg2_strict_fails
 #audit_clean CantorTotal.no_lift_family CantorTotal.wordStream_isStream CantorTotal.walk_num CantorTotal.walk_omega CantorTotal.no_lift_cantor_total

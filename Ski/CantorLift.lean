@@ -214,6 +214,67 @@ theorem D_congr : ∀ (m : Nat) (φ ψ : List Bool → Bool),
       fun w hw => h _ (by simp [hw])
     simp only [D, hc, hz, h0, h1]
 
+-- ---------------------------------------------------------------------------
+-- Raising the modulus
+-- ---------------------------------------------------------------------------
+
+/-- A prefix of a prefix. -/
+theorem hasPrefix_take : ∀ (w : List Bool) (k : Nat) {s : Term}, HasPrefix w s → HasPrefix (w.take k) s
+  | [], _, _, _ => by simp; trivial
+  | _ :: _, 0, _, _ => trivial
+  | b :: w, k + 1, _, ⟨s', h1, h2⟩ => ⟨s', h1, hasPrefix_take w k h2⟩
+
+/-- An `m`-local functional is `(m+1)`-local, with the table that ignores the last bit. -/
+theorem local_succ {m : Nat} {φ : List Bool → Bool} {q : Term} (hq : Local m φ q) :
+    Local (m + 1) (fun w => φ (w.take m)) q :=
+  fun w hw s hs => hq _ (by simp [hw]) s (hasPrefix_take w m hs)
+
+/-- An `m`-local functional is `M`-local for every `M ≥ m`. -/
+theorem local_mono {m M : Nat} {φ : List Bool → Bool} {q : Term} (hq : Local m φ q) (hm : m ≤ M) :
+    Local M (fun w => φ (w.take m)) q :=
+  fun w hw s hs => hq _ (by simp [hw]; omega) s (hasPrefix_take w m hs)
+
+theorem constB_take (m : Nat) (φ : List Bool → Bool) :
+    constB (m + 1) (fun w => φ (w.take m)) = constB m φ := by
+  have hz : zeroVal (m + 1) (fun w => φ (w.take m)) = zeroVal m φ := by
+    simp [zeroVal, List.take_replicate]
+  apply Bool.eq_iff_iff.2
+  rw [constB_iff, constB_iff, hz]
+  constructor
+  · intro H w hw
+    have := H (w ++ [false]) (by simp [hw])
+    simpa [hw] using this
+  · intro H w hw
+    exact H _ (by simp [hw])
+
+/-- **Raising the modulus by one does not change the datum.** -/
+theorem D_succ_take : ∀ (m : Nat) (φ : List Bool → Bool), D (m + 1) (fun w => φ (w.take m)) = D m φ
+  | 0, φ => by
+    have hc : constB 1 (fun _ => φ []) = true := by simp [constB, words, zeroVal]
+    simp [D, hc, zeroVal]
+  | m + 1, φ => by
+    have hc := constB_take (m + 1) φ
+    have hz : zeroVal (m + 1 + 1) (fun w => φ (w.take (m + 1))) = zeroVal (m + 1) φ := by
+      simp [zeroVal, List.take_replicate]
+    have h0 : D (m + 1) (fun w => φ ((false :: w).take (m + 1))) = D m (fun w => φ (false :: w)) :=
+      D_succ_take m (fun w => φ (false :: w))
+    have h1 : D (m + 1) (fun w => φ ((true :: w).take (m + 1))) = D m (fun w => φ (true :: w)) :=
+      D_succ_take m (fun w => φ (true :: w))
+    conv => lhs; unfold D
+    rw [hc, hz, h0, h1]
+    conv => rhs; unfold D
+
+/-- **The datum is invariant under raising the modulus.** -/
+theorem D_mono {m M : Nat} (φ : List Bool → Bool) (hm : m ≤ M) :
+    D M (fun w => φ (w.take m)) = D m φ := by
+  obtain ⟨k, rfl⟩ := Nat.exists_eq_add_of_le hm
+  clear hm
+  induction k with
+  | zero => exact D_congr m _ _ fun w hw => by simp [← hw]
+  | succ k ih =>
+    rw [← ih, ← D_succ_take (m + k) (fun w => φ (w.take m))]
+    exact D_congr _ _ _ fun w _ => by simp [List.take_take]
+
 -- The same constructions over a variable, for use inside combinators.
 
 def compO (g q : OTerm) : OTerm := S.toO ⬝ₒ (K.toO ⬝ₒ g) ⬝ₒ q
@@ -443,6 +504,20 @@ theorem cantor_canonical {m : Nat} {φ ψ : List Bool → Bool} {q q' : Term}
     (hq : Local m φ q) (hq' : Local m ψ q') (h : ∀ w : List Bool, w.length = m → φ w = ψ w) :
     ∃ c, WSteps (cantorL ⬝ q) (quoteT c) ∧ WSteps (cantorL ⬝ q') (quoteT c) :=
   ⟨evalT ⬝ D m φ, (cantor_lift hq).1, by rw [D_congr m φ ψ h]; exact (cantor_lift hq').1⟩
+
+/-- **Canonicality across moduli.**  An `m`-local and an `m'`-local functional
+    that agree on every word of length `max m m'` get the same code, the code
+    `cantor_lift` gives the first at its own modulus `m`. -/
+theorem cantor_canonical' {m m' : Nat} {φ ψ : List Bool → Bool} {q q' : Term}
+    (hq : Local m φ q) (hq' : Local m' ψ q')
+    (h : ∀ w : List Bool, w.length = max m m' → φ (w.take m) = ψ (w.take m')) :
+    ∃ c, WSteps (cantorL ⬝ q) (quoteT c) ∧ WSteps (cantorL ⬝ q') (quoteT c) := by
+  refine ⟨evalT ⬝ D m φ, (cantor_lift hq).1, ?_⟩
+  have e : D (max m m') (fun w => ψ (w.take m')) = D m φ := by
+    rw [← D_mono φ (Nat.le_max_left m m')]
+    exact (D_congr _ _ _ h).symm
+  rw [← e]
+  exact (cantor_lift (local_mono hq' (Nat.le_max_right m m'))).1
 
 -- ---------------------------------------------------------------------------
 -- The lift for functionals of functions on numerals
