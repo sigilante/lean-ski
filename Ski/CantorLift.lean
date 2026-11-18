@@ -32,14 +32,15 @@ the booleans).  Taken with `NoLift.no_lift_conv` and `LiftBool.lift_bool`, the
 conclusions have one form, but **the hypotheses are not parallel**: a lift at
 Bool → Bool under totality on the literals (`TotalB`), a lift at Cantor space
 under an operational modulus (m-locality, `Local`/`FLocal`), and no lift at
-Nat → Bool under totality on the numerals (`Total`).  Under totality alone,
-nothing is proved at Cantor space: over closed terms a Kleene tree defeats
-Berger's search, and whether any lift exists there is open.  Under a hypothesis
-as strong as m-locality, Nat → Bool does have a lift (`NatLift.nat_lift`).
-That totality on all points of Cantor space would give m-locality is the fan
-step.  It is not established here: it would need an oracle semantics for weak
-CL and a sequentiality argument, since a term may apply a stream to arbitrary
-continuations, not only to the head and tail selectors.
+Nat → Bool under totality on the numerals (`Total`).  Under a hypothesis as
+strong as m-locality, Nat → Bool does have a lift (`NatLift.nat_lift`).  Later
+modules settle Cantor space under totality: on the definable streams no lift
+exists, since a Kleene tree built in the calculus defeats the search
+(`KleeneTree.no_lift_cantor_total'`); on all points, in an oracle semantics,
+totality gives m-locality by the classical fan theorem (`OracleFan.cantor_fan`),
+or from the decidable fan theorem without choice (`Fan.fanDelta_cantor_fan`).
+Codes are canonical across moduli (`cantor_canonical'`, and
+`CantorTotal.cantor_canonical_ext` on the definable streams).
 -/
 
 namespace CantorLift

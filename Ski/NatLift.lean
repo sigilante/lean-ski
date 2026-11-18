@@ -41,8 +41,10 @@ So the line among the functions total on the numerals is *totality at ∞* (on �
 It is not continuity: `G ω` is extensionally constant. The obstruction is intensional, since
 m-local functions are, extensionally, exactly the eventually constant ones.
 
-Conjectured, not proved: totality on the numerals and at `ω` implies `m`-locality, by a
-generalization of `NoLift.sim` (the fan step at ℕ∞).
+Totality on the numerals and at `ω` implies `m`-locality: this fan step at ℕ∞ is proved in
+`NatFan` (`nat_fan`), by a generalization of `NoLift.sim`.  Codes are canonical across moduli:
+two local functions get the same code exactly when they agree on every numeral
+(`nat_canonical'`, `nat_canonical_ext`, `nat_codes_distinct`).
 -/
 
 namespace NatLift

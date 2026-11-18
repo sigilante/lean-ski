@@ -990,7 +990,7 @@ open Ski.Audit
 #audit_clean KleeneTree.T_closed KleeneTree.T_infinite KleeneTree.T_noPath KleeneTree.checkWith_spec KleeneTree.checkC_spec KleeneTree.goK_spec KleeneTree.tau_decides KleeneTree.kleene KleeneTree.no_lift_cantor_total'
 #audit_clean OracleBar.obar_table OracleBar.obar_local OracleBar.local_obar OracleBar.obar_iff_local
 -- OracleBar.pointwise_obar and cantor_fan_bar use Classical.choice: the fan theorem is the one classical step.
--- OracleFan.fan, cantor_fan and cantor_lift_oracle use Classical.choice (the fan theorem is classical); not in the gate.
+-- OracleFan.fan, cantor_fan, cantor_fan_w and cantor_lift_oracle use Classical.choice (the fan theorem is classical); not in the gate.
 #audit_clean Fan.agree_iff_pre Fan.pre_take Fan.pre_wordBits Fan.headStep_sound Fan.headStep_app_of_step Fan.stepO?_whnf Fan.stepO?_sound Fan.stepO?_complete Fan.runO_whnf Fan.runO_of_steps Fan.runO_steps
 #audit_clean Fan.Rel.refl Fan.Rel.mono Fan.Rel.emb_left Fan.Rel.step Fan.Rel.stepsN Fan.transfer Fan.isBoolT?_emb Fan.isBoolT?_some Fan.barF_sound Fan.barF_bar
 #audit_clean Fan.fanDelta_localO Fan.fanDelta_cantor_fan Fan.fanDelta_cantor_lift Fan.kleene_refutes_fan

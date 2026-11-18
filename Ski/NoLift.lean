@@ -6,7 +6,7 @@ open Term
 /-!
 # No behavioural lift at `Nat → Bool`
 
-`no_quote` (Proposition 3.1) forbids *syntactic* quotation: no closed `Q`
+`no_quote` (Proposition 3.1 of the metacircular paper; `Ski/Quote.lean`) forbids *syntactic* quotation: no closed `Q`
 has `Q M ↠ ⟨M⟩` for every `M`.  A behavioural lift asks less: from a live
 function `f`, a code `⟨c⟩` whose term `c` *behaves* as `f` does.  B2's
 working note conjectures, and checks numerically (`notes/checks/cantor.py`;
