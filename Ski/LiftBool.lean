@@ -119,4 +119,17 @@ theorem lift_canonical {f g : Term} {t e : Bool}
     cases t <;> cases e <;> simpa using hF _ _
   exact ⟨canon t e, key f hft hfe, key g hgt hge⟩
 
+/-- **The converse of `lift_canonical`.**  Functions total on the booleans
+    that reach different booleans at some boolean get no common code: by
+    `code_unique` the common code is each one's code from `lift_bool`. -/
+theorem bool_codes_distinct {f g : Term} (hf : TotalB f) (hg : TotalB g) {b r r' : Bool}
+    (hfb : WSteps (f ⬝ boolT b) (boolT r)) (hgb : WSteps (g ⬝ boolT b) (boolT r')) (hne : r ≠ r') :
+    ¬ ∃ C, WSteps (liftBB ⬝ f) (quoteT C) ∧ WSteps (liftBB ⬝ g) (quoteT C) := by
+  rintro ⟨C, h1, h2⟩
+  obtain ⟨cf, hcf, af⟩ := lift_bool f hf
+  obtain ⟨cg, hcg, ag⟩ := lift_bool g hg
+  rw [code_unique hcf h1] at af
+  rw [code_unique hcg h2] at ag
+  exact hne (bool_unique (af b r hfb) (ag b r' hgb))
+
 end LiftBool
