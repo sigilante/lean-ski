@@ -1,4 +1,5 @@
 import Ski.CantorLift
+import Ski.Unquote
 
 open Term
 
@@ -545,6 +546,28 @@ theorem nat_canonical_ext {m m' : Nat} {φ ψ : Nat → Bool} {f g : Term}
   nat_canonical' hf hg fun c => by
     obtain ⟨b, hfb, hgb⟩ := h c
     exact (bool_unique (nlocal_value hf c) hfb).trans (bool_unique hgb (nlocal_value hg c))
+
+/-- **Two codes of one term agree on booleans.**  If `L f` reduces to the codes
+    of `c₁` and of `c`, then `c` reaches every boolean `c₁` reaches at `x`:
+    unquote with `Unquote.E` and join by Church–Rosser. -/
+theorem code_agrees {L f c₁ c x : Term} {r : Bool} (h₁ : WSteps (L ⬝ f) (quoteT c₁))
+    (h : WSteps (L ⬝ f) (quoteT c)) (hr : WSteps (c₁ ⬝ x) (boolT r)) : WSteps (c ⬝ x) (boolT r) := by
+  have e₁ : WSteps (Unquote.E ⬝ (L ⬝ f) ⬝ x) (c₁ ⬝ x) :=
+    WSteps.left _ ((WSteps.right _ h₁).trans (Unquote.unquote c₁))
+  have e : WSteps (Unquote.E ⬝ (L ⬝ f) ⬝ x) (c ⬝ x) :=
+    WSteps.left _ ((WSteps.right _ h).trans (Unquote.unquote c))
+  exact to_bool_of_join (e₁.trans hr) e
+
+/-- **The converse of canonicality at ℕ.**  Local functions (of any moduli)
+    that reach different booleans at some numeral get no common code. -/
+theorem nat_codes_distinct {m m' : Nat} {φ ψ : Nat → Bool} {f g : Term}
+    (hf : NLocal m φ f) (hg : NLocal m' ψ g) {c : Nat} {b b' : Bool}
+    (hfc : WSteps (f ⬝ num c) (boolT b)) (hgc : WSteps (g ⬝ num c) (boolT b')) (hne : b ≠ b') :
+    ¬ ∃ C, WSteps (natL ⬝ f) (quoteT C) ∧ WSteps (natL ⬝ g) (quoteT C) := by
+  rintro ⟨C, h1, h2⟩
+  have e1 := code_agrees (nat_lift hf).1 h1 ((nat_lift hf).2 c b hfc)
+  have e2 := code_agrees (nat_lift hg).1 h2 ((nat_lift hg).2 c b' hgc)
+  exact hne (bool_unique e1 e2)
 
 /-- An m-local function is total on the numerals (`NoLift.Total`), so
     `natL` lifts, uniformly, the m-local part of the class that

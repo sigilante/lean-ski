@@ -120,6 +120,10 @@ theorem pre_word : ∀ (w : List Bool) (j : Nat), j ≤ w.length → pre (wordBi
     rw [ht, pre_word w j (by simpa using h)]
     simp [wordBits]
 
+theorem length_pre : ∀ (bits : Nat → Bool) (n : Nat), (pre bits n).length = n
+  | _, 0 => rfl
+  | bits, n + 1 => by simp [pre, length_pre _ n]
+
 -- ---------------------------------------------------------------------------
 -- The walker
 -- ---------------------------------------------------------------------------
@@ -237,6 +241,42 @@ def Streams (s : Term) : Prop := ∃ bits, IsStream bits s
 
 /-- A functional total on the definable streams. -/
 def TotalS (f : Term) : Prop := ∀ s, Streams s → ∃ b : Bool, WSteps (f ⬝ s) (boolT b)
+
+-- ---------------------------------------------------------------------------
+-- Canonicality and its converse, on the definable streams
+-- ---------------------------------------------------------------------------
+
+/-- **Extensional canonicality at Cantor space.**  Local functionals (of any
+    moduli) that reach the same boolean on every definable stream get the same
+    code: test on `wordStream w` for each word `w` of length `max m m'`. -/
+theorem cantor_canonical_ext {m m' : Nat} {φ ψ : List Bool → Bool} {q q' : Term}
+    (hq : Local m φ q) (hq' : Local m' ψ q')
+    (h : ∀ s, Streams s → ∃ b : Bool, WSteps (q ⬝ s) (boolT b) ∧ WSteps (q' ⬝ s) (boolT b)) :
+    ∃ c, WSteps (cantorL ⬝ q) (quoteT c) ∧ WSteps (cantorL ⬝ q') (quoteT c) := by
+  refine cantor_canonical' hq hq' fun w hw => ?_
+  have hs := wordStream_isStream w
+  have pf : HasPrefix (w.take m) (wordStream w) := by
+    have := hs m; rwa [pre_word w m (by rw [hw]; exact Nat.le_max_left m m')] at this
+  have pg : HasPrefix (w.take m') (wordStream w) := by
+    have := hs m'; rwa [pre_word w m' (by rw [hw]; exact Nat.le_max_right m m')] at this
+  have vf := hq _ (by rw [List.length_take, hw]; exact Nat.min_eq_left (Nat.le_max_left m m')) _ pf
+  have vg := hq' _ (by rw [List.length_take, hw]; exact Nat.min_eq_left (Nat.le_max_right m m')) _ pg
+  obtain ⟨b, hfb, hgb⟩ := h _ ⟨_, hs⟩
+  exact (bool_unique vf hfb).trans (bool_unique hgb vg)
+
+/-- **The converse of canonicality at Cantor space.**  Local functionals that
+    reach different booleans on some definable stream get no common code. -/
+theorem cantor_codes_distinct {m m' : Nat} {φ ψ : List Bool → Bool} {q q' : Term}
+    (hq : Local m φ q) (hq' : Local m' ψ q') {s : Term} (hs : Streams s) {b b' : Bool}
+    (hqs : WSteps (q ⬝ s) (boolT b)) (hq's : WSteps (q' ⬝ s) (boolT b')) (hne : b ≠ b') :
+    ¬ ∃ C, WSteps (cantorL ⬝ q) (quoteT C) ∧ WSteps (cantorL ⬝ q') (quoteT C) := by
+  rintro ⟨C, h1, h2⟩
+  obtain ⟨bits, hb⟩ := hs
+  have e1 := NatLift.code_agrees (cantor_lift hq).1 h1
+    ((cantor_lift hq).2 _ s b (length_pre bits m) (hb m) hqs)
+  have e2 := NatLift.code_agrees (cantor_lift hq').1 h2
+    ((cantor_lift hq').2 _ s b' (length_pre bits m') (hb m') hq's)
+  exact hne (bool_unique e1 e2)
 
 /-- **No lift at Cantor space under totality alone.**  Given a Kleene tree, no
     closed `L` lifts every functional that is total on the definable streams. -/

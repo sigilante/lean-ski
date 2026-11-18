@@ -977,9 +977,11 @@ open Ski.Audit
 #audit_clean CantorLift.hasPrefix_take CantorLift.local_succ CantorLift.local_mono CantorLift.constB_take CantorLift.D_succ_take CantorLift.D_mono CantorLift.cantor_canonical'
 #audit_clean NatLift.omega_atLeast NatLift.nlocal_shift NatLift.search_nat NatLift.everyN_spec NatLift.constN_spec NatLift.DN_congr NatLift.treeN_spec NatLift.evalN_spec NatLift.liftTreeN_spec NatLift.nat_lift NatLift.nat_canonical NatLift.nlocal_total NatLift.G_num_nlocal NatLift.G_omega_not_local NatLift.no_lift_local_plus_one
 #audit_clean NatLift.atLeast_pred NatLift.atLeast_mono NatLift.nlocal_succ NatLift.nlocal_mono NatLift.DN_succ_min NatLift.DN_mono NatLift.nat_canonical' NatLift.nat_canonical_ext
+#audit_clean NatLift.code_agrees NatLift.nat_codes_distinct
 #audit_clean Coalgebra.lift_code Coalgebra.bool_idem Coalgebra.nat_idem Coalgebra.cantor_idem Coalgebra.coalg2 Coalgebra.bool_coalg2 Coalgebra.nat_coalg2 Coalgebra.cantor_coalg2
 #audit_clean Coalgebra.quoteT_ne_app Coalgebra.coalg2_strict_fails
 #audit_clean CantorTotal.no_lift_family CantorTotal.wordStream_isStream CantorTotal.walk_num CantorTotal.walk_omega CantorTotal.no_lift_cantor_total
+#audit_clean CantorTotal.length_pre CantorTotal.cantor_canonical_ext CantorTotal.cantor_codes_distinct
 #audit_clean NatFan.simW NatFan.whnf_to_I NatFan.whnf_to_KI NatFan.finite_choice NatFan.fan_value NatFan.nat_fan NatFan.nat_lift_inf NatFan.nat_lift_inf' NatFan.G_omega_no_value NatFan.local_iff_total_inf
 #audit_clean OracleFan.StepO.det OracleFan.simO OracleFan.relO_emb OracleFan.oracle_local OracleFan.relO_Kx OracleFan.oracle_local_w OracleFan.oracleTotal_weak
 #audit_clean Univ.fb_spec Univ.stepC_spec Univ.bnd_mono Univ.bnd_mono_le Univ.bnd_of_run Univ.bnd_sound Univ.evalC_spec Univ.walk_surj Univ.dec_surj Univ.next_spec Univ.walkC_spec Univ.decC_num Univ.liftN_spec
