@@ -971,7 +971,9 @@ open Ski.Audit
 -- Intensional fixed points and a quine: fixQ g ↠ g ⟨fixQ g⟩, quineT ↠ ⟨quineT⟩
 #audit_clean Ifix.hG_beta Ifix.ifix Ifix.ifix_exists Ifix.quineT_spec Ifix.quine
 #audit_clean NoLift.sim NoLift.omega_steps NoLift.omega_whnf0 NoLift.omega_whnf1 NoLift.G_num NoLift.G_omega NoLift.eqT_spec NoLift.eqT_conv NoLift.G_succ' NoLift.no_lift_core NoLift.no_lift_conv NoLift.no_lift
+#audit_clean NoLift.code_unique
 #audit_clean LiftBool.canon_spec LiftBool.lift_bool LiftBool.lift_canonical
+#audit_clean LiftBool.bool_codes_distinct
 #audit_clean Search.cons_sel Search.hd_local Search.local_pre Search.find_unfold Search.search Search.search_decides Search.nth_spec Search.flocal_stream Search.tab_spec
 #audit_clean CantorLift.every_spec CantorLift.const_spec CantorLift.D_congr CantorLift.tree_spec CantorLift.eval_spec CantorLift.liftTree_spec CantorLift.cantor_lift CantorLift.cantor_canonical CantorLift.fun_lift CantorLift.fun_canonical
 #audit_clean CantorLift.hasPrefix_take CantorLift.local_succ CantorLift.local_mono CantorLift.constB_take CantorLift.D_succ_take CantorLift.D_mono CantorLift.cantor_canonical'

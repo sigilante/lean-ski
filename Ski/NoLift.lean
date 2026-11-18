@@ -585,6 +585,20 @@ theorem eqT_conv {c d w x : Term} (hx : WSteps x w) (hd : WSteps (quoteT d) w) :
   (WSteps.right _ hx).trans
     (to_bool_of_join (eqT_spec c d) (WSteps.right _ hd))
 
+/-- **A term reduces to at most one code.**  `eqT c` on the term reaches
+    `true` through `⟨c⟩` and `decide (c = d)` through `⟨d⟩`; by confluence
+    (inside `eqT_conv`) the two booleans coincide. -/
+theorem code_unique {t c d : Term} (hc : WSteps t (quoteT c)) (hd : WSteps t (quoteT d)) : c = d := by
+  have h1 : WSteps (eqT c ⬝ t) (boolT true) := by
+    have := eqT_conv (c := c) hc (.refl _)
+    rwa [decide_eq_true (rfl : c = c)] at this
+  cases h : decide (c = d) with
+  | true => exact of_decide_eq_true h
+  | false =>
+    have h2 := eqT_conv (c := c) hd (.refl _)
+    rw [h] at h2
+    exact (bool_disjoint h2 h1).elim
+
 /-- `L` lifts the one function `f`, up to conversion. -/
 def LiftsAt (L f : Term) : Prop :=
   ∃ c w, WSteps (L ⬝ f) w ∧ WSteps (quoteT c) w ∧
