@@ -1004,8 +1004,8 @@ open Ski.Audit
 #audit_clean FanReverse.localO_localO' FanReverse.localO'_fanDelta FanReverse.localO_fanDelta FanReverse.fanDelta_iff FanReverse.fanDelta_iff'
 -- FanReverse.fanDelta_iff, fanDelta_iff': the decidable fan theorem is equivalent, over this gate, to "every oracle-total oracle functional has a modulus over the oracle points" (with or without the bound on the run). Equivalence, not independence: that FanDelta is unprovable in the gate is not a theorem here.
 
--- Head normal forms of pure S (Dance of the Starlings Q10): the fold invariant, completeness, Fig. 5.14 factors through the fold; soundness is a hypothesis of q10_of_soundness
-#audit_clean HnfS.PureS.app_inv HnfS.closedB_eq HnfS.compatB_eq HnfS.hnfB_eq HnfS.homB_eq HnfS.rejectB_eq HnfS.β_lt HnfS.compat HnfS.hnf_blocks HnfS.hom HnfS.reject
+-- Head normal forms of pure S (Dance of the Starlings Q10): the fold invariant, completeness, Fig. 5.14 is a homomorphic image of the fold; the hard direction (soundness of the fold) is a hypothesis of q10_of_soundness, not proved
+#audit_clean HnfS.PureS.app_inv HnfS.PureS.not_K HnfS.PureS.not_I HnfS.ontoB_eq HnfS.phi_onto HnfS.closedB_eq HnfS.compatB_eq HnfS.hnfB_eq HnfS.homB_eq HnfS.rejectB_eq HnfS.β_lt HnfS.compat HnfS.hnf_blocks HnfS.hom HnfS.reject
 #audit_clean HnfS.fold_lt HnfS.wstep_pure HnfS.fold_wsteps HnfS.fold_hnf HnfS.no_hnf_of_bot HnfS.dance_fold HnfS.dance_rejects_iff HnfS.dance_wsteps HnfS.q10_rejecting HnfS.q10_of_soundness
 
 -- Graph reduction with update in place, sound and complete against L1, never more contractions

@@ -6,16 +6,19 @@ open Term
 
 Barendregt, Endrullis, Klop and Waldmann (*Dance of the Starlings*, 2017, Question 10)
 conjecture that the tree automaton of their Fig. 5.14 accepts exactly the closed S-terms
-with a head normal form (`S`, `S X` or `S X Y`).  The answer in Murmuration I has two
-directions.  This module proves, inside the axiom gate, everything except soundness of
-the fold (an `h`-fold term has a head normal form), which is taken as a hypothesis:
+with a head normal form (`S`, `S X` or `S X Y`).  *Dance* expects one direction to be
+easy (a rejected term has no head normal form) and calls the other "the challenge" (an
+accepted term has one).  This module proves, inside the axiom gate, the easy direction and
+the model facts behind it.  The challenge is **not** proved here: it is soundness of the
+fold (a term whose fold is not ⊥ has a head normal form, Murmuration I `thm:soundness`),
+and it is the hypothesis of `q10_of_soundness`.
 
 * `fold_wsteps`: the 38-block fold is invariant under weak reduction of pure S-terms;
 * `no_hnf_of_bot`: a term whose fold is the ⊥ block has no reduct in head normal form;
-* `dance_fold`: the Fig. 5.14 automaton factors through the fold;
+* `dance_fold`, `phi_onto`: the Fig. 5.14 automaton is a homomorphic image of the fold;
 * `q10_rejecting`: every term the automaton rejects has no head normal form;
-* `q10_of_soundness`: given soundness of the fold, the automaton accepts exactly the
-  terms with a head normal form, which is Question 10.
+* `q10_of_soundness`: given soundness of the fold (the hard direction), the automaton
+  accepts exactly the terms with a head normal form, which is Question 10.
 
 The tables are data.  `blockTable` is the 38-block table of Murmuration I
 (`FoldWalk.lean`, block 0 = `S`, block 36 = ⊥); `danceTable` is the transcription of
@@ -158,12 +161,21 @@ def hnfB : Bool :=
   r38.all fun a => (β 0 a != 36) && r38.all fun b => β (β 0 a) b != 36
 def homB : Bool := r38.all fun a => r38.all fun b => φ (β a b) == δ (φ a) (φ b)
 def rejectB : Bool := r38.all fun a => (φ a == P) == (a == 36)
+def ontoB : Bool := (List.range 35).all fun s => r38.any fun a => φ a == s
 
 theorem closedB_eq : closedB = true := by decide +kernel
 theorem compatB_eq : compatB = true := by decide +kernel
 theorem hnfB_eq : hnfB = true := by decide +kernel
 theorem homB_eq : homB = true := by decide +kernel
 theorem rejectB_eq : rejectB = true := by decide +kernel
+theorem ontoB_eq : ontoB = true := by decide +kernel
+
+/-- Every Fig. 5.14 state is the image of a block; with `hom`, the automaton is a
+homomorphic image of the block algebra. -/
+theorem phi_onto {s : Nat} (hs : s < 35) : ∃ a, a < 38 ∧ φ a = s := by
+  have h := ontoB_eq
+  simp only [ontoB, r38, List.all_eq_true, List.any_eq_true, List.mem_range, beq_iff_eq] at h
+  exact h s hs
 
 theorem β_lt {a b : Nat} (ha : a < 38) (hb : b < 38) : β a b < 38 := by
   have h := closedB_eq
@@ -242,7 +254,9 @@ theorem fold_wsteps {t u : Term} (h : WSteps t u) (ht : PureS t) :
 /-- *Dance*'s head normal forms of closed S-terms: `S`, `S X`, `S X Y`. -/
 def IsHnf (t : Term) : Prop := t = S ∨ (∃ x, t = S ⬝ x) ∨ ∃ x y, t = S ⬝ x ⬝ y
 
-/-- `t` reduces to a head normal form. -/
+/-- `t` reduces to a head normal form.  This is Question 10's "has a head normal form";
+for combinatory logic it coincides with termination of head reduction by standardization
+(`Ski/Weak.lean`), which this module does not restate. -/
 def HasHnf (t : Term) : Prop := ∃ u, WSteps t u ∧ IsHnf u
 
 theorem fold_hnf {u : Term} (hu : PureS u) (h : IsHnf u) : fold u ≠ 36 := by
