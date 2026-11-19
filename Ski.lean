@@ -104,6 +104,7 @@ import Ski.OracleBar
 import Ski.Fan
 import Ski.FanReverse
 import Ski.HnfS
+import Ski.HnfSound
 import Ski.Graph
 import Ski.RWMem
 import Ski.GraphMem
