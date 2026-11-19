@@ -262,6 +262,7 @@ import Ski.OracleBar
 import Ski.Fan
 import Ski.FanReverse
 import Ski.HnfS
+import Ski.HnfSound
 import Ski.Graph
 import Ski.RWMem
 import Ski.GraphMem
@@ -1004,9 +1005,13 @@ open Ski.Audit
 #audit_clean FanReverse.localO_localO' FanReverse.localO'_fanDelta FanReverse.localO_fanDelta FanReverse.fanDelta_iff FanReverse.fanDelta_iff'
 -- FanReverse.fanDelta_iff, fanDelta_iff': the decidable fan theorem is equivalent, over this gate, to "every oracle-total oracle functional has a modulus over the oracle points" (with or without the bound on the run). Equivalence, not independence: that FanDelta is unprovable in the gate is not a theorem here.
 
--- Head normal forms of pure S (Dance of the Starlings Q10): the fold invariant, completeness, Fig. 5.14 is a homomorphic image of the fold; the hard direction (soundness of the fold) is a hypothesis of q10_of_soundness, not proved
+-- Head normal forms of pure S (Dance of the Starlings Q10): the fold invariant, completeness, Fig. 5.14 is a homomorphic image of the fold; the hard direction (soundness of the fold) is a hypothesis of q10_of_soundness, discharged in HnfSound
 #audit_clean HnfS.PureS.app_inv HnfS.PureS.not_K HnfS.PureS.not_I HnfS.ontoB_eq HnfS.phi_onto HnfS.closedB_eq HnfS.compatB_eq HnfS.hnfB_eq HnfS.homB_eq HnfS.rejectB_eq HnfS.β_lt HnfS.compat HnfS.hnf_blocks HnfS.hom HnfS.reject
 #audit_clean HnfS.fold_lt HnfS.wstep_pure HnfS.fold_wsteps HnfS.fold_hnf HnfS.no_hnf_of_bot HnfS.dance_fold HnfS.dance_rejects_iff HnfS.dance_wsteps HnfS.q10_rejecting HnfS.q10_of_soundness
+
+-- Soundness of the fold, so Dance of the Starlings Q10 outright (HnfSound.q10): a weight summed along the frame's walk, checked on windows
+#audit_clean HnfSound.windowB_eq HnfSound.potB_eq HnfSound.zeroB_eq HnfSound.towerB_eq HnfSound.absorbB_eq HnfSound.window HnfSound.pot HnfSound.beta_ne_zero HnfSound.tower_entry HnfSound.absorb HnfSound.spine_foldl HnfSound.pure_eq_foldl HnfSound.spine_pure HnfSound.walk_append HnfSound.walk_spine
+#audit_clean HnfSound.AllH.head HnfSound.walk_bot HnfSound.allH_of_walk HnfSound.allH_spine HnfSound.walk_lt HnfSound.wt_append HnfSound.wt_le_pot HnfSound.nS_append HnfSound.fold_eq_zero HnfSound.wstep_foldl HnfSound.root_step HnfSound.lex3 HnfSound.measure_dec HnfSound.isHnf_of_short HnfSound.sound HnfSound.q10
 
 -- Graph reduction with update in place, sound and complete against L1, never more contractions
 #audit_clean Graph.Dec.det Graph.dec_spine Graph.spine_dec Graph.spine_ne Graph.dec_update Graph.gstep_sound
