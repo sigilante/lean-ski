@@ -1,5 +1,5 @@
 name = "Ski"
-version = "1.4.0"
+version = "1.4.1"
 defaultTargets = ["Ski"]
 
 [[lean_lib]]
