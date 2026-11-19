@@ -16,13 +16,14 @@ window `u₁ u₂ u₃` by the frame of `u₁` followed by `u₃` and `u₂ u₃
 block table is a model of the S law the walk reaches the rest of the frame in the same
 state as before.  So the change in weight is decided by the window alone, which is a
 finite check over 9,725 windows (`window`).  The frame of `u₁` is bounded by a
-potential `π` (`wt_le_pot`).  The weight strictly drops except when the head's block
-is `0` (then `u₁ = S`, and the number of `S` items drops) or one of the tower blocks
-`2, 4, 8, 17` (then `u₁ = S v` with `v ≠ S`, the number of `S` items does not grow, and
-the head's tower depth drops).  The lexicographic measure (weight, `S` count, head
-depth) therefore decreases along the run, so the run reaches a head normal form.
+potential `π` (`wt_le_pot`).  The weight strictly drops except when the block of the
+first item `u₁` is `0` (then `u₁ = S`, and the number of `S` items drops) or one of the
+tower blocks `2, 4, 8, 17` (then `u₁ = S v` with `v ≠ S`, the number of `S` items does not
+grow, and if it stays equal the tower depth of the first item drops).  The lexicographic
+measure (weight, `S` count, first item's tower depth) therefore decreases at every root
+step, so the term reduces to a head normal form.
 
-The weights (`wTable`, values `0`–`6`) and potentials (`piTable`) were found by integer
+The weights (`wTable`, values `0`–`5`) and potentials (`piTable`, values `0`–`6`) were found by integer
 programming; the module only checks them, by `decide +kernel`.  This replaces the
 89,658-node interface machine of Murmuration I's proof.
 -/
