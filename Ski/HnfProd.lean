@@ -10,8 +10,8 @@ reduces to a frame of at most two items, each of which satisfies `Pk (k-1)`.
 
 `clsTable` is a 39-class S-model (class 0 = `S`, class 37 = rejected, absorbing).  This
 module proves, inside the axiom gate, that every term of a non-rejected class is productive
-(`easy`).  The converse (every rejected term is non-productive) is the hard half; it is
-certified outside Lean (`notes/checks/s15/cert/`) and is **not** claimed here.  All facts
+(`easy`).  The converse (every rejected term is non-productive) is the hard half: `HnfQ5`
+reduces it to hypothesis (A), and `HnfCert.q5` (`Ski/HnfCertFinal.lean`) proves it outright.  All facts
 about the table are finite checks by `decide +kernel`.
 -/
 
@@ -78,14 +78,21 @@ def slawB : Bool :=
   r39.all fun a => r39.all fun b => r39.all fun c => γ (γ (γ 0 a) b) c == γ (γ a c) (γ b c)
 def absorbB : Bool := r39.all fun a => γ 37 a == 37 && γ a 37 == 37
 def startB : Bool := reachPairs.contains (0, 0)
+/-- `reachPairs` as a bit table (bit `a * 64 + b`), so that membership is one shift. -/
+def reachBits : Nat := 5215661561752647278559084009204014645089546318889914664799145722169383869235875580833631604430966512177339529197045631243887370187467562361763872398221532120543815364360518430310928639182192409229875941679132480146456268351020481409935359174857655394303109076329994923807949935817635204561522760395248033678334867470861751037367174361735585092843852217232525305358195607846168304362330204135949169092923158851795077192124990848433313834317795956301646300272467144461224297592734609773973662178532411824699795286556694975815818010367281083965949125052019842746263092524837128229804643667336243944382630825368030644965579063374201033278619994976404537922611962008783055710692523725400375567949004203781563999539601644921832959624687386625
+def inReach (a b : Nat) : Bool := (reachBits >>> (a * 64 + b)) % 2 == 1
+/-- Every bit set below `39 × 38` is a pair of `reachPairs`. -/
+def reachBitsB : Bool :=
+  r39.all fun a => (List.range 38).all fun b => !inReach a b || reachPairs.contains (a, b)
 def pairsClosedB : Bool :=
-  reachPairs.all fun p => reachPairs.all fun q => reachPairs.contains (γ p.1 q.1, β p.2 q.2)
+  reachPairs.all fun p => reachPairs.all fun q => inReach (γ p.1 q.1) (β p.2 q.2)
 def b1B : Bool := reachPairs.all fun p => p.1 == 37 || p.2 != 36
 
 theorem closedB_eq : closedB = true := by decide +kernel
 theorem slawB_eq : slawB = true := by decide +kernel
 theorem absorbB_eq : absorbB = true := by decide +kernel
 theorem startB_eq : startB = true := by decide +kernel
+theorem reachBitsB_eq : reachBitsB = true := by decide +kernel
 theorem pairsClosedB_eq : pairsClosedB = true := by decide +kernel
 theorem b1B_eq : b1B = true := by decide +kernel
 
@@ -137,6 +144,15 @@ theorem wsteps_cls {t u : Term} (h : WSteps t u) (ht : PureS t) : cls u = cls t 
     have hp := (HnfS.wstep_pure h1 ht).1
     exact (ih hp).trans (wstep_cls h1 ht)
 
+/-- A set bit of `reachBits` in range is a reachable pair. -/
+theorem reach_of_bits {a b : Nat} (ha : a < 39) (hb : b < 38) (h : inReach a b = true) :
+    (a, b) ∈ reachPairs := by
+  have h1 := List.all_eq_true.mp
+    (List.all_eq_true.mp reachBitsB_eq a (List.mem_range.mpr ha)) b (List.mem_range.mpr hb)
+  rw [h] at h1
+  simp only [Bool.not_true, Bool.false_or, List.contains_iff_mem] at h1
+  exact h1
+
 /-- Every pure S-term's (class, block) pair is one of the 115 reachable pairs. -/
 theorem pair_mem {t : Term} (ht : PureS t) : (cls t, fold t) ∈ reachPairs := by
   induction ht with
@@ -144,10 +160,13 @@ theorem pair_mem {t : Term} (ht : PureS t) : (cls t, fold t) ∈ reachPairs := b
     have h := startB_eq
     simp only [startB, List.contains_iff_mem] at h
     simpa [cls, fold] using h
-  | app _ _ ihf ihx =>
+  | @app f x hf hx ihf ihx =>
     have h := pairsClosedB_eq
-    simp only [pairsClosedB, List.all_eq_true, List.contains_iff_mem] at h
-    simpa [cls, fold] using h _ ihf _ ihx
+    simp only [pairsClosedB, List.all_eq_true] at h
+    have h2 := h (cls f, fold f) ihf (cls x, fold x) ihx
+    dsimp only at h2
+    show (γ (cls f) (cls x), β (fold f) (fold x)) ∈ reachPairs
+    exact reach_of_bits (γ_lt (cls_lt hf) (cls_lt hx)) (β_lt (fold_lt hf) (fold_lt hx)) h2
 
 /-- Table fact b1: a non-rejected term has a head normal form block. -/
 theorem b1 {t : Term} (ht : PureS t) (hc : cls t ≠ 37) : fold t ≠ 36 := by

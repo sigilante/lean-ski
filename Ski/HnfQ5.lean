@@ -8,8 +8,9 @@ open Term
 * `prod_sub` (B): every subterm of a productive term is productive.
 * `q5_of_A`: **given** hypothesis (A), that every application `u v` of two non-rejected terms
   with a rejected class and a head normal form is not productive, a closed pure-S term is productive iff its class is
-  not the rejecting class 37.  (A) itself is certified outside Lean, by the cyclic proof search in
-  `notes/checks/s15/cert/` (4,899 / 4,899 minimal pairs); it is a hypothesis here, not a theorem.
+  not the rejecting class 37.  (A) is stated here as `MinimalPairs` (the 2,757 minimal pairs whose
+  fold is not ⊥) and taken as a hypothesis; `HnfCert.minimalPairs` (`Ski/HnfCertFinal.lean`) proves
+  it by a kernel-checked certificate, and `HnfCert.q5` is Question 5 outright.
 -/
 
 namespace HnfQ5

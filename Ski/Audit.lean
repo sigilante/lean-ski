@@ -1018,16 +1018,23 @@ open Ski.Audit
 #audit_clean HnfSound.AllH.head HnfSound.walk_bot HnfSound.allH_of_walk HnfSound.allH_spine HnfSound.walk_lt HnfSound.wt_append HnfSound.wt_le_pot HnfSound.nS_append HnfSound.fold_eq_zero HnfSound.wstep_foldl HnfSound.root_step HnfSound.lex3 HnfSound.measure_dec HnfSound.isHnf_of_short HnfSound.sound HnfSound.sound_head HnfSound.headChain_uniq HnfSound.q10
 
 -- Productive S-terms (Dance of the Starlings Q5), the easy half: every term of a non-rejected class of the 39-class S-model is productive (HnfProd.easy)
-#audit_clean HnfProd.closedB_eq HnfProd.slawB_eq HnfProd.absorbB_eq HnfProd.startB_eq HnfProd.pairsClosedB_eq HnfProd.b1B_eq HnfProd.γ_lt HnfProd.slaw HnfProd.absorbL HnfProd.absorbR HnfProd.cls_lt HnfProd.wstep_cls HnfProd.wsteps_cls HnfProd.pair_mem HnfProd.b1 HnfProd.spine_absorb HnfProd.headChain_wsteps HnfProd.easy
+#audit_clean HnfProd.closedB_eq HnfProd.slawB_eq HnfProd.absorbB_eq HnfProd.startB_eq HnfProd.reachBitsB_eq HnfProd.pairsClosedB_eq HnfProd.b1B_eq HnfProd.γ_lt HnfProd.slaw HnfProd.absorbL HnfProd.absorbR HnfProd.cls_lt HnfProd.wstep_cls HnfProd.wsteps_cls HnfProd.reach_of_bits HnfProd.pair_mem HnfProd.b1 HnfProd.spine_absorb HnfProd.headChain_wsteps HnfProd.easy
 
 -- Lemma B0: a term with an hnf-less subterm is not productive (its Boehm tree stops at a finite depth)
 #audit_clean HnfB0.BotAt.succ HnfB0.foldl_bot HnfB0.app_left HnfB0.step HnfB0.chain HnfB0.not_Pk HnfB0.botAt_of_sub HnfB0.B0
 
--- Dance of the Starlings Q5 given hypothesis (A) (the 4,899 minimal pairs, certified outside Lean): productive iff class != 37
+-- Dance of the Starlings Q5 given hypothesis (A) (MinimalPairs, discharged by HnfCert.minimalPairs below): productive iff class != 37
 #audit_clean HnfQ5.wstep_S HnfQ5.wstep_Sa HnfQ5.wstep_Sab HnfQ5.wsteps_S HnfQ5.wsteps_Sa HnfQ5.wsteps_Sab HnfQ5.items_join HnfQ5.pk_succ_iff HnfQ5.fold_ne_of_chain HnfQ5.transport HnfQ5.pk_wsteps HnfB0.Sub.trans HnfB0.Sub.pure HnfQ5.sub_of_spine HnfQ5.sub_wsteps HnfQ5.prod_sub HnfQ5.hard_of_A HnfQ5.q5_of_A
 
 -- Dance of the Starlings Q5, unconditionally: hypothesis (A) discharged by the kernel-checked certificate (HnfCert*, HnfCertK/*); size laws L0/L1/LA; checker soundness
 #audit_clean HnfCertLaws.chain_factor HnfCertLaws.L0 HnfCertLaws.L1 HnfCertLaws.LA HnfCert.pst_app HnfCert.exact_size HnfCert.minsz_le HnfCert.splits_complete HnfCert.unf_s2 HnfCert.run_sound HnfCert.claims_sound HnfCert.minimalPairs_of_checks HnfCert.minimalPairs HnfCert.q5
+-- The certificate's supporting lemmas (tables, instances, run and split soundness, chunk reassembly)
+#audit_clean HnfCertLaws.tsz_pos HnfCertLaws.foldl_append_one HnfCertLaws.chain_spine HnfCertLaws.spine_S_app HnfCertLaws.spine_S HnfCertLaws.L1aux HnfCert.γN_eq HnfCert.βN_eq HnfCert.pst_div HnfCert.pst_mod HnfCert.pst_S HnfCert.accN_pst HnfCert.eq_S_of_pst HnfCert.pst_wsteps
+#audit_clean HnfCert.reach_eq HnfCert.pst_reach HnfCert.accs_eq HnfCert.pst_accs HnfCert.exactOK_all HnfCert.exact_S HnfCert.minsz_S HnfCert.shapes01 HnfCert.unf_s0 HnfCert.unf_s1 HnfCert.Inst.pure HnfCert.Inst.st HnfCert.mkV_zero HnfCert.mkV_ne
+#audit_clean HnfCert.mkVR_zero HnfCert.mkVR_ne HnfCert.inst_mkV HnfCert.InstR.pure HnfCert.InstR.st HnfCert.mkA_inst HnfCert.mkVR_inst HnfCert.eval_const HnfCert.eval_add HnfCert.eval_shift HnfCert.sz_bound HnfCert.F2.append HnfCert.F2.length HnfCert.F2.get
+#audit_clean HnfCert.build_inst HnfCert.spine_inst HnfCert.np_of_sub HnfCert.np_of_wsteps HnfCert.wsteps_foldl HnfCert.sub_foldl_head HnfCert.sub_foldl_arg HnfCert.hasBot_sound HnfCert.gen_sound HnfCert.find_sub HnfCert.lookup_sound HnfCert.grade_sound HnfCert.claimOK_sound HnfCert.pairClose_sound
+#audit_clean HnfCert.F2.inv3 HnfCert.step_inst HnfCert.arg_inst HnfCert.cls_args HnfCert.eq_SS HnfCert.exact1 HnfCert.unfold_inst HnfCert.foldl_bind_none HnfCert.foldl_bind_mem HnfCert.hnf_sound HnfCert.occ_len HnfCert.occ_mem HnfCert.eval_unit HnfCert.comp_szOf
+#audit_clean HnfCert.toRT_spec HnfCert.mins_le HnfCert.replaceK_none HnfCert.replaceK_spec HnfCert.split_sound HnfCert.CBST.sub_append HnfCert.all_node HnfCert.all_at HnfCert.all_take_drop HnfCert.all_step HnfCert.rootsCovered_eq HnfCert.all_claims
 
 -- Graph reduction with update in place, sound and complete against L1, never more contractions
 #audit_clean Graph.Dec.det Graph.dec_spine Graph.spine_dec Graph.spine_ne Graph.dec_update Graph.gstep_sound
