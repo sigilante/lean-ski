@@ -263,6 +263,10 @@ import Ski.Fan
 import Ski.FanReverse
 import Ski.HnfS
 import Ski.HnfSound
+import Ski.HnfProd
+import Ski.HnfB0
+import Ski.HnfQ5
+import Ski.HnfCertFinal
 import Ski.Graph
 import Ski.RWMem
 import Ski.GraphMem
@@ -1011,7 +1015,19 @@ open Ski.Audit
 
 -- Soundness of the fold, so Dance of the Starlings Q10 outright (HnfSound.q10): a weight summed along the frame's walk, checked on windows
 #audit_clean HnfSound.windowB_eq HnfSound.potB_eq HnfSound.zeroB_eq HnfSound.towerB_eq HnfSound.absorbB_eq HnfSound.window HnfSound.pot HnfSound.beta_ne_zero HnfSound.tower_entry HnfSound.absorb HnfSound.spine_foldl HnfSound.pure_eq_foldl HnfSound.spine_pure HnfSound.walk_append HnfSound.walk_spine
-#audit_clean HnfSound.AllH.head HnfSound.walk_bot HnfSound.allH_of_walk HnfSound.allH_spine HnfSound.walk_lt HnfSound.wt_append HnfSound.wt_le_pot HnfSound.nS_append HnfSound.fold_eq_zero HnfSound.wstep_foldl HnfSound.root_step HnfSound.lex3 HnfSound.measure_dec HnfSound.isHnf_of_short HnfSound.sound HnfSound.q10
+#audit_clean HnfSound.AllH.head HnfSound.walk_bot HnfSound.allH_of_walk HnfSound.allH_spine HnfSound.walk_lt HnfSound.wt_append HnfSound.wt_le_pot HnfSound.nS_append HnfSound.fold_eq_zero HnfSound.wstep_foldl HnfSound.root_step HnfSound.lex3 HnfSound.measure_dec HnfSound.isHnf_of_short HnfSound.sound HnfSound.sound_head HnfSound.headChain_uniq HnfSound.q10
+
+-- Productive S-terms (Dance of the Starlings Q5), the easy half: every term of a non-rejected class of the 39-class S-model is productive (HnfProd.easy)
+#audit_clean HnfProd.closedB_eq HnfProd.slawB_eq HnfProd.absorbB_eq HnfProd.startB_eq HnfProd.pairsClosedB_eq HnfProd.b1B_eq HnfProd.γ_lt HnfProd.slaw HnfProd.absorbL HnfProd.absorbR HnfProd.cls_lt HnfProd.wstep_cls HnfProd.wsteps_cls HnfProd.pair_mem HnfProd.b1 HnfProd.spine_absorb HnfProd.headChain_wsteps HnfProd.easy
+
+-- Lemma B0: a term with an hnf-less subterm is not productive (its Boehm tree stops at a finite depth)
+#audit_clean HnfB0.BotAt.succ HnfB0.foldl_bot HnfB0.app_left HnfB0.step HnfB0.chain HnfB0.not_Pk HnfB0.botAt_of_sub HnfB0.B0
+
+-- Dance of the Starlings Q5 given hypothesis (A) (the 4,899 minimal pairs, certified outside Lean): productive iff class != 37
+#audit_clean HnfQ5.wstep_S HnfQ5.wstep_Sa HnfQ5.wstep_Sab HnfQ5.wsteps_S HnfQ5.wsteps_Sa HnfQ5.wsteps_Sab HnfQ5.items_join HnfQ5.pk_succ_iff HnfQ5.fold_ne_of_chain HnfQ5.transport HnfQ5.pk_wsteps HnfB0.Sub.trans HnfB0.Sub.pure HnfQ5.sub_of_spine HnfQ5.sub_wsteps HnfQ5.prod_sub HnfQ5.hard_of_A HnfQ5.q5_of_A
+
+-- Dance of the Starlings Q5, unconditionally: hypothesis (A) discharged by the kernel-checked certificate (HnfCert*, HnfCertK/*); size laws L0/L1/LA; checker soundness
+#audit_clean HnfCertLaws.chain_factor HnfCertLaws.L0 HnfCertLaws.L1 HnfCertLaws.LA HnfCert.pst_app HnfCert.exact_size HnfCert.minsz_le HnfCert.splits_complete HnfCert.unf_s2 HnfCert.run_sound HnfCert.claims_sound HnfCert.minimalPairs_of_checks HnfCert.minimalPairs HnfCert.q5
 
 -- Graph reduction with update in place, sound and complete against L1, never more contractions
 #audit_clean Graph.Dec.det Graph.dec_spine Graph.spine_dec Graph.spine_ne Graph.dec_update Graph.gstep_sound
