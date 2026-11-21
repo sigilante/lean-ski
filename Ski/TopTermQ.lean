@@ -8,12 +8,12 @@ open Term
 application of two `Q`-terms.  The lemmas follow Waldmann's thesis (1998), §7.5, in block
 language; each "finitely often" there is a structural induction here.
 
-* `fin_rc`  (7.5.3): a right comb `W` in front of two `QQ`-terms and a `Q`-term;
-* `fin_q2`  (7.5.4): `W B C D` with `W ∉ {S, S S}` and `B, C, D ∈ Q`;
-* `fin_R1`, `fin_R2` (7.5.5): the hnf `S h₁ h₂` in Waldmann's set `R`;
-* `fin_qqq_qq` (7.5.7): `X E F` with `X ∈ Q` and `E, F ∈ QQ`;
-* `fin_T` (7.5.9, its `T` case) and `fin_hnf2`: any hnf `S h₁ h₂` in front of two `Q`-terms;
-* `fin_qqq` (7.5.10): `A B C` with `A, B, C ∈ Q`.
+* `reach_rc`  (7.5.3): a right comb `W` in front of two `QQ`-terms and a `Q`-term;
+* `reach_q2`  (7.5.4): `W B C D` with `W ∉ {S, S S}` and `B, C, D ∈ Q`;
+* `reach_R1`, `reach_R2` (7.5.5): the hnf `S h₁ h₂` in Waldmann's set `R`;
+* `reach_qqq_qq` (7.5.7): `X E F` with `X ∈ Q` and `E, F ∈ QQ`;
+* `reach_T` (7.5.9, its `T` case) and `reach_hnf2`: any hnf `S h₁ h₂` in front of two `Q`-terms;
+* `reach_qqq` (7.5.10): `A B C` with `A, B, C ∈ Q`.
 -/
 
 namespace TopTerm
@@ -90,40 +90,40 @@ theorem rc_of_not_qt : ∀ {t : Term}, PureS t → ¬ Qt t → RC t := by
 
 /-! ## Head steps used below -/
 
-theorem fin_qqq_app {A B C D : Term} (hA : PureS A) (hB : PureS B) (hC : PureS C)
-    (qa : Qt A) (qb : Qt B) (qc : Qt C) : Fin (A ⬝ B ⬝ C ⬝ D) :=
-  fin_of_bot_fun (.app (.app hA hB) hC) (qqq_bot hA hB hC qa qb qc)
+theorem reach_qqq_app {A B C D : Term} (hA : PureS A) (hB : PureS B) (hC : PureS C)
+    (qa : Qt A) (qb : Qt B) (qc : Qt C) : Reach (A ⬝ B ⬝ C ⬝ D) :=
+  reach_of_bot_fun (.app (.app hA hB) hC) (qqq_bot hA hB hC qa qb qc)
 
 /-- A `QQ`-term in front of two `Q`-terms: its function part has no hnf. -/
-theorem fin_qq_head {V E F : Term} (hV : QQ V) (hE : PureS E) (qe : Qt E) : Fin (V ⬝ E ⬝ F) := by
+theorem reach_qq_head {V E F : Term} (hV : QQ V) (hE : PureS E) (qe : Qt E) : Reach (V ⬝ E ⬝ F) := by
   obtain ⟨a, b, rfl, ha, hb, qa, qb⟩ := hV
-  exact fin_qqq_app ha hb hE qa qb qe
+  exact reach_qqq_app ha hb hE qa qb qe
 
-theorem fin_bot_head {X B C : Term} (hX : PureS X) (hB : PureS B) (hb : fold X = 36) :
-    Fin (X ⬝ B ⬝ C) :=
-  fin_of_bot_fun (.app hX hB) (by show β (fold X) (fold B) = 36; rw [hb]; exact absorb (fold_lt hB))
+theorem reach_bot_head {X B C : Term} (hX : PureS X) (hB : PureS B) (hb : fold X = 36) :
+    Reach (X ⬝ B ⬝ C) :=
+  reach_of_bot_fun (.app hX hB) (by show β (fold X) (fold B) = 36; rw [hb]; exact absorb (fold_lt hB))
 
 /-! ## 7.5.3, 7.5.4 -/
 
 /-- 7.5.3: a right comb in front of two `QQ`-terms and a `Q`-term. -/
-theorem fin_rc : ∀ {W : Term}, RC W → ∀ {B C D : Term}, QQ B → QQ C → PureS D → Qt D →
-    Fin (W ⬝ B ⬝ C ⬝ D) := by
+theorem reach_rc : ∀ {W : Term}, RC W → ∀ {B C D : Term}, QQ B → QQ C → PureS D → Qt D →
+    Reach (W ⬝ B ⬝ C ⬝ D) := by
   intro W hW
   induction hW with
   | S =>
     intro B C D hB hC hD qd
-    refine fin_of_step (.S B C D) ?_
-    exact fin_qq_head hB hD qd
+    refine reach_of_step (.S B C D) ?_
+    exact reach_qq_head hB hD qd
   | @app w hw ih =>
     intro B C D hB hC hD qd
-    refine fin_of_step (.left D (.S w B C)) ?_
+    refine reach_of_step (.left D (.S w B C)) ?_
     exact ih hC (qq_mk (qq_pure hB) (qq_pure hC) (qq_qt hB) (qq_qt hC)) hD qd
 
 /-- 7.5.4: `W B C D` with `W ∉ {S, S S}` and `B, C, D ∈ Q`. -/
-theorem fin_q2 {W B C D : Term} (hW : PureS W) (h1 : W ≠ S) (h2 : W ≠ S ⬝ S)
+theorem reach_q2 {W B C D : Term} (hW : PureS W) (h1 : W ≠ S) (h2 : W ≠ S ⬝ S)
     (hB : PureS B) (hC : PureS C) (hD : PureS D) (qb : Qt B) (qc : Qt C) (qd : Qt D) :
-    Fin (W ⬝ B ⬝ C ⬝ D) := by
-  if qw : Qt W then exact fin_qqq_app hW hB hC qw qb qc
+    Reach (W ⬝ B ⬝ C ⬝ D) := by
+  if qw : Qt W then exact reach_qqq_app hW hB hC qw qb qc
   else
     have hr := rc_of_not_qt hW qw
     cases hr with
@@ -133,28 +133,28 @@ theorem fin_q2 {W B C D : Term} (hW : PureS W) (h1 : W ≠ S) (h2 : W ≠ S ⬝ 
       | S => exact absurd rfl h2
       | @app w2 hw2 =>
         -- S (S w2) B C D → S w2 C (B C) D → w2 (B C) (C (B C)) D
-        refine fin_of_step (.left D (.S (S ⬝ w2) B C)) ?_
-        refine fin_of_step (.left D (.S w2 C (B ⬝ C))) ?_
+        refine reach_of_step (.left D (.S (S ⬝ w2) B C)) ?_
+        refine reach_of_step (.left D (.S w2 C (B ⬝ C))) ?_
         have qbc : QQ (B ⬝ C) := qq_mk hB hC qb qc
-        exact fin_rc hw2 qbc (qq_mk hC (qq_pure qbc) qc (qq_qt qbc)) hD qd
+        exact reach_rc hw2 qbc (qq_mk hC (qq_pure qbc) qc (qq_qt qbc)) hD qd
 
 /-! ## 7.5.5: the set `R` -/
 
-theorem fin_R1 {h₁ h₂ B C : Term} (h1p : PureS h₁) (h2p : PureS h₂) (n1 : h₁ ≠ S)
+theorem reach_R1 {h₁ h₂ B C : Term} (h1p : PureS h₁) (h2p : PureS h₂) (n1 : h₁ ≠ S)
     (n2 : h₁ ≠ S ⬝ S) (hB : PureS B) (hC : PureS C) (qb : Qt B) (qc : Qt C) :
-    Fin (S ⬝ h₁ ⬝ h₂ ⬝ B ⬝ C) := by
-  refine fin_of_step (.left C (.S h₁ h₂ B)) ?_
-  exact fin_q2 h1p n1 n2 hB (.app h2p hB) hC qb (qt_app_right h2p hB qb) qc
+    Reach (S ⬝ h₁ ⬝ h₂ ⬝ B ⬝ C) := by
+  refine reach_of_step (.left C (.S h₁ h₂ B)) ?_
+  exact reach_q2 h1p n1 n2 hB (.app h2p hB) hC qb (qt_app_right h2p hB qb) qc
 
-theorem fin_R2 {h₂ B C : Term} (h2p : PureS h₂) (n1 : h₂ ≠ S) (n2 : h₂ ≠ S ⬝ S)
+theorem reach_R2 {h₂ B C : Term} (h2p : PureS h₂) (n1 : h₂ ≠ S) (n2 : h₂ ≠ S ⬝ S)
     (hB : PureS B) (hC : PureS C) (qb : Qt B) (qc : Qt C) :
-    Fin (S ⬝ (S ⬝ S) ⬝ h₂ ⬝ B ⬝ C) := by
+    Reach (S ⬝ (S ⬝ S) ⬝ h₂ ⬝ B ⬝ C) := by
   -- S (S S) h₂ B C → S S B (h₂ B) C → S (h₂ B) (B (h₂ B)) C → h₂ B C (B (h₂ B) C)
-  refine fin_of_step (.left C (.S (S ⬝ S) h₂ B)) ?_
-  refine fin_of_step (.left C (.S S B (h₂ ⬝ B))) ?_
-  refine fin_of_step (.S (h₂ ⬝ B) (B ⬝ (h₂ ⬝ B)) C) ?_
+  refine reach_of_step (.left C (.S (S ⬝ S) h₂ B)) ?_
+  refine reach_of_step (.left C (.S S B (h₂ ⬝ B))) ?_
+  refine reach_of_step (.S (h₂ ⬝ B) (B ⬝ (h₂ ⬝ B)) C) ?_
   have hb2 : PureS (B ⬝ (h₂ ⬝ B) ⬝ C) := .app (.app hB (.app h2p hB)) hC
-  exact fin_q2 h2p n1 n2 hB hC hb2 qb qc (qt_app_right (.app hB (.app h2p hB)) hC qc)
+  exact reach_q2 h2p n1 n2 hB hC hb2 qb qc (qt_app_right (.app hB (.app h2p hB)) hC qc)
 
 /-! ## Steps from a term to a one-item head normal form are trivial (law L0) -/
 
@@ -238,105 +238,105 @@ theorem hnf2_cases (h₁ h₂ : Term) :
 /-! ## 7.5.7 -/
 
 /-- 7.5.7: `X E F` with `X ∈ Q` and `E, F ∈ QQ`. -/
-theorem fin_qqq_qq : ∀ {X : Term}, PureS X → Qt X → ∀ {E F : Term}, QQ E → QQ F →
-    Fin (X ⬝ E ⬝ F) := by
+theorem reach_qqq_qq : ∀ {X : Term}, PureS X → Qt X → ∀ {E F : Term}, QQ E → QQ F →
+    Reach (X ⬝ E ⬝ F) := by
   intro X hX
   induction hX with
   | S => intro q; exact absurd q qt_S
   | @app f x hf hx _ ihx =>
     intro qX E F hE hF
     have hEp := qq_pure hE; have hFp := qq_pure hF
-    if hb : fold (f ⬝ x) = 36 then exact fin_bot_head (.app hf hx) hEp hb
+    if hb : fold (f ⬝ x) = 36 then exact reach_bot_head (.app hf hx) hEp hb
     else
       obtain ⟨Kh, hs, hK, hKp, hKf⟩ := hnf_of (.app hf hx) hb
       have qK : Qt Kh := by unfold Qt; rw [hKf]; exact qX
-      refine fin_of_steps (Steps.left F (Steps.left E hs)) ?_
+      refine reach_of_steps (Steps.left F (Steps.left E hs)) ?_
       rcases hK with rfl | ⟨h, rfl⟩ | ⟨h₁, h₂, rfl⟩
       · exact absurd qK qt_S
       · -- f x = S h, so f = S and h = x: S x E F → x F (E F)
         have e := steps_S1 (.app hf hx) hs
         injection e with ef ex
         subst ef ex
-        refine fin_of_step (.S x E F) ?_
+        refine reach_of_step (.S x E F) ?_
         exact ihx (qt_of_S_app hx qX) hF (qq_mk hEp hFp (qq_qt hE) (qq_qt hF))
       · have h1p := hKp.app_inv.1.app_inv.2
         have h2p := hKp.app_inv.2
         rcases hnf2_cases h₁ h₂ with ⟨n1, n2⟩ | ⟨rfl, n1, n2⟩ | rfl | ⟨rfl, hh⟩
-        · exact fin_R1 h1p h2p n1 n2 hEp hFp (qq_qt hE) (qq_qt hF)
-        · exact fin_R2 h2p n1 n2 hEp hFp (qq_qt hE) (qq_qt hF)
+        · exact reach_R1 h1p h2p n1 n2 hEp hFp (qq_qt hE) (qq_qt hF)
+        · exact reach_R2 h2p n1 n2 hEp hFp (qq_qt hE) (qq_qt hF)
         · -- T h₂ E F ↠ E F (h₂ E F), and E ∈ QQ
-          exact fin_of_steps steps_T (fin_qq_head hE hFp (qq_qt hF))
+          exact reach_of_steps steps_T (reach_qq_head hE hFp (qq_qt hF))
         · obtain ⟨V, E', F', hs', hV, qE', _⟩ := stp2 hh hEp hFp (qq_qt hE) (qq_qt hF)
-          refine fin_of_steps hs' ?_
+          refine reach_of_steps hs' ?_
           rcases hV with rfl | rfl
-          · exact fin_qq_head hE (qq_pure qE') (qq_qt qE')
-          · exact fin_qq_head hF (qq_pure qE') (qq_qt qE')
+          · exact reach_qq_head hE (qq_pure qE') (qq_qt qE')
+          · exact reach_qq_head hF (qq_pure qE') (qq_qt qE')
 
 /-! ## 7.5.9 -/
 
 /-- `Y C G` with `Y, C ∈ Q` and `G ∈ QQ` (the `T` case of 7.5.9). -/
-theorem fin_T {Y C G : Term} (hY : PureS Y) (hC : PureS C) (qy : Qt Y) (qc : Qt C) (hG : QQ G) :
-    Fin (Y ⬝ C ⬝ G) := by
+theorem reach_T {Y C G : Term} (hY : PureS Y) (hC : PureS C) (qy : Qt Y) (qc : Qt C) (hG : QQ G) :
+    Reach (Y ⬝ C ⬝ G) := by
   have hGp := qq_pure hG
-  if hb : fold Y = 36 then exact fin_bot_head hY hC hb
+  if hb : fold Y = 36 then exact reach_bot_head hY hC hb
   else
     obtain ⟨Kh, hs, hK, hKp, hKf⟩ := hnf_of hY hb
     have qK : Qt Kh := by unfold Qt; rw [hKf]; exact qy
-    refine fin_of_steps (Steps.left G (Steps.left C hs)) ?_
+    refine reach_of_steps (Steps.left G (Steps.left C hs)) ?_
     rcases hK with rfl | ⟨h, rfl⟩ | ⟨h₁, h₂, rfl⟩
     · exact absurd qK qt_S
     · have hp := hKp.app_inv.2
-      refine fin_of_step (.S h C G) ?_
-      exact fin_qqq_qq hp (qt_of_S_app hp qK) hG (qq_mk hC hGp qc (qq_qt hG))
+      refine reach_of_step (.S h C G) ?_
+      exact reach_qqq_qq hp (qt_of_S_app hp qK) hG (qq_mk hC hGp qc (qq_qt hG))
     · have h1p := hKp.app_inv.1.app_inv.2
       have h2p := hKp.app_inv.2
       rcases hnf2_cases h₁ h₂ with ⟨n1, n2⟩ | ⟨rfl, n1, n2⟩ | rfl | ⟨rfl, hh⟩
-      · exact fin_R1 h1p h2p n1 n2 hC hGp qc (qq_qt hG)
-      · exact fin_R2 h2p n1 n2 hC hGp qc (qq_qt hG)
-      · refine fin_of_steps steps_T ?_
-        exact fin_qqq_qq hC qc hG (qq_mk (.app h2p hC) hGp (qt_app_right h2p hC qc) (qq_qt hG))
+      · exact reach_R1 h1p h2p n1 n2 hC hGp qc (qq_qt hG)
+      · exact reach_R2 h2p n1 n2 hC hGp qc (qq_qt hG)
+      · refine reach_of_steps steps_T ?_
+        exact reach_qqq_qq hC qc hG (qq_mk (.app h2p hC) hGp (qt_app_right h2p hC qc) (qq_qt hG))
       · obtain ⟨V, E', F', hs', hV, qE', qF'⟩ := stp2 hh hC hGp qc (qq_qt hG)
-        refine fin_of_steps hs' ?_
+        refine reach_of_steps hs' ?_
         rcases hV with rfl | rfl
-        · exact fin_qqq_qq hC qc qE' qF'
-        · exact fin_qqq_qq hGp (qq_qt hG) qE' qF'
+        · exact reach_qqq_qq hC qc qE' qF'
+        · exact reach_qqq_qq hGp (qq_qt hG) qE' qF'
 
 /-- Any two-item hnf `S h₁ h₂` in front of two `Q`-terms (7.5.5 and 7.5.9). -/
-theorem fin_hnf2 {h₁ h₂ B C : Term} (h1p : PureS h₁) (h2p : PureS h₂) (hB : PureS B)
-    (hC : PureS C) (qb : Qt B) (qc : Qt C) : Fin (S ⬝ h₁ ⬝ h₂ ⬝ B ⬝ C) := by
+theorem reach_hnf2 {h₁ h₂ B C : Term} (h1p : PureS h₁) (h2p : PureS h₂) (hB : PureS B)
+    (hC : PureS C) (qb : Qt B) (qc : Qt C) : Reach (S ⬝ h₁ ⬝ h₂ ⬝ B ⬝ C) := by
   rcases hnf2_cases h₁ h₂ with ⟨n1, n2⟩ | ⟨rfl, n1, n2⟩ | rfl | ⟨rfl, hh⟩
-  · exact fin_R1 h1p h2p n1 n2 hB hC qb qc
-  · exact fin_R2 h2p n1 n2 hB hC qb qc
-  · refine fin_of_steps steps_T ?_
-    exact fin_T hB hC qb qc (qq_mk (.app h2p hB) hC (qt_app_right h2p hB qb) qc)
+  · exact reach_R1 h1p h2p n1 n2 hB hC qb qc
+  · exact reach_R2 h2p n1 n2 hB hC qb qc
+  · refine reach_of_steps steps_T ?_
+    exact reach_T hB hC qb qc (qq_mk (.app h2p hB) hC (qt_app_right h2p hB qb) qc)
   · obtain ⟨V, E', F', hs', hV, qE', qF'⟩ := stp2 hh hB hC qb qc
-    refine fin_of_steps hs' ?_
+    refine reach_of_steps hs' ?_
     rcases hV with rfl | rfl
-    · exact fin_qqq_qq hB qb qE' qF'
-    · exact fin_qqq_qq hC qc qE' qF'
+    · exact reach_qqq_qq hB qb qE' qF'
+    · exact reach_qqq_qq hC qc qE' qF'
 
 /-! ## 7.5.10 -/
 
 /-- **Waldmann 7.5.10.**  `A B C` with `A, B, C ∈ Q` makes boundedly many root steps. -/
-theorem fin_qqq : ∀ {A : Term}, PureS A → Qt A → ∀ {B C : Term}, PureS B → PureS C → Qt B → Qt C →
-    Fin (A ⬝ B ⬝ C) := by
+theorem reach_qqq : ∀ {A : Term}, PureS A → Qt A → ∀ {B C : Term}, PureS B → PureS C → Qt B → Qt C →
+    Reach (A ⬝ B ⬝ C) := by
   intro A hA
   induction hA with
   | S => intro q; exact absurd q qt_S
   | @app f x hf hx _ ihx =>
     intro qA B C hB hC qb qc
-    if hb : fold (f ⬝ x) = 36 then exact fin_bot_head (.app hf hx) hB hb
+    if hb : fold (f ⬝ x) = 36 then exact reach_bot_head (.app hf hx) hB hb
     else
       obtain ⟨Kh, hs, hK, hKp, hKf⟩ := hnf_of (.app hf hx) hb
       have qK : Qt Kh := by unfold Qt; rw [hKf]; exact qA
-      refine fin_of_steps (Steps.left C (Steps.left B hs)) ?_
+      refine reach_of_steps (Steps.left C (Steps.left B hs)) ?_
       rcases hK with rfl | ⟨h, rfl⟩ | ⟨h₁, h₂, rfl⟩
       · exact absurd qK qt_S
       · have e := steps_S1 (.app hf hx) hs
         injection e with ef ex
         subst ef ex
-        refine fin_of_step (.S x B C) ?_
+        refine reach_of_step (.S x B C) ?_
         exact ihx (qt_of_S_app hx qA) hC (.app hB hC) qc (qt_app_left hB hC qb)
-      · exact fin_hnf2 hKp.app_inv.1.app_inv.2 hKp.app_inv.2 hB hC qb qc
+      · exact reach_hnf2 hKp.app_inv.1.app_inv.2 hKp.app_inv.2 hB hC qb qc
 
 end TopTerm

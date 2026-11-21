@@ -268,6 +268,8 @@ import Ski.HnfB0
 import Ski.HnfQ5
 import Ski.HnfCertFinal
 import Ski.TopTermMain
+import Ski.InfSN
+import Ski.InfProd
 import Ski.Graph
 import Ski.RWMem
 import Ski.GraphMem
@@ -1041,9 +1043,17 @@ open Ski.Audit
 #audit_clean TopTerm.RSteps.of_wsteps TopTerm.HRun.of_steps TopTerm.RSteps.first TopTerm.parI_S3 TopTerm.parIs_S3 TopTerm.bridge TopTerm.perpetual_from TopTerm.perpetual_rsteps TopTerm.not_perpetual TopTerm.HRun.pred TopTerm.HRun.step TopTerm.fin_of_step
 #audit_clean TopTerm.fin_of_steps TopTerm.step_foldl TopTerm.headChain_steps TopTerm.no_step_hnf TopTerm.fin_of_hnf TopTerm.fin_of_fold TopTerm.hrun_bot_fun TopTerm.fin_of_bot_fun TopTerm.qAppB_eq TopTerm.qqqB_eq TopTerm.q_app TopTerm.qqq
 #audit_clean TopTerm.qqq_bot TopTerm.qt_S TopTerm.ne_S_of_qt TopTerm.qt_app_ne TopTerm.qt_app_right TopTerm.qt_app_left TopTerm.qt_of_S_app TopTerm.qq_qt TopTerm.qq_pure TopTerm.qq_mk TopTerm.RC.pure TopTerm.rc_of_not_qt
-#audit_clean TopTerm.fin_qqq_app TopTerm.fin_qq_head TopTerm.fin_bot_head TopTerm.fin_rc TopTerm.fin_q2 TopTerm.fin_R1 TopTerm.fin_R2 TopTerm.step_two TopTerm.steps_two TopTerm.steps_S1 TopTerm.hnf_of TopTerm.steps_STS
-#audit_clean TopTerm.steps_STT TopTerm.steps_T TopTerm.stp2 TopTerm.hnf2_cases TopTerm.fin_qqq_qq TopTerm.fin_T TopTerm.fin_hnf2 TopTerm.fin_qqq TopTerm.qt_sub TopTerm.ne_S_of_sub_app TopTerm.last2_step TopTerm.inv_steps
-#audit_clean TopTerm.seg TopTerm.isHnf_S1 TopTerm.root_next TopTerm.fin_L4 TopTerm.fin_L3 TopTerm.fin_L2 TopTerm.fin_L1 TopTerm.fin_all TopTerm.top_termination
+#audit_clean TopTerm.reach_qqq_app TopTerm.reach_qq_head TopTerm.reach_bot_head TopTerm.reach_rc TopTerm.reach_q2 TopTerm.reach_R1 TopTerm.reach_R2 TopTerm.step_two TopTerm.steps_two TopTerm.steps_S1 TopTerm.hnf_of TopTerm.steps_STS
+#audit_clean TopTerm.steps_STT TopTerm.steps_T TopTerm.stp2 TopTerm.hnf2_cases TopTerm.reach_qqq_qq TopTerm.reach_T TopTerm.reach_hnf2 TopTerm.reach_qqq TopTerm.qt_sub TopTerm.ne_S_of_sub_app TopTerm.last2_step TopTerm.inv_steps
+#audit_clean TopTerm.seg TopTerm.isHnf_S1 TopTerm.root_next TopTerm.reach_L4 TopTerm.reach_L3 TopTerm.reach_L2 TopTerm.reach_L1 TopTerm.reach_all TopTerm.top_termination
+#audit_clean TopTerm.reach_of_step TopTerm.reach_of_steps TopTerm.reach_of_hnf TopTerm.reach_of_bot_fun TopTerm.reach_of_fold TopTerm.fin_of_reach
+
+-- Infinitary normal forms of pure S (S2): every infinite reduction of a finite S-term converges (InfSN.not_weakInf); prefixes of t^inf exist, are unique and redex-free (InfNF.nf_exists, nf_unique, nf_redexFree); productive iff no node of t^inf has an infinite left spine (InfNF.prod_iff_nodes), decided by the 39-state automaton (InfNF.nodes_iff_cls)
+#audit_clean InfSN.WStepD.weak InfSN.wstep_depth InfSN.hrun_hnf InfSN.hrun_bound InfSN.root_bound InfSN.red_wsteps InfSN.red_le InfSN.red_pure InfSN.root_of_stepLe0 InfSN.weakInf0_rsteps InfSN.not_weakInf0 InfSN.eventually_none
+#audit_clean InfSN.stepLe_succ_inv InfSN.wstepD_app InfSN.wstepD_app_inv InfSN.red_S InfSN.not_weakInf InfNF.steps_pure InfNF.steps_fold InfNF.steps_cmp InfNF.steps_from_S InfNF.steps_from_hnf InfNF.steps_bot_fun InfNF.stable_pure_bot
+#audit_clean InfNF.nf_bwd InfNF.nf_exists InfNF.nf_unique InfNF.PT.isS2_true InfNF.nf_shape InfNF.root_not_redex InfNF.nf_redexFree InfNF.nf_approx InfNF.nf_coherent InfNF.wstep_from_S InfNF.wsteps_from_S InfNF.wstep_app_result
+#audit_clean InfNF.wsteps_app InfNF.wsteps_to_S InfNF.stable_wstep InfNF.stable_wsteps InfNF.nf_wsteps InfNF.nf_wsteps_back InfNF.normal_left InfNF.normal_right InfNF.normal_fold InfNF.normal_hnf InfNF.nf_normal InfNF.cut_full
+#audit_clean InfNF.normal_of_cut InfNF.nf_finite_iff InfNF.leftInf_of_bot InfNF.left_short InfNF.leftInf_iff InfNF.node_pure InfNF.node_trans InfNF.node_prod InfNF.prod_iff_nodes InfNF.nodes_iff_cls
 
 -- Graph reduction with update in place, sound and complete against L1, never more contractions
 #audit_clean Graph.Dec.det Graph.dec_spine Graph.spine_dec Graph.spine_ne Graph.dec_update Graph.gstep_sound
