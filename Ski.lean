@@ -109,6 +109,10 @@ import Ski.HnfProd
 import Ski.HnfB0
 import Ski.HnfQ5
 import Ski.HnfCertFinal
+import Ski.TopTerm
+import Ski.TopTermFin
+import Ski.TopTermQ
+import Ski.TopTermMain
 import Ski.Graph
 import Ski.RWMem
 import Ski.GraphMem

@@ -267,6 +267,7 @@ import Ski.HnfProd
 import Ski.HnfB0
 import Ski.HnfQ5
 import Ski.HnfCertFinal
+import Ski.TopTermMain
 import Ski.Graph
 import Ski.RWMem
 import Ski.GraphMem
@@ -1035,6 +1036,14 @@ open Ski.Audit
 #audit_clean HnfCert.build_inst HnfCert.spine_inst HnfCert.np_of_sub HnfCert.np_of_wsteps HnfCert.wsteps_foldl HnfCert.sub_foldl_head HnfCert.sub_foldl_arg HnfCert.hasBot_sound HnfCert.gen_sound HnfCert.find_sub HnfCert.lookup_sound HnfCert.grade_sound HnfCert.claimOK_sound HnfCert.pairClose_sound
 #audit_clean HnfCert.F2.inv3 HnfCert.step_inst HnfCert.arg_inst HnfCert.cls_args HnfCert.eq_SS HnfCert.exact1 HnfCert.unfold_inst HnfCert.foldl_bind_none HnfCert.foldl_bind_mem HnfCert.hnf_sound HnfCert.occ_len HnfCert.occ_mem HnfCert.eval_unit HnfCert.comp_szOf
 #audit_clean HnfCert.toRT_spec HnfCert.mins_le HnfCert.replaceK_none HnfCert.replaceK_spec HnfCert.split_sound HnfCert.CBST.sub_append HnfCert.all_node HnfCert.all_at HnfCert.all_take_drop HnfCert.all_step HnfCert.rootsCovered_eq HnfCert.all_claims
+
+-- Top-termination of pure S (Waldmann 1998, ch. 7): no reduction of closed S-terms rewrites the root infinitely often (TopTerm.top_termination); standardization bridge, Waldmann 7.3 and 7.5 in block language
+#audit_clean TopTerm.RSteps.of_wsteps TopTerm.HRun.of_steps TopTerm.RSteps.first TopTerm.parI_S3 TopTerm.parIs_S3 TopTerm.bridge TopTerm.perpetual_from TopTerm.perpetual_rsteps TopTerm.not_perpetual TopTerm.HRun.pred TopTerm.HRun.step TopTerm.fin_of_step
+#audit_clean TopTerm.fin_of_steps TopTerm.step_foldl TopTerm.headChain_steps TopTerm.no_step_hnf TopTerm.fin_of_hnf TopTerm.fin_of_fold TopTerm.hrun_bot_fun TopTerm.fin_of_bot_fun TopTerm.qAppB_eq TopTerm.qqqB_eq TopTerm.q_app TopTerm.qqq
+#audit_clean TopTerm.qqq_bot TopTerm.qt_S TopTerm.ne_S_of_qt TopTerm.qt_app_ne TopTerm.qt_app_right TopTerm.qt_app_left TopTerm.qt_of_S_app TopTerm.qq_qt TopTerm.qq_pure TopTerm.qq_mk TopTerm.RC.pure TopTerm.rc_of_not_qt
+#audit_clean TopTerm.fin_qqq_app TopTerm.fin_qq_head TopTerm.fin_bot_head TopTerm.fin_rc TopTerm.fin_q2 TopTerm.fin_R1 TopTerm.fin_R2 TopTerm.step_two TopTerm.steps_two TopTerm.steps_S1 TopTerm.hnf_of TopTerm.steps_STS
+#audit_clean TopTerm.steps_STT TopTerm.steps_T TopTerm.stp2 TopTerm.hnf2_cases TopTerm.fin_qqq_qq TopTerm.fin_T TopTerm.fin_hnf2 TopTerm.fin_qqq TopTerm.qt_sub TopTerm.ne_S_of_sub_app TopTerm.last2_step TopTerm.inv_steps
+#audit_clean TopTerm.seg TopTerm.isHnf_S1 TopTerm.root_next TopTerm.fin_L4 TopTerm.fin_L3 TopTerm.fin_L2 TopTerm.fin_L1 TopTerm.fin_all TopTerm.top_termination
 
 -- Graph reduction with update in place, sound and complete against L1, never more contractions
 #audit_clean Graph.Dec.det Graph.dec_spine Graph.spine_dec Graph.spine_ne Graph.dec_update Graph.gstep_sound
