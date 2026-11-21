@@ -12,10 +12,10 @@ Waldmann's §7.3 in a short form, then the theorem.
   (`X = S F`, `Z = G`), or `Z ⊴ F` and `c Z ⊴ G` for some `c`.
 * `root_next`: from a root redex `S X Y Z`, the next root redex is `S X' Y' (Y Z)`, related as
   in `seg`; if there is none, the head path makes no further root step.
-* Levels, by structural induction on `X`: any root redex (`fin_L1`), one with `Y ≠ S`
-  (`fin_L2`), one with `Z ∈ Q` (`fin_L3`); the next root redex after that has all three parts in
-  `Q`, and `fin_qqq` (Waldmann 7.5.10) finishes.
-* `fin_all`: every closed S-term makes boundedly many root steps on its head path;
+* Levels, by structural induction on `X`: any root redex (`reach_L1`), one with `Y ≠ S`
+  (`reach_L2`), one with `Z ∈ Q` (`reach_L3`); the next root redex after that has all three parts in
+  `Q`, and `reach_qqq` (Waldmann 7.5.10) finishes.
+* `reach_all`: every closed S-term makes boundedly many root steps on its head path;
   `top_termination`: no reduction sequence of closed S-terms is perpetual.
 -/
 
@@ -100,37 +100,37 @@ theorem isHnf_S1 (a : Term) : IsHnf (S ⬝ a) := .inr (.inl ⟨a, rfl⟩)
 /-- From a root redex `S X Y Z`: either no further root step, or the next root redex
 `S X' Y' (Y Z)`, trivially (`X = S X'`, `Y' = Z`) or with `Z ⊴ X'` and `c Z ⊴ Y'`. -/
 theorem root_next {X Y Z : Term} (hX : PureS X) (hY : PureS Y) (hZ : PureS Z)
-    (triv : ∀ {X'}, X = S ⬝ X' → Fin (S ⬝ X' ⬝ Z ⬝ (Y ⬝ Z)))
+    (triv : ∀ {X'}, X = S ⬝ X' → Reach (S ⬝ X' ⬝ Z ⬝ (Y ⬝ Z)))
     (nontriv : ∀ {X' Y'}, PureS X' → PureS Y' → Sub Z X' → (∃ c, Sub (c ⬝ Z) Y') →
-      Fin (S ⬝ X' ⬝ Y' ⬝ (Y ⬝ Z))) :
-    Fin (S ⬝ X ⬝ Y ⬝ Z) := by
-  refine fin_of_step (.S X Y Z) ?_
+      Reach (S ⬝ X' ⬝ Y' ⬝ (Y ⬝ Z))) :
+    Reach (S ⬝ X ⬝ Y ⬝ Z) := by
+  refine reach_of_step (.S X Y Z) ?_
   have hXZ : PureS (X ⬝ Z) := .app hX hZ
-  if hb : fold (X ⬝ Z) = 36 then exact fin_of_bot_fun hXZ hb
+  if hb : fold (X ⬝ Z) = 36 then exact reach_of_bot_fun hXZ hb
   else
     obtain ⟨Kh, hs, hK, hKp, _⟩ := hnf_of hXZ hb
-    refine fin_of_steps (Steps.left (Y ⬝ Z) hs) ?_
+    refine reach_of_steps (Steps.left (Y ⬝ Z) hs) ?_
     rcases hK with rfl | ⟨h, rfl⟩ | ⟨X', Y', rfl⟩
-    · exact fin_of_hnf (isHnf_S1 _)
-    · exact fin_of_hnf (.inr (.inr ⟨h, Y ⬝ Z, rfl⟩))
+    · exact reach_of_hnf (isHnf_S1 _)
+    · exact reach_of_hnf (.inr (.inr ⟨h, Y ⬝ Z, rfl⟩))
     · rcases seg hs rfl hXZ rfl with ⟨rfl, rfl⟩ | ⟨h1, h2⟩
       · exact triv rfl
       · exact nontriv hKp.app_inv.1.app_inv.2 hKp.app_inv.2 h1 h2
 
 /-- Level 4: all three parts in `Q`. -/
-theorem fin_L4 {X Y Z : Term} (hX : PureS X) (hY : PureS Y) (hZ : PureS Z)
-    (qx : Qt X) (qy : Qt Y) (qz : Qt Z) : Fin (S ⬝ X ⬝ Y ⬝ Z) :=
-  fin_of_step (.S X Y Z) (fin_qqq hX qx hZ (.app hY hZ) qz (qt_app_left hY hZ qy))
+theorem reach_L4 {X Y Z : Term} (hX : PureS X) (hY : PureS Y) (hZ : PureS Z)
+    (qx : Qt X) (qy : Qt Y) (qz : Qt Z) : Reach (S ⬝ X ⬝ Y ⬝ Z) :=
+  reach_of_step (.S X Y Z) (reach_qqq hX qx hZ (.app hY hZ) qz (qt_app_left hY hZ qy))
 
 /-- Level 3: `Z ∈ Q`. -/
-theorem fin_L3 : ∀ {X : Term}, PureS X → ∀ {Y Z : Term}, PureS Y → PureS Z → Qt Z →
-    Fin (S ⬝ X ⬝ Y ⬝ Z) := by
+theorem reach_L3 : ∀ {X : Term}, PureS X → ∀ {Y Z : Term}, PureS Y → PureS Z → Qt Z →
+    Reach (S ⬝ X ⬝ Y ⬝ Z) := by
   intro X hX
   induction hX with
   | S =>
     intro Y Z hY hZ qz
     exact root_next .S hY hZ (fun e => by cases e)
-      (fun hX' hY' h1 ⟨c, h2⟩ => fin_L4 hX' hY' (.app hY hZ) (qt_sub h1 hX' qz)
+      (fun hX' hY' h1 ⟨c, h2⟩ => reach_L4 hX' hY' (.app hY hZ) (qt_sub h1 hX' qz)
         (qt_sub (Sub.trans (.right c (.refl Z)) h2) hY' qz) (qt_app_right hY hZ qz))
   | @app f x hf hx _ ihx =>
     intro Y Z hY hZ qz
@@ -140,30 +140,30 @@ theorem fin_L3 : ∀ {X : Term}, PureS X → ∀ {Y Z : Term}, PureS Y → PureS
       subst ef ex
       exact ihx hZ (.app hY hZ) (qt_app_right hY hZ qz)
     · intro X' Y' hX' hY' h1 ⟨c, h2⟩
-      exact fin_L4 hX' hY' (.app hY hZ) (qt_sub h1 hX' qz)
+      exact reach_L4 hX' hY' (.app hY hZ) (qt_sub h1 hX' qz)
         (qt_sub (Sub.trans (.right c (.refl Z)) h2) hY' qz) (qt_app_right hY hZ qz)
 
 /-- Level 2: `Y ≠ S`. -/
-theorem fin_L2 : ∀ {X : Term}, PureS X → ∀ {Y Z : Term}, PureS Y → PureS Z → Y ≠ S →
-    Fin (S ⬝ X ⬝ Y ⬝ Z) := by
+theorem reach_L2 : ∀ {X : Term}, PureS X → ∀ {Y Z : Term}, PureS Y → PureS Z → Y ≠ S →
+    Reach (S ⬝ X ⬝ Y ⬝ Z) := by
   intro X hX Y Z hY hZ ny
   have qyz : Qt (Y ⬝ Z) := qt_app_ne hY hZ ny
   refine root_next hX hY hZ ?_ ?_
   · intro X' e
     subst e
-    exact fin_L3 hX.app_inv.2 hZ (.app hY hZ) qyz
+    exact reach_L3 hX.app_inv.2 hZ (.app hY hZ) qyz
   · intro X' Y' hX' hY' _ _
-    exact fin_L3 hX' hY' (.app hY hZ) qyz
+    exact reach_L3 hX' hY' (.app hY hZ) qyz
 
 /-- Level 1: any root redex. -/
-theorem fin_L1 : ∀ {X : Term}, PureS X → ∀ {Y Z : Term}, PureS Y → PureS Z →
-    Fin (S ⬝ X ⬝ Y ⬝ Z) := by
+theorem reach_L1 : ∀ {X : Term}, PureS X → ∀ {Y Z : Term}, PureS Y → PureS Z →
+    Reach (S ⬝ X ⬝ Y ⬝ Z) := by
   intro X hX
   induction hX with
   | S =>
     intro Y Z hY hZ
     exact root_next .S hY hZ (fun e => by cases e)
-      (fun hX' hY' _ ⟨_, h2⟩ => fin_L2 hX' hY' (.app hY hZ) (ne_S_of_sub_app h2))
+      (fun hX' hY' _ ⟨_, h2⟩ => reach_L2 hX' hY' (.app hY hZ) (ne_S_of_sub_app h2))
   | @app f x hf hx _ ihx =>
     intro Y Z hY hZ
     refine root_next (.app hf hx) hY hZ ?_ ?_
@@ -172,25 +172,25 @@ theorem fin_L1 : ∀ {X : Term}, PureS X → ∀ {Y Z : Term}, PureS Y → PureS
       subst ef ex
       exact ihx hZ (.app hY hZ)
     · intro X' Y' hX' hY' _ ⟨_, h2⟩
-      exact fin_L2 hX' hY' (.app hY hZ) (ne_S_of_sub_app h2)
+      exact reach_L2 hX' hY' (.app hY hZ) (ne_S_of_sub_app h2)
 
 /-- The head path of every closed S-term does not make arbitrarily many root steps. -/
-theorem fin_all {t : Term} (ht : PureS t) : Fin t := by
+theorem reach_all {t : Term} (ht : PureS t) : Reach t := by
   cases ht with
-  | S => exact fin_of_hnf (.inl rfl)
+  | S => exact reach_of_hnf (.inl rfl)
   | @app f w hf hw =>
-    if hb : fold f = 36 then exact fin_of_bot_fun hf hb
+    if hb : fold f = 36 then exact reach_of_bot_fun hf hb
     else
       obtain ⟨Kh, hs, hK, hKp, _⟩ := hnf_of hf hb
-      refine fin_of_steps (Steps.left w hs) ?_
+      refine reach_of_steps (Steps.left w hs) ?_
       rcases hK with rfl | ⟨a, rfl⟩ | ⟨a, b, rfl⟩
-      · exact fin_of_hnf (isHnf_S1 w)
-      · exact fin_of_hnf (.inr (.inr ⟨a, w, rfl⟩))
-      · exact fin_L1 hKp.app_inv.1.app_inv.2 hKp.app_inv.2 hw
+      · exact reach_of_hnf (isHnf_S1 w)
+      · exact reach_of_hnf (.inr (.inr ⟨a, w, rfl⟩))
+      · exact reach_L1 hKp.app_inv.1.app_inv.2 hKp.app_inv.2 hw
 
 /-- **Top-termination of CL(S)** (Waldmann, 1998, thesis ch. 7).  No reduction sequence of
 closed S-terms rewrites the root at unboundedly late positions. -/
 theorem top_termination {σ : Nat → Term} (h0 : PureS (σ 0)) : ¬ Perpetual σ :=
-  not_perpetual (fin_all h0)
+  not_perpetual (fin_of_reach (reach_all h0))
 
 end TopTerm

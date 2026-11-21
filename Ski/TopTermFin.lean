@@ -113,6 +113,36 @@ theorem fin_of_bot_fun {f w : Term} (hf : PureS f) (hb : fold f = 36) : Fin (f �
     obtain ⟨v, hv⟩ := hall 1
     exact absurd (hrun_bot_fun hv rfl hf hb) (by decide)
 
+/-! ## Reaching the end of root steps, constructively -/
+
+/-- The head path of `t` reaches a head normal form, or a term whose function part has no head
+normal form; either way no root step follows (`fin_of_reach`).  Positive form of `Fin`. -/
+inductive Reach : Term → Prop
+  | hnf {t : Term} : IsHnf t → Reach t
+  | bot {f w : Term} : PureS f → fold f = 36 → Reach (f ⬝ w)
+  | step {t t' : Term} : Step t t' → Reach t' → Reach t
+
+theorem reach_of_step {t t' : Term} (s : Step t t') (h : Reach t') : Reach t := .step s h
+
+theorem reach_of_steps {t t' : Term} (s : Steps t t') (h : Reach t') : Reach t := by
+  induction s with
+  | refl => exact h
+  | step s _ ih => exact .step s (ih h)
+
+theorem reach_of_hnf {u : Term} (hu : IsHnf u) : Reach u := .hnf hu
+
+theorem reach_of_bot_fun {f w : Term} (hf : PureS f) (hb : fold f = 36) : Reach (f ⬝ w) := .bot hf hb
+
+theorem reach_of_fold {t : Term} (ht : PureS t) (hb : fold t ≠ 36) : Reach t := by
+  obtain ⟨u, hc, _, hu⟩ := sound_head t ht hb
+  exact reach_of_steps (headChain_steps hc) (.hnf hu)
+
+theorem fin_of_reach {t : Term} (h : Reach t) : Fin t := by
+  induction h with
+  | hnf hu => exact fin_of_hnf hu
+  | bot hf hb => exact fin_of_bot_fun hf hb
+  | step s _ ih => exact fin_of_step s ih
+
 /-! ## Right combs and the rest, as blocks -/
 
 /-- Block of a non-right-comb (Waldmann's `Q`); the right combs `S`, `S S`, `S (S S)`, … have
