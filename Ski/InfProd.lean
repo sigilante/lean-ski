@@ -12,7 +12,7 @@ With `HnfCert.q5` (S1.5): a node of `t^∞` with an infinite left spine exists e
 namespace InfNF
 open HnfS HnfProd
 
-/-- **S2, Cor. 10.**  No node of `t^∞` has an infinite left spine iff `cls t ≠ 37`. -/
+/-- **S2, Cor. 11.**  No node of `t^∞` has an infinite left spine iff `cls t ≠ 37`. -/
 theorem nodes_iff_cls {t : Term} (ht : PureS t) :
     (∀ u, Node t u → ¬ LeftInf u) ↔ cls t ≠ 37 :=
   (prod_iff_nodes ht).symm.trans (HnfCert.q5 ht)
