@@ -5,7 +5,7 @@ open Term
 # The infinitary normal form of a closed S-term, by its finite prefixes
 
 `NF d t P`: `P` is the infinitary normal form `t^∞` cut at depth `d` (holes below).  The rules
-are S2's Prop. 8: if head reduction reaches `f w` with a *stable* root (`f` has no head normal
+are S2's Prop. 9: if head reduction reaches `f w` with a *stable* root (`f` has no head normal
 form, or `f w` is one), then `t^∞ = f^∞ w^∞`; and `S^∞ = S`.
 
 * `nf_exists` (from `TopTerm.reach_all`), `nf_unique`: every prefix exists and is unique;
