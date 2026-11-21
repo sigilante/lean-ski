@@ -105,6 +105,10 @@ import Ski.Fan
 import Ski.FanReverse
 import Ski.HnfS
 import Ski.HnfSound
+import Ski.HnfProd
+import Ski.HnfB0
+import Ski.HnfQ5
+import Ski.HnfCertFinal
 import Ski.Graph
 import Ski.RWMem
 import Ski.GraphMem

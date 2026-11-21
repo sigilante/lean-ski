@@ -411,6 +411,54 @@ termination_by (r₁ t, nS (spine t), hd t)
 decreasing_by
   exact lex3 (measure_dec hs hsp hr hz htw)
 
+/-- Head reduction as a chain of head steps: each step rewrites `S u₁ u₂ u₃ rest`
+to `u₁ u₃ (u₂ u₃) rest`.  The premise `hS` pins the head atom to `S` (`spine` alone
+forgets it). -/
+inductive HeadChain : Term → Term → Prop
+  | refl (t : Term) : HeadChain t t
+  | step {t v : Term} {u₁ u₂ u₃ : Term} {rest : List Term}
+      (hs : spine t = u₁ :: u₂ :: u₃ :: rest)
+      (hS : t = rest.foldl Term.app (S ⬝ u₁ ⬝ u₂ ⬝ u₃))
+      (h : HeadChain (rest.foldl Term.app (u₁ ⬝ u₃ ⬝ (u₂ ⬝ u₃))) v) : HeadChain t v
+
+/-- **Head-reduction form of soundness.**  If the fold of a closed pure-S term is not ⊥,
+its head reduction reaches a head normal form (a frame of at most two items). -/
+theorem sound_head (t : Term) (ht : PureS t) (hb : fold t ≠ 36) :
+    ∃ u, HeadChain t u ∧ (spine u).length ≤ 2 ∧ IsHnf u := by
+  match hs : spine t with
+  | u₁ :: u₂ :: u₃ :: rest =>
+    obtain ⟨hstep, hsp, hr, hz, htw⟩ := root_step ht hb hs
+    have ⟨hp', he⟩ := wstep_pure hstep ht
+    have hb' : fold (rest.foldl Term.app (u₁ ⬝ u₃ ⬝ (u₂ ⬝ u₃))) ≠ 36 := by rw [he]; exact hb
+    obtain ⟨u, hc, hl, hu⟩ := sound_head _ hp' hb'
+    have hS : t = rest.foldl Term.app (S ⬝ u₁ ⬝ u₂ ⬝ u₃) := by
+      have h0 := pure_eq_foldl ht
+      rw [hs] at h0
+      simpa only [List.foldl] using h0
+    exact ⟨u, .step hs hS hc, hl, hu⟩
+  | [] => exact ⟨t, .refl t, by simp [hs], isHnf_of_short ht (by simp [hs])⟩
+  | [_] => exact ⟨t, .refl t, by simp [hs], isHnf_of_short ht (by simp [hs])⟩
+  | [_, _] => exact ⟨t, .refl t, by simp [hs], isHnf_of_short ht (by simp [hs])⟩
+termination_by (r₁ t, nS (spine t), hd t)
+decreasing_by
+  exact lex3 (measure_dec hs hsp hr hz htw)
+
+/-- Head reduction is deterministic: two head chains from `t` that both stop at a frame
+of length at most two end at the same term. -/
+theorem headChain_uniq {t u u' : Term} (h : HeadChain t u) (h' : HeadChain t u')
+    (hl : (spine u).length ≤ 2) (hl' : (spine u').length ≤ 2) : u = u' := by
+  induction h generalizing u' with
+  | refl t =>
+    cases h' with
+    | refl => rfl
+    | step hs _ _ => rw [hs] at hl; simp at hl
+  | step hs _ hc ih =>
+    cases h' with
+    | refl => rw [hs] at hl'; simp at hl'
+    | step hs' _ hc' =>
+      rw [hs] at hs'; injection hs' with a hs'; injection hs' with b hs'; injection hs' with c d
+      subst a b c d; exact ih hc' hl hl'
+
 /-- **Question 10 of *Dance of the Starlings*.**  The automaton of Fig. 5.14 accepts
 exactly the closed S-terms with a head normal form. -/
 theorem q10 {t : Term} (ht : PureS t) : HasHnf t ↔ dance t ≠ P :=
