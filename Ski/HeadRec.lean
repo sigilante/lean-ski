@@ -503,9 +503,10 @@ theorem apps_eq_app {h e a : Term} {L : List Term} (heq : apps h L = e ⬝ a) :
       exact .inr ⟨[], rfl, rfl⟩
     · exact .inr ⟨b :: L₀, rfl, e1⟩
 
-/-- **Last root redex.**  A head reduction from `e l` never touches `l`, or it passes through a
-last root redex `S x y z`; after it the new last argument `y z` is not touched, and the rest is
-a head reduction of `x z`. -/
+/-- **Root redex with an untouched tail.**  A head reduction from `e l` never touches `l`, or it
+passes through a root redex `S x y z` after which the new last argument `y z` is not touched,
+and the rest is a head reduction of `x z`.  (The statement does not assert that this redex is
+the last root redex; nothing downstream needs that.) -/
 theorem last_root {t w : Term} (h : Steps t w) : ∀ {e l : Term}, t = e ⬝ l → PureS t →
     (∃ e', w = e' ⬝ l ∧ Steps e e') ∨
     (∃ x y z e', Steps t (S ⬝ x ⬝ y ⬝ z) ∧ w = e' ⬝ (y ⬝ z) ∧ Steps (x ⬝ z) e') := by
