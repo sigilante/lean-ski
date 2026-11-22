@@ -28,8 +28,11 @@ count stated is `t0`'s, the paper's 340.
 
 `just_nothing_apart` separates the two answers, which the paper leaves
 implicit, and gives the abstract's "exactly" (`fuel_exact`).
-`fuel_adequacy_decoded` composes with `Unquote.unquote`, for lean-ski's
-unquoter `Unquote.E`, which is not literally the paper's 43-atom `UQ`.
+`UQ` is the paper's 43-atom unquoter (`UQ_eq_paper`), with `UQ ⟨t⟩ ↠ t`
+(`UQ_unquote`); `fuel_adequacy_decoded` composes the two.  Encodings of
+distinct terms have no common reduct (`quote_inj`), so the returned value is
+identified (`fuel_exact_value`) and does not depend on the budget
+(`value_independent`).
 
 The encoding is `quoteT` with `Requote.appC`, which are the paper's terms
 (`quote_eq_paper`).  The proof of `walk` generalizes Lemma 5.1 over the
@@ -643,14 +646,210 @@ theorem fuel_exact (k : Nat) (M : Term) :
       cases h with
       | intro N hN => exact ⟨N, fuel_adequacy_value hN.2 hN.1⟩
 
+-- ---------------------------------------------------------------------------
+-- The paper's unquoter `UQ`
+-- ---------------------------------------------------------------------------
+
+/-- `UQA f t u = (f t) (f u)`. -/
+def uqaBody : OTerm := (.var 0 ⬝ₒ .var 1) ⬝ₒ (.var 0 ⬝ₒ .var 2)
+def UQA : Term := toTerm (absN [0, 1, 2] uqaBody)
+
+/-- `UQGen f m = m S K I (UQA f)`. -/
+def uqGenBody : OTerm :=
+  .var 1 ⬝ₒ Term.S.toO ⬝ₒ Term.K.toO ⬝ₒ Term.I.toO ⬝ₒ (UQA.toO ⬝ₒ .var 0)
+def UQGen : Term := toTerm (absN [0, 1] uqGenBody)
+
+/-- **The paper's unquoter**, `UQ = Y UQGen`. -/
+def UQ : Term := fixY ⬝ UQGen
+
+/-- The unquoter as the paper prints it (Appendix A; the artifact's
+    `figures/uq-43.txt`), transcribed mechanically. -/
+def paperUQ: Term :=
+  (((S ⬝ (K ⬝ ((S ⬝ I) ⬝ I))) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ K)) ⬝ (K ⬝ ((S ⬝ I) ⬝ I)))) ⬝ ((S ⬝ (K ⬝ (S ⬝ ((S ⬝ ((S ⬝ ((S ⬝ I) ⬝ (K ⬝ S))) ⬝ (K ⬝ K))) ⬝ (K ⬝ I))))) ⬝ ((S ⬝ (K ⬝ K)) ⬝ ((S ⬝ ((S ⬝ (K ⬝ S)) ⬝ ((S ⬝ (K ⬝ (S ⬝ (K ⬝ S)))) ⬝ (S ⬝ (K ⬝ K))))) ⬝ K))))
+
+/-- The unquoter is the paper's term, atom for atom. -/
+theorem UQ_eq_paper : UQ = paperUQ := by decide
+
+/-- 43 atoms. -/
+theorem UQ_atoms : atoms UQ = 43 := by decide
+
+theorem UQA_beta (f t u : Term) : WSteps (UQA ⬝ f ⬝ t ⬝ u) ((f ⬝ t) ⬝ (f ⬝ u)) := by
+  beta_close [0, 1, 2] uqaBody [f, t, u]
+
+theorem UQGen_beta (f m : Term) :
+    WSteps (UQGen ⬝ f ⬝ m) (m ⬝ S ⬝ K ⬝ I ⬝ (UQA ⬝ f)) := by
+  beta_close [0, 1] uqGenBody [f, m]
+
+/-- `UQ` after its first contraction. -/
+def uqX : Term := selfT UQGen
+
+theorem uqX_case (m : Term) : WSteps (uqX ⬝ m) (m ⬝ S ⬝ K ⬝ I ⬝ (UQA ⬝ uqX)) :=
+  (WSteps.left m (selfT_unroll UQGen)).trans (UQGen_beta uqX m)
+
+theorem uqX_unquote : ∀ t : Term, WSteps (uqX ⬝ quoteT t) t
+  | .S => (uqX_case _).trans (quoteS_elim _ _ _ _)
+  | .K => (uqX_case _).trans (quoteK_elim _ _ _ _)
+  | .I => (uqX_case _).trans (quoteI_elim _ _ _ _)
+  | .app f x =>
+    (((uqX_case _).trans (quoteApp_elim f x _ _ _ _)).trans (UQA_beta _ _ _)).trans
+      (WSteps.app (uqX_unquote f) (uqX_unquote x))
+
+/-- **The unquoter is correct** (§3.1: `UQ` "maps encoded data back to a
+    live term"): `UQ ⟨t⟩ ↠ t` for every term `t`, for the paper's 43-atom
+    term. -/
+theorem UQ_unquote (t : Term) : WSteps (UQ ⬝ quoteT t) t :=
+  (WSteps.left _ (fixY_self UQGen)).trans (uqX_unquote t)
+
+-- ---------------------------------------------------------------------------
+-- Encodings of distinct terms have no common reduct
+-- ---------------------------------------------------------------------------
+
+/-- `t` and `u` have a common weak reduct. -/
+def Joinable (t u : Term) : Prop := ∃ v, WSteps t v ∧ WSteps u v
+
+theorem Joinable.app {t u : Term} (h : Joinable t u) (a : Term) : Joinable (t ⬝ a) (u ⬝ a) := by
+  cases h with
+  | intro v hv => exact ⟨v ⬝ a, WSteps.left a hv.1, WSteps.left a hv.2⟩
+
+/-- Joinability passes to reducts, by confluence. -/
+theorem Joinable.red {t u t' u' : Term} (h : Joinable t u) (ht : WSteps t t')
+    (hu : WSteps u u') : Joinable t' u' := by
+  cases h with
+  | intro v hv =>
+    cases church_rosser ht hv.1 with
+    | intro w hw =>
+      cases church_rosser hu (hv.2.trans hw.2) with
+      | intro z hz => exact ⟨z, hw.1.trans hz.2, hz.1⟩
+
+theorem Joinable.symm {t u : Term} (h : Joinable t u) : Joinable u t := by
+  cases h with
+  | intro v hv => exact ⟨v, hv.2, hv.1⟩
+
+/-- An encoding applied to four continuations. -/
+theorem Joinable.app4 {t u : Term} (h : Joinable t u) (a b c d : Term) :
+    Joinable (t ⬝ a ⬝ b ⬝ c ⬝ d) (u ⬝ a ⬝ b ⬝ c ⬝ d) :=
+  (((h.app a).app b).app c).app d
+
+theorem I_normal {w : Term} (h : WSteps I w) : w = I := by
+  cases h with
+  | refl => rfl
+  | step h _ => cases h
+
+theorem S_K_apart (h : Joinable S K) : False := by
+  cases h with
+  | intro v hv =>
+    have e := S_normal hv.1
+    rw [K_normal hv.2] at e
+    cases e
+
+theorem S_I_apart (h : Joinable S I) : False := by
+  cases h with
+  | intro v hv =>
+    have e := S_normal hv.1
+    rw [I_normal hv.2] at e
+    cases e
+
+theorem K_I_apart (h : Joinable K I) : False := by
+  cases h with
+  | intro v hv =>
+    have e := K_normal hv.1
+    rw [I_normal hv.2] at e
+    cases e
+
+/-- The application continuation that answers `K` whatever the children. -/
+theorem appK (f x : Term) : WSteps (K ⬝ (K ⬝ K) ⬝ f ⬝ x) K :=
+  .step (.left x (.K (K ⬝ K) f)) (.single (.K K x))
+
+/-- A leaf's encoding and an application's are apart. -/
+theorem leaf_app_apart {l f x : Term} (hl : WSteps (quoteT l ⬝ S ⬝ S ⬝ S ⬝ (K ⬝ (K ⬝ K))) S)
+    (h : Joinable (quoteT l) (quoteT (f ⬝ x))) : False :=
+  S_K_apart ((h.app4 S S S (K ⬝ (K ⬝ K))).red hl
+    ((quoteApp_elim f x _ _ _ _).trans (appK _ _)))
+
+/-- **Encodings of distinct terms are unjoinable**: if `⟨N⟩` and `⟨N'⟩`
+    have a common weak reduct then `N = N'`. -/
+theorem quote_inj : ∀ N N' : Term, Joinable (quoteT N) (quoteT N') → N = N'
+  | .S, .S, _ => rfl
+  | .K, .K, _ => rfl
+  | .I, .I, _ => rfl
+  | .S, .K, h => (S_K_apart ((h.app4 S K I I).red (quoteS_elim _ _ _ _) (quoteK_elim _ _ _ _))).elim
+  | .K, .S, h => (S_K_apart ((h.symm.app4 S K I I).red (quoteS_elim _ _ _ _)
+      (quoteK_elim _ _ _ _))).elim
+  | .S, .I, h => (S_I_apart ((h.app4 S K I I).red (quoteS_elim _ _ _ _) (quoteI_elim _ _ _ _))).elim
+  | .I, .S, h => (S_I_apart ((h.symm.app4 S K I I).red (quoteS_elim _ _ _ _)
+      (quoteI_elim _ _ _ _))).elim
+  | .K, .I, h => (K_I_apart ((h.app4 S K I I).red (quoteK_elim _ _ _ _) (quoteI_elim _ _ _ _))).elim
+  | .I, .K, h => (K_I_apart ((h.symm.app4 S K I I).red (quoteK_elim _ _ _ _)
+      (quoteI_elim _ _ _ _))).elim
+  | .S, .app _ _, h => (leaf_app_apart (quoteS_elim _ _ _ _) h).elim
+  | .K, .app _ _, h => (leaf_app_apart (quoteK_elim _ _ _ _) h).elim
+  | .I, .app _ _, h => (leaf_app_apart (quoteI_elim _ _ _ _) h).elim
+  | .app _ _, .S, h => (leaf_app_apart (quoteS_elim _ _ _ _) h.symm).elim
+  | .app _ _, .K, h => (leaf_app_apart (quoteK_elim _ _ _ _) h.symm).elim
+  | .app _ _, .I, h => (leaf_app_apart (quoteI_elim _ _ _ _) h.symm).elim
+  | .app f x, .app f' x', h => by
+    have hf : Joinable (quoteT f) (quoteT f') :=
+      (h.app4 S S S K).red ((quoteApp_elim f x _ _ _ _).trans (.single (.K _ _)))
+        ((quoteApp_elim f' x' _ _ _ _).trans (.single (.K _ _)))
+    have hx : Joinable (quoteT x) (quoteT x') :=
+      (h.app4 S S S (K ⬝ I)).red
+        ((quoteApp_elim f x _ _ _ _).trans (.step (.left _ (.K _ _)) (.single (.I _))))
+        ((quoteApp_elim f' x' _ _ _ _).trans (.step (.left _ (.K _ _)) (.single (.I _))))
+    rw [quote_inj f f' hf, quote_inj x x' hx]
+
+/-- `just` is injective up to joinability. -/
+theorem just_joinable {q q' : Term} (h : Joinable (justT ⬝ q) (justT ⬝ q')) : Joinable q q' :=
+  ((h.app S).app I).red ((just_elim q S I).trans (.single (.I q)))
+    ((just_elim q' S I).trans (.single (.I q')))
+
+/-- **Fuel adequacy, exactly, with the value**: the interpreter at budget
+    `k` weakly reduces to `just ⟨N⟩` if and only if `M ⇓ₙ N` for some
+    `n < k`.  The right-to-left half is Theorem 5.2(1); the other is its
+    converse. -/
+theorem fuel_exact_value (k : Nat) (M N : Term) :
+    WSteps (whnfF ⬝ natT k ⬝ quoteT M) (justT ⬝ quoteT N) ↔ ∃ n, n < k ∧ Down n M N := by
+  constructor
+  · intro h
+    have h1 := whnfF_evalF k M
+    cases e : evalF k M with
+    | none =>
+      rw [e] at h1
+      exact (just_nothing_apart h h1).elim
+    | some N' =>
+      rw [e] at h1
+      have hj : Joinable (justT ⬝ quoteT N) (justT ⬝ quoteT N') := church_rosser h h1
+      rw [quote_inj N N' (just_joinable hj)]
+      exact evalF_down e
+  · intro h
+    cases h with
+    | intro n hn => exact fuel_adequacy_value hn.2 hn.1
+
+theorem down_det : ∀ {n n' : Nat} {M N N' : Term}, Down n M N → Down n' M N' → N = N'
+  | _, _, _, _, _, .whnf _, .whnf _ => rfl
+  | _, _, _, _, _, .whnf hw, .step h _ => (hw.no_step h).elim
+  | _, _, _, _, _, .step h _, .whnf hw => (hw.no_step h).elim
+  | _, _, _, _, _, .step h hs, .step h' hs' => by
+    rw [Step.det h h'] at hs
+    exact down_det hs hs'
+
+/-- **The value is independent of the budget** (§5.1, third consequence):
+    two runs on `⟨M⟩`, at any budgets `k` and `k'`, that both return a `just`
+    return the same term. -/
+theorem value_independent {M N N' : Term} {k k' : Nat}
+    (h : WSteps (whnfF ⬝ natT k ⬝ quoteT M) (justT ⬝ quoteT N))
+    (h' : WSteps (whnfF ⬝ natT k' ⬝ quoteT M) (justT ⬝ quoteT N')) : N = N' := by
+  cases (fuel_exact_value k M N).mp h with
+  | intro n hn =>
+    cases (fuel_exact_value k' M N').mp h' with
+    | intro n' hn' => exact down_det hn.2 hn'.2
+
 /-- **Decoded** (§3.2, "the decoded result equals the host's own reduction"):
-    handed lean-ski's unquoter `Unquote.E` (the paper's `UQ` equation, not
-    its 43-atom term) as its `just` continuation, a run with enough fuel
-    reduces to the live weak head normal form itself. -/
+    handed the paper's unquoter `UQ` as its `just` continuation, a run with
+    enough fuel reduces to the live weak head normal form itself. -/
 theorem fuel_adequacy_decoded {M N : Term} {n k : Nat} (h : Down n M N) (hk : n < k)
-    (d : Term) : WSteps (whnfF ⬝ natT k ⬝ quoteT M ⬝ d ⬝ Unquote.E) N :=
+    (d : Term) : WSteps (whnfF ⬝ natT k ⬝ quoteT M ⬝ d ⬝ UQ) N :=
   (WSteps.left _ (WSteps.left _ (fuel_adequacy_value h hk))).trans
-    ((just_elim _ _ _).trans (Unquote.unquote N))
+    ((just_elim _ _ _).trans (UQ_unquote N))
 
 /-- The paper's T0 run (§3.2), `whnfF 3 ⟨I K⟩`: head reduction of the host
     stops at a weak head normal form after exactly 340 contractions, and the
@@ -660,5 +859,26 @@ theorem t0 :
     (runF 341 (whnfF ⬝ natT 3 ⬝ quoteT (I ⬝ K))).map (·.2) = some 340 ∧
       WSteps (whnfF ⬝ natT 3 ⬝ quoteT (I ⬝ K)) (justT ⬝ quoteT K) :=
   ⟨by decide +kernel, fuel_adequacy_value (.step (.I K) (.whnf .K)) (by decide)⟩
+
+-- ---------------------------------------------------------------------------
+-- The tower counts, by compiled evaluation only
+-- ---------------------------------------------------------------------------
+
+/-- Head contractions of the host to weak head normal form, within `f`
+    step-attempts. -/
+def hostCount : Nat → Term → Nat → Option Nat
+  | 0, _, _ => none
+  | f + 1, t, acc =>
+    match step? t with
+    | none => some acc
+    | some t' => hostCount f t' (acc + 1)
+
+-- The paper's T1 and T2 counts (§3.2), on the pinned terms.  These two lines
+-- are checked by the compiled evaluator, not by the kernel: they are tests,
+-- not theorems, and are not in the axiom gate.  A kernel check of the first
+-- (`decide +kernel`) passed 2.8 GB of memory and was stopped.
+#guard hostCount 91557 (whnfF ⬝ natT 120 ⬝ quoteT (UQ ⬝ quoteT (I ⬝ K))) 0 == some 91556
+#guard hostCount 504931 (whnfF ⬝ natT 500 ⬝ quoteT (whnfF ⬝ natT 3 ⬝ quoteT (I ⬝ K))) 0
+  == some 504930
 
 end SelfInterp
