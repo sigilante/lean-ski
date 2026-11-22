@@ -601,8 +601,8 @@ theorem nhr_iff_efr : NHR ↔ EFR := by
 /-! ## Self Front Return
 
 `x →h* S x A⃗` with `|A⃗| ≥ 1`.  One argument is `no_fst_self`.  Two or more arguments give, after
-one more step, a recurrence of `x` with `|A⃗|` emitted arguments; so this case is an instance of
-the open problem, and is proved here only from `EFR`. -/
+one more step, a recurrence of `x` with `|A⃗|` emitted arguments; `sfr_of_efr` derives it from
+`EFR`, which is proved unconditionally below (`efr`, from `no_ground_loop`). -/
 
 /-- A self front return with two or more arguments is a head recurrence of `x`. -/
 theorem recurrence_of_sfr {x A₁ A₂ : Term} {As : List Term}

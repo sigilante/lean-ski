@@ -1060,7 +1060,7 @@ open Ski.Audit
   HeadRec.no_fst_self HeadRec.no_head_cycle HeadRec.no_steps_self_app HeadRec.no_head_recurrence_one
 -- Bottom-lex monotonicity (steps_blex), the last root redex (last_root), and EFR ⟺ NHR(k ≥ 1)
 -- (nhr_iff_efr): no t →h⁺ t X⃗ with |X⃗| ≥ 1 iff no x z →h⁺ S x y z Y⃗.  Both sides are proved in the next block.
--- Self Front Return with ≥ 2 arguments is a recurrence (recurrence_of_sfr), so only conditional (sfr_of_efr).
+-- Self Front Return with ≥ 2 arguments is a recurrence (recurrence_of_sfr); it follows from EFR (sfr_of_efr), proved below.
 #audit_clean HeadRec.BLex.trans HeadRec.BLex.ne HeadRec.BLex.last HeadRec.BLex.inv HeadRec.step_blex HeadRec.steps_blex
   HeadRec.BLex.rargs HeadRec.steps_rargs HeadRec.last_wrap_of_blex HeadRec.no_head_cycle_of_blex
   HeadRec.Plus.steps HeadRec.plus_of_steps_ne HeadRec.apps_snoc HeadRec.steps_apps HeadRec.sz_le_apps HeadRec.sz_lt_apps
