@@ -1058,6 +1058,14 @@ open Ski.Audit
   HeadRec.step_two HeadRec.steps_S HeadRec.steps_last HeadRec.step_to_S2 HeadRec.Wrap.sz_le HeadRec.Wrap.trans
   HeadRec.Wrap.app_eq HeadRec.last_wrap HeadRec.split HeadRec.last2_grown HeadRec.last2 HeadRec.no_snd_self
   HeadRec.no_fst_self HeadRec.no_head_cycle HeadRec.no_steps_self_app HeadRec.no_head_recurrence_one
+-- Bottom-lex monotonicity (steps_blex), the last root redex (last_root), and EFR ⟺ NHR(k ≥ 1)
+-- (nhr_iff_efr): no t →h⁺ t X⃗ with |X⃗| ≥ 1 iff no x z →h⁺ S x y z Y⃗.  Neither side is proved.
+-- Self Front Return with ≥ 2 arguments is a recurrence (recurrence_of_sfr), so only conditional (sfr_of_efr).
+#audit_clean HeadRec.BLex.trans HeadRec.BLex.ne HeadRec.BLex.last HeadRec.BLex.inv HeadRec.step_blex HeadRec.steps_blex
+  HeadRec.BLex.rargs HeadRec.steps_rargs HeadRec.last_wrap_of_blex HeadRec.no_head_cycle_of_blex
+  HeadRec.Plus.steps HeadRec.plus_of_steps_ne HeadRec.apps_snoc HeadRec.steps_apps HeadRec.sz_le_apps HeadRec.sz_lt_apps
+  HeadRec.pure_apps HeadRec.apps_eq_app HeadRec.last_root HeadRec.efr_of_recurrence HeadRec.recurrence_of_efr
+  HeadRec.app_ne_S3_apps HeadRec.ne_apps HeadRec.nhr_iff_efr HeadRec.recurrence_of_sfr HeadRec.sfr_of_efr
 
 -- Infinitary normal forms of pure S (S2): every infinite reduction of a finite S-term converges (InfSN.not_weakInf); prefixes of t^inf exist, are unique and redex-free (InfNF.nf_exists, nf_unique, nf_redexFree); productive iff no node of t^inf has an infinite left spine (InfNF.prod_iff_nodes), decided by the 39-state automaton (InfNF.nodes_iff_cls)
 #audit_clean InfSN.WStepD.weak InfSN.wstep_depth InfSN.hrun_hnf InfSN.hrun_bound InfSN.root_bound InfSN.red_wsteps InfSN.red_le InfSN.red_pure InfSN.root_of_stepLe0 InfSN.weakInf0_rsteps InfSN.not_weakInf0 InfSN.eventually_none

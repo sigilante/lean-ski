@@ -27,6 +27,14 @@ From these:
 * `no_fst_self`: no `x` with `x →h* S x y`.
 
 No use is made of the fold or of top-termination.
+
+Toward `k ≥ 2` (nothing below proves it):
+
+* `steps_blex`: bottom-lex monotonicity, the run-level form of `last_wrap` for every position;
+* `last_root`, `efr_of_recurrence`: the normal form of a recurrence;
+* `nhr_iff_efr`: no recurrence with `k ≥ 1` iff no exact front return `x z →h⁺ S x y z Y⃗`;
+* `recurrence_of_sfr`, `sfr_of_efr`: a self front return `x →h* S x A⃗` with `|A⃗| ≥ 2` is a
+  recurrence, so it is excluded only conditionally on `EFR`.
 -/
 
 namespace HeadRec
@@ -325,5 +333,285 @@ one or more steps, to `t X`. -/
 theorem no_head_recurrence_one {t t' X : Term} (ht : PureS t) (s : Step t t')
     (h : Steps t' (t ⬝ X)) : False :=
   no_steps_self_app ht X (.step s h)
+
+/-! ## Bottom-lex monotonicity
+
+Number the spine positions from the bottom: position 1 is the last argument.  A head step on a
+spine of length `m` keeps positions `1 … m-3`, replaces the item `z` at position `m-2` by `y z`,
+and rebuilds everything above.  So the lowest position that changes, changes by a proper wrap.
+`BLex` states this for whole runs, directly on terms. -/
+
+/-- `BLex u v`: reading the arguments of `u` and `v` from the last one upward, they agree up to
+some position, and there `u` has `G` and `v` has a proper wrap `dₙ (… (d₁ (d G)))` of `G`.
+Nothing is said about the positions above. -/
+inductive BLex : Term → Term → Prop
+  | here (d : Term) {u u' G G' : Term} : Wrap (d ⬝ G) G' → BLex (u ⬝ G) (u' ⬝ G')
+  | up {u u' : Term} (G : Term) : BLex u u' → BLex (u ⬝ G) (u' ⬝ G)
+
+theorem BLex.trans {a b c : Term} (h1 : BLex a b) (h2 : BLex b c) : BLex a c := by
+  induction h1 generalizing c with
+  | here d w =>
+    cases h2 with
+    | here d' w' => exact .here d (Wrap.trans w (Wrap.trans (.wrap d' .refl) w'))
+    | up _ _ => exact .here d w
+  | up G _ ih =>
+    cases h2 with
+    | here d' w' => exact .here d' w'
+    | up _ h' => exact .up G (ih h')
+
+theorem BLex.ne {t w : Term} (h : BLex t w) : t ≠ w := by
+  induction h with
+  | @here d u u' G G' w =>
+    intro e
+    injection e with _ e2
+    subst e2
+    exact absurd w.sz_le (Nat.not_le_of_lt (sz_arg_lt d G))
+  | up G _ ih =>
+    intro e
+    injection e with e1 _
+    exact ih e1
+
+/-- The last argument of a `BLex`-larger term is a wrap of the last argument. -/
+theorem BLex.last {u G w : Term} (h : BLex (u ⬝ G) w) : ∃ u' G', w = u' ⬝ G' ∧ Wrap G G' := by
+  cases h with
+  | here d w' => exact ⟨_, _, rfl, Wrap.trans (.wrap d .refl) w'⟩
+  | up _ _ => exact ⟨_, _, rfl, .refl⟩
+
+/-- Inversion: the last argument is properly wrapped, or it is unchanged and the function parts
+are `BLex`-related. -/
+theorem BLex.inv {u G w : Term} (h : BLex (u ⬝ G) w) :
+    ∃ u' G', w = u' ⬝ G' ∧ ((∃ d, Wrap (d ⬝ G) G') ∨ (G' = G ∧ BLex u u')) := by
+  cases h with
+  | here d w' => exact ⟨_, _, rfl, .inl ⟨d, w'⟩⟩
+  | up _ h' => exact ⟨_, _, rfl, .inr ⟨rfl, h'⟩⟩
+
+/-- A head step of a closed S-term is a bottom-lex increase. -/
+theorem step_blex {t t' : Term} (ht : PureS t) (s : Step t t') : BLex t t' := by
+  induction s with
+  | S f g x => exact .here g .refl
+  | K => cases ht with | app h _ => cases h with | app h _ => cases h
+  | I => cases ht with | app h _ => cases h
+  | left x _ ih => exact .up x (ih ht.app_inv.1)
+
+/-- **Bottom-lex monotonicity.**  Along a head reduction of a closed S-term, either nothing
+happened, or the lowest spine position that was touched holds a proper wrap of its original
+item and everything below it is unchanged. -/
+theorem steps_blex {t w : Term} (h : Steps t w) (ht : PureS t) : t = w ∨ BLex t w := by
+  induction h with
+  | refl => exact .inl rfl
+  | step s _ ih =>
+    have hb := step_blex ht s
+    rcases ih (wstep_pure s.weak ht).1 with rfl | h'
+    · exact .inr hb
+    · exact .inr (hb.trans h')
+
+/-- The arguments of a term, last one first. -/
+def rargs : Term → List Term
+  | .app f x => x :: rargs f
+  | _ => []
+
+/-- `BLex` on reversed argument lists: a common part `B` below, then `G` against a proper wrap
+of `G`. -/
+theorem BLex.rargs {u v : Term} (h : BLex u v) : ∃ B G G' T T' d,
+    rargs u = B ++ G :: T ∧ rargs v = B ++ G' :: T' ∧ Wrap (d ⬝ G) G' := by
+  induction h with
+  | here d w => exact ⟨[], _, _, _, _, d, rfl, rfl, w⟩
+  | @up u u' G _ ih =>
+    obtain ⟨B, G₀, G', T, T', d, e1, e2, w⟩ := ih
+    refine ⟨G :: B, G₀, G', T, T', d, ?_, ?_, w⟩
+    · show G :: HeadRec.rargs u = G :: (B ++ G₀ :: T)
+      rw [e1]
+    · show G :: HeadRec.rargs u' = G :: (B ++ G' :: T')
+      rw [e2]
+
+/-- Bottom-lex monotonicity, on reversed argument lists. -/
+theorem steps_rargs {t w : Term} (h : Steps t w) (ht : PureS t) : t = w ∨ ∃ B G G' T T' d,
+    rargs t = B ++ G :: T ∧ rargs w = B ++ G' :: T' ∧ Wrap (d ⬝ G) G' :=
+  (steps_blex h ht).imp id BLex.rargs
+
+/-- `last_wrap` again, as a corollary of bottom-lex monotonicity. -/
+theorem last_wrap_of_blex {u G w : Term} (h : Steps (u ⬝ G) w) (hp : PureS (u ⬝ G)) :
+    ∃ u' G', w = u' ⬝ G' ∧ Wrap G G' := by
+  rcases steps_blex h hp with rfl | hb
+  · exact ⟨u, G, rfl, .refl⟩
+  · exact hb.last
+
+/-- `no_head_cycle` again, as a corollary of bottom-lex monotonicity. -/
+theorem no_head_cycle_of_blex {t t' : Term} (ht : PureS t) (s : Step t t') : ¬ Steps t' t := by
+  intro h
+  have hb := step_blex ht s
+  rcases steps_blex h (wstep_pure s.weak ht).1 with e | h'
+  · exact hb.ne e.symm
+  · exact (hb.trans h').ne rfl
+
+/-! ## Exact Front Return ⟺ no head recurrence with `k ≥ 1`
+
+Argument vectors are `List Term`, applied left to right by `apps`:
+`apps h [a₁, …, aₙ] = h a₁ … aₙ`.  `Plus` is one or more head steps. -/
+
+/-- `apps h [a₁, …, aₙ] = h a₁ … aₙ`. -/
+def apps (h : Term) : List Term → Term
+  | [] => h
+  | a :: L => apps (h ⬝ a) L
+
+/-- One or more head steps. -/
+def Plus (t w : Term) : Prop := ∃ t', Step t t' ∧ Steps t' w
+
+theorem Plus.steps {t w : Term} (h : Plus t w) : Steps t w :=
+  let ⟨_, s, r⟩ := h; .step s r
+
+theorem plus_of_steps_ne {t w : Term} (h : Steps t w) (hne : t ≠ w) : Plus t w := by
+  cases h with
+  | refl => exact absurd rfl hne
+  | step s r => exact ⟨_, s, r⟩
+
+theorem apps_snoc (h : Term) (L : List Term) (a : Term) : apps h (L ++ [a]) = apps h L ⬝ a := by
+  induction L generalizing h with
+  | nil => rfl
+  | cons b L ih => exact ih (h ⬝ b)
+
+theorem steps_apps {f f' : Term} (L : List Term) (h : Steps f f') :
+    Steps (apps f L) (apps f' L) := by
+  induction L generalizing f f' with
+  | nil => exact h
+  | cons a L ih => exact ih (Steps.left a h)
+
+theorem sz_le_apps (h : Term) (L : List Term) : sz h ≤ sz (apps h L) := by
+  induction L generalizing h with
+  | nil => exact Nat.le_refl _
+  | cons a L ih => exact Nat.le_trans (Nat.le_of_lt (sz_fun_lt h a)) (ih (h ⬝ a))
+
+theorem sz_lt_apps (h : Term) {L : List Term} (hL : L ≠ []) : sz h < sz (apps h L) := by
+  cases L with
+  | nil => exact absurd rfl hL
+  | cons a L => exact Nat.lt_of_lt_of_le (sz_fun_lt h a) (sz_le_apps (h ⬝ a) L)
+
+theorem pure_apps {h : Term} {L : List Term} (hp : PureS (apps h L)) : PureS h := by
+  induction L generalizing h with
+  | nil => exact hp
+  | cons a L ih => exact (ih hp).app_inv.1
+
+/-- If `h a₁ … aₙ` is `e a`, then `n = 0`, or `a = aₙ` and `e = h a₁ … aₙ₋₁`. -/
+theorem apps_eq_app {h e a : Term} {L : List Term} (heq : apps h L = e ⬝ a) :
+    (L = [] ∧ h = e ⬝ a) ∨ ∃ L₀, L = L₀ ++ [a] ∧ e = apps h L₀ := by
+  induction L generalizing h with
+  | nil => exact .inl ⟨rfl, heq⟩
+  | cons b L ih =>
+    rcases ih heq with ⟨rfl, e1⟩ | ⟨L₀, rfl, e1⟩
+    · injection e1 with e2 e3
+      subst e2 e3
+      exact .inr ⟨[], rfl, rfl⟩
+    · exact .inr ⟨b :: L₀, rfl, e1⟩
+
+/-- **Last root redex.**  A head reduction from `e l` never touches `l`, or it passes through a
+last root redex `S x y z`; after it the new last argument `y z` is not touched, and the rest is
+a head reduction of `x z`. -/
+theorem last_root {t w : Term} (h : Steps t w) : ∀ {e l : Term}, t = e ⬝ l → PureS t →
+    (∃ e', w = e' ⬝ l ∧ Steps e e') ∨
+    (∃ x y z e', Steps t (S ⬝ x ⬝ y ⬝ z) ∧ w = e' ⬝ (y ⬝ z) ∧ Steps (x ⬝ z) e') := by
+  induction h with
+  | refl => intro e l h _; exact .inl ⟨e, h, .refl _⟩
+  | step s rest ih =>
+    intro e l h hp
+    subst h
+    have hp' := (wstep_pure s.weak hp).1
+    rcases step_inv hp.app_inv.1 s with ⟨u', s', rfl⟩ | ⟨f, g, rfl, rfl⟩
+    · rcases ih rfl hp' with ⟨e', h1, h2⟩ | ⟨x, y, z, e', h1, h2, h3⟩
+      · exact .inl ⟨e', h1, .step s' h2⟩
+      · exact .inr ⟨x, y, z, e', .step s h1, h2, h3⟩
+    · rcases ih rfl hp' with ⟨e', h1, h2⟩ | ⟨x, y, z, e', h1, h2, h3⟩
+      · exact .inr ⟨f, g, l, e', .refl _, h1, h2⟩
+      · exact .inr ⟨x, y, z, e', .step s h1, h2, h3⟩
+
+/-- **Normal form of a recurrence.**  From a recurrence `t →h* t X⃗` with `|X⃗| ≥ 1` one gets an
+exact front return `x z →h* S x y z Y⃗`.  By induction on `t`: strip the last argument while it
+is untouched; otherwise rotate to the last root redex. -/
+theorem efr_of_recurrence : ∀ {t : Term}, PureS t → ∀ (L : List Term), L ≠ [] →
+    Steps t (apps t L) →
+    ∃ x y z Ys, PureS (S ⬝ x ⬝ y ⬝ z) ∧ Steps (x ⬝ z) (apps (S ⬝ x ⬝ y ⬝ z) Ys) := by
+  intro t ht
+  induction ht with
+  | S =>
+    intro L hL h
+    have h1 := sz_lt_apps S hL
+    rw [steps_S h] at h1
+    exact absurd h1 (Nat.lt_irrefl _)
+  | @app e l he hl ihe _ =>
+    intro L hL h
+    rcases last_root h rfl (.app he hl) with ⟨e', h1, h2⟩ | ⟨x, y, z, e', h1, h2, h3⟩
+    · rcases apps_eq_app h1 with ⟨e1, _⟩ | ⟨L₀, _, rfl⟩
+      · exact absurd e1 hL
+      · exact ihe (l :: L₀) (fun e => nomatch e) h2
+    · rcases apps_eq_app h2 with ⟨e1, _⟩ | ⟨L₀, _, rfl⟩
+      · exact absurd e1 hL
+      · exact ⟨x, y, z, L₀, steps_pure (.app he hl) h1, h3.trans (steps_apps L₀ h1)⟩
+
+/-- The converse construction: an exact front return gives a recurrence of the root redex
+`S x y z`, emitting `Y⃗ (y z)`. -/
+theorem recurrence_of_efr {x y z : Term} {Ys : List Term}
+    (h : Steps (x ⬝ z) (apps (S ⬝ x ⬝ y ⬝ z) Ys)) :
+    Plus (S ⬝ x ⬝ y ⬝ z) (apps (S ⬝ x ⬝ y ⬝ z) (Ys ++ [y ⬝ z])) := by
+  refine ⟨x ⬝ z ⬝ (y ⬝ z), .S x y z, ?_⟩
+  rw [apps_snoc]
+  exact Steps.left _ h
+
+theorem app_ne_S3_apps (x y z : Term) (Ys : List Term) : x ⬝ z ≠ apps (S ⬝ x ⬝ y ⬝ z) Ys := by
+  intro e
+  have h1 := sz_le_apps (S ⬝ x ⬝ y ⬝ z) Ys
+  rw [← e] at h1
+  have h2 : sz (S ⬝ x ⬝ y ⬝ z) = 1 + sz x + sz y + sz z := rfl
+  have h3 : sz (x ⬝ z) = sz x + sz z := rfl
+  have := sz_pos y
+  omega
+
+theorem ne_apps (t : Term) {L : List Term} (hL : L ≠ []) : t ≠ apps t L := by
+  intro e
+  have h1 := sz_lt_apps t hL
+  rw [← e] at h1
+  exact Nat.lt_irrefl _ h1
+
+/-- No head recurrence with at least one emitted argument: no closed S-term `t` and nonempty
+`X⃗` with `t →h⁺ t X⃗`. -/
+def NHR : Prop := ∀ (t : Term) (L : List Term), PureS t → L ≠ [] → ¬ Plus t (apps t L)
+
+/-- Exact Front Return: no closed `x`, `z` and no `y`, `Y⃗` with `x z →h⁺ S x y z Y⃗`.  (`y` and
+`Y⃗` are then closed S-terms as well, being parts of a reduct of `x z`.) -/
+def EFR : Prop := ∀ (x y z : Term) (Ys : List Term), PureS x → PureS z →
+  ¬ Plus (x ⬝ z) (apps (S ⬝ x ⬝ y ⬝ z) Ys)
+
+/-- **EFR ⟺ NHR(k ≥ 1).** -/
+theorem nhr_iff_efr : NHR ↔ EFR := by
+  constructor
+  · intro hN x y z Ys hx hz hP
+    have hp : PureS (S ⬝ x ⬝ y ⬝ z) := pure_apps (steps_pure (.app hx hz) hP.steps)
+    exact hN _ (Ys ++ [y ⬝ z]) hp (fun e => by cases Ys <;> cases e)
+      (recurrence_of_efr hP.steps)
+  · intro hE t L ht hL hP
+    obtain ⟨x, y, z, Ys, hp, h⟩ := efr_of_recurrence ht L hL hP.steps
+    exact hE x y z Ys hp.app_inv.1.app_inv.1.app_inv.2 hp.app_inv.2
+      (plus_of_steps_ne h (app_ne_S3_apps x y z Ys))
+
+/-! ## Self Front Return
+
+`x →h* S x A⃗` with `|A⃗| ≥ 1`.  One argument is `no_fst_self`.  Two or more arguments give, after
+one more step, a recurrence of `x` with `|A⃗|` emitted arguments; so this case is an instance of
+the open problem, and is proved here only from `EFR`. -/
+
+/-- A self front return with two or more arguments is a head recurrence of `x`. -/
+theorem recurrence_of_sfr {x A₁ A₂ : Term} {As : List Term}
+    (h : Steps x (apps (S ⬝ x) (A₁ :: A₂ :: As))) :
+    Steps x (apps x (A₂ :: (A₁ ⬝ A₂) :: As)) :=
+  h.trans (steps_apps As (Steps.single (.S x A₁ A₂)))
+
+/-- Self Front Return, conditional on `EFR` (unconditional for one argument: `no_fst_self`). -/
+theorem sfr_of_efr (hE : EFR) {x : Term} (hx : PureS x) {A : List Term} (hA : A ≠ []) :
+    ¬ Steps x (apps (S ⬝ x) A) := by
+  intro h
+  match A, hA, h with
+  | [A₁], _, h => exact no_fst_self hx A₁ h
+  | A₁ :: A₂ :: As, _, h =>
+    have hne : A₂ :: (A₁ ⬝ A₂) :: As ≠ [] := fun e => nomatch e
+    exact nhr_iff_efr.mpr hE x (A₂ :: (A₁ ⬝ A₂) :: As) hx hne
+      (plus_of_steps_ne (recurrence_of_sfr h) (ne_apps x hne))
 
 end HeadRec
