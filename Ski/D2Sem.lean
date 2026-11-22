@@ -221,7 +221,7 @@ theorem pre1 (C : Checks) {t : Term} {P : PT} (ht : PureS t) (h : Pre 1 t P) :
       show (12 + outC (foldD w) / 4) / 4 = 3 by omega]
     rfl
 
-/-- **Depth 2.**  The depth-2 prefix of `t^∞` is `out2 (foldD t)`. -/
+/-- **Depth 2.**  The depth-2 prefix, in the sense of `Pre`, is `out2 (foldD t)`. -/
 theorem pre2 (C : Checks) {t : Term} {P : PT} (ht : PureS t) (h : Pre 2 t P) :
     P = out2 (foldD t) := by
   unfold out2

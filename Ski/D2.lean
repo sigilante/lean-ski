@@ -3,7 +3,7 @@ import Ski.D2Sem
 open Term
 
 /-!
-# The depth-2 prefix of `t^∞` is regular (S4, Prefix Regularity at depth 2)
+# The depth-2 prefix (in the sense of `Pre`) is regular (S4, Prefix Regularity at depth 2)
 
 For every closed S-term `t`, the depth-2 prefix `Pre 2 t` is `out2 (foldD t)`, where `foldD` is
 the fold of `t` into the 373-element S-model `D` (`notes/checks/s4/d2_model.json`).  The table
@@ -12,7 +12,8 @@ certificate: `notes/S4-d2-theorem.md`.
 
 Scope.  `Pre` is the prefix convention of `notes/checks/s4/s4lib.py` (the head `S` of a head
 normal form is shown even at depth 2); `d2_nf` gives the same for `InfNF.NF`, which cuts the
-head too.  Both relations are defined by the rules of S3's Prop. "compute".  That they are the
+head too, so `NF 2` cannot tell whether a depth-1 item is in head normal form and the `Pre`
+result is strictly stronger.  Both relations are defined by the rules of S3's Prop. "compute".  That they are the
 prefixes of the limit `t^∞` of a strongly convergent reduction is S3's cited, un-mechanized
 identification (see `InfNF`); nothing here proves it.  Uniqueness of `Pre d` is proved for
 `d ≤ 2` only.
@@ -39,7 +40,7 @@ theorem d2_wsteps {t u : Term} (ht : PureS t) (h : WSteps t u) : foldD u = foldD
 /-- S1's 38-block model is a quotient of `D`. -/
 theorem d2_block {t : Term} (ht : PureS t) : fold t = φD (foldD t) := fold_eq checks ht
 
-/-- The depth-1 prefix of `t^∞` is `out1 (foldD t)`. -/
+/-- The depth-1 prefix, in the sense of `Pre`, is `out1 (foldD t)` (one direction). -/
 theorem d1_prefix {t : Term} {P : PT} (ht : PureS t) (h : Pre 1 t P) : P = out1 (foldD t) :=
   pre1 checks ht h
 
