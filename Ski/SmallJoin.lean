@@ -16,8 +16,11 @@ reduction path repeats no term, so a path that stays below size `s` is no longer
 enumeration).  `SmallJoin g` says that convertible pure terms `t`, `u` have a common reduct of
 size `≤ g |t| |u|`.  Then `convB g t u : Bool` decides conversion: `smallJoin_decides`.  No
 Markov principle and no `Lock1`.  `g` is an arbitrary Lean function `Nat → Nat → Nat`; `convB g`
-is computable relative to `g` (it calls `g` once), so the statement is "decidable" in the usual
-sense exactly when `g` is computable.  `SmallJoin g` is a hypothesis, not a theorem.
+is computable relative to `g` (it calls `g` once), so conversion is decidable in the usual sense
+if `g` is computable, or bounded by a computable function (`SmallJoin` is monotone in `g`).
+`SmallJoin g` is a hypothesis, not a theorem.  Classically some `g` always works (take, for each
+pair of sizes, the largest least join over the finitely many convertible pairs), so all the
+content is in `g` being computable.
 
 **(b) A family with unbounded join excess.**  `P = S S S`, `Q = S (S S)`, `R = S S`;
 `fk 0 = S P`, `fk (k+1) = S S (fk k)`, likewise `gk` from `S Q`; `tk k = fk k P R`,
@@ -34,7 +37,8 @@ step from a clean term adds at least one leaf (`argS_wstep`): the argument of a 
 `S`.  `uk k` is clean for `A = {S}`, so no reduct of it contains `P`.  `tk k` is clean for
 `A = {S, S S}`, and it contains the chain `fk k = S S (S S (… (S P)))`.  `rk` is the length of the
 longest such chain in a term; a step lowers it by at most one (`rk_step`), because a chain is
-normal, so it is either untouched or is the `S S c` of a redex `S S c z`, and then `c` survives.
+normal, so it is either untouched, or is the `S S c` of a redex `S S c z` (then `c` survives), or
+is the `S f` of a redex `S f g x` (then the chain `f` inside it survives).
 So `sz + rk` never decreases from `tk k`, and it starts at `(2k + 9) + (k + 1)`.
 -/
 
@@ -212,7 +216,8 @@ theorem conv_of_convWithin {s : Nat} {t u : Term} (h : convWithin s t u = true) 
   exact conv_iff_join.mpr ⟨a, (reductsUpTo_sound h1).1, (reductsUpTo_sound (of_decide_eq_true h2)).1⟩
 
 /-- **Small Join** with bound `g`: convertible pure terms have a common reduct of size at most
-`g |t| |u|`.  A hypothesis; open for every `g`. -/
+`g |t| |u|`.  A hypothesis.  Classically some (noncomputable) `g` exists trivially; the open
+question is whether a computable `g` works. -/
 def SmallJoin (g : Nat → Nat → Nat) : Prop :=
   ∀ t u, PureS t → PureS u → Conv t u → ∃ w, WSteps t w ∧ WSteps u w ∧ sz w ≤ g (sz t) (sz u)
 
