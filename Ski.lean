@@ -113,6 +113,7 @@ import Ski.TopTerm
 import Ski.TopTermFin
 import Ski.TopTermQ
 import Ski.TopTermMain
+import Ski.HeadRec
 import Ski.InfSN
 import Ski.InfNF
 import Ski.InfProd
