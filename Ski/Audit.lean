@@ -247,6 +247,7 @@ import Ski.Quote
 import Ski.Requote
 import Ski.Unquote
 import Ski.Ifix
+import Ski.SelfInterp
 import Ski.NoLift
 import Ski.LiftBool
 import Ski.Search
@@ -983,6 +984,27 @@ open Ski.Audit
 
 -- Intensional fixed points and a quine: fixQ g ↠ g ⟨fixQ g⟩, quineT ↠ ⟨quineT⟩
 #audit_clean Ifix.hG_beta Ifix.ifix Ifix.ifix_exists Ifix.quineT_spec Ifix.quine
+
+-- The paper's self-interpreter whnfF (618 atoms): step adequacy (Lemma 5.1), fuel adequacy (Theorem 5.2)
+#audit_clean SelfInterp.whnfF_eq_paper SelfInterp.whnfF_atoms SelfInterp.quote_eq_paper
+  SelfInterp.nil_elim SelfInterp.cons_elim SelfInterp.nothing_elim SelfInterp.just_elim
+  SelfInterp.zero_elim SelfInterp.suc_elim SelfInterp.resS_elim SelfInterp.resK_elim
+  SelfInterp.resI_elim SelfInterp.spApp_beta SelfInterp.spGen_beta SelfInterp.rb1_beta
+  SelfInterp.rbGen_beta SelfInterp.stepI1_beta SelfInterp.stepI_beta SelfInterp.stepK2_beta
+  SelfInterp.stepK1_beta SelfInterp.stepK_beta SelfInterp.stepS3_beta SelfInterp.stepS2_beta
+  SelfInterp.stepS1_beta SelfInterp.stepS_beta SelfInterp.stepT_beta SelfInterp.wf1_beta
+  SelfInterp.wfGen_beta SelfInterp.fixY_self SelfInterp.selfT_unroll SelfInterp.spX_case
+  SelfInterp.rbX_case SelfInterp.wfX_case SelfInterp.rbX_spec SelfInterp.rb_spec SelfInterp.just_rb
+  SelfInterp.stepI_nil SelfInterp.stepI_one SelfInterp.stepK_nil SelfInterp.stepK_cons
+  SelfInterp.stepK_one SelfInterp.stepK_two SelfInterp.stepS_nil SelfInterp.stepS_cons
+  SelfInterp.stepS_one SelfInterp.stepS_cons2 SelfInterp.stepS_two SelfInterp.stepS_three
+  SelfInterp.disp_mono SelfInterp.spX_app SelfInterp.walk_S SelfInterp.walk_K SelfInterp.walk_I
+  SelfInterp.step_appT SelfInterp.walk SelfInterp.stepT_walk SelfInterp.step_whnf
+  SelfInterp.step_step SelfInterp.wfX_suc SelfInterp.wfX_evalF SelfInterp.whnfF_evalF
+  SelfInterp.down_evalF SelfInterp.down_timeout SelfInterp.evalF_down SelfInterp.fuel_adequacy_value
+  SelfInterp.fuel_adequacy_timeout SelfInterp.S_normal SelfInterp.K_normal
+  SelfInterp.just_nothing_apart SelfInterp.fuel_exact SelfInterp.fuel_adequacy_decoded
+  SelfInterp.t0
 #audit_clean NoLift.sim NoLift.omega_steps NoLift.omega_whnf0 NoLift.omega_whnf1 NoLift.G_num NoLift.G_omega NoLift.eqT_spec NoLift.eqT_conv NoLift.G_succ' NoLift.no_lift_core NoLift.no_lift_conv NoLift.no_lift
 #audit_clean NoLift.code_unique
 #audit_clean LiftBool.canon_spec LiftBool.lift_bool LiftBool.lift_canonical
