@@ -28,7 +28,7 @@ prefix (`InfNF.NF`) at every depth.
   - `lock1_conv_iff`: under `Lock1`, `Conv t u ↔ ∀ k, prefixDiffer k t u = false`, so
     convertibility is both an `∃` and a `∀` over a computable Boolean;
   - `lock1_not_conv_iff`: under `Lock1`, `¬ Conv t u ↔ ¬¬ ∃ k, prefixDiffer k t u = true`.
-  Removing that double negation is Markov's principle for the search.  It is not assumed: it
+  Removing that double negation is an instance of Markov's principle for the search; no proof without it is known.  It is not assumed: it
   appears as the explicit hypothesis `MP` in `lock1_mp_not_conv_iff` and `lock1_mp_decides`
   (the interleaved search halts, so `Conv t u ∨ ¬ Conv t u`).  The form `Lock1Sep` (inconvertible
   terms have a differing prefix), classically the same as `Lock1`, gives
