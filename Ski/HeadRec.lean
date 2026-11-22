@@ -2,7 +2,7 @@ import Ski.HnfS
 open Term
 
 /-!
-# No head recurrence in pure S: the cases of zero and one emitted argument
+# No head recurrence in pure S
 
 A *head recurrence* is a closed S-term `t` with `t →h⁺ t X₁ … X_k` by head reduction (`Step`).
 Such a term has no head normal form and emits `X₁ … X_k` forever.  This module proves, for
@@ -11,7 +11,13 @@ closed pure-S terms, that there is none with `k = 0` and none with `k = 1`:
 * `no_head_cycle`: no `t` with `t →h⁺ t`;
 * `no_head_recurrence_one`: no `t`, `X` with `t →h⁺ t X`.
 
-The case `k ≥ 2` is **not** proved here (see `notes/A1-no-head-recurrence.md`).
+Those two proofs are elementary and self-contained.  The general case, every `k`, is proved in
+the last section by Waldmann's labelling argument (*The combinator S*, Inf. & Comput. 159, 2000,
+Thm 8 – Cor. 17), which gives more: no closed S-term reduces to a term that contains it.
+
+* `bsn`: weak reduction restricted to redexes `S f g x` whose `x` has right depth `< N` terminates;
+* `no_ground_loop`: no `t →⁺ C[t]` (weak reduction, any context);
+* `no_head_recurrence`, `nhr`, `efr`, `sfr`: no `t →h⁺ t X⃗`; no exact or self front return.
 
 The tools are three facts about the last arguments of the spine along head reduction:
 
@@ -28,13 +34,13 @@ From these:
 
 No use is made of the fold or of top-termination.
 
-Toward `k ≥ 2` (nothing below proves it):
+Frame lemmas and reductions between the statements (independent of the last section):
 
 * `steps_blex`: bottom-lex monotonicity, the run-level form of `last_wrap` for every position;
 * `last_root`, `efr_of_recurrence`: the normal form of a recurrence;
 * `nhr_iff_efr`: no recurrence with `k ≥ 1` iff no exact front return `x z →h⁺ S x y z Y⃗`;
 * `recurrence_of_sfr`, `sfr_of_efr`: a self front return `x →h* S x A⃗` with `|A⃗| ≥ 2` is a
-  recurrence, so it is excluded only conditionally on `EFR`.
+  recurrence, so it follows from `EFR` (`efr`, last section).
 -/
 
 namespace HeadRec
@@ -614,5 +620,320 @@ theorem sfr_of_efr (hE : EFR) {x : Term} (hx : PureS x) {A : List Term} (hA : A 
     have hne : A₂ :: (A₁ ⬝ A₂) :: As ≠ [] := fun e => nomatch e
     exact nhr_iff_efr.mpr hE x (A₂ :: (A₁ ⬝ A₂) :: As) hx hne
       (plus_of_steps_ne (recurrence_of_sfr h) (ne_apps x hne))
+
+/-! ## No ground loops (Waldmann 2000, Thm 8 – Cor. 17), hence no head recurrence
+
+Waldmann's labelling argument.  The *right depth* `rd` of a term is the length of its right
+spine.  Label every application node with a number that is at most the right depth of its
+argument, and let a redex `S x y ·ₖ z` fire only if `k < N`:
+
+    S x y ·ₖ z  ⟶  (x ·ₖ z) ·ₖ₊₁ (y ·ₖ z).
+
+The labelled system terminates for every `N` (`acc_all`; Waldmann uses a recursive path order,
+here it is a direct accessibility induction on `N - k`, then on the function part, then on the
+argument).  Labels stay below the right depths (`lift`), so unlabelled weak reduction restricted
+to redexes `S f g x` with `rd x < N` terminates (`bsn`).  A ground loop `t →⁺ C[t]` repeats
+finitely many redexes forever, inside ever deeper contexts; so there is none (`no_ground_loop`).
+A head recurrence `t →h⁺ t X⃗` is a ground loop (`nhr`). -/
+
+/-- Right depth: the length of the right spine. -/
+def rd : Term → Nat
+  | _ ⬝ x => rd x + 1
+  | _ => 0
+
+/-- Pure S-terms with a number on every application node. -/
+inductive LT
+  | S : LT
+  | app : Nat → LT → LT → LT
+
+/-- Erase the labels. -/
+def LT.forget : LT → Term
+  | .S => Term.S
+  | .app _ l r => l.forget ⬝ r.forget
+
+/-- Label every application node with the right depth of its argument. -/
+def tag : Term → LT
+  | f ⬝ x => .app (rd x) (tag f) (tag x)
+  | _ => .S
+
+/-- Every label is at most the right depth of the argument below it. -/
+def Cons : LT → Prop
+  | .S => True
+  | .app k l r => k ≤ rd r.forget ∧ Cons l ∧ Cons r
+
+/-- Labelled weak reduction with bound `N`: a redex fires only if its label is below `N`. -/
+inductive LStep (N : Nat) : LT → LT → Prop
+  | root {i j k : Nat} {x y z : LT} : k < N →
+      LStep N (.app k (.app j (.app i .S x) y) z) (.app (k + 1) (.app k x z) (.app k y z))
+  | left {k : Nat} {u u' r : LT} : LStep N u u' → LStep N (.app k u r) (.app k u' r)
+  | right {k : Nat} {u r r' : LT} : LStep N r r' → LStep N (.app k u r) (.app k u r')
+
+/-- `Rel N a b`: `a` is a one-step reduct of `b`, a child of `b`, or the argument of `b`'s
+function part. -/
+inductive Rel (N : Nat) : LT → LT → Prop
+  | step {a b : LT} : LStep N b a → Rel N a b
+  | fn {k : Nat} {l r : LT} : Rel N l (.app k l r)
+  | arg {k : Nat} {l r : LT} : Rel N r (.app k l r)
+  | arg2 {i k : Nat} {l x r : LT} : Rel N x (.app k (.app i l x) r)
+
+theorem acc_app_aux {N k : Nat}
+    (hroot : ∀ x y r : LT, k < N → Acc (Rel N) (.app k x r) → Acc (Rel N) (.app k y r) →
+      Acc (Rel N) (.app (k + 1) (.app k x r) (.app k y r)))
+    {u : LT} (hu : Acc (Rel N) u) : ∀ {r : LT}, Acc (Rel N) r → Acc (Rel N) (.app k u r) := by
+  induction hu with
+  | intro u hu ihu =>
+    intro r hr
+    induction hr with
+    | intro r hr ihr =>
+      constructor
+      intro a h
+      cases h with
+      | step s =>
+        cases s with
+        | root hk => exact hroot _ _ _ hk (ihu _ .arg2 (Acc.intro r hr)) (ihu _ .arg (Acc.intro r hr))
+        | left s' => exact ihu _ (.step s') (Acc.intro r hr)
+        | right s' => exact ihr _ (.step s')
+      | fn => exact Acc.intro u hu
+      | arg => exact Acc.intro r hr
+      | arg2 => exact hu _ .arg
+
+theorem acc_app (N : Nat) : ∀ (d k : Nat), N ≤ k + d → ∀ {u r : LT},
+    Acc (Rel N) u → Acc (Rel N) r → Acc (Rel N) (.app k u r) := by
+  intro d
+  induction d with
+  | zero =>
+    intro k hk u r hu hr
+    exact acc_app_aux (fun _ _ _ h => absurd h (Nat.not_lt.mpr hk)) hu hr
+  | succ d ih =>
+    intro k hk u r hu hr
+    exact acc_app_aux (fun _ _ _ _ hx hy => ih (k + 1) (by omega) hx hy) hu hr
+
+/-- **The labelled system terminates** (Waldmann 2000, Thm 8), together with the subterm order. -/
+theorem acc_all (N : Nat) : ∀ T : LT, Acc (Rel N) T := by
+  intro T
+  induction T with
+  | S =>
+    constructor
+    intro a h
+    cases h with
+    | step s => cases s
+  | app k l r ihl ihr => exact acc_app N N k (Nat.le_add_left N k) ihl ihr
+
+/-- Weak reduction of pure terms, restricted to redexes `S f g x` with `rd x < N`. -/
+inductive BStep (N : Nat) : Term → Term → Prop
+  | S (f g x : Term) : rd x < N → BStep N (S ⬝ f ⬝ g ⬝ x) (f ⬝ x ⬝ (g ⬝ x))
+  | left {f f' : Term} (x : Term) : BStep N f f' → BStep N (f ⬝ x) (f' ⬝ x)
+  | right (f : Term) {x x' : Term} : BStep N x x' → BStep N (f ⬝ x) (f ⬝ x')
+
+/-- Zero or more bounded steps. -/
+inductive BSteps (N : Nat) : Term → Term → Prop
+  | refl (t : Term) : BSteps N t t
+  | step {t t' u : Term} : BStep N t t' → BSteps N t' u → BSteps N t u
+
+theorem BStep.mono {N M : Nat} (h : N ≤ M) {t u : Term} (s : BStep N t u) : BStep M t u := by
+  induction s with
+  | S f g x hx => exact .S f g x (Nat.lt_of_lt_of_le hx h)
+  | left x _ ih => exact .left x ih
+  | right f _ ih => exact .right f ih
+
+theorem BSteps.mono {N M : Nat} (h : N ≤ M) {t u : Term} (s : BSteps N t u) : BSteps M t u := by
+  induction s with
+  | refl => exact .refl _
+  | step s _ ih => exact .step (s.mono h) ih
+
+theorem BStep.weak {N : Nat} {t u : Term} (s : BStep N t u) : WStep t u := by
+  induction s with
+  | S f g x _ => exact .S f g x
+  | left x _ ih => exact .left x ih
+  | right f _ ih => exact .right f ih
+
+/-- Every weak step of a pure term is bounded by some `N`. -/
+theorem bstep_of_wstep {t u : Term} (ht : PureS t) (s : WStep t u) : ∃ N, BStep N t u := by
+  induction s with
+  | S f g x => exact ⟨rd x + 1, .S f g x (Nat.lt_succ_self _)⟩
+  | K x y => exact absurd ht.app_inv.1.app_inv.1 PureS.not_K
+  | I x => exact absurd ht.app_inv.1 PureS.not_I
+  | left x _ ih => obtain ⟨N, h⟩ := ih ht.app_inv.1; exact ⟨N, .left x h⟩
+  | right f _ ih => obtain ⟨N, h⟩ := ih ht.app_inv.2; exact ⟨N, .right f h⟩
+
+theorem bsteps_of_wsteps {t u : Term} (ht : PureS t) (s : WSteps t u) : ∃ N, BSteps N t u := by
+  induction s with
+  | refl => exact ⟨0, .refl _⟩
+  | step s _ ih =>
+    obtain ⟨N, h⟩ := bstep_of_wstep ht s
+    obtain ⟨M, hs⟩ := ih (wstep_pure s ht).1
+    exact ⟨N + M, .step (h.mono (Nat.le_add_right N M)) (hs.mono (Nat.le_add_left M N))⟩
+
+theorem forget_app_inv {T : LT} {a b : Term} (h : T.forget = a ⬝ b) :
+    ∃ k L R, T = .app k L R ∧ L.forget = a ∧ R.forget = b := by
+  cases T with
+  | S => cases h
+  | app k L R =>
+    simp only [LT.forget] at h
+    injection h with h1 h2
+    exact ⟨k, L, R, rfl, h1, h2⟩
+
+theorem forget_S_inv {T : LT} (h : T.forget = Term.S) : T = .S := by
+  cases T with
+  | S => rfl
+  | app k L R => simp only [LT.forget] at h; cases h
+
+theorem forget_tag {t : Term} (ht : PureS t) : (tag t).forget = t := by
+  induction ht with
+  | S => rfl
+  | app _ _ ihf ihx => simp only [tag, LT.forget, ihf, ihx]
+
+theorem cons_tag {t : Term} (ht : PureS t) : Cons (tag t) := by
+  induction ht with
+  | S => trivial
+  | app _ hx ihf ihx =>
+    simp only [tag, Cons]
+    exact ⟨by rw [forget_tag hx]; exact Nat.le_refl _, ihf, ihx⟩
+
+/-- Reduction never lowers the right depth. -/
+theorem rd_bstep {N : Nat} {t u : Term} (s : BStep N t u) : rd t ≤ rd u := by
+  induction s with
+  | S f g x _ => simp only [rd]; omega
+  | left x _ _ => exact Nat.le_refl _
+  | right f _ ih => simp only [rd]; omega
+
+/-- A bounded step lifts to any consistent labelling, and consistency is kept
+(Waldmann 2000, Prop. 11 and Prop. 15). -/
+theorem lift {N : Nat} {t u : Term} (s : BStep N t u) : ∀ {T : LT}, T.forget = t → Cons T →
+    ∃ U, LStep N T U ∧ U.forget = u ∧ Cons U := by
+  induction s with
+  | S f g x hx =>
+    intro T hT hc
+    obtain ⟨k, T1, X, rfl, h1, hX⟩ := forget_app_inv hT
+    obtain ⟨j, T2, G, rfl, h2, hG⟩ := forget_app_inv h1
+    obtain ⟨i, T3, F, rfl, h3, hF⟩ := forget_app_inv h2
+    cases forget_S_inv h3
+    simp only [Cons] at hc
+    obtain ⟨hk, ⟨_, ⟨_, _, cF⟩, cG⟩, cX⟩ := hc
+    rw [hX] at hk
+    refine ⟨.app (k + 1) (.app k F X) (.app k G X), .root (Nat.lt_of_le_of_lt hk hx), ?_, ?_⟩
+    · simp only [LT.forget, hF, hG, hX]
+    · simp only [Cons, LT.forget, hX, rd]
+      exact ⟨Nat.succ_le_succ hk, ⟨hk, cF, cX⟩, hk, cG, cX⟩
+  | left x _ ih =>
+    intro T hT hc
+    obtain ⟨k, L, R, rfl, hL, hR⟩ := forget_app_inv hT
+    simp only [Cons] at hc
+    obtain ⟨U, sU, eU, cU⟩ := ih hL hc.2.1
+    refine ⟨.app k U R, .left sU, by simp only [LT.forget, eU, hR], ?_⟩
+    simp only [Cons]
+    exact ⟨hc.1, cU, hc.2.2⟩
+  | right f s' ih =>
+    intro T hT hc
+    obtain ⟨k, L, R, rfl, hL, hR⟩ := forget_app_inv hT
+    simp only [Cons] at hc
+    obtain ⟨U, sU, eU, cU⟩ := ih hR hc.2.2
+    refine ⟨.app k L U, .right sU, by simp only [LT.forget, eU, hL], ?_⟩
+    simp only [Cons]
+    refine ⟨?_, hc.2.1, cU⟩
+    rw [eU]
+    have h1 := hc.1
+    rw [hR] at h1
+    exact Nat.le_trans h1 (rd_bstep s')
+
+/-- **Bounded reduction terminates** (Waldmann 2000, Thm 16): for every `N`, weak reduction of
+pure S-terms restricted to redexes `S f g x` with `rd x < N` is well founded. -/
+theorem bsn (N : Nat) {t : Term} (ht : PureS t) : Acc (fun a b => BStep N b a) t := by
+  have key : ∀ T : LT, Acc (Rel N) T → Cons T → Acc (fun a b => BStep N b a) T.forget := by
+    intro T hT
+    induction hT with
+    | intro T _ ih =>
+      intro hc
+      constructor
+      intro w hw
+      obtain ⟨U, sU, eU, cU⟩ := lift hw rfl hc
+      rw [← eU]
+      exact ih U (.step sU) cU
+  have h := key (tag t) (acc_all N _) (cons_tag ht)
+  rw [forget_tag ht] at h
+  exact h
+
+/-- `Sub t w`: `t` occurs in `w` as a subterm. -/
+inductive Sub (t : Term) : Term → Prop
+  | refl : Sub t t
+  | left {f : Term} (x : Term) : Sub t f → Sub t (f ⬝ x)
+  | right (f : Term) {x : Term} : Sub t x → Sub t (f ⬝ x)
+
+theorem Sub.trans {a b c : Term} (h1 : Sub a b) (h2 : Sub b c) : Sub a c := by
+  induction h2 with
+  | refl => exact h1
+  | left x _ ih => exact .left x ih
+  | right f _ ih => exact .right f ih
+
+theorem BSteps.left {N : Nat} {f f' : Term} (x : Term) (h : BSteps N f f') :
+    BSteps N (f ⬝ x) (f' ⬝ x) := by
+  induction h with
+  | refl => exact .refl _
+  | step s _ ih => exact .step (.left x s) ih
+
+theorem BSteps.right {N : Nat} (f : Term) {x x' : Term} (h : BSteps N x x') :
+    BSteps N (f ⬝ x) (f ⬝ x') := by
+  induction h with
+  | refl => exact .refl _
+  | step s _ ih => exact .step (.right f s) ih
+
+/-- A bounded loop `t → t' →* u ∋ t` can be replayed at any occurrence of `t`. -/
+theorem sub_replay {N : Nat} {t t' u : Term} (s : BStep N t t') (r : BSteps N t' u)
+    (hu : Sub t u) {w : Term} (hw : Sub t w) :
+    ∃ w' w'', BStep N w w' ∧ BSteps N w' w'' ∧ Sub t w'' := by
+  induction hw with
+  | refl => exact ⟨t', u, s, r, hu⟩
+  | left x _ ih =>
+    obtain ⟨w', w'', s', r', h'⟩ := ih
+    exact ⟨w' ⬝ x, w'' ⬝ x, .left x s', r'.left x, .left x h'⟩
+  | right f _ ih =>
+    obtain ⟨w', w'', s', r', h'⟩ := ih
+    exact ⟨f ⬝ w', f ⬝ w'', .right f s', r'.right f, .right f h'⟩
+
+/-- **No ground loops** (Waldmann 2000, Cor. 17): no closed S-term `t` has `t →⁺ C[t]` under
+weak reduction (any redex, any context `C`, the empty one included). -/
+theorem no_ground_loop {t t' u : Term} (ht : PureS t) (s : WStep t t') (r : WSteps t' u)
+    (hu : Sub t u) : False := by
+  obtain ⟨N1, s1⟩ := bstep_of_wstep ht s
+  obtain ⟨N2, r2⟩ := bsteps_of_wsteps (wstep_pure s ht).1 r
+  have sN := s1.mono (Nat.le_add_right N1 N2)
+  have rN := r2.mono (Nat.le_add_left N2 N1)
+  have key : ∀ w : Term, Acc (fun a b => BStep (N1 + N2) b a) w →
+      ∀ w', BSteps (N1 + N2) w w' → Sub t w' → False := by
+    intro w hw
+    induction hw with
+    | intro w _ ih =>
+      intro w' hr hs
+      cases hr with
+      | refl =>
+        obtain ⟨w1, w2, s', r', h'⟩ := sub_replay sN rN hu hs
+        exact ih w1 s' w2 r' h'
+      | step s' r' => exact ih _ s' w' r' hs
+  exact key t (bsn (N1 + N2) ht) t (.refl t) .refl
+
+theorem sub_apps (t : Term) (L : List Term) : Sub t (apps t L) := by
+  induction L generalizing t with
+  | nil => exact .refl
+  | cons a L ih => exact Sub.trans (.left a .refl) (ih (t ⬝ a))
+
+/-- **No head recurrence**: no closed S-term `t` has `t →h⁺ t X⃗` (`X⃗` empty or not). -/
+theorem no_head_recurrence {t : Term} (ht : PureS t) (L : List Term) : ¬ Plus t (apps t L) := by
+  intro ⟨t', s, r⟩
+  exact no_ground_loop ht s.weak r.weak (sub_apps t L)
+
+theorem nhr : NHR := fun _ L ht _ => no_head_recurrence ht L
+
+/-- Exact Front Return holds: no `x z →h⁺ S x y z Y⃗`. -/
+theorem efr : EFR := nhr_iff_efr.mp nhr
+
+/-- Self Front Return holds: no closed `x` with `x →h* S x A⃗`, `|A⃗| ≥ 1`. -/
+theorem sfr {x : Term} (hx : PureS x) {A : List Term} (hA : A ≠ []) :
+    ¬ Steps x (apps (S ⬝ x) A) := sfr_of_efr efr hx hA
+
+/-- A reduct of a closed S-term never contains it: `t →⁺ u` implies `t` is not a subterm of `u`.
+In particular no head run of `x` mints `x`, puts `x B⃗` at the front, or has `x B⃗` inside an
+argument of its head normal form. -/
+theorem no_self_subterm {t t' u : Term} (ht : PureS t) (s : Step t t') (r : Steps t' u) :
+    ¬ Sub t u := fun h => no_ground_loop ht s.weak r.weak h
 
 end HeadRec

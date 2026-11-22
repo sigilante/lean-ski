@@ -1053,19 +1053,27 @@ open Ski.Audit
 -- No head recurrence in pure S, the cases k = 0 and k = 1 (HeadRec): no closed S-term t has
 -- t →h⁺ t (no_head_cycle) or t →h⁺ t X (no_head_recurrence_one); the last-argument lemmas
 -- (split, last_wrap, last2) and the two self-reference lemmas (no_snd_self, no_fst_self).
--- The case k ≥ 2 is open.
+-- The case k ≥ 2 is in the third HeadRec block (no_head_recurrence).
 #audit_clean HeadRec.sz_pos HeadRec.sz_arg_lt HeadRec.sz_fun_lt HeadRec.ne_app_arg HeadRec.steps_pure HeadRec.step_inv
   HeadRec.step_two HeadRec.steps_S HeadRec.steps_last HeadRec.step_to_S2 HeadRec.Wrap.sz_le HeadRec.Wrap.trans
   HeadRec.Wrap.app_eq HeadRec.last_wrap HeadRec.split HeadRec.last2_grown HeadRec.last2 HeadRec.no_snd_self
   HeadRec.no_fst_self HeadRec.no_head_cycle HeadRec.no_steps_self_app HeadRec.no_head_recurrence_one
 -- Bottom-lex monotonicity (steps_blex), the last root redex (last_root), and EFR ⟺ NHR(k ≥ 1)
--- (nhr_iff_efr): no t →h⁺ t X⃗ with |X⃗| ≥ 1 iff no x z →h⁺ S x y z Y⃗.  Neither side is proved.
+-- (nhr_iff_efr): no t →h⁺ t X⃗ with |X⃗| ≥ 1 iff no x z →h⁺ S x y z Y⃗.  Both sides are proved in the next block.
 -- Self Front Return with ≥ 2 arguments is a recurrence (recurrence_of_sfr), so only conditional (sfr_of_efr).
 #audit_clean HeadRec.BLex.trans HeadRec.BLex.ne HeadRec.BLex.last HeadRec.BLex.inv HeadRec.step_blex HeadRec.steps_blex
   HeadRec.BLex.rargs HeadRec.steps_rargs HeadRec.last_wrap_of_blex HeadRec.no_head_cycle_of_blex
   HeadRec.Plus.steps HeadRec.plus_of_steps_ne HeadRec.apps_snoc HeadRec.steps_apps HeadRec.sz_le_apps HeadRec.sz_lt_apps
   HeadRec.pure_apps HeadRec.apps_eq_app HeadRec.last_root HeadRec.efr_of_recurrence HeadRec.recurrence_of_efr
   HeadRec.app_ne_S3_apps HeadRec.ne_apps HeadRec.nhr_iff_efr HeadRec.recurrence_of_sfr HeadRec.sfr_of_efr
+-- No ground loops (Waldmann 2000, Thm 8 – Cor. 17), by labelling: the labelled system terminates (acc_all),
+-- bounded reduction terminates (bsn), no closed S-term has t →⁺ C[t] under weak reduction (no_ground_loop).
+-- Hence no head recurrence for every k (no_head_recurrence, nhr), and efr, sfr, no_self_subterm.
+#audit_clean HeadRec.acc_app_aux HeadRec.acc_app HeadRec.acc_all HeadRec.BStep.mono HeadRec.BSteps.mono HeadRec.BStep.weak
+  HeadRec.bstep_of_wstep HeadRec.bsteps_of_wsteps HeadRec.forget_app_inv HeadRec.forget_S_inv HeadRec.forget_tag
+  HeadRec.cons_tag HeadRec.rd_bstep HeadRec.lift HeadRec.bsn HeadRec.Sub.trans HeadRec.BSteps.left HeadRec.BSteps.right
+  HeadRec.sub_replay HeadRec.no_ground_loop HeadRec.sub_apps HeadRec.no_head_recurrence HeadRec.nhr HeadRec.efr HeadRec.sfr
+  HeadRec.no_self_subterm
 
 -- Infinitary normal forms of pure S (S2): every infinite reduction of a finite S-term converges (InfSN.not_weakInf); prefixes of t^inf exist, are unique and redex-free (InfNF.nf_exists, nf_unique, nf_redexFree); productive iff no node of t^inf has an infinite left spine (InfNF.prod_iff_nodes), decided by the 39-state automaton (InfNF.nodes_iff_cls)
 #audit_clean InfSN.WStepD.weak InfSN.wstep_depth InfSN.hrun_hnf InfSN.hrun_bound InfSN.root_bound InfSN.red_wsteps InfSN.red_le InfSN.red_pure InfSN.root_of_stepLe0 InfSN.weakInf0_rsteps InfSN.not_weakInf0 InfSN.eventually_none
