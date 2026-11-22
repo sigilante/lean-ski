@@ -272,6 +272,7 @@ import Ski.HeadRec
 import Ski.InfSN
 import Ski.InfProd
 import Ski.WordProblem
+import Ski.SmallJoin
 import Ski.Graph
 import Ski.RWMem
 import Ski.GraphMem
@@ -1094,6 +1095,17 @@ open Ski.Audit
 #audit_clean WordProblem.differ_iff_apart WordProblem.not_conv_of_differ WordProblem.lock1_conv_iff WordProblem.lock1_not_conv_iff WordProblem.Lock1Sep WordProblem.lock1Sep_not_conv_iff WordProblem.MP WordProblem.lock1Sep_of_lock1
 #audit_clean WordProblem.lock1_of_lock1Sep WordProblem.lock1_mp_not_conv_iff WordProblem.lock1_mp_decides WordProblem.lock1_mp_em WordProblem.nf_hnf_app WordProblem.nf_hnf_app_inv WordProblem.not_infEq_S_app WordProblem.infEq_hnf_app
 #audit_clean WordProblem.HnfMatch WordProblem.infEq_hnf WordProblem.hnf_decomp WordProblem.infEq_fold WordProblem.hnf_decomp_ex WordProblem.HnfMatch.conv WordProblem.conv_of_children WordProblem.lock1_hnf_children
+
+-- The word problem for S, Small Join (SmallJoin; S3 route 1): a weak step never shrinks a pure term (sz_wstep); the reducts of size <= s are a computable finite list (reductsUpTo, mem_reductsUpTo; the fuel bound uses no_ground_loop via path_nodup); under the hypothesis SmallJoin g, convB g decides conversion (smallJoin_decides, smallJoin_em, smallJoinDecidable), with no Markov principle.  The family t_k, u_k: convertible (conv_family, common reduct of size 6k+12), and every common reduct has size >= 3k+10 = max + k (family_lower), so no bound max + c is a Small Join bound (not_smallJoin_max_add).  SmallJoin itself is a definition, not a theorem.  Definitions are listed too.
+#audit_clean WordProblem.sz_app_ge WordProblem.sz_wstep WordProblem.sz_wsteps WordProblem.gen WordProblem.mem_gen WordProblem.rm WordProblem.length_rm WordProblem.mem_rm
+#audit_clean WordProblem.length_le_of_nodup_subset WordProblem.path_nodup WordProblem.reductsUpTo WordProblem.reductsUpTo_sound WordProblem.mem_reductsUpTo WordProblem.convWithin WordProblem.convWithin_iff WordProblem.conv_of_convWithin
+#audit_clean WordProblem.SmallJoin WordProblem.convB WordProblem.smallJoin_decides WordProblem.smallJoin_em WordProblem.smallJoinDecidable WordProblem.ArgS WordProblem.argS_pure WordProblem.no_step_S
+#audit_clean WordProblem.no_step_SS WordProblem.no_step_SSS WordProblem.argS_wstep WordProblem.cr WordProblem.cr_app WordProblem.cr_app_pos WordProblem.cr_pos_normal WordProblem.rk
+#audit_clean WordProblem.rk_app WordProblem.cr_le_rk WordProblem.cr_app_le WordProblem.rk_step WordProblem.argS_rk WordProblem.pot_wsteps WordProblem.Family.P WordProblem.Family.Q
+#audit_clean WordProblem.Family.R WordProblem.Family.fk WordProblem.Family.gk WordProblem.Family.tk WordProblem.Family.uk WordProblem.Family.wk WordProblem.Family.sz_fk WordProblem.Family.sz_gk
+#audit_clean WordProblem.Family.sz_tk WordProblem.Family.sz_uk WordProblem.Family.sz_wk WordProblem.Family.PR_step WordProblem.Family.tk_join WordProblem.Family.uk_join WordProblem.Family.conv_family WordProblem.Family.fk_ne
+#audit_clean WordProblem.Family.gk_ne WordProblem.Family.argS_fk WordProblem.Family.argS_tk WordProblem.Family.argS_Q WordProblem.Family.argS_gk WordProblem.Family.argS_uk WordProblem.Family.pure_tk WordProblem.Family.pure_uk
+#audit_clean WordProblem.Family.cr_fk WordProblem.Family.rk_tk WordProblem.Family.tk_clean_lower WordProblem.Family.family_lower WordProblem.Family.smallJoin_lower WordProblem.Family.not_smallJoin_max_add
 
 -- Graph reduction with update in place, sound and complete against L1, never more contractions
 #audit_clean Graph.Dec.det Graph.dec_spine Graph.spine_dec Graph.spine_ne Graph.dec_update Graph.gstep_sound

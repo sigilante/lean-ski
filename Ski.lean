@@ -118,6 +118,7 @@ import Ski.InfSN
 import Ski.InfNF
 import Ski.InfProd
 import Ski.WordProblem
+import Ski.SmallJoin
 import Ski.Graph
 import Ski.RWMem
 import Ski.GraphMem
