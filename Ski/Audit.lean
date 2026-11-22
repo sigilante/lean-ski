@@ -268,6 +268,7 @@ import Ski.HnfB0
 import Ski.HnfQ5
 import Ski.HnfCertFinal
 import Ski.TopTermMain
+import Ski.HeadRec
 import Ski.InfSN
 import Ski.InfProd
 import Ski.Graph
@@ -1046,6 +1047,15 @@ open Ski.Audit
 #audit_clean TopTerm.reach_qqq_app TopTerm.reach_qq_head TopTerm.reach_bot_head TopTerm.reach_rc TopTerm.reach_q2 TopTerm.reach_R1 TopTerm.reach_R2 TopTerm.step_two TopTerm.steps_two TopTerm.steps_S1 TopTerm.hnf_of TopTerm.steps_STS
 #audit_clean TopTerm.steps_STT TopTerm.steps_T TopTerm.stp2 TopTerm.hnf2_cases TopTerm.reach_qqq_qq TopTerm.reach_T TopTerm.reach_hnf2 TopTerm.reach_qqq TopTerm.qt_sub TopTerm.ne_S_of_sub_app TopTerm.last2_step TopTerm.inv_steps
 #audit_clean TopTerm.seg TopTerm.isHnf_S1 TopTerm.root_next TopTerm.reach_L4 TopTerm.reach_L3 TopTerm.reach_L2 TopTerm.reach_L1 TopTerm.reach_all TopTerm.top_termination
+
+-- No head recurrence in pure S, the cases k = 0 and k = 1 (HeadRec): no closed S-term t has
+-- t →h⁺ t (no_head_cycle) or t →h⁺ t X (no_head_recurrence_one); the last-argument lemmas
+-- (split, last_wrap, last2) and the two self-reference lemmas (no_snd_self, no_fst_self).
+-- The case k ≥ 2 is open.
+#audit_clean HeadRec.sz_pos HeadRec.sz_arg_lt HeadRec.sz_fun_lt HeadRec.ne_app_arg HeadRec.steps_pure HeadRec.step_inv
+  HeadRec.step_two HeadRec.steps_S HeadRec.steps_last HeadRec.step_to_S2 HeadRec.Wrap.sz_le HeadRec.Wrap.trans
+  HeadRec.Wrap.app_eq HeadRec.last_wrap HeadRec.split HeadRec.last2_grown HeadRec.last2 HeadRec.no_snd_self
+  HeadRec.no_fst_self HeadRec.no_head_cycle HeadRec.no_steps_self_app HeadRec.no_head_recurrence_one
 #audit_clean TopTerm.reach_of_step TopTerm.reach_of_steps TopTerm.reach_of_hnf TopTerm.reach_of_bot_fun TopTerm.reach_of_fold TopTerm.fin_of_reach
 
 -- Infinitary normal forms of pure S (S2): every infinite reduction of a finite S-term converges (InfSN.not_weakInf); prefixes of t^inf exist, are unique and redex-free (InfNF.nf_exists, nf_unique, nf_redexFree); productive iff no node of t^inf has an infinite left spine (InfNF.prod_iff_nodes), decided by the 39-state automaton (InfNF.nodes_iff_cls)
