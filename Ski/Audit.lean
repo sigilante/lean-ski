@@ -273,6 +273,7 @@ import Ski.InfSN
 import Ski.InfProd
 import Ski.WordProblem
 import Ski.SmallJoin
+import Ski.D2
 import Ski.Graph
 import Ski.RWMem
 import Ski.GraphMem
@@ -1877,3 +1878,9 @@ open Ski.Audit
   P2Once.verifierChainO_eq P2Once.chain_GQ
 #audit_clean Circuit.P2Run.filter_two Circuit.P2Run.calls_two Circuit.runP_calls_two Circuit.compP_twice
   Circuit.p2chain_twice P2Chain.p2chain_complete Circuit.compPChain_complete_log
+
+-- Prefix Regularity at depth 2 (S4): the depth-2 prefix of t^inf is out2 (foldD t), foldD the fold into the 373-element S-model D (D2.d2_prefix; D2.d2_nf for InfNF.NF); D is an S-model on all 373^3 triples (D2.d2_slaw) with S1's blocks as a quotient (D2.d2_block); table conditions kernel-checked in D2K/* (D2.checks)
+#audit_clean D2.checks D2.d2_closed D2.d2_slaw D2.d2_wsteps D2.d2_block D2.d1_prefix D2.d2_prefix D2.d2_nf
+#audit_clean D2.allB_spec D2.force_eq D2.chunk_get D2.colsIn_spec D2.rows_len D2.out1B_eq D2.botB_eq D2.phi0 D2.slawChunk_all D2.closedRow_all D2.out2Row_all D2.homRow_all D2.colsRow_all
+#audit_clean D2.τ_lt D2.col_eq D2.slaw D2.hom D2.outC_lt D2.outS D2.out_one D2.out_two D2.out_bot D2.foldD_lt D2.wstep_foldD D2.wsteps_foldD D2.steps_foldD D2.fold_eq
+#audit_clean D2.k4 D2.pt2_one D2.pt2_two D2.pt2_bot D2.q4 D2.pre1 D2.pre2 D2.pre_bwd D2.pre_exists D2.trunc_zero D2.nf_S D2.pre_nf D2.pre2_iff D2.nf2
