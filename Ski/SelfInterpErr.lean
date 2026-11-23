@@ -22,7 +22,9 @@ The paper prints neither term, so only the counts are pinned.
 `crash` when `Err` is at the head of a reduct.  `wf5_run` is fuel adequacy
 for every arm off the site, and for an arm that answers `errd` on it.
 
-* Lemma 5.3: `faithful_site` (the paper's hypothesis, at every budget) and
+* Lemma 5.3 in the special case ℓ = `Err` for the artifact's interpreter family `wf5 e` (the
+  paper quantifies over any leaf ℓ and any two interpreters): `faithful_site` (the paper's
+  hypothesis, at every budget) and
   `faithful_run` (the sharper form: no `Err` at the head within the budget).
 * The exposing interpreter's column of Table 1: `wf5Abs_run`.
 
@@ -650,7 +652,8 @@ theorem run5_crash {k : Nat} {t : T5} {o : Out5} (h : Run5 k t o) (ho : o = .cra
     cases ih ho with
     | intro t' ht => exact ⟨t', .step hs ht.1, ht.2⟩
 
-/-- **Faithfulness at a site** (the paper's Lemma 5.3): let two interpreters
+/-- **Faithfulness at a site** (the paper's Lemma 5.3 at ℓ = `Err`, for the family `wf5 e`; the
+    paper's lemma is for any leaf ℓ and any two interpreters): let two interpreters
     be identical except in the step arm selected for `Err`.  For every object
     term whose reduction never brings `Err` into head position, and every
     budget, they produce the same result. -/
