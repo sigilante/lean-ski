@@ -339,6 +339,7 @@ import Ski.Circuit.CpuFast
 import Ski.Circuit.TraceCheck
 import Ski.BExp
 import Ski.Phi
+import Ski.PsiSkel
 
 /-!
 # The audit manifest — build-enforced
@@ -1951,3 +1952,8 @@ open Ski.Audit
 #audit_clean Phi.base_tower Phi.rel_tower Phi.Good.of_steps Phi.hr_app Phi.hr_foldl Phi.hr_of_rel Phi.hr_refl Phi.hr_tower
 #audit_clean Phi.good_short Phi.caseS Phi.core Phi.rel_plug Phi.obs_total Phi.obs_unique Phi.obs_transfer Phi.good_of_sim
 #audit_clean Phi.theorem_phi Phi.lvl_refl Phi.fibB_dead Phi.s1_fib Phi.tower4B_eq Phi.fold_tower_ge4 Phi.s1_periodic Phi.theorem_phi_s1
+
+-- Psi skeleton (S6): kinds of terms by block, heads of root frames, inert blocks, the last step of a productive head run, closure sets for the last frame item
+#audit_clean PsiSkel.oneB_eq PsiSkel.one_iff PsiSkel.one_item_of_fold PsiSkel.fold_one_item PsiSkel.fold_two_items PsiSkel.combB_eq PsiSkel.comb_alive PsiSkel.root_head_not_comb
+#audit_clean PsiSkel.inertB_eq PsiSkel.inert_iff PsiSkel.headChain_last PsiSkel.lzSelfB_eq PsiSkel.lzClosedB_eq PsiSkel.Lz_self PsiSkel.Lz_closed PsiSkel.lastArg_foldl
+#audit_clean PsiSkel.last_mem_Lz
