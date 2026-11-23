@@ -354,6 +354,9 @@ import Ski.NcfpN2
 import Ski.NcfpDepth2
 import Ski.NcfpScheme
 import Ski.NcfpThree
+import Ski.NcfpXplus
+import Ski.NcfpN12
+import Ski.NcfpPlain
 
 /-!
 # The audit manifest — build-enforced
@@ -2077,3 +2080,17 @@ open Ski.Audit
 -- NCFP: the three-hole shapes of depth 2 with one closed part (Ncfp.thm_T3a .. thm_T3d; no_S_Spp_Snp, no_S_Spp_Spn, no_S_Snp_Spp, no_S_Spn_Spp)
 #audit_clean Ncfp.nonlit_form Ncfp.big_ne_S Ncfp.three_X Ncfp.thm_T3a Ncfp.thm_T3b Ncfp.thm_T3d Ncfp.thm_T3c Ncfp.no_S_Spp_Snp
 #audit_clean Ncfp.no_S_Spp_Spn Ncfp.no_S_Snp_Spp Ncfp.no_S_Spn_Spp
+-- NCFP: Theorem X+ (Ncfp.thm_Xplus), Corollary X1 for sets and for contexts (Ncfp.cor_X1, ncfp_X1), the nine two-hole contexts of depth 3 of Cor. X1
+#audit_clean Ncfp.sz_ge_two Ncfp.lemma_P3 Ncfp.no_pred3 Ncfp.xp_cases Ncfp.xp_pred Ncfp.xp_block Ncfp.xp_small Ncfp.thm_Xplus
+#audit_clean Ncfp.thm_X_of_Xplus Ncfp.cor_X1 Ncfp.SimpB.mono Ncfp.Simp.bound Ncfp.X1Ctx.holed Ncfp.X1B.mono Ncfp.X1Ctx.bound Ncfp.simpB_hnf
+#audit_clean Ncfp.ncfp_X1 Ncfp.no_S_SpSnp Ncfp.no_S_Sp_SnSp Ncfp.no_S_n_SpSp Ncfp.no_S_Snp_SSmp Ncfp.no_S_SpSnp_m Ncfp.no_S_Spn_SSpm Ncfp.no_S_n_SpSmp
+#audit_clean Ncfp.no_S_Snp_SmSkp Ncfp.no_S_Spn_SmSpk
+-- NCFP: Lemma D* with its addendum (Ncfp.lemma_Dstar_add), Lemmas AP and PF, Claim P, Theorem N12 (Ncfp.thm_N12_1 .. thm_N12_8) and its eight equations
+#audit_clean Ncfp.dstar_frames_add Ncfp.lemma_Dstar_add Ncfp.hnf2_ne_S Ncfp.hnf2_ne_S1 Ncfp.HasTy2.not_S Ncfp.HasTy2.not_S1 Ncfp.HasTy2.items Ncfp.disj_first
+#audit_clean Ncfp.disj_second Ncfp.disj_kind Ncfp.norm_items2 Ncfp.norm_items1 Ncfp.nn_self Ncfp.HasTy2.nn_left Ncfp.HasTy2.nn_right Ncfp.HasTy1.nn
+#audit_clean Ncfp.lemma_AP1 Ncfp.lemma_AP1_sz Ncfp.lemma_AP2 Ncfp.lemma_AP3 Ncfp.lemma_AP4 Ncfp.lemma_PF Ncfp.pform_small Ncfp.claim_P
+#audit_clean Ncfp.big_arg_A Ncfp.first_A Ncfp.xp_mem Ncfp.thm_N12_1 Ncfp.thm_N12_2 Ncfp.thm_N12_3 Ncfp.thm_N12_4 Ncfp.thm_N12_5
+#audit_clean Ncfp.thm_N12_6 Ncfp.thm_N12_7 Ncfp.thm_N12_8 Ncfp.cls2 Ncfp.cls2_left Ncfp.cls2_right Ncfp.cls1 Ncfp.no_S_SSnpp_p
+#audit_clean Ncfp.no_S_SSpnp_p Ncfp.no_S_SSnpSp_p Ncfp.no_S_SSpnSp_p Ncfp.no_S_SSpSnp_p Ncfp.no_S_SSpSpn_p Ncfp.no_S_SpSnp_p Ncfp.no_S_SpSpn_p
+-- NCFP for the plain contexts of depth at most 2 (Ncfp.ncfp_depth2)
+#audit_clean Ncfp.normalizing_S2 Ncfp.PlainD.mono Ncfp.not_holed_ofTerm Ncfp.not_holed_nf2 Ncfp.plain0_cases Ncfp.plain1_cases Ncfp.ncfp_depth2

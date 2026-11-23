@@ -7,12 +7,15 @@ import Ski.NcfpN2
 import Ski.NcfpDepth2
 import Ski.NcfpScheme
 import Ski.NcfpThree
+import Ski.NcfpXplus
+import Ski.NcfpN12
+import Ski.NcfpPlain
 
 /-!
 # Axiom gate for the proved cases of NCFP (stand-alone)
 
 The same check as `#audit_clean` in `Ski/Audit.lean` (allow-list `{propext, Quot.sound}`), in a
-module that imports only `Ski.Ncfp`, `Ski.NcfpTheta`, `Ski.NcfpLeafless`, `Ski.NcfpN`, `Ski.NcfpN2`, `Ski.NcfpDepth2`, `Ski.NcfpScheme` and `Ski.NcfpThree`.
+module that imports only `Ski.Ncfp`, `Ski.NcfpTheta`, `Ski.NcfpLeafless`, `Ski.NcfpN`, `Ski.NcfpN2`, `Ski.NcfpDepth2`, `Ski.NcfpScheme`, `Ski.NcfpThree`, `Ski.NcfpXplus`, `Ski.NcfpN12` and `Ski.NcfpPlain`.
 
 * `#ncfp_audit_module M` checks every theorem, and every definition without an internal name,
   declared in the module `M`, and reports the counts and the internal constants it skips
@@ -64,6 +67,9 @@ end Ncfp.Audit
 #ncfp_audit_module Ski.NcfpDepth2
 #ncfp_audit_module Ski.NcfpScheme
 #ncfp_audit_module Ski.NcfpThree
+#ncfp_audit_module Ski.NcfpXplus
+#ncfp_audit_module Ski.NcfpN12
+#ncfp_audit_module Ski.NcfpPlain
 
 -- size, normal forms, contexts; Prop. 0
 #ncfp_audit_clean Ncfp.sz_wstep Ncfp.sz_wsteps Ncfp.Normal.wsteps Ncfp.wsteps_to_normal
@@ -217,3 +223,40 @@ end Ncfp.Audit
 #print axioms Ncfp.no_S_Spp_Spn
 #print axioms Ncfp.no_S_Snp_Spp
 #print axioms Ncfp.no_S_Spn_Spp
+#print axioms Ncfp.thm_Xplus
+#print axioms Ncfp.thm_X_of_Xplus
+#print axioms Ncfp.cor_X1
+#print axioms Ncfp.ncfp_X1
+#print axioms Ncfp.no_S_SpSnp
+#print axioms Ncfp.no_S_Sp_SnSp
+#print axioms Ncfp.no_S_n_SpSp
+#print axioms Ncfp.no_S_Snp_SSmp
+#print axioms Ncfp.no_S_SpSnp_m
+#print axioms Ncfp.no_S_Spn_SSpm
+#print axioms Ncfp.no_S_n_SpSmp
+#print axioms Ncfp.no_S_Snp_SmSkp
+#print axioms Ncfp.no_S_Spn_SmSpk
+#print axioms Ncfp.lemma_Dstar_add
+#print axioms Ncfp.lemma_AP1
+#print axioms Ncfp.lemma_AP2
+#print axioms Ncfp.lemma_AP3
+#print axioms Ncfp.lemma_AP4
+#print axioms Ncfp.lemma_PF
+#print axioms Ncfp.claim_P
+#print axioms Ncfp.thm_N12_1
+#print axioms Ncfp.thm_N12_2
+#print axioms Ncfp.thm_N12_3
+#print axioms Ncfp.thm_N12_4
+#print axioms Ncfp.thm_N12_5
+#print axioms Ncfp.thm_N12_6
+#print axioms Ncfp.thm_N12_7
+#print axioms Ncfp.thm_N12_8
+#print axioms Ncfp.no_S_SSnpp_p
+#print axioms Ncfp.no_S_SSpnp_p
+#print axioms Ncfp.no_S_SSnpSp_p
+#print axioms Ncfp.no_S_SSpnSp_p
+#print axioms Ncfp.no_S_SSpSnp_p
+#print axioms Ncfp.no_S_SSpSpn_p
+#print axioms Ncfp.no_S_SpSnp_p
+#print axioms Ncfp.no_S_SpSpn_p
+#print axioms Ncfp.ncfp_depth2

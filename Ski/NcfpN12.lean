@@ -29,7 +29,7 @@ What is proved:
   `no_S_SSpSpn_p`, `no_S_SpSnp_p`, `no_S_SpSpn_p`).
 
 Differences from the note.  The last step is Theorem X⁺ (`thm_Xplus`, bound `M + 1`) in all eight
-schemes (the note uses Theorem X in seven).  In schemes 4 the cases (f)(Bn), (f)(Bf) are closed by
+schemes (the note uses Theorem X in seven).  In scheme 4 the cases (f)(Bn), (f)(Bf) are closed by
 AP2 (the note refers to scheme 3).  Non-normalization (NN) is derived set by set from `A: [B, A]`.
 
 What is not proved: a general theorem for open exceptions; the pair graph.

@@ -148,6 +148,9 @@ import Ski.NcfpN2
 import Ski.NcfpDepth2
 import Ski.NcfpScheme
 import Ski.NcfpThree
+import Ski.NcfpXplus
+import Ski.NcfpN12
+import Ski.NcfpPlain
 import Ski.NcfpAudit
 import Ski.Graph
 import Ski.RWMem
