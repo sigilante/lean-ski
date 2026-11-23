@@ -44,8 +44,8 @@ inductive IStep : Term → Term → Prop
 
 /-- An *f-step*: `t → t'` contracts one S-redex occurrence that is not the argument of an
 application.  Either the redex is the whole term (`root`), or it is the function part of its
-parent (`inner`, see `IStep`).  The excluded steps are exactly those whose redex occurrence is
-the argument child of its parent. -/
+parent (`inner`, see `IStep`).  Only S-redexes are contracted; on pure S-terms the weak steps
+left out are exactly those whose redex occurrence is the argument child of its parent. -/
 inductive FStep : Term → Term → Prop
   | root (f g x : Term) : FStep (S ⬝ f ⬝ g ⬝ x) (f ⬝ x ⬝ (g ⬝ x))
   | inner {t t' : Term} : IStep t t' → FStep t t'
@@ -510,8 +510,8 @@ theorem no_f_loop {t u w : Term} (ht : PureS t) (hf : FSteps t u) (hw : WSteps t
 theorem no_head_reduct_inside {t u w : Term} (ht : PureS t) (h : Steps t u) (hw : WSteps t w)
     (hs : Sub u w) : w = u := theorem_H ht (fsteps_of_steps ht h) hw hs
 
-/-- Theorem H with `u = t`: a closed S-term that reduces to a term containing it reduces only
-to itself there, `t ↠ w ∋ t` forces `w = t`.  This is the part `C ≠ [ ]` of `no_ground_loop`
+/-- Theorem H with `u = t`: if a closed S-term `t` reduces to `w` and `t` occurs in `w`,
+then `w = t`.  This is the part `C ≠ [ ]` of `no_ground_loop`
 (which also excludes `t →⁺ t`), proved here from confluence instead of `bsn`. -/
 theorem no_proper_ground_loop {t w : Term} (ht : PureS t) (hw : WSteps t w) (hs : Sub t w) :
     w = t := theorem_H ht (.refl t) hw hs
