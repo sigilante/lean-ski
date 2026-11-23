@@ -28,8 +28,12 @@ standardization) is `hnf1_conv`, `hnf2_conv`.
 
 What is not proved: NCFP itself; the conjecture that no leafless set exists; the note's remark on
 `p =β S (S p) (S p)`.  Lemma TD is stated without the exclusivity of its two cases and without the
-clause that every frame before the head normal form has last item `z` in case (A); nothing below
-uses them.
+clause that every frame before the head normal form has last item `z` in case (A); its
+hypothesis is a run of one or more steps to a two-item head normal form (that a term with three
+or more items and a head normal form has such a run is not stated).  `cor_SS1` states only the
+size equation (finiteness of SS-chains is `ss_bound`).  `lemma_ZI_i` and `track_run` conclude
+that the term `o` is an item of the later frame; "not at the `x`- or `y`-seat" is in the proof,
+not in the statement.  Nothing below uses the omitted clauses.
 
 All statements about sets are in predicate form (a set is a predicate closed under the stated
 condition), and all proofs are constructive: "a member of least size" is strong induction on the
@@ -478,7 +482,8 @@ theorem itemsub_step {X X' a : Term} (s : Step X X') : PureS X → ItemSub a X' 
       · exact .inr (.init x h1)
 
 /-- **Lemma ZI (ii).**  A subterm of an item of a frame of the head run of `t` is a subterm of an
-item of `t`, or it is an item of a frame of the run (a mint, at the frame where it is minted). -/
+item of `t`, or it is an item of some frame of the run.  (In the proof that item is a mint, at
+the frame where it is minted; the statement does not record this.) -/
 theorem lemma_ZI_ii {t X a : Term} (h : Steps t X) : PureS t → ItemSub a X →
     ItemSub a t ∨ ∃ X', Steps t X' ∧ IsItem a X' := by
   induction h with
