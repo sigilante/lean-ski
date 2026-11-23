@@ -20,8 +20,9 @@ What is proved:
   described by `X1Ctx (Simp E) E`: built from holes and closed normalizing terms by `S E′` and
   `S E′ E″`, with a hole, and such that every node `S E₁ E₂` with `E₁`, `E₂` both non-closed has
   `E₂` of the form `S E′` or `S n E′`, where a hole `E₂` is read as the root `E`.
-* The equations for the nine two-hole contexts of depth 3 named in the note (`no_X1_1` …
-  `no_X1_9`).
+* The equations for the nine two-hole contexts of depth 3 that the note lists under Corollary X1
+  (`no_S_SpSnp`, `no_S_Sp_SnSp`, `no_S_n_SpSp`, `no_S_Snp_SSmp`, `no_S_SpSnp_m`, `no_S_Spn_SSpm`,
+  `no_S_n_SpSmp`, `no_S_Snp_SmSkp`, `no_S_Spn_SmSpk`), with independent closed parts.
 
 The proof of Theorem X⁺ follows the note with these changes of form.  The path is not chosen: the
 statement proved is that every member has a descendant in `Z` of leaf count at most `M + 3`
@@ -557,5 +558,79 @@ theorem ncfp_X1 {p : Term} (hp : PureS p) {E : Phi.Ctx} (hE : X1Ctx (Simp E) E)
     | nl hpa han nf hsz h1 => exact key _ (.nl hpa han nf hsz h1) (fun e => by cases e) t ht hct
     | nr hpa han nf hsz h1 => exact key _ (.nr hpa han nf hsz h1) (fun e => by cases e) t ht hct
     | two h1 h2 hs2 => exact key _ (.two h1 h2 hs2) (fun e => by cases e) t ht hct
+
+/-! ## The nine two-hole contexts of depth 3 of Corollary X1 -/
+
+/-- `p` is not convertible to `S (S p (S n p))`, for closed `p` and closed normalizing `n`. -/
+theorem no_S_SpSnp {p n : Term} (hp : PureS p) (hn : PureS n) (hnn : Normalizing n) :
+    ¬ Convertible p (S ⬝ (S ⬝ p ⬝ (S ⬝ n ⬝ p))) := by
+  have h := ncfp_X1 hp (E := (.app .s (.app (.app .s .hole) (.app (.app .s (Tower.ofTerm n)) .hole))))
+    (.one (.two .hole (.nl hn hnn .hole) (.inr (.nl .hole hn hnn)))) (fun e => by cases e)
+  simp only [Phi.Ctx.plug, Tower.plug_ofTerm hn] at h
+  exact h
+
+/-- `p` is not convertible to `S (S p) (S n (S p))`, for closed `p` and closed normalizing `n`. -/
+theorem no_S_Sp_SnSp {p n : Term} (hp : PureS p) (hn : PureS n) (hnn : Normalizing n) :
+    ¬ Convertible p (S ⬝ (S ⬝ p) ⬝ (S ⬝ n ⬝ (S ⬝ p))) := by
+  have h := ncfp_X1 hp (E := (.app (.app .s (.app .s .hole)) (.app (.app .s (Tower.ofTerm n)) (.app .s .hole))))
+    (.two (.one .hole) (.nl hn hnn (.one .hole)) (.inr (.nl _ hn hnn))) (fun e => by cases e)
+  simp only [Phi.Ctx.plug, Tower.plug_ofTerm hn] at h
+  exact h
+
+/-- `p` is not convertible to `S n (S p (S p))`, for closed `p` and closed normalizing `n`. -/
+theorem no_S_n_SpSp {p n : Term} (hp : PureS p) (hn : PureS n) (hnn : Normalizing n) :
+    ¬ Convertible p (S ⬝ n ⬝ (S ⬝ p ⬝ (S ⬝ p))) := by
+  have h := ncfp_X1 hp (E := (.app (.app .s (Tower.ofTerm n)) (.app (.app .s .hole) (.app .s .hole))))
+    (.nl hn hnn (.two .hole (.one .hole) (.inr (.one _)))) (fun e => by cases e)
+  simp only [Phi.Ctx.plug, Tower.plug_ofTerm hn] at h
+  exact h
+
+/-- `p` is not convertible to `S (S n p) (S (S m p))`, for closed `p` and closed normalizing `n`, `m`. -/
+theorem no_S_Snp_SSmp {p n m : Term} (hp : PureS p) (hn : PureS n) (hnn : Normalizing n) (hm : PureS m) (hmm : Normalizing m) :
+    ¬ Convertible p (S ⬝ (S ⬝ n ⬝ p) ⬝ (S ⬝ (S ⬝ m ⬝ p))) := by
+  have h := ncfp_X1 hp (E := (.app (.app .s (.app (.app .s (Tower.ofTerm n)) .hole)) (.app .s (.app (.app .s (Tower.ofTerm m)) .hole))))
+    (.two (.nl hn hnn .hole) (.one (.nl hm hmm .hole)) (.inr (.one _))) (fun e => by cases e)
+  simp only [Phi.Ctx.plug, Tower.plug_ofTerm hn, Tower.plug_ofTerm hm] at h
+  exact h
+
+/-- `p` is not convertible to `S (S p (S n p)) m`, for closed `p` and closed normalizing `n`, `m`. -/
+theorem no_S_SpSnp_m {p n m : Term} (hp : PureS p) (hn : PureS n) (hnn : Normalizing n) (hm : PureS m) (hmm : Normalizing m) :
+    ¬ Convertible p (S ⬝ (S ⬝ p ⬝ (S ⬝ n ⬝ p)) ⬝ m) := by
+  have h := ncfp_X1 hp (E := (.app (.app .s (.app (.app .s .hole) (.app (.app .s (Tower.ofTerm n)) .hole))) (Tower.ofTerm m)))
+    (.nr hm hmm (.two .hole (.nl hn hnn .hole) (.inr (.nl _ hn hnn)))) (fun e => by cases e)
+  simp only [Phi.Ctx.plug, Tower.plug_ofTerm hn, Tower.plug_ofTerm hm] at h
+  exact h
+
+/-- `p` is not convertible to `S (S p n) (S (S p m))`, for closed `p` and closed normalizing `n`, `m`. -/
+theorem no_S_Spn_SSpm {p n m : Term} (hp : PureS p) (hn : PureS n) (hnn : Normalizing n) (hm : PureS m) (hmm : Normalizing m) :
+    ¬ Convertible p (S ⬝ (S ⬝ p ⬝ n) ⬝ (S ⬝ (S ⬝ p ⬝ m))) := by
+  have h := ncfp_X1 hp (E := (.app (.app .s (.app (.app .s .hole) (Tower.ofTerm n))) (.app .s (.app (.app .s .hole) (Tower.ofTerm m)))))
+    (.two (.nr hn hnn .hole) (.one (.nr hm hmm .hole)) (.inr (.one _))) (fun e => by cases e)
+  simp only [Phi.Ctx.plug, Tower.plug_ofTerm hn, Tower.plug_ofTerm hm] at h
+  exact h
+
+/-- `p` is not convertible to `S n (S p (S m p))`, for closed `p` and closed normalizing `n`, `m`. -/
+theorem no_S_n_SpSmp {p n m : Term} (hp : PureS p) (hn : PureS n) (hnn : Normalizing n) (hm : PureS m) (hmm : Normalizing m) :
+    ¬ Convertible p (S ⬝ n ⬝ (S ⬝ p ⬝ (S ⬝ m ⬝ p))) := by
+  have h := ncfp_X1 hp (E := (.app (.app .s (Tower.ofTerm n)) (.app (.app .s .hole) (.app (.app .s (Tower.ofTerm m)) .hole))))
+    (.nl hn hnn (.two .hole (.nl hm hmm .hole) (.inr (.nl _ hm hmm)))) (fun e => by cases e)
+  simp only [Phi.Ctx.plug, Tower.plug_ofTerm hn, Tower.plug_ofTerm hm] at h
+  exact h
+
+/-- `p` is not convertible to `S (S n p) (S m (S k p))`, for closed `p` and closed normalizing `n`, `m`, `k`. -/
+theorem no_S_Snp_SmSkp {p n m k : Term} (hp : PureS p) (hn : PureS n) (hnn : Normalizing n) (hm : PureS m) (hmm : Normalizing m) (hk : PureS k) (hkk : Normalizing k) :
+    ¬ Convertible p (S ⬝ (S ⬝ n ⬝ p) ⬝ (S ⬝ m ⬝ (S ⬝ k ⬝ p))) := by
+  have h := ncfp_X1 hp (E := (.app (.app .s (.app (.app .s (Tower.ofTerm n)) .hole)) (.app (.app .s (Tower.ofTerm m)) (.app (.app .s (Tower.ofTerm k)) .hole))))
+    (.two (.nl hn hnn .hole) (.nl hm hmm (.nl hk hkk .hole)) (.inr (.nl _ hm hmm))) (fun e => by cases e)
+  simp only [Phi.Ctx.plug, Tower.plug_ofTerm hn, Tower.plug_ofTerm hm, Tower.plug_ofTerm hk] at h
+  exact h
+
+/-- `p` is not convertible to `S (S p n) (S m (S p k))`, for closed `p` and closed normalizing `n`, `m`, `k`. -/
+theorem no_S_Spn_SmSpk {p n m k : Term} (hp : PureS p) (hn : PureS n) (hnn : Normalizing n) (hm : PureS m) (hmm : Normalizing m) (hk : PureS k) (hkk : Normalizing k) :
+    ¬ Convertible p (S ⬝ (S ⬝ p ⬝ n) ⬝ (S ⬝ m ⬝ (S ⬝ p ⬝ k))) := by
+  have h := ncfp_X1 hp (E := (.app (.app .s (.app (.app .s .hole) (Tower.ofTerm n))) (.app (.app .s (Tower.ofTerm m)) (.app (.app .s .hole) (Tower.ofTerm k)))))
+    (.two (.nr hn hnn .hole) (.nl hm hmm (.nr hk hkk .hole)) (.inr (.nl _ hm hmm))) (fun e => by cases e)
+  simp only [Phi.Ctx.plug, Tower.plug_ofTerm hn, Tower.plug_ofTerm hm, Tower.plug_ofTerm hk] at h
+  exact h
 
 end Ncfp
