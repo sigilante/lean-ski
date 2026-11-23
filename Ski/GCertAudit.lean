@@ -5,7 +5,7 @@ import Ski.GCertSound
 # Axiom gate for the G certificate and the Ψ-skeleton bound (stand-alone)
 
 The same check as `#audit_clean` in `Ski/Audit.lean` (allow-list `{propext, Quot.sound}`), in a
-module that imports only `Ski.GCertSound`.  `Ski/Audit.lean` is not edited.
+module that imports only `Ski.GCertSound`.  `Ski/Audit.lean` lists the theorems of `GCert.lean` and `GCertSound.lean`; this module also checks the chunk constants.
 
 * `#gcert_audit_clean ids` checks the named constants.
 * `#gcert_audit_modules` checks every theorem, and every definition without an internal name,

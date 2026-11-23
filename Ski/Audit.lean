@@ -340,6 +340,7 @@ import Ski.Circuit.TraceCheck
 import Ski.BExp
 import Ski.Phi
 import Ski.PsiSkel
+import Ski.GCertSound
 
 /-!
 # The audit manifest — build-enforced
@@ -1957,3 +1958,13 @@ open Ski.Audit
 #audit_clean PsiSkel.oneB_eq PsiSkel.one_iff PsiSkel.one_item_of_fold PsiSkel.fold_one_item PsiSkel.fold_two_items PsiSkel.combB_eq PsiSkel.comb_alive PsiSkel.root_head_not_comb
 #audit_clean PsiSkel.inertB_eq PsiSkel.inert_iff PsiSkel.headChain_last PsiSkel.lzSelfB_eq PsiSkel.lzClosedB_eq PsiSkel.Lz_self PsiSkel.Lz_closed PsiSkel.lastArg_foldl
 #audit_clean PsiSkel.last_mem_Lz
+
+-- G certificate and the Psi-skeleton bound (S6): ranks on the coarse and fine root-frame graphs checked by the kernel (the 304 chunk checks are gated in Ski/GCertAudit.lean), soundness of the abstraction, and GCert.psi_skeleton (at most 77 non-free steps on a head run through non-stable frames)
+#audit_clean GCert.bfB_eq GCert.pwfB_eq GCert.oneFB_eq GCert.combFB_eq GCert.rowLenB_eq GCert.below_zero GCert.below_succ GCert.all38
+#audit_clean GCert.imp_of GCert.getD_ge GCert.rowB_eq GCert.ble_false GCert.bf_eq GCert.pwf_eq GCert.isOne_iff GCert.isComb_iff
+#audit_clean GCert.valid_of GCert.fine_z GCert.all2 GCert.rank_chain GCert.rank_other GCert.or_elim_false GCert.rank_mid GCert.fine_le
+#audit_clean GCert.phi_le GCert.rho1_le GCert.phi_fine GCert.phi_coarse GCert.fine_chain GCert.sK_mk GCert.sB_mk GCert.sA_mk
+#audit_clean GCert.sP_mk GCert.sL_mk GCert.sH_mk GCert.mem_of_any GCert.band_left GCert.band_right GCert.beq_false GCert.inv_ok
+#audit_clean GCert.inv_three GCert.inv_four GCert.fine_other GCert.step_pure GCert.step_spine GCert.headChain_pure GCert.short_ne GCert.spine_nil
+#audit_clean GCert.flag_spine GCert.round_inv GCert.headChain_penult GCert.run_example GCert.other_le GCert.r1_le_pw GCert.run_hnf GCert.phase
+#audit_clean GCert.root_head_app GCert.rankT_le GCert.root_valid GCert.root_bound_aux GCert.root_bound GCert.root_bound_67 GCert.psi_skeleton
