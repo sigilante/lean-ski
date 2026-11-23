@@ -58,7 +58,7 @@ end Tower.Audit
 #tower_audit_clean TowerFin.qidx_elt TowerFin.decEP TowerFin.stab_final TowerFin.EP_cong
 #tower_audit_clean TowerFin.EP_max TowerFin.close_spec TowerFin.dist_len TowerFin.closed_closed
 #tower_audit_clean TowerFin.closure
--- the bridge (Lemma 3 for the full observable)
+-- the bridge (Lemma 4 for the full observable)
 #tower_audit_clean Tower.val_inv Tower.obsF_of_hasObs Tower.obsF_iff_hasObs Tower.obsF_conv
 #tower_audit_clean Tower.cong_of_conv Tower.cong_ctx Tower.cong_left Tower.cong_right
 -- the observable as a function; constants; finite index

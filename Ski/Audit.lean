@@ -1949,7 +1949,7 @@ open Ski.Audit
 #audit_clean BExp.towerShapeB_eq BExp.tower_of_fold BExp.exempt_shape BExp.headChainN_of BExp.piB_eq BExp.r1_le BExp.skeleton_r1 BExp.skeleton BExp.iterS_run BExp.fibT_pure BExp.fold_fibT BExp.fib8B_eq BExp.fibB_add BExp.fibB_bot BExp.fib_dead BExp.fold_iterS_congr BExp.deep_item BExp.psi_cex
 #audit_clean BExp.tower_pure BExp.fold_tower BExp.unbounded_S BExp.unbounded_S_ne BExp.stable_step BExp.stable_steps BExp.steps_linear BExp.stable_unique BExp.iterS_pure BExp.psi_cex_stable
 
--- Theorem Phi (an analogue of S6's Theorem 6 for the hnf observable, with only towers S^k(S S) normalized; S6's relation does not imply it): for any S-model over S1 with periodic constants, terms related by the depth-11 labelled unfolding with towers normalized have equal hnf observables in every context (Phi.theorem_phi); S1 instance N = 10, p = 1 (Phi.theorem_phi_s1)
+-- Theorem Phi (an analogue of S6's Theorem 9 for the hnf observable, with only towers S^k(S S) normalized; S6's relation does not imply it): for any S-model over S1 with periodic constants, terms related by the depth-11 labelled unfolding with towers normalized have equal hnf observables in every context (Phi.theorem_phi); S1 instance N = 10, p = 1 (Phi.theorem_phi_s1)
 #audit_clean Phi.sim_zero Phi.sim_succ Phi.All₂.append Phi.All₂.mono_mem Phi.All₂.mono Phi.All₂.forall_left Phi.All₂.forall_right Phi.All₂.map_eq
 #audit_clean Phi.fold_val Phi.fold_eq_of_val Phi.val_fibT Phi.val_tower Phi.Periodic.of_sIter Phi.step_foldl Phi.steps_foldl Phi.headChain_steps
 #audit_clean Phi.no_step_hnf Phi.hnf_unique Phi.steps_pure Phi.steps_fold Phi.head_hnf Phi.hasHnf_iff_head Phi.pure_foldl Phi.fold_foldl_bot
@@ -1974,13 +1974,13 @@ open Ski.Audit
 #audit_clean GCert.flag_spine GCert.round_inv GCert.headChain_penult GCert.run_example GCert.other_le GCert.r1_le_pw GCert.run_hnf GCert.phase
 #audit_clean GCert.root_head_app GCert.rankT_le GCert.root_valid GCert.root_bound_aux GCert.root_bound GCert.root_bound_67 GCert.psi_skeleton
 
--- Lemma 3 of S6 (conversion invariance of the observable, for any S-model) and uniqueness and totality of the prefix relation D2.Pre at every depth
+-- Lemma 4 of S6 (conversion invariance of the observable, for any S-model) and uniqueness and totality of the prefix relation D2.Pre at every depth
 #audit_clean Conv.Convertible.trans Conv.Convertible.symm Conv.Convertible.of_wsteps Conv.Convertible.least Conv.conv_iff_join Conv.stable_iff Conv.reach_frame Conv.hnf_not_bot
 #audit_clean Conv.run_hnf_hnf Conv.run_hnf_bot Conv.run_bot_bot Conv.first_stable Conv.Inv.wsteps Conv.obs_exists Conv.obs_unique Conv.obs_bot_first
 #audit_clean Conv.hnf1_wsteps Conv.hnf2_wsteps Conv.parIs_S Conv.parIs_app Conv.obs_back Conv.obs_fwd Conv.obs_wsteps Conv.obs_conv
 #audit_clean Conv.lemma3 Conv.SModel.inv Conv.lemma3_model Conv.lemma3_D Conv.pre_unique Conv.pre_total Conv.pre_bot_first
 
--- Theorem 6 of S6: finite index of the full observable (Full.theorem_six), the signature map and its bound (sig_congruence, sigCode_inj)
+-- Theorem 9 of S6: finite index of the full observable (Full.theorem_six), the signature map and its bound (sig_congruence, sigCode_inj)
 #audit_clean Full.val_step Full.val_steps Full.bot_of_nohnf Full.fold_frame Full.stable_step' Full.stable_run Full.psi_unique Full.bot_of_psi
 #audit_clean Full.psi_frame Full.psi_of_steps Full.stable_iff Full.stableB_iff Full.hnf_spine Full.run_steps' Full.run_of_reach Full.run_total
 #audit_clean Full.psi_of_run Full.run_inv Full.run_adv Full.nsteps_left Full.list_snoc Full.foldl_snoc Full.nsteps_args Full.nsteps_burst
@@ -2003,7 +2003,7 @@ open Ski.Audit
 #audit_clean TowerFin.stab_search TowerFin.stab_final TowerFin.EP_cong TowerFin.EP_max TowerFin.findNew_none TowerFin.findNew_some TowerFin.close_mem TowerFin.close_spec
 #audit_clean TowerFin.dist_len TowerFin.closed_s TowerFin.closed_closed TowerFin.look_ex
 
--- Prefix Regularity (S6 Theorem 1, Tower.prefix_regularity, theorem_one), Lemma 7 (Tower.lemma7), Corollary 2 (Tower.realizable_iff, realizableDec), constants for every finite table (TModel.periodic)
+-- Prefix Regularity (S6 Theorem 1, Tower.prefix_regularity, theorem_one), Lemma 10 (Tower.lemma7), Corollary 2 (Tower.realizable_iff, realizableDec), constants for every finite table (TModel.periodic)
 #audit_clean Tower.val_inv Tower.obsF_of_hasObs Tower.obsF_iff_hasObs Tower.obsF_conv Tower.plug_pure Tower.conv_left Tower.conv_right Tower.conv_plug
 #audit_clean Tower.cong_refl Tower.cong_symm Tower.cong_trans Tower.cong_of_conv Tower.plug_comp Tower.cong_ctx Tower.plug_ofTerm Tower.cong_left
 #audit_clean Tower.cong_right Tower.outOf_spec Tower.obsFn_spec Tower.obsFn_iff Tower.cong_obsFn Tower.val_of_obs Tower.cong_val Tower.TModel.φ_val

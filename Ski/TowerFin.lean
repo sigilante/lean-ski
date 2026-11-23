@@ -1,5 +1,5 @@
 /-!
-# Finite combinatorics for the tower of models (S6, Lemma 7)
+# Finite combinatorics for the tower of models (S6, Lemma 10)
 
 Constructive tools used by `Ski/Tower.lean`; nothing here mentions terms.  No `Fintype`, no
 `Finset`, no choice.
