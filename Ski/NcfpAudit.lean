@@ -6,12 +6,13 @@ import Ski.NcfpN
 import Ski.NcfpN2
 import Ski.NcfpDepth2
 import Ski.NcfpScheme
+import Ski.NcfpThree
 
 /-!
 # Axiom gate for the proved cases of NCFP (stand-alone)
 
 The same check as `#audit_clean` in `Ski/Audit.lean` (allow-list `{propext, Quot.sound}`), in a
-module that imports only `Ski.Ncfp`, `Ski.NcfpTheta`, `Ski.NcfpLeafless`, `Ski.NcfpN`, `Ski.NcfpN2`, `Ski.NcfpDepth2` and `Ski.NcfpScheme`.
+module that imports only `Ski.Ncfp`, `Ski.NcfpTheta`, `Ski.NcfpLeafless`, `Ski.NcfpN`, `Ski.NcfpN2`, `Ski.NcfpDepth2`, `Ski.NcfpScheme` and `Ski.NcfpThree`.
 
 * `#ncfp_audit_module M` checks every theorem, and every definition without an internal name,
   declared in the module `M`, and reports the counts and the internal constants it skips
@@ -62,6 +63,7 @@ end Ncfp.Audit
 #ncfp_audit_module Ski.NcfpN2
 #ncfp_audit_module Ski.NcfpDepth2
 #ncfp_audit_module Ski.NcfpScheme
+#ncfp_audit_module Ski.NcfpThree
 
 -- size, normal forms, contexts; Prop. 0
 #ncfp_audit_clean Ncfp.sz_wstep Ncfp.sz_wsteps Ncfp.Normal.wsteps Ncfp.wsteps_to_normal
@@ -121,6 +123,10 @@ end Ncfp.Audit
 #ncfp_audit_clean Ncfp.typed_nn Ncfp.typed_not_normalizing Ncfp.slot_mism Ncfp.typed_apart Ncfp.thm_T0 Ncfp.slotok_cls Ncfp.slotok_nf Ncfp.tyok_one
 #ncfp_audit_clean Ncfp.tyok_two Ncfp.typed_of_reps Ncfp.ncfp_scheme Ncfp.no_S_Spp_n Ncfp.no_S_n_Spp Ncfp.no_S_Sp_Snp Ncfp.no_S_Snp_Spm Ncfp.no_S_Sp_Spn
 #ncfp_audit_clean Ncfp.no_S_Snp_Sp Ncfp.no_S_Spn_Sp Ncfp.no_S_Snp_Smp Ncfp.no_S_Spn_Smp Ncfp.no_S_Spn_Spm Ncfp.thm_N11 Ncfp.no_S_SpSp_n
+
+-- NcfpThree: the four three-hole shapes of depth 2
+#ncfp_audit_clean Ncfp.nonlit_form Ncfp.big_ne_S Ncfp.three_X Ncfp.thm_T3a Ncfp.thm_T3b Ncfp.thm_T3d Ncfp.thm_T3c Ncfp.no_S_Spp_Snp
+#ncfp_audit_clean Ncfp.no_S_Spp_Spn Ncfp.no_S_Snp_Spp Ncfp.no_S_Spn_Spp
 
 #print axioms Ncfp.prop0
 #print axioms Ncfp.lemma_L
@@ -203,3 +209,11 @@ end Ncfp.Audit
 #print axioms Ncfp.no_S_Spn_Spm
 #print axioms Ncfp.thm_N11
 #print axioms Ncfp.no_S_SpSp_n
+#print axioms Ncfp.thm_T3a
+#print axioms Ncfp.thm_T3b
+#print axioms Ncfp.thm_T3c
+#print axioms Ncfp.thm_T3d
+#print axioms Ncfp.no_S_Spp_Snp
+#print axioms Ncfp.no_S_Spp_Spn
+#print axioms Ncfp.no_S_Snp_Spp
+#print axioms Ncfp.no_S_Spn_Spp

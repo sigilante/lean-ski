@@ -353,6 +353,7 @@ import Ski.NcfpN
 import Ski.NcfpN2
 import Ski.NcfpDepth2
 import Ski.NcfpScheme
+import Ski.NcfpThree
 
 /-!
 # The audit manifest — build-enforced
@@ -2073,3 +2074,6 @@ open Ski.Audit
 #audit_clean Ncfp.typed_nn Ncfp.typed_not_normalizing Ncfp.slot_mism Ncfp.typed_apart Ncfp.thm_T0 Ncfp.slotok_cls Ncfp.slotok_nf Ncfp.tyok_one
 #audit_clean Ncfp.tyok_two Ncfp.typed_of_reps Ncfp.ncfp_scheme Ncfp.no_S_Spp_n Ncfp.no_S_n_Spp Ncfp.no_S_Sp_Snp Ncfp.no_S_Snp_Spm Ncfp.no_S_Sp_Spn
 #audit_clean Ncfp.no_S_Snp_Sp Ncfp.no_S_Spn_Sp Ncfp.no_S_Snp_Smp Ncfp.no_S_Spn_Smp Ncfp.no_S_Spn_Spm Ncfp.thm_N11 Ncfp.no_S_SpSp_n
+-- NCFP: the three-hole shapes of depth 2 with one closed part (Ncfp.thm_T3a .. thm_T3d; no_S_Spp_Snp, no_S_Spp_Spn, no_S_Snp_Spp, no_S_Spn_Spp)
+#audit_clean Ncfp.nonlit_form Ncfp.big_ne_S Ncfp.three_X Ncfp.thm_T3a Ncfp.thm_T3b Ncfp.thm_T3d Ncfp.thm_T3c Ncfp.no_S_Spp_Snp
+#audit_clean Ncfp.no_S_Spp_Spn Ncfp.no_S_Snp_Spp Ncfp.no_S_Spn_Spp
