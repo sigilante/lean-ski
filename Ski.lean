@@ -129,6 +129,8 @@ import Ski.Phi
 import Ski.PhiAudit
 import Ski.PsiSkel
 import Ski.PsiSkelAudit
+import Ski.GCertSound
+import Ski.GCertAudit
 import Ski.Graph
 import Ski.RWMem
 import Ski.GraphMem
