@@ -140,6 +140,8 @@ import Ski.FullAudit
 import Ski.TowerFin
 import Ski.Tower
 import Ski.TowerAudit
+import Ski.Ncfp
+import Ski.NcfpAudit
 import Ski.Graph
 import Ski.RWMem
 import Ski.GraphMem
