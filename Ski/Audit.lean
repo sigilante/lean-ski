@@ -341,6 +341,10 @@ import Ski.BExp
 import Ski.Phi
 import Ski.PsiSkel
 import Ski.GCertSound
+import Ski.Conv
+import Ski.Full
+import Ski.TowerFin
+import Ski.Tower
 
 /-!
 # The audit manifest — build-enforced
@@ -1968,3 +1972,44 @@ open Ski.Audit
 #audit_clean GCert.inv_three GCert.inv_four GCert.fine_other GCert.step_pure GCert.step_spine GCert.headChain_pure GCert.short_ne GCert.spine_nil
 #audit_clean GCert.flag_spine GCert.round_inv GCert.headChain_penult GCert.run_example GCert.other_le GCert.r1_le_pw GCert.run_hnf GCert.phase
 #audit_clean GCert.root_head_app GCert.rankT_le GCert.root_valid GCert.root_bound_aux GCert.root_bound GCert.root_bound_67 GCert.psi_skeleton
+
+-- Lemma 3 of S6 (conversion invariance of the observable, for any S-model) and uniqueness and totality of the prefix relation D2.Pre at every depth
+#audit_clean Conv.Convertible.trans Conv.Convertible.symm Conv.Convertible.of_wsteps Conv.Convertible.least Conv.conv_iff_join Conv.stable_iff Conv.reach_frame Conv.hnf_not_bot
+#audit_clean Conv.run_hnf_hnf Conv.run_hnf_bot Conv.run_bot_bot Conv.first_stable Conv.Inv.wsteps Conv.obs_exists Conv.obs_unique Conv.obs_bot_first
+#audit_clean Conv.hnf1_wsteps Conv.hnf2_wsteps Conv.parIs_S Conv.parIs_app Conv.obs_back Conv.obs_fwd Conv.obs_wsteps Conv.obs_conv
+#audit_clean Conv.lemma3 Conv.SModel.inv Conv.lemma3_model Conv.lemma3_D Conv.pre_unique Conv.pre_total Conv.pre_bot_first
+
+-- Theorem 6 of S6: finite index of the full observable (Full.theorem_six), the signature map and its bound (sig_congruence, sigCode_inj)
+#audit_clean Full.val_step Full.val_steps Full.bot_of_nohnf Full.fold_frame Full.stable_step' Full.stable_run Full.psi_unique Full.bot_of_psi
+#audit_clean Full.psi_frame Full.psi_of_steps Full.stable_iff Full.stableB_iff Full.hnf_spine Full.run_steps' Full.run_of_reach Full.run_total
+#audit_clean Full.psi_of_run Full.run_inv Full.run_adv Full.nsteps_left Full.list_snoc Full.foldl_snoc Full.nsteps_args Full.nsteps_burst
+#audit_clean Full.nsteps_head Full.obsF_total Full.obsF_unique Full.first_stable Full.core_eq Full.coreK_coreV Full.coreV_pure Full.coreV_zero
+#audit_clean Full.coreK_succ Full.core_cases Full.other_blocks Full.hnf_two Full.val_iterS Full.iterS_succ' Full.S_of_val Full.apx_base
+#audit_clean Full.sIter_tow Full.simL_val Full.fibT_succ' Full.fib_vals Full.dead_frame Full.fib_pair Full.RelF.vp Full.RelF.mono
+#audit_clean Full.vp_foldl Full.all2_snoc Full.GoodF.of_steps Full.headF_vp Full.hrF_app Full.hrF_foldl Full.hr_chain Full.hr_of_rel
+#audit_clean Full.hr_of_free Full.rel_plugF Full.goodF_short Full.goodF_stable Full.good_or_ns Full.dead_stable Full.stepS Full.caseS
+#audit_clean Full.caseT Full.coreF Full.good_of_simF Full.theorem_six Full.nextOf_step Full.nextOf_none Full.get_spec Full.none_of
+#audit_clean Full.acc_of_reach Full.nxt_wf Full.headEnd_spec Full.headEnd_hnf Full.headEnd_stable Full.kcls_lt Full.kcls_tow Full.psiOf_bot
+#audit_clean Full.psiOf_some Full.itemsOf_eq Full.sig0_sound Full.sig_sound Full.pairF_inj Full.optF_inj Full.optmap_inj Full.pair2_inj
+#audit_clean Full.baseCode_inj Full.sigCode_inj Full.sig_congruence Full.apx_refl Full.simL_refl Full.sitB_eq Full.s1_sIter Full.sitN_const
+#audit_clean Full.s1_periodicF Full.sig_congruence_s1
+
+-- Tower combinatorics (constructive pigeonhole, partition refinement)
+#audit_clean TowerFin.find_lt TowerFin.php TowerFin.iter_add TowerFin.iter_succ' TowerFin.fact_pos TowerFin.dvd_fact TowerFin.iter_step TowerFin.iter_cycle
+#audit_clean TowerFin.iter_period TowerFin.iter_mod_le TowerFin.iter_mod TowerFin.cnt_le_len TowerFin.cnt_dich TowerFin.posP_lt TowerFin.posP_sat TowerFin.posP_min
+#audit_clean TowerFin.posP_congr TowerFin.dedup_pw TowerFin.dedup_cover TowerFin.pw_get TowerFin.qcover TowerFin.qelt_idx TowerFin.qidx_eq TowerFin.qidx_inj
+#audit_clean TowerFin.qidx_elt TowerFin.EP_refl TowerFin.EP_symm TowerFin.EP_trans TowerFin.EP_out TowerFin.stab_succ TowerFin.stab_le TowerFin.mem_pairs
+#audit_clean TowerFin.stab_search TowerFin.stab_final TowerFin.EP_cong TowerFin.EP_max TowerFin.findNew_none TowerFin.findNew_some TowerFin.close_mem TowerFin.close_spec
+#audit_clean TowerFin.dist_len TowerFin.closed_s TowerFin.closed_closed TowerFin.look_ex
+
+-- Prefix Regularity (S6 Theorem 1, Tower.prefix_regularity, theorem_one), Lemma 7 (Tower.lemma7), Corollary 2 (Tower.realizable_iff, realizableDec), constants for every finite table (TModel.periodic)
+#audit_clean Tower.val_inv Tower.obsF_of_hasObs Tower.obsF_iff_hasObs Tower.obsF_conv Tower.plug_pure Tower.conv_left Tower.conv_right Tower.conv_plug
+#audit_clean Tower.cong_refl Tower.cong_symm Tower.cong_trans Tower.cong_of_conv Tower.plug_comp Tower.cong_ctx Tower.plug_ofTerm Tower.cong_left
+#audit_clean Tower.cong_right Tower.outOf_spec Tower.obsFn_spec Tower.obsFn_iff Tower.cong_obsFn Tower.val_of_obs Tower.cong_val Tower.TModel.φ_val
+#audit_clean Tower.sIter_iter Tower.fibM_iter Tower.TModel.periodic Tower.sgc_lt Tower.sgc_cong Tower.finite_index Tower.arep_mul Tower.arep_s
+#audit_clean Tower.foldA_cong Tower.rl_E Tower.E_plug Tower.obs_foldA Tower.E_sound Tower.eB_refl Tower.eB_symm Tower.eB_trans
+#audit_clean Tower.qe_qi Tower.qi_eq Tower.qi_qe Tower.qval_eq Tower.qrep_cong Tower.qval_iff Tower.qval_rep Tower.qlaw_aux
+#audit_clean Tower.qlaw Tower.qh_val Tower.qh_app Tower.qh_s Tower.quo_val Tower.Quo.gen Tower.Quo.h_s Tower.Quo.h_app
+#audit_clean Tower.reduction Tower.reduction_hom Tower.pureB_sound Tower.s1RepsB_eq Tower.s1Reps_spec Tower.pre1_block Tower.s1_rep_val Tower.prefix_regularity
+#audit_clean Tower.generated Tower.block Tower.hom_val Tower.hom_s Tower.hom_app Tower.hom_φ Tower.M_zero Tower.M_one
+#audit_clean Tower.M_succ Tower.M_syn Tower.theorem_one Tower.realizable_iff
