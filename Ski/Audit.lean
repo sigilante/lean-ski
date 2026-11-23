@@ -348,6 +348,7 @@ import Ski.TowerFin
 import Ski.Tower
 import Ski.Ncfp
 import Ski.NcfpTheta
+import Ski.NcfpLeafless
 
 /-!
 # The audit manifest — build-enforced
@@ -2051,3 +2052,7 @@ open Ski.Audit
 #audit_clean Ncfp.IsItem.apps Ncfp.ItemSub.psub Ncfp.itemsub_step Ncfp.lemma_ZI_ii Ncfp.ThetaSet.leafless Ncfp.ThetaSet.k2 Ncfp.ThetaSet.not_S Ncfp.theta_chain
 #audit_clean Ncfp.theta_aux Ncfp.theta Ncfp.hnf1_conv Ncfp.hnf2_conv Ncfp.ncfp_two Ncfp.no_S_p_p Ncfp.thetap_td Ncfp.theta'
 #audit_clean Ncfp.no_S_p_Sp Ncfp.no_SSS_p Ncfp.theta'' Ncfp.no_S_Sp_p
+-- NCFP: Fact LI (Ncfp.fact_LI), Lemma PR (Ncfp.lemma_PR, pr_members), Theorem L (Ncfp.thm_L: no leafless set meets finitely many conversion classes), Corollary L1 (Ncfp.ncfp_holes)
+#audit_clean Ncfp.em_false Ncfp.fact_LI Ncfp.spine_fun Ncfp.spine_conv Ncfp.Leafless.not_S Ncfp.sz_Sj_ge Ncfp.IsItem.itemsub Ncfp.pr_members
+#audit_clean Ncfp.pr_one Ncfp.leafless_chain Ncfp.lemma_PR Ncfp.thm_L_bounded Ncfp.spine_bound Ncfp.thm_L Ncfp.SubC.trans Ncfp.subs_self
+#audit_clean Ncfp.SubC.mem Ncfp.HCtx.hole_sub Ncfp.ncfp_holes

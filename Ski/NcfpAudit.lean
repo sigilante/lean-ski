@@ -1,12 +1,13 @@
 import Lean
 import Ski.Ncfp
 import Ski.NcfpTheta
+import Ski.NcfpLeafless
 
 /-!
 # Axiom gate for the proved cases of NCFP (stand-alone)
 
 The same check as `#audit_clean` in `Ski/Audit.lean` (allow-list `{propext, Quot.sound}`), in a
-module that imports only `Ski.Ncfp` and `Ski.NcfpTheta`.
+module that imports only `Ski.Ncfp`, `Ski.NcfpTheta` and `Ski.NcfpLeafless`.
 
 * `#ncfp_audit_module M` checks every theorem, and every definition without an internal name,
   declared in the module `M`, and reports the counts and the internal constants it skips
@@ -52,6 +53,7 @@ end Ncfp.Audit
 
 #ncfp_audit_module Ski.Ncfp
 #ncfp_audit_module Ski.NcfpTheta
+#ncfp_audit_module Ski.NcfpLeafless
 
 -- size, normal forms, contexts; Prop. 0
 #ncfp_audit_clean Ncfp.sz_wstep Ncfp.sz_wsteps Ncfp.Normal.wsteps Ncfp.wsteps_to_normal
@@ -89,6 +91,11 @@ end Ncfp.Audit
 #ncfp_audit_clean Ncfp.IsItem.apps Ncfp.ItemSub.psub Ncfp.itemsub_step Ncfp.lemma_ZI_ii Ncfp.ThetaSet.leafless Ncfp.ThetaSet.k2 Ncfp.ThetaSet.not_S Ncfp.theta_chain
 #ncfp_audit_clean Ncfp.theta_aux Ncfp.theta Ncfp.hnf1_conv Ncfp.hnf2_conv Ncfp.ncfp_two Ncfp.no_S_p_p Ncfp.thetap_td Ncfp.theta'
 #ncfp_audit_clean Ncfp.no_S_p_Sp Ncfp.no_SSS_p Ncfp.theta'' Ncfp.no_S_Sp_p
+
+-- NcfpLeafless: Fact LI, Lemma PR, Theorem L, Corollary L1
+#ncfp_audit_clean Ncfp.em_false Ncfp.fact_LI Ncfp.spine_fun Ncfp.spine_conv Ncfp.Leafless.not_S Ncfp.sz_Sj_ge Ncfp.IsItem.itemsub Ncfp.pr_members
+#ncfp_audit_clean Ncfp.pr_one Ncfp.leafless_chain Ncfp.lemma_PR Ncfp.thm_L_bounded Ncfp.spine_bound Ncfp.thm_L Ncfp.SubC.trans Ncfp.subs_self
+#ncfp_audit_clean Ncfp.SubC.mem Ncfp.HCtx.hole_sub Ncfp.ncfp_holes
 
 #print axioms Ncfp.prop0
 #print axioms Ncfp.lemma_L
@@ -129,3 +136,11 @@ end Ncfp.Audit
 #print axioms Ncfp.no_SSS_p
 #print axioms Ncfp.theta''
 #print axioms Ncfp.no_S_Sp_p
+#print axioms Ncfp.em_false
+#print axioms Ncfp.fact_LI
+#print axioms Ncfp.pr_members
+#print axioms Ncfp.lemma_PR
+#print axioms Ncfp.thm_L_bounded
+#print axioms Ncfp.spine_bound
+#print axioms Ncfp.thm_L
+#print axioms Ncfp.ncfp_holes
