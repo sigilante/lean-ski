@@ -349,6 +349,7 @@ import Ski.Tower
 import Ski.Ncfp
 import Ski.NcfpTheta
 import Ski.NcfpLeafless
+import Ski.NcfpN
 
 /-!
 # The audit manifest — build-enforced
@@ -2056,3 +2057,6 @@ open Ski.Audit
 #audit_clean Ncfp.em_false Ncfp.fact_LI Ncfp.spine_fun Ncfp.spine_conv Ncfp.Leafless.not_S Ncfp.sz_Sj_ge Ncfp.IsItem.itemsub Ncfp.pr_members
 #audit_clean Ncfp.pr_one Ncfp.leafless_chain Ncfp.lemma_PR Ncfp.thm_L_bounded Ncfp.spine_bound Ncfp.thm_L Ncfp.SubC.trans Ncfp.subs_self
 #audit_clean Ncfp.SubC.mem Ncfp.HCtx.hole_sub Ncfp.ncfp_holes
+-- NCFP: Lemma LL (Ncfp.lemma_LL), Corollary LL1, Theorem N1 (Ncfp.thm_N1, claim_D, no_S_SSp_p), Theorem N2 (Ncfp.thm_N2, no_S_p_Snp)
+#audit_clean Ncfp.wrap_S Ncfp.lemma_LL Ncfp.cor_LL1 Ncfp.progress_bot Ncfp.claim_D Ncfp.claim_E Ncfp.thm_N1 Ncfp.no_S_SSp_p
+#audit_clean Ncfp.normal_S Ncfp.Normal.app_inv Ncfp.normalizing_S1 Ncfp.finite_descent_nn Ncfp.n2_not_norm Ncfp.n2_td Ncfp.thm_N2 Ncfp.no_S_p_Snp

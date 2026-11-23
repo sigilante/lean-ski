@@ -2,12 +2,13 @@ import Lean
 import Ski.Ncfp
 import Ski.NcfpTheta
 import Ski.NcfpLeafless
+import Ski.NcfpN
 
 /-!
 # Axiom gate for the proved cases of NCFP (stand-alone)
 
 The same check as `#audit_clean` in `Ski/Audit.lean` (allow-list `{propext, Quot.sound}`), in a
-module that imports only `Ski.Ncfp`, `Ski.NcfpTheta` and `Ski.NcfpLeafless`.
+module that imports only `Ski.Ncfp`, `Ski.NcfpTheta`, `Ski.NcfpLeafless` and `Ski.NcfpN`.
 
 * `#ncfp_audit_module M` checks every theorem, and every definition without an internal name,
   declared in the module `M`, and reports the counts and the internal constants it skips
@@ -54,6 +55,7 @@ end Ncfp.Audit
 #ncfp_audit_module Ski.Ncfp
 #ncfp_audit_module Ski.NcfpTheta
 #ncfp_audit_module Ski.NcfpLeafless
+#ncfp_audit_module Ski.NcfpN
 
 -- size, normal forms, contexts; Prop. 0
 #ncfp_audit_clean Ncfp.sz_wstep Ncfp.sz_wsteps Ncfp.Normal.wsteps Ncfp.wsteps_to_normal
@@ -96,6 +98,10 @@ end Ncfp.Audit
 #ncfp_audit_clean Ncfp.em_false Ncfp.fact_LI Ncfp.spine_fun Ncfp.spine_conv Ncfp.Leafless.not_S Ncfp.sz_Sj_ge Ncfp.IsItem.itemsub Ncfp.pr_members
 #ncfp_audit_clean Ncfp.pr_one Ncfp.leafless_chain Ncfp.lemma_PR Ncfp.thm_L_bounded Ncfp.spine_bound Ncfp.thm_L Ncfp.SubC.trans Ncfp.subs_self
 #ncfp_audit_clean Ncfp.SubC.mem Ncfp.HCtx.hole_sub Ncfp.ncfp_holes
+
+-- NcfpN: Lemma LL, Corollary LL1, Theorems N1, N2
+#ncfp_audit_clean Ncfp.wrap_S Ncfp.lemma_LL Ncfp.cor_LL1 Ncfp.progress_bot Ncfp.claim_D Ncfp.claim_E Ncfp.thm_N1 Ncfp.no_S_SSp_p
+#ncfp_audit_clean Ncfp.normal_S Ncfp.Normal.app_inv Ncfp.normalizing_S1 Ncfp.finite_descent_nn Ncfp.n2_not_norm Ncfp.n2_td Ncfp.thm_N2 Ncfp.no_S_p_Snp
 
 #print axioms Ncfp.prop0
 #print axioms Ncfp.lemma_L
@@ -144,3 +150,10 @@ end Ncfp.Audit
 #print axioms Ncfp.spine_bound
 #print axioms Ncfp.thm_L
 #print axioms Ncfp.ncfp_holes
+#print axioms Ncfp.lemma_LL
+#print axioms Ncfp.cor_LL1
+#print axioms Ncfp.claim_D
+#print axioms Ncfp.thm_N1
+#print axioms Ncfp.no_S_SSp_p
+#print axioms Ncfp.thm_N2
+#print axioms Ncfp.no_S_p_Snp
