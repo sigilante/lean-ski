@@ -2,7 +2,7 @@ import Lean
 import Ski.Full
 
 /-!
-# Axiom gate for Theorem 6 of S6 (stand-alone)
+# Axiom gate for Theorem 9 of S6 (stand-alone)
 
 The same check as `#audit_clean` in `Ski/Audit.lean` (allow-list `{propext, Quot.sound}`), in a
 module that imports only `Ski.Full`.
