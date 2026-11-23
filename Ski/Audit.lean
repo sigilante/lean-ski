@@ -338,6 +338,8 @@ import Ski.Circuit.JetCntFast
 import Ski.Circuit.CpuFast
 import Ski.Circuit.TraceCheck
 import Ski.BExp
+import Ski.Phi
+import Ski.PsiSkel
 
 /-!
 # The audit manifest — build-enforced
@@ -1940,3 +1942,18 @@ open Ski.Audit
 #audit_clean BExp.budZeroB_eq BExp.budStepB_eq BExp.longB_eq BExp.A_ge6 BExp.budZero BExp.budStep7 BExp.budStep BExp.budConv BExp.app_budget BExp.unbounded_blocks BExp.long_app BExp.shapeB_eq BExp.shape_tab BExp.shape1 BExp.shape3 BExp.shape6 BExp.shape12 BExp.arityB_eq BExp.arity_blocks
 #audit_clean BExp.towerShapeB_eq BExp.tower_of_fold BExp.exempt_shape BExp.headChainN_of BExp.piB_eq BExp.r1_le BExp.skeleton_r1 BExp.skeleton BExp.iterS_run BExp.fibT_pure BExp.fold_fibT BExp.fib8B_eq BExp.fibB_add BExp.fibB_bot BExp.fib_dead BExp.fold_iterS_congr BExp.deep_item BExp.psi_cex
 #audit_clean BExp.tower_pure BExp.fold_tower BExp.unbounded_S BExp.unbounded_S_ne BExp.stable_step BExp.stable_steps BExp.steps_linear BExp.stable_unique BExp.iterS_pure BExp.psi_cex_stable
+
+-- Theorem Phi (an analogue of S6's Theorem 6 for the hnf observable, with only towers S^k(S S) normalized; S6's relation does not imply it): for any S-model over S1 with periodic constants, terms related by the depth-11 labelled unfolding with towers normalized have equal hnf observables in every context (Phi.theorem_phi); S1 instance N = 10, p = 1 (Phi.theorem_phi_s1)
+#audit_clean Phi.sim_zero Phi.sim_succ Phi.All₂.append Phi.All₂.mono_mem Phi.All₂.mono Phi.All₂.forall_left Phi.All₂.forall_right Phi.All₂.map_eq
+#audit_clean Phi.fold_val Phi.fold_eq_of_val Phi.val_fibT Phi.val_tower Phi.Periodic.of_sIter Phi.step_foldl Phi.steps_foldl Phi.headChain_steps
+#audit_clean Phi.no_step_hnf Phi.hnf_unique Phi.steps_pure Phi.steps_fold Phi.head_hnf Phi.hasHnf_iff_head Phi.pure_foldl Phi.fold_foldl_bot
+#audit_clean Phi.step_spine Phi.r1_steps Phi.run_of_steps Phi.run_step Phi.run_steps Phi.tower_ne_S Phi.tower_inj Phi.towRel_succ
+#audit_clean Phi.mod_pred Phi.lvl_base Phi.lvl_dead Phi.Rel.pure Phi.Rel.val_eq Phi.Rel.mono Phi.Rel.refl Phi.rel_S
+#audit_clean Phi.base_tower Phi.rel_tower Phi.Good.of_steps Phi.hr_app Phi.hr_foldl Phi.hr_of_rel Phi.hr_refl Phi.hr_tower
+#audit_clean Phi.good_short Phi.caseS Phi.core Phi.rel_plug Phi.obs_total Phi.obs_unique Phi.obs_transfer Phi.good_of_sim
+#audit_clean Phi.theorem_phi Phi.lvl_refl Phi.fibB_dead Phi.s1_fib Phi.tower4B_eq Phi.fold_tower_ge4 Phi.s1_periodic Phi.theorem_phi_s1
+
+-- Psi skeleton (S6): kinds of terms by block, heads of root frames, inert blocks, the last step of a productive head run, closure sets for the last frame item
+#audit_clean PsiSkel.oneB_eq PsiSkel.one_iff PsiSkel.one_item_of_fold PsiSkel.fold_one_item PsiSkel.fold_two_items PsiSkel.combB_eq PsiSkel.comb_alive PsiSkel.root_head_not_comb
+#audit_clean PsiSkel.inertB_eq PsiSkel.inert_iff PsiSkel.headChain_last PsiSkel.lzSelfB_eq PsiSkel.lzClosedB_eq PsiSkel.Lz_self PsiSkel.Lz_closed PsiSkel.lastArg_foldl
+#audit_clean PsiSkel.last_mem_Lz
