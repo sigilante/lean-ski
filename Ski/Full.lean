@@ -4,9 +4,9 @@ import Ski.TopTermMain
 open Term
 
 /-!
-# Finite index of the full observable (S6, Theorem 6)
+# Finite index of the full observable (S6, Theorem 9)
 
-Mechanization of Theorem 6 of the S6 paper (`s6-prefix-regularity/main.tex`, Section 4; the
+Mechanization of Theorem 9 (named `theorem_six` after an earlier draft's numbering) of the S6 paper (`s6-prefix-regularity/main.tex`, Section 4; the
 combined invariant R7 of `notes/S4-bounded-exposure.md`).  Setting: closed terms over `S`.
 
 * `PeriodicF 𝔐 N p`: the constants of S6: `N ≥ 10`, `p ≥ 1`, and `σ^j = σ^j'`, `φ^j = φ^j'` for
@@ -53,7 +53,7 @@ inductive Out (α : Type) : Type
   | hnf (items : List α) : Out α
   | bot (f w : α) : Out α
 
-/-- **The full observable `O`** of S6, Definition 2, as a relation. -/
+/-- **The full observable `O`** of S6, Definition 3, as a relation. -/
 def ObsF (𝔐 : SModel) (t : Term) : Out 𝔐.M → Prop
   | .hnf l => ∃ v, Steps t v ∧ IsHnf v ∧ l = (spine v).map 𝔐.val
   | .bot a b => Psi 𝔐 t a b
@@ -319,7 +319,7 @@ theorem nsteps_args {a b : Term} {as : List Term} (hab : Steps a b) (pa : PureS 
   have pf := pure_foldl l pa pl
   exact nsteps_left w (steps_foldl hab l) pf (fun hb => hns ((stable_iff pf).2 hb))
 
-/-- The burst (S6, Lemma 4) passes no stable frame. -/
+/-- The burst (S6, Lemma 7) passes no stable frame. -/
 theorem nsteps_burst : ∀ (k : Nat) {u x y : Term}, PureS u → PureS x → PureS y →
     NSteps (iterS k u ⬝ x ⬝ y) (u ⬝ (fibT k (x, y)).1 ⬝ (fibT k (x, y)).2) := by
   intro k
@@ -427,7 +427,7 @@ theorem coreK_succ : ∀ {t : Term} {j : Nat}, coreK t = j + 1 → ∃ x, t = S 
   | .app .K _, _, h => absurd h.symm (Nat.succ_ne_zero _)
   | .app .I _, _, h => absurd h.symm (Nat.succ_ne_zero _)
 
-/-- A core is `S` or has at least two items (S6, Lemma 2). -/
+/-- A core is `S` or has at least two items (S6, Lemma 5). -/
 theorem core_cases : ∀ {t : Term}, PureS t → coreK t = 0 → t = S ∨ GCert.isOther t = true
   | .S, _, _ => .inl rfl
   | .app .S _, _, h => absurd h (Nat.succ_ne_zero _)
@@ -523,7 +523,7 @@ theorem dead_frame {f w f' w' : Term} (hf : PureS f) (hw : PureS w) (hf' : PureS
   rw [psi_frame 𝔐 hf hw hb, psi_frame 𝔐 hf' hw' hb', ef, ew]
 
 /-- After a burst of length `k ≥ N ≥ 10`, the two Fibonacci terms are stable frames, and their
-`M`- and `Ψ`-values depend only on the class of `k` (S6, Section 4, with Lemma 4). -/
+`M`- and `Ψ`-values depend only on the class of `k` (S6, Section 4, with Lemma 7). -/
 theorem fib_pair (hper : PeriodicF 𝔐 N p) {k k' : Nat} (hk : N ≤ k) (hk' : N ≤ k')
     (hc : k % p = k' % p) {x y x' y' : Term} (px : PureS x) (py : PureS y) (px' : PureS x')
     (py' : PureS y') (ex : 𝔐.val x = 𝔐.val x') (ey : 𝔐.val y = 𝔐.val y') :
@@ -564,7 +564,7 @@ theorem fib_pair (hper : PeriodicF 𝔐 N p) {k k' : Nat} (hk : N ≤ k) (hk' : 
 
 /-! ## Configurations -/
 
-/-- **Configurations** (S6, proof of Theorem 6), as a relation on pairs of terms: `P'` arises
+/-- **Configurations** (S6, proof of Theorem 9), as a relation on pairs of terms: `P'` arises
 from `P` by replacing disjoint occurrences `u` by `u'`, each an (A) pair (`dead`) or a pair
 `u ≃_{n−1} u'` with `n ≥ r` (`grad`: S6's invariant (I2), `g ≥ ρ − 1`, with the bound `r ≥ ρ(P)`
 in place of `ρ(P)`).  S6 restricts the graded pairs to kind (C); here every `≃`-pair may be
@@ -889,7 +889,7 @@ theorem caseT (hper : PeriodicF 𝔐 N p) {K : Nat} (IH : IHF 𝔐 N p K) {k n r
   exact (stepS hper IH (Nat.le_trans hk1 hk) hrun1 hu (Nat.le_trans hn1 hn) h1
     ⟨pj.1, pj'.1, vj.1⟩ ⟨pj.2, pj'.2, vj.2⟩ hpost).of_steps st st'
 
-/-- **The Claim** (S6, proof of Theorem 6).  For a configuration `(P, P')` and a run of `P` to
+/-- **The Claim** (S6, proof of Theorem 9).  For a configuration `(P, P')` and a run of `P` to
 its hnf or first stable frame with at most `r` non-free steps: both sides reach hnfs with items
 of equal values, or stable frames with the same value pair.  Induction on the length of the run.
 Cases by the head: `S` (`caseS`: T, N); an (A) pair (T: `P` is the pair or a stable frame); a
@@ -997,7 +997,7 @@ theorem coreF (hper : PeriodicF 𝔐 N p) : ∀ (k n r : Nat) (P P' u : Term), G
 
 end
 
-/-! ## (a) Theorem 6 -/
+/-! ## (a) Theorem 9 -/
 
 /-- **The invariant-preservation form**: if `t ≃₇₇ t'`, then `C[t]`, `C[t']` both reach hnfs
 with items of equal values, or both reach stable frames with the same value pair.  The bound
@@ -1010,7 +1010,7 @@ theorem good_of_simF (𝔐 : SModel) {N p : Nat} (hper : PeriodicF 𝔐 N p) {t 
   obtain ⟨k, n, u, hrun, hu⟩ := run_total hP
   exact coreF hper k n 77 _ _ u hrun hu (GCert.psi_skeleton hP hrun) (hr_of_rel hrel)
 
-/-- **Theorem 6 of S6.**  If `t ≃₇₇ t'` then `O(C[t]) = O(C[t'])` for every context `C`. -/
+/-- **Theorem 9 of S6.**  If `t ≃₇₇ t'` then `O(C[t]) = O(C[t'])` for every context `C`. -/
 theorem theorem_six (𝔐 : SModel) {N p : Nat} (hper : PeriodicF 𝔐 N p) {t t' : Term}
     (ht : PureS t) (ht' : PureS t') (h : SimF 𝔐 N p 77 t t') (C : Ctx) (o : Out 𝔐.M) :
     ObsF 𝔐 (C.plug t) o ↔ ObsF 𝔐 (C.plug t') o := by
@@ -1399,7 +1399,7 @@ theorem apx_refl (𝔐 : SModel) (N p : Nat) : ∀ (n : Nat) (v : Term), Apx �
       subst e1; subst e2
       exact ⟨⟨.inl rfl, apx_refl 𝔐 N p n _⟩, ⟨.inl rfl, apx_refl 𝔐 N p n _⟩⟩⟩
 
-/-- `≃_g` is reflexive, so the hypothesis of Theorem 6 is not vacuous. -/
+/-- `≃_g` is reflexive, so the hypothesis of Theorem 9 is not vacuous. -/
 theorem simL_refl (𝔐 : SModel) (N p n : Nat) (t : Term) : SimL 𝔐 N p n t t :=
   ⟨.inl rfl, apx_refl 𝔐 N p n _⟩
 
@@ -1445,7 +1445,7 @@ theorem s1_periodicF : PeriodicF s1Model 10 1 := by
     exact Prod.ext (Fin.eq_of_val_eq ((congrArg Prod.fst e).trans (congrArg Prod.fst e').symm))
       (Fin.eq_of_val_eq ((congrArg Prod.snd e).trans (congrArg Prod.snd e').symm))
 
-/-- Theorem 6 for S1's own labels (`N = 10`, `p = 1`), from signatures: equal signatures at
+/-- Theorem 9 for S1's own labels (`N = 10`, `p = 1`), from signatures: equal signatures at
 level 78 give equal observables in every context; there are at most `sigBound 38 11 78`
 signatures. -/
 theorem sig_congruence_s1 (t t' : PT)

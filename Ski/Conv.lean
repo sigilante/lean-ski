@@ -4,15 +4,16 @@ open Term
 /-!
 # Conversion invariance of the observable, and uniqueness of prefixes at every depth
 
-Two supporting results of the S6 paper (*Prefix Regularity*), Section 2.
+Two supporting results of the S6 paper (*Prefix Regularity*), Section 2.  The name
+`lemma3` keeps an earlier draft's numbering.
 
-**The observable** (`HasObs`, the paper's Def. 1).  For a valuation `v : Term → M`, the observable
+**The observable** (`HasObs`, the paper's Def. 3).  For a valuation `v : Term → M`, the observable
 of a closed S-term `t` is `(m, v u₁, …, v uₘ)` if the head run of `t` reaches the head normal form
 `S u₁ ⋯ uₘ` (`m ≤ 2`), and `(⊥, v f, v w)` if it reaches a stable frame `f w` (`f` without a head
 normal form, i.e. `fold f = 36`: `stable_iff`).  The paper takes the *first* stable frame; `HasObs`
 allows any stable stage, as `D2.Pre` does, and `obs_bot_first` shows that the two agree.
 
-**Lemma 3** (`lemma3`, `obs_conv`).  If `t` and `t'` are convertible, they have the same
+**Lemma 4** (`lemma3`, `obs_conv`).  If `t` and `t'` are convertible, they have the same
 observable.  It is proved for every valuation that is invariant under weak reduction of closed
 S-terms (`Inv`), which covers the fold into any S-model (`SModel.inv`, `lemma3_model`) and the
 fold into the 373-element table `D` relative to its kernel checks (`lemma3_D`).  The paper's
@@ -23,11 +24,11 @@ all SKI terms; the lemma needs only its two ends to be closed S-terms.
 **Prefixes** (`pre_unique`, `pre_total`, `pre_bot_first`).  `D2.Pre d t P` is a total functional relation in `t`
 at every depth `d`, for closed S-terms `t`.  Existence is `D2.pre_exists`.
 
-The proofs follow the paper: Church–Rosser and standardization (`Ski/Weak.lean`) for Lemma 3;
+The proofs follow the paper: Church–Rosser and standardization (`Ski/Weak.lean`) for Lemma 4;
 determinism of the head run and `InfNF.steps_bot_fun` for uniqueness.  That the head run reaches a
 head normal form or a stable frame (`reach_frame`) is `TopTerm.reach_all`.
 
-The relation `HasObs` is this module's own; the full observable of Theorem 6 is defined
+The relation `HasObs` is this module's own; the full observable of Theorem 9 is defined
 elsewhere and is not connected here.
 -/
 
@@ -295,7 +296,7 @@ theorem obs_bot_first {M : Type} {v : Term → M} (hv : Inv v) {t : Term} {m n :
   · rintro ⟨f, w, ⟨hs, hb, _⟩, rfl, rfl⟩
     exact .bot hs hb
 
-/-! ## Lemma 3 -/
+/-! ## Lemma 4 -/
 
 theorem hnf1_wsteps {a u : Term} (hp : PureS (S ⬝ a)) (h : WSteps (S ⬝ a) u) :
     ∃ a', u = S ⬝ a' ∧ WSteps a a' := by
@@ -401,13 +402,13 @@ theorem obs_wsteps {M : Type} {v : Term → M} (hv : Inv v) {t u : Term} {o : Ob
     (ht : PureS t) (h : WSteps t u) : HasObs v t o ↔ HasObs v u o :=
   ⟨obs_fwd hv ht h, obs_back hv ht h⟩
 
-/-- **Lemma 3**, relational form: convertible closed S-terms have the same observables. -/
+/-- **Lemma 4**, relational form: convertible closed S-terms have the same observables. -/
 theorem obs_conv {M : Type} {v : Term → M} (hv : Inv v) {t t' : Term} {o : Obs M}
     (ht : PureS t) (ht' : PureS t') (h : Convertible t t') : HasObs v t o ↔ HasObs v t' o := by
   obtain ⟨w, h1, h2⟩ := conv_iff_join.mp h
   exact (obs_wsteps hv ht h1).trans (obs_wsteps hv ht' h2).symm
 
-/-- **Lemma 3.**  If `t` and `t'` are convertible, then `O(t) = O(t')`. -/
+/-- **Lemma 4.**  If `t` and `t'` are convertible, then `O(t) = O(t')`. -/
 theorem lemma3 {M : Type} {v : Term → M} (hv : Inv v) {t t' : Term} {o o' : Obs M}
     (ht : PureS t) (ht' : PureS t') (h : Convertible t t') (ho : HasObs v t o)
     (ho' : HasObs v t' o') : o = o' :=
@@ -439,13 +440,13 @@ theorem SModel.inv {M : Type} (m : SModel M) : Inv m.val := by
   | left x _ ih => simp only [SModel.val, ih ht.app_inv.1]
   | right f _ ih => simp only [SModel.val, ih ht.app_inv.2]
 
-/-- **Lemma 3** for the fold into an S-model. -/
+/-- **Lemma 4** for the fold into an S-model. -/
 theorem lemma3_model {M : Type} (m : SModel M) {t t' : Term} {o o' : Obs M}
     (ht : PureS t) (ht' : PureS t') (h : Convertible t t') (ho : HasObs m.val t o)
     (ho' : HasObs m.val t' o') : o = o' :=
   lemma3 m.inv ht ht' h ho ho'
 
-/-- **Lemma 3** for the fold into the 373-element table `D`, relative to its checks. -/
+/-- **Lemma 4** for the fold into the 373-element table `D`, relative to its checks. -/
 theorem lemma3_D (C : Checks) {t t' : Term} {o o' : Obs Nat}
     (ht : PureS t) (ht' : PureS t') (h : Convertible t t') (ho : HasObs foldD t o)
     (ho' : HasObs foldD t' o') : o = o' :=
