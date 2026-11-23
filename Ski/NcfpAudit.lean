@@ -4,12 +4,14 @@ import Ski.NcfpTheta
 import Ski.NcfpLeafless
 import Ski.NcfpN
 import Ski.NcfpN2
+import Ski.NcfpDepth2
+import Ski.NcfpScheme
 
 /-!
 # Axiom gate for the proved cases of NCFP (stand-alone)
 
 The same check as `#audit_clean` in `Ski/Audit.lean` (allow-list `{propext, Quot.sound}`), in a
-module that imports only `Ski.Ncfp`, `Ski.NcfpTheta`, `Ski.NcfpLeafless`, `Ski.NcfpN` and `Ski.NcfpN2`.
+module that imports only `Ski.Ncfp`, `Ski.NcfpTheta`, `Ski.NcfpLeafless`, `Ski.NcfpN`, `Ski.NcfpN2`, `Ski.NcfpDepth2` and `Ski.NcfpScheme`.
 
 * `#ncfp_audit_module M` checks every theorem, and every definition without an internal name,
   declared in the module `M`, and reports the counts and the internal constants it skips
@@ -58,6 +60,8 @@ end Ncfp.Audit
 #ncfp_audit_module Ski.NcfpLeafless
 #ncfp_audit_module Ski.NcfpN
 #ncfp_audit_module Ski.NcfpN2
+#ncfp_audit_module Ski.NcfpDepth2
+#ncfp_audit_module Ski.NcfpScheme
 
 -- size, normal forms, contexts; Prop. 0
 #ncfp_audit_clean Ncfp.sz_wstep Ncfp.sz_wsteps Ncfp.Normal.wsteps Ncfp.wsteps_to_normal
@@ -109,6 +113,14 @@ end Ncfp.Audit
 #ncfp_audit_clean Ncfp.Next'.desc Ncfp.nonlit_exists' Ncfp.run_inner' Ncfp.run' Ncfp.small_desc' Ncfp.right_combs' Ncfp.not_norm_gen Ncfp.not_normalizing
 #ncfp_audit_clean Ncfp.thm_N5 Ncfp.hnf2_conv_right Ncfp.hnf2_conv_left Ncfp.no_S_p_Spn Ncfp.thm_N4 Ncfp.no_S_Spn_p Ncfp.claim_D'_frames Ncfp.thm_N3
 #ncfp_audit_clean Ncfp.no_S_Snp_p
+
+-- NcfpDepth2: Lemma SR, Lemma D*, Theorem G', Theorem X, Lemma LC
+#ncfp_audit_clean Ncfp.lemma_SR Ncfp.dstar_frames Ncfp.lemma_Dstar Ncfp.NextG'.desc Ncfp.runG_inner' Ncfp.runG' Ncfp.small_descG' Ncfp.mixed_combs'
+#ncfp_audit_clean Ncfp.thm_X Ncfp.lemma_LC
+-- NcfpScheme: Theorem T at distance 0, N6-N10 equations, Theorem N11
+#ncfp_audit_clean Ncfp.typed_nn Ncfp.typed_not_normalizing Ncfp.slot_mism Ncfp.typed_apart Ncfp.thm_T0 Ncfp.slotok_cls Ncfp.slotok_nf Ncfp.tyok_one
+#ncfp_audit_clean Ncfp.tyok_two Ncfp.typed_of_reps Ncfp.ncfp_scheme Ncfp.no_S_Spp_n Ncfp.no_S_n_Spp Ncfp.no_S_Sp_Snp Ncfp.no_S_Snp_Spm Ncfp.no_S_Sp_Spn
+#ncfp_audit_clean Ncfp.no_S_Snp_Sp Ncfp.no_S_Spn_Sp Ncfp.no_S_Snp_Smp Ncfp.no_S_Spn_Smp Ncfp.no_S_Spn_Spm Ncfp.thm_N11 Ncfp.no_S_SpSp_n
 
 #print axioms Ncfp.prop0
 #print axioms Ncfp.lemma_L
@@ -172,3 +184,22 @@ end Ncfp.Audit
 #print axioms Ncfp.no_S_Spn_p
 #print axioms Ncfp.thm_N5
 #print axioms Ncfp.no_S_p_Spn
+#print axioms Ncfp.lemma_SR
+#print axioms Ncfp.lemma_Dstar
+#print axioms Ncfp.mixed_combs'
+#print axioms Ncfp.thm_X
+#print axioms Ncfp.lemma_LC
+#print axioms Ncfp.thm_T0
+#print axioms Ncfp.ncfp_scheme
+#print axioms Ncfp.no_S_Spp_n
+#print axioms Ncfp.no_S_n_Spp
+#print axioms Ncfp.no_S_Sp_Snp
+#print axioms Ncfp.no_S_Snp_Spm
+#print axioms Ncfp.no_S_Sp_Spn
+#print axioms Ncfp.no_S_Snp_Sp
+#print axioms Ncfp.no_S_Spn_Sp
+#print axioms Ncfp.no_S_Snp_Smp
+#print axioms Ncfp.no_S_Spn_Smp
+#print axioms Ncfp.no_S_Spn_Spm
+#print axioms Ncfp.thm_N11
+#print axioms Ncfp.no_S_SpSp_n

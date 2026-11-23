@@ -351,6 +351,8 @@ import Ski.NcfpTheta
 import Ski.NcfpLeafless
 import Ski.NcfpN
 import Ski.NcfpN2
+import Ski.NcfpDepth2
+import Ski.NcfpScheme
 
 /-!
 # The audit manifest — build-enforced
@@ -2065,3 +2067,9 @@ open Ski.Audit
 #audit_clean Ncfp.Next'.desc Ncfp.nonlit_exists' Ncfp.run_inner' Ncfp.run' Ncfp.small_desc' Ncfp.right_combs' Ncfp.not_norm_gen Ncfp.not_normalizing
 #audit_clean Ncfp.thm_N5 Ncfp.hnf2_conv_right Ncfp.hnf2_conv_left Ncfp.no_S_p_Spn Ncfp.thm_N4 Ncfp.no_S_Spn_p Ncfp.claim_D'_frames Ncfp.thm_N3
 #audit_clean Ncfp.no_S_Snp_p
+-- NCFP: Lemma SR, Lemma D* (Ncfp.lemma_Dstar), Theorem G' (Ncfp.mixed_combs'), Theorem X (Ncfp.thm_X), Lemma LC; Theorem T at distance 0 (Ncfp.thm_T0, ncfp_scheme), the equations of N6-N10, Theorem N11 (Ncfp.thm_N11, no_S_SpSp_n)
+#audit_clean Ncfp.lemma_SR Ncfp.dstar_frames Ncfp.lemma_Dstar Ncfp.NextG'.desc Ncfp.runG_inner' Ncfp.runG' Ncfp.small_descG' Ncfp.mixed_combs'
+#audit_clean Ncfp.thm_X Ncfp.lemma_LC
+#audit_clean Ncfp.typed_nn Ncfp.typed_not_normalizing Ncfp.slot_mism Ncfp.typed_apart Ncfp.thm_T0 Ncfp.slotok_cls Ncfp.slotok_nf Ncfp.tyok_one
+#audit_clean Ncfp.tyok_two Ncfp.typed_of_reps Ncfp.ncfp_scheme Ncfp.no_S_Spp_n Ncfp.no_S_n_Spp Ncfp.no_S_Sp_Snp Ncfp.no_S_Snp_Spm Ncfp.no_S_Sp_Spn
+#audit_clean Ncfp.no_S_Snp_Sp Ncfp.no_S_Spn_Sp Ncfp.no_S_Snp_Smp Ncfp.no_S_Spn_Smp Ncfp.no_S_Spn_Spm Ncfp.thm_N11 Ncfp.no_S_SpSp_n

@@ -48,7 +48,7 @@ theorem lemma_SR {y z h₁ h₂ : Term} (hp : PureS (y ⬝ z)) (hs : Steps (y �
         have h3 := sz_fun_lt q (p ⬝ q)
         rw [← e1] at h2
         rw [← e2] at h3
-        omega
+        exact ⟨by omega, by omega⟩
     rcases Decidable.em (z = S) with e | hz
     · refine ⟨?_, fun h => absurd e h⟩
       rw [e]

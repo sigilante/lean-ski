@@ -145,6 +145,8 @@ import Ski.NcfpTheta
 import Ski.NcfpLeafless
 import Ski.NcfpN
 import Ski.NcfpN2
+import Ski.NcfpDepth2
+import Ski.NcfpScheme
 import Ski.NcfpAudit
 import Ski.Graph
 import Ski.RWMem
