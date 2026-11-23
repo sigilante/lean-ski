@@ -271,6 +271,7 @@ import Ski.HnfQ5
 import Ski.HnfCertFinal
 import Ski.TopTermMain
 import Ski.HeadRec
+import Ski.HeadRecF
 import Ski.InfSN
 import Ski.InfProd
 import Ski.WordProblem
@@ -1135,6 +1136,17 @@ open Ski.Audit
   HeadRec.cons_tag HeadRec.rd_bstep HeadRec.lift HeadRec.bsn HeadRec.Sub.trans HeadRec.BSteps.left HeadRec.BSteps.right
   HeadRec.sub_replay HeadRec.no_ground_loop HeadRec.sub_apps HeadRec.no_head_recurrence HeadRec.nhr HeadRec.efr HeadRec.sfr
   HeadRec.no_self_subterm
+-- Theorem H (HeadRecF): for closed S-terms, t ->>_f u by f-steps (no contracted redex is the argument of an
+-- application), t ->> w by weak reduction and u a subterm of w force w = u (theorem_H).  By confluence and unique
+-- normal forms of the labelled system (confluent, nf_unique), exact lifting of f-steps (fstep_tag), label monotonicity (le_sim).
+#audit_clean HeadRec.IStep.weak HeadRec.FStep.weak HeadRec.FSteps.weak HeadRec.FStep.left
+  HeadRec.fstep_of_step HeadRec.fsteps_of_steps HeadRec.lsz_pos HeadRec.LSteps.single HeadRec.LSteps.trans
+  HeadRec.LSteps.left HeadRec.LSteps.right HeadRec.LStep.mono HeadRec.LSteps.mono HeadRec.lsz_lstep
+  HeadRec.lsz_lsteps HeadRec.s2_dec HeadRec.lstep_dec HeadRec.nf_exists HeadRec.Normal.steps_eq
+  HeadRec.root_join HeadRec.local_confluent HeadRec.confluent HeadRec.nf_unique HeadRec.Le.lsz_eq
+  HeadRec.le_sim HeadRec.le_sims HeadRec.cons_le_tag HeadRec.rd_istep HeadRec.istep_tag HeadRec.fstep_tag
+  HeadRec.fsteps_tag HeadRec.lifts HeadRec.sub_lift HeadRec.h_core HeadRec.theorem_H HeadRec.no_f_loop
+  HeadRec.no_head_reduct_inside HeadRec.no_proper_ground_loop HeadRec.nhr_of_theorem_H
 
 -- Infinitary normal forms of pure S (S2): every infinite reduction of a finite S-term converges (InfSN.not_weakInf); prefixes of t^inf exist, are unique and redex-free (InfNF.nf_exists, nf_unique, nf_redexFree); productive iff no node of t^inf has an infinite left spine (InfNF.prod_iff_nodes), decided by the 39-state automaton (InfNF.nodes_iff_cls)
 #audit_clean InfSN.WStepD.weak InfSN.wstep_depth InfSN.hrun_hnf InfSN.hrun_bound InfSN.root_bound InfSN.red_wsteps InfSN.red_le InfSN.red_pure InfSN.root_of_stepLe0 InfSN.weakInf0_rsteps InfSN.not_weakInf0 InfSN.eventually_none
