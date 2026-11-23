@@ -345,6 +345,7 @@ import Ski.Conv
 import Ski.Full
 import Ski.TowerFin
 import Ski.Tower
+import Ski.Ncfp
 
 /-!
 # The audit manifest — build-enforced
@@ -2013,3 +2014,20 @@ open Ski.Audit
 #audit_clean Tower.reduction Tower.reduction_hom Tower.pureB_sound Tower.s1RepsB_eq Tower.s1Reps_spec Tower.pre1_block Tower.s1_rep_val Tower.prefix_regularity
 #audit_clean Tower.generated Tower.block Tower.hom_val Tower.hom_s Tower.hom_app Tower.hom_φ Tower.M_zero Tower.M_one
 #audit_clean Tower.M_succ Tower.M_syn Tower.theorem_one Tower.realizable_iff
+
+-- NCFP, the proved cases: Prop. 0 (Ncfp.prop0), Lemma L (Ncfp.lemma_L), Theorem 2 (Ncfp.right_combs, right_combs_seq, right_combs_conv), comb contexts (Ncfp.ncfp_comb), no fixed-point combinator in pure S (Ncfp.ncfp_S, no_fixed_point_combinator, no_fpc)
+#audit_clean Ncfp.sz_wstep Ncfp.sz_wsteps Ncfp.Normal.wsteps Ncfp.wsteps_to_normal Ncfp.wsteps_plug Ncfp.Holed.sz_le Ncfp.Holed.sz_lt Ncfp.prop0
+#audit_clean Ncfp.step_app Ncfp.plus_last Ncfp.hnf1_literal Ncfp.lemma_L Ncfp.lemma_L' Ncfp.last_item_step Ncfp.link Ncfp.ss_link
+#audit_clean Ncfp.SSPath.snoc Ncfp.sspath_strip Ncfp.ss_bound Ncfp.sub_sz_le Ncfp.PSub.sub Ncfp.PSub.sz_lt Ncfp.sub_psub Ncfp.sub_wsteps
+#audit_clean Ncfp.psub_wsteps Ncfp.Desc.trans Ncfp.Desc.irrefl Ncfp.Next.desc Ncfp.nonlit_exists Ncfp.run_inner Ncfp.run Ncfp.small_desc
+#audit_clean Ncfp.mem_enum Ncfp.right_combs Ncfp.right_combs_seq Ncfp.right_combs_conv Ncfp.CombB.mono Ncfp.Comb.bound Ncfp.ncfp_comb Ncfp.ncfp_S_aux
+#audit_clean Ncfp.ncfp_S Ncfp.ncfp_S_comb Ncfp.no_fixed_point_combinator Ncfp.no_fpc
+-- NCFP: Theorem F (Ncfp.first_combs), Theorem G (Ncfp.mixed_combs), Corollary G1 (Ncfp.ncfp_gcomb), Theorem B (Ncfp.teeth_unbounded), Lemma T, Lemma A, the Moves (Ncfp.bmove), Corollary B1 (Ncfp.cor_B1)
+#audit_clean Ncfp.finite_descent Ncfp.desc_finite Ncfp.NextF.desc Ncfp.small_descF Ncfp.first_combs Ncfp.first_combs_seq
+#audit_clean Ncfp.lemma_P Ncfp.no_pred Ncfp.Rigid.sub Ncfp.Rigid.sz_lt Ncfp.Rigid.not_appS Ncfp.sspath_rigid Ncfp.NextG.desc Ncfp.runG_inner
+#audit_clean Ncfp.runG Ncfp.small_descG Ncfp.mixed_combs Ncfp.mixed_combs_seq Ncfp.mixed_combs_conv Ncfp.GCombB.mono Ncfp.GComb.bound Ncfp.Comb.gcomb
+#audit_clean Ncfp.ncfp_gcomb Ncfp.steps_antisymm Ncfp.bot_app Ncfp.firstStable_exists Ncfp.lemma_T Ncfp.lemma_A Ncfp.stepsK_of_steps
+#audit_clean Ncfp.stepsK_later Ncfp.steps_step_plus Ncfp.stepsK_plus Ncfp.past_root Ncfp.bmove Ncfp.step_apps Ncfp.plus_apps Ncfp.apps_append
+#audit_clean Ncfp.hdesc_of_steps Ncfp.HDesc.trans Ncfp.HDesc.irrefl Ncfp.tooth_descent Ncfp.teeth_unbounded Ncfp.teeth_unbounded_seq Ncfp.fold_apps Ncfp.pure_apps_of
+#audit_clean Ncfp.snoc_cases Ncfp.norm_bound Ncfp.fold_conv Ncfp.cor_B1 Ncfp.cor_B1'
+#audit_clean Ncfp.mem_del Ncfp.del_length_le Ncfp.del_length_lt
