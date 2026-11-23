@@ -25,7 +25,11 @@ at every depth (Theorem 1), and decidability of realizable prefixes (Corollary 2
   the congruence is decidable.
 * **The reduction** (`reduction`, `reduction_hom`): `π_{d+1}(t) = outF o_d (o_{d−1} ∘ h_d) (O(t))`.
 * **Theorem 1** (`levels`, `M`, `o`, `hom`, `prefix_regularity`, `theorem_one`), and
-  **Corollary 2** (`realizable`, `realizable_iff`, the `Decidable` instance).
+  **Corollary 2, in part** (`realizable`, `realizable_iff`, the `Decidable` instance): it is
+  decidable whether some closed S-term has depth-`d` prefix `P` in the sense of `D2.Pre`.  Not
+  stated here: that the set of such terms is a regular tree language (the fold into `M d` is the
+  automaton), and the corollary's last sentence about prefixes of `t^∞` with the head `S` cut,
+  which rests on S3's identification of `D2.Pre` with the prefix of `t^∞`.
 
 Construction of Lemma 7 (differs from the paper's `E_i` over terms of bounded depth; same
 ingredients).  (1) `TowerFin.closure`: close `{S}` under application modulo the level-78 signature
