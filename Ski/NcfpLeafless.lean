@@ -9,10 +9,14 @@ Source: `notes/NCFP-proof.md`, §12.2.  Setting and notation as in `Ski/Ncfp.lea
 
 What is proved:
 
-* `fact_LI` (Fact LI): along a head run the last item only gets wrapped, and it is untouched iff
-  the run is a head run of the function part.
-* `lemma_PR` (Lemma PR, parts 1, 3, 4, 5) and `pr_members` (part 2), for a `Z`-primitive member of
-  a leafless set.
+* `fact_LI` (Fact LI): along a head run the last item only gets wrapped; either it is untouched
+  and the run is a head run of the function part, or it has grown.  (The converse direction of the
+  note's "iff" is not stated.)
+* `lemma_PR` (Lemma PR, parts 1 and 3, and parts 4 and 5 in a weaker form) and `pr_members`
+  (part 2), for a `Z`-primitive member of a leafless set.  Of part 4 it states the SS-chain from
+  `y` to `S`, `sz y = 2K + 1` and the spine length `K + 1` of `t`, not that the iterated second
+  items are `yₖ tL ∈ Z`; of part 5 it states the two cases without `y ≠ S`, so they may overlap.
+  Theorem L needs no more.
 * `thm_L` (Theorem L): a leafless set that meets only finitely many conversion classes (every
   member is convertible to a term of a given list) is empty.  `thm_L_bounded` is the form the
   proof uses: a bound on the spine lengths `K` of the members is enough.

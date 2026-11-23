@@ -10,9 +10,11 @@ What is proved:
 
 * `right_combs'` (Theorem 2′): right combs whose teeth are bounded at the non-literal steps only.
   The lemmas `nonlit_exists'`, `run_inner'`, `run'`, `small_desc'` are those of Theorem 2 in
-  `Ski/Ncfp.lean` with the weaker hypothesis; `right_combs` is the special case.
-* `thm_N3` (Theorem N3) with `claim_D'_frames`, `claim_D'`, `claim_E'`; `no_S_Snp_p`: no closed
-  `p` is convertible to `S (S n p) p`, `n` closed and normalizing.  It contains `no_S_SSp_p`.
+  `Ski/Ncfp.lean` with the weaker hypothesis (`Next` implies `Next'`; `right_combs` is not
+  re-derived from it here).
+* `thm_N3` (Theorem N3) with `claim_D'_frames`; Claims D′ and E′ are proved inside `thm_N3` and
+  are not separate declarations.  `no_S_Snp_p`: no closed `p` is convertible to `S (S n p) p`,
+  `n` closed and normalizing (`no_S_SSp_p` is the case `n = S`, proved separately).
 * `thm_N4` (Theorem N4); `no_S_Spn_p`: no closed `p` is convertible to `S (S p n) p`.
 * `thm_N5` (Theorem N5); `no_S_p_Spn`: no closed `p` is convertible to `S p (S p n)`.
 
