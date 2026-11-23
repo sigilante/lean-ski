@@ -89,6 +89,8 @@ import Ski.Quote
 import Ski.Requote
 import Ski.Unquote
 import Ski.Ifix
+import Ski.SelfInterp
+import Ski.SelfInterpErr
 import Ski.NoLift
 import Ski.LiftBool
 import Ski.Search

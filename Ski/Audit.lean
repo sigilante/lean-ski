@@ -247,6 +247,8 @@ import Ski.Quote
 import Ski.Requote
 import Ski.Unquote
 import Ski.Ifix
+import Ski.SelfInterp
+import Ski.SelfInterpErr
 import Ski.NoLift
 import Ski.LiftBool
 import Ski.Search
@@ -983,6 +985,53 @@ open Ski.Audit
 
 -- Intensional fixed points and a quine: fixQ g ↠ g ⟨fixQ g⟩, quineT ↠ ⟨quineT⟩
 #audit_clean Ifix.hG_beta Ifix.ifix Ifix.ifix_exists Ifix.quineT_spec Ifix.quine
+
+-- The paper's self-interpreter whnfF (618 atoms) and unquoter UQ (43): step adequacy (Lemma 5.1),
+-- fuel adequacy (Theorem 5.2), exactness, value independence
+#audit_clean SelfInterp.whnfF_eq_paper SelfInterp.whnfF_atoms SelfInterp.quote_eq_paper
+  SelfInterp.nil_elim SelfInterp.cons_elim SelfInterp.nothing_elim SelfInterp.just_elim
+  SelfInterp.zero_elim SelfInterp.suc_elim SelfInterp.resS_elim SelfInterp.resK_elim
+  SelfInterp.resI_elim SelfInterp.spApp_beta SelfInterp.spGen_beta SelfInterp.rb1_beta
+  SelfInterp.rbGen_beta SelfInterp.stepI1_beta SelfInterp.stepI_beta SelfInterp.stepK2_beta
+  SelfInterp.stepK1_beta SelfInterp.stepK_beta SelfInterp.stepS3_beta SelfInterp.stepS2_beta
+  SelfInterp.stepS1_beta SelfInterp.stepS_beta SelfInterp.stepT_beta SelfInterp.wf1_beta
+  SelfInterp.wfGen_beta SelfInterp.fixY_self SelfInterp.selfT_unroll SelfInterp.spX_case
+  SelfInterp.rbX_case SelfInterp.wfX_case SelfInterp.rbX_spec SelfInterp.rb_spec SelfInterp.just_rb
+  SelfInterp.stepI_nil SelfInterp.stepI_one SelfInterp.stepK_nil SelfInterp.stepK_cons
+  SelfInterp.stepK_one SelfInterp.stepK_two SelfInterp.stepS_nil SelfInterp.stepS_cons
+  SelfInterp.stepS_one SelfInterp.stepS_cons2 SelfInterp.stepS_two SelfInterp.stepS_three
+  SelfInterp.disp_mono SelfInterp.spX_app SelfInterp.walk_S SelfInterp.walk_K SelfInterp.walk_I
+  SelfInterp.step_appT SelfInterp.walk SelfInterp.stepT_walk SelfInterp.step_whnf
+  SelfInterp.step_step SelfInterp.wfX_suc SelfInterp.wfX_evalF SelfInterp.whnfF_evalF
+  SelfInterp.down_evalF SelfInterp.down_timeout SelfInterp.evalF_down SelfInterp.fuel_adequacy_value
+  SelfInterp.fuel_adequacy_timeout SelfInterp.S_normal SelfInterp.K_normal
+  SelfInterp.just_nothing_apart SelfInterp.fuel_exact SelfInterp.UQ_eq_paper SelfInterp.UQ_atoms
+  SelfInterp.UQA_beta SelfInterp.UQGen_beta SelfInterp.uqX_case SelfInterp.uqX_unquote
+  SelfInterp.UQ_unquote SelfInterp.Joinable.app SelfInterp.Joinable.red SelfInterp.Joinable.symm
+  SelfInterp.Joinable.app4 SelfInterp.I_normal SelfInterp.S_K_apart SelfInterp.S_I_apart
+  SelfInterp.K_I_apart SelfInterp.appK SelfInterp.leaf_app_apart SelfInterp.quote_inj
+  SelfInterp.just_joinable SelfInterp.fuel_exact_value SelfInterp.down_det
+  SelfInterp.value_independent SelfInterp.fuel_adequacy_decoded SelfInterp.t0
+
+-- Faithfulness at a site (Lemma 5.3): the five-symbol interpreter with the Err arm a parameter
+#audit_clean SelfInterp.Whnf5.no_step SelfInterp.Step5.det SelfInterp.Whnf5.head
+  SelfInterp.Step5.head SelfInterp.step5_appT SelfInterp.head5_appT SelfInterp.quote5S_elim
+  SelfInterp.quote5K_elim SelfInterp.quote5I_elim SelfInterp.quote5E_elim SelfInterp.quote5App_elim
+  SelfInterp.errArm_eq_paper SelfInterp.wf5_atoms SelfInterp.r5S_elim SelfInterp.r5K_elim
+  SelfInterp.r5I_elim SelfInterp.r5E_elim SelfInterp.sp5Gen_beta SelfInterp.rb51_beta
+  SelfInterp.rb5Gen_beta SelfInterp.stepped_elim SelfInterp.done_elim SelfInterp.errd_elim
+  SelfInterp.q5I1_beta SelfInterp.q5I_beta SelfInterp.q5K2_beta SelfInterp.q5K1_beta
+  SelfInterp.q5K_beta SelfInterp.q5S3_beta SelfInterp.q5S2_beta SelfInterp.q5S1_beta
+  SelfInterp.q5S_beta SelfInterp.st5_beta SelfInterp.wf51_beta SelfInterp.wf5Gen_beta
+  SelfInterp.sp5X_case SelfInterp.rb5X_case SelfInterp.wf5X_case SelfInterp.rb5X_spec
+  SelfInterp.stepped_rb5 SelfInterp.q5I_nil SelfInterp.q5I_one SelfInterp.q5K_nil
+  SelfInterp.q5K_cons SelfInterp.q5K_one SelfInterp.q5K_two SelfInterp.q5S_nil SelfInterp.q5S_cons
+  SelfInterp.q5S_one SelfInterp.q5S_cons2 SelfInterp.q5S_two SelfInterp.q5S_three
+  SelfInterp.disp5_mono SelfInterp.sp5X_app SelfInterp.walk5_S SelfInterp.walk5_K SelfInterp.walk5_I
+  SelfInterp.walk5_E SelfInterp.walk5 SelfInterp.st5_walk SelfInterp.st5_whnf SelfInterp.st5_step
+  SelfInterp.st5_err SelfInterp.trichotomy5 SelfInterp.run5_total SelfInterp.wf5X_suc
+  SelfInterp.wf5X_run SelfInterp.wf5_run SelfInterp.faithful_run SelfInterp.run5_crash
+  SelfInterp.faithful_site SelfInterp.wf5Abs_run
 #audit_clean NoLift.sim NoLift.omega_steps NoLift.omega_whnf0 NoLift.omega_whnf1 NoLift.G_num NoLift.G_omega NoLift.eqT_spec NoLift.eqT_conv NoLift.G_succ' NoLift.no_lift_core NoLift.no_lift_conv NoLift.no_lift
 #audit_clean NoLift.code_unique
 #audit_clean LiftBool.canon_spec LiftBool.lift_bool LiftBool.lift_canonical
