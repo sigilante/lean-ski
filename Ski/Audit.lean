@@ -346,6 +346,7 @@ import Ski.Full
 import Ski.TowerFin
 import Ski.Tower
 import Ski.Ncfp
+import Ski.NcfpTheta
 
 /-!
 # The audit manifest — build-enforced
@@ -2031,3 +2032,10 @@ open Ski.Audit
 #audit_clean Ncfp.hdesc_of_steps Ncfp.HDesc.trans Ncfp.HDesc.irrefl Ncfp.tooth_descent Ncfp.teeth_unbounded Ncfp.teeth_unbounded_seq Ncfp.fold_apps Ncfp.pure_apps_of
 #audit_clean Ncfp.snoc_cases Ncfp.norm_bound Ncfp.fold_conv Ncfp.cor_B1 Ncfp.cor_B1'
 #audit_clean Ncfp.mem_del Ncfp.del_length_le Ncfp.del_length_lt
+-- NCFP: Lemmas TD, SS, ZA, NH, ZI (leafless sets), Theorem Θ (Ncfp.theta), Corollary Θ1 (Ncfp.ncfp_two, no_S_p_p), Theorem Θ′ (Ncfp.theta', no_S_p_Sp, no_SSS_p), Theorem Θ″ (Ncfp.theta'', no_S_Sp_p)
+#audit_clean Ncfp.lemma_TD Ncfp.sz_appS Ncfp.lemma_SS Ncfp.lemma_SS_sz Ncfp.cor_SS1 Ncfp.stepsK_steps Ncfp.pure_args Ncfp.step_apps_inv
+#audit_clean Ncfp.track_step Ncfp.apps_app_ne_S Ncfp.apps_eq_S1 Ncfp.apps_eq_S2 Ncfp.frame3_item Ncfp.GoodHnf.isHnf Ncfp.lemma_NH Ncfp.Leafless.fold_ne
+#audit_clean Ncfp.WZ.pure Ncfp.wz_step Ncfp.wz_no_hnf Ncfp.wz_bot Ncfp.lemma_ZA_two Ncfp.lemma_ZA_one Ncfp.track_run Ncfp.lemma_ZI_i
+#audit_clean Ncfp.IsItem.apps Ncfp.ItemSub.psub Ncfp.itemsub_step Ncfp.lemma_ZI_ii Ncfp.ThetaSet.leafless Ncfp.ThetaSet.k2 Ncfp.ThetaSet.not_S Ncfp.theta_chain
+#audit_clean Ncfp.theta_aux Ncfp.theta Ncfp.hnf1_conv Ncfp.hnf2_conv Ncfp.ncfp_two Ncfp.no_S_p_p Ncfp.thetap_td Ncfp.theta'
+#audit_clean Ncfp.no_S_p_Sp Ncfp.no_SSS_p Ncfp.theta'' Ncfp.no_S_Sp_p
