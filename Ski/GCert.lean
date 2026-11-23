@@ -20,7 +20,12 @@ open Term
 The certificate (`Ski/GCertData.lean`) is a rank for each node and an invariant set of states
 for each fine start.  This module checks in the kernel that every edge lowers the rank by at
 least the weight of its source: `1 + pw (β x z)` if `x` has at least two items, `0` otherwise.
-The only edge that keeps the rank is then the chain loop at `(0, 27, 36, 36)`.
+So the weights along any path sum to at most the rank of its start, which is at most 67.
+
+A chain node has weight `0`, so the rank may stay the same along chain edges, as it must at the
+chain loop `(0, 27, 36, 36)`.  The certificate therefore bounds the weighted number of other
+rounds; it does not show that the graphs are acyclic apart from that loop, nor that the fine
+triples are a strongly connected component (they are any set on which the checks pass).
 -/
 
 namespace GCert
@@ -139,8 +144,9 @@ def rowLenB : Bool := blockTable.length == 38 && blockTable.all fun r => r.lengt
 
 /-! ## The kernel checks
 
-One theorem for each value of the first coordinate, checked one after another: the kernel keeps
-its caches for the length of one check, and the largest (`a3_0`) stays under 2 GB. -/
+One theorem for each value of the first coordinate, checked one after another
+(`Elab.async false`): the kernel keeps its caches for the length of one check.  Measured: the
+module builds in about 155 s with a peak of 2.4 GB. -/
 
 set_option Elab.async false
 
