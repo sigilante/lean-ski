@@ -35,7 +35,8 @@ What is proved:
 * `no_fixed_point_combinator`, `no_fpc`: pure S has no fixed-point combinator.
 
 * `teeth_unbounded`, `teeth_unbounded_seq` (Theorem B of `notes/NCFP-proof.md`: the teeth of an
-  hnf-less term are unbounded), with `lemma_T`, `lemma_A`, `bmove` (the Moves), and `cor_B1`
+  hnf-less term are unbounded), with `lemma_T`, `lemma_A`, `bmove` (the size consequence of the
+  B-move that Theorem B uses; the note's identities for the Moves are not stated), and `cor_B1`
   (`p ≠β p x₁ ⋯ x_k` for hnf-less `p` and normalizing `xᵢ`).
 
 What is not proved: NCFP itself; combs with non-normalizing teeth; contexts with two or more holes such as `p =β S p p`; any statement
@@ -1041,7 +1042,8 @@ theorem small_descG {M : Nat} {P : Term → Prop} (hC : ClosedG M P) :
 /-- **Theorem G** (mixed head-normal-form combs with bounded teeth), choice-free form.  Let `P`
 be a set of closed S-terms such that every `t` in `P` has, on its head run, a head normal form
 `S t'`, `S a t'` with `sz a ≤ M`, or `S t' b` with `sz b ≤ M`, where `t'` is in `P`.  Then `P` is
-empty.  It contains Theorem 2 (`right_combs`) and Theorem F (`first_combs`).
+empty.  The hypotheses of `right_combs` (Theorem 2) and `first_combs` (Theorem F) are special
+cases of this one; they are proved separately above and not re-derived from it.
 
 Uses Lemma L, Lemma P, `HeadRec.no_ground_loop` and the SS-chain bound `ss_bound` (the core of
 Theorem 2). -/
@@ -1559,8 +1561,10 @@ theorem tooth_descent {M : Nat} {P : Term → Prop} (hC : Toothed M P) :
 
 /-- **Theorem B** (the teeth of an hnf-less term are unbounded), choice-free form.  Let `P` be a
 set of hnf-less closed S-terms such that every `t` in `P` has a first stable frame `f w` with `f`
-in `P` and `sz w ≤ M`.  Then `P` is empty.  So for no hnf-less closed `p` and no `M` do all teeth
-`τₙ(p)` have leaf count at most `M`.
+in `P` and `sz w ≤ M`.  Then `P` is empty.  The note's statement for one hnf-less `p` (no `M`
+bounds all teeth `τₙ(p)`) follows by taking `P` to be the rests of `p`; it is not stated
+separately here, since the file defines no function `τₙ` (`teeth_unbounded_seq` is the sequence
+form).
 
 Uses F2 (`Conv.reach_frame`, the head run reaches a head normal form or a stable frame), Lemma L
 and `HeadRec.no_head_recurrence`. -/
