@@ -350,6 +350,7 @@ import Ski.Ncfp
 import Ski.NcfpTheta
 import Ski.NcfpLeafless
 import Ski.NcfpN
+import Ski.NcfpN2
 
 /-!
 # The audit manifest — build-enforced
@@ -2060,3 +2061,7 @@ open Ski.Audit
 -- NCFP: Lemma LL (Ncfp.lemma_LL), Corollary LL1, Theorem N1 (Ncfp.thm_N1, claim_D, no_S_SSp_p), Theorem N2 (Ncfp.thm_N2, no_S_p_Snp)
 #audit_clean Ncfp.wrap_S Ncfp.lemma_LL Ncfp.cor_LL1 Ncfp.progress_bot Ncfp.claim_D Ncfp.claim_E Ncfp.thm_N1 Ncfp.no_S_SSp_p
 #audit_clean Ncfp.normal_S Ncfp.Normal.app_inv Ncfp.normalizing_S1 Ncfp.finite_descent_nn Ncfp.n2_not_norm Ncfp.n2_td Ncfp.thm_N2 Ncfp.no_S_p_Snp
+-- NCFP: Theorem 2' (Ncfp.right_combs'), Theorem N3 (Ncfp.thm_N3, no_S_Snp_p), Theorem N4 (Ncfp.thm_N4, no_S_Spn_p), Theorem N5 (Ncfp.thm_N5, no_S_p_Spn)
+#audit_clean Ncfp.Next'.desc Ncfp.nonlit_exists' Ncfp.run_inner' Ncfp.run' Ncfp.small_desc' Ncfp.right_combs' Ncfp.not_norm_gen Ncfp.not_normalizing
+#audit_clean Ncfp.thm_N5 Ncfp.hnf2_conv_right Ncfp.hnf2_conv_left Ncfp.no_S_p_Spn Ncfp.thm_N4 Ncfp.no_S_Spn_p Ncfp.claim_D'_frames Ncfp.thm_N3
+#audit_clean Ncfp.no_S_Snp_p

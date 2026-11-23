@@ -3,12 +3,13 @@ import Ski.Ncfp
 import Ski.NcfpTheta
 import Ski.NcfpLeafless
 import Ski.NcfpN
+import Ski.NcfpN2
 
 /-!
 # Axiom gate for the proved cases of NCFP (stand-alone)
 
 The same check as `#audit_clean` in `Ski/Audit.lean` (allow-list `{propext, Quot.sound}`), in a
-module that imports only `Ski.Ncfp`, `Ski.NcfpTheta`, `Ski.NcfpLeafless` and `Ski.NcfpN`.
+module that imports only `Ski.Ncfp`, `Ski.NcfpTheta`, `Ski.NcfpLeafless`, `Ski.NcfpN` and `Ski.NcfpN2`.
 
 * `#ncfp_audit_module M` checks every theorem, and every definition without an internal name,
   declared in the module `M`, and reports the counts and the internal constants it skips
@@ -56,6 +57,7 @@ end Ncfp.Audit
 #ncfp_audit_module Ski.NcfpTheta
 #ncfp_audit_module Ski.NcfpLeafless
 #ncfp_audit_module Ski.NcfpN
+#ncfp_audit_module Ski.NcfpN2
 
 -- size, normal forms, contexts; Prop. 0
 #ncfp_audit_clean Ncfp.sz_wstep Ncfp.sz_wsteps Ncfp.Normal.wsteps Ncfp.wsteps_to_normal
@@ -102,6 +104,11 @@ end Ncfp.Audit
 -- NcfpN: Lemma LL, Corollary LL1, Theorems N1, N2
 #ncfp_audit_clean Ncfp.wrap_S Ncfp.lemma_LL Ncfp.cor_LL1 Ncfp.progress_bot Ncfp.claim_D Ncfp.claim_E Ncfp.thm_N1 Ncfp.no_S_SSp_p
 #ncfp_audit_clean Ncfp.normal_S Ncfp.Normal.app_inv Ncfp.normalizing_S1 Ncfp.finite_descent_nn Ncfp.n2_not_norm Ncfp.n2_td Ncfp.thm_N2 Ncfp.no_S_p_Snp
+
+-- NcfpN2: Theorem 2', Theorems N3, N4, N5
+#ncfp_audit_clean Ncfp.Next'.desc Ncfp.nonlit_exists' Ncfp.run_inner' Ncfp.run' Ncfp.small_desc' Ncfp.right_combs' Ncfp.not_norm_gen Ncfp.not_normalizing
+#ncfp_audit_clean Ncfp.thm_N5 Ncfp.hnf2_conv_right Ncfp.hnf2_conv_left Ncfp.no_S_p_Spn Ncfp.thm_N4 Ncfp.no_S_Spn_p Ncfp.claim_D'_frames Ncfp.thm_N3
+#ncfp_audit_clean Ncfp.no_S_Snp_p
 
 #print axioms Ncfp.prop0
 #print axioms Ncfp.lemma_L
@@ -157,3 +164,11 @@ end Ncfp.Audit
 #print axioms Ncfp.no_S_SSp_p
 #print axioms Ncfp.thm_N2
 #print axioms Ncfp.no_S_p_Snp
+#print axioms Ncfp.right_combs'
+#print axioms Ncfp.claim_D'_frames
+#print axioms Ncfp.thm_N3
+#print axioms Ncfp.no_S_Snp_p
+#print axioms Ncfp.thm_N4
+#print axioms Ncfp.no_S_Spn_p
+#print axioms Ncfp.thm_N5
+#print axioms Ncfp.no_S_p_Spn
