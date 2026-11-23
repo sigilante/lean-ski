@@ -123,6 +123,8 @@ import Ski.WordProblem
 import Ski.SmallJoin
 import Ski.D2
 import Ski.D2Audit
+import Ski.BExp
+import Ski.BExpAudit
 import Ski.Graph
 import Ski.RWMem
 import Ski.GraphMem

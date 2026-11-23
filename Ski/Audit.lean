@@ -337,6 +337,7 @@ import Ski.Circuit.SendsFast
 import Ski.Circuit.JetCntFast
 import Ski.Circuit.CpuFast
 import Ski.Circuit.TraceCheck
+import Ski.BExp
 
 /-!
 # The audit manifest — build-enforced
@@ -1933,3 +1934,8 @@ open Ski.Audit
 #audit_clean D2.allB_spec D2.force_eq D2.chunk_get D2.colsIn_spec D2.rows_len D2.out1B_eq D2.botB_eq D2.phi0 D2.slawChunk_all D2.closedRow_all D2.out2Row_all D2.homRow_all D2.colsRow_all
 #audit_clean D2.τ_lt D2.col_eq D2.slaw D2.hom D2.outC_lt D2.outS D2.out_one D2.out_two D2.out_bot D2.foldD_lt D2.wstep_foldD D2.wsteps_foldD D2.steps_foldD D2.fold_eq
 #audit_clean D2.k4 D2.pt2_one D2.pt2_two D2.pt2_bot D2.q4 D2.pre1 D2.pre2 D2.pre_bwd D2.pre_exists D2.trunc_zero D2.nf_S D2.pre_nf D2.pre2_iff D2.nf2
+
+-- Bounded exposure (S4, Item-Reading): finite facts on S1's 38-block table lifted to terms: the Chain Lemma sets (BExp.chain_mem, C3_eq, C_ge4), application budgets (BExp.app_budget, long_app), shapes of the unbounded blocks, the skeleton of a productive head run (BExp.skeleton), towers, one-item chains, and the Psi counterexample to depth-bounded exposure (BExp.psi_cex)
+#audit_clean BExp.C1_eq BExp.C2_eq BExp.C3_img BExp.C4_img BExp.C5_img BExp.C2_eq' BExp.C3_eq BExp.C4_eq BExp.C_ge4 BExp.row31B_eq BExp.row34B_eq BExp.row31 BExp.row34 BExp.mem_img BExp.chain_mem BExp.chain4_emitter BExp.chain3
+#audit_clean BExp.budZeroB_eq BExp.budStepB_eq BExp.longB_eq BExp.A_ge6 BExp.budZero BExp.budStep7 BExp.budStep BExp.budConv BExp.app_budget BExp.unbounded_blocks BExp.long_app BExp.shapeB_eq BExp.shape_tab BExp.shape1 BExp.shape3 BExp.shape6 BExp.shape12 BExp.arityB_eq BExp.arity_blocks
+#audit_clean BExp.towerShapeB_eq BExp.tower_of_fold BExp.exempt_shape BExp.headChainN_of BExp.piB_eq BExp.r1_le BExp.skeleton_r1 BExp.skeleton BExp.iterS_run BExp.fibT_pure BExp.fold_fibT BExp.fib8B_eq BExp.fibB_add BExp.fibB_bot BExp.fib_dead BExp.fold_iterS_congr BExp.deep_item BExp.psi_cex
