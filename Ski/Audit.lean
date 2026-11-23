@@ -1942,7 +1942,7 @@ open Ski.Audit
 #audit_clean BExp.towerShapeB_eq BExp.tower_of_fold BExp.exempt_shape BExp.headChainN_of BExp.piB_eq BExp.r1_le BExp.skeleton_r1 BExp.skeleton BExp.iterS_run BExp.fibT_pure BExp.fold_fibT BExp.fib8B_eq BExp.fibB_add BExp.fibB_bot BExp.fib_dead BExp.fold_iterS_congr BExp.deep_item BExp.psi_cex
 #audit_clean BExp.tower_pure BExp.fold_tower BExp.unbounded_S BExp.unbounded_S_ne BExp.stable_step BExp.stable_steps BExp.steps_linear BExp.stable_unique BExp.iterS_pure BExp.psi_cex_stable
 
--- Theorem Phi (S6, hnf part): for any S-model over S1 with periodic constants, terms related by the depth-11 labelled unfolding with towers normalized have equal hnf observables in every context (Phi.theorem_phi); S1 instance N = 10, p = 1 (Phi.theorem_phi_s1)
+-- Theorem Phi (an analogue of S6's Theorem 6 for the hnf observable, with only towers S^k(S S) normalized; S6's relation does not imply it): for any S-model over S1 with periodic constants, terms related by the depth-11 labelled unfolding with towers normalized have equal hnf observables in every context (Phi.theorem_phi); S1 instance N = 10, p = 1 (Phi.theorem_phi_s1)
 #audit_clean Phi.sim_zero Phi.sim_succ Phi.All₂.append Phi.All₂.mono_mem Phi.All₂.mono Phi.All₂.forall_left Phi.All₂.forall_right Phi.All₂.map_eq
 #audit_clean Phi.fold_val Phi.fold_eq_of_val Phi.val_fibT Phi.val_tower Phi.Periodic.of_sIter Phi.step_foldl Phi.steps_foldl Phi.headChain_steps
 #audit_clean Phi.no_step_hnf Phi.hnf_unique Phi.steps_pure Phi.steps_fold Phi.head_hnf Phi.hasHnf_iff_head Phi.pure_foldl Phi.fold_foldl_bot
