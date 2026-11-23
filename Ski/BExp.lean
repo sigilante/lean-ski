@@ -91,7 +91,9 @@ inductive Chain : Nat → Term → Prop
   | zero (t : Term) : Chain 0 t
   | succ {d : Nat} {t a b : Term} : WSteps t (S ⬝ a ⬝ b) → Chain d a → Chain (d + 1) t
 
-/-- **Chain Lemma.**  A chain of depth `d + 1` puts the block of `t` in `C d`. -/
+/-- **Chain Lemma** (one inclusion).  A chain of depth `d + 1` puts the block of `t` in `C d`.
+`C d` is the exact image at the level of blocks; that every block of `C d` is the block of a term
+with such a chain is not proved here. -/
 theorem chain_mem : ∀ {d : Nat} {t : Term}, PureS t → Chain (d + 1) t → fold t ∈ C d := by
   intro d
   induction d with
@@ -215,7 +217,8 @@ theorem app_budget : ∀ (xs : List Term) {t : Term}, PureS t → (∀ x ∈ xs,
     have := ih (t := t ⬝ x) (.app ht hx) (fun y hy => hxs y (by simp [hy])) h
     exact budStep (fold_lt ht) (fold_lt hx) this
 
-/-- With six or more arguments and an hnf, the function part is in block 0, 1, 3, 6 or 12. -/
+/-- With six or more arguments and a block other than ⊥, the function part is in block 0, 1, 3,
+6 or 12.  The converse is `unbounded_S`. -/
 theorem unbounded_blocks {xs : List Term} {t : Term} (ht : PureS t) (hxs : ∀ x ∈ xs, PureS x)
     (h : fold (xs.foldl Term.app t) ≠ 36) (hl : 6 ≤ xs.length) :
     fold t = 0 ∨ fold t = 1 ∨ fold t = 3 ∨ fold t = 6 ∨ fold t = 12 := by
@@ -223,24 +226,6 @@ theorem unbounded_blocks {xs : List Term} {t : Term} (ht : PureS t) (hxs : ∀ x
   obtain ⟨j, hj⟩ : ∃ j, xs.length = j + 6 := ⟨xs.length - 6, by omega⟩
   rw [hj, A_ge6] at hm
   simpa [A] using hm
-
-/-- **Long applications.**  If `t x x₁ … x_k` has an hnf and `k ≥ 6`, then `t = S S` or `x = S`:
-an unbounded run of arguments consists of literal `S`s. -/
-theorem long_app {xs : List Term} {t x : Term} (ht : PureS t) (hx : PureS x)
-    (hxs : ∀ y ∈ xs, PureS y) (h : fold (xs.foldl Term.app (t ⬝ x)) ≠ 36) (hl : 6 ≤ xs.length) :
-    fold t = 1 ∨ x = S := by
-  have hm := app_budget xs (.app ht hx) hxs h
-  obtain ⟨j, hj⟩ : ∃ j, xs.length = j + 6 := ⟨xs.length - 6, by omega⟩
-  rw [hj, A_ge6] at hm
-  have h0 := longB_eq
-  simp only [longB, r38, List.all_eq_true, List.mem_range, Bool.or_eq_true, Bool.not_eq_true',
-    beq_iff_eq] at h0
-  rcases h0 (fold t) (fold_lt ht) (fold x) (fold_lt hx) with (h1 | h1) | h1
-  · have hm' : β (fold t) (fold x) ∈ A 6 := hm
-    have : (A 6).contains (β (fold t) (fold x)) = true := by simpa using hm'
-    rw [this] at h1; cases h1
-  · exact .inl h1
-  · exact .inr (fold_eq_zero hx h1)
 
 /-! ## Shapes of the unbounded blocks -/
 
@@ -280,6 +265,25 @@ theorem shape1 {t : Term} (ht : PureS t) (h : fold t = 1) : t = S ⬝ S := by
   | app hf hx =>
     obtain ⟨e1, e2⟩ := (shape_tab (fold_lt hf) (fold_lt hx)).1 h
     rw [fold_eq_zero hf e1, fold_eq_zero hx e2]
+
+/-- **Long applications.**  If the block of `t x x₁ … x_k` is not ⊥ and `k ≥ 6`, then `t` is the
+literal term `S S` or `x` is the literal term `S`.  (One argument at a time: it says nothing about
+`x₁ … x_k` directly; apply it to `t x`, `t x x₁`, … while six arguments remain.) -/
+theorem long_app {xs : List Term} {t x : Term} (ht : PureS t) (hx : PureS x)
+    (hxs : ∀ y ∈ xs, PureS y) (h : fold (xs.foldl Term.app (t ⬝ x)) ≠ 36) (hl : 6 ≤ xs.length) :
+    t = S ⬝ S ∨ x = S := by
+  have hm := app_budget xs (.app ht hx) hxs h
+  obtain ⟨j, hj⟩ : ∃ j, xs.length = j + 6 := ⟨xs.length - 6, by omega⟩
+  rw [hj, A_ge6] at hm
+  have h0 := longB_eq
+  simp only [longB, r38, List.all_eq_true, List.mem_range, Bool.or_eq_true, Bool.not_eq_true',
+    beq_iff_eq] at h0
+  rcases h0 (fold t) (fold_lt ht) (fold x) (fold_lt hx) with (h1 | h1) | h1
+  · have hm' : β (fold t) (fold x) ∈ A 6 := hm
+    have : (A 6).contains (β (fold t) (fold x)) = true := by simpa using hm'
+    rw [this] at h1; cases h1
+  · exact .inl (shape1 ht h1)
+  · exact .inr (fold_eq_zero hx h1)
 
 /-- Block 3 is `S S S`. -/
 theorem shape3 {t : Term} (ht : PureS t) (h : fold t = 3) : t = S ⬝ S ⬝ S := by
@@ -343,7 +347,7 @@ def towerShapeB : Bool := r38.all fun a => r38.all fun b =>
   !([2, 4, 8, 17].contains (β a b)) || (a == 0 && [1, 2, 4, 8, 17].contains b)
 theorem towerShapeB_eq : towerShapeB = true := by decide +kernel
 
-/-- Blocks 1, 2, 4, 8, 17 are exactly the literal towers. -/
+/-- A term of block 1, 2, 4, 8 or 17 is a literal tower.  The converse is `fold_tower`. -/
 theorem tower_of_fold : ∀ {u : Term}, PureS u → fold u ∈ [1, 2, 4, 8, 17] → ∃ k, u = tower k := by
   intro u hu
   induction hu with
@@ -508,10 +512,12 @@ theorem deep_item (k : Nat) (c : Term) {x y : Term} (hx : PureS x) (hy : PureS y
     exact .step (.left _ (.S S c _)) (.single (.S _ _ _))
   · show β _ _ = 36; rw [hP]; exact absorb (by rw [hQ]; decide)
 
-/-- **Counterexample (Ψ part, S1 labels, every depth).**  Let `t c = S^(k+8) (S S c)`.  For
-`c₁ = S (S S)` and `c₂ = S S S`: every `S^j (S S c)` has the same block for both, so all labels
-of the unfoldings of `t c₁`, `t c₂` agree down to depth `k + 8`; yet `t c x y` reaches a stable
-`f w` (`fold f = 36`) whose `w` has block 31 for `c₁` and block 36 for `c₂`. -/
+/-- **Counterexample (Ψ part, S1 labels): what is proved here.**  Let `t c = S^(k+8) (S S c)`,
+`c₁ = S (S S)`, `c₂ = S S S`.  (1) Every `S^j (S S c)` has the same block for both `c`.  (2)
+`t c x y` head-reduces to some `f w` with `fold f = 36`, where `fold w = 31` for `c₁` and `36` for
+`c₂`.  `psi_cex_stable` adds that every such `f w` has this `w`.  That (1) makes the labelled
+unfoldings `τ_D` equal for `D ≤ k + 7` is a pencil step (the hnf of `S^(j+1) u` is `S (S^j u)`),
+not stated in Lean. -/
 theorem psi_cex (k : Nat) {x y : Term} (hx : PureS x) (hy : PureS y) :
     (∀ j, fold (iterS j (S ⬝ S ⬝ (S ⬝ (S ⬝ S)))) = fold (iterS j (S ⬝ S ⬝ (S ⬝ S ⬝ S)))) ∧
     (∃ f w, Steps (iterS (k + 8) (S ⬝ S ⬝ (S ⬝ (S ⬝ S))) ⬝ x ⬝ y) (f ⬝ w) ∧ fold f = 36 ∧
@@ -525,6 +531,120 @@ theorem psi_cex (k : Nat) {x y : Term} (hx : PureS x) (hy : PureS y) :
     rw [hP, hQ]; decide
   · obtain ⟨P, Q, hs, hP, hQ, hPQ⟩ := deep_item k (S ⬝ S ⬝ S) hx hy
     refine ⟨_, _, hs, hPQ, ?_⟩
+    show β (β (fold (S ⬝ S ⬝ S)) (fold P)) (fold Q) = 36
+    rw [hP, hQ]; decide
+
+/-! ## Converses and uniqueness (after the Wizard review, 2026-11-23) -/
+
+theorem tower_pure : ∀ k : Nat, PureS (tower k) := by
+  intro k
+  induction k with
+  | zero => exact .app .S .S
+  | succ k ih => exact .app .S ih
+
+/-- Every tower has block 1, 2, 4, 8 or 17 (converse of `tower_of_fold`). -/
+theorem fold_tower : ∀ k : Nat, fold (tower k) ∈ [1, 2, 4, 8, 17] := by
+  intro k
+  induction k with
+  | zero => decide
+  | succ k ih =>
+    have h : ∀ b ∈ [1, 2, 4, 8, 17], β 0 b ∈ [1, 2, 4, 8, 17] := by decide
+    exact h _ ih
+
+/-- The five unbounded blocks stay among themselves under any number of arguments `S`
+(converse of `unbounded_blocks`): their budgets are unbounded. -/
+theorem unbounded_S : ∀ (k : Nat) {t : Term}, fold t ∈ [0, 1, 3, 6, 12] →
+    fold ((List.replicate k S).foldl Term.app t) ∈ [0, 1, 3, 6, 12] := by
+  intro k
+  induction k with
+  | zero => intro t h; exact h
+  | succ k ih =>
+    intro t h
+    have hs : ∀ b ∈ [0, 1, 3, 6, 12], β b 0 ∈ [0, 1, 3, 6, 12] := by decide
+    exact ih (t := t ⬝ S) (hs _ h)
+
+theorem unbounded_S_ne (k : Nat) {t : Term} (h : fold t ∈ [0, 1, 3, 6, 12]) :
+    fold ((List.replicate k S).foldl Term.app t) ≠ 36 := by
+  intro e
+  have := unbounded_S k h
+  rw [e] at this
+  exact absurd this (by decide)
+
+/-- A head step of `f w` with `f` hnf-less is a head step of `f`. -/
+theorem stable_step {f w u : Term} (hf : PureS f) (hb : fold f = 36) (s : Step (f ⬝ w) u) :
+    ∃ f', u = f' ⬝ w ∧ PureS f' ∧ fold f' = 36 := by
+  cases s with
+  | S a c x =>
+    exfalso
+    obtain ⟨h1, hc⟩ := hf.app_inv
+    exact (hnf_blocks (fold_lt h1.app_inv.2) (fold_lt hc)).2 hb
+  | K x y => exact absurd hf.app_inv.1 PureS.not_K
+  | I x => exact absurd hf PureS.not_I
+  | left _ h =>
+    obtain ⟨hp, he⟩ := wstep_pure h.weak hf
+    exact ⟨_, rfl, hp, he.trans hb⟩
+
+theorem stable_steps {w : Term} : ∀ {t u : Term}, Steps t u → ∀ {f : Term}, t = f ⬝ w → PureS f →
+    fold f = 36 → ∃ f', u = f' ⬝ w ∧ PureS f' ∧ fold f' = 36 := by
+  intro t u h
+  induction h with
+  | refl t => intro f e hf hb; exact ⟨f, e, hf, hb⟩
+  | step s _ ih =>
+    intro f e hf hb
+    subst e
+    obtain ⟨f', e', hf', hb'⟩ := stable_step hf hb s
+    exact ih e' hf' hb'
+
+theorem steps_linear {t a : Term} (h₁ : Steps t a) : ∀ {b : Term}, Steps t b →
+    Steps a b ∨ Steps b a := by
+  induction h₁ with
+  | refl t => intro b h₂; exact .inl h₂
+  | step s hs ih =>
+    intro b h₂
+    cases h₂ with
+    | refl => exact .inr (.step s hs)
+    | step s' hs' =>
+      have e := Step.det s s'
+      subst e
+      exact ih hs'
+
+/-- **The stable decomposition is unique in its argument.**  If `t` head-reduces to `f w` and to
+`f' w'` with `f`, `f'` hnf-less, then `w = w'` (and `f`, `f'` lie on one head run). -/
+theorem stable_unique {t f w f' w' : Term} (ht : PureS t) (h : Steps t (f ⬝ w))
+    (hb : fold f = 36) (h' : Steps t (f' ⬝ w')) (hb' : fold f' = 36) : w = w' := by
+  have hf := (fold_wsteps h.weak ht).1.app_inv.1
+  have hf' := (fold_wsteps h'.weak ht).1.app_inv.1
+  rcases steps_linear h h' with hs | hs
+  · obtain ⟨g, e, _, _⟩ := stable_steps hs rfl hf hb
+    injection e with _ e2
+    exact e2.symm
+  · obtain ⟨g, e, _, _⟩ := stable_steps hs rfl hf' hb'
+    injection e with _ e2
+
+theorem iterS_pure : ∀ (k : Nat) {u : Term}, PureS u → PureS (iterS k u) := by
+  intro k
+  induction k with
+  | zero => intro u hu; exact hu
+  | succ k ih => intro u hu; exact .app .S (ih hu)
+
+/-- **The Ψ counterexample, in terms of every stable decomposition.**  For `k ≥ 8`: whenever
+`S^k (S S c) x y` head-reduces to `f w` with `f` hnf-less, the block of `w` is 31 for
+`c = S (S S)` and 36 for `c = S S S`.  (Such `f w` exist: `psi_cex`.) -/
+theorem psi_cex_stable (k : Nat) {x y f w : Term} (hx : PureS x) (hy : PureS y)
+    (hb : fold f = 36) :
+    (Steps (iterS (k + 8) (S ⬝ S ⬝ (S ⬝ (S ⬝ S))) ⬝ x ⬝ y) (f ⬝ w) → fold w = 31) ∧
+    (Steps (iterS (k + 8) (S ⬝ S ⬝ (S ⬝ S ⬝ S)) ⬝ x ⬝ y) (f ⬝ w) → fold w = 36) := by
+  refine ⟨fun h => ?_, fun h => ?_⟩
+  · obtain ⟨P, Q, hs, hP, hQ, hPQ⟩ := deep_item k (S ⬝ (S ⬝ S)) hx hy
+    have hp : PureS (iterS (k + 8) (S ⬝ S ⬝ (S ⬝ (S ⬝ S))) ⬝ x ⬝ y) :=
+      .app (.app (iterS_pure _ (.app (.app .S .S) (.app .S (.app .S .S)))) hx) hy
+    rw [stable_unique hp h hb hs hPQ]
+    show β (β (fold (S ⬝ (S ⬝ S))) (fold P)) (fold Q) = 31
+    rw [hP, hQ]; decide
+  · obtain ⟨P, Q, hs, hP, hQ, hPQ⟩ := deep_item k (S ⬝ S ⬝ S) hx hy
+    have hp : PureS (iterS (k + 8) (S ⬝ S ⬝ (S ⬝ S ⬝ S)) ⬝ x ⬝ y) :=
+      .app (.app (iterS_pure _ (.app (.app .S .S) (.app (.app .S .S) .S))) hx) hy
+    rw [stable_unique hp h hb hs hPQ]
     show β (β (fold (S ⬝ S ⬝ S)) (fold P)) (fold Q) = 36
     rw [hP, hQ]; decide
 

@@ -28,7 +28,9 @@ end BExp.Audit
 #bexp_audit_clean BExp.C1_eq BExp.C2_eq BExp.C3_img BExp.C4_img BExp.C5_img BExp.C2_eq' BExp.C3_eq BExp.C4_eq BExp.C_ge4 BExp.row31B_eq BExp.row34B_eq BExp.row31 BExp.row34 BExp.mem_img BExp.chain_mem BExp.chain4_emitter BExp.chain3
 #bexp_audit_clean BExp.budZeroB_eq BExp.budStepB_eq BExp.longB_eq BExp.A_ge6 BExp.budZero BExp.budStep7 BExp.budStep BExp.budConv BExp.app_budget BExp.unbounded_blocks BExp.long_app BExp.shapeB_eq BExp.shape_tab BExp.shape1 BExp.shape3 BExp.shape6 BExp.shape12 BExp.arityB_eq BExp.arity_blocks
 #bexp_audit_clean BExp.towerShapeB_eq BExp.tower_of_fold BExp.exempt_shape BExp.headChainN_of BExp.piB_eq BExp.r1_le BExp.skeleton_r1 BExp.skeleton BExp.iterS_run BExp.fibT_pure BExp.fold_fibT BExp.fib8B_eq BExp.fibB_add BExp.fibB_bot BExp.fib_dead BExp.fold_iterS_congr BExp.deep_item BExp.psi_cex
+#bexp_audit_clean BExp.tower_pure BExp.fold_tower BExp.unbounded_S BExp.unbounded_S_ne BExp.stable_step BExp.stable_steps BExp.steps_linear BExp.stable_unique BExp.iterS_pure BExp.psi_cex_stable
 
+#print axioms BExp.psi_cex_stable
 #print axioms BExp.skeleton
 #print axioms BExp.psi_cex
 #print axioms BExp.long_app
