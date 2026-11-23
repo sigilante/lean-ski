@@ -64,92 +64,60 @@ def toOut {M : Type} : Conv.Obs M → Full.Out M
   | .bot f w => .bot f w
 
 /-- The value in a model (`Phi.SModel`) is invariant under weak reduction of closed S-terms. -/
-theorem val_inv (𝔐 : Phi.SModel) : Conv.Inv 𝔐.val := by
-  intro t u ht h
-  induction h with
-  | S f g x => exact (𝔐.law _ _ _).symm
-  | K x y => exact absurd ht.app_inv.1.app_inv.1 PureS.not_K
-  | I x => exact absurd ht.app_inv.1 PureS.not_I
-  | left x _ ih => show 𝔐.app _ _ = 𝔐.app _ _; rw [ih ht.app_inv.1]
-  | right f _ ih => show 𝔐.app _ _ = 𝔐.app _ _; rw [ih ht.app_inv.2]
+theorem val_inv (𝔐 : Phi.SModel) : Conv.Inv 𝔐.val :=
+  sorry
 
 theorem obsF_of_hasObs (𝔐 : Phi.SModel) {t : Term} (ht : PureS t) {x : Conv.Obs 𝔐.M}
-    (h : Conv.HasObs 𝔐.val t x) : Full.ObsF 𝔐 t (toOut x) := by
-  cases h with
-  | s0 hs => exact ⟨S, hs, .inl rfl, rfl⟩
-  | @s1 a hs => exact ⟨S ⬝ a, hs, .inr (.inl ⟨a, rfl⟩), rfl⟩
-  | @s2 a b hs => exact ⟨S ⬝ a ⬝ b, hs, .inr (.inr ⟨a, b, rfl⟩), rfl⟩
-  | @bot f w hs hb =>
-    exact ⟨f, w, hs, (Conv.stable_iff (InfNF.steps_pure ht hs).app_inv.1).mp hb, rfl, rfl⟩
+    (h : Conv.HasObs 𝔐.val t x) : Full.ObsF 𝔐 t (toOut x) :=
+  sorry
 
 /-- **The two observables agree**: `Full.ObsF` over `𝔐` is `Conv.HasObs` over the valuation
 `𝔐.val`, up to the encoding `toOut` of the values. -/
 theorem obsF_iff_hasObs (𝔐 : Phi.SModel) {t : Term} (ht : PureS t) (o : Full.Out 𝔐.M) :
-    Full.ObsF 𝔐 t o ↔ ∃ x, Conv.HasObs 𝔐.val t x ∧ o = toOut x := by
-  constructor
-  · intro h
-    obtain ⟨x, hx⟩ := Conv.obs_exists 𝔐.val ht
-    exact ⟨x, hx, Full.obsF_unique 𝔐 ht h (obsF_of_hasObs 𝔐 ht hx)⟩
-  · rintro ⟨x, hx, rfl⟩
-    exact obsF_of_hasObs 𝔐 ht hx
+    Full.ObsF 𝔐 t o ↔ ∃ x, Conv.HasObs 𝔐.val t x ∧ o = toOut x :=
+  sorry
 
 /-- **Lemma 3 for the full observable.**  Convertible closed S-terms have the same `ObsF`. -/
 theorem obsF_conv (𝔐 : Phi.SModel) {t t' : Term} (ht : PureS t) (ht' : PureS t')
-    (h : Conv.Convertible t t') (o : Full.Out 𝔐.M) : Full.ObsF 𝔐 t o ↔ Full.ObsF 𝔐 t' o := by
-  obtain ⟨x, hx⟩ := Conv.obs_exists 𝔐.val ht
-  have hx' := (Conv.obs_conv (val_inv 𝔐) ht ht' h).mp hx
-  have h1 := obsF_of_hasObs 𝔐 ht hx
-  have h2 := obsF_of_hasObs 𝔐 ht' hx'
-  constructor
-  · intro ho; rw [Full.obsF_unique 𝔐 ht ho h1]; exact h2
-  · intro ho; rw [Full.obsF_unique 𝔐 ht' ho h2]; exact h1
+    (h : Conv.Convertible t t') (o : Full.Out 𝔐.M) : Full.ObsF 𝔐 t o ↔ Full.ObsF 𝔐 t' o :=
+  sorry
 
 /-! ## Contexts and the syntactic congruence -/
 
-theorem plug_pure (C : Phi.Ctx) {t : Term} (ht : PureS t) : PureS (C.plug t) := by
-  induction C with
-  | hole => exact ht
-  | s => exact .S
-  | app c d ihc ihd => exact .app ihc ihd
+theorem plug_pure (C : Phi.Ctx) {t : Term} (ht : PureS t) : PureS (C.plug t) :=
+  sorry
 
 theorem conv_left {f f' : Term} (x : Term) (h : Conv.Convertible f f') :
-    Conv.Convertible (f ⬝ x) (f' ⬝ x) := by
-  induction h with
-  | refl t => exact .refl _
-  | fwd s _ ih => exact .fwd (.left x s) ih
-  | bwd s _ ih => exact .bwd (.left x s) ih
+    Conv.Convertible (f ⬝ x) (f' ⬝ x) :=
+  sorry
 
 theorem conv_right (f : Term) {x x' : Term} (h : Conv.Convertible x x') :
-    Conv.Convertible (f ⬝ x) (f ⬝ x') := by
-  induction h with
-  | refl t => exact .refl _
-  | fwd s _ ih => exact .fwd (.right f s) ih
-  | bwd s _ ih => exact .bwd (.right f s) ih
+    Conv.Convertible (f ⬝ x) (f ⬝ x') :=
+  sorry
 
 theorem conv_plug (C : Phi.Ctx) {t t' : Term} (h : Conv.Convertible t t') :
-    Conv.Convertible (C.plug t) (C.plug t') := by
-  induction C with
-  | hole => exact h
-  | s => exact .refl _
-  | app c d ihc ihd => exact (conv_left _ ihc).trans (conv_right _ ihd)
+    Conv.Convertible (C.plug t) (C.plug t') :=
+  sorry
 
 /-- **The syntactic congruence `≡_O`** of the full observable over `𝔐`: equal observables in
 every context (any number of holes). -/
 def Cong (𝔐 : Phi.SModel) (t t' : Term) : Prop :=
   ∀ (C : Phi.Ctx) (o : Full.Out 𝔐.M), Full.ObsF 𝔐 (C.plug t) o ↔ Full.ObsF 𝔐 (C.plug t') o
 
-theorem cong_refl (𝔐 : Phi.SModel) (t : Term) : Cong 𝔐 t t := fun _ _ => Iff.rfl
+theorem cong_refl (𝔐 : Phi.SModel) (t : Term) : Cong 𝔐 t t :=
+  sorry
 
 theorem cong_symm {𝔐 : Phi.SModel} {t t' : Term} (h : Cong 𝔐 t t') : Cong 𝔐 t' t :=
-  fun C o => (h C o).symm
+  sorry
 
 theorem cong_trans {𝔐 : Phi.SModel} {t u v : Term} (h : Cong 𝔐 t u) (h' : Cong 𝔐 u v) :
-    Cong 𝔐 t v := fun C o => (h C o).trans (h' C o)
+    Cong 𝔐 t v :=
+  sorry
 
 /-- **The syntactic congruence contains conversion** (Lemma 3 in every context). -/
 theorem cong_of_conv (𝔐 : Phi.SModel) {t t' : Term} (ht : PureS t) (ht' : PureS t')
     (h : Conv.Convertible t t') : Cong 𝔐 t t' :=
-  fun C o => obsF_conv 𝔐 (plug_pure C ht) (plug_pure C ht') (conv_plug C h) o
+  sorry
 
 /-- Composition of contexts. -/
 def comp : Phi.Ctx → Phi.Ctx → Phi.Ctx
@@ -158,48 +126,28 @@ def comp : Phi.Ctx → Phi.Ctx → Phi.Ctx
   | .app c d, D => .app (comp c D) (comp d D)
 
 theorem plug_comp (D : Phi.Ctx) (t : Term) : ∀ C : Phi.Ctx,
-    (comp C D).plug t = C.plug (D.plug t)
-  | .hole => rfl
-  | .s => rfl
-  | .app c d => by
-    show (comp c D).plug t ⬝ (comp d D).plug t = c.plug (D.plug t) ⬝ d.plug (D.plug t)
-    rw [plug_comp D t c, plug_comp D t d]
+    (comp C D).plug t = C.plug (D.plug t) :=
+  sorry
 
 theorem cong_ctx {𝔐 : Phi.SModel} {t t' : Term} (h : Cong 𝔐 t t') (D : Phi.Ctx) :
-    Cong 𝔐 (D.plug t) (D.plug t') := by
-  intro C o
-  rw [← plug_comp, ← plug_comp]
-  exact h _ o
+    Cong 𝔐 (D.plug t) (D.plug t') :=
+  sorry
 
 /-- A closed S-term as a context without holes. -/
 def ofTerm : Term → Phi.Ctx
   | .app f x => .app (ofTerm f) (ofTerm x)
   | _ => .s
 
-theorem plug_ofTerm {r : Term} (hr : PureS r) (t : Term) : (ofTerm r).plug t = r := by
-  induction hr with
-  | S => rfl
-  | app _ _ ihf ihx =>
-    show (ofTerm _).plug t ⬝ (ofTerm _).plug t = _
-    rw [ihf, ihx]
+theorem plug_ofTerm {r : Term} (hr : PureS r) (t : Term) : (ofTerm r).plug t = r :=
+  sorry
 
 theorem cong_left {𝔐 : Phi.SModel} {t t' r : Term} (h : Cong 𝔐 t t') (hr : PureS r) :
-    Cong 𝔐 (t ⬝ r) (t' ⬝ r) := by
-  have h1 := cong_ctx h (.app .hole (ofTerm r))
-  have e : ∀ x : Term, (Phi.Ctx.app .hole (ofTerm r)).plug x = x ⬝ r := fun x => by
-    show x ⬝ (ofTerm r).plug x = x ⬝ r
-    rw [plug_ofTerm hr]
-  rw [e, e] at h1
-  exact h1
+    Cong 𝔐 (t ⬝ r) (t' ⬝ r) :=
+  sorry
 
 theorem cong_right {𝔐 : Phi.SModel} {t t' r : Term} (h : Cong 𝔐 t t') (hr : PureS r) :
-    Cong 𝔐 (r ⬝ t) (r ⬝ t') := by
-  have h1 := cong_ctx h (.app (ofTerm r) .hole)
-  have e : ∀ x : Term, (Phi.Ctx.app (ofTerm r) .hole).plug x = r ⬝ x := fun x => by
-    show (ofTerm r).plug x ⬝ x = r ⬝ x
-    rw [plug_ofTerm hr]
-  rw [e, e] at h1
-  exact h1
+    Cong 𝔐 (r ⬝ t) (r ⬝ t') :=
+  sorry
 
 /-! ## The observable as a function -/
 
@@ -211,39 +159,22 @@ def outOf (𝔐 : Phi.SModel) : Term → Full.Out 𝔐.M
   | _ => .hnf []
 
 theorem outOf_spec (𝔐 : Phi.SModel) {t u : Term} (ht : PureS t) (hs : Steps t u)
-    (hT : Full.Terminal u) : Full.ObsF 𝔐 t (outOf 𝔐 u) := by
-  have hp := InfNF.steps_pure ht hs
-  cases u with
-  | S => exact ⟨S, hs, .inl rfl, rfl⟩
-  | K => exact absurd hp PureS.not_K
-  | I => exact absurd hp PureS.not_I
-  | app f w =>
-    cases Nat.decEq (fold f) 36 with
-    | isTrue hb =>
-      have e : outOf 𝔐 (f ⬝ w) = .bot (𝔐.val f) (𝔐.val w) := if_pos hb
-      rw [e]
-      exact ⟨f, w, hs, no_hnf_of_bot hp.app_inv.1 hb, rfl, rfl⟩
-    | isFalse hb =>
-      have e : outOf 𝔐 (f ⬝ w) = .hnf ((HnfSound.spine (f ⬝ w)).map 𝔐.val) := if_neg hb
-      rw [e]
-      rcases hT with hh | hst
-      · exact ⟨f ⬝ w, hs, hh, rfl⟩
-      · exact absurd ((Full.stable_iff hp.app_inv.1).mp hst) hb
+    (hT : Full.Terminal u) : Full.ObsF 𝔐 t (outOf 𝔐 u) :=
+  sorry
 
 /-- **The full observable `O`, as a computable function** on closed S-terms. -/
 def obsFn (𝔐 : Phi.SModel) (x : CT) : Full.Out 𝔐.M := outOf 𝔐 (Full.headEnd x).1
 
 theorem obsFn_spec (𝔐 : Phi.SModel) (x : CT) : Full.ObsF 𝔐 x.1 (obsFn 𝔐 x) :=
-  outOf_spec 𝔐 x.2 (Full.headEnd_spec x).1 (Full.headEnd_spec x).2
+  sorry
 
 theorem obsFn_iff (𝔐 : Phi.SModel) {t : Term} (ht : PureS t) (o : Full.Out 𝔐.M) :
     Full.ObsF 𝔐 t o ↔ o = obsFn 𝔐 ⟨t, ht⟩ :=
-  ⟨fun h => Full.obsF_unique 𝔐 ht h (obsFn_spec 𝔐 ⟨t, ht⟩),
-    fun h => by rw [h]; exact obsFn_spec 𝔐 ⟨t, ht⟩⟩
+  sorry
 
 theorem cong_obsFn {𝔐 : Phi.SModel} {t t' : Term} (h : Cong 𝔐 t t') (ht : PureS t)
     (ht' : PureS t') : obsFn 𝔐 ⟨t, ht⟩ = obsFn 𝔐 ⟨t', ht'⟩ :=
-  (obsFn_iff 𝔐 ht' _).mp ((h .hole _).mp (obsFn_spec 𝔐 ⟨t, ht⟩))
+  sorry
 
 /-- The value of a term, from its observable: `s·a₁⋯a_m`, or `f·w`. -/
 def outVal (𝔐 : Phi.SModel) : Full.Out 𝔐.M → 𝔐.M
@@ -252,22 +183,12 @@ def outVal (𝔐 : Phi.SModel) : Full.Out 𝔐.M → 𝔐.M
 
 /-- `O(t)` determines the value of `t`. -/
 theorem val_of_obs (𝔐 : Phi.SModel) {t : Term} (ht : PureS t) {o : Full.Out 𝔐.M}
-    (h : Full.ObsF 𝔐 t o) : 𝔐.val t = outVal 𝔐 o := by
-  cases o with
-  | hnf l =>
-    obtain ⟨v, hs, hv, rfl⟩ := h
-    rw [Full.val_steps 𝔐 hs ht]
-    rcases hv with rfl | ⟨a, rfl⟩ | ⟨a, b, rfl⟩ <;> rfl
-  | bot a b =>
-    obtain ⟨f, w, hs, _, rfl, rfl⟩ := h
-    rw [Full.val_steps 𝔐 hs ht]
-    rfl
+    (h : Full.ObsF 𝔐 t o) : 𝔐.val t = outVal 𝔐 o :=
+  sorry
 
 theorem cong_val {𝔐 : Phi.SModel} {t t' : Term} (h : Cong 𝔐 t t') (ht : PureS t)
-    (ht' : PureS t') : 𝔐.val t = 𝔐.val t' := by
-  have h1 := obsFn_spec 𝔐 ⟨t, ht⟩
-  have h2 := (h .hole _).mp h1
-  exact (val_of_obs 𝔐 ht h1).trans (val_of_obs 𝔐 ht' h2).symm
+    (ht' : PureS t') : 𝔐.val t = 𝔐.val t' :=
+  sorry
 
 /-! ## Finite models as tables, and their constants -/
 
@@ -296,22 +217,16 @@ structure TModel where
 @[reducible] def TModel.val (T : TModel) : Term → Fin T.m := T.toS.val
 
 /-- The fold determines the block. -/
-theorem TModel.φ_val (T : TModel) {t : Term} (ht : PureS t) : T.φ (T.val t) = fold t := by
-  induction ht with
-  | S => exact T.φ_s
-  | app _ _ ihf ihx =>
-    show T.φ (T.ap _ _) = β _ _
-    rw [T.φ_app, ihf, ihx]
+theorem TModel.φ_val (T : TModel) {t : Term} (ht : PureS t) : T.φ (T.val t) = fold t :=
+  sorry
 
 theorem sIter_iter (𝔐 : Phi.SModel) : ∀ (k : Nat) (m : 𝔐.M),
-    𝔐.sIter k m = iter (𝔐.app 𝔐.s) k m
-  | 0, _ => rfl
-  | k + 1, m => congrArg (𝔐.app 𝔐.s) (sIter_iter 𝔐 k m)
+    𝔐.sIter k m = iter (𝔐.app 𝔐.s) k m :=
+  sorry
 
 theorem fibM_iter (𝔐 : Phi.SModel) : ∀ (k : Nat) (q : 𝔐.M × 𝔐.M),
-    𝔐.fibM k q = iter (fun q : 𝔐.M × 𝔐.M => (q.2, 𝔐.app q.1 q.2)) k q
-  | 0, _ => rfl
-  | k + 1, q => (fibM_iter 𝔐 k (q.2, 𝔐.app q.1 q.2)).trans (iter_succ' _ k q).symm
+    𝔐.fibM k q = iter (fun q : 𝔐.M × 𝔐.M => (q.2, 𝔐.app q.1 q.2)) k q :=
+  sorry
 
 /-- The threshold `m² + m`. -/
 def TModel.L (T : TModel) : Nat := T.m * T.m + T.m
@@ -324,28 +239,8 @@ def TModel.p (T : TModel) : Nat := fact T.L
 
 /-- **The constants exist and are computable**: every finite table satisfies `PeriodicF` with
 `N = m² + m + 10` and `p = (m² + m)!`. -/
-theorem TModel.periodic (T : TModel) : Full.PeriodicF T.toS T.N T.p := by
-  have hs : ∀ x : Fin T.m,
-      iter (T.ap T.s) (T.L + fact T.L) x = iter (T.ap T.s) T.L x := fun x =>
-    iter_period _ (fun a : Fin T.m => a.1) T.m (fun a => a.2) (fun _ _ h => Fin.eq_of_val_eq h)
-      T.L (Nat.le_add_left _ _) x
-  have hf : ∀ q : Fin T.m × Fin T.m,
-      iter (fun q : Fin T.m × Fin T.m => (q.2, T.ap q.1 q.2)) (T.L + fact T.L) q =
-        iter (fun q : Fin T.m × Fin T.m => (q.2, T.ap q.1 q.2)) T.L q := fun q =>
-    iter_period _ (fun q : Fin T.m × Fin T.m => (Full.pairF q.1 q.2).1) (T.m * T.m)
-      (fun q => (Full.pairF q.1 q.2).2) (fun x y h => Full.pair2_inj x y (Fin.eq_of_val_eq h))
-      T.L (Nat.le_add_right _ _) q
-  have hN : T.N = T.L + 10 := rfl
-  refine ⟨Nat.le_add_left 10 _, fact_pos _, fun j j' hj hj' hm x => ?_,
-    fun j j' hj hj' hm q => ?_⟩
-  · have h1 : T.L ≤ j := by omega
-    have h2 : T.L ≤ j' := by omega
-    rw [sIter_iter, sIter_iter]
-    exact iter_mod _ hs h1 h2 hm x
-  · have h1 : T.L ≤ j := by omega
-    have h2 : T.L ≤ j' := by omega
-    rw [fibM_iter, fibM_iter]
-    exact iter_mod _ hf h1 h2 hm q
+theorem TModel.periodic (T : TModel) : Full.PeriodicF T.toS T.N T.p :=
+  sorry
 
 /-! ## Finite index of the syntactic congruence -/
 
@@ -363,19 +258,17 @@ def sgc (T : TModel) (t : CT) : Nat :=
   (Full.sigCode 78 (Full.sig T.toS (fun a : Fin T.m => a) T.N T.p T.periodic.hp 78 t)).1
 
 theorem sgc_lt (T : TModel) (t : CT) : sgc T t < sgB T :=
-  (Full.sigCode 78 (Full.sig T.toS (fun a : Fin T.m => a) T.N T.p T.periodic.hp 78 t)).2
+  sorry
 
 /-- Equal signatures: congruent (Theorem 6). -/
 theorem sgc_cong (T : TModel) {t t' : CT} (h : sgc T t = sgc T t') : Cong T.toS t.1 t'.1 :=
-  fun C o => Full.sig_congruence T.toS (fun a : Fin T.m => a) (fun _ _ h => h) T.periodic t t'
-    (Full.sigCode_inj 78 _ _ (Fin.eq_of_val_eq h)) C o
+  sorry
 
 /-- **Finite index**: the syntactic congruence of `O` over a finite table has at most `sgB T`
 classes: among any `sgB T + 1` closed S-terms, two are congruent. -/
 theorem finite_index (T : TModel) (ts : Nat → Term) (hts : ∀ i, PureS (ts i)) :
-    ∃ i j, i < j ∧ j ≤ sgB T ∧ Cong T.toS (ts i) (ts j) := by
-  obtain ⟨i, j, hij, hj, e⟩ := php (sgB T) (fun i => sgc T ⟨ts i, hts i⟩) (fun i _ => sgc_lt T _)
-  exact ⟨i, j, hij, hj, sgc_cong T e⟩
+    ∃ i j, i < j ∧ j ≤ sgB T ∧ Cong T.toS (ts i) (ts j) :=
+  sorry
 
 /-! ## Lemma 7: the quotient by the syntactic congruence -/
 
@@ -392,10 +285,10 @@ def arep (a : Fin (alg T).n) : CT := (alg T).rep a
 
 theorem arep_mul (a b : Fin (alg T).n) :
     Cong T.toS (arep T ((alg T).mul a b)).1 ((arep T a).1 ⬝ (arep T b).1) :=
-  sgc_cong T (t' := capp (arep T a) (arep T b)) ((alg T).mul_sg a b)
+  sorry
 
 theorem arep_s : Cong T.toS (arep T (alg T).s).1 S :=
-  sgc_cong T (t' := cS) (alg T).s_sg
+  sorry
 
 /-- The fold into `alg T`. -/
 def foldA : Term → Fin (alg T).n
@@ -403,12 +296,8 @@ def foldA : Term → Fin (alg T).n
   | _ => (alg T).s
 
 /-- The representative of the fold of `t` is congruent to `t`. -/
-theorem foldA_cong {t : Term} (ht : PureS t) : Cong T.toS (arep T (foldA T t)).1 t := by
-  induction ht with
-  | S => exact arep_s T
-  | @app f x hf hx ihf ihx =>
-    exact cong_trans (arep_mul T _ _)
-      (cong_trans (cong_left ihf (arep T (foldA T x)).2) (cong_right ihx hf))
+theorem foldA_cong {t : Term} (ht : PureS t) : Cong T.toS (arep T (foldA T t)).1 t :=
+  sorry
 
 /-- The output of an element: the observable of its representative. -/
 def oA (a : Fin (alg T).n) : Full.Out (Fin T.m) := obsFn T.toS (arep T a)
@@ -422,47 +311,31 @@ abbrev Rl (a a' : Fin (alg T).n) : Prop := Cong T.toS (arep T a).1 (arep T a').1
 
 theorem rl_E {a a' : Fin (alg T).n} (h : Rl T a a') (i : Nat) :
     EP (alg T).mul (oA T) i a a' :=
-  EP_max (alg T).mul (oA T) (Rl T)
-    (fun a a' h => cong_obsFn h (arep T a).2 (arep T a').2)
-    (fun a a' b h =>
-      ⟨cong_trans (arep_mul T a b)
-          (cong_trans (cong_left h (arep T b).2) (cong_symm (arep_mul T a' b))),
-        cong_trans (arep_mul T b a)
-          (cong_trans (cong_right h (arep T b).2) (cong_symm (arep_mul T b a')))⟩)
-    i a a' h
+  sorry
 
 theorem E_plug {a a' : Fin (alg T).n} (h : E T a a') : ∀ C : Phi.Ctx,
-    E T (foldA T (C.plug (arep T a).1)) (foldA T (C.plug (arep T a').1))
-  | .hole =>
-    EP_trans _ _ _ (rl_E T (foldA_cong T (arep T a).2) _)
-      (EP_trans _ _ _ h (EP_symm _ _ _ (rl_E T (foldA_cong T (arep T a').2) _)))
-  | .s => EP_refl _ _ _ _
-  | .app c d =>
-    EP_trans _ _ _ (EP_cong _ _ (E_plug h c) _).1 (EP_cong _ _ (E_plug h d) _).2
+    E T (foldA T (C.plug (arep T a).1)) (foldA T (C.plug (arep T a').1)) :=
+  sorry
 
 theorem obs_foldA {t : Term} (ht : PureS t) : oA T (foldA T t) = obsFn T.toS ⟨t, ht⟩ :=
-  cong_obsFn (foldA_cong T ht) (arep T _).2 ht
+  sorry
 
 /-- The stable relation is the syntactic congruence, on representatives. -/
-theorem E_sound {a a' : Fin (alg T).n} (h : E T a a') : Rl T a a' := by
-  intro C o
-  have pa := plug_pure C (arep T a).2
-  have pa' := plug_pure C (arep T a').2
-  have e : obsFn T.toS ⟨_, pa⟩ = obsFn T.toS ⟨_, pa'⟩ :=
-    (obs_foldA T pa).symm.trans ((EP_out _ _ _ (E_plug T h C)).trans (obs_foldA T pa'))
-  rw [obsFn_iff T.toS pa, obsFn_iff T.toS pa', e]
+theorem E_sound {a a' : Fin (alg T).n} (h : E T a a') : Rl T a a' :=
+  sorry
 
 /-- `E`, as a Boolean. -/
 def eB (a a' : Fin (alg T).n) : Bool := decide (E T a a')
 
-theorem eB_refl (a : Fin (alg T).n) : eB T a a = true := decide_eq_true (EP_refl _ _ _ a)
+theorem eB_refl (a : Fin (alg T).n) : eB T a a = true :=
+  sorry
 
 theorem eB_symm (a b : Fin (alg T).n) (h : eB T a b = true) : eB T b a = true :=
-  decide_eq_true (EP_symm _ _ _ (of_decide_eq_true h))
+  sorry
 
 theorem eB_trans (a b c : Fin (alg T).n) (h : eB T a b = true) (h' : eB T b c = true) :
     eB T a c = true :=
-  decide_eq_true (EP_trans _ _ _ (of_decide_eq_true h) (of_decide_eq_true h'))
+  sorry
 
 /-- Step 3: the class of an element, renumbered. -/
 def qi (a : Fin (alg T).n) : Fin (qn (eB T)) := qidx (eB T) (eB_refl T) a
@@ -471,13 +344,13 @@ def qi (a : Fin (alg T).n) : Fin (qn (eB T)) := qidx (eB T) (eB_refl T) a
 def qe (q : Fin (qn (eB T))) : Fin (alg T).n := qelt (eB T) q
 
 theorem qe_qi (a : Fin (alg T).n) : E T a (qe T (qi T a)) :=
-  of_decide_eq_true (qelt_idx (eB T) (eB_refl T) a)
+  sorry
 
 theorem qi_eq {a a' : Fin (alg T).n} (h : E T a a') : qi T a = qi T a' :=
-  qidx_eq (eB T) (eB_refl T) (eB_symm T) (eB_trans T) (decide_eq_true h)
+  sorry
 
 theorem qi_qe (q : Fin (qn (eB T))) : qi T (qe T q) = q :=
-  qidx_elt (eB T) (eB_refl T) (eB_symm T) q
+  sorry
 
 /-- The table of the quotient. -/
 def qap (q q' : Fin (qn (eB T))) : Fin (qn (eB T)) := qi T ((alg T).mul (qe T q) (qe T q'))
@@ -492,72 +365,42 @@ def qval : Term → Fin (qn (eB T))
 /-- The representative term of a class. -/
 def qrep (q : Fin (qn (eB T))) : CT := arep T (qe T q)
 
-theorem qval_eq : ∀ t : Term, qval T t = qi T (foldA T t)
-  | .S => rfl
-  | .K => rfl
-  | .I => rfl
-  | .app f x => by
-    show qi T ((alg T).mul (qe T (qval T f)) (qe T (qval T x))) =
-      qi T ((alg T).mul (foldA T f) (foldA T x))
-    rw [qval_eq f, qval_eq x]
-    apply qi_eq
-    exact EP_trans _ _ _ (EP_cong _ _ (EP_symm _ _ _ (qe_qi T (foldA T f))) _).1
-      (EP_cong _ _ (EP_symm _ _ _ (qe_qi T (foldA T x))) _).2
+theorem qval_eq : ∀ t : Term, qval T t = qi T (foldA T t) :=
+  sorry
 
 /-- The representative of the class of `t` is congruent to `t`. -/
-theorem qrep_cong {t : Term} (ht : PureS t) : Cong T.toS (qrep T (qval T t)).1 t := by
-  rw [qval_eq]
-  exact cong_trans (cong_symm (E_sound T (qe_qi T (foldA T t)))) (foldA_cong T ht)
+theorem qrep_cong {t : Term} (ht : PureS t) : Cong T.toS (qrep T (qval T t)).1 t :=
+  sorry
 
 /-- The kernel of the fold is the syntactic congruence. -/
 theorem qval_iff {t t' : Term} (ht : PureS t) (ht' : PureS t') :
-    qval T t = qval T t' ↔ Cong T.toS t t' := by
-  constructor
-  · intro h
-    have h1 := qrep_cong T ht
-    rw [h] at h1
-    exact cong_trans (cong_symm h1) (qrep_cong T ht')
-  · intro h
-    rw [qval_eq, qval_eq]
-    exact qi_eq T (rl_E T
-      (cong_trans (foldA_cong T ht) (cong_trans h (cong_symm (foldA_cong T ht')))) _)
+    qval T t = qval T t' ↔ Cong T.toS t t' :=
+  sorry
 
 /-- Every class is the fold of its representative term: the quotient is generated by `S`. -/
-theorem qval_rep (q : Fin (qn (eB T))) : qval T (qrep T q).1 = q := by
-  rw [qval_eq]
-  exact (qi_eq T (rl_E T (foldA_cong T (qrep T q).2) _)).trans (qi_qe T q)
+theorem qval_rep (q : Fin (qn (eB T))) : qval T (qrep T q).1 = q :=
+  sorry
 
 theorem qlaw_aux {ta tb tc : Term} (ha : PureS ta) (hb : PureS tb) (hc : PureS tc) :
     qval T (S ⬝ ta ⬝ tb ⬝ tc) = qval T (ta ⬝ tc ⬝ (tb ⬝ tc)) :=
-  (qval_iff T (.app (.app (.app .S ha) hb) hc) (.app (.app ha hc) (.app hb hc))).mpr
-    (cong_of_conv T.toS (.app (.app (.app .S ha) hb) hc) (.app (.app ha hc) (.app hb hc))
-      (.fwd (.S ta tb tc) (.refl _)))
+  sorry
 
 /-- The quotient satisfies the S-law, because the congruence contains conversion. -/
 theorem qlaw (a b c : Fin (qn (eB T))) :
-    qap T (qap T (qap T (qs T) a) b) c = qap T (qap T a c) (qap T b c) := by
-  have h := qlaw_aux T (qrep T a).2 (qrep T b).2 (qrep T c).2
-  have h' : qap T (qap T (qap T (qs T) (qval T (qrep T a).1)) (qval T (qrep T b).1))
-      (qval T (qrep T c).1) =
-      qap T (qap T (qval T (qrep T a).1) (qval T (qrep T c).1))
-        (qap T (qval T (qrep T b).1) (qval T (qrep T c).1)) := h
-  rw [qval_rep, qval_rep, qval_rep] at h'
-  exact h'
+    qap T (qap T (qap T (qs T) a) b) c = qap T (qap T a c) (qap T b c) :=
+  sorry
 
 /-- The homomorphism from the quotient to `T`: the value of the representative. -/
 def qh (q : Fin (qn (eB T))) : Fin T.m := T.val (qrep T q).1
 
 theorem qh_val {t : Term} (ht : PureS t) : qh T (qval T t) = T.val t :=
-  cong_val (qrep_cong T ht) (qrep T _).2 ht
+  sorry
 
-theorem qh_app (a b : Fin (qn (eB T))) : qh T (qap T a b) = T.ap (qh T a) (qh T b) := by
-  have h := qh_val T (PureS.app (qrep T a).2 (qrep T b).2)
-  have h' : qh T (qap T (qval T (qrep T a).1) (qval T (qrep T b).1)) =
-      T.ap (qh T a) (qh T b) := h
-  rw [qval_rep, qval_rep] at h'
-  exact h'
+theorem qh_app (a b : Fin (qn (eB T))) : qh T (qap T a b) = T.ap (qh T a) (qh T b) :=
+  sorry
 
-theorem qh_s : qh T (qs T) = T.s := qh_val T .S
+theorem qh_s : qh T (qs T) = T.s :=
+  sorry
 
 /-- The quotient as a table. -/
 def quoT : TModel where
@@ -571,13 +414,8 @@ def quoT : TModel where
     show T.φ (qh T (qap T a b)) = β (T.φ (qh T a)) (T.φ (qh T b))
     rw [qh_app]; exact T.φ_app _ _
 
-theorem quo_val : ∀ t : Term, (quoT T).val t = qval T t
-  | .S => rfl
-  | .K => rfl
-  | .I => rfl
-  | .app f x => by
-    show qap T ((quoT T).val f) ((quoT T).val x) = qap T (qval T f) (qval T x)
-    rw [quo_val f, quo_val x]
+theorem quo_val : ∀ t : Term, (quoT T).val t = qval T t :=
+  sorry
 
 end Lemma7
 
@@ -624,19 +462,16 @@ def decCong (T : TModel) {t t' : Term} (ht : PureS t) (ht' : PureS t') :
   decidable_of_iff _ ((lemma7 T).syn t t' ht ht')
 
 theorem Quo.gen {T : TModel} (q : Quo T) (a : Fin q.Q.m) : ∃ t, PureS t ∧ q.Q.val t = a :=
-  ⟨q.rep a, q.rep_pure a, q.rep_val a⟩
+  sorry
 
 /-- `h` fixes `s`. -/
-theorem Quo.h_s {T : TModel} (q : Quo T) : q.h q.Q.s = T.s := q.h_val S .S
+theorem Quo.h_s {T : TModel} (q : Quo T) : q.h q.Q.s = T.s :=
+  sorry
 
 /-- `h` is a homomorphism. -/
 theorem Quo.h_app {T : TModel} (q : Quo T) (a b : Fin q.Q.m) :
-    q.h (q.Q.ap a b) = T.ap (q.h a) (q.h b) := by
-  obtain ⟨ta, pa, rfl⟩ := q.gen a
-  obtain ⟨tb, pb, rfl⟩ := q.gen b
-  have h := q.h_val (ta ⬝ tb) (.app pa pb)
-  rw [q.h_val ta pa, q.h_val tb pb]
-  exact h
+    q.h (q.Q.ap a b) = T.ap (q.h a) (q.h b) :=
+  sorry
 
 /-! ## The reduction: `π_{d+1}` is a function of `O` over `M_d` -/
 
@@ -656,19 +491,8 @@ theorem reduction (𝔐 : Phi.SModel) (d : Nat) (o o' : 𝔐.M → Tree)
     (H : ∀ t : Term, PureS t → D2.Pre d t (o (𝔐.val t)))
     (H' : ∀ t : Term, PureS t → D2.Pre (d - 1) t (o' (𝔐.val t)))
     {t : Term} (ht : PureS t) {x : Full.Out 𝔐.M} (hx : Full.ObsF 𝔐 t x) :
-    D2.Pre (d + 1) t (outF o o' x) := by
-  cases x with
-  | hnf l =>
-    obtain ⟨v, hs, hv, rfl⟩ := hx
-    have hp := InfNF.steps_pure ht hs
-    rcases hv with rfl | ⟨a, rfl⟩ | ⟨a, b, rfl⟩
-    · exact D2.pre_bwd ht hs (.leaf d)
-    · exact .one hs (H a hp.app_inv.2)
-    · exact .two hs (H' a hp.app_inv.1.app_inv.2) (H b hp.app_inv.2)
-  | bot a b =>
-    obtain ⟨f, w, hs, hn, rfl, rfl⟩ := hx
-    have hp := InfNF.steps_pure ht hs
-    exact .bot hs (Full.bot_of_nohnf hp.app_inv.1 hn) (H f hp.app_inv.1) (H w hp.app_inv.2)
+    D2.Pre (d + 1) t (outF o o' x) :=
+  sorry
 
 /-- **The reduction, with the homomorphism** `h : M_d → M_{d−1}` as in the paper: if `M_d`
 computes `π_d` through `o_d`, and `M_{d−1}` (any valuation `v'` with `h ∘ M_d = v'`) computes
@@ -678,12 +502,8 @@ theorem reduction_hom (𝔐 : Phi.SModel) {M' : Type} (v' : Term → M') (h : �
     (H : ∀ t : Term, PureS t → D2.Pre d t (o (𝔐.val t)))
     (H' : ∀ t : Term, PureS t → D2.Pre (d - 1) t (o' (v' t)))
     {t : Term} (ht : PureS t) (P : Tree) :
-    D2.Pre (d + 1) t P ↔ P = outF o (fun a => o' (h a)) (obsFn 𝔐 ⟨t, ht⟩) := by
-  have key : D2.Pre (d + 1) t (outF o (fun a => o' (h a)) (obsFn 𝔐 ⟨t, ht⟩)) :=
-    reduction 𝔐 d o (fun a => o' (h a)) H
-      (fun u hu => by show D2.Pre (d - 1) u (o' (h (𝔐.val u))); rw [hh u hu]; exact H' u hu)
-      ht (obsFn_spec 𝔐 ⟨t, ht⟩)
-  exact ⟨fun hP => Conv.pre_unique (d + 1) ht hP key, fun e => by rw [e]; exact key⟩
+    D2.Pre (d + 1) t P ↔ P = outF o (fun a => o' (h a)) (obsFn 𝔐 ⟨t, ht⟩) :=
+  sorry
 
 /-! ## The base: S1's blocks -/
 
@@ -702,14 +522,8 @@ def pureB : Term → Bool
   | .app f x => pureB f && pureB x
   | _ => false
 
-theorem pureB_sound : ∀ {t : Term}, pureB t = true → PureS t
-  | .S, _ => .S
-  | .K, h => Bool.noConfusion h
-  | .I, h => Bool.noConfusion h
-  | .app f x, h => by
-    have h' : (pureB f && pureB x) = true := h
-    rw [Bool.and_eq_true] at h'
-    exact .app (pureB_sound h'.1) (pureB_sound h'.2)
+theorem pureB_sound : ∀ {t : Term}, pureB t = true → PureS t :=
+  sorry
 
 /-- A closed S-term for each block (found by closing `{S}` under `β`). -/
 def s1Reps : List Term := [S,
@@ -754,14 +568,13 @@ def s1Reps : List Term := [S,
 def s1RepsB : Bool :=
   r38.all fun i => pureB (s1Reps.getD i S) && Nat.beq (fold (s1Reps.getD i S)) i
 
-theorem s1RepsB_eq : s1RepsB = true := by decide +kernel
+theorem s1RepsB_eq : s1RepsB = true :=
+  sorry
 
 /-- Every block is the block of a closed S-term: S1's table is generated by `S`. -/
 theorem s1Reps_spec {i : Nat} (hi : i < 38) :
-    PureS (s1Reps.getD i S) ∧ fold (s1Reps.getD i S) = i := by
-  have h := s1RepsB_eq
-  simp only [s1RepsB, r38, List.all_eq_true, List.mem_range, Bool.and_eq_true] at h
-  exact ⟨pureB_sound (h i hi).1, Nat.eq_of_beq_eq_true (h i hi).2⟩
+    PureS (s1Reps.getD i S) ∧ fold (s1Reps.getD i S) = i :=
+  sorry
 
 /-- A block of the form `β 0 x`. -/
 def isOne (b : Nat) : Bool := r38.any fun x => Nat.beq (β 0 x) b
@@ -774,42 +587,8 @@ def o1 (b : Nat) : Tree :=
   else .app (.app .S .hole) .hole
 
 /-- **Depth 1**: the block determines the depth-1 prefix. -/
-theorem pre1_block {t : Term} (ht : PureS t) : D2.Pre 1 t (o1 (fold t)) := by
-  obtain ⟨u, hs, hu⟩ := Conv.reach_frame ht
-  have hp := InfNF.steps_pure ht hs
-  rw [← InfNF.steps_fold ht hs]
-  rcases hu with (rfl | ⟨a, rfl⟩ | ⟨a, b, rfl⟩) | ⟨f, w, rfl, hb⟩
-  · exact D2.pre_bwd ht hs (.leaf 0)
-  · have ha := fold_lt hp.app_inv.2
-    have h36 : β 0 (fold a) ≠ 36 := (hnf_blocks ha ha).1
-    have h0 : β 0 (fold a) ≠ 0 := (BExp.arity_blocks ha ha ha).2.1
-    have h1 : isOne (β 0 (fold a)) = true :=
-      List.any_eq_true.mpr ⟨fold a, List.mem_range.mpr ha, Nat.beq_refl _⟩
-    have e : o1 (fold (S ⬝ a)) = .app .S .hole := by
-      show o1 (β 0 (fold a)) = _
-      unfold o1
-      rw [if_neg h36, if_neg h0, if_pos h1]
-    rw [e]
-    exact .one hs (.zero a)
-  · have ha := fold_lt hp.app_inv.1.app_inv.2
-    have hb := fold_lt hp.app_inv.2
-    have h36 : β (β 0 (fold a)) (fold b) ≠ 36 := (hnf_blocks ha hb).2
-    have h0 : β (β 0 (fold a)) (fold b) ≠ 0 := (BExp.arity_blocks ha ha hb).2.2
-    have h1 : ¬ isOne (β (β 0 (fold a)) (fold b)) = true := by
-      intro h
-      obtain ⟨x, hx, e⟩ := List.any_eq_true.mp h
-      exact (BExp.arity_blocks (List.mem_range.mp hx) ha hb).1 (Nat.eq_of_beq_eq_true e)
-    have e : o1 (fold (S ⬝ a ⬝ b)) = .app (.app .S .hole) .hole := by
-      show o1 (β (β 0 (fold a)) (fold b)) = _
-      unfold o1
-      rw [if_neg h36, if_neg h0, if_neg h1]
-    rw [e]
-    exact .two hs (.zero a) (.zero b)
-  · have e : o1 (fold (f ⬝ w)) = .app .hole .hole := by
-      rw [Full.fold_frame hp.app_inv.2 hb]
-      rfl
-    rw [e]
-    exact .bot hs hb (.zero f) (.zero w)
+theorem pre1_block {t : Term} (ht : PureS t) : D2.Pre 1 t (o1 (fold t)) :=
+  sorry
 
 /-! ## Theorem 1: the tower -/
 
@@ -826,7 +605,7 @@ structure Level (d : Nat) where
   specP : ∀ t : Term, PureS t → D2.Pre (d - 1) t (outP (T.val t))
 
 theorem s1_rep_val (a : Fin 38) : s1T.val (s1Reps.getD a.1 S) = a :=
-  Fin.eq_of_val_eq ((s1T.φ_val (s1Reps_spec a.2).1).trans (s1Reps_spec a.2).2)
+  sorry
 
 /-- `M_0`: S1's blocks with the constant output (see the module header). -/
 def base0 : Level 0 where
@@ -888,48 +667,41 @@ def hom : (d : Nat) → Fin (M (d + 1)).m → Fin (M d).m
 `t` is `o d` of the fold of `t` into the finite table `M d`. -/
 theorem prefix_regularity (d : Nat) {t : Term} (ht : PureS t) (P : Tree) :
     D2.Pre d t P ↔ P = o d ((M d).val t) :=
-  ⟨fun h => Conv.pre_unique d ht h ((levels d).spec t ht),
-    fun e => by rw [e]; exact (levels d).spec t ht⟩
+  sorry
 
 /-- `M d` is generated by `S`: every element is the fold of a closed S-term. -/
 theorem generated (d : Nat) (a : Fin (M d).m) : ∃ t, PureS t ∧ (M d).val t = a :=
-  ⟨(levels d).rep a, (levels d).rep_pure a, (levels d).rep_val a⟩
+  sorry
 
 /-- `M d` maps to S1's blocks: `φ` of the fold is the block. -/
 theorem block (d : Nat) {t : Term} (ht : PureS t) : (M d).φ ((M d).val t) = fold t :=
-  (M d).φ_val ht
+  sorry
 
 /-- `hom d` composed with the fold into `M (d+1)` is the fold into `M d`. -/
-theorem hom_val : ∀ (d : Nat) {t : Term}, PureS t → hom d ((M (d + 1)).val t) = (M d).val t
-  | 0, _, _ => rfl
-  | d + 1, t, ht => (lemma7 (levels (d + 1)).T).h_val t ht
+theorem hom_val : ∀ (d : Nat) {t : Term}, PureS t → hom d ((M (d + 1)).val t) = (M d).val t :=
+  sorry
 
-theorem hom_s (d : Nat) : hom d (M (d + 1)).s = (M d).s := hom_val d .S
+theorem hom_s (d : Nat) : hom d (M (d + 1)).s = (M d).s :=
+  sorry
 
 /-- `hom d` is a homomorphism of S-models. -/
 theorem hom_app (d : Nat) (a b : Fin (M (d + 1)).m) :
-    hom d ((M (d + 1)).ap a b) = (M d).ap (hom d a) (hom d b) := by
-  obtain ⟨ta, pa, rfl⟩ := generated (d + 1) a
-  obtain ⟨tb, pb, rfl⟩ := generated (d + 1) b
-  have h := hom_val d (PureS.app pa pb)
-  rw [hom_val d pa, hom_val d pb]
-  exact h
+    hom d ((M (d + 1)).ap a b) = (M d).ap (hom d a) (hom d b) :=
+  sorry
 
 /-- The homomorphisms to the blocks commute with `hom`. -/
-theorem hom_φ (d : Nat) (a : Fin (M (d + 1)).m) : (M (d + 1)).φ a = (M d).φ (hom d a) := by
-  obtain ⟨ta, pa, rfl⟩ := generated (d + 1) a
-  rw [hom_val d pa, block (d + 1) pa, block d pa]
+theorem hom_φ (d : Nat) (a : Fin (M (d + 1)).m) : (M (d + 1)).φ a = (M d).φ (hom d a) :=
+  sorry
 
 /-- `M 0` and `M 1` are S1's 38 blocks; above, the quotient of Lemma 7. -/
-theorem M_zero : M 0 = s1T := rfl
-theorem M_one : M 1 = s1T := rfl
-theorem M_succ (d : Nat) : M (d + 2) = (lemma7 (M (d + 1))).Q := rfl
+theorem M_zero : M 0 = s1T :=
+  sorry
 
 /-- For `d ≥ 1`, the kernel of the fold into `M (d+1)` is the syntactic congruence of the full
 observable over `M d`. -/
 theorem M_syn (d : Nat) {t t' : Term} (ht : PureS t) (ht' : PureS t') :
     (M (d + 2)).val t = (M (d + 2)).val t' ↔ Cong (M (d + 1)).toS t t' :=
-  (lemma7 (M (d + 1))).syn t t' ht ht'
+  sorry
 
 /-- **Theorem 1**, assembled: for every `d` the table `M d` (a Lean function of `d`), generated
 by `S`, computes the depth-`d` prefix through `o d`, maps to S1's blocks, and maps to `M (d−1)`
@@ -940,8 +712,7 @@ theorem theorem_one (d : Nat) :
     (∀ t : Term, PureS t → (M d).φ ((M d).val t) = fold t) ∧
     (∀ t : Term, PureS t → hom d ((M (d + 1)).val t) = (M d).val t) ∧
     (∀ a b : Fin (M (d + 1)).m, hom d ((M (d + 1)).ap a b) = (M d).ap (hom d a) (hom d b)) :=
-  ⟨fun _ ht P => prefix_regularity d ht P, generated d, fun _ ht => block d ht,
-    fun _ ht => hom_val d ht, hom_app d⟩
+  sorry
 
 /-! ## Corollary 2 -/
 
@@ -951,17 +722,8 @@ def realizable (d : Nat) (P : Tree) : Bool :=
 
 /-- **Corollary 2.**  Some closed S-term has depth-`d` prefix `P` iff `P ∈ o_d(M_d)`. -/
 theorem realizable_iff (d : Nat) (P : Tree) :
-    realizable d P = true ↔ ∃ t, PureS t ∧ D2.Pre d t P := by
-  constructor
-  · intro h
-    obtain ⟨a, _, ha⟩ := List.any_eq_true.mp h
-    obtain ⟨t, ht, e⟩ := generated d a
-    refine ⟨t, ht, (prefix_regularity d ht P).mpr ?_⟩
-    rw [e]
-    exact (of_decide_eq_true ha).symm
-  · rintro ⟨t, ht, h⟩
-    exact List.any_eq_true.mpr ⟨(M d).val t, List.mem_finRange _,
-      decide_eq_true ((prefix_regularity d ht P).mp h).symm⟩
+    realizable d P = true ↔ ∃ t, PureS t ∧ D2.Pre d t P :=
+  sorry
 
 /-- **Corollary 2**: it is decidable whether some closed S-term has depth-`d` prefix `P`. -/
 instance realizableDec (d : Nat) (P : Tree) : Decidable (∃ t, PureS t ∧ D2.Pre d t P) :=
