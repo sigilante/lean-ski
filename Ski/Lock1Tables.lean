@@ -2,7 +2,7 @@ import Ski.HnfSound
 open Term
 
 /-!
-# Lock 1, Conj. CT: the table facts T1–T5 and T7–T12 on S1's 38-block table
+# Lock 1, Conj. CT: the table facts T1–T5 and T7–T13 on S1's 38-block table
 
 `notes/LOCK1-CT.md` §10 proves Theorems Q, TR and VIS from S1's block model of head normal
 forms (`HnfS`, `HnfSound`) and five finite facts T1–T5 about the block table `HnfS.β`,
@@ -51,6 +51,8 @@ note uses first to terms.
 * T12 (§13.2): the stack blocks `STK` (blocks of `K2` that some block annihilates; `STK_eq`)
   are self-dead (`T12`: `STK ⊆ SELF`); so a term `S c d` with `S c d w` hnf-less for some
   pure `w` is self-dead (`stack_self_dead`, Lemma SD).
+* T13 (§14.1): `K1 ∩ DEAD2 = {27}`, `β 0 27 = 27`, and `β 27 κ = 31` for every block `κ`
+  (`T13`), the table input of Prop. DH₁ and Theorem EH₁.
 
 "Closed" in the note is `PureS` here (closed terms over `S` alone).
 
@@ -648,5 +650,13 @@ theorem SX_not_two_dead : HasHnf (S ⬝ X ⬝ S ⬝ S) :=
 /-- `S U_0` is not 2-dead: `S U S S` has a head normal form. -/
 theorem SU0_not_two_dead : HasHnf (S ⬝ U ⬝ S ⬝ S) :=
   sound _ (.app (.app (.app .S pure_U) .S) .S) (by decide +kernel)
+
+/-! ### T13: one-item 2-dead heaps -/
+
+/-- **T13** (§14.1): (a) the only one-item block (`K1`) that is 2-dead is `27`;
+(b) `β 0 27 = 27`; (c) `β 27 κ = 31` for every block `κ`. -/
+theorem T13 : (∀ k, k ∈ K1 → k ∈ DEAD2 → k = 27) ∧ 27 ∈ K1 ∧ 27 ∈ DEAD2 ∧ β 0 27 = 27 ∧
+    ∀ κ, κ < 38 → β 27 κ = 31 := by
+  decide +kernel
 
 end Lock1Tables
