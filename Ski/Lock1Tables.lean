@@ -2,7 +2,7 @@ import Ski.HnfSound
 open Term
 
 /-!
-# Lock 1, Conj. CT: the table facts T1–T5, T7–T13, T15 and T16 on S1's 38-block table
+# Lock 1, Conj. CT: the table facts T1–T5, T7–T13 and T15–T17 on S1's 38-block table
 
 `notes/LOCK1-CT.md` §10 proves Theorems Q, TR and VIS from S1's block model of head normal
 forms (`HnfS`, `HnfSound`) and five finite facts T1–T5 about the block table `HnfS.β`,
@@ -57,6 +57,8 @@ note uses first to terms.
   self-dead for every stack `A = S c d` (`tee_self_dead`).
 * T16 (§19): the block sets `TH1`, `TH2` of the counter grammar are closed under its rules,
   two-item blocks of `TH2` are dead against `TH1 ++ TH2`, and `TH2 ⊆ SELF` (`T16`, `T16_dead`).
+* T17 (§20): the comb blocks `CB` are closed under `S`, inert terms have blocks in `IB`, the
+  extended rules stay in `TH2`, and `TH2` is dead against `IB` (`T17`, `T17_dead`).
 
 "Closed" in the note is `PureS` here (closed terms over `S` alone).
 
@@ -704,5 +706,28 @@ theorem T16 :
 theorem T16_dead {Z t : Term} (hZ : PureS Z) (ht : PureS t) (hz : fold Z ∈ TH2)
     (hb : fold t ∈ TH1 ++ TH2) : ¬ HasHnf (Z ⬝ t) :=
   dead_app hZ ht (T16.2.2.2.2.1 _ hz _ hb)
+
+/-! ### T17: combs and inert terms in the extended grammar -/
+
+/-- `CB`: the blocks of the right combs `S`, `S S`, `S (S S)`, … (§20). -/
+def CB : List Nat := [0, 1, 2, 4, 8, 17]
+
+/-- `IB`: the blocks of the inert terms `S c Q` (`c` a right comb, `Q` in the extended grammar). -/
+def IB : List Nat := [12, 22, 30]
+
+/-- **T17** (§20): (a) `CB` is closed under `S`; (IB) every `β (β 0 c) q` with `c ∈ CB`,
+`q ∈ Θ` lies in `IB`; (b) `Θ₂` is reached from `Θ₁` by `(H3)` with an inert or comb last
+argument, and by `(H4)`; (c) `Θ₂` is dead against `IB`. -/
+theorem T17 :
+    (∀ c, c ∈ CB → β 0 c ∈ CB) ∧
+    (∀ c, c ∈ CB → ∀ q, q ∈ TH1 ++ TH2 → β (β 0 c) q ∈ IB) ∧
+    (∀ p, p ∈ TH1 → ∀ q, q ∈ CB ++ IB → β (β 0 p) q ∈ TH2) ∧
+    (∀ p, p ∈ TH2 → ∀ q, q ∈ IB → β p q = 36) := by
+  decide +kernel
+
+/-- **T17(c)**, on terms: if `fold Z ∈ Θ₂` and `fold t ∈ IB`, then `Z t` has no head normal form. -/
+theorem T17_dead {Z t : Term} (hZ : PureS Z) (ht : PureS t) (hz : fold Z ∈ TH2)
+    (hb : fold t ∈ IB) : ¬ HasHnf (Z ⬝ t) :=
+  dead_app hZ ht (T17.2.2.2 _ hz _ hb)
 
 end Lock1Tables
