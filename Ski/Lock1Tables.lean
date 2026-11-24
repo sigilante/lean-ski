@@ -2,7 +2,7 @@ import Ski.HnfSound
 open Term
 
 /-!
-# Lock 1, Conj. CT: the table facts T1–T5 and T7–T11 on S1's 38-block table
+# Lock 1, Conj. CT: the table facts T1–T5 and T7–T12 on S1's 38-block table
 
 `notes/LOCK1-CT.md` §10 proves Theorems Q, TR and VIS from S1's block model of head normal
 forms (`HnfS`, `HnfSound`) and five finite facts T1–T5 about the block table `HnfS.β`,
@@ -48,6 +48,9 @@ note uses first to terms.
   `p`, `q` when `fold W ∈ DEAD2` (`two_dead`), in particular for `W = S (S X c)`, `S (S Y)`,
   `S G_e`, `S J_e`, `S U_{e+1}` (`T11_SSXc`, `T11_SSY`, `T11_SG`, `T11_SJ`, `T11_SU`); `S X`
   and `S U_0` are not 2-dead (`T11_not`, `SX_not_two_dead`, `SU0_not_two_dead`).
+* T12 (§13.2): the stack blocks `STK` (blocks of `K2` that some block annihilates; `STK_eq`)
+  are self-dead (`T12`: `STK ⊆ SELF`); so a term `S c d` with `S c d w` hnf-less for some
+  pure `w` is self-dead (`stack_self_dead`, Lemma SD).
 
 "Closed" in the note is `PureS` here (closed terms over `S` alone).
 
@@ -579,10 +582,7 @@ theorem stack_self_dead {c d w t : Term} (hc : PureS c) (hd : PureS d) (hw : Pur
     ¬ HasHnf (S ⬝ c ⬝ d ⬝ (t ⬝ (S ⬝ c ⬝ d))) := by
   have hA : PureS (S ⬝ c ⬝ d) := .app (.app .S hc) hd
   have h36 : β (fold (S ⬝ c ⬝ d)) (fold w) = 36 := (hnfless_iff (.app hA hw)).1 h
-  have hK1 : fold (S ⬝ c) ∈ K1 := mem_K1.2 ⟨fold_lt (.app .S hc), fold c, fold_lt hc, rfl⟩
-  have hK2 : fold (S ⬝ c ⬝ d) ∈ K2 :=
-    mem_K2.2 ⟨fold_lt hA, fold (S ⬝ c), hK1, fold d, fold_lt hd, rfl⟩
-  exact self_dead hA ht (T12 _ (mem_STK.2 ⟨hK2, fold w, fold_lt hw, h36⟩))
+  exact self_dead hA ht (T12 _ (mem_STK.2 ⟨fold_two hc hd, fold w, fold_lt hw, h36⟩))
 
 /-! ### T11: 2-dead blocks -/
 
