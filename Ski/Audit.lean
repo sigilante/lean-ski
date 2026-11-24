@@ -358,6 +358,7 @@ import Ski.NcfpXplus
 import Ski.NcfpN12
 import Ski.NcfpPlain
 import Ski.NcfpC
+import Ski.Lock1Tables
 
 /-!
 # The audit manifest — build-enforced
@@ -2098,3 +2099,6 @@ open Ski.Audit
 -- NCFP: Theorem C (Ncfp.thm_C, thm_C_hnf), Theorem NC (Ncfp.thm_NC, thm_NC_hnf), left combs (Ncfp.ncfp_left_comb)
 #audit_clean Ncfp.rk Ncfp.walkB_eq Ncfp.walk_pair Ncfp.β_ne_zero Ncfp.β_rank Ncfp.β_loop Ncfp.hnf12B_eq Ncfp.hnf12 Ncfp.fold_eq_zero Ncfp.comb_walk
 #audit_clean Ncfp.thm_C Ncfp.thm_C_hnf Ncfp.cor_C Ncfp.cor_C_sub Ncfp.cor_C_block Ncfp.comb_S_steps Ncfp.scomb_closed Ncfp.thm_NC Ncfp.thm_NC_hnf Ncfp.ncfp_left_comb
+-- Lock 1, Conj. CT (notes/LOCK1-CT.md §10): the table facts T1-T5 on S1's 38-block table by kernel evaluation, and Theorem Q items 1, 2 (Lock1Tables.thmQ1, thmQ2)
+#audit_clean Lock1Tables.mem_K1 Lock1Tables.mem_K2 Lock1Tables.mem_G Lock1Tables.K1_eq Lock1Tables.K2_eq Lock1Tables.G_eq Lock1Tables.T1 Lock1Tables.T2 Lock1Tables.T3a Lock1Tables.T3b Lock1Tables.T3c Lock1Tables.T4
+#audit_clean Lock1Tables.u_zero Lock1Tables.u_one Lock1Tables.u_add_two Lock1Tables.T5_dies Lock1Tables.T5_one Lock1Tables.T5 Lock1Tables.fold_one Lock1Tables.fold_two Lock1Tables.eq_SS Lock1Tables.lit13 Lock1Tables.hnfless_iff Lock1Tables.T2_dead Lock1Tables.thmQ1 Lock1Tables.thmQ2
