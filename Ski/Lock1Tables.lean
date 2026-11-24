@@ -2,7 +2,7 @@ import Ski.HnfSound
 open Term
 
 /-!
-# Lock 1, Conj. CT: the table facts T1–T5, T7–T13 and T15 on S1's 38-block table
+# Lock 1, Conj. CT: the table facts T1–T5, T7–T13, T15 and T16 on S1's 38-block table
 
 `notes/LOCK1-CT.md` §10 proves Theorems Q, TR and VIS from S1's block model of head normal
 forms (`HnfS`, `HnfSound`) and five finite facts T1–T5 about the block table `HnfS.β`,
@@ -55,6 +55,8 @@ note uses first to terms.
   (`T13`), the table input of Prop. DH₁ and Theorem EH₁.
 * T15 (§17): `β (β 0 α) (β 0 α) ∈ SELF` for every stack block `α` (`T15`); so `S A (S A)` is
   self-dead for every stack `A = S c d` (`tee_self_dead`).
+* T16 (§19): the block sets `TH1`, `TH2` of the counter grammar are closed under its rules,
+  two-item blocks of `TH2` are dead against `TH1 ++ TH2`, and `TH2 ⊆ SELF` (`T16`, `T16_dead`).
 
 "Closed" in the note is `PureS` here (closed terms over `S` alone).
 
@@ -677,5 +679,30 @@ theorem tee_self_dead {c d w t : Term} (hc : PureS c) (hd : PureS d) (hw : PureS
   have h36 : β (fold (S ⬝ c ⬝ d)) (fold w) = 36 := (hnfless_iff (.app hA hw)).1 h
   have hS : fold (S ⬝ c ⬝ d) ∈ STK := mem_STK.2 ⟨fold_two hc hd, fold w, fold_lt hw, h36⟩
   exact self_dead (.app (.app .S hA) (.app .S hA)) ht (T15 _ hS)
+
+/-! ### T16: the counter grammar -/
+
+/-- `Θ₁ = {18, 20, 27}`: the blocks of the one-item members of the counter grammar `ℋ` (§19). -/
+def TH1 : List Nat := [18, 20, 27]
+
+/-- `Θ₂ = {16, 31, 33, 34}`: the blocks of the two-item members of `ℋ`. -/
+def TH2 : List Nat := [16, 31, 33, 34]
+
+/-- **T16** (§19): (a) `Θ₁`, `Θ₂` contain the blocks of `X` (16) and `U` (33) and are closed
+under the rules of `ℋ`: `H ↦ S H`, `(P two-item, c any) ↦ S P c`, and `(P one-item, Q ∈ ℋ ∪ {S})
+↦ S P Q`; (b) a two-item block of `Θ₂` is dead against every block of `Θ`; (c) `Θ₂ ⊆ SELF`. -/
+theorem T16 :
+    (16 ∈ TH2 ∧ 33 ∈ TH2) ∧
+    (∀ h, h ∈ TH1 ++ TH2 → β 0 h ∈ TH1) ∧
+    (∀ p, p ∈ TH2 → ∀ k, k < 38 → β (β 0 p) k ∈ TH2) ∧
+    (∀ p, p ∈ TH1 → ∀ q, q ∈ 0 :: (TH1 ++ TH2) → β (β 0 p) q ∈ TH2) ∧
+    (∀ p, p ∈ TH2 → ∀ q, q ∈ TH1 ++ TH2 → β p q = 36) ∧
+    (∀ p, p ∈ TH2 → p ∈ SELF) := by
+  decide +kernel
+
+/-- **T16(b)**, on terms: if `fold Z ∈ Θ₂` and `fold t ∈ Θ`, then `Z t` has no head normal form. -/
+theorem T16_dead {Z t : Term} (hZ : PureS Z) (ht : PureS t) (hz : fold Z ∈ TH2)
+    (hb : fold t ∈ TH1 ++ TH2) : ¬ HasHnf (Z ⬝ t) :=
+  dead_app hZ ht (T16.2.2.2.2.1 _ hz _ hb)
 
 end Lock1Tables
