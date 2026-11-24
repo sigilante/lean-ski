@@ -357,6 +357,7 @@ import Ski.NcfpThree
 import Ski.NcfpXplus
 import Ski.NcfpN12
 import Ski.NcfpPlain
+import Ski.NcfpC
 
 /-!
 # The audit manifest — build-enforced
@@ -2094,3 +2095,6 @@ open Ski.Audit
 #audit_clean Ncfp.no_S_SSpnp_p Ncfp.no_S_SSnpSp_p Ncfp.no_S_SSpnSp_p Ncfp.no_S_SSpSnp_p Ncfp.no_S_SSpSpn_p Ncfp.no_S_SpSnp_p Ncfp.no_S_SpSpn_p
 -- NCFP for the plain contexts of depth at most 2 (Ncfp.ncfp_depth2)
 #audit_clean Ncfp.normalizing_S2 Ncfp.PlainD.mono Ncfp.not_holed_ofTerm Ncfp.not_holed_nf2 Ncfp.plain0_cases Ncfp.plain1_cases Ncfp.ncfp_depth2
+-- NCFP: Theorem C (Ncfp.thm_C, thm_C_hnf), Theorem NC (Ncfp.thm_NC, thm_NC_hnf), left combs (Ncfp.ncfp_left_comb)
+#audit_clean Ncfp.rk Ncfp.walkB_eq Ncfp.walk_pair Ncfp.β_ne_zero Ncfp.β_rank Ncfp.β_loop Ncfp.hnf12B_eq Ncfp.hnf12 Ncfp.fold_eq_zero Ncfp.comb_walk
+#audit_clean Ncfp.thm_C Ncfp.thm_C_hnf Ncfp.cor_C Ncfp.cor_C_sub Ncfp.cor_C_block Ncfp.comb_S_steps Ncfp.scomb_closed Ncfp.thm_NC Ncfp.thm_NC_hnf Ncfp.ncfp_left_comb
