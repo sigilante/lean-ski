@@ -2,7 +2,7 @@ import Ski.HnfSound
 open Term
 
 /-!
-# Lock 1, Conj. CT: the table facts T1–T5 and T7–T13 on S1's 38-block table
+# Lock 1, Conj. CT: the table facts T1–T5, T7–T13 and T15 on S1's 38-block table
 
 `notes/LOCK1-CT.md` §10 proves Theorems Q, TR and VIS from S1's block model of head normal
 forms (`HnfS`, `HnfSound`) and five finite facts T1–T5 about the block table `HnfS.β`,
@@ -53,6 +53,8 @@ note uses first to terms.
   pure `w` is self-dead (`stack_self_dead`, Lemma SD).
 * T13 (§14.1): `K1 ∩ DEAD2 = {27}`, `β 0 27 = 27`, and `β 27 κ = 31` for every block `κ`
   (`T13`), the table input of Prop. DH₁ and Theorem EH₁.
+* T15 (§17): `β (β 0 α) (β 0 α) ∈ SELF` for every stack block `α` (`T15`); so `S A (S A)` is
+  self-dead for every stack `A = S c d` (`tee_self_dead`).
 
 "Closed" in the note is `PureS` here (closed terms over `S` alone).
 
@@ -658,5 +660,22 @@ theorem SU0_not_two_dead : HasHnf (S ⬝ U ⬝ S ⬝ S) :=
 theorem T13 : (∀ k, k ∈ K1 → k ∈ DEAD2 → k = 27) ∧ 27 ∈ K1 ∧ 27 ∈ DEAD2 ∧ β 0 27 = 27 ∧
     ∀ κ, κ < 38 → β 27 κ = 31 := by
   decide +kernel
+
+/-! ### T15: the heap `S a (S a)` over a stack `a` is self-dead -/
+
+/-- **T15** (§17): for every stack block `α`, the block `β (β 0 α) (β 0 α)` of `S a (S a)` is
+self-dead (the values are `34` for `α ∈ {16, 26}` and `31` otherwise). -/
+theorem T15 : ∀ a, a ∈ STK → β (β 0 a) (β 0 a) ∈ SELF := by decide +kernel
+
+/-- **T15**, on terms: if `A = S c d` and `A w` has no head normal form for some pure `w`,
+then `S A (S A)` is self-dead. -/
+theorem tee_self_dead {c d w t : Term} (hc : PureS c) (hd : PureS d) (hw : PureS w)
+    (ht : PureS t) (h : ¬ HasHnf (S ⬝ c ⬝ d ⬝ w)) :
+    ¬ HasHnf (S ⬝ (S ⬝ c ⬝ d) ⬝ (S ⬝ (S ⬝ c ⬝ d)) ⬝
+      (t ⬝ (S ⬝ (S ⬝ c ⬝ d) ⬝ (S ⬝ (S ⬝ c ⬝ d))))) := by
+  have hA : PureS (S ⬝ c ⬝ d) := .app (.app .S hc) hd
+  have h36 : β (fold (S ⬝ c ⬝ d)) (fold w) = 36 := (hnfless_iff (.app hA hw)).1 h
+  have hS : fold (S ⬝ c ⬝ d) ∈ STK := mem_STK.2 ⟨fold_two hc hd, fold w, fold_lt hw, h36⟩
+  exact self_dead (.app (.app .S hA) (.app .S hA)) ht (T15 _ hS)
 
 end Lock1Tables
