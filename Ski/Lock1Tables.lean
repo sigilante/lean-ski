@@ -394,7 +394,7 @@ theorem fold_Gfam {Y : Term} (h : Base Y) : ∀ e, fold (Gfam Y e) = 31
     show β (β 0 (fold (Gfam Y e))) (β 0 (β (fold (S ⬝ (S ⬝ Y))) (β 0 (fold (Gfam Y e))))) = 31
     rw [fold_Gfam h e, fold_SS_base h]; decide +kernel
 
-/-- `fold J_e = 31` (`e ≥ 1`), over either base. -/
+/-- `fold J_e = 31` (here `Jfam Y e` is the note's `J_{e+1}`), over either base. -/
 theorem fold_Jfam {Y : Term} (h : Base Y) (e : Nat) : fold (Jfam Y e) = 31 := by
   show β (fold (S ⬝ (S ⬝ Y))) (β 0 (fold (Gfam Y e))) = 31
   rw [fold_Gfam h e, fold_SS_base h]; decide +kernel
@@ -438,7 +438,7 @@ theorem T8_XG {Y : Term} (h : Base Y) (e : Nat) : ¬ HasHnf (X ⬝ Gfam Y e) := 
   refine dead_app pure_X (pure_Gfam (pure_base h) e) ?_
   rw [fold_X, fold_Gfam h e]; exact T8.2.2.2.2.2.1
 
-/-- **T8**: `X J_e` has no head normal form (`e ≥ 1`). -/
+/-- **T8**: `X J_e` has no head normal form (`Jfam Y e` is the note's `J_{e+1}`). -/
 theorem T8_XJ {Y : Term} (h : Base Y) (e : Nat) : ¬ HasHnf (X ⬝ Jfam Y e) := by
   refine dead_app pure_X (pure_Jfam (pure_base h) e) ?_
   rw [fold_X, fold_Jfam h e]; exact T8.2.2.2.2.2.1
@@ -450,7 +450,7 @@ theorem T8_YG {Y : Term} (h : Base Y) (e : Nat) : ¬ HasHnf (Y ⬝ Gfam Y e) := 
   rw [fold_Gfam h e]
   rcases fold_base h with e | e <;> rw [e] <;> assumption
 
-/-- **T8**: `Y J_e` has no head normal form (`e ≥ 1`). -/
+/-- **T8**: `Y J_e` has no head normal form (`Jfam Y e` is the note's `J_{e+1}`). -/
 theorem T8_YJ {Y : Term} (h : Base Y) (e : Nat) : ¬ HasHnf (Y ⬝ Jfam Y e) := by
   obtain ⟨_, _, _, _, _, h6, _, h8⟩ := T8
   refine dead_app (pure_base h) (pure_Jfam (pure_base h) e) ?_
@@ -463,7 +463,7 @@ theorem T8_GSG {Y : Term} (h : Base Y) (i e : Nat) : ¬ HasHnf (Gfam Y i ⬝ (S 
   refine dead_app (pure_Gfam (pure_base h) i) (.app .S (pure_Gfam (pure_base h) e)) ?_
   rw [fold_Gfam h i, fold_S_Gfam h e]; exact T8.2.2.2.2.2.2.1
 
-/-- **T8**: `J_e (S J_e)` has no head normal form (`e ≥ 1`). -/
+/-- **T8**: `J_e (S J_e)` has no head normal form (`Jfam Y e` is the note's `J_{e+1}`). -/
 theorem T8_JSJ {Y : Term} (h : Base Y) (e : Nat) : ¬ HasHnf (Jfam Y e ⬝ (S ⬝ Jfam Y e)) := by
   refine dead_app (pure_Jfam (pure_base h) e) (.app .S (pure_Jfam (pure_base h) e)) ?_
   rw [fold_Jfam h e, fold_S_Jfam h e]; exact T8.2.2.2.2.2.2.1
@@ -540,7 +540,7 @@ theorem T10_G {Y t : Term} (h : Base Y) (e : Nat) (ht : PureS t) :
     ¬ HasHnf (Gfam Y e ⬝ (t ⬝ Gfam Y e)) :=
   self_dead (pure_Gfam (pure_base h) e) ht (SELF_fam _ (.inr (.inr (.inl (fold_Gfam h e)))))
 
-/-- **T10**, on terms: `J_e` (`e ≥ 1`) over either base is self-dead. -/
+/-- **T10**, on terms: `J_e` (`Jfam Y e` is the note's `J_{e+1}`) over either base is self-dead. -/
 theorem T10_J {Y t : Term} (h : Base Y) (e : Nat) (ht : PureS t) :
     ¬ HasHnf (Jfam Y e ⬝ (t ⬝ Jfam Y e)) :=
   self_dead (pure_Jfam (pure_base h) e) ht (SELF_fam _ (.inr (.inr (.inl (fold_Jfam h e)))))
@@ -601,7 +601,7 @@ theorem T11_SG {Y p q : Term} (h : Base Y) (e : Nat) (hp : PureS p) (hq : PureS 
   refine two_dead (.app .S (pure_Gfam (pure_base h) e)) hp hq ?_
   rw [fold_S_Gfam h e]; exact DEAD2_27
 
-/-- **T11**, on terms: `S J_e` (`e ≥ 1`) is 2-dead, over either base. -/
+/-- **T11**, on terms: `S J_e` (`Jfam Y e` is the note's `J_{e+1}`) is 2-dead, over either base. -/
 theorem T11_SJ {Y p q : Term} (h : Base Y) (e : Nat) (hp : PureS p) (hq : PureS q) :
     ¬ HasHnf (S ⬝ Jfam Y e ⬝ p ⬝ q) := by
   refine two_dead (.app .S (pure_Jfam (pure_base h) e)) hp hq ?_
