@@ -347,6 +347,16 @@ import Ski.Full
 import Ski.TowerFin
 import Ski.Tower
 import Ski.Ncfp
+import Ski.NcfpTheta
+import Ski.NcfpLeafless
+import Ski.NcfpN
+import Ski.NcfpN2
+import Ski.NcfpDepth2
+import Ski.NcfpScheme
+import Ski.NcfpThree
+import Ski.NcfpXplus
+import Ski.NcfpN12
+import Ski.NcfpPlain
 
 /-!
 # The audit manifest — build-enforced
@@ -2043,3 +2053,44 @@ open Ski.Audit
 #audit_clean Ncfp.hdesc_of_steps Ncfp.HDesc.trans Ncfp.HDesc.irrefl Ncfp.tooth_descent Ncfp.teeth_unbounded Ncfp.teeth_unbounded_seq Ncfp.fold_apps Ncfp.pure_apps_of
 #audit_clean Ncfp.snoc_cases Ncfp.norm_bound Ncfp.fold_conv Ncfp.cor_B1 Ncfp.cor_B1'
 #audit_clean Ncfp.mem_del Ncfp.del_length_le Ncfp.del_length_lt
+-- NCFP: Lemmas TD, SS, ZA, NH, ZI (leafless sets), Theorem Θ (Ncfp.theta), Corollary Θ1 (Ncfp.ncfp_two, no_S_p_p), Theorem Θ′ (Ncfp.theta', no_S_p_Sp, no_SSS_p), Theorem Θ″ (Ncfp.theta'', no_S_Sp_p)
+#audit_clean Ncfp.lemma_TD Ncfp.sz_appS Ncfp.lemma_SS Ncfp.lemma_SS_sz Ncfp.cor_SS1 Ncfp.stepsK_steps Ncfp.pure_args Ncfp.step_apps_inv
+#audit_clean Ncfp.track_step Ncfp.apps_app_ne_S Ncfp.apps_eq_S1 Ncfp.apps_eq_S2 Ncfp.frame3_item Ncfp.GoodHnf.isHnf Ncfp.lemma_NH Ncfp.Leafless.fold_ne
+#audit_clean Ncfp.WZ.pure Ncfp.wz_step Ncfp.wz_no_hnf Ncfp.wz_bot Ncfp.lemma_ZA_two Ncfp.lemma_ZA_one Ncfp.track_run Ncfp.lemma_ZI_i
+#audit_clean Ncfp.IsItem.apps Ncfp.ItemSub.psub Ncfp.itemsub_step Ncfp.lemma_ZI_ii Ncfp.ThetaSet.leafless Ncfp.ThetaSet.k2 Ncfp.ThetaSet.not_S Ncfp.theta_chain
+#audit_clean Ncfp.theta_aux Ncfp.theta Ncfp.hnf1_conv Ncfp.hnf2_conv Ncfp.ncfp_two Ncfp.no_S_p_p Ncfp.thetap_td Ncfp.theta'
+#audit_clean Ncfp.no_S_p_Sp Ncfp.no_SSS_p Ncfp.theta'' Ncfp.no_S_Sp_p
+-- NCFP: Fact LI (Ncfp.fact_LI), Lemma PR (Ncfp.lemma_PR, pr_members), Theorem L (Ncfp.thm_L: no leafless set meets finitely many conversion classes), Corollary L1 (Ncfp.ncfp_holes)
+#audit_clean Ncfp.em_false Ncfp.fact_LI Ncfp.spine_fun Ncfp.spine_conv Ncfp.Leafless.not_S Ncfp.sz_Sj_ge Ncfp.IsItem.itemsub Ncfp.pr_members
+#audit_clean Ncfp.pr_one Ncfp.leafless_chain Ncfp.lemma_PR Ncfp.thm_L_bounded Ncfp.spine_bound Ncfp.thm_L Ncfp.SubC.trans Ncfp.subs_self
+#audit_clean Ncfp.SubC.mem Ncfp.HCtx.hole_sub Ncfp.ncfp_holes
+-- NCFP: Lemma LL (Ncfp.lemma_LL), Corollary LL1, Theorem N1 (Ncfp.thm_N1, claim_D, no_S_SSp_p), Theorem N2 (Ncfp.thm_N2, no_S_p_Snp)
+#audit_clean Ncfp.wrap_S Ncfp.lemma_LL Ncfp.cor_LL1 Ncfp.progress_bot Ncfp.claim_D Ncfp.claim_E Ncfp.thm_N1 Ncfp.no_S_SSp_p
+#audit_clean Ncfp.normal_S Ncfp.Normal.app_inv Ncfp.normalizing_S1 Ncfp.finite_descent_nn Ncfp.n2_not_norm Ncfp.n2_td Ncfp.thm_N2 Ncfp.no_S_p_Snp
+-- NCFP: Theorem 2' (Ncfp.right_combs'), Theorem N3 (Ncfp.thm_N3, no_S_Snp_p), Theorem N4 (Ncfp.thm_N4, no_S_Spn_p), Theorem N5 (Ncfp.thm_N5, no_S_p_Spn)
+#audit_clean Ncfp.Next'.desc Ncfp.nonlit_exists' Ncfp.run_inner' Ncfp.run' Ncfp.small_desc' Ncfp.right_combs' Ncfp.not_norm_gen Ncfp.not_normalizing
+#audit_clean Ncfp.thm_N5 Ncfp.hnf2_conv_right Ncfp.hnf2_conv_left Ncfp.no_S_p_Spn Ncfp.thm_N4 Ncfp.no_S_Spn_p Ncfp.claim_D'_frames Ncfp.thm_N3
+#audit_clean Ncfp.no_S_Snp_p
+-- NCFP: Lemma SR, Lemma D* (Ncfp.lemma_Dstar), Theorem G' (Ncfp.mixed_combs'), Theorem X (Ncfp.thm_X), Lemma LC; Theorem T at distance 0 (Ncfp.thm_T0, ncfp_scheme), the equations of N6-N10, Theorem N11 (Ncfp.thm_N11, no_S_SpSp_n)
+#audit_clean Ncfp.lemma_SR Ncfp.dstar_frames Ncfp.lemma_Dstar Ncfp.NextG'.desc Ncfp.runG_inner' Ncfp.runG' Ncfp.small_descG' Ncfp.mixed_combs'
+#audit_clean Ncfp.thm_X Ncfp.lemma_LC
+#audit_clean Ncfp.typed_nn Ncfp.typed_not_normalizing Ncfp.slot_mism Ncfp.typed_apart Ncfp.thm_T0 Ncfp.slotok_cls Ncfp.slotok_nf Ncfp.tyok_one
+#audit_clean Ncfp.tyok_two Ncfp.typed_of_reps Ncfp.ncfp_scheme Ncfp.no_S_Spp_n Ncfp.no_S_n_Spp Ncfp.no_S_Sp_Snp Ncfp.no_S_Snp_Spm Ncfp.no_S_Sp_Spn
+#audit_clean Ncfp.no_S_Snp_Sp Ncfp.no_S_Spn_Sp Ncfp.no_S_Snp_Smp Ncfp.no_S_Spn_Smp Ncfp.no_S_Spn_Spm Ncfp.thm_N11 Ncfp.no_S_SpSp_n
+-- NCFP: the three-hole shapes of depth 2 with one closed part (Ncfp.thm_T3a .. thm_T3d; no_S_Spp_Snp, no_S_Spp_Spn, no_S_Snp_Spp, no_S_Spn_Spp)
+#audit_clean Ncfp.nonlit_form Ncfp.big_ne_S Ncfp.three_X Ncfp.thm_T3a Ncfp.thm_T3b Ncfp.thm_T3d Ncfp.thm_T3c Ncfp.no_S_Spp_Snp
+#audit_clean Ncfp.no_S_Spp_Spn Ncfp.no_S_Snp_Spp Ncfp.no_S_Spn_Spp
+-- NCFP: Theorem X+ (Ncfp.thm_Xplus), Corollary X1 for sets and for contexts (Ncfp.cor_X1, ncfp_X1), the nine two-hole contexts of depth 3 of Cor. X1
+#audit_clean Ncfp.sz_ge_two Ncfp.lemma_P3 Ncfp.no_pred3 Ncfp.xp_cases Ncfp.xp_pred Ncfp.xp_block Ncfp.xp_small Ncfp.thm_Xplus
+#audit_clean Ncfp.thm_X_of_Xplus Ncfp.cor_X1 Ncfp.SimpB.mono Ncfp.Simp.bound Ncfp.X1Ctx.holed Ncfp.X1B.mono Ncfp.X1Ctx.bound Ncfp.simpB_hnf
+#audit_clean Ncfp.ncfp_X1 Ncfp.no_S_SpSnp Ncfp.no_S_Sp_SnSp Ncfp.no_S_n_SpSp Ncfp.no_S_Snp_SSmp Ncfp.no_S_SpSnp_m Ncfp.no_S_Spn_SSpm Ncfp.no_S_n_SpSmp
+#audit_clean Ncfp.no_S_Snp_SmSkp Ncfp.no_S_Spn_SmSpk
+-- NCFP: Lemma D* with its addendum (Ncfp.lemma_Dstar_add), Lemmas AP and PF, Claim P, Theorem N12 (Ncfp.thm_N12_1 .. thm_N12_8) and its eight equations
+#audit_clean Ncfp.dstar_frames_add Ncfp.lemma_Dstar_add Ncfp.hnf2_ne_S Ncfp.hnf2_ne_S1 Ncfp.HasTy2.not_S Ncfp.HasTy2.not_S1 Ncfp.HasTy2.items Ncfp.disj_first
+#audit_clean Ncfp.disj_second Ncfp.disj_kind Ncfp.norm_items2 Ncfp.norm_items1 Ncfp.nn_self Ncfp.HasTy2.nn_left Ncfp.HasTy2.nn_right Ncfp.HasTy1.nn
+#audit_clean Ncfp.lemma_AP1 Ncfp.lemma_AP1_sz Ncfp.lemma_AP2 Ncfp.lemma_AP3 Ncfp.lemma_AP4 Ncfp.lemma_PF Ncfp.pform_small Ncfp.claim_P
+#audit_clean Ncfp.big_arg_A Ncfp.first_A Ncfp.xp_mem Ncfp.thm_N12_1 Ncfp.thm_N12_2 Ncfp.thm_N12_3 Ncfp.thm_N12_4 Ncfp.thm_N12_5
+#audit_clean Ncfp.thm_N12_6 Ncfp.thm_N12_7 Ncfp.thm_N12_8 Ncfp.cls2 Ncfp.cls2_left Ncfp.cls2_right Ncfp.cls1 Ncfp.no_S_SSnpp_p
+#audit_clean Ncfp.no_S_SSpnp_p Ncfp.no_S_SSnpSp_p Ncfp.no_S_SSpnSp_p Ncfp.no_S_SSpSnp_p Ncfp.no_S_SSpSpn_p Ncfp.no_S_SpSnp_p Ncfp.no_S_SpSpn_p
+-- NCFP for the plain contexts of depth at most 2 (Ncfp.ncfp_depth2)
+#audit_clean Ncfp.normalizing_S2 Ncfp.PlainD.mono Ncfp.not_holed_ofTerm Ncfp.not_holed_nf2 Ncfp.plain0_cases Ncfp.plain1_cases Ncfp.ncfp_depth2
