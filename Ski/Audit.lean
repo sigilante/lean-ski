@@ -2102,3 +2102,5 @@ open Ski.Audit
 -- Lock 1, Conj. CT (notes/LOCK1-CT.md §10): the table facts T1-T5 on S1's 38-block table by kernel evaluation, and Theorem Q items 1, 2 (Lock1Tables.thmQ1, thmQ2)
 #audit_clean Lock1Tables.mem_K1 Lock1Tables.mem_K2 Lock1Tables.mem_G Lock1Tables.K1_eq Lock1Tables.K2_eq Lock1Tables.G_eq Lock1Tables.T1 Lock1Tables.T2 Lock1Tables.T3a Lock1Tables.T3b Lock1Tables.T3c Lock1Tables.T4
 #audit_clean Lock1Tables.u_zero Lock1Tables.u_one Lock1Tables.u_add_two Lock1Tables.T5_dies Lock1Tables.T5_one Lock1Tables.T5 Lock1Tables.fold_one Lock1Tables.fold_two Lock1Tables.eq_SS Lock1Tables.lit13 Lock1Tables.hnfless_iff Lock1Tables.T2_dead Lock1Tables.thmQ1 Lock1Tables.thmQ2
+-- Lock 1, Conj. CT (notes/LOCK1-CT.md §11.4): table fact T7 and the family U_e; U_e (S U_e) and U_j U_m have no hnf (Lock1Tables.T7_hnfless, F1)
+#audit_clean Lock1Tables.pure_T Lock1Tables.pure_U Lock1Tables.pure_D Lock1Tables.pure_Ufam Lock1Tables.fold_U Lock1Tables.fold_D Lock1Tables.T7_step Lock1Tables.T7 Lock1Tables.T7_cross Lock1Tables.fseq_succ Lock1Tables.fseq_mem Lock1Tables.fold_Ufam Lock1Tables.T7_hnfless Lock1Tables.F1

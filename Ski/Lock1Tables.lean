@@ -2,7 +2,7 @@ import Ski.HnfSound
 open Term
 
 /-!
-# Lock 1, Conj. CT: the five table facts T1–T5 on S1's 38-block table
+# Lock 1, Conj. CT: the table facts T1–T5 and T7 on S1's 38-block table
 
 `notes/LOCK1-CT.md` §10 proves Theorems Q, TR and VIS from S1's block model of head normal
 forms (`HnfS`, `HnfSound`) and five finite facts T1–T5 about the block table `HnfS.β`,
@@ -27,7 +27,12 @@ note uses first to terms.
   if `a w` has no head normal form and `S c d` is not `S (S S) (S S)`, then `S c d a w`
   has none (`thmQ1`); item 2, the reduction of the exception (`thmQ2`).
 
-Not here: Theorem Q item 4, Theorems TR and VIS (they need normal forms, confluence and
+* T7 (§11.4): with `T = S S S`, `U = S T T`, `U_{e+1} = S U_e (S U_e)` (`Ufam`), the blocks
+  `f_e = fold U_e` are `33, 31, 31, …` (`fold_Ufam`, `fseq_succ`) and `β f (β 0 f) = 36` for
+  `f ∈ {33, 31}` (`T7`); so `U_e (S U_e)` has no head normal form (`T7_hnfless`), the fact
+  Theorem FCT uses.  The cross-check `β f f' = 36` (`T7_cross`) gives Lemma F1 (`F1`).
+
+Not here: Theorem FCT itself; Theorem Q item 4, Theorems TR and VIS (they need normal forms, confluence and
 the Moves), and the derivation of T5's hypotheses from terms (§10.3).
 -/
 
@@ -186,5 +191,82 @@ theorem thmQ2 (a w : Term) :
   .step (.left w (.S S a (S ⬝ S ⬝ a))) <|
   .step (.S (S ⬝ S ⬝ a) (a ⬝ (S ⬝ S ⬝ a)) w) <|
   .step (.left _ (.S S a w)) (.refl _)
+
+/-! ## T7 and the family `U_e` (§11.4) -/
+
+/-- `T = S S S`. -/
+def T : Term := S ⬝ S ⬝ S
+
+/-- `U = S T T`. -/
+def U : Term := S ⬝ T ⬝ T
+
+/-- `D(a) = S a (S a)`. -/
+def D (a : Term) : Term := S ⬝ a ⬝ (S ⬝ a)
+
+/-- `U_e = D^e(U)`: `U_0 = U`, `U_{e+1} = S U_e (S U_e)`. -/
+def Ufam : Nat → Term
+  | 0 => U
+  | e + 1 => D (Ufam e)
+
+/-- The block of `D(a)` from the block of `a`: `f ↦ β (β 0 f) (β 0 f)`. -/
+def fstep (f : Nat) : Nat := β (β 0 f) (β 0 f)
+
+/-- The sequence of T7: `f_0 = 33`, `f_{e+1} = β (β 0 f_e) (β 0 f_e)`. -/
+def fseq : Nat → Nat
+  | 0 => 33
+  | e + 1 => fstep (fseq e)
+
+theorem pure_T : PureS T := .app (.app .S .S) .S
+theorem pure_U : PureS U := .app (.app .S pure_T) pure_T
+theorem pure_D {a : Term} (ha : PureS a) : PureS (D a) := .app (.app .S ha) (.app .S ha)
+
+theorem pure_Ufam : ∀ e, PureS (Ufam e)
+  | 0 => pure_U
+  | e + 1 => pure_D (pure_Ufam e)
+
+/-- `fold U = 33`. -/
+theorem fold_U : fold U = 33 := by decide +kernel
+
+theorem fold_D (a : Term) : fold (D a) = fstep (fold a) := rfl
+
+/-- **T7**, the sequence: `33 ↦ 31 ↦ 31`. -/
+theorem T7_step : fstep 33 = 31 ∧ fstep 31 = 31 := by decide +kernel
+
+/-- **T7**, the table fact: `β f (β 0 f) = 36` for `f ∈ {33, 31}`. -/
+theorem T7 : ∀ f, f = 33 ∨ f = 31 → β f (β 0 f) = 36 := by
+  rintro f (rfl | rfl) <;> decide +kernel
+
+/-- The cross-check of T7 (the table fact behind Lemma F1): `β f f' = 36` for
+`f, f' ∈ {33, 31}`. -/
+theorem T7_cross : ∀ f, f = 33 ∨ f = 31 → ∀ f', f' = 33 ∨ f' = 31 → β f f' = 36 := by
+  rintro f (rfl | rfl) f' (rfl | rfl) <;> decide +kernel
+
+/-- The sequence is `33, 31, 31, …`. -/
+theorem fseq_succ : ∀ e, fseq (e + 1) = 31
+  | 0 => T7_step.1
+  | e + 1 => by rw [fseq, fseq_succ e]; exact T7_step.2
+
+theorem fseq_mem : ∀ e, fseq e = 33 ∨ fseq e = 31
+  | 0 => .inl rfl
+  | e + 1 => .inr (fseq_succ e)
+
+/-- `f_e = fold U_e`. -/
+theorem fold_Ufam : ∀ e, fold (Ufam e) = fseq e
+  | 0 => fold_U
+  | e + 1 => by rw [Ufam, fold_D, fold_Ufam e, fseq]
+
+/-- **T7**, on terms (§11.4): `U_e (S U_e)` has no head normal form, for every `e`. -/
+theorem T7_hnfless (e : Nat) : ¬ HasHnf (Ufam e ⬝ (S ⬝ Ufam e)) := by
+  refine no_hnf_of_bot (.app (pure_Ufam e) (.app .S (pure_Ufam e))) ?_
+  show β (fold (Ufam e)) (β 0 (fold (Ufam e))) = 36
+  rw [fold_Ufam]
+  exact T7 _ (fseq_mem e)
+
+/-- **Lemma F1** (§8), from the cross-check: `U_j U_m` has no head normal form. -/
+theorem F1 (j m : Nat) : ¬ HasHnf (Ufam j ⬝ Ufam m) := by
+  refine no_hnf_of_bot (.app (pure_Ufam j) (pure_Ufam m)) ?_
+  show β (fold (Ufam j)) (fold (Ufam m)) = 36
+  rw [fold_Ufam, fold_Ufam]
+  exact T7_cross _ (fseq_mem j) _ (fseq_mem m)
 
 end Lock1Tables
