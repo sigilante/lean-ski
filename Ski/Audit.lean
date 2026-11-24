@@ -358,6 +358,7 @@ import Ski.NcfpXplus
 import Ski.NcfpN12
 import Ski.NcfpPlain
 import Ski.NcfpC
+import Ski.Lock1Tables
 
 /-!
 # The audit manifest — build-enforced
@@ -2098,3 +2099,15 @@ open Ski.Audit
 -- NCFP: Theorem C (Ncfp.thm_C, thm_C_hnf), Theorem NC (Ncfp.thm_NC, thm_NC_hnf), left combs (Ncfp.ncfp_left_comb)
 #audit_clean Ncfp.rk Ncfp.walkB_eq Ncfp.walk_pair Ncfp.β_ne_zero Ncfp.β_rank Ncfp.β_loop Ncfp.hnf12B_eq Ncfp.hnf12 Ncfp.fold_eq_zero Ncfp.comb_walk
 #audit_clean Ncfp.thm_C Ncfp.thm_C_hnf Ncfp.cor_C Ncfp.cor_C_sub Ncfp.cor_C_block Ncfp.comb_S_steps Ncfp.scomb_closed Ncfp.thm_NC Ncfp.thm_NC_hnf Ncfp.ncfp_left_comb
+-- Lock 1, Conj. CT (notes/LOCK1-CT.md §10): the table facts T1-T5 on S1's 38-block table by kernel evaluation, and Theorem Q items 1, 2 (Lock1Tables.thmQ1, thmQ2)
+#audit_clean Lock1Tables.mem_K1 Lock1Tables.mem_K2 Lock1Tables.mem_G Lock1Tables.K1_eq Lock1Tables.K2_eq Lock1Tables.G_eq Lock1Tables.T1 Lock1Tables.T2 Lock1Tables.T3a Lock1Tables.T3b Lock1Tables.T3c Lock1Tables.T4
+#audit_clean Lock1Tables.u_zero Lock1Tables.u_one Lock1Tables.u_add_two Lock1Tables.T5_dies Lock1Tables.T5_one Lock1Tables.T5 Lock1Tables.fold_one Lock1Tables.fold_two Lock1Tables.eq_SS Lock1Tables.lit13 Lock1Tables.hnfless_iff Lock1Tables.T2_dead Lock1Tables.thmQ1 Lock1Tables.thmQ2
+-- Lock 1, Conj. CT (notes/LOCK1-CT.md §11.4): table fact T7 and the family U_e; U_e (S U_e) and U_j U_m have no hnf (Lock1Tables.T7_hnfless, F1)
+#audit_clean Lock1Tables.pure_T Lock1Tables.pure_U Lock1Tables.pure_D Lock1Tables.pure_Ufam Lock1Tables.fold_U Lock1Tables.fold_D Lock1Tables.T7_step Lock1Tables.T7 Lock1Tables.T7_cross Lock1Tables.fseq_succ Lock1Tables.fseq_mem Lock1Tables.fold_Ufam Lock1Tables.T7_hnfless Lock1Tables.F1
+-- Lock 1, Conj. CT (notes/LOCK1-CT.md §12.0): table facts T8-T11; the counters on X (bases X, S X c; G_e, J_e): folds, the hnf-less terms of T8, X c_j has an hnf (T9), self-dead heaps (T10), 2-dead heaps (T11)
+#audit_clean Lock1Tables.Gfam_zero Lock1Tables.Gfam_succ Lock1Tables.pure_X Lock1Tables.pure_base Lock1Tables.pure_Gfam Lock1Tables.pure_Jfam Lock1Tables.pure_comb Lock1Tables.dead_app Lock1Tables.T8_folds Lock1Tables.T8_SXc Lock1Tables.T8 Lock1Tables.fold_T Lock1Tables.fold_X Lock1Tables.fold_SX Lock1Tables.fold_SXc Lock1Tables.fold_base Lock1Tables.fold_S_base Lock1Tables.fold_SS_base Lock1Tables.fold_Gfam Lock1Tables.fold_Jfam Lock1Tables.fold_S_Gfam Lock1Tables.fold_S_Jfam
+#audit_clean Lock1Tables.T8_XY Lock1Tables.T8_YSY Lock1Tables.T8_XSY Lock1Tables.T8_XG Lock1Tables.T8_XJ Lock1Tables.T8_YG Lock1Tables.T8_YJ Lock1Tables.T8_GSG Lock1Tables.T8_JSJ
+#audit_clean Lock1Tables.T9_folds Lock1Tables.T9 Lock1Tables.T9_ne Lock1Tables.fold_comb_lt Lock1Tables.fold_comb_ge Lock1Tables.fold_comb_mem Lock1Tables.T9_hnf
+#audit_clean Lock1Tables.mem_SELF Lock1Tables.SELF_eq Lock1Tables.SELF_fam Lock1Tables.T10_T Lock1Tables.self_dead Lock1Tables.T10_base Lock1Tables.T10_G Lock1Tables.T10_J Lock1Tables.T10_U Lock1Tables.T_not_self_dead
+#audit_clean Lock1Tables.mem_STK Lock1Tables.STK_eq Lock1Tables.T12 Lock1Tables.stack_self_dead
+#audit_clean Lock1Tables.mem_DEAD2 Lock1Tables.DEAD2_eq Lock1Tables.T11_not Lock1Tables.two_dead Lock1Tables.DEAD2_27 Lock1Tables.T11_SSXc Lock1Tables.T11_SSY Lock1Tables.T11_SG Lock1Tables.T11_SJ Lock1Tables.T11_SU Lock1Tables.SX_not_two_dead Lock1Tables.SU0_not_two_dead Lock1Tables.T13 Lock1Tables.T15 Lock1Tables.tee_self_dead

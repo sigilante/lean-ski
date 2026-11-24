@@ -153,6 +153,7 @@ import Ski.NcfpN12
 import Ski.NcfpPlain
 import Ski.NcfpC
 import Ski.NcfpAudit
+import Ski.Lock1Tables
 import Ski.Graph
 import Ski.RWMem
 import Ski.GraphMem
