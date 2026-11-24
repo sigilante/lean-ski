@@ -557,6 +557,33 @@ theorem T10_U {t : Term} (e : Nat) (ht : PureS t) : ¬ HasHnf (Ufam e ⬝ (t ⬝
 theorem T_not_self_dead : HasHnf (T ⬝ (S ⬝ T)) :=
   sound _ (.app pure_T (.app .S pure_T)) (by decide +kernel)
 
+
+/-! ### T12: stacks are self-dead -/
+
+/-- The blocks of `K2` (two-item terms `S c d`) that some block annihilates: the possible
+blocks of a stack `A` with `A w` hnf-less. -/
+def STK : List Nat := K2.filter fun a => r38.any fun w => β a w == 36
+
+theorem mem_STK {a : Nat} : a ∈ STK ↔ a ∈ K2 ∧ ∃ w, w < 38 ∧ β a w = 36 := by
+  simp only [STK, r38, List.mem_filter, List.mem_range, List.any_eq_true, beq_iff_eq]
+
+theorem STK_eq : STK = [16, 23, 24, 25, 26, 31, 32, 33, 34, 35, 37] := by decide +kernel
+
+/-- **T12**: every stack block is self-dead. -/
+theorem T12 : ∀ a, a ∈ STK → a ∈ SELF := by decide +kernel
+
+/-- **Lemma SD**: a two-item term `A = S c d` with `A w` hnf-less for some pure `w` is
+self-dead: `A (t A)` has no head normal form for every pure `t`. -/
+theorem stack_self_dead {c d w t : Term} (hc : PureS c) (hd : PureS d) (hw : PureS w)
+    (ht : PureS t) (h : ¬ HasHnf (S ⬝ c ⬝ d ⬝ w)) :
+    ¬ HasHnf (S ⬝ c ⬝ d ⬝ (t ⬝ (S ⬝ c ⬝ d))) := by
+  have hA : PureS (S ⬝ c ⬝ d) := .app (.app .S hc) hd
+  have h36 : β (fold (S ⬝ c ⬝ d)) (fold w) = 36 := (hnfless_iff (.app hA hw)).1 h
+  have hK1 : fold (S ⬝ c) ∈ K1 := mem_K1.2 ⟨fold_lt (.app .S hc), fold c, fold_lt hc, rfl⟩
+  have hK2 : fold (S ⬝ c ⬝ d) ∈ K2 :=
+    mem_K2.2 ⟨fold_lt hA, fold (S ⬝ c), hK1, fold d, fold_lt hd, rfl⟩
+  exact self_dead hA ht (T12 _ (mem_STK.2 ⟨hK2, fold w, fold_lt hw, h36⟩))
+
 /-! ### T11: 2-dead blocks -/
 
 /-- The 2-dead blocks: `w` with `β (β w κ₁) κ₂ = 36` for all blocks `κ₁`, `κ₂`. -/

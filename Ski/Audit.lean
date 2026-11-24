@@ -2109,4 +2109,5 @@ open Ski.Audit
 #audit_clean Lock1Tables.T8_XY Lock1Tables.T8_YSY Lock1Tables.T8_XSY Lock1Tables.T8_XG Lock1Tables.T8_XJ Lock1Tables.T8_YG Lock1Tables.T8_YJ Lock1Tables.T8_GSG Lock1Tables.T8_JSJ
 #audit_clean Lock1Tables.T9_folds Lock1Tables.T9 Lock1Tables.T9_ne Lock1Tables.fold_comb_lt Lock1Tables.fold_comb_ge Lock1Tables.fold_comb_mem Lock1Tables.T9_hnf
 #audit_clean Lock1Tables.mem_SELF Lock1Tables.SELF_eq Lock1Tables.SELF_fam Lock1Tables.T10_T Lock1Tables.self_dead Lock1Tables.T10_base Lock1Tables.T10_G Lock1Tables.T10_J Lock1Tables.T10_U Lock1Tables.T_not_self_dead
+#audit_clean Lock1Tables.mem_STK Lock1Tables.STK_eq Lock1Tables.T12 Lock1Tables.stack_self_dead
 #audit_clean Lock1Tables.mem_DEAD2 Lock1Tables.DEAD2_eq Lock1Tables.T11_not Lock1Tables.two_dead Lock1Tables.DEAD2_27 Lock1Tables.T11_SSXc Lock1Tables.T11_SSY Lock1Tables.T11_SG Lock1Tables.T11_SJ Lock1Tables.T11_SU Lock1Tables.SX_not_two_dead Lock1Tables.SU0_not_two_dead
