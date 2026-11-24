@@ -4,7 +4,7 @@ open Term
 /-!
 # NCFP for the plain contexts of depth at most 2
 
-Source: `notes/NCFP-proof.md`, §15 (Cor. T2 as a statement; the note derives it from Theorem T,
+Source: `notes/NCFP-proof.md`, §15 (Cor. T2 as a statement; the note assembles it from Cor. G1, Cor. L1, N2–N10 and Cor. T1,
 here it is a case analysis onto the theorems already proved).  Setting as in `Ski/Ncfp.lean`.
 
 `PlainD d E`: the context `E` is built from holes and closed normalizing terms by `S E′` and

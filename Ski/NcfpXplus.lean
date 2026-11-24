@@ -36,7 +36,8 @@ function parts of the terms of a block with a fixed last item; Claim 1 is `fact_
 What is not proved here: Corollary X2 (it needs tameness, which is not mechanized); the count of
 226 two-hole contexts of depth at most 3 (201 of them rest on a computation).
 
-Constructivity: excluded middle is used only as `em_false` and under double negations.
+Constructivity: excluded middle is used only as `em_false`, under double negations, and as decidable case splits
+(`Decidable.em` on term equality).
 -/
 
 namespace Ncfp
