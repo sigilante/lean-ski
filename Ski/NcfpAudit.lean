@@ -10,12 +10,13 @@ import Ski.NcfpThree
 import Ski.NcfpXplus
 import Ski.NcfpN12
 import Ski.NcfpPlain
+import Ski.NcfpC
 
 /-!
 # Axiom gate for the proved cases of NCFP (stand-alone)
 
 The same check as `#audit_clean` in `Ski/Audit.lean` (allow-list `{propext, Quot.sound}`), in a
-module that imports only `Ski.Ncfp`, `Ski.NcfpTheta`, `Ski.NcfpLeafless`, `Ski.NcfpN`, `Ski.NcfpN2`, `Ski.NcfpDepth2`, `Ski.NcfpScheme`, `Ski.NcfpThree`, `Ski.NcfpXplus`, `Ski.NcfpN12` and `Ski.NcfpPlain`.
+module that imports only `Ski.Ncfp`, `Ski.NcfpTheta`, `Ski.NcfpLeafless`, `Ski.NcfpN`, `Ski.NcfpN2`, `Ski.NcfpDepth2`, `Ski.NcfpScheme`, `Ski.NcfpThree`, `Ski.NcfpXplus`, `Ski.NcfpN12`, `Ski.NcfpPlain` and `Ski.NcfpC`.
 
 * `#ncfp_audit_module M` checks every theorem, and every definition without an internal name,
   declared in the module `M`, and reports the counts and the internal constants it skips
@@ -70,6 +71,7 @@ end Ncfp.Audit
 #ncfp_audit_module Ski.NcfpXplus
 #ncfp_audit_module Ski.NcfpN12
 #ncfp_audit_module Ski.NcfpPlain
+#ncfp_audit_module Ski.NcfpC
 
 -- size, normal forms, contexts; Prop. 0
 #ncfp_audit_clean Ncfp.sz_wstep Ncfp.sz_wsteps Ncfp.Normal.wsteps Ncfp.wsteps_to_normal
@@ -260,3 +262,12 @@ end Ncfp.Audit
 #print axioms Ncfp.no_S_SpSnp_p
 #print axioms Ncfp.no_S_SpSpn_p
 #print axioms Ncfp.ncfp_depth2
+
+-- NcfpC: Theorem C, Theorem NC, left combs
+#ncfp_audit_clean Ncfp.rk Ncfp.walkB_eq Ncfp.walk_pair Ncfp.β_ne_zero Ncfp.β_rank Ncfp.β_loop Ncfp.hnf12B_eq Ncfp.hnf12 Ncfp.fold_eq_zero Ncfp.comb_walk
+#ncfp_audit_clean Ncfp.thm_C Ncfp.thm_C_hnf Ncfp.cor_C Ncfp.cor_C_sub Ncfp.cor_C_block Ncfp.comb_S_steps Ncfp.scomb_closed Ncfp.thm_NC Ncfp.thm_NC_hnf Ncfp.ncfp_left_comb
+#print axioms Ncfp.thm_C
+#print axioms Ncfp.thm_C_hnf
+#print axioms Ncfp.thm_NC
+#print axioms Ncfp.thm_NC_hnf
+#print axioms Ncfp.ncfp_left_comb
