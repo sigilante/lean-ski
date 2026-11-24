@@ -27,7 +27,8 @@ of the head run; and `b` has a head normal form by Corollary B1.  So these terms
 
 **Proof of Theorem C.**  The block `fold` into S1's 38-element table (`HnfS.blockTable`) is a
 conversion invariant of closed S-terms (`fold_conv`: Church–Rosser, `Conv.conv_iff_join`, and
-`HnfS.fold_wsteps`, which rests on the S-law of the table, `HnfS.compat`), and the block of `p x₁ ⋯ x_k` is obtained from the block of `p` by `k` steps
+`HnfS.fold_wsteps`, which rests on the S-law of the table, `HnfS.compat`), and the block of
+`p x₁ ⋯ x_k` is obtained from the block of `p` by `k` steps
 `v ↦ β v (fold xᵢ)`.  So a conversion `p =β p x₁ ⋯ x_k` is a closed walk of length `k` at
 `fold p` in the graph on the 38 blocks with an edge `v → β v w` for every `w`.  One kernel
 check over the 38 × 38 pairs (`walkB_eq`) certifies, by the rank table `rkTable`, that every edge
