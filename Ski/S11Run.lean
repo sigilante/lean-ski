@@ -23,8 +23,9 @@ Milestone M2 of the plan `notes/S11-MECH-PLAN.md`.  Lemma numbers follow the com
 * **Repairs from the M0 review.**  `nohnf_of_steps_rev` (Lemma 3(c), the paper's direction) and
   the right-suffix sentence of Lemma 4(B): `chain_rsuf` (`u` at depth `k + 1` in `τ₁(f)`),
   `chain_rsuf_w`, `chain_rsuf_gen` (any suffix of `w_i` lands in `w_k`, `k − i` levels deeper),
-  `chain_rsuf_w1` (`w₁` at depth `k`).  No move on these terms is exposed: each is `(A)` or
-  `(B)` with `k = 0`.
+  `chain_rsuf_w1` (`w₁` at depth `k` in `τ₁(f)` for a chain of length `k`).  The moves on these
+  terms are `(A)` or `(B)` with `k = 0`; that is not why none is exposed (a move with `k = 0` can
+  still expose): the paper's reason is that the middle item `y` (`c_j` or `a_n`) has an hnf.
 * **Lemma 10** (`lem:index`).  `κ` as a relation `Kappa x k` ("`x·1^j` has an hnf for `j < k`
   and `x·1^k` has none"), which is functional (`kappa_unique`).  (a) `kappa_conv`,
   `kappa_conv_iff`; (b) `kappa_xm : Kappa (xm n) (im n + 1)`; (c) `im_of_conv`: if
@@ -32,7 +33,7 @@ Milestone M2 of the plan `notes/S11-MECH-PLAN.md`.  Lemma numbers follow the com
   `κ(τ₁ τ₁ τ₁ (rest t))` (`index_read`).
 * **The counter.**  `im` is non-decreasing (`im_mono`), unbounded (`im_unbounded`, with the
   constructive witness `st (m + j + 1) = (n, n+1)` from `st m = (j, n)`), and not eventually
-  periodic (`im_not_periodic`, the form used by Lemma 18).
+  periodic (`im_not_periodic`); Lemma 18 uses it in the form `im_shift_inj`.
 -/
 
 namespace S11
@@ -92,8 +93,9 @@ theorem chain_rsuf {a₀ b₀ u a b w : Term} {k : Nat} (h : Chain a₀ b₀ u k
     RSuf (k + 1) u (b ⬝ w) :=
   RSuf.app b (chain_rsuf_w h)
 
-/-- **Lemma 4(B)**, right suffixes: `w₁ = b₀ w₀` is a right suffix of `b_k w_k` at depth `k`
-(`k ≥ 1`). -/
+/-- **Lemma 4(B)**, right suffixes: for a chain of length `k + 1` (`k + 1 ≥ 1` links),
+`w₁ = b₀ w₀` is a right suffix of `τ₁(f) = b_{k+1} w_{k+1}` at depth `k + 1`; this is the
+paper's "depth `k`" with the paper's `k` equal to the chain length `k + 1`. -/
 theorem chain_rsuf_w1 {a b w a' b' w' : Term} {k : Nat} (h : Chain a b w (k + 1) a' b' w') :
     RSuf (k + 1) (b ⬝ w) (b' ⬝ w') := by
   cases h with
