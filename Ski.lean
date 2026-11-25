@@ -154,6 +154,14 @@ import Ski.NcfpPlain
 import Ski.NcfpC
 import Ski.NcfpAudit
 import Ski.Lock1Tables
+import Ski.S11Base
+import Ski.S11Grammar
+import Ski.S11Closure
+import Ski.S11Teeth
+import Ski.S11Run
+import Ski.S11Second
+import Ski.S11Main
+import Ski.S11Audit
 import Ski.Graph
 import Ski.RWMem
 import Ski.GraphMem
