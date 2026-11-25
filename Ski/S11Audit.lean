@@ -1,5 +1,5 @@
 import Lean
-import Ski.S11Grammar
+import Ski.S11Closure
 
 /-!
 # Axiom gate for the S11 mechanization (stand-alone)
@@ -46,8 +46,17 @@ end S11.Audit
   S11.RunFrame.steps S11.ne_S3_of_nargs S11.InB.three S11.RunFrame.three S11.lemma16_ii
   S11.lemma16_i
 
+-- M1b: S11Closure (Lemma 15 over `Par`, Lemma 10(c) for spine predicates)
+#s11_audit_clean
+  S11.Red S11.RedB S11.Red.wsteps S11.Red.of_mem S11.mem_sub S11.red_S3 S11.subRed_par
+  S11.subRed_wsteps S11.closure S11.lemma15 S11.hnf_eq S11.isHnf_S2 S11.reduct_ne_S
+  S11.reduct_ne_S1 S11.reduct_S2 S11.Spine S11.Contains S11.Contains.sub S11.contains_par
+  S11.contains_wsteps S11.lemma10c
+
 #print axioms S11.lemma16_ii
 #print axioms S11.lemma16_i
 #print axioms S11.run_am
 #print axioms S11.fold_am
 #print axioms S11.nohnf_Qav_apps
+#print axioms S11.lemma15
+#print axioms S11.lemma10c
