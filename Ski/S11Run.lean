@@ -23,9 +23,10 @@ Milestone M2 of the plan `notes/S11-MECH-PLAN.md`.  Lemma numbers follow the com
 * **Repairs from the M0 review.**  `nohnf_of_steps_rev` (Lemma 3(c), the paper's direction) and
   the right-suffix sentence of Lemma 4(B): `chain_rsuf` (`u` at depth `k + 1` in `τ₁(f)`),
   `chain_rsuf_w`, `chain_rsuf_gen` (any suffix of `w_i` lands in `w_k`, `k − i` levels deeper),
-  `chain_rsuf_w1` (`w₁` at depth `k` in `τ₁(f)` for a chain of length `k`).  The moves on these
-  terms are `(A)` or `(B)` with `k = 0`; that is not why none is exposed (a move with `k = 0` can
-  still expose): the paper's reason is that the middle item `y` (`c_j` or `a_n`) has an hnf.
+  `chain_rsuf_w1` (`w₁` at depth `k` in `τ₁(f)` for a chain of length `k`).
+* **No move of `p_K` is exposed.**  The moves on these terms are `(A)` or `(B)` with `k = 0`;
+  that is not why none is exposed (a move with `k = 0` can still expose): the paper's reason is
+  that the middle item `y` (`c_j` or `a_n`) has an hnf.
 * **Lemma 10** (`lem:index`).  `κ` as a relation `Kappa x k` ("`x·1^j` has an hnf for `j < k`
   and `x·1^k` has none"), which is functional (`kappa_unique`).  (a) `kappa_conv`,
   `kappa_conv_iff`; (b) `kappa_xm : Kappa (xm n) (im n + 1)`; (c) `im_of_conv`: if
