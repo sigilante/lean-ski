@@ -3,6 +3,7 @@ import Ski.S11Closure
 import Ski.S11Teeth
 import Ski.S11Run
 import Ski.S11Second
+import Ski.S11Main
 
 /-!
 # Axiom gate for the S11 mechanization (stand-alone)
@@ -91,6 +92,14 @@ end S11.Audit
   S11.restN_split S11.aq_pure S11.bad_forever S11.no_bad S11.KindB S11.move_q S11.kindB_succ
   S11.exists_kindB S11.srun S11.lemma11 S11.lemma13 S11.second_run S11.srun_spine
 
+-- M5: S11Main (Definition 14, Lemmas 15(a),(b), 18; Theorem 1; Corollary 2)
+#s11_audit_clean
+  S11.SolFrom S11.SolFrom.coind S11.SolFrom.unfold S11.solFrom_of_seq S11.SolFrom.step
+  S11.SolFrom.hasHnf S11.SolFrom.not_short S11.SolFrom.first S11.sol_conv S11.sol_am S11.sol_aq
+  S11.lemma15b S11.spine_aq S11.sol_am_shift S11.sol_am_eq S11.hasHnf_bm S11.lemma18
+  S11.steps_cases S11.exists_nonliteral S11.ct_pK S11.pre S11.restN_add S11.tooth_add
+  S11.pre_spec S11.ct_pK_rest
+
 #print axioms S11.lemma16_ii
 #print axioms S11.lemma16_i
 #print axioms S11.run_am
@@ -114,3 +123,6 @@ end S11.Audit
 #print axioms S11.lemma12b
 #print axioms S11.second_run
 #print axioms S11.srun_spine
+#print axioms S11.lemma18
+#print axioms S11.ct_pK
+#print axioms S11.ct_pK_rest
