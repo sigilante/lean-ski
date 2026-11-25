@@ -1,6 +1,7 @@
 import Lean
 import Ski.S11Closure
 import Ski.S11Teeth
+import Ski.S11Run
 
 /-!
 # Axiom gate for the S11 mechanization (stand-alone)
@@ -70,6 +71,17 @@ end S11.Audit
   S11.rsuf_wsteps S11.tIter S11.tIter_add S11.tIter_succ' S11.tIter_pure S11.wsteps_appR S11.rr
   S11.wsteps_rr S11.rsuf_rr S11.lemma7b S11.lemma7c S11.lemma7d
 
+
+-- M2: S11Run (the run of p_K; Lemmas 8, 9, 10; the counter i_m)
+#s11_audit_clean
+  S11.moves_B0 S11.pure_xm S11.pure_bm S11.pure_Y S11.bm_eq_cam S11.lemma8a S11.lemma8a_first
+  S11.lemma8b S11.pure_one S11.pure_two S11.restN_pK S11.tooth_pK_succ S11.tooth_pK S11.pure_pK
+  S11.nohnf_pK S11.lemma9 S11.lemma9_suffix_Y S11.lemma9_suffix_tY S11.Dot1 S11.Kappa
+  S11.dot1_hasHnf S11.dot1_unique S11.kappa_unique S11.kappa_conv S11.kappa_conv_iff S11.kappa_cam
+  S11.kappa_xm S11.teeth_chain S11.xm_read S11.index_read S11.im_of_conv S11.st_snd_le_succ
+  S11.st_snd_mono S11.im_mono S11.st_down S11.st_grow S11.st_unbounded S11.im_unbounded
+  S11.im_unbounded' S11.im_not_periodic S11.im_shift_inj
+
 #print axioms S11.lemma16_ii
 #print axioms S11.lemma16_i
 #print axioms S11.run_am
@@ -83,3 +95,7 @@ end S11.Audit
 #print axioms S11.lemma6
 #print axioms S11.lemma7b
 #print axioms S11.lemma7d
+#print axioms S11.lemma8a
+#print axioms S11.lemma9
+#print axioms S11.im_of_conv
+#print axioms S11.im_shift_inj
