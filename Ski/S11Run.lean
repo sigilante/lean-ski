@@ -19,7 +19,11 @@ Milestone M2 of the plan `notes/S11-MECH-PLAN.md`.  Lemma numbers follow the com
   Y n` for `n ≥ 1`.  The teeth: `Y_n`, `x_n S`, `a_n x_n`, `a_n x_n S` have no hnf,
   `rest(Y_n) = x_n S`, `τ₁(Y_n) = a_n x_n S`, `rest(τ₁ Y_n) = a_n x_n`, `τ₁(τ₁ Y_n) = S`
   (`lemma9`), so Lemma 7(d) applies to every `t =β Y_n` and Lemma 7(c) to every `t =β τ₁(Y_n)`
-  (`lemma9_suffix_Y`, `lemma9_suffix_tY`).  No move on these terms is exposed: each is `(A)` or
+  (`lemma9_suffix_Y`, `lemma9_suffix_tY`).
+* **Repairs from the M0 review.**  `nohnf_of_steps_rev` (Lemma 3(c), the paper's direction) and
+  the right-suffix sentence of Lemma 4(B): `chain_rsuf` (`u` at depth `k + 1` in `τ₁(f)`),
+  `chain_rsuf_w`, `chain_rsuf_gen` (any suffix of `w_i` lands in `w_k`, `k − i` levels deeper),
+  `chain_rsuf_w1` (`w₁` at depth `k`).  No move on these terms is exposed: each is `(A)` or
   `(B)` with `k = 0`.
 * **Lemma 10** (`lem:index`).  `κ` as a relation `Kappa x k` ("`x·1^j` has an hnf for `j < k`
   and `x·1^k` has none"), which is functional (`kappa_unique`).  (a) `kappa_conv`,
@@ -52,6 +56,48 @@ theorem moves_B0 {fm u a b : Term} (hf : PureS fm) (hu : PureS u) (h0 : Steps fm
   cases hc with
   | zero => exact ⟨hfu, h2, h3⟩
   | succ hs' _ => exact absurd ⟨_, hs'.weak, .inr (.inr ⟨_, _, rfl⟩)⟩ hn
+
+/-! ## Repairs from the M0 review: Lemma 3(c) direction, Lemma 4(B) right suffixes -/
+
+/-- **Lemma 3(c)**, second sentence, in the paper's direction: a closed S-term that head-reduces
+to a term without an hnf has none. -/
+theorem nohnf_of_steps_rev {t u : Term} (ht : PureS t) (h : Steps t u) (hn : ¬ HasHnf u) :
+    ¬ HasHnf t := by
+  obtain ⟨hu, hb⟩ := fold_wsteps h.weak ht
+  exact no_hnf_of_bot ht (hb.symm.trans ((Conv.stable_iff hu).2 hn))
+
+/-- **Lemma 4(B)**, right suffixes, general form: a right suffix of `w₀` at depth `d` is a right
+suffix of `w_k` at depth `d + k`. -/
+theorem chain_rsuf_gen {a b w a' b' w' : Term} {k : Nat} (h : Chain a b w k a' b' w') :
+    ∀ {d : Nat} {e : Term}, RSuf d e w → RSuf (d + k) e w' := by
+  induction h with
+  | zero => intro d e he; exact he
+  | @succ a b w _ _ _ _ _ k _ _ ih =>
+    intro d e he
+    have := ih (RSuf.app b he)
+    rw [Nat.add_right_comm] at this
+    rw [← Nat.add_assoc]
+    exact this
+
+/-- **Lemma 4(B)**, right suffixes: `u = w₀` is a right suffix of `w_k` at depth `k`. -/
+theorem chain_rsuf_w {a₀ b₀ u a b w : Term} {k : Nat} (h : Chain a₀ b₀ u k a b w) :
+    RSuf k u w := by
+  have := chain_rsuf_gen h (RSuf.zero u)
+  rw [Nat.zero_add] at this
+  exact this
+
+/-- **Lemma 4(B)**, right suffixes: `u = w₀` is a right suffix of `τ₁(f) = b_k w_k` at depth
+`k + 1`. -/
+theorem chain_rsuf {a₀ b₀ u a b w : Term} {k : Nat} (h : Chain a₀ b₀ u k a b w) :
+    RSuf (k + 1) u (b ⬝ w) :=
+  RSuf.app b (chain_rsuf_w h)
+
+/-- **Lemma 4(B)**, right suffixes: `w₁ = b₀ w₀` is a right suffix of `b_k w_k` at depth `k`
+(`k ≥ 1`). -/
+theorem chain_rsuf_w1 {a b w a' b' w' : Term} {k : Nat} (h : Chain a b w (k + 1) a' b' w') :
+    RSuf (k + 1) (b ⬝ w) (b' ⬝ w') := by
+  cases h with
+  | succ _ hc => exact chain_rsuf hc
 
 /-! ## Purity of the families -/
 

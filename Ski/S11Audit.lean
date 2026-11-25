@@ -80,7 +80,8 @@ end S11.Audit
   S11.dot1_hasHnf S11.dot1_unique S11.kappa_unique S11.kappa_conv S11.kappa_conv_iff S11.kappa_cam
   S11.kappa_xm S11.teeth_chain S11.xm_read S11.index_read S11.im_of_conv S11.st_snd_le_succ
   S11.st_snd_mono S11.im_mono S11.st_down S11.st_grow S11.st_unbounded S11.im_unbounded
-  S11.im_unbounded' S11.im_not_periodic S11.im_shift_inj
+  S11.im_unbounded' S11.im_not_periodic S11.im_shift_inj S11.nohnf_of_steps_rev S11.chain_rsuf_gen
+  S11.chain_rsuf_w S11.chain_rsuf S11.chain_rsuf_w1
 
 #print axioms S11.lemma16_ii
 #print axioms S11.lemma16_i
@@ -99,3 +100,5 @@ end S11.Audit
 #print axioms S11.lemma9
 #print axioms S11.im_of_conv
 #print axioms S11.im_shift_inj
+#print axioms S11.chain_rsuf
+#print axioms S11.nohnf_of_steps_rev
