@@ -2,6 +2,7 @@ import Lean
 import Ski.S11Closure
 import Ski.S11Teeth
 import Ski.S11Run
+import Ski.S11Second
 
 /-!
 # Axiom gate for the S11 mechanization (stand-alone)
@@ -83,6 +84,13 @@ end S11.Audit
   S11.im_unbounded' S11.im_not_periodic S11.im_shift_inj S11.nohnf_of_steps_rev S11.chain_rsuf_gen
   S11.chain_rsuf_w S11.chain_rsuf S11.chain_rsuf_w1
 
+-- M4: S11Second (Lemmas 11, 12, 13: the run of q with the teeth of p_K)
+#s11_audit_clean
+  S11.lhs S11.hasHnf_S S11.app_not_conv_S S11.im_eq_of_xm_conv S11.chain_zero S11.lemma12a
+  S11.lemma12b S11.cancel_cam S11.lemma13_core S11.moveY S11.bad_step S11.aq S11.bq
+  S11.restN_split S11.aq_pure S11.bad_forever S11.no_bad S11.KindB S11.move_q S11.kindB_succ
+  S11.exists_kindB S11.srun S11.lemma11 S11.lemma13 S11.second_run S11.srun_spine
+
 #print axioms S11.lemma16_ii
 #print axioms S11.lemma16_i
 #print axioms S11.run_am
@@ -102,3 +110,7 @@ end S11.Audit
 #print axioms S11.im_shift_inj
 #print axioms S11.chain_rsuf
 #print axioms S11.nohnf_of_steps_rev
+#print axioms S11.lemma11
+#print axioms S11.lemma12b
+#print axioms S11.second_run
+#print axioms S11.srun_spine
