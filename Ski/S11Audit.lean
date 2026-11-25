@@ -1,5 +1,6 @@
 import Lean
 import Ski.S11Closure
+import Ski.S11Teeth
 
 /-!
 # Axiom gate for the S11 mechanization (stand-alone)
@@ -53,6 +54,22 @@ end S11.Audit
   S11.reduct_ne_S1 S11.reduct_S2 S11.Spine S11.Contains S11.Contains.sub S11.contains_par
   S11.contains_wsteps S11.lemma10c
 
+-- M0: S11Teeth (teeth and rests as functions; Lemmas 3–7; decidable hnf; congruence)
+#s11_audit_clean
+  S11.conv_appL S11.conv_appR S11.conv_app S11.decHasHnf S11.hasHnfB S11.hasHnfB_iff S11.isPureB
+  S11.isPureB_iff S11.runEnd S11.rest1 S11.tooth1 S11.restN S11.tooth S11.restN_zero
+  S11.restN_succ S11.tooth_succ S11.runEnd_pure S11.headEnd_first S11.first_stable_spec
+  S11.first_stable_unique S11.rest_tooth_of_first S11.rest1_pure S11.tooth1_pure S11.rest1_nohnf
+  S11.restN_pure_nohnf S11.restN_pure S11.restN_nohnf S11.tooth_pure S11.move_spec S11.steps_left
+  S11.head_step_items S11.step_to_S2 S11.run_to_S2 S11.lemma3c S11.nohnf_of_steps S11.nohnf_app
+  S11.nohnf_wsteps S11.nohnf_three S11.nohnf_frames_three S11.wstep_app S11.wsteps_app S11.conv_S
+  S11.Chain S11.chain_steps S11.chain_last S11.two_item S11.root_before S11.moves_loop S11.moves_A
+  S11.moves_B S11.lemma4 S11.convSetoid S11.cls S11.cls_inv S11.cls_eq S11.inv_hnf0 S11.inv_hnf1
+  S11.inv_hnf2 S11.inv_nohnf S11.inv_first S11.inv_restN S11.inv_tooth S11.teethRev
+  S11.run_unfold S11.conv_apps_teeth S11.lemma6 S11.RSuf S11.RSuf.pure S11.rsuf_wstep
+  S11.rsuf_wsteps S11.tIter S11.tIter_add S11.tIter_succ' S11.tIter_pure S11.wsteps_appR S11.rr
+  S11.wsteps_rr S11.rsuf_rr S11.lemma7b S11.lemma7c S11.lemma7d
+
 #print axioms S11.lemma16_ii
 #print axioms S11.lemma16_i
 #print axioms S11.run_am
@@ -60,3 +77,9 @@ end S11.Audit
 #print axioms S11.nohnf_Qav_apps
 #print axioms S11.lemma15
 #print axioms S11.lemma10c
+#print axioms S11.first_stable_spec
+#print axioms S11.moves_B
+#print axioms S11.inv_hnf2
+#print axioms S11.lemma6
+#print axioms S11.lemma7b
+#print axioms S11.lemma7d
