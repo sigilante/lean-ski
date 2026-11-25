@@ -9,8 +9,8 @@ import Ski.S11Main
 # Axiom gate for the S11 mechanization (stand-alone)
 
 The same check as `#audit_clean` in `Ski/Audit.lean` (allow-list `{propext, Quot.sound}`), in a
-module that imports only the S11 modules.  These names are not yet listed in `Ski/Audit.lean`
-(plan `notes/S11-MECH-PLAN.md`, M6: they join it at the release).
+module that imports only the S11 modules.  The root module `Ski` imports this module, so the
+default `lake build` runs the gate (as for `ConvAudit` and `NcfpAudit`).
 -/
 
 open Lean Elab Command
