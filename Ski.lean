@@ -162,6 +162,9 @@ import Ski.S11Run
 import Ski.S11Second
 import Ski.S11Main
 import Ski.S11Audit
+import Ski.S10Frame
+import Ski.S10Closure
+import Ski.S10Audit
 import Ski.Graph
 import Ski.RWMem
 import Ski.GraphMem
