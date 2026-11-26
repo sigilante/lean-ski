@@ -7,7 +7,7 @@ open Term
 `fold_eqv`: for pure S-terms, `Congruence.Eqv t u` (equal `NF` prefixes at every depth) gives
 `HnfS.fold t = HnfS.fold u`.  Proof of `notes/LOCK1-FF.md` with the Wizard repairs WF.5, WF.6:
 
-* `tower k` = `S (S (⋯ (S S)))` with `k` outer `S`; `fold_tower_set` / `eq_tower` (Lemma B): a
+* `tower k` = `S (S (⋯ (S S)))` with `k` outer `S`; `eq_tower` (Lemma B): a
   pure S-term whose block is in `{0, 1, 2, 4, 8, 17}` is a tower (no table entry is `0`, and the
   preimages of `1, 2, 4, 8, 17` lie in row `0`, at columns in the same set);
 * `eqv_tower` (Lemma A′): `u ≈ tower k` gives `fold u = fold (tower k)`, by induction on `k`
@@ -28,7 +28,7 @@ open HnfS HnfSound TopTerm InfNF Congruence
 
 /-! ## Lemma B: blocks 0, 1, 2, 4, 8, 17 are carried only by towers -/
 
-/-- `tower k = S (S (⋯ (S S)))`, `k` outer `S`. -/
+/-- `tower k = S (S (⋯ (S S)))`, `k` outer `S`.  Not `BExp.tower`, which is `iterS k (S ⬝ S)`: `FFBlock.tower (k + 1) = BExp.tower k`. -/
 def tower : Nat → Term
   | 0 => .S
   | k + 1 => S ⬝ tower k
