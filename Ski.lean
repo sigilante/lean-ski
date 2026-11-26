@@ -165,6 +165,7 @@ import Ski.S11Audit
 import Ski.S10Frame
 import Ski.S10Closure
 import Ski.S10Capsule
+import Ski.S10Reader
 import Ski.S10Audit
 import Ski.Graph
 import Ski.RWMem

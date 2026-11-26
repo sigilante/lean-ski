@@ -2,6 +2,7 @@ import Lean
 import Ski.S10Frame
 import Ski.S10Closure
 import Ski.S10Capsule
+import Ski.S10Reader
 
 /-!
 # Axiom gate for the S10 mechanization (stand-alone)
@@ -53,6 +54,18 @@ end S10.Audit
   S10.k4_fires S10.c6bnd S10.c6_rev S10.c6_exit S10.args_capsule_C6 S10.c6_iter S10.c6_fires
   S10.k4Clock S10.c6Clock S10.pure_tw S10.pure_F S10.pure_SS S10.pure_A S10.pure_BOT
   S10.pure_K4 S10.pure_C6 S10.pure_creg S10.pure_capsule S10.k4_fires_term S10.c6_fires_term
+
+-- M3-M4: S10Reader (segments, layers, revolution, exit, reader_fires, term level)
+#s10_audit_clean
+  S10.FOD S10.g1 S10.RD S10.KCAP S10.lam S10.prog S10.reg S10.reader S10.cap S10.lastW
+  S10.prefix28 S10.zero21 S10.head7 S10.layer S10.tail11 S10.exit4 S10.rev0 S10.exit0
+  S10.layers S10.revolution S10.exit_fires S10.captures_fire S10.args_reader_succ
+  S10.reader_fires_append S10.reader_fires S10.readerClock S10.pure_FOD S10.pure_g1
+  S10.pure_RD S10.pure_KCAP S10.pure_lam S10.pure_prog S10.pure_reg S10.pure_reader
+  S10.reader_fires_term
+
+/-- info: 'S10.reader_fires_term' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms S10.reader_fires_term
 
 /-- info: 'S10.k4_fires' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in #print axioms S10.k4_fires
