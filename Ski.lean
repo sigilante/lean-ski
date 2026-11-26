@@ -167,6 +167,8 @@ import Ski.S10Closure
 import Ski.S10Capsule
 import Ski.S10Reader
 import Ski.S10Audit
+import Ski.Congruence
+import Ski.FFBlock
 import Ski.Graph
 import Ski.RWMem
 import Ski.GraphMem
