@@ -469,16 +469,18 @@ theorem args_foldl (l : List Term) : args (l.foldl Term.app S) = l := by
   have := HnfSound.spine_foldl S l
   simpa [args, HnfSound.spine] using this
 
-/-- **Term-level firing.** The `n`-th head reduct of `t` exists and has x-seat `F`
-(it is `S F y z ⋯`), and no earlier head reduct has x-seat `F`. -/
+/-- **Term-level firing.** `t` is a pure-`S` term, its `n`-th head reduct exists and has
+x-seat `F` (it is `S F y z ⋯`), and no earlier head reduct has x-seat `F`.  The `PureS`
+conjunct is what makes the reading "`S F y z ⋯`" literal: `args` drops the head symbol. -/
 def TFiresAt (t : Term) (n : Nat) : Prop :=
+  PureS t ∧
   (∃ u, iter n t = some u ∧ seat (args u) = some F) ∧
   ∀ k, k < n → ∀ u, iter k t = some u → seat (args u) ≠ some F
 
 theorem TFiresAt.of_firesAt {t : Term} {n : Nat} (ht : PureS t) (h : FiresAt (args t) n) :
     TFiresAt t n := by
   obtain ⟨⟨l', hl', hs⟩, hq⟩ := h
-  refine ⟨⟨l'.foldl Term.app S, ?_, ?_⟩, ?_⟩
+  refine ⟨ht, ⟨l'.foldl Term.app S, ?_, ?_⟩, ?_⟩
   · rw [iter_eq_frun ht, hl']; rfl
   · rw [args_foldl]; exact hs
   · intro k hk u hu
