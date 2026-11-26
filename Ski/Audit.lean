@@ -359,6 +359,8 @@ import Ski.NcfpN12
 import Ski.NcfpPlain
 import Ski.NcfpC
 import Ski.Lock1Tables
+import Ski.Congruence
+import Ski.FFBlock
 
 /-!
 # The audit manifest — build-enforced
@@ -2111,3 +2113,43 @@ open Ski.Audit
 #audit_clean Lock1Tables.mem_SELF Lock1Tables.SELF_eq Lock1Tables.SELF_fam Lock1Tables.T10_T Lock1Tables.self_dead Lock1Tables.T10_base Lock1Tables.T10_G Lock1Tables.T10_J Lock1Tables.T10_U Lock1Tables.T_not_self_dead
 #audit_clean Lock1Tables.mem_STK Lock1Tables.STK_eq Lock1Tables.T12 Lock1Tables.stack_self_dead
 #audit_clean Lock1Tables.mem_DEAD2 Lock1Tables.DEAD2_eq Lock1Tables.T11_not Lock1Tables.two_dead Lock1Tables.DEAD2_27 Lock1Tables.T11_SSXc Lock1Tables.T11_SSY Lock1Tables.T11_SG Lock1Tables.T11_SJ Lock1Tables.T11_SU Lock1Tables.SX_not_two_dead Lock1Tables.SU0_not_two_dead Lock1Tables.T13 Lock1Tables.T15 Lock1Tables.tee_self_dead Lock1Tables.T16 Lock1Tables.T16_dead Lock1Tables.T17 Lock1Tables.T17_dead
+
+-- Lock 1, Theorem C (notes/LOCK1-CONG.md): tree equality (`∀ d P, NF d t P ↔ NF d u P`) is a congruence on closed S-terms (Congruence.eqv_app, eqv_ctx)
+#audit_clean
+  Congruence.Eqv Congruence.Eqv.refl Congruence.Eqv.symm Congruence.Eqv.trans
+  Congruence.eqv_steps Congruence.node_inv Congruence.parts_dir Congruence.eqv_parts
+  Congruence.eqv_bot Congruence.nargs Congruence.ptKind Congruence.nf2_kind Congruence.HnfMatch
+  Congruence.factK Congruence.Cong Congruence.Cong.pure Congruence.Cong.symm Congruence.Cong.S
+  Congruence.cong_S_inv Congruence.cong_hnf Congruence.cong_step Congruence.cong_steps
+  Congruence.cong_fold Congruence.head_target Congruence.cong_split Congruence.cong_nf
+  Congruence.cong_eqv Congruence.eqv_app Congruence.Ctx Congruence.Ctx.plug Congruence.cong_ctx
+  Congruence.eqv_ctx
+-- Lock 1, FF for 𝔹 (notes/LOCK1-FF.md): `Eqv t u` gives `fold t = fold u` on pure S-terms (FFBlock.fold_eqv)
+#audit_clean
+  FFBlock.tower FFBlock.tower_pure FFBlock.towerSet FFBlock.towerB FFBlock.towerB_eq
+  FFBlock.tower_cert FFBlock.fold_ne_zero FFBlock.eq_S_of_fold FFBlock.eq_tower
+  FFBlock.eqv_tower FFBlock.eqv_towerSet FFBlock.rankTable FFBlock.rank FFBlock.img0
+  FFBlock.usable FFBlock.img0B FFBlock.baseB FFBlock.k1B FFBlock.k2Row FFBlock.img0B_eq
+  FFBlock.baseB_eq FFBlock.k1B_eq FFBlock.k2Row_1 FFBlock.k2Row_2 FFBlock.k2Row_4
+  FFBlock.k2Row_5 FFBlock.k2Row_8 FFBlock.k2Row_9 FFBlock.k2Row_10 FFBlock.k2Row_11
+  FFBlock.k2Row_17 FFBlock.k2Row_18 FFBlock.k2Row_19 FFBlock.k2Row_20 FFBlock.k2Row_27
+  FFBlock.k2Row_28 FFBlock.usable_iff FFBlock.img0_mem FFBlock.base_cert FFBlock.k1_cert
+  FFBlock.k2_of_row FFBlock.k2_cert FFBlock.ff_core FFBlock.ff_step FFBlock.ff_le
+  FFBlock.fold_eqv
+/-- info: 'Congruence.eqv_app' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms Congruence.eqv_app
+
+/-- info: 'Congruence.eqv_ctx' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms Congruence.eqv_ctx
+
+/-- info: 'Congruence.cong_eqv' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms Congruence.cong_eqv
+
+/-- info: 'FFBlock.fold_eqv' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms FFBlock.fold_eqv
+
+/-- info: 'FFBlock.eqv_tower' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms FFBlock.eqv_tower
+
+/-- info: 'FFBlock.eq_tower' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms FFBlock.eq_tower
