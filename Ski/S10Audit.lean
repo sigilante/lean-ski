@@ -1,6 +1,7 @@
 import Lean
 import Ski.S10Frame
 import Ski.S10Closure
+import Ski.S10Capsule
 
 /-!
 # Axiom gate for the S10 mechanization (stand-alone)
@@ -44,6 +45,17 @@ end S10.Audit
   S10.Clock S10.Clock.fires_iff S10.Clock.firesAt_T S10.seq_fires S10.seq_quiet S10.Clock.seq
   S10.iter_fires S10.Clock.iter S10.loop_frames S10.loop_silent_eternal S10.Clock.cond
   S10.Clock.reindex S10.clock_closure
+
+-- M2: S10Capsule (K4 and C6 countdowns)
+#s10_audit_clean
+  S10.SS S10.A S10.BOT S10.K4 S10.C6 S10.creg S10.pads S10.capsule S10.k4bnd S10.k4_rev
+  S10.k4_exit S10.args_capsule_zero S10.capsule_zero_fires S10.args_capsule_K4 S10.k4_iter
+  S10.k4_fires S10.c6bnd S10.c6_rev S10.c6_exit S10.args_capsule_C6 S10.c6_iter S10.c6_fires
+  S10.k4Clock S10.c6Clock S10.pure_tw S10.pure_F S10.pure_SS S10.pure_A S10.pure_BOT
+  S10.pure_K4 S10.pure_C6 S10.pure_creg S10.pure_capsule S10.k4_fires_term S10.c6_fires_term
+
+/-- info: 'S10.k4_fires' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms S10.k4_fires
 
 /-- info: 'S10.clock_closure' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in #print axioms S10.clock_closure
