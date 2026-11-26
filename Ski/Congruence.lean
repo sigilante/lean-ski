@@ -4,8 +4,13 @@ open Term
 /-!
 # Tree equality is a congruence on closed S-terms (Lock 1, Theorem C)
 
-`Eqv t u` (written `t ≈ u` in `notes/LOCK1-CONG.md`): `t` and `u` have the same infinitary normal
-form prefixes, `∀ d P, NF d t P ↔ NF d u P` (the `InfNF.NF` relation).
+`Eqv t u` (written `t ≈ u` in `notes/LOCK1-CONG.md`): `t` and `u` have the same prefixes in the
+sense of the `InfNF.NF` relation, `∀ d P, NF d t P ↔ NF d u P`.  Reading this as equality of the
+infinitary normal forms `t^∞ = u^∞` uses S3's identification of `NF` prefixes with the strongly
+convergent limit, which is not formalized here.
+
+`Cong t t'` with base pairs of different fillers is the many-filler form of the theorem
+(`cong_eqv`); `eqv_ctx` is the single-filler corollary.
 
 The note proves Theorem C with open terms and `≈`-substitutions.  Here the simulation runs on
 closed terms instead.  `Cong t t'` is the least relation that contains `≈` on pure S-terms and is
@@ -27,7 +32,9 @@ Every case split on kinds is on the decidable `fold f = 36`; no `Classical.choic
 namespace Congruence
 open HnfS HnfSound TopTerm InfNF
 
-/-- Tree equality: equal prefixes of the infinitary normal form at every depth. -/
+/-- Tree equality: equal `NF` prefixes at every depth.  Meaningful only on pure S-terms (`PureS`):
+off `PureS` it collapses (e.g. `Eqv K I` holds, since neither has a prefix beyond depth 0), and
+every theorem below that needs it assumes `PureS`. -/
 def Eqv (t u : Term) : Prop := ∀ d P, NF d t P ↔ NF d u P
 
 theorem Eqv.refl (t : Term) : Eqv t t := fun _ _ => Iff.rfl
