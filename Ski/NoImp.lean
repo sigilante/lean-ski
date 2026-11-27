@@ -218,7 +218,7 @@ theorem comb {t c : Term} (ht : PureS t) (h : Steps t (S ⬝ S ⬝ c)) :
 /-- **B3.** `{y : β y 12 = 25} = {11, 12, 13}`. -/
 theorem B3 : ∀ y, y < 38 → (β y 12 = 25 ↔ y = 11 ∨ y = 12 ∨ y = 13) := by decide +kernel
 
-/-- **B4, kind 1.** A block `β 0 α` is never `12` or `13`.  (Stated for B4 as written; not used: `noimp` excludes kind 1 in every case by the c-child block argument `k1`.) -/
+/-- **B4, kind 1.** A block `β 0 α` is never `12` or `13`.  (Stated for B4 as written; not used: `noimp` excludes kind 1 in every case by the c-child block argument (the local `k1` in `noimp`).) -/
 theorem B4_one : ∀ a, a < 38 → β 0 a ≠ 12 ∧ β 0 a ≠ 13 := by decide +kernel
 
 /-- **B4, kind 2.** A block `β (β 0 α) γ` is never `11`; it is `12` only with `α = 0`, and `13`
