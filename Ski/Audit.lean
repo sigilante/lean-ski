@@ -361,6 +361,7 @@ import Ski.NcfpC
 import Ski.Lock1Tables
 import Ski.Congruence
 import Ski.FFBlock
+import Ski.NoImp
 
 /-!
 # The audit manifest — build-enforced
@@ -2153,3 +2154,33 @@ open Ski.Audit
 
 /-- info: 'FFBlock.eq_tower' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in #print axioms FFBlock.eq_tower
+
+-- Lock 1, Theorem NOIMP and Lock 1 on the b-family (notes/LOCK1-FFALL.md §T5, WT5.1–10): `Y (G m) ≈ G i (G m)`, `m ≥ 1`, gives `Y = G i` (NoImp.noimp); `u ≈ N n j` gives `u` convertible to `N n j` (NoImp.lock1_N)
+#audit_clean
+  NoImp.G NoImp.N NoImp.appS NoImp.appS_cons NoImp.G_pure NoImp.G_inj NoImp.G_ne_appS
+  NoImp.normal_S NoImp.normal_S1 NoImp.normal_S2 NoImp.G_normal NoImp.normal_wsteps
+  NoImp.nf_reduces NoImp.G_eqv_inj NoImp.no_step_S NoImp.no_step_S1 NoImp.step_into_S2
+  NoImp.last_step NoImp.step_comb NoImp.comb_gen NoImp.comb NoImp.B3 NoImp.B4_one
+  NoImp.B4_two NoImp.pre13 NoImp.pre2 NoImp.pre1 NoImp.eq_SS_of_fold NoImp.rig13
+  NoImp.fold_G_succ NoImp.fold_GG NoImp.tA NoImp.tG NoImp.tA_ge NoImp.G_hnf NoImp.hnf_det
+  NoImp.match_target NoImp.noimp NoImp.eqv_G NoImp.lock1_G NoImp.lock1_G_conv NoImp.lock1_N
+/-- info: 'NoImp.noimp' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms NoImp.noimp
+
+/-- info: 'NoImp.lock1_N' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms NoImp.lock1_N
+
+/-- info: 'NoImp.lock1_G' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms NoImp.lock1_G
+
+/-- info: 'NoImp.eqv_G' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms NoImp.eqv_G
+
+/-- info: 'NoImp.comb' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms NoImp.comb
+
+/-- info: 'NoImp.nf_reduces' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms NoImp.nf_reduces
+
+/-- info: 'NoImp.rig13' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms NoImp.rig13
