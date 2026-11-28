@@ -362,6 +362,7 @@ import Ski.Lock1Tables
 import Ski.Congruence
 import Ski.FFBlock
 import Ski.NoImp
+import Ski.PureSBasics
 
 /-!
 # The audit manifest — build-enforced
@@ -2184,3 +2185,60 @@ open Ski.Audit
 
 /-- info: 'NoImp.rig13' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in #print axioms NoImp.rig13
+
+-- Pure-S folklore for S16 (notes/LOCK1-RELCOMP.md with W1–W16): leaf-count monotonicity and no rearrangement (W4); no fixed-point combinator (Cor. RC (e) as repaired by W3); Theorem PEEL over pure S with variables (W2)
+#audit_clean
+  PureSBasics.leaves PureSBasics.leaves_pos PureSBasics.leaves_contract PureSBasics.wstep_leaves PureSBasics.wsteps_pure PureSBasics.wsteps_leaves
+  PureSBasics.no_wsteps_of_lt PureSBasics.apps PureSBasics.lsum PureSBasics.leaves_apps PureSBasics.apps_pure PureSBasics.lsum_append PureSBasics.lsum_perm
+  PureSBasics.lsum_sublist PureSBasics.Linear PureSBasics.Linear.leaves_eq PureSBasics.Linear.apps PureSBasics.no_rearrangement PureSBasics.no_rel_perm
+  PureSBasics.no_rel_I PureSBasics.no_rel_K PureSBasics.no_rel_T PureSBasics.no_rel_C PureSBasics.no_rel_B PureSBasics.wsteps_S PureSBasics.wsteps_S1 PureSBasics.wsteps_S2
+  PureSBasics.steps_to_S1 PureSBasics.conv_one_item PureSBasics.not_conv_SS PureSBasics.conv_YS_one_item PureSBasics.no_fixed_point_S
+  PureSBasics.no_fixed_point PureSBasics.Open.VTerm PureSBasics.Open.VStep PureSBasics.Open.VSteps PureSBasics.Open.VSteps.left PureSBasics.Open.emb PureSBasics.Open.emb_wstep PureSBasics.Open.emb_wsteps
+  PureSBasics.Open.occ PureSBasics.Open.vleaves PureSBasics.Open.vleaves_pos PureSBasics.Open.vstep_occ PureSBasics.Open.vstep_occ_zero PureSBasics.Open.vsteps_occ PureSBasics.Open.vstep_leaves
+  PureSBasics.Open.vsteps_leaves PureSBasics.Open.vapps PureSBasics.Open.vleaves_vapps PureSBasics.Open.vsteps_vapps PureSBasics.Open.peel_one PureSBasics.Open.peel PureSBasics.Open.no_vsteps_of_lt
+  PureSBasics.Open.no_rel_I PureSBasics.Open.no_rel_K PureSBasics.Open.no_rel_T PureSBasics.Open.no_rel_C PureSBasics.Open.no_rel_B
+
+/-- info: 'PureSBasics.wstep_leaves' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms PureSBasics.wstep_leaves
+
+/-- info: 'PureSBasics.no_rearrangement' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms PureSBasics.no_rearrangement
+
+/-- info: 'PureSBasics.no_rel_perm' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms PureSBasics.no_rel_perm
+
+/-- info: 'PureSBasics.no_rel_I' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms PureSBasics.no_rel_I
+
+/-- info: 'PureSBasics.no_rel_K' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms PureSBasics.no_rel_K
+
+/-- info: 'PureSBasics.no_rel_T' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms PureSBasics.no_rel_T
+
+/-- info: 'PureSBasics.no_rel_C' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms PureSBasics.no_rel_C
+
+/-- info: 'PureSBasics.no_rel_B' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms PureSBasics.no_rel_B
+
+/-- info: 'PureSBasics.conv_one_item' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms PureSBasics.conv_one_item
+
+/-- info: 'PureSBasics.no_fixed_point_S' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms PureSBasics.no_fixed_point_S
+
+/-- info: 'PureSBasics.no_fixed_point' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms PureSBasics.no_fixed_point
+
+/-- info: 'PureSBasics.Open.peel' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms PureSBasics.Open.peel
+
+/-- info: 'PureSBasics.Open.no_rel_I' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms PureSBasics.Open.no_rel_I
+
+/-- info: 'PureSBasics.Open.no_rel_C' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms PureSBasics.Open.no_rel_C
+
+/-- info: 'PureSBasics.Open.no_rel_B' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms PureSBasics.Open.no_rel_B

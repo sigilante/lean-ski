@@ -170,6 +170,7 @@ import Ski.S10Audit
 import Ski.Congruence
 import Ski.FFBlock
 import Ski.NoImp
+import Ski.PureSBasics
 import Ski.Graph
 import Ski.RWMem
 import Ski.GraphMem
