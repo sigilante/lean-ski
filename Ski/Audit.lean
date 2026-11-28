@@ -2195,7 +2195,7 @@ open Ski.Audit
   PureSBasics.steps_to_S1 PureSBasics.conv_one_item PureSBasics.not_conv_SS PureSBasics.conv_YS_one_item PureSBasics.no_fixed_point_S
   PureSBasics.no_fixed_point PureSBasics.Open.VTerm PureSBasics.Open.VStep PureSBasics.Open.VSteps PureSBasics.Open.VSteps.left PureSBasics.Open.emb PureSBasics.Open.emb_wstep PureSBasics.Open.emb_wsteps
   PureSBasics.Open.occ PureSBasics.Open.vleaves PureSBasics.Open.vleaves_pos PureSBasics.Open.vstep_occ PureSBasics.Open.vstep_occ_zero PureSBasics.Open.vsteps_occ PureSBasics.Open.vstep_leaves
-  PureSBasics.Open.vsteps_leaves PureSBasics.Open.vapps PureSBasics.Open.vleaves_vapps PureSBasics.Open.vsteps_vapps PureSBasics.Open.peel_one PureSBasics.Open.peel PureSBasics.Open.no_vsteps_of_lt
+  PureSBasics.Open.vsteps_leaves PureSBasics.Open.vapps PureSBasics.Open.vleaves_vapps PureSBasics.Open.vsteps_vapps PureSBasics.Open.occ_two PureSBasics.Open.peel_one PureSBasics.Open.peel PureSBasics.Open.no_vsteps_of_lt PureSBasics.Open.no_short PureSBasics.Open.no_rel_perm
   PureSBasics.Open.no_rel_I PureSBasics.Open.no_rel_K PureSBasics.Open.no_rel_T PureSBasics.Open.no_rel_C PureSBasics.Open.no_rel_B
 
 /-- info: 'PureSBasics.wstep_leaves' depends on axioms: [propext, Quot.sound] -/
@@ -2242,3 +2242,9 @@ open Ski.Audit
 
 /-- info: 'PureSBasics.Open.no_rel_B' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in #print axioms PureSBasics.Open.no_rel_B
+
+/-- info: 'PureSBasics.Open.no_short' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms PureSBasics.Open.no_short
+
+/-- info: 'PureSBasics.Open.no_rel_perm' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms PureSBasics.Open.no_rel_perm

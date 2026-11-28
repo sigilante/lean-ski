@@ -26,7 +26,9 @@ No pure-S `Y` has `Y f` convertible to `f (Y f)` for every pure-S `f`.  The proo
 `S a` (`NoImp.no_step_S1`), so a pure-S term convertible to `S N` is literally `S a`
 (`conv_one_item`), by Church–Rosser and standardization (`eval_back`).  Then `Y S = S a` forces
 `Y = S`, and `S S`, `S (S S)` are distinct normal forms.  This is G2 at a closed head: `S`
-with one argument plays the variable.
+with one argument plays the variable.  `no_fixed_point` has the same statement as `Ncfp.no_fpc`,
+and `no_fixed_point_S` as `Ncfp.no_fixed_point_combinator`; these are independent short proofs
+via `conv_one_item`, without NCFP.
 
 **3. PEEL** (`Open.peel`; RELCOMP Theorem PEEL, W2).  `Term` has no variables, and no closed
 term can stand in for a fresh one: a closed atom other than `S` is `K` or `I`, which erase
@@ -276,7 +278,9 @@ theorem steps_to_S1 {t a : Term} (ht : PureS t) (h : Steps t (S ⬝ a)) : t = S 
       exact absurd s (NoImp.no_step_S1 ht)
   exact key h ht rfl
 
-/-- A pure-S term convertible to a one-item frame `S N` is, as written, a one-item frame `S a`. -/
+/-- A pure-S term convertible to a one-item frame `S N` is, as written, a one-item frame `S a`.
+    `N` is arbitrary.  For pure-S `N`, `Ncfp.hnf1_conv` (NcfpTheta.lean) gives more: also
+    `a` convertible to `N`. -/
 theorem conv_one_item {t N : Term} (ht : PureS t) (h : Convertible t (S ⬝ N)) :
     ∃ a, t = S ⬝ a := by
   obtain ⟨w, htw, hNw⟩ := conv_iff_join.mp h
@@ -307,7 +311,8 @@ theorem conv_YS_one_item {Y N : Term} (hY : PureS Y) (h : Convertible (Y ⬝ S) 
   obtain ⟨a, ha⟩ := conv_one_item (.app hY .S) h
   injection ha
 
-/-- No pure-S `Y` has `Y S` convertible to `S (Y S)`. -/
+/-- No pure-S `Y` has `Y S` convertible to `S (Y S)`.  Same statement as
+    `Ncfp.no_fixed_point_combinator`; an independent short proof via `conv_one_item`, without NCFP. -/
 theorem no_fixed_point_S {Y : Term} (hY : PureS Y) : ¬ Convertible (Y ⬝ S) (S ⬝ (Y ⬝ S)) := by
   intro h
   have e := conv_YS_one_item hY h
@@ -315,7 +320,8 @@ theorem no_fixed_point_S {Y : Term} (hY : PureS Y) : ¬ Convertible (Y ⬝ S) (S
   exact not_conv_SS h
 
 /-- **Pure S has no fixed-point combinator**, even for weak convertibility: no pure-S `Y` has
-    `Y f` convertible to `f (Y f)` for every pure-S `f`.  (Only `f = S` is used.) -/
+    `Y f` convertible to `f (Y f)` for every pure-S `f`.  (Only `f = S` is used.)
+    Same statement as `Ncfp.no_fpc`; an independent short proof via `conv_one_item`, without NCFP. -/
 theorem no_fixed_point :
     ¬ ∃ Y, PureS Y ∧ ∀ f, PureS f → Convertible (Y ⬝ f) (f ⬝ (Y ⬝ f)) :=
   fun ⟨_, hY, h⟩ => no_fixed_point_S hY (h S .S)
@@ -538,6 +544,23 @@ theorem no_rel_B (M : VTerm) (x y z : Nat) (ws : List Nat) :
   rw [vleaves_vapps, vleaves_vapps]
   have := vleaves_pos M
   simp only [vleaves]
+  omega
+
+/-- No term applied to `r` variables reduces to a term with at most `r` leaves. -/
+theorem no_short (M N : VTerm) (ws : List Nat) (h : vleaves N ≤ ws.length) :
+    ¬ VSteps (vapps M ws) N := by
+  apply no_vsteps_of_lt
+  rw [vleaves_vapps]
+  have := vleaves_pos M
+  omega
+
+/-- No relative permutation over open terms, the identity included: `M x⃗ ↠ y y⃗` is impossible
+    whenever `y :: y⃗` is a permutation of `x⃗` (variables, not assumed distinct). -/
+theorem no_rel_perm (M : VTerm) {y : Nat} {xs ys : List Nat} (hp : (y :: ys).Perm xs) :
+    ¬ VSteps (vapps M xs) (vapps (.var y) ys) := by
+  apply no_short
+  rw [vleaves_vapps, ← hp.length_eq]
+  simp only [vleaves, List.length_cons]
   omega
 
 end Open
