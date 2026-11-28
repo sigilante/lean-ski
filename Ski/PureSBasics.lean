@@ -2,11 +2,11 @@ import Ski.NoImp
 open Term
 
 /-!
-# Folklore facts about pure S: leaf count, no fixed-point combinator, PEEL
+# Facts about pure S: leaf count, no fixed-point combinator (both known), PEEL
 
 Three facts about the combinator S alone, for the S16 paper (`notes/LOCK1-RELCOMP.md`, with
-the Wizard repairs W1–W16 at its end).  They are folklore or near-folklore (W16: Zachos 1978,
-Waldmann 2000 and *Dance of the Starlings* 2017 are the places to check); they are mechanized
+the Wizard repairs W1–W16 at its end).  Leaf count and the absence of a fixed-point combinator are known (W16: Zachos 1978,
+Waldmann 2000, *Dance of the Starlings* 2017); no published statement of PEEL is known to us. All are mechanized
 here so that the paper can cite them from the gate.
 
 **1. Leaf count** (`wstep_leaves`, `wsteps_leaves`; RELCOMP W4).  A weak step of a pure-S term
@@ -25,13 +25,13 @@ No pure-S `Y` has `Y f` convertible to `f (Y f)` for every pure-S `f`.  The proo
 `f = S` (`no_fixed_point_S`): a head step of a pure-S term never yields a one-item frame
 `S a` (`NoImp.no_step_S1`), so a pure-S term convertible to `S N` is literally `S a`
 (`conv_one_item`), by Church–Rosser and standardization (`eval_back`).  Then `Y S = S a` forces
-`Y = S`, and `S S`, `S (S S)` are distinct normal forms.  This is G2 at a closed head: `S`
+`Y = S`, and `S S`, `S (S S)` are distinct normal forms.  This is G2 (RELCOMP §1.2) at a closed head: `S`
 with one argument plays the variable.  `no_fixed_point` has the same statement as `Ncfp.no_fpc`,
 and `no_fixed_point_S` as `Ncfp.no_fixed_point_combinator`; these are independent short proofs
 via `conv_one_item`, without NCFP.
 
 **3. PEEL** (`Open.peel`; RELCOMP Theorem PEEL, W2).  `Term` has no variables, and no closed
-term can stand in for a fresh one: a closed atom other than `S` is `K` or `I`, which erase
+term can stand in for a fresh one: a closed atom other than `S` is `K` or `I`, which vanish
 when they reach the head (`S I x y → I y (x y)`), and occurrences of a pure-S subterm are not
 conserved.  So PEEL is stated over `Open.VTerm`, pure S with variables, whose step is the
 S-rule at any position (`Open.emb_wstep` maps pure-S weak steps onto it).  For distinct
